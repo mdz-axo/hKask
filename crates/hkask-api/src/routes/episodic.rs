@@ -5,12 +5,13 @@
 //! `DelegationToken` via the HTTP auth middleware (`AuthContext`).
 
 use axum::extract::Extension;
-use axum::{Json, extract::Query, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::Query, extract::State, routing::Router};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Create episodic memory router
 pub fn episodic_router() -> Router<ApiState> {
@@ -77,21 +78,6 @@ pub struct EpisodicUsageResponse {
     pub budget: usize,
 }
 
-fn error_response(
-    status: StatusCode,
-    code: &str,
-    message: &str,
-) -> (StatusCode, Json<ErrorResponse>) {
-    (
-        status,
-        Json(ErrorResponse {
-            error: "episodic_operation_failed".to_string(),
-            code: code.to_string(),
-            details: Some(serde_json::json!({ "message": message })),
-        }),
-    )
-}
-
 /// Store an episodic triple for the authenticated caller.
 ///
 /// Routes through `EpisodicStoragePort` with OCAP discipline:
@@ -112,13 +98,11 @@ async fn store_episode(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<StoreEpisodeRequest>,
-) -> Result<Json<StoreEpisodeResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<StoreEpisodeResponse>, ApiError> {
     if req.entity.is_empty() || req.attribute.is_empty() {
-        return Err(error_response(
-            StatusCode::BAD_REQUEST,
-            "EPISODIC_BAD_REQUEST",
-            "entity and attribute must not be empty",
-        ));
+        return Err(ApiError::BadRequest {
+            message: "entity and attribute must not be empty".to_string(),
+        });
     }
 
     let confidence = req.confidence.unwrap_or(1.0);
@@ -135,17 +119,13 @@ async fn store_episode(
         .map_err(|e| {
             // Map OCAP denial to 403, storage errors to 500
             if e.to_string().contains("denied") || e.to_string().contains("read-only") {
-                error_response(
-                    StatusCode::FORBIDDEN,
-                    "EPISODIC_CAPABILITY_DENIED",
-                    &e.to_string(),
-                )
+                ApiError::Forbidden {
+                    reason: e.to_string(),
+                }
             } else {
-                error_response(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "EPISODIC_STORE_ERROR",
-                    &e.to_string(),
-                )
+                ApiError::Internal {
+                    message: e.to_string(),
+                }
             }
         })?;
 
@@ -186,13 +166,11 @@ async fn query_episodes(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<QueryEpisodesParams>,
-) -> Result<Json<QueryEpisodesResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<QueryEpisodesResponse>, ApiError> {
     if params.entity.is_empty() {
-        return Err(error_response(
-            StatusCode::BAD_REQUEST,
-            "EPISODIC_BAD_REQUEST",
-            "entity query parameter must not be empty",
-        ));
+        return Err(ApiError::BadRequest {
+            message: "entity query parameter must not be empty".to_string(),
+        });
     }
 
     let results = state
@@ -200,17 +178,13 @@ async fn query_episodes(
         .recall_episodic(&params.entity, &auth.webid, &auth.token)
         .map_err(|e| {
             if e.to_string().contains("denied") {
-                error_response(
-                    StatusCode::FORBIDDEN,
-                    "EPISODIC_CAPABILITY_DENIED",
-                    &e.to_string(),
-                )
+                ApiError::Forbidden {
+                    reason: e.to_string(),
+                }
             } else {
-                error_response(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "EPISODIC_QUERY_ERROR",
-                    &e.to_string(),
-                )
+                ApiError::Internal {
+                    message: e.to_string(),
+                }
             }
         })?;
 
@@ -268,16 +242,12 @@ async fn query_episodes(
 async fn storage_usage(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<EpisodicUsageResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<EpisodicUsageResponse>, ApiError> {
     let count = state
         .episodic_storage
         .episodic_storage_usage(&auth.webid)
-        .map_err(|e| {
-            error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "EPISODIC_USAGE_ERROR",
-                &e.to_string(),
-            )
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
         })?;
     let budget = state.episodic_storage.episodic_storage_budget();
 

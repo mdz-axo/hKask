@@ -60,10 +60,13 @@ use utoipa::OpenApi;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 
+pub mod error;
 pub mod middleware;
 pub mod openapi;
 pub mod routes;
 pub mod soap_config;
+
+pub use error::ApiError;
 
 // Re-export route types for OpenAPI schema generation
 pub use routes::{AcpRegisterRequest, AcpRegisterResponse};

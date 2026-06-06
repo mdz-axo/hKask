@@ -90,39 +90,33 @@ impl AgentRegistryStore {
              FROM agent_registry ORDER BY name",
         )?;
 
-        let mapped: Vec<_> = stmt
-            .query_map([], |row| {
-                let definition_json: String = row.get(0)?;
-                let token_hash: String = row.get(1)?;
-                let registered_at: String = row.get(2)?;
-                let source_yaml: String = row.get(3)?;
-                Ok((definition_json, token_hash, registered_at, source_yaml))
-            })?
-            .collect();
-
-        let mut agents = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok((def_json, token_hash, registered_at, source_yaml)) => {
-                    match serde_json::from_str::<AgentDefinition>(&def_json) {
-                        Ok(definition) => agents.push(RegisteredAgent {
-                            definition,
-                            token_hash,
-                            registered_at,
-                            source_yaml,
-                        }),
-                        Err(e) => tracing::warn!(
-                            target: "hkask.storage",
-                            error = %e,
-                            "Skipping agent with unparseable definition JSON"
-                        ),
+        let agents = collect_rows!(
+            stmt,
+            [],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<(String, String, String, String)> {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            },
+            |(def_json, token_hash, registered_at, source_yaml): (
+                String,
+                String,
+                String,
+                String
+            )| {
+                serde_json::from_str::<AgentDefinition>(&def_json).map(|definition| {
+                    RegisteredAgent {
+                        definition,
+                        token_hash,
+                        registered_at,
+                        source_yaml,
                     }
-                }
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
+                })
             }
-        }
+        );
 
         Ok(agents)
     }
@@ -137,39 +131,33 @@ impl AgentRegistryStore {
              FROM agent_registry WHERE agent_kind = ?1 ORDER BY name",
         )?;
 
-        let mapped: Vec<_> = stmt
-            .query_map(rusqlite::params![kind], |row| {
-                let definition_json: String = row.get(0)?;
-                let token_hash: String = row.get(1)?;
-                let registered_at: String = row.get(2)?;
-                let source_yaml: String = row.get(3)?;
-                Ok((definition_json, token_hash, registered_at, source_yaml))
-            })?
-            .collect();
-
-        let mut agents = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok((def_json, token_hash, registered_at, source_yaml)) => {
-                    match serde_json::from_str::<AgentDefinition>(&def_json) {
-                        Ok(definition) => agents.push(RegisteredAgent {
-                            definition,
-                            token_hash,
-                            registered_at,
-                            source_yaml,
-                        }),
-                        Err(e) => tracing::warn!(
-                            target: "hkask.storage",
-                            error = %e,
-                            "Skipping agent with unparseable definition JSON"
-                        ),
+        let agents = collect_rows!(
+            stmt,
+            rusqlite::params![kind],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<(String, String, String, String)> {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            },
+            |(def_json, token_hash, registered_at, source_yaml): (
+                String,
+                String,
+                String,
+                String
+            )| {
+                serde_json::from_str::<AgentDefinition>(&def_json).map(|definition| {
+                    RegisteredAgent {
+                        definition,
+                        token_hash,
+                        registered_at,
+                        source_yaml,
                     }
-                }
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
+                })
             }
-        }
+        );
 
         Ok(agents)
     }

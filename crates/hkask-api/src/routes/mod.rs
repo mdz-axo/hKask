@@ -72,14 +72,3 @@ pub use spec::{
     SpecValidateRequest, SpecValidateResponse,
 };
 pub use templates::{GrantCapabilityRequest, TemplateResponse};
-
-// Shared helpers
-
-/// Build a JSON error response value with `status`, `code`, and `message` fields.
-pub fn error_response(code: u16, message: &str) -> serde_json::Value {
-    serde_json::json!({
-        "status": "error",
-        "code": code,
-        "message": message,
-    })
-}

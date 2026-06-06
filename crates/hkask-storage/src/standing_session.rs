@@ -170,35 +170,20 @@ impl StandingSessionStore {
              FROM session_messages WHERE session_id = ?1 ORDER BY id ASC",
         )?;
 
-        let mapped: Vec<_> = stmt
-            .query_map(rusqlite::params![session_id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, Option<String>>(5)?,
-                ))
-            })?
-            .collect();
-
-        let mut messages = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(m) => messages.push(StoredMessage {
-                    id: m.0,
-                    session_id: m.1,
-                    from_webid: m.2,
-                    content: m.3,
-                    timestamp: m.4,
-                    template_id: m.5,
-                }),
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
+        let messages = collect_rows!(
+            stmt,
+            rusqlite::params![session_id],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<StoredMessage> {
+                Ok(StoredMessage {
+                    id: row.get(0)?,
+                    session_id: row.get(1)?,
+                    from_webid: row.get(2)?,
+                    content: row.get(3)?,
+                    timestamp: row.get(4)?,
+                    template_id: row.get(5)?,
+                })
             }
-        }
+        );
 
         Ok(messages)
     }

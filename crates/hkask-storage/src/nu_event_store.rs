@@ -210,20 +210,7 @@ impl NuEventStore {
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
 
-        let mapped: Vec<Result<NuEvent, rusqlite::Error>> = stmt
-            .query_map(param_refs.as_slice(), row_to_nu_event)
-            .map_err(NuEventError::from)?
-            .collect();
-
-        let mut events = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(event) => events.push(event),
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
+        let events = collect_rows!(stmt, param_refs.as_slice(), row_to_nu_event);
 
         Ok(events)
     }

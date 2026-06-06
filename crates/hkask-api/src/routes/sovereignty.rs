@@ -1,13 +1,14 @@
 //! User sovereignty routes
 
 use axum::extract::Extension;
-use axum::{Json, extract::Query, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::Query, extract::State, routing::Router};
 use hkask_types::DataCategory;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Create sovereignty router
 pub fn sovereignty_router() -> Router<ApiState> {
@@ -95,7 +96,7 @@ pub struct AccessCheckResponse {
 async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<SovereigntyStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
     use hkask_types::UserSovereigntyState;
     let sovereignty_state = UserSovereigntyState::new();
 
@@ -157,7 +158,7 @@ async fn sovereignty_grant_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
-) -> Result<Json<SovereigntyConsentResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
     let category_str = req.category.unwrap_or_else(|| "all".to_string());
     let category = parse_data_category(&category_str);
@@ -165,15 +166,8 @@ async fn sovereignty_grant_consent(
     state
         .consent_manager
         .grant_consent(&webid_str, &category)
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "consent_grant_failed".to_string(),
-                    code: "SOVEREIGNTY_ERROR".to_string(),
-                    details: Some(serde_json::json!({ "message": e.to_string() })),
-                }),
-            )
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
         })?;
 
     let granted = state
@@ -208,32 +202,10 @@ async fn sovereignty_grant_consent(
 async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<SovereigntyConsentResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
 
-    state
-        .consent_manager
-        .revoke_consent(&webid_str)
-        .map_err(|e| match e {
-            hkask_agents::ConsentError::ConsentNotFound(_) => (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "consent_not_found".to_string(),
-                    code: "SOVEREIGNTY_NOT_FOUND".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("No consent record found for WebID: {}", webid_str)
-                    })),
-                }),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "consent_revoke_failed".to_string(),
-                    code: "SOVEREIGNTY_ERROR".to_string(),
-                    details: Some(serde_json::json!({ "message": e.to_string() })),
-                }),
-            ),
-        })?;
+    state.consent_manager.revoke_consent(&webid_str)?;
 
     Ok(Json(SovereigntyConsentResponse {
         consent: false,
@@ -287,21 +259,14 @@ async fn sovereignty_check_access(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<AccessCheckResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<AccessCheckResponse>, ApiError> {
     use hkask_types::UserSovereigntyState;
 
     let category_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if category_str.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_parameter".to_string(),
-                code: "SOVEREIGNTY_BAD_REQUEST".to_string(),
-                details: Some(serde_json::json!({
-                    "message": "Missing required query parameter: category"
-                })),
-            }),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Missing required query parameter: category".to_string(),
+        });
     }
 
     let state = UserSovereigntyState::new();

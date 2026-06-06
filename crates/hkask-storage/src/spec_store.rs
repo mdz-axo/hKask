@@ -69,32 +69,40 @@ impl SpecStore for SqliteSpecStore {
     fn list_all(&self) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs")?;
-        let rows = stmt.query_map([], |row| {
-            let data: String = row.get(0)?;
-            Ok(data)
-        })?;
-        let mut specs = Vec::new();
-        for row in rows {
-            let data = row?;
-            let spec: Spec = serde_json::from_str(&data)?;
-            specs.push(spec);
-        }
+        let specs = collect_rows!(
+            stmt,
+            [],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<Spec> {
+                let data: String = row.get(0)?;
+                serde_json::from_str(&data).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        0,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
+                })
+            }
+        );
         Ok(specs)
     }
 
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE category = ?1")?;
-        let rows = stmt.query_map(rusqlite::params![cat.as_str()], |row| {
-            let data: String = row.get(0)?;
-            Ok(data)
-        })?;
-        let mut specs = Vec::new();
-        for row in rows {
-            let data = row?;
-            let spec: Spec = serde_json::from_str(&data)?;
-            specs.push(spec);
-        }
+        let specs = collect_rows!(
+            stmt,
+            rusqlite::params![cat.as_str()],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<Spec> {
+                let data: String = row.get(0)?;
+                serde_json::from_str(&data).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        0,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
+                })
+            }
+        );
         Ok(specs)
     }
 }

@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Extension, Json, extract::State};
 use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-use super::error_response;
+use crate::ApiError;
 use crate::ApiState;
 
 /// Minimum seconds between consolidation requests to the API.
@@ -31,7 +31,7 @@ const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
 /// headless system, this is sufficient.
 static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
 
-fn check_rate_limit() -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+fn check_rate_limit() -> Result<(), ApiError> {
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -39,13 +39,9 @@ fn check_rate_limit() -> Result<(), (StatusCode, Json<serde_json::Value>)> {
     let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
     if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
         let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
-        Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(error_response(
-                429,
-                &format!("Rate limited: try again in {}s", remaining),
-            )),
-        ))
+        Err(ApiError::BadRequest {
+            message: format!("Rate limited: try again in {}s", remaining),
+        })
     } else {
         LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
         Ok(())
@@ -102,55 +98,38 @@ async fn consolidate(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
-) -> impl axum::response::IntoResponse {
+) -> Result<Json<ConsolidateResponse>, ApiError> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
-    if let Err(rate_limit_response) = check_rate_limit() {
-        return rate_limit_response.into_response();
-    }
+    check_rate_limit()?;
 
     // Parse agent WebID
-    let webid = match req.agent_webid.parse::<WebID>() {
-        Ok(id) => id,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(error_response(
-                    400,
-                    "Invalid agent_webid: must be a valid UUID",
-                )),
-            )
-                .into_response();
-        }
-    };
+    let webid = req
+        .agent_webid
+        .parse::<WebID>()
+        .map_err(|_| ApiError::BadRequest {
+            message: "Invalid agent_webid: must be a valid UUID".to_string(),
+        })?;
 
     // Verify passphrase using the master-passphrase → capability_key derivation chain.
     // This matches onboarding: derive_all_internal_secrets(master_passphrase) produces
     // a capability_key that is stored in the keychain as "hkask-db-passphrase" and used
     // as the DB encryption key. We verify the user-supplied master passphrase by
     // deriving the capability_key and comparing it against the resolved DB passphrase.
-    let expected = match hkask_keystore::resolve_db_passphrase() {
-        Ok(db_pass) => String::from_utf8_lossy(&db_pass).to_string(),
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_response(500, "Server passphrase not configured")),
-            )
-                .into_response();
-        }
-    };
+    let expected = hkask_keystore::resolve_db_passphrase().map_err(|_| ApiError::Internal {
+        message: "Server passphrase not configured".to_string(),
+    })?;
+    let expected_str = String::from_utf8_lossy(&expected).to_string();
     let secrets = hkask_keystore::master_key::derive_all_internal_secrets(&req.passphrase);
-    if secrets.capability_key != expected {
+    if secrets.capability_key != expected_str {
         tracing::warn!(
             target: "api.consolidation",
             agent_webid = %req.agent_webid,
             "Consolidation rejected: passphrase mismatch"
         );
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(error_response(401, "Invalid passphrase")),
-        )
-            .into_response();
+        return Err(ApiError::Unauthorized {
+            reason: "Invalid passphrase".to_string(),
+        });
     }
 
     // Resolve the agent's per-agent memory DB.
@@ -159,26 +138,10 @@ async fn consolidate(
     // Derive the agent name from the WebID for DB path resolution.
     let agent_name = format!("agent-{}", webid);
     let db_path = format!("hkask-memory-{}.db", agent_name);
-    let db_passphrase = expected;
-    let db = match Database::open(&db_path, &db_passphrase) {
-        Ok(db) => db,
-        Err(e) => {
-            tracing::error!(
-                target: "api.consolidation",
-                db_path = %db_path,
-                error = %e,
-                "Failed to open agent memory DB"
-            );
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_response(
-                    500,
-                    &format!("Failed to open agent memory DB: {}", e),
-                )),
-            )
-                .into_response();
-        }
-    };
+    let db_passphrase = expected_str;
+    let db = Database::open(&db_path, &db_passphrase).map_err(|e| ApiError::Internal {
+        message: format!("Failed to open agent memory DB: {}", e),
+    })?;
 
     // Build ConsolidationService from the agent's per-agent memory DB.
     // Same pattern as CLI and REPL: EpisodicMemory + SemanticMemory from
@@ -205,20 +168,13 @@ async fn consolidate(
     };
 
     // Execute via ConsolidationService
-    match service.consolidate(&webid, consolidation_request) {
-        Ok(outcome) => (
-            StatusCode::OK,
-            Json(ConsolidateResponse {
-                consolidated_count: outcome.consolidated_count,
-                deleted_count: outcome.deleted_count,
-                failed_count: outcome.failed_count,
-            }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(error_response(500, &e)),
-        )
-            .into_response(),
-    }
+    let outcome = service
+        .consolidate(&webid, consolidation_request)
+        .map_err(|e| ApiError::Internal { message: e })?;
+
+    Ok(Json(ConsolidateResponse {
+        consolidated_count: outcome.consolidated_count,
+        deleted_count: outcome.deleted_count,
+        failed_count: outcome.failed_count,
+    }))
 }

@@ -171,8 +171,10 @@ impl UserStore {
              FROM user_sessions WHERE replicant_name = ?1 ORDER BY last_active DESC",
         )?;
 
-        let mapped: Vec<_> = stmt
-            .query_map(params![replicant_name], |row| {
+        let sessions = collect_rows!(
+            stmt,
+            params![replicant_name],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<UserSession> {
                 Ok(UserSession {
                     session_id: row.get(0)?,
                     replicant_name: row.get(1)?,
@@ -182,18 +184,8 @@ impl UserStore {
                     expires_at: row.get(5)?,
                     last_active: row.get(6)?,
                 })
-            })?
-            .collect();
-
-        let mut sessions = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(session) => sessions.push(session),
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
             }
-        }
+        );
 
         Ok(sessions)
     }
@@ -255,8 +247,10 @@ impl UserStore {
              FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC",
         )?;
 
-        let mapped: Vec<_> = stmt
-            .query_map(params![user_id], |row| {
+        let replicants = collect_rows!(
+            stmt,
+            params![user_id],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<ReplicantIdentity> {
                 Ok(ReplicantIdentity {
                     replicant_name: row.get(0)?,
                     user_id: row.get::<_, UserID>(1)?,
@@ -268,18 +262,8 @@ impl UserStore {
                     created_at: row.get(7)?,
                     last_login: row.get(8)?,
                 })
-            })?
-            .collect();
-
-        let mut replicants = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(replicant) => replicants.push(replicant),
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
             }
-        }
+        );
 
         Ok(replicants)
     }

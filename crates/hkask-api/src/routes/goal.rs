@@ -7,17 +7,16 @@
 //! telemetry sink.
 
 use axum::extract::Extension;
-use axum::{
-    Json, extract::Path, extract::Query, extract::State, http::StatusCode, routing::Router,
-};
+use axum::{Json, extract::Path, extract::Query, extract::State, routing::Router};
 use hkask_types::goal::GoalState;
 use hkask_types::id::GoalID;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Create goal router
 pub fn goal_router() -> Router<ApiState> {
@@ -60,39 +59,6 @@ pub struct GoalListResponse {
     pub goals: Vec<GoalResponse>,
 }
 
-fn bad_request(message: &str) -> (StatusCode, Json<ErrorResponse>) {
-    (
-        StatusCode::BAD_REQUEST,
-        Json(ErrorResponse {
-            error: "invalid_request".to_string(),
-            code: "GOAL_BAD_REQUEST".to_string(),
-            details: Some(serde_json::json!({ "message": message })),
-        }),
-    )
-}
-
-/// Map a goal repository error to an HTTP response. Authority denials surface
-/// as 403 (and have already emitted CNS telemetry); not-found as 404.
-fn repo_error(e: hkask_storage::GoalRepositoryError) -> (StatusCode, Json<ErrorResponse>) {
-    use hkask_storage::GoalRepositoryError as E;
-    let (status, code) = match &e {
-        E::VisibilityDenied(_) => (StatusCode::FORBIDDEN, "GOAL_DENIED"),
-        E::NotFound(_) => (StatusCode::NOT_FOUND, "GOAL_NOT_FOUND"),
-        E::InvalidTransition(_) | E::MaxDepthExceeded(_) => {
-            (StatusCode::BAD_REQUEST, "GOAL_BAD_REQUEST")
-        }
-        _ => (StatusCode::INTERNAL_SERVER_ERROR, "GOAL_ERROR"),
-    };
-    (
-        status,
-        Json(ErrorResponse {
-            error: "goal_operation_failed".to_string(),
-            code: code.to_string(),
-            details: Some(serde_json::json!({ "message": e.to_string() })),
-        }),
-    )
-}
-
 /// Create a goal owned by the authenticated caller.
 #[utoipa::path(
     post,
@@ -110,15 +76,15 @@ async fn create_goal(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
-) -> Result<Json<GoalResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<GoalResponse>, ApiError> {
     let visibility_str = req.visibility.as_deref().unwrap_or("private");
-    let visibility = Visibility::parse_str(visibility_str)
-        .ok_or_else(|| bad_request("visibility must be private | shared | public"))?;
+    let visibility = Visibility::parse_str(visibility_str).ok_or_else(|| ApiError::BadRequest {
+        message: "visibility must be private | shared | public".to_string(),
+    })?;
 
     let goal = state
         .goal_repo
-        .create_goal(&auth.webid, &req.text, visibility)
-        .map_err(repo_error)?;
+        .create_goal(&auth.webid, &req.text, visibility)?;
 
     Ok(Json(GoalResponse {
         id: goal.id.to_string(),
@@ -147,18 +113,15 @@ async fn list_goals(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<GoalListResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<GoalListResponse>, ApiError> {
     let state_filter = match params.get("state") {
-        Some(s) => {
-            Some(GoalState::parse_str(s).ok_or_else(|| bad_request("invalid state filter"))?)
-        }
+        Some(s) => Some(GoalState::parse_str(s).ok_or_else(|| ApiError::BadRequest {
+            message: "invalid state filter".to_string(),
+        })?),
         None => None,
     };
 
-    let goals = state
-        .goal_repo
-        .list_goals(&auth.webid, state_filter)
-        .map_err(repo_error)?;
+    let goals = state.goal_repo.list_goals(&auth.webid, state_filter)?;
 
     Ok(Json(GoalListResponse {
         goals: goals
@@ -195,18 +158,15 @@ async fn set_goal_state(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
-) -> Result<Json<GoalResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let goal_id = id
-        .parse::<GoalID>()
-        .map_err(|_| bad_request("Invalid goal ID"))?;
-    let new_state = GoalState::parse_str(&req.state).ok_or_else(|| {
-        bad_request("state must be pending | active | completed | blocked | abandoned")
+) -> Result<Json<GoalResponse>, ApiError> {
+    let goal_id = id.parse::<GoalID>().map_err(|_| ApiError::BadRequest {
+        message: "Invalid goal ID".to_string(),
+    })?;
+    let new_state = GoalState::parse_str(&req.state).ok_or_else(|| ApiError::BadRequest {
+        message: "state must be pending | active | completed | blocked | abandoned".to_string(),
     })?;
 
-    state
-        .goal_repo
-        .update_goal_state(goal_id, new_state)
-        .map_err(repo_error)?;
+    state.goal_repo.update_goal_state(goal_id, new_state)?;
 
     Ok(Json(GoalResponse {
         id: goal_id.to_string(),

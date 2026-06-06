@@ -296,25 +296,17 @@ impl SqliteGoalRepository {
 
     /// List goals for a WebID, optionally filtered by state.
     pub fn list_goals(&self, webid: &WebID, state_filter: Option<GoalState>) -> Result<Vec<Goal>> {
-        let mut goals = Vec::new();
-
         let conn = self.lock_conn()?;
-        match state_filter {
+        let goals = match state_filter {
             Some(state) => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
-                let rows = stmt.query_map((webid, state), |row| Self::goal_from_row(row))?;
-                for goal in rows.flatten() {
-                    goals.push(goal);
-                }
+                collect_rows!(stmt, (webid, state), Self::goal_from_row)
             }
             None => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE webid = ?1 ORDER BY created_at DESC")?;
-                let rows = stmt.query_map([webid], Self::goal_from_row)?;
-                for goal in rows.flatten() {
-                    goals.push(goal);
-                }
+                collect_rows!(stmt, [webid], Self::goal_from_row)
             }
-        }
+        };
 
         Ok(goals)
     }
@@ -368,10 +360,19 @@ impl SqliteGoalRepository {
             })
         })?;
 
-        let mut criteria = Vec::new();
-        for criterion in rows.flatten() {
-            criteria.push(criterion);
-        }
+        let criteria = collect_rows!(
+            stmt,
+            [goal_id],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<GoalCriterion> {
+                Ok(GoalCriterion {
+                    id: row.get(0)?,
+                    goal_id: row.get(1)?,
+                    criterion_type: row.get(2)?,
+                    description: row.get(3)?,
+                    satisfied: row.get::<_, i32>(4)? != 0,
+                })
+            }
+        );
 
         Ok(criteria)
     }
@@ -395,10 +396,24 @@ impl SqliteGoalRepository {
             })
         })?;
 
-        let mut artifacts = Vec::new();
-        for artifact in rows.flatten() {
-            artifacts.push(artifact);
-        }
+        let artifacts = collect_rows!(
+            stmt,
+            [goal_id],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<GoalArtifact> {
+                Ok(GoalArtifact {
+                    id: row.get(0)?,
+                    goal_id: row.get(1)?,
+                    artifact_ref: row.get(2)?,
+                    artifact_type: row.get(3)?,
+                    created_at: {
+                        let raw: String = row.get(4)?;
+                        chrono::DateTime::parse_from_rfc3339(&raw)
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .map_err(|_| corrupt_column(4, &raw))?
+                    },
+                })
+            }
+        );
 
         Ok(artifacts)
     }
@@ -436,12 +451,7 @@ impl SqliteGoalRepository {
     pub fn get_subgoals(&self, parent_id: GoalID) -> Result<Vec<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
-        let rows = stmt.query_map([parent_id], Self::goal_from_row)?;
-
-        let mut subgoals = Vec::new();
-        for goal in rows.flatten() {
-            subgoals.push(goal);
-        }
+        let subgoals = collect_rows!(stmt, [parent_id], Self::goal_from_row);
 
         Ok(subgoals)
     }
@@ -580,8 +590,10 @@ impl SqliteGoalRepository {
         let mut stmt = conn.prepare(
             "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals ORDER BY quarantined_at DESC",
         )?;
-        let mapped: Vec<_> = stmt
-            .query_map([], |row| {
+        let goals = collect_rows!(
+            stmt,
+            [],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<QuarantinedGoal> {
                 Ok(QuarantinedGoal {
                     id: row.get(0)?,
                     original_data: row.get(1)?,
@@ -592,18 +604,8 @@ impl SqliteGoalRepository {
                     repair_attempts: row.get::<_, u32>(4)?,
                     repaired: row.get::<_, i32>(5)? != 0,
                 })
-            })?
-            .collect();
-
-        let mut goals = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(goal) => goals.push(goal),
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
             }
-        }
+        );
 
         Ok(goals)
     }
