@@ -125,15 +125,6 @@ impl Dampener {
         }
     }
 
-    /// Create a dampener with a custom override cooldown.
-    ///
-    /// Useful for testing: set a short cooldown to avoid sleeping in tests.
-    #[allow(dead_code)]
-    pub(crate) fn with_override_cooldown(mut self, cooldown: Duration) -> Self {
-        self.override_cooldown = cooldown;
-        self
-    }
-
     /// Check if a directive should be dampened (suppressed).
     ///
     /// Two dampening layers are applied in order:
@@ -198,6 +189,15 @@ impl Dampener {
 impl Default for Dampener {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+impl Dampener {
+    /// Create a dampener with a custom override cooldown (test-only).
+    fn with_override_cooldown(mut self, cooldown: Duration) -> Self {
+        self.override_cooldown = cooldown;
+        self
     }
 }
 

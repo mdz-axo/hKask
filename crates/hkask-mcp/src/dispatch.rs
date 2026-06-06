@@ -44,24 +44,6 @@ pub struct McpDispatcher {
 }
 
 impl McpDispatcher {
-    /// Create a dispatcher with a runtime and a secret for the capability checker.
-    ///
-    /// The dispatcher will have no GovernedTool membrane — any invocation
-    /// attempt will return an error. Use `with_governed_tool()` for a
-    /// working dispatcher.
-    ///
-    /// Dead code: no production caller. Retained as a footgun reminder —
-    /// `with_governed_tool()` is the only safe constructor. Will be removed
-    /// when Task 4 (V4) gates or deletes this path.
-    #[allow(dead_code)]
-    pub(crate) fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
-        Self {
-            runtime,
-            governor: Arc::new(McpGovernor::new(secret)),
-            governed_tool: None,
-        }
-    }
-
     /// Create a dispatcher with a GovernedTool membrane.
     ///
     /// All tool invocations route through the membrane, which handles

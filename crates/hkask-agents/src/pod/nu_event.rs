@@ -71,22 +71,3 @@ pub fn emit_pod_deactivated(sink: &dyn NuEventSink, agent: WebID, pod_id: &str) 
         }),
     );
 }
-
-/// Emit a pod failure event.
-///
-/// This is the critical algedonic event for Curation review.
-/// It goes into the `cns.agent_pod.failed` span with `Phase::Act`,
-/// making it visible through `NuEventStore::query_algedonic()`.
-/// Symmetric counterpart to emit_pod_started/completed; needed for full lifecycle
-#[allow(dead_code)]
-pub(crate) fn emit_pod_failed(sink: &dyn NuEventSink, agent: WebID, pod_id: &str, error: &str) {
-    emit_pod_event(
-        sink,
-        agent,
-        "failed",
-        serde_json::json!({
-            "pod_id": pod_id,
-            "error": error,
-        }),
-    );
-}

@@ -100,8 +100,7 @@ impl RuntimeAlert {
         gate: &AllostericGate,
     ) -> Self {
         let r_bar = gate.r_bar_eq();
-        let dist = gate.decide();
-        let expected = dist.expected_r_bar();
+        let expected = gate.decide();
 
         let severity = if expected >= 0.8 {
             AlertSeverity::Critical

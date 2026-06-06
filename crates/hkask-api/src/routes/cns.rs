@@ -161,10 +161,6 @@ async fn cns_variety(State(state): State<ApiState>) -> axum::Json<CnsVarietyResp
 /// Query parameters for CNS SSE subscription
 #[derive(Debug, Deserialize, IntoParams, ToSchema)]
 struct CnsSubscribeParams {
-    /// Agent WebID to observe events for
-    /// TODO: Use for agent-scoped filtering in SseObserver
-    #[allow(dead_code)]
-    agent: String,
     /// Span namespaces to subscribe to (e.g., ["cns.tool", "cns.inference"])
     #[serde(default)]
     spans: Vec<String>,

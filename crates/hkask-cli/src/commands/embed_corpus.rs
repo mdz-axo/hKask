@@ -23,10 +23,6 @@ use std::sync::Arc;
 #[derive(Debug, Deserialize)]
 struct CorpusConfig {
     author: String,
-    #[allow(dead_code)]
-    author_full: String,
-    #[allow(dead_code)]
-    style_synthesizer: String,
     embedding: EmbeddingConfig,
     works: Vec<Work>,
     foundational_rules: Vec<FoundationalRule>,
@@ -39,8 +35,6 @@ struct CorpusConfig {
 struct EmbeddingConfig {
     model: String,
     dim: usize,
-    #[allow(dead_code)]
-    okapi_endpoint: String,
     batch_size: usize,
 }
 
@@ -49,33 +43,19 @@ struct Work {
     title: String,
     slug: String,
     url: String,
-    #[allow(dead_code)]
-    year: u32,
-    #[allow(dead_code)]
-    r#type: String,
-    #[allow(dead_code)]
-    public_domain: bool,
 }
 
 #[derive(Debug, Deserialize)]
 struct FoundationalRule {
-    #[allow(dead_code)]
-    title: String,
     slug: String,
     text: String,
-    #[allow(dead_code)]
-    r#type: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct ChunkingConfig {
     min_words: usize,
     max_words: usize,
-    #[allow(dead_code)]
-    split_on: String,
     sentence_boundary: String,
-    #[allow(dead_code)]
-    overlap_words: usize,
 }
 
 #[derive(Debug, Deserialize)]

@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::capability::DelegationToken;
-use crate::id::BotID;
+use crate::id::{BotID, TemplateID};
 
 /// LLMParameters — Full parameter set for LLM invocation
 /// Loop: Inference

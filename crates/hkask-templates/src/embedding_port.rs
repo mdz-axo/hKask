@@ -235,8 +235,6 @@ struct OkapiEmbedRequest {
 /// Okapi embed API response structure
 #[derive(Debug, Deserialize)]
 struct OkapiEmbedResponse {
-    #[allow(dead_code)]
-    model: String,
     embeddings: Vec<Vec<f32>>,
 }
 

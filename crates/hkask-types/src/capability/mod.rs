@@ -158,34 +158,6 @@ pub(crate) struct Caveat {
     pub data: String,
 }
 
-// OCAP infrastructure: caveat methods are part of the capability security model
-// but not yet consumed by runtime enforcement. Retain for OCAP completeness.
-#[allow(dead_code)]
-impl Caveat {
-    pub(crate) fn new(caveat_id: impl Into<String>, data: impl Into<String>) -> Self {
-        Self {
-            caveat_id: caveat_id.into(),
-            data: data.into(),
-        }
-    }
-
-    pub(crate) fn expiration(unix_timestamp: i64) -> Self {
-        Self::new("expiration", unix_timestamp.to_string())
-    }
-
-    pub(crate) fn operation(operation: impl Into<String>) -> Self {
-        Self::new("operation", operation)
-    }
-
-    pub(crate) fn template(template_id: impl Into<String>) -> Self {
-        Self::new("template", template_id)
-    }
-
-    pub(crate) fn visibility(visibility: impl Into<String>) -> Self {
-        Self::new("visibility", visibility)
-    }
-}
-
 /// HMAC-signed OCAP token for inter-agent capability delegation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DelegationToken {
@@ -532,26 +504,6 @@ impl DelegationToken {
     ///
     /// # Returns
     /// A new `DelegationToken` with the caveat added and re-signed
-    // OCAP infrastructure: caveat attenuation awaits runtime enforcement
-    #[allow(dead_code)]
-    pub(crate) fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
-        let mut new_token = self.clone();
-        new_token.caveats.push(caveat);
-
-        // Re-sign with the new caveat included
-        let payload = SigningPayload {
-            id: new_token.id.clone(),
-            resource: new_token.resource,
-            resource_id: new_token.resource_id.clone(),
-            action: new_token.action,
-            from: new_token.delegated_from,
-            to: new_token.delegated_to,
-            caveats: new_token.caveats.clone(),
-        };
-        new_token.signature = Self::sign_payload(&payload, secret);
-
-        new_token
-    }
 
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
@@ -568,13 +520,6 @@ impl DelegationToken {
             .iter()
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
-    }
-
-    /// Access all caveats on this token
-    // OCAP infrastructure: caveat access awaits runtime enforcement
-    #[allow(dead_code)]
-    pub(crate) fn caveats(&self) -> &[Caveat] {
-        &self.caveats
     }
 
     /// Get capability fingerprint for CRDT merge operations

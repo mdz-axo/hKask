@@ -29,11 +29,6 @@ pub trait CircuitBreakerPort: Send + Sync {
 /// Allows crates to observe and increment CNS state without depending on hkask-cns.
 /// Impl: `CnsRuntime` (in hkask-cns)
 #[allow(async_fn_in_trait)]
-pub trait CnsPort: Send + Sync {
-    async fn health(&self) -> CnsHealth;
-    async fn variety(&self) -> Vec<(String, u64)>;
-    async fn increment_variety(&self, domain: &str, state_name: &str);
-}
 
 /// Git content-addressable store for template crates.
 /// Impl: `GitCasAdapter` (in hkask-agents)
@@ -641,43 +636,3 @@ pub enum EmbeddingGenerationError {
 /// Generates embedding vectors from text via Okapi API.
 /// Distinct from `EmbeddingPort` (storage/KNN search).
 /// Impl: `OkapiEmbedding` (hkask-templates)
-pub trait EmbeddingGenerationPort: Send + Sync {
-    /// One vector per input sentence, same order. Dimension set by model.
-    fn embed_sentences(
-        &self,
-        sentences: &[&str],
-    ) -> impl std::future::Future<Output = Result<Vec<Vec<f32>>, EmbeddingGenerationError>> + Send;
-
-    /// Convenience wrapper around `embed_sentences`.
-    fn embed_sentence(
-        &self,
-        sentence: &str,
-    ) -> impl std::future::Future<Output = Result<Vec<f32>, EmbeddingGenerationError>> + Send {
-        async move {
-            let results = self.embed_sentences(&[sentence]).await?;
-            results
-                .into_iter()
-                .next()
-                .ok_or(EmbeddingGenerationError::EmptyResponse)
-        }
-    }
-
-    fn embedding_dim(&self) -> usize;
-}
-
-use crate::AgentKind;
-use crate::RegisteredAgent;
-
-/// Agent definition persistence. Shared substrate — no single loop owns it.
-/// Impl: `AgentRegistryStore` (hkask-storage)
-pub trait AgentRegistrationPort: Send + Sync {
-    fn register_agent(&self, agent: RegisteredAgent) -> Result<(), RegistryError>;
-
-    fn get_agent(&self, name: &str) -> Result<RegisteredAgent, RegistryError>;
-
-    fn list_agents(&self) -> Result<Vec<RegisteredAgent>, RegistryError>;
-
-    fn list_agents_by_kind(&self, kind: AgentKind) -> Result<Vec<RegisteredAgent>, RegistryError>;
-
-    fn remove_agent(&self, name: &str) -> Result<(), RegistryError>;
-}

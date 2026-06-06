@@ -95,37 +95,6 @@ impl DataCategory {
     }
 }
 
-/// Acquisition resistance — binary: resistant or not.
-///
-/// Per Planck's constant: the minimal unit that does real work.
-/// The system only ever checks `prevents_passive_acquisition()`, which
-/// collapses to a binary outcome. Five levels were decoration, not function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub(crate) struct AcquisitionResistance(pub bool);
-
-impl AcquisitionResistance {
-    /// Default resistance level for hKask pods — resistant.
-    pub fn default_for_pods() -> Self {
-        Self(true)
-    }
-
-    /// Whether resistance prevents passive acquisition.
-    /// True means the pod resists passive data collection.
-    pub fn prevents_passive_acquisition(self) -> bool {
-        self.0
-    }
-}
-
-impl std::fmt::Display for AcquisitionResistance {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 {
-            write!(f, "resistant")
-        } else {
-            write!(f, "open")
-        }
-    }
-}
-
 /// Data sovereignty boundary — defines what data the user controls
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSovereigntyBoundary {
@@ -136,8 +105,8 @@ pub struct DataSovereigntyBoundary {
     pub shared_data: HashSet<DataCategory>,
     /// What data is public (no sovereignty claim)
     pub public_data: HashSet<DataCategory>,
-    /// Resistance level for this boundary
-    pub(crate) resistance: AcquisitionResistance,
+    /// Whether this boundary resists passive acquisition
+    pub(crate) acquisition_resistance: bool,
 }
 
 impl DataSovereigntyBoundary {
@@ -147,7 +116,7 @@ impl DataSovereigntyBoundary {
             sovereign_data: HashSet::new(),
             shared_data: HashSet::new(),
             public_data: HashSet::new(),
-            resistance: AcquisitionResistance::default(),
+            acquisition_resistance: false,
         }
     }
 
@@ -172,7 +141,7 @@ impl DataSovereigntyBoundary {
             sovereign_data,
             shared_data,
             public_data,
-            resistance: AcquisitionResistance::default_for_pods(),
+            acquisition_resistance: true,
         }
     }
 
@@ -193,7 +162,7 @@ impl DataSovereigntyBoundary {
 
     /// Whether this boundary resists passive acquisition
     pub fn prevents_passive_acquisition(&self) -> bool {
-        self.resistance.prevents_passive_acquisition()
+        self.acquisition_resistance
     }
 }
 
@@ -203,26 +172,10 @@ impl Default for DataSovereigntyBoundary {
     }
 }
 
-/// Kill zone thresholds — immutable configuration for kill-zone detection.
-///
-/// Configuration is authority-governed (set by Curation). State lives in
-/// `KillZoneDetector` (hkask-cns) which is Cybernetics-regulated.
-pub struct KillZoneThresholds {
-    /// Threshold for kill zone alert
-    pub threshold: f32,
-}
-
-impl Default for KillZoneThresholds {
-    fn default() -> Self {
-        Self { threshold: 0.5 }
-    }
-}
-
 /// Kill zone state — mutable operational state for kill-zone detection.
 ///
 /// The detection logic lives in hkask-cns (Cybernetics subloop 6.5).
 /// This struct holds the operational state that CNS senses and compares.
-/// Configuration thresholds live in `KillZoneThresholds`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KillZoneState {
     /// Current VC investment level (0.0 to 1.0)
@@ -261,7 +214,7 @@ impl UserSovereigntyState {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
             kill_zone_state: KillZoneState::default(),
-            kill_zone_threshold: KillZoneThresholds::default().threshold,
+            kill_zone_threshold: 0.5,
             explicit_consent: false,
             last_check: chrono::Utc::now(),
         }

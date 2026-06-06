@@ -46,38 +46,12 @@ impl HmacBuilder {
     }
 }
 
-/// Compute an HMAC-SHA256 over a flat list of byte slices.
-///
-/// Convenience wrapper around [`HmacBuilder`] for the common case where
-/// all fields are known upfront.
-///
-/// Used by tests within this module. Retained for future token types
-/// that will need flat HMAC construction.
-#[allow(dead_code)]
-pub(crate) fn compute_hmac(secret: &[u8], fields: &[&[u8]]) -> [u8; 32] {
-    let mut builder = HmacBuilder::new(secret);
-    for field in fields {
-        builder.update(field);
-    }
-    builder.finalize()
-}
-
 /// Encode raw HMAC bytes as a hex string for storage/transmission.
 ///
 /// `DelegationToken` uses hex encoding for its HMAC signature.
 /// This function is the canonical encoding path.
 pub fn encode_signature(hmac_bytes: &[u8]) -> String {
     hex::encode(hmac_bytes)
-}
-
-/// Decode a hex-encoded signature string back to raw bytes.
-///
-/// Inverse of [`encode_signature`].
-///
-/// Retained for future token types that need signature deserialization.
-#[allow(dead_code)]
-pub(crate) fn decode_signature(encoded: &str) -> Result<Vec<u8>, String> {
-    hex::decode(encoded).map_err(|e| e.to_string())
 }
 
 /// Constant-time comparison of two byte slices.
@@ -100,28 +74,35 @@ mod tests {
         builder.update(b"field2");
         let sig = builder.finalize_hex();
 
-        // Same fields via compute_hmac must produce the same result
-        let fields: &[&[u8]] = &[b"field1", b"field2"];
-        let raw = compute_hmac(secret, fields);
-        assert_eq!(sig, encode_signature(&raw));
+        // Two independent builders with same inputs must produce the same result
+        let mut builder2 = HmacBuilder::new(secret);
+        builder2.update(b"field1");
+        builder2.update(b"field2");
+        assert_eq!(sig, builder2.finalize_hex());
     }
 
     #[test]
     fn verify_constant_time_matches() {
         let secret = b"secret";
-        let sig = compute_hmac(secret, &[b"data"]);
+        let mut builder = HmacBuilder::new(secret);
+        builder.update(b"data");
+        let sig = builder.finalize();
         let encoded = encode_signature(&sig);
 
+        let mut builder2 = HmacBuilder::new(secret);
+        builder2.update(b"data");
         assert!(verify_hmac_constant_time(
             encoded.as_bytes(),
-            encode_signature(&compute_hmac(secret, &[b"data"])).as_bytes(),
+            encode_signature(&builder2.finalize()).as_bytes(),
         ));
     }
 
     #[test]
     fn verify_constant_time_rejects_tampered() {
         let secret = b"secret";
-        let sig = compute_hmac(secret, &[b"data"]);
+        let mut builder = HmacBuilder::new(secret);
+        builder.update(b"data");
+        let sig = builder.finalize();
         let encoded = encode_signature(&sig);
 
         assert!(!verify_hmac_constant_time(
@@ -131,14 +112,14 @@ mod tests {
     }
 
     #[test]
-    fn encode_decode_roundtrip() {
+    fn encode_roundtrip() {
         let bytes: [u8; 32] = [
             0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54,
             0x32, 0x10, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98,
             0x76, 0x54, 0x32, 0x10,
         ];
         let encoded = encode_signature(&bytes);
-        let decoded = decode_signature(&encoded).unwrap();
+        let decoded = hex::decode(&encoded).unwrap();
         assert_eq!(decoded, bytes.to_vec());
     }
 }

@@ -38,10 +38,7 @@ pub mod visibility;
 pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
-pub use allosteric::{
-    AllostericError, AllostericGate, AllostericGateConfig, BernoulliDistribution,
-    mwc_state_function,
-};
+pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use bundle::{
     BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
@@ -87,7 +84,7 @@ pub use sovereignty::{
     DataCategory, SovereigntyCheckResult, SovereigntyPort, UserSovereigntyState,
 };
 pub use template::{
-    LLMParameters, TemplateCrate, TemplateFile, TemplateID, TemplateInvocation, TemplateOutcome,
+    LLMParameters, TemplateCrate, TemplateFile, TemplateInvocation, TemplateOutcome,
 };
 pub use text::blake3_hash;
 pub use visibility::Visibility;

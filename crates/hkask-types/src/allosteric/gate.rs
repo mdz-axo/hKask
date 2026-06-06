@@ -1,10 +1,9 @@
 //! `AllostericGate` — MWC-regulated decision point with temporal dynamics
 //!
 //! An allosteric gate is an MWC-regulated decision point in the 6-loop system.
-//! It produces a `BernoulliDistribution` parameterized by R̄, preserving
-//! uncertainty through the regulation pipeline.
+//! It produces a clamped R̄ value (f64), preserving the regulation signal
+//! through the pipeline.
 
-use crate::allosteric::distribution::BernoulliDistribution;
 use crate::allosteric::mwc::mwc_state_function;
 use std::time::Duration;
 
@@ -153,23 +152,20 @@ impl AllostericGate {
         r_bar_new
     }
 
-    /// Produce a `BernoulliDistribution` from the current gate state.
+    /// Produce the gate's R̄ value from the current state.
     ///
-    /// The gate outputs a Bernoulli distribution parameterized by the
-    /// equilibrium R̄. The `act` phase collapses this to a concrete decision
-    /// by comparing R̄ against the threshold.
-    pub fn decide(&self) -> BernoulliDistribution {
-        let r_bar = self.r_bar_eq();
-        BernoulliDistribution::from_r_bar(r_bar)
+    /// Returns the clamped R̄ value that can be compared against the threshold
+    /// to produce a concrete decision.
+    pub fn decide(&self) -> f64 {
+        self.r_bar_eq().clamp(0.0, 1.0)
     }
 
-    /// Produce a `BernoulliDistribution` with temporal relaxation over dt.
+    /// Produce R̄ with temporal relaxation over dt.
     ///
-    /// Combines `r_bar_at(dt)` with distribution construction. Updates the
+    /// Combines `r_bar_at(dt)` with clamping. Updates the
     /// gate's hysteresis state as a side effect.
-    pub fn decide_at(&mut self, dt: Duration) -> BernoulliDistribution {
-        let r_bar = self.r_bar_at(dt);
-        BernoulliDistribution::from_r_bar(r_bar)
+    pub fn decide_at(&mut self, dt: Duration) -> f64 {
+        self.r_bar_at(dt).clamp(0.0, 1.0)
     }
 
     /// Set the input signal (α) from a normalized deficit/deviation value.
@@ -257,14 +253,13 @@ mod tests {
     }
 
     #[test]
-    fn gate_decide_produces_bernoulli_distribution() {
+    fn gate_decide_produces_clamped_r_bar() {
         let mut gate = AllostericGate::with_params("test", 100.0, 0.1, 3, 0.5);
         gate.set_alpha(1.0);
-        let dist = gate.decide();
-        let expected = dist.expected_r_bar();
+        let r_bar = gate.decide();
         assert!(
-            expected > 0.0 && expected < 1.0,
-            "R̄ should be in (0,1), got {expected}"
+            r_bar > 0.0 && r_bar < 1.0,
+            "R̄ should be in (0,1), got {r_bar}"
         );
     }
 

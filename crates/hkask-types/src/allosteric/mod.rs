@@ -1,12 +1,11 @@
 //! Allosteric Regulation Logic (ARL) — MWC-regulated decision primitives
 //!
 //! ARL provides the Monod-Wyman-Changeux equation as a native regulation
-//! primitive. Every ARL gate produces a `BernoulliDistribution`
-//! parameterized by R̄, which can be collapsed to a point estimate in the `act` phase.
+//! primitive. Every ARL gate produces a clamped R̄ value (f64),
+//! which can be compared against a threshold in the `act` phase.
 //!
 //! # Module structure
 //!
-//! - `distribution` — `BernoulliDistribution` type for MWC gate output
 //! - `mwc` — MWC computation engine (state function, sensitivity)
 //! - `gate` — `AllostericGate` with temporal dynamics
 //!
@@ -16,10 +15,8 @@
 //! the authority DAG inversion where L5 depended on L6 for its own regulation
 //! primitive.
 
-pub mod distribution;
 pub mod gate;
 pub mod mwc;
 
-pub use distribution::BernoulliDistribution;
 pub use gate::{AllostericGate, AllostericGateConfig};
 pub use mwc::{AllostericError, mwc_state_function};

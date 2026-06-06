@@ -39,12 +39,6 @@ impl CuratorHandle {
         }
     }
 
-    // OCAP infrastructure: generic constructor awaits CurationLoop consumption
-    #[allow(dead_code)]
-    pub(crate) fn new(curator_id: WebID) -> Self {
-        Self { curator_id }
-    }
-
     /// Create the system CuratorHandle using the system WebID.
     ///
     /// The Curator is a singleton — the user's counterpart in `kask chat`.

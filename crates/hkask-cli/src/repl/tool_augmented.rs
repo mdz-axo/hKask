@@ -310,10 +310,6 @@ pub struct ProcessedResponse {
     pub had_tool_calls: bool,
 }
 
-/// Maximum number of tool-augmented followup loops to prevent infinite recursion.
-#[allow(dead_code)]
-pub const MAX_TOOL_LOOPS: usize = 5;
-
 #[cfg(test)]
 mod tests {
     use super::*;

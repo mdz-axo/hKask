@@ -37,9 +37,7 @@ impl CnsState {
             AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
         ));
         let tracker = UnifiedVarietyTracker::new();
-        let kill_zone = Arc::new(tokio::sync::Mutex::new(KillZoneDetector::new(
-            hkask_types::sovereignty::KillZoneThresholds::default(),
-        )));
+        let kill_zone = Arc::new(tokio::sync::Mutex::new(KillZoneDetector::new(0.5)));
         let gas_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             algedonic,
