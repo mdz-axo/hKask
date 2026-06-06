@@ -103,3 +103,260 @@ pub fn validate_browse_request(req: &BrowseRequest) -> Result<(), WebError> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── validate_search_request ──────────────────────────────────────────
+
+    // P8 invariant: empty query is rejected at the port boundary
+    #[test]
+    fn search_request_rejects_empty_query() {
+        let req = SearchRequest {
+            query: String::new(),
+            num_results: None,
+            include_domains: None,
+            exclude_domains: None,
+            freshness: None,
+            strategy: None,
+        };
+        let err = validate_search_request(&req).unwrap_err();
+        assert!(
+            err.to_string().contains("empty"),
+            "empty query must be rejected with 'empty' message, got: {err}"
+        );
+    }
+
+    // P8 invariant: query exceeding MAX_QUERY_LENGTH is rejected
+    #[test]
+    fn search_request_rejects_oversized_query() {
+        let req = SearchRequest {
+            query: "x".repeat(MAX_QUERY_LENGTH + 1),
+            num_results: None,
+            include_domains: None,
+            exclude_domains: None,
+            freshness: None,
+            strategy: None,
+        };
+        let err = validate_search_request(&req).unwrap_err();
+        assert!(
+            err.to_string().contains(&MAX_QUERY_LENGTH.to_string()),
+            "oversized query must mention the limit, got: {err}"
+        );
+    }
+
+    // P8 invariant: valid query passes validation
+    #[test]
+    fn search_request_accepts_valid_query() {
+        let req = SearchRequest {
+            query: "test query".to_string(),
+            num_results: None,
+            include_domains: None,
+            exclude_domains: None,
+            freshness: None,
+            strategy: None,
+        };
+        assert!(
+            validate_search_request(&req).is_ok(),
+            "valid query must pass validation"
+        );
+    }
+
+    // ── validate_extract_request ──────────────────────────────────────────
+
+    // P8 invariant: URL exceeding MAX_URL_LENGTH is rejected
+    #[test]
+    fn extract_request_rejects_oversized_url() {
+        let req = ExtractRequest {
+            url: "x".repeat(MAX_URL_LENGTH + 1),
+            format: None,
+            json_prompt: None,
+            json_schema: None,
+            main_content_only: None,
+            wait_for_ms: None,
+        };
+        let err = validate_extract_request(&req).unwrap_err();
+        assert!(
+            err.to_string().contains(&MAX_URL_LENGTH.to_string()),
+            "oversized URL must mention the limit, got: {err}"
+        );
+    }
+
+    // P8 invariant: json_prompt exceeding MAX_JSON_PROMPT_LENGTH is rejected
+    #[test]
+    fn extract_request_rejects_oversized_json_prompt() {
+        let req = ExtractRequest {
+            url: "https://example.com".to_string(),
+            format: None,
+            json_prompt: Some("x".repeat(MAX_JSON_PROMPT_LENGTH + 1)),
+            json_schema: None,
+            main_content_only: None,
+            wait_for_ms: None,
+        };
+        let err = validate_extract_request(&req).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains(&MAX_JSON_PROMPT_LENGTH.to_string()),
+            "oversized json_prompt must mention the limit, got: {err}"
+        );
+    }
+
+    // P8 invariant: valid extract request passes
+    #[test]
+    fn extract_request_accepts_valid_request() {
+        let req = ExtractRequest {
+            url: "https://example.com".to_string(),
+            format: None,
+            json_prompt: None,
+            json_schema: None,
+            main_content_only: None,
+            wait_for_ms: None,
+        };
+        assert!(
+            validate_extract_request(&req).is_ok(),
+            "valid extract request must pass validation"
+        );
+    }
+
+    // ── validate_browse_request ───────────────────────────────────────────
+
+    // P8 invariant: URL exceeding MAX_URL_LENGTH is rejected
+    #[test]
+    fn browse_request_rejects_oversized_url() {
+        let req = BrowseRequest {
+            url: "x".repeat(MAX_URL_LENGTH + 1),
+            instruction: None,
+            timeout_secs: None,
+        };
+        let err = validate_browse_request(&req).unwrap_err();
+        assert!(
+            err.to_string().contains(&MAX_URL_LENGTH.to_string()),
+            "oversized URL must mention the limit, got: {err}"
+        );
+    }
+
+    // P8 invariant: instruction exceeding MAX_INSTRUCTION_LENGTH is rejected
+    #[test]
+    fn browse_request_rejects_oversized_instruction() {
+        let req = BrowseRequest {
+            url: "https://example.com".to_string(),
+            instruction: Some("x".repeat(MAX_INSTRUCTION_LENGTH + 1)),
+            timeout_secs: None,
+        };
+        let err = validate_browse_request(&req).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains(&MAX_INSTRUCTION_LENGTH.to_string()),
+            "oversized instruction must mention the limit, got: {err}"
+        );
+    }
+
+    // P8 invariant: valid browse request passes
+    #[test]
+    fn browse_request_accepts_valid_request() {
+        let req = BrowseRequest {
+            url: "https://example.com".to_string(),
+            instruction: None,
+            timeout_secs: None,
+        };
+        assert!(
+            validate_browse_request(&req).is_ok(),
+            "valid browse request must pass validation"
+        );
+    }
+
+    // ── sanitize_health_error ─────────────────────────────────────────────
+
+    // P8 invariant: API keys with common prefixes are stripped
+    #[test]
+    fn sanitize_strips_sk_prefix_keys() {
+        let input = "Authorization failed: sk-abc123def456ghi789key";
+        let output = sanitize_health_error(input);
+        assert!(
+            !output.contains("sk-abc123def456ghi789key"),
+            "sk- prefixed keys must be redacted"
+        );
+        assert!(
+            output.contains("[REDACTED]"),
+            "redacted key must show [REDACTED]"
+        );
+    }
+
+    // P8 invariant: pk-, fc-, ts-, br-, xai-, ghp_ prefixes are also stripped
+    #[test]
+    fn sanitize_strips_all_key_prefixes() {
+        for prefix in ["pk-", "fc-", "ts-", "br-", "xai-", "ghp_"] {
+            let key = format!("{prefix}abcdefgh1234");
+            let input = format!("Error: {key}");
+            let output = sanitize_health_error(&input);
+            assert!(
+                !output.contains(&key),
+                "key with {prefix} prefix must be redacted"
+            );
+        }
+    }
+
+    // P8 invariant: 401/403/auth → "authentication failed"
+    #[test]
+    fn sanitize_maps_401_to_auth_failed() {
+        assert_eq!(
+            sanitize_health_error("Request returned 401"),
+            "authentication failed"
+        );
+        assert_eq!(
+            sanitize_health_error("Request returned 403 Forbidden"),
+            "authentication failed"
+        );
+        assert_eq!(
+            sanitize_health_error("auth token expired"),
+            "authentication failed"
+        );
+    }
+
+    // P8 invariant: 429/rate → "rate limited"
+    #[test]
+    fn sanitize_maps_429_to_rate_limited() {
+        assert_eq!(
+            sanitize_health_error("Request returned 429"),
+            "rate limited"
+        );
+        assert_eq!(sanitize_health_error("rate limit exceeded"), "rate limited");
+    }
+
+    // P8 invariant: timeout → "timeout"
+    #[test]
+    fn sanitize_maps_timeout() {
+        assert_eq!(sanitize_health_error("connection timed out"), "timeout");
+        assert_eq!(
+            sanitize_health_error("request timeout after 30s"),
+            "timeout"
+        );
+    }
+
+    // P8 invariant: unreachable/connection/dns → "unreachable"
+    #[test]
+    fn sanitize_maps_unreachable() {
+        assert_eq!(sanitize_health_error("host unreachable"), "unreachable");
+        assert_eq!(sanitize_health_error("connection refused"), "unreachable");
+        assert_eq!(
+            sanitize_health_error("DNS resolution failed"),
+            "unreachable"
+        );
+    }
+
+    // P8 invariant: "no provider" → "no provider available"
+    #[test]
+    fn sanitize_maps_no_provider() {
+        assert_eq!(
+            sanitize_health_error("no provider configured"),
+            "no provider available"
+        );
+    }
+
+    // P8 invariant: everything else → "unhealthy"
+    #[test]
+    fn sanitize_maps_unknown_to_unhealthy() {
+        assert_eq!(sanitize_health_error("something went wrong"), "unhealthy");
+    }
+}
