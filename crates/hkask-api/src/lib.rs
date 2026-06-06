@@ -84,6 +84,26 @@ pub struct DbConfig {
     pub passphrase: Option<String>,
 }
 
+/// Open a persistent database, or fall back to in-memory with a warning.
+///
+/// Extracts the repeated pattern of `db_config.and_then(...)` → `Database::open`
+/// that appeared 4 times in `ApiState::new()`. Returns the `Database`,
+/// so callers can extract `.conn_arc()` or use it directly.
+fn open_db(db_config: Option<&DbConfig>, purpose: &str) -> hkask_storage::Database {
+    match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref())) {
+        Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
+            .unwrap_or_else(|_| panic!("Failed to open {purpose} database")),
+        None => {
+            tracing::warn!(
+                target: "hkask.api",
+                "No persistent database configured — {purpose} store is in-memory and will be lost on restart. \
+                 Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
+            );
+            hkask_storage::Database::in_memory().expect("in-memory db")
+        }
+    }
+}
+
 /// API state
 #[derive(Clone)]
 pub struct ApiState {
@@ -273,48 +293,33 @@ impl ApiState {
         db_config: Option<&DbConfig>,
         acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     ) -> Self {
-        let consent_conn = match db_config
-            .and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
-        {
-            Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
-                .expect("Failed to open consent database")
-                .conn_arc(),
-            _ => {
-                tracing::warn!(
-                    target: "hkask.api",
-                    "No persistent database configured — consent records are in-memory and will be lost on restart. \
-                     Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
-                );
-                hkask_storage::Database::in_memory()
-                    .expect("in-memory db")
-                    .conn_arc()
-            }
-        };
+        // ── Persistent stores (P2.2: extracted init_stores) ──
+        let consent_conn = open_db(db_config, "consent").conn_arc();
         let consent_store = hkask_storage::ConsentStore::new(consent_conn);
         consent_store
             .initialize_schema()
             .expect("consent store schema init");
         let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
-        let escalation_conn = match db_config
-            .and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
-        {
-            Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
-                .expect("Failed to open escalation database")
-                .conn_arc(),
-            _ => {
-                tracing::warn!(
-                    target: "hkask.api",
-                    "No persistent database configured — escalation queue is in-memory and will be lost on restart. \
-                     Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
-                );
-                hkask_storage::Database::in_memory()
-                    .expect("in-memory db")
-                    .conn_arc()
-            }
-        };
+        let escalation_conn = open_db(db_config, "escalation").conn_arc();
         let escalation_queue =
             Arc::new(EscalationQueue::new(escalation_conn).expect("escalation queue init"));
+
+        let goal_conn = open_db(db_config, "goal").conn_arc();
+        let goal_sink: Arc<dyn NuEventSink> =
+            Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
+        let goal_repo =
+            Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
+
+        let standing_conn = open_db(db_config, "standing session").conn_arc();
+        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
+        standing_session_store
+            .initialize_schema()
+            .expect("standing session schema init");
+        let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
+            Some(Arc::new(standing_session_store));
+
+        // ── Subsystems (P2.2: extracted init_subsystems) ──
         let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
@@ -325,8 +330,7 @@ impl ApiState {
         let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
 
-        // Create CNS event sink for governance observability (shared by
-        // CyberneticsLoop and GovernedTool)
+        // Create CNS event sink for governance observability
         let cns_event_conn = hkask_storage::Database::in_memory()
             .expect("cns event db")
             .conn_arc();
@@ -342,12 +346,10 @@ impl ApiState {
             Some(Arc::clone(&cns_event_sink)),
         );
 
-        // Create raw tool port (ungoverned executor)
+        // Create GovernedTool membrane with CompositeGasEstimator
         let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
             dispatcher_runtime.clone(),
         ));
-
-        // Create GovernedTool membrane with CompositeGasEstimator
         let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
         let governed_tool = Arc::new(GovernedTool::new(
             raw_tool_port,
@@ -364,39 +366,6 @@ impl ApiState {
             capability_secret,
             governed_tool,
         ));
-        // Goal repository wired with a CNS denial sink over a shared connection,
-        // mirroring the CLI integration (ADR-029). Capability denials persist
-        // as `cns.tool.goal.capability.denied` ν-events.
-        let goal_conn = match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
-        {
-            Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
-                .expect("Failed to open goal database")
-                .conn_arc(),
-            _ => hkask_storage::Database::in_memory()
-                .expect("in-memory db")
-                .conn_arc(),
-        };
-        let goal_sink: Arc<dyn NuEventSink> =
-            Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
-        let goal_repo =
-            Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
-
-        // Standing session store (persistent or in-memory)
-        let standing_conn =
-            match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref())) {
-                Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
-                    .expect("Failed to open standing session database")
-                    .conn_arc(),
-                None => hkask_storage::Database::in_memory()
-                    .expect("in-memory standing session db")
-                    .conn_arc(),
-            };
-        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
-        standing_session_store
-            .initialize_schema()
-            .expect("standing session schema init");
-        let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
-            Some(Arc::new(standing_session_store));
 
         // Ensemble session manager
         let session_manager = Arc::new(tokio::sync::RwLock::new(

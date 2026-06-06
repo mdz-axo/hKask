@@ -21,6 +21,7 @@
 // reads gate.c, gate.n directly), so a port trait would just rename the struct
 // without meaningful decoupling. Revisit when a second implementation of
 // allosteric gating exists.
+use hkask_cns::RBarThreshold;
 use hkask_types::allosteric::gate::{AllostericGate, AllostericGateConfig};
 use hkask_types::allosteric::mwc::mwc_state_function;
 use std::time::Duration;
@@ -96,11 +97,6 @@ pub enum ConfidenceDecision {
     Suppress,
 }
 
-/// Default upper threshold for the transition zone.
-const DEFAULT_UPPER_THRESHOLD: f64 = 0.8;
-/// Default lower threshold for the transition zone.
-const DEFAULT_LOWER_THRESHOLD: f64 = 0.3;
-
 /// Curation confidence gate — metacognitive decision point.
 ///
 /// Uses the MWC equation to compute confidence that the Curator should
@@ -119,9 +115,9 @@ pub struct CurationConfidenceGate {
     /// Evidence ports providing confidence values.
     pub ports: Vec<CurationPort>,
     /// Upper R̄ threshold for Proceed zone.
-    pub upper_threshold: f64,
+    pub upper_threshold: RBarThreshold,
     /// Lower R̄ threshold for Suppress zone.
-    pub lower_threshold: f64,
+    pub lower_threshold: RBarThreshold,
 }
 
 impl CurationConfidenceGate {
@@ -143,8 +139,8 @@ impl CurationConfidenceGate {
         Self {
             gate: AllostericGate::new(&config),
             ports,
-            upper_threshold: DEFAULT_UPPER_THRESHOLD,
-            lower_threshold: DEFAULT_LOWER_THRESHOLD,
+            upper_threshold: RBarThreshold::DEFAULT_UPPER,
+            lower_threshold: RBarThreshold::DEFAULT_LOWER,
         }
     }
 
@@ -169,8 +165,8 @@ impl CurationConfidenceGate {
         Self {
             gate: AllostericGate::new(&config),
             ports,
-            upper_threshold,
-            lower_threshold,
+            upper_threshold: RBarThreshold::new(upper_threshold),
+            lower_threshold: RBarThreshold::new(lower_threshold),
         }
     }
 
@@ -208,9 +204,9 @@ impl CurationConfidenceGate {
     /// - Between → SeekMoreEvidence
     pub fn decide(&mut self) -> ConfidenceDecision {
         let r_bar = self.confidence();
-        if r_bar >= self.upper_threshold {
+        if r_bar >= self.upper_threshold.as_raw() {
             ConfidenceDecision::Proceed
-        } else if r_bar <= self.lower_threshold {
+        } else if r_bar <= self.lower_threshold.as_raw() {
             ConfidenceDecision::Suppress
         } else {
             ConfidenceDecision::SeekMoreEvidence
@@ -220,9 +216,9 @@ impl CurationConfidenceGate {
     /// Decide with temporal relaxation.
     pub fn decide_at(&mut self, dt: Duration) -> ConfidenceDecision {
         let r_bar = self.confidence_at(dt);
-        if r_bar >= self.upper_threshold {
+        if r_bar >= self.upper_threshold.as_raw() {
             ConfidenceDecision::Proceed
-        } else if r_bar <= self.lower_threshold {
+        } else if r_bar <= self.lower_threshold.as_raw() {
             ConfidenceDecision::Suppress
         } else {
             ConfidenceDecision::SeekMoreEvidence
@@ -351,7 +347,7 @@ mod tests {
         );
         let r_bar = gate.confidence();
         assert!(
-            r_bar >= gate.upper_threshold,
+            r_bar >= gate.upper_threshold.as_raw(),
             "High evidence should give high R̄, got {r_bar}"
         );
     }
@@ -375,7 +371,7 @@ mod tests {
         let mut gate = CurationConfidenceGate::new(ports);
         let r_bar = gate.confidence();
         assert!(
-            r_bar <= gate.lower_threshold,
+            r_bar <= gate.lower_threshold.as_raw(),
             "Low evidence should give low R̄, got {r_bar}"
         );
     }

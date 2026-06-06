@@ -1,13 +1,95 @@
 //! Gas budget enforcement — preventing infinite loops (analogous to Ethereum gas)
-//!
+//
 //! Every operation costs gas. When the budget is exhausted, the operation
 //! is rejected. Gas replenishes periodically, managed by the Cybernetics Loop.
-//!
+//
 //! The gas model is deliberately simple: each MCP tool invocation has a
 //! configured cost, and budgets refill at a steady rate. This prevents
 //! runaway agents while keeping the implementation minimal.
 
 use serde::{Deserialize, Serialize};
+
+// ── Domain newtypes (P2.3) ──────────────────────────────────────────────────
+
+/// Gas cost of a single tool invocation.
+///
+/// Newtype wrapper around `u64` that prevents accidental confusion with
+/// other unsigned quantities in the gas subsystem (cap, remaining, rate).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct GasCost(pub u64);
+
+impl GasCost {
+    /// Zero gas cost — used for free/internal operations.
+    pub const ZERO: GasCost = GasCost(0);
+
+    /// Create a gas cost from a raw `u64`.
+    pub fn from_raw(value: u64) -> Self {
+        GasCost(value)
+    }
+
+    /// Return the raw `u64` value.
+    pub fn as_raw(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<u64> for GasCost {
+    fn from(value: u64) -> Self {
+        GasCost(value)
+    }
+}
+
+impl From<GasCost> for u64 {
+    fn from(cost: GasCost) -> Self {
+        cost.0
+    }
+}
+
+/// Threshold for R̄ (confidence) in the curation gate's transition zone.
+///
+/// Newtype wrapper around `f64` that prevents accidental confusion with
+/// other floating-point quantities (priority weight, usage ratio, etc.).
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct RBarThreshold(pub f64);
+
+impl RBarThreshold {
+    /// Create an R̄ threshold, clamped to [0.0, 1.0].
+    pub fn new(value: f64) -> Self {
+        RBarThreshold(value.clamp(0.0, 1.0))
+    }
+
+    /// Default upper threshold for the Proceed zone.
+    pub const DEFAULT_UPPER: RBarThreshold = RBarThreshold(0.8);
+    /// Default lower threshold for the Suppress zone.
+    pub const DEFAULT_LOWER: RBarThreshold = RBarThreshold(0.3);
+
+    /// Return the raw `f64` value.
+    pub fn as_raw(self) -> f64 {
+        self.0
+    }
+}
+
+/// Communication queue depth for backpressure regulation.
+///
+/// Newtype wrapper that prevents accidental confusion with other numeric
+/// thresholds in `SetPoints` (gas, variety deficit, error rate).
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct QueueDepth(pub f64);
+
+impl QueueDepth {
+    /// Create a queue depth threshold.
+    pub fn new(value: f64) -> Self {
+        QueueDepth(value.max(0.0))
+    }
+
+    /// Default backpressure threshold: 100 messages.
+    pub const DEFAULT_BACKPRESSURE: QueueDepth = QueueDepth(100.0);
+
+    /// Return the raw `f64` value.
+    pub fn as_raw(self) -> f64 {
+        self.0
+    }
+}
 
 /// Default priority for serde default.
 const fn default_priority() -> f64 {

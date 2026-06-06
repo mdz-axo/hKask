@@ -7,6 +7,17 @@ use super::{DelegationAction, DelegationResource, DelegationToken};
 use crate::WebID;
 use zeroize::Zeroizing;
 
+// ── Token error constants (P2.8) ──────────────────────────────────────────
+// Centralised here so that all MCP servers and adapters reference the same
+// strings, avoiding duplication and drift.
+
+/// Token HMAC/signature verification failed.
+pub const TOKEN_ERR_INVALID_SIGNATURE: &str = "Token signature verification failed";
+/// Token has expired.
+pub const TOKEN_ERR_EXPIRED: &str = "Token is expired";
+/// No capability checker was available to validate the token.
+pub const TOKEN_ERR_NO_CHECKER: &str = "No capability checker configured";
+
 /// Outcome of verifying a delegation token.
 ///
 /// Provides structured, granular failure modes so call sites can map each
@@ -265,4 +276,18 @@ pub fn require_read_access(token: &DelegationToken, store_type: &str) -> Result<
             store_type
         ))
     }
+}
+
+// ── Token error message helpers (P2.8) ──────────────────────────────────────
+// Thin wrappers around the constants that produce the correct error type
+// for each consumer, keeping message text in one place.
+
+/// Format an "insufficient access" error message.
+pub fn token_err_insufficient_access(resource_id: &str, action: &str) -> String {
+    format!("Token does not authorize access to {resource_id} ({action})")
+}
+
+/// Format an "insufficient access for tool" error message.
+pub fn token_err_tool_access_denied(tool_name: &str) -> String {
+    format!("Token does not authorize tool: {tool_name}")
 }

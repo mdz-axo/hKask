@@ -15,6 +15,41 @@ use hkask_types::{
 use serde_json::Value;
 use std::sync::Arc;
 
+/// Capture-common-parameters struct for memory storage operations (P2.4/P1.5).
+///
+/// Groups the fields that every store call shares (entity, attribute, value,
+/// producer, confidence, visibility) so that `store_episodic`,
+/// `store_episodic_classified`, and `store_semantic` can delegate to a
+/// single private method rather than each building a `Triple` inline.
+pub struct StorageRequest {
+    pub entity: String,
+    pub attribute: String,
+    pub value: Value,
+    pub producer: WebID,
+    pub confidence: f64,
+    pub visibility: Visibility,
+    pub perspective: Option<WebID>,
+}
+
+impl StorageRequest {
+    /// Build a `Triple` from this request.
+    fn to_triple(&self) -> Triple {
+        let mut triple = Triple::new(
+            &self.entity,
+            &self.attribute,
+            self.value.clone(),
+            self.producer,
+        )
+        .with_visibility(self.visibility)
+        .with_confidence(self.confidence);
+        if let Some(p) = self.perspective {
+            triple = triple.with_perspective(p);
+        }
+        triple
+    }
+}
+
+/// Capture-common-parameters struct for memory storage operations (P2.4/P1.5).
 /// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
 ///
 /// Routes pod storage requests through `hkask-memory`'s domain logic
@@ -68,12 +103,16 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
     ) -> Result<String, MemoryError> {
         require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
-        let triple = Triple::new(entity, attribute, value, producer_webid)
-            .with_visibility(Visibility::Private)
-            .with_perspective(producer_webid)
-            .with_confidence(confidence);
-
-        self.episodic.store(triple)?;
+        let req = StorageRequest {
+            entity: entity.to_string(),
+            attribute: attribute.to_string(),
+            value,
+            producer: producer_webid,
+            confidence,
+            visibility: Visibility::Private,
+            perspective: Some(producer_webid),
+        };
+        self.episodic.store(req.to_triple())?;
 
         Ok(entity.to_string())
     }
@@ -147,11 +186,6 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
 
         let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
 
-        let triple = Triple::new(entity, attribute, value, producer_webid)
-            .with_visibility(Visibility::Private)
-            .with_perspective(producer_webid)
-            .with_confidence(confidence);
-
         tracing::info!(
             target: "cns.memory.encode",
             classification = %classification,
@@ -161,7 +195,16 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
             "Episodic experience encoded (via loop membrane)"
         );
 
-        self.episodic.store(triple)?;
+        let req = StorageRequest {
+            entity: entity.to_string(),
+            attribute: attribute.to_string(),
+            value,
+            producer: producer_webid,
+            confidence,
+            visibility: Visibility::Private,
+            perspective: Some(producer_webid),
+        };
+        self.episodic.store(req.to_triple())?;
 
         Ok(entity.to_string())
     }
@@ -181,11 +224,16 @@ impl SemanticStoragePort for MemoryLoopAdapter {
     ) -> Result<String, MemoryError> {
         require_write_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
 
-        let triple = Triple::new(entity, attribute, value, producer_webid)
-            .with_visibility(Visibility::Shared)
-            .with_confidence(confidence);
-
-        self.semantic.store(triple)?;
+        let req = StorageRequest {
+            entity: entity.to_string(),
+            attribute: attribute.to_string(),
+            value,
+            producer: producer_webid,
+            confidence,
+            visibility: Visibility::Shared,
+            perspective: None,
+        };
+        self.semantic.store(req.to_triple())?;
 
         Ok(entity.to_string())
     }

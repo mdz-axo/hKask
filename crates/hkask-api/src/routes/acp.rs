@@ -2,11 +2,37 @@
 
 use axum::extract::{Extension, Path};
 use axum::{Json, extract::State, http::StatusCode, routing::Router};
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::middleware::AuthContext;
 use crate::{ApiState, ErrorResponse};
+
+/// Parse a WebID from a string, returning a structured error on failure.
+///
+/// Consolidates the repeated `uuid::Uuid::parse_str(...)` → `WebID` pattern
+/// that appeared in `acp_register` and `acp_unregister_agent`.
+fn parse_webid(
+    raw: &str,
+    error_code: &str,
+    message_prefix: &str,
+) -> Result<WebID, (StatusCode, Json<ErrorResponse>)> {
+    uuid::Uuid::parse_str(raw)
+        .map_err(|_| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "invalid_webid".to_string(),
+                    code: error_code.to_string(),
+                    details: Some(serde_json::json!({
+                        "message": format!("{}{}", message_prefix, raw)
+                    })),
+                }),
+            )
+        })
+        .map(WebID)
+}
 
 /// ACP registration request
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -63,20 +89,7 @@ async fn acp_register(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<AcpRegisterRequest>,
 ) -> Result<Json<AcpRegisterResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let webid = uuid::Uuid::parse_str(&req.webid)
-        .map_err(|_| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error: "invalid_webid".to_string(),
-                    code: "ACP_BAD_REQUEST".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("Invalid WebID format: {}", req.webid)
-                    })),
-                }),
-            )
-        })
-        .map(hkask_types::WebID)?;
+    let webid = parse_webid(&req.webid, "ACP_BAD_REQUEST", "Invalid WebID format: ")?;
 
     let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
         (
@@ -190,20 +203,7 @@ async fn acp_unregister_agent(
     Extension(_auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let webid = uuid::Uuid::parse_str(&agent_id)
-        .map_err(|_| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error: "invalid_webid".to_string(),
-                    code: "ACP_BAD_REQUEST".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("Invalid WebID format: {}", agent_id)
-                    })),
-                }),
-            )
-        })
-        .map(hkask_types::WebID)?;
+    let webid = parse_webid(&agent_id, "ACP_BAD_REQUEST", "Invalid WebID format: ")?;
 
     let acp = state.pod_manager.acp_runtime();
     acp.unregister_agent(&webid).await.map_err(|e| match e {

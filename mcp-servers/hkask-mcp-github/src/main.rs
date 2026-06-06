@@ -15,6 +15,15 @@ use serde::Deserialize;
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const GITHUB_API_BASE: &str = "https://api.github.com";
 
+/// Build a GitHub API v3 URL for the given path segments.
+///
+/// All tool handlers use this builder instead of hand-rolling
+/// `format!("{GITHUB_API_BASE}/...")` so the base URL is
+/// defined in exactly one place.
+fn github_api_url(segments: &str) -> String {
+    format!("{GITHUB_API_BASE}{segments}")
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RepoRequest {
     pub owner: String,
@@ -173,7 +182,7 @@ impl GithubServer {
         if let Err(e) = validate_owner_repo(&owner, &repo) {
             return span.error(e.kind, e.to_json_string());
         }
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
+        let url = github_api_url(&format!("/repos/{owner}/{repo}"));
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => span.ok_json(extract_repo_summary(&v)),
             Err(e) => span.error(e.kind, e.to_json_string()),
@@ -190,7 +199,7 @@ impl GithubServer {
             return span.error(e.kind, e.to_json_string());
         }
         let state = state.unwrap_or_else(|| "open".to_string());
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues?state={state}");
+        let url = github_api_url(&format!("/repos/{owner}/{repo}/issues?state={state}"));
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let issues: Vec<serde_json::Value> = v
@@ -223,7 +232,7 @@ impl GithubServer {
         if let Err(e) = validate_owner_repo(&owner, &repo) {
             return span.error(e.kind, e.to_json_string());
         }
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
+        let url = github_api_url(&format!("/repos/{owner}/{repo}/issues/{issue_number}"));
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let labels: Vec<serde_json::Value> = v["labels"]
@@ -268,7 +277,7 @@ impl GithubServer {
                 McpToolError::invalid_argument("title must not be empty").to_json_string(),
             );
         }
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues");
+        let url = github_api_url(&format!("/repos/{owner}/{repo}/issues"));
         let mut payload = serde_json::json!({ "title": title });
         if let Some(ref b) = body {
             payload["body"] = serde_json::Value::String(b.clone());
@@ -310,7 +319,9 @@ impl GithubServer {
                 McpToolError::invalid_argument("body must not be empty").to_json_string(),
             );
         }
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
+        let url = github_api_url(&format!(
+            "/repos/{owner}/{repo}/issues/{issue_number}/comments"
+        ));
         let payload = serde_json::json!({ "body": body });
         match api_post(&self.client, "GitHub", &url, &payload).await {
             Ok(v) => span.ok_json(serde_json::json!({
@@ -331,7 +342,7 @@ impl GithubServer {
             return span.error(e.kind, e.to_json_string());
         }
         let state = state.unwrap_or_else(|| "open".to_string());
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls?state={state}");
+        let url = github_api_url(&format!("/repos/{owner}/{repo}/pulls?state={state}"));
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let prs: Vec<serde_json::Value> = v
@@ -359,7 +370,7 @@ impl GithubServer {
         if let Err(e) = validate_owner_repo(&owner, &repo) {
             return span.error(e.kind, e.to_json_string());
         }
-        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
+        let url = github_api_url(&format!("/repos/{owner}/{repo}/pulls/{pr_number}"));
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => span.ok_json(serde_json::json!({
                 "owner": owner, "repo": repo,
@@ -390,7 +401,7 @@ impl GithubServer {
             );
         }
         let limit = limit.unwrap_or(10);
-        let url = format!("{GITHUB_API_BASE}/search/repositories");
+        let url = github_api_url("/search/repositories");
         let resp = self
             .client
             .get(url)

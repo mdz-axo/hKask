@@ -125,17 +125,24 @@ pub enum A2AMessage {
     },
 }
 
+/// Consolidated mutable ACP state behind a single lock (P2.1).
+///
+/// Replaces 5 independent `Arc<RwLock<....>` fields with one
+/// lock, eliminating dead-lock potential from multi-lock acquisitions
+/// and guaranteeing consistent snapshots across read-modify-write ops.
+struct AcpState {
+    agents: HashMap<WebID, AcpAgent>,
+    pending_messages: HashMap<String, A2AMessage>,
+    capability_tokens: HashMap<WebID, Vec<DelegationToken>>,
+    agent_secrets: HashMap<WebID, AgentSecret>,
+    revoked_tokens: std::collections::HashSet<String>,
+}
+
 pub struct AcpRuntime {
-    agents: Arc<RwLock<HashMap<WebID, AcpAgent>>>,
-    pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
-    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<DelegationToken>>>>,
-    // Arc<Zeroizing> to avoid copying on Clone
+    state: Arc<RwLock<AcpState>>,
     secret: Arc<Zeroizing<Vec<u8>>>,
-    // HKDF-SHA256 from master key, lazily populated
-    agent_secrets: Arc<RwLock<HashMap<WebID, AgentSecret>>>,
     audit_log: Arc<AuditLog>,
     root_authority: Arc<RootAuthority>,
-    revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl AcpRuntime {
@@ -148,14 +155,16 @@ impl AcpRuntime {
         let secret_arc = Arc::new(Zeroizing::new(secret.to_vec()));
 
         Self {
-            agents: Arc::new(RwLock::new(HashMap::new())),
-            pending_messages: Arc::new(RwLock::new(HashMap::new())),
-            capability_tokens: Arc::new(RwLock::new(HashMap::new())),
+            state: Arc::new(RwLock::new(AcpState {
+                agents: HashMap::new(),
+                pending_messages: HashMap::new(),
+                capability_tokens: HashMap::new(),
+                agent_secrets: HashMap::new(),
+                revoked_tokens: std::collections::HashSet::new(),
+            })),
             secret: secret_arc,
-            agent_secrets: Arc::new(RwLock::new(HashMap::new())),
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
-            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
         }
     }
 
@@ -163,8 +172,8 @@ impl AcpRuntime {
     pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
-            let cache = self.agent_secrets.read().await;
-            if let Some(key) = cache.get(agent_webid) {
+            let state = self.state.read().await;
+            if let Some(key) = state.agent_secrets.get(agent_webid) {
                 return Arc::clone(key);
             }
         }
@@ -176,8 +185,10 @@ impl AcpRuntime {
 
         // Cache the derived key
         {
-            let mut cache = self.agent_secrets.write().await;
-            cache.insert(*agent_webid, Arc::clone(&arc_key));
+            let mut state = self.state.write().await;
+            state
+                .agent_secrets
+                .insert(*agent_webid, Arc::clone(&arc_key));
         }
 
         arc_key
@@ -190,12 +201,6 @@ impl AcpRuntime {
         agent_type: AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, AcpError> {
-        let mut agents = self.agents.write().await;
-
-        if agents.contains_key(&webid) {
-            return Err(AcpError::AgentAlreadyRegistered(webid));
-        }
-
         // Validate capabilities - reject wildcards
         for cap in &capabilities {
             if cap == "*" {
@@ -235,12 +240,15 @@ impl AcpRuntime {
             token
         };
 
-        // Store agent and capabilities
-        agents.insert(webid, agent);
-
-        // Store ALL capability tokens
-        let mut tokens = self.capability_tokens.write().await;
-        tokens.insert(webid, tokens_vec);
+        // Store agent and capabilities under single lock
+        {
+            let mut state = self.state.write().await;
+            if state.agents.contains_key(&webid) {
+                return Err(AcpError::AgentAlreadyRegistered(webid));
+            }
+            state.agents.insert(webid, agent);
+            state.capability_tokens.insert(webid, tokens_vec);
+        }
 
         info!(
             target: "hkask.acp",
@@ -254,19 +262,15 @@ impl AcpRuntime {
     }
 
     pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
-        let mut agents = self.agents.write().await;
+        let mut state = self.state.write().await;
 
-        if agents.remove(webid).is_none() {
+        if state.agents.remove(webid).is_none() {
             return Err(AcpError::AgentNotFound(*webid));
         }
 
-        // Remove capability tokens
-        let mut tokens = self.capability_tokens.write().await;
-        tokens.remove(webid);
-
-        // Remove per-agent derived key from cache
-        let mut agent_secrets = self.agent_secrets.write().await;
-        agent_secrets.remove(webid);
+        // Remove capability tokens and per-agent derived key
+        state.capability_tokens.remove(webid);
+        state.agent_secrets.remove(webid);
 
         info!(
             target: "hkask.acp",
@@ -283,17 +287,16 @@ impl AcpRuntime {
         agents: Vec<AcpAgent>,
         tokens: std::collections::HashMap<WebID, Vec<DelegationToken>>,
     ) -> Result<usize, AcpError> {
-        let mut agents_lock = self.agents.write().await;
-        let mut tokens_lock = self.capability_tokens.write().await;
+        let mut state = self.state.write().await;
 
         let count = agents.len();
 
         for agent in agents {
-            agents_lock.insert(agent.webid, agent);
+            state.agents.insert(agent.webid, agent);
         }
 
         for (webid, token_list) in tokens {
-            tokens_lock.insert(webid, token_list);
+            state.capability_tokens.insert(webid, token_list);
         }
 
         info!(
@@ -306,8 +309,8 @@ impl AcpRuntime {
     }
 
     pub(crate) async fn is_registered(&self, webid: &WebID) -> bool {
-        let agents = self.agents.read().await;
-        agents.contains_key(webid)
+        let state = self.state.read().await;
+        state.agents.contains_key(webid)
     }
 
     pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
@@ -341,8 +344,10 @@ impl AcpRuntime {
             ),
         };
 
-        let mut pending = self.pending_messages.write().await;
-        pending.insert(correlation_id.clone(), message);
+        let mut state = self.state.write().await;
+        state
+            .pending_messages
+            .insert(correlation_id.clone(), message);
 
         // Log audit entry
         let mut audit_entry = AuditEntry::new(
@@ -373,20 +378,24 @@ impl AcpRuntime {
 
     /// Revoke a capability token by ID
     pub(crate) async fn revoke_capability(&self, token_id: &str) {
-        let mut revoked = self.revoked_tokens.write().await;
-        revoked.insert(token_id.to_string());
+        let mut state = self.state.write().await;
+        state.revoked_tokens.insert(token_id.to_string());
     }
 
     /// Get all delegation tokens for agent
     pub(crate) async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
-        let tokens = self.capability_tokens.read().await;
-        tokens.get(webid).cloned().unwrap_or_default()
+        let state = self.state.read().await;
+        state
+            .capability_tokens
+            .get(webid)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// List all registered agents
     pub async fn list_agents(&self) -> Vec<AcpAgent> {
-        let agents = self.agents.read().await;
-        agents.values().cloned().collect()
+        let state = self.state.read().await;
+        state.agents.values().cloned().collect()
     }
 }
 
@@ -428,8 +437,9 @@ impl crate::ports::AcpPort for AcpRuntime {
     }
 
     async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, AcpError> {
-        let agents = self.agents.read().await;
-        agents
+        let state = self.state.read().await;
+        state
+            .agents
             .get(webid)
             .map(|agent| agent.capabilities.clone())
             .ok_or(AcpError::AgentNotFound(*webid))

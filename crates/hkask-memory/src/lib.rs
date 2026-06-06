@@ -18,7 +18,7 @@ pub mod ranking;
 
 pub use consolidation::ConsolidationBridge;
 pub use consolidation_service::ConsolidationService;
-pub use episodic::EpisodicMemory;
+pub use episodic::{EpisodicMemory, EpisodicMemoryError};
 pub use episodic_loop::EpisodicLoop;
-pub use semantic::SemanticMemory;
+pub use semantic::{SemanticMemory, SemanticMemoryError};
 pub use semantic_loop::SemanticLoop;

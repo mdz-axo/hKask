@@ -11,6 +11,8 @@ use hkask_types::WebID;
 use hkask_types::loops::LoopId;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority, TraceId};
+use std::collections::VecDeque;
+use std::collections::hash_map::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -20,26 +22,27 @@ use tokio::sync::Mutex;
 /// it guards (priority-ordered) and routes (FIFO within priority) messages
 /// between the 6 loops.
 ///
-/// Three internal queues hold messages at Critical, Warning, and Info
-/// priority levels. `receive()` always dequeues from the highest-priority
-/// non-empty queue, ensuring that algedonic alerts and cybernetics directives
-/// are processed before routine observations.
+/// Internally a single `HashMap<MessagePriority, VecDeque<LoopMessage>>`
+/// replaces the former 3 separate `Arc<Mutex<Vec<...>>>` fields. This
+/// eliminates per-priority lock contention — one lock covers all queues —
+/// and lets `receive()` drain in strict priority order without acquiring
+/// three separate locks.
 ///
 /// This is an in-memory queue — it does NOT persist to SQLite (unlike
-/// `EscalationQueue`). Use `tokio::sync::Mutex` for async compatibility.
+/// `EscalationQueue`). Uses `tokio::sync::Mutex` for async compatibility.
 pub struct MessageDispatch {
-    critical: Arc<Mutex<Vec<LoopMessage>>>,
-    warning: Arc<Mutex<Vec<LoopMessage>>>,
-    info: Arc<Mutex<Vec<LoopMessage>>>,
+    queues: Arc<Mutex<HashMap<MessagePriority, VecDeque<LoopMessage>>>>,
 }
 
 impl MessageDispatch {
     /// Create a new empty `MessageDispatch`.
     pub fn new() -> Self {
+        let mut queues = HashMap::new();
+        queues.insert(MessagePriority::Critical, VecDeque::new());
+        queues.insert(MessagePriority::Warning, VecDeque::new());
+        queues.insert(MessagePriority::Info, VecDeque::new());
         Self {
-            critical: Arc::new(Mutex::new(Vec::new())),
-            warning: Arc::new(Mutex::new(Vec::new())),
-            info: Arc::new(Mutex::new(Vec::new())),
+            queues: Arc::new(Mutex::new(queues)),
         }
     }
 
@@ -48,12 +51,13 @@ impl MessageDispatch {
     /// The message is placed into the queue corresponding to its priority.
     pub async fn send(&self, message: LoopMessage) -> TraceId {
         let trace_id = message.trace_id;
-        let queue = match message.priority {
-            MessagePriority::Critical => &self.critical,
-            MessagePriority::Warning => &self.warning,
-            MessagePriority::Info => &self.info,
-        };
-        queue.lock().await.push(message);
+        let priority = message.priority;
+        self.queues
+            .lock()
+            .await
+            .get_mut(&priority)
+            .unwrap()
+            .push_back(message);
         trace_id
     }
 
@@ -62,21 +66,24 @@ impl MessageDispatch {
     /// Returns the first message from the highest-priority non-empty queue:
     /// Critical → Warning → Info. Returns `None` if all queues are empty.
     pub async fn receive(&self) -> Option<LoopMessage> {
-        if let Some(msg) = self.critical.lock().await.pop_front() {
-            return Some(msg);
+        let mut queues = self.queues.lock().await;
+        for priority in [
+            MessagePriority::Critical,
+            MessagePriority::Warning,
+            MessagePriority::Info,
+        ] {
+            if let Some(queue) = queues.get_mut(&priority) {
+                if let Some(msg) = queue.pop_front() {
+                    return Some(msg);
+                }
+            }
         }
-        if let Some(msg) = self.warning.lock().await.pop_front() {
-            return Some(msg);
-        }
-        self.info.lock().await.pop_front()
+        None
     }
 
     /// Total number of queued messages across all priorities.
     pub async fn len(&self) -> usize {
-        let critical_len = self.critical.lock().await.len();
-        let warning_len = self.warning.lock().await.len();
-        let info_len = self.info.lock().await.len();
-        critical_len + warning_len + info_len
+        self.queues.lock().await.values().map(|q| q.len()).sum()
     }
 
     /// Whether all queues are empty.
@@ -183,20 +190,5 @@ impl MessageDispatch {
 impl Default for MessageDispatch {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Helper trait for popping from the front of a `Vec`.
-trait VecPopFront<T> {
-    fn pop_front(&mut self) -> Option<T>;
-}
-
-impl<T> VecPopFront<T> for Vec<T> {
-    fn pop_front(&mut self) -> Option<T> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(self.remove(0))
-        }
     }
 }

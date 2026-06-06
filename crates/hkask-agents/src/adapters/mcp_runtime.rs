@@ -9,8 +9,9 @@ use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_types::{
-    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, VerificationOutcome,
-    verify_delegation_token,
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
+    TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
+    token_err_tool_access_denied, verify_delegation_token,
 };
 use std::sync::Arc;
 
@@ -89,17 +90,17 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         ) {
             VerificationOutcome::Valid => Ok(()),
             VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
-                "Token signature verification failed".to_string(),
+                TOKEN_ERR_INVALID_SIGNATURE.to_string(),
             )),
             VerificationOutcome::Expired => {
-                Err(McpError::CapabilityDenied("Token is expired".to_string()))
+                Err(McpError::CapabilityDenied(TOKEN_ERR_EXPIRED.to_string()))
             }
             VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied(
-                format!("Token does not authorize tool: {}", token.resource_id),
+                token_err_tool_access_denied(&token.resource_id),
             )),
-            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied(
-                "No capability checker configured — tool access denied".to_string(),
-            )),
+            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied(format!(
+                "{TOKEN_ERR_NO_CHECKER} — tool access denied"
+            ))),
         }
     }
 
@@ -126,22 +127,21 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             VerificationOutcome::Valid => {}
             VerificationOutcome::InvalidSignature => {
                 return Err(McpError::CapabilityDenied(
-                    "Token signature verification failed".to_string(),
+                    TOKEN_ERR_INVALID_SIGNATURE.to_string(),
                 ));
             }
             VerificationOutcome::Expired => {
-                return Err(McpError::CapabilityDenied("Token is expired".to_string()));
+                return Err(McpError::CapabilityDenied(TOKEN_ERR_EXPIRED.to_string()));
             }
             VerificationOutcome::InsufficientAccess { resource_id, .. } => {
-                return Err(McpError::CapabilityDenied(format!(
-                    "Token does not authorize tool: {}",
-                    resource_id
+                return Err(McpError::CapabilityDenied(token_err_tool_access_denied(
+                    &resource_id,
                 )));
             }
             VerificationOutcome::NoChecker => {
-                return Err(McpError::CapabilityDenied(
-                    "No capability checker configured — tool invocation denied".to_string(),
-                ));
+                return Err(McpError::CapabilityDenied(format!(
+                    "{TOKEN_ERR_NO_CHECKER} — tool invocation denied"
+                )));
             }
         }
 

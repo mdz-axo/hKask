@@ -20,7 +20,9 @@ use hkask_storage::spec_types::{
 };
 use hkask_types::{
     CapabilityChecker, CurationDecision, DelegationAction, DelegationResource, DelegationToken,
-    McpErrorKind, OCAPBoundary, VerificationOutcome, WebID, verify_delegation_token,
+    McpErrorKind, OCAPBoundary, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE,
+    TOKEN_ERR_NO_CHECKER, VerificationOutcome, WebID, token_err_insufficient_access,
+    verify_delegation_token,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -99,22 +101,20 @@ impl SpecServer {
         ) {
             VerificationOutcome::Valid => Ok(()),
             VerificationOutcome::InvalidSignature => Err(McpToolError::permission_denied(
-                "Token signature verification failed".to_string(),
+                TOKEN_ERR_INVALID_SIGNATURE.to_string(),
             )),
-            VerificationOutcome::Expired => {
-                Err(McpToolError::permission_denied("Token expired".to_string()))
-            }
+            VerificationOutcome::Expired => Err(McpToolError::permission_denied(
+                TOKEN_ERR_EXPIRED.to_string(),
+            )),
             VerificationOutcome::InsufficientAccess {
                 resource_id: rid,
                 action: a,
                 ..
-            } => Err(McpToolError::permission_denied(format!(
-                "Token does not grant spec:{}:{}",
-                rid,
-                a.as_str()
-            ))),
+            } => Err(McpToolError::permission_denied(
+                token_err_insufficient_access(&rid, a.as_str()),
+            )),
             VerificationOutcome::NoChecker => Err(McpToolError::permission_denied(
-                "No capability checker configured".to_string(),
+                TOKEN_ERR_NO_CHECKER.to_string(),
             )),
         }
     }
