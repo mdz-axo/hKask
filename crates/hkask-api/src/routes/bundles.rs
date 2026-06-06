@@ -1,10 +1,11 @@
 //! Bundle management routes
 
-use axum::{
-    Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router,
-};
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::{Json, routing::Router};
 use hkask_types::ports::BundleRegistryIndex;
 
+use crate::ApiError;
 use crate::ApiState;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -138,19 +139,21 @@ async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse>
         (status = 404, description = "Bundle not found"),
     ),
 )]
-async fn get_bundle(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+async fn get_bundle(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
     let registry = state.registry.lock().await;
     match registry.get_bundle(&id) {
         Some(bundle) => {
             let value =
                 serde_json::to_value(&bundle).unwrap_or(serde_json::json!({"id": bundle.id}));
-            (StatusCode::OK, Json(value)).into_response()
+            Ok(Json(value))
         }
-        None => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": format!("Bundle '{}' not found", id)})),
-        )
-            .into_response(),
+        None => Err(ApiError::NotFound {
+            resource: "bundle".into(),
+            id,
+        }),
     }
 }
 
@@ -167,15 +170,11 @@ async fn get_bundle(State(state): State<ApiState>, Path(id): Path<String>) -> im
 async fn compose_bundle(
     State(state): State<ApiState>,
     Json(request): Json<ComposeBundleRequest>,
-) -> impl IntoResponse {
+) -> Result<Json<ComposeBundleResponse>, ApiError> {
     if request.skills.len() < 2 {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "error": "A bundle requires at least 2 skills"
-            })),
-        )
-            .into_response();
+        return Err(ApiError::BadRequest {
+            message: "A bundle requires at least 2 skills".to_string(),
+        });
     }
 
     let registry = state.registry.lock().await;
@@ -198,15 +197,11 @@ async fn compose_bundle(
         "Bundle composition requires template rendering. Use `kask bundle compose` for full composition.".to_string()
     };
 
-    (
-        StatusCode::OK,
-        Json(ComposeBundleResponse {
-            existing_match,
-            manifest: None, // Composition requires template rendering — not available in API alone
-            message,
-        }),
-    )
-        .into_response()
+    Ok(Json(ComposeBundleResponse {
+        existing_match,
+        manifest: None, // Composition requires template rendering — not available in API alone
+        message,
+    }))
 }
 
 /// Apply a bundle to the current session
@@ -219,24 +214,22 @@ async fn compose_bundle(
         (status = 404, description = "Bundle not found"),
     ),
 )]
-async fn apply_bundle(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+async fn apply_bundle(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> Result<Json<ApplyBundleResponse>, ApiError> {
     let registry = state.registry.lock().await;
     match registry.get_bundle(&id) {
-        Some(bundle) => (
-            StatusCode::OK,
-            Json(ApplyBundleResponse {
-                status: "active".to_string(),
-                bundle_id: bundle.id.clone(),
-                name: bundle.name.clone(),
-                skill_count: bundle.skills.len(),
-            }),
-        )
-            .into_response(),
-        None => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": format!("Bundle '{}' not found", id) })),
-        )
-            .into_response(),
+        Some(bundle) => Ok(Json(ApplyBundleResponse {
+            status: "active".to_string(),
+            bundle_id: bundle.id.clone(),
+            name: bundle.name.clone(),
+            skill_count: bundle.skills.len(),
+        })),
+        None => Err(ApiError::NotFound {
+            resource: "bundle".into(),
+            id,
+        }),
     }
 }
 
@@ -250,23 +243,21 @@ async fn apply_bundle(State(state): State<ApiState>, Path(id): Path<String>) -> 
         (status = 404, description = "Bundle not found"),
     ),
 )]
-async fn evolve_bundle(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+async fn evolve_bundle(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> Result<Json<EvolveBundleResponse>, ApiError> {
     let registry = state.registry.lock().await;
     match registry.get_bundle(&id) {
-        Some(_bundle) => (
-            StatusCode::OK,
-            Json(EvolveBundleResponse {
-                evolved_manifest: None, // Evolution requires template rendering
-                changes: vec![],
-                message: "Bundle evolution requires template rendering. Use `kask bundle evolve` for full evolution.".to_string(),
-            }),
-        )
-        .into_response(),
-        None => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": format!("Bundle '{}' not found", id) })),
-        )
-            .into_response(),
+        Some(_bundle) => Ok(Json(EvolveBundleResponse {
+            evolved_manifest: None, // Evolution requires template rendering
+            changes: vec![],
+            message: "Bundle evolution requires template rendering. Use `kask bundle evolve` for full evolution.".to_string(),
+        })),
+        None => Err(ApiError::NotFound {
+            resource: "bundle".into(),
+            id,
+        }),
     }
 }
 
