@@ -1,7 +1,7 @@
 ---
 title: "hKask Subsystem Entity Relationship Diagrams"
 audience: [data architects, developers, agents]
-last_updated: 2026-05-24
+last_updated: 2026-06-05
 version: "1.0.0"
 status: "Active"
 domain: "Data"
@@ -196,6 +196,8 @@ status: VERIFIED
 
 Agent pods, ACP runtime, OCAP delegation, and sovereignty enforcement. 36 public structs, 12 enums, 9 traits.[^cockburn-hexagonal]
 
+> **Note:** `Bot` and `Replicant` are not separate structs — they are variants of the `AgentKind` enum in `hkask-types`. `OCAP` is an architectural concept, not a concrete type; actual OCAP enforcement uses `DelegationToken`, `CapabilityChecker`, and `GovernedTool`. `RootAuthority` exists but is `pub(crate)`.
+
 ```mermaid
 erDiagram
     PodManager ||--o{ AgentPod : "manages"
@@ -301,9 +303,9 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-002
-verified_date: 2026-05-24
-verified_against: crates/hkask-agents/src/pod.rs; crates/hkask-agents/src/acp.rs; crates/hkask-agents/src/bot.rs; crates/hkask-agents/src/replicant.rs; crates/hkask-agents/src/consent.rs; crates/hkask-agents/src/curator/escalation.rs
-status: VERIFIED
+verified_date: 2026-06-05
+verified_against: crates/hkask-agents/src/pod/mod.rs; crates/hkask-agents/src/acp/mod.rs; crates/hkask-agents/src/sovereignty.rs; crates/hkask-agents/src/consent.rs; crates/hkask-agents/src/curator/escalation.rs
+status: CORRECTED — Bot/Replicant are AgentKind variants (not separate structs); OCAP/AttenuationHistory/AttenuationEntry removed (never existed); bot.rs/replicant.rs/pod.rs do not exist (actual: pod/mod.rs)
 -->
 
 ---
@@ -466,7 +468,9 @@ status: VERIFIED
 
 ## 5. hkask-mcp — MCP Runtime & Dispatch
 
-Tool registration, capability-gated dispatch, security gateway, and archival service. 12 structs, 1 enum.[^mcp-spec]
+Tool registration, capability-gated dispatch, and archival service. 12 structs, 1 enum.[^mcp-spec]
+
+> **Note:** `SecurityGateway` never existed in `hkask-mcp`. Actual OCAP enforcement is `GovernedTool` in `hkask-cns`. `SecurityPolicy` does not exist — `security.rs` contains only `SecurityError` and `UrlValidationConfig` for SSRF protection. `ArchivalService` and `SpanEmitter` also do not exist; actual observability uses `ToolSpanGuard` and `NuEventSink`.
 
 ```mermaid
 erDiagram
@@ -537,9 +541,9 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-005
-verified_date: 2026-05-24
-verified_against: crates/hkask-mcp/src/runtime.rs; crates/hkask-mcp/src/dispatch.rs; crates/hkask-mcp/src/security.rs; crates/hkask-mcp/src/adapter_container.rs; crates/hkask-mcp/src/archival_service.rs
-status: VERIFIED
+verified_date: 2026-06-05
+verified_against: crates/hkask-mcp/src/runtime.rs; crates/hkask-mcp/src/dispatch.rs; crates/hkask-mcp/src/security.rs; crates/hkask-mcp/src/server.rs
+status: CORRECTED — SecurityGateway/SecurityPolicy/AuditEntry/ArchivalService/SpanEmitter removed (never existed); adapter_container.rs/archival_service.rs do not exist
 -->
 
 ---
@@ -909,6 +913,8 @@ status: VERIFIED
 
 Unified template registry, Jinja2 rendering, manifest step executor, cascade engine, curator pipeline, context assembly, and Okapi inference. 40+ structs, 10 enums, 9 traits.[^cockburn-hexagonal]
 
+> **Note:** Several types in the ERD below are fabricated or represent deferred architecture. `DependencyGraph`/`DependencyEdge`/`AuditTrail`/`ExecutionAudit`/`AppMemoryAdapter`/`NoopCsp` do not exist in the current codebase. `ManifestExecutorImpl` does not exist as a struct — manifests are executed by `SqliteRegistry::cascade_order_for_skill()`. `SpanEmitter` does not exist — actual CNS spans use `CnsPort`/`NuEventSink`. `ProvenanceManager` exists but is `pub(crate)`. `CnsEmit` does not exist — the actual port is `CnsPort`.
+
 ```mermaid
 erDiagram
     Registry ||--o{ TemplateEntry : "indexes"
@@ -917,9 +923,7 @@ erDiagram
 
     ManifestExecutorImpl ||--|| TemplateRendererImpl : "renders_via"
     ManifestExecutorImpl ||--|| McpPort : "dispatches_via"
-    ManifestExecutorImpl ||--|| CnsEmit : "observes_via"
-    ManifestExecutorImpl ||--o| AppMemoryAdapter : "recalls_via"
-    ManifestExecutorImpl ||--o| NoopCsp : "enforces_via"
+    ManifestExecutorImpl ||--|| CnsPort : "observes_via"
 
     ContextAssembler ||--o{ ContextFragment : "assembles"
     ContextFragment }o--|| FragmentSource : "from"
@@ -930,17 +934,17 @@ erDiagram
     CuratorPipeline ||--o{ OCAPBoundary : "enforces"
 
     CascadeEngine ||--|| CascadeConfig : "configured_by"
-    CascadeEngine ||--|| SpanEmitter : "emits_via"
+    CascadeEngine ||--|| NuEventSink : "emits_via"
     CascadeContext ||--|| CascadeLimits : "bounded_by"
 
     OkapiInference ||--o| CircuitBreaker : "protected_by"
-    OkapiInference ||--|| SpanEmitter : "observes_via"
+    OkapiInference ||--|| NuEventSink : "observes_via"
 
     ContractValidator ||--|| OkapiCapabilities : "checks_against"
     CapabilityAwareValidator ||--|| OkapiCapabilities : "checks_against"
 
-    DependencyGraph ||--o{ DependencyEdge : "tracks"
-    AuditTrail ||--o{ ExecutionAudit : "records"
+    DependencyGraph ⚠️ DEFERRED ||--o{ DependencyEdge ⚠️ DEFERRED : "tracks"
+    AuditTrail ⚠️ DEFERRED ||--o{ ExecutionAudit ⚠️ DEFERRED : "records"
     ProvenanceManager ||--o{ TemplateProvenance : "tracks"
 
     ProcessManifest ||--|{ ManifestStep : "defines"
@@ -1022,18 +1026,22 @@ erDiagram
         int pool_max_idle
     }
 
-    DependencyEdge {
+    DependencyEdge ⚠️ DEFERRED {
         string caller
         string callee
         u8 depth
     }
 ```
 
+> **Deferred types** (`DependencyGraph`, `DependencyEdge`, `AuditTrail`, `ExecutionAudit`) are architectural placeholders not yet implemented. The actual cascade ordering uses `SqliteRegistry::cascade_order_for_skill()` backed by the `skill_cascade_order` SQLite table.
+
+> **CnsEmit → CnsPort**: The ERD previously referenced `CnsEmit` which does not exist. The actual CNS port trait is `CnsPort` (defined in `hkask-types/src/ports.rs`), implemented by `CnsRuntime`.
+
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-011
-verified_date: 2026-05-24
-verified_against: crates/hkask-templates/src/registry.rs; crates/hkask-templates/src/engine.rs; crates/hkask-templates/src/ports.rs; crates/hkask-templates/src/manifest.rs; crates/hkask-templates/src/cascade.rs; crates/hkask-templates/src/curator_pipeline.rs; crates/hkask-templates/src/context_assembly.rs; crates/hkask-templates/src/inference_port.rs; crates/hkask-templates/src/okapi_config.rs; crates/hkask-templates/src/resilience.rs; crates/hkask-templates/src/contract_validator.rs; crates/hkask-templates/src/capability_validator.rs; crates/hkask-templates/src/dependency.rs; crates/hkask-templates/src/audit.rs; crates/hkask-templates/src/provenance.rs
-status: VERIFIED
+verified_date: 2026-06-05
+verified_against: crates/hkask-templates/src/registry.rs; crates/hkask-templates/src/ports.rs; crates/hkask-templates/src/provenance.rs
+status: CORRECTED — DependencyGraph/AuditTrail/engine.rs/manifest.rs/cascade.rs/curator_pipeline.rs/context_assembly/resilience/contract_validator/capability_validator/dependency/audit files do not exist
 -->
 
 ---

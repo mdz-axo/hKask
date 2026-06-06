@@ -6,6 +6,7 @@
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
+
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::{TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -56,10 +57,10 @@ pub struct RegistryServer {
 }
 
 impl RegistryServer {
-    pub fn new(db_path: Option<String>, webid: WebID) -> Self {
+    pub fn new(sqlite: Option<SqliteRegistry>, webid: WebID) -> Self {
         let mut registry = Registry::bootstrap();
 
-        if let Ok(sqlite) = Self::try_sqlite_load(db_path.as_deref()) {
+        if let Some(sqlite) = sqlite {
             let entries = sqlite.list(None);
             for entry in entries {
                 if registry.get(&entry.id).is_none() {
@@ -73,10 +74,6 @@ impl RegistryServer {
             registry: Arc::new(RwLock::new(registry)),
             webid,
         }
-    }
-
-    fn try_sqlite_load(db_path: Option<&str>) -> Result<SqliteRegistry, String> {
-        SqliteRegistry::new(db_path).map_err(|e| format!("Failed to create SQLite registry: {}", e))
     }
 
     fn parse_template_type(tt: &Option<String>) -> Option<TemplateType> {
@@ -282,13 +279,25 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-registry",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let db_path = ctx.credentials.get("HKASK_REGISTRY_DB").cloned();
-            Ok(RegistryServer::new(db_path, ctx.webid))
+            let sqlite = match ctx.credentials.get("HKASK_REGISTRY_DB") {
+                Some(_) => {
+                    let db = ctx.open_database("HKASK_REGISTRY_DB")?;
+                    Some(SqliteRegistry::new_with_conn(db.conn_arc())?)
+                }
+                None => None,
+            };
+            Ok(RegistryServer::new(sqlite, ctx.webid))
         },
-        vec![hkask_mcp::CredentialRequirement::optional(
-            "HKASK_REGISTRY_DB",
-            "Path to registry SQLite database",
-        )],
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_REGISTRY_DB",
+                "Path to registry SQLite database (encrypted with HKASK_DB_PASSPHRASE)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for registry database encryption (required if HKASK_REGISTRY_DB is set)",
+            ),
+        ],
     )
     .await
 }

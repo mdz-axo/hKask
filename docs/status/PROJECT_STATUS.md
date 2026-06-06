@@ -27,9 +27,9 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Core LOC (Rust)** | ~40,794 | Measured 2026-05-28 |
-| **MCP Server LOC (Rust)** | ~11,178 | Excluded from budget |
-| **Total Rust LOC** | ~51,972 | — |
+| **Core LOC (Rust)** | ~57,730 | Measured 2026-06-05 |
+| **MCP Server LOC (Rust)** | ~12,099 | Excluded from budget |
+| **Total Rust LOC** | ~69,829 | — |
 | **Excluded** | Jinja2 templates, YAML manifests | Not counted |
 
 ### 2.2 Test Metrics
@@ -78,40 +78,40 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Crate | LOC | Purpose | Status |
 |-------|-----|---------|--------|
-| `hkask-types` | 5,154 | ID types, ν-event, hLexicon, specs | ✅ Complete |
-| `hkask-storage` | 4,010 | SQLite + SQLCipher + sqlite-vec | ✅ Complete |
-| `hkask-memory` | 695 | Semantic/episodic pipelines | ✅ Complete |
-| `hkask-cns` | 2,039 | CNS, variety counters, algedonic | ✅ Complete |
-| `hkask-templates` | 8,259 | Registry, cascade, rendering | ✅ Complete |
-| `hkask-agents` | 7,474 | Pods, ACP, bot/replicant | ✅ Complete |
-| `hkask-ensemble` | 4,698 | Multi-agent chat | ✅ Complete |
-| `hkask-keystore` | 384 | OS keychain, AES-256-GCM | ✅ Complete |
-| `hkask-mcp` | 1,911 | MCP runtime, dispatch, security | ✅ Complete |
-| `hkask-cli` | 3,741 | CLI commands (14 subcommand groups) | ✅ Complete |
-| `hkask-api` | 2,449 | HTTP API (11 route groups), utoipa | ✅ Complete |
+| `hkask-types` | 7,673 | ID types, ν-event, hLexicon, specs | ✅ Complete |
+| `hkask-storage` | 4,771 | SQLite + SQLCipher + sqlite-vec | ✅ Complete |
+| `hkask-memory` | 2,005 | Semantic/episodic pipelines | ✅ Complete |
+| `hkask-cns` | 5,432 | CNS, variety counters, algedonic | ✅ Complete |
+| `hkask-templates` | 3,529 | Registry, cascade, rendering | ✅ Complete |
+| `hkask-agents` | 10,945 | Pods, ACP, bot/replicant | ✅ Complete |
+| `hkask-ensemble` | 3,246 | Multi-agent chat | ✅ Complete |
+| `hkask-keystore` | 619 | OS keychain, AES-256-GCM | ✅ Complete |
+| `hkask-mcp` | 1,801 | MCP runtime, dispatch, security | ✅ Complete |
+| `hkask-cli` | 12,151 | CLI commands (25 subcommand groups) | ✅ Complete |
+| `hkask-api` | 5,558 | HTTP API (18 route groups), utoipa | ✅ Complete |
 
 ### 3.3 MCP Servers (18)
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
-| `hkask-mcp-inference` | 391 | ✅ Complete | Okapi LLM inference |
-| `hkask-mcp-condenser` | 761 | ⚠️ Stub | Context condensation (reranking and compression of the active conversation window) |
-| `hkask-mcp-web` | 3,389 | ⚠️ Stub | Web search, scrape |
-| `hkask-mcp-ocap` | 319 | ✅ Complete | Capability management |
-| `hkask-mcp-keystore` | 529 | ✅ Complete | Keystore operations |
-| `hkask-mcp-cns` | 280 | ✅ Complete | CNS operations |
-| `hkask-mcp-git` | 412 | ✅ Complete | Git CAS |
-| `hkask-mcp-registry` | 310 | ✅ Complete | Registry operations |
+| `hkask-mcp-inference` | 328 | ✅ Complete | Okapi LLM inference |
+| `hkask-mcp-condenser` | 866 | ⚠️ Stub | Context condensation (reranking and compression of the active conversation window) |
+| `hkask-mcp-web` | 3,185 | ⚠️ Stub | Web search, scrape |
+| `hkask-mcp-ocap` | 315 | ✅ Complete | Capability management |
+| `hkask-mcp-keystore` | 497 | ✅ Complete | Keystore operations |
+| `hkask-mcp-cns` | 401 | ✅ Complete | CNS operations |
+| `hkask-mcp-git` | 308 | ✅ Complete | Git CAS |
+| `hkask-mcp-registry` | 294 | ✅ Complete | Registry operations |
 | `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
-| `hkask-mcp-github` | 459 | ✅ Complete | GitHub integration |
-| `hkask-mcp-fmp` | 369 | ✅ Complete | Financial data (FMP) |
-| `hkask-mcp-telnyx` | 244 | ✅ Complete | Communications (Telnyx) |
-| `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
-| `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed reader |
-| `hkask-mcp-goal` | ~235 | ✅ Complete | Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API |
-| `hkask-mcp-ensemble` | ~LOC | ✅ Complete | Multi-agent chat MCP server |
-| `hkask-mcp-episodic` | ~LOC | ✅ Complete | Episodic memory MCP server |
-| `hkask-mcp-semantic` | ~LOC | ✅ Complete | Semantic memory MCP server |
+| `hkask-mcp-github` | 451 | ✅ Complete | GitHub integration |
+| `hkask-mcp-fmp` | 367 | ✅ Complete | Financial data (FMP) |
+| `hkask-mcp-telnyx` | 240 | ✅ Complete | Communications (Telnyx) |
+| `hkask-mcp-fal` | 414 | ✅ Complete | Media generation (FAL) |
+| `hkask-mcp-rss-reader` | 1,432 | ✅ Complete | RSS feed reader |
+| `hkask-mcp-goal` | 287 | ✅ Complete | Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API |
+| `hkask-mcp-ensemble` | 391 | ✅ Complete | Multi-agent chat MCP server |
+| `hkask-mcp-episodic` | 219 | ✅ Complete | Episodic memory MCP server |
+| `hkask-mcp-semantic` | 437 | ✅ Complete | Semantic memory MCP server |
 
 **Note:** MCP servers are excluded from count per [`AGENTS.md`](../../AGENTS.md).
 

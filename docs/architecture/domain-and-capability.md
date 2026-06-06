@@ -251,7 +251,6 @@ All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mo
 | `DelegationAction` | `capability/mod.rs:203` | Action enum (Read, Write, Execute) |
 | `Caveat` | `capability/mod.rs:240` | Expiration, operation, template, visibility restrictions |
 | `RevocationStore` | `hkask-agents/src/revocation_store.rs:16` | Persistent capability revocation |
-| `OCAP` | `hkask-agents/src/ocap.rs:15` | OCAP enforcement with attenuation history |
 
 [^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
 
@@ -319,25 +318,25 @@ status: VERIFIED
 
 | MCP Server | Crate | LOC | Status | Loop | Domain |
 |-----------|-------|-----|--------|------|--------|
-| inference | `hkask-mcp-inference` | 391 | ✅ Complete | L1 (Inference) | Okapi LLM |
-| condenser | `hkask-mcp-condenser` | 761 | ✅ Complete | L2 (Episodic) | Context condensation (reranking and compression of the active conversation window) |
-| web | `hkask-mcp-web` | 3,389 | ✅ Complete | L4 (Communication) | Web search with SSRF protection |
-| ocap | `hkask-mcp-ocap` | 319 | ✅ Complete | L6 (Cybernetics) | Capability management |
-| keystore | `hkask-mcp-keystore` | 529 | ✅ Complete | L6 (Cybernetics) | OS keychain secret management |
-| cns | `hkask-mcp-cns` | 280 | ✅ Complete | L6 (Cybernetics) | Observability |
-| git | `hkask-mcp-git` | 412 | ✅ Complete | L4 (Communication) | Git CAS operations |
-| registry | `hkask-mcp-registry` | 310 | ✅ Complete | L1↔L5 (bridge) | Template registry |
+| inference | `hkask-mcp-inference` | 328 | ✅ Complete | L1 (Inference) | Okapi LLM |
+| condenser | `hkask-mcp-condenser` | 866 | ✅ Complete | L2 (Episodic) | Context condensation (reranking and compression of the active conversation window) |
+| web | `hkask-mcp-web` | 3,185 | ✅ Complete | L4 (Communication) | Web search with SSRF protection |
+| ocap | `hkask-mcp-ocap` | 315 | ✅ Complete | L6 (Cybernetics) | Capability management |
+| keystore | `hkask-mcp-keystore` | 497 | ✅ Complete | L6 (Cybernetics) | OS keychain secret management |
+| cns | `hkask-mcp-cns` | 401 | ✅ Complete | L6 (Cybernetics) | Observability |
+| git | `hkask-mcp-git` | 308 | ✅ Complete | L4 (Communication) | Git CAS operations |
+| registry | `hkask-mcp-registry` | 294 | ✅ Complete | L1↔L5 (bridge) | Template registry |
 | spec | `hkask-mcp-spec` | 853 | ✅ Complete | L5 (Curation) | DDMVSS spec tools (8 tools) |
-| goal | `hkask-mcp-goal` | ~235 | ✅ Complete | L5 (Curation) | Goal coordination (OCAP-gated, CNS-observed) |
-| github | `hkask-mcp-github` | 459 | ✅ Complete | L4 (Communication) | GitHub API integration |
-| fmp | `hkask-mcp-fmp` | 369 | ✅ Complete | L4 (Communication) | Financial data (FMP) |
-| telnyx | `hkask-mcp-telnyx` | 244 | ✅ Complete | L4 (Communication) | SMS/voice communications |
-| fal | `hkask-mcp-fal` | 434 | ✅ Complete | L4 (Communication) | Media generation (FAL) |
-| rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | L2 (Episodic) | RSS feed management |
-| ensemble | `hkask-mcp-ensemble` | 295 | ✅ Complete | L4 (Communication) | Multi-agent chat coordination |
-| episodic | `hkask-mcp-episodic` | 190 | ✅ Complete | L2 (Episodic) | Episodic memory (private, perspective-bound) |
-| semantic | `hkask-mcp-semantic` | 290 | ✅ Complete | L2b (Semantic) | Semantic memory (public, shared) |
-| replicant | `hkask-mcp-replicant` | ~310 | ✅ Complete | L5 (Curation) | Replicant chat (MCP bridge for external integrations) |
+| goal | `hkask-mcp-goal` | 287 | ✅ Complete | L5 (Curation) | Goal coordination (OCAP-gated, CNS-observed) |
+| github | `hkask-mcp-github` | 451 | ✅ Complete | L4 (Communication) | GitHub API integration |
+| fmp | `hkask-mcp-fmp` | 367 | ✅ Complete | L4 (Communication) | Financial data (FMP) |
+| telnyx | `hkask-mcp-telnyx` | 240 | ✅ Complete | L4 (Communication) | SMS/voice communications |
+| fal | `hkask-mcp-fal` | 414 | ✅ Complete | L4 (Communication) | Media generation (FAL) |
+| rss-reader | `hkask-mcp-rss-reader` | 1,432 | ✅ Complete | L2 (Episodic) | RSS feed management |
+| ensemble | `hkask-mcp-ensemble` | 391 | ✅ Complete | L4 (Communication) | Multi-agent chat coordination |
+| episodic | `hkask-mcp-episodic` | 219 | ✅ Complete | L2 (Episodic) | Episodic memory (private, perspective-bound) |
+| semantic | `hkask-mcp-semantic` | 437 | ✅ Complete | L2b (Semantic) | Semantic memory (public, shared) |
+| replicant | `hkask-mcp-replicant` | 815 | ✅ Complete | L5 (Curation) | Replicant chat (MCP bridge for external integrations) |
 
 **Total:** 19 servers, 117+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
@@ -413,31 +412,31 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 
 | Crate | LOC | Purpose | Key Types |
 |-------|-----|---------|-----------|
-| `hkask-types` | 5,154 | ID types, ν-event, hLexicon, specs | `WebID`, `NuEvent`, `Span`, `DelegationToken`, `Goal`, `Spec` |
-| `hkask-storage` | 4,010 | SQLite + SQLCipher + sqlite-vec | `Database`, `TripleStore`, `EmbeddingStore`, `GitCas` |
-| `hkask-memory` | 695 | Semantic/episodic pipelines | Memory consolidation (episodic → semantic) |
-| `hkask-cns` | 2,039 | Cybernetic Nervous System | `CnsRuntime`, `AlgedonicManager`, `VarietyCounter` |
-| `hkask-templates` | 3,514 | Registry, rendering, cascade | `SqliteRegistry`, `TemplateRendererImpl`, `ContextAssembler` |
-| `hkask-agents` | 7,474 | Pods, ACP, bot/replicant | `AgentPod`, `PodManager`, `ConsentManager` |
-| `hkask-ensemble` | 4,698 | Multi-agent chat | Ensemble coordination |
-| `hkask-keystore` | 384 | OS keychain, AES-256-GCM | Key derivation, secret storage |
-| `hkask-mcp` | 1,573 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `GovernedTool` |
-| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 25 subcommand groups (chat, template, bot, pod, mcp, cns, sovereignty, goal, registry, git, ensemble, spec, docs, agent, curator, replicant, keystore, models, web-search, bundle, compose, embed-corpus, consolidate, loops, serve) |
-| `hkask-api` | 2,449 | HTTP API (utoipa) | 18 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, models, ensemble, soap_infer, acp, spec, curator, git, goal, bundles, episodic, consolidation) |
+| `hkask-types` | 7,673 | ID types, ν-event, hLexicon, specs | `WebID`, `NuEvent`, `Span`, `DelegationToken`, `Goal`, `Spec` |
+| `hkask-storage` | 4,771 | SQLite + SQLCipher + sqlite-vec | `Database`, `TripleStore`, `EmbeddingStore`, `GitCas` |
+| `hkask-memory` | 2,005 | Semantic/episodic pipelines | Memory consolidation (episodic → semantic) |
+| `hkask-cns` | 5,432 | Cybernetic Nervous System | `CnsRuntime`, `AlgedonicManager`, `VarietyCounter` |
+| `hkask-templates` | 3,529 | Registry, rendering, cascade | `SqliteRegistry`, `TemplateRendererImpl`, `ContextAssembler` |
+| `hkask-agents` | 10,945 | Pods, ACP, bot/replicant | `AgentPod`, `PodManager`, `ConsentManager` |
+| `hkask-ensemble` | 3,246 | Multi-agent chat | Ensemble coordination |
+| `hkask-keystore` | 619 | OS keychain, AES-256-GCM | Key derivation, secret storage |
+| `hkask-mcp` | 1,801 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `GovernedTool` |
+| `hkask-cli` | 12,151 | CLI commands (`kask` binary) | 25 subcommand groups (chat, template, bot, pod, mcp, cns, sovereignty, goal, registry, git, ensemble, spec, docs, agent, curator, replicant, keystore, models, web-search, bundle, compose, embed-corpus, consolidate, loops, serve) |
+| `hkask-api` | 5,558 | HTTP API (utoipa) | 18 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, models, ensemble, soap_infer, acp, spec, curator, git, goal, bundles, episodic, consolidation) |
 
 ### 8.2 Dependency Graph
 
 ```mermaid
 graph TD
-    TYPES["hkask-types<br/>5,154 LOC"] --> STORAGE["hkask-storage<br/>4,010 LOC"]
-    STORAGE --> MEMORY["hkask-memory<br/>695 LOC"]
-    MEMORY --> CNS["hkask-cns<br/>2,039 LOC"]
-    TEMPLATES["hkask-templates<br/>3,514 LOC"]
-    TEMPLATES --> AGENTS["hkask-agents<br/>7,474 LOC"]
-    AGENTS --> ENSEMBLE["hkask-ensemble<br/>4,698 LOC"]
-    KEYSTORE["hkask-keystore<br/>384 LOC"] --> AGENTS
-    MCP["hkask-mcp<br/>1,573 LOC"] --> AGENTS
-    CLI["hkask-cli<br/>3,741 LOC"] --> API["hkask-api<br/>2,449 LOC"]
+    TYPES["hkask-types<br/>7,673 LOC"] --> STORAGE["hkask-storage<br/>4,771 LOC"]
+    STORAGE --> MEMORY["hkask-memory<br/>2,005 LOC"]
+    MEMORY --> CNS["hkask-cns<br/>5,432 LOC"]
+    TEMPLATES["hkask-templates<br/>3,529 LOC"]
+    TEMPLATES --> AGENTS["hkask-agents<br/>10,945 LOC"]
+    AGENTS --> ENSEMBLE["hkask-ensemble<br/>3,246 LOC"]
+    KEYSTORE["hkask-keystore<br/>619 LOC"] --> AGENTS
+    MCP["hkask-mcp<br/>1,801 LOC"] --> AGENTS
+    CLI["hkask-cli<br/>12,151 LOC"] --> API["hkask-api<br/>5,558 LOC"]
     API --> AGENTS
 ```
 

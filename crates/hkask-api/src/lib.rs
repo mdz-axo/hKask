@@ -283,7 +283,7 @@ impl ApiState {
                 tracing::warn!(
                     target: "hkask.api",
                     "No persistent database configured — consent records are in-memory and will be lost on restart. \
-                     Set HKASK_API_DB and HKASK_DB_PASSPHRASE for sovereign persistence."
+                     Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
                 );
                 hkask_storage::Database::in_memory()
                     .expect("in-memory db")
@@ -306,7 +306,7 @@ impl ApiState {
                 tracing::warn!(
                     target: "hkask.api",
                     "No persistent database configured — escalation queue is in-memory and will be lost on restart. \
-                     Set HKASK_API_DB and HKASK_DB_PASSPHRASE for sovereign persistence."
+                     Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
                 );
                 hkask_storage::Database::in_memory()
                     .expect("in-memory db")

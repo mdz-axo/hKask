@@ -1,7 +1,7 @@
 ---
 title: "hKask Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
-last_updated: 2026-05-24
+last_updated: 2026-06-05
 version: "0.22.0"
 status: "Active"
 domain: "Data"
@@ -442,7 +442,7 @@ erDiagram
         uuid parent_event
         int recursion_depth
         int variety_counter
-        bool algedonic_alert "Variety deficit >100"
+        bool algedonic_alert "Variety deficit >50 (Warning) / >100 (Critical)"
     }
 ```
 
@@ -459,7 +459,7 @@ status: VERIFIED
 3. **Compare** — Deviation assessment against set-points, variety measurement
 4. **Act** — Tool invocation result, confidence scoring, memory write
 
-**Algedonic Alert:** Triggers when variety deficit >100, escalates to Curator/human.
+**Algedonic Alert:** Warning escalation to Curator when variety deficit >50; Critical escalation to human when deficit >100.
 
 ---
 

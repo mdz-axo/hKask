@@ -1465,6 +1465,7 @@ version = "0.22.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "rmcp",

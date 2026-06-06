@@ -1,31 +1,28 @@
 ---
 title: Hexagonal Port Inventory
-version: v0.21.0-p4-parity
+version: v0.22.0
 status: accurate
-last_updated: 2026-05-28
+last_updated: 2026-06-05
 audience: [architects, developers]
 domain: "Application"
 ddmvss_categories: [interface]
 ---
 
-# Hexagonal Port Inventory — hKask v0.21.0
+# Hexagonal Port Inventory — hKask v0.22.0
 
-## Remaining Traits (17 total)
+## Active Traits
 
-All 17 traits have at least one real implementation and active `dyn` dispatch callers.
+All traits have at least one real implementation and active `dyn` dispatch callers.
 
-### hkask-agents (7)
+### hkask-agents (5)
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
 | ACP | `AcpPort` | `ports/acp.rs` | `AcpRuntime`, `RussellAcpAdapter` |
-| ACP Transport | `AcpTransport` ⚠️ REMOVED | `ports/acp_transport.rs` | ~~`LoopbackHttpTransport`, `StdioTransport`~~ ⚠️ REMOVED |
 | Git CAS | `GitCASPort` | `ports/git_cas.rs` | `GitCasAdapter`, `MockGitCas` |
 | MCP Runtime | `MCPRuntimePort` | `ports/mcp_runtime.rs` | `McpRuntimeAdapter` |
-| Memory Storage | `MemoryStoragePort` | `ports/memory_storage.rs` | `MemoryStorageAdapter` |
 | Standing Session | `StandingSessionPort` | `ports/standing_session.rs` | `StandingSessionStoreAdapter` |
-| Sovereignty | `SovereigntyChecker` | `sovereignty.rs` | Concrete struct (no trait) |
-| Metacognition | `MetacognitionStoreAdapter` | `adapters/metacognition_store.rs` | Concrete struct (no trait) |
+| Sovereignty | `SovereigntyPort` | `sovereignty.rs` (impl) | `SovereigntyChecker` (implements `SovereigntyPort` from `hkask-types/src/sovereignty.rs`) |
 
 ### hkask-templates (3)
 
@@ -47,24 +44,28 @@ All 17 traits have at least one real implementation and active `dyn` dispatch ca
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
-| CNS Emit | `CnsEmit` | `spans.rs` | `SpanScope`, `CnsEmitterAdapter` |
+| CNS Port | `CnsPort` | `runtime.rs` | `CnsRuntime` |
 
-### hkask-types (4)
+### hkask-types (2)
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
-| Audit Log | `AuditLogPort` | `audit.rs` | `AuditLogStoreAdapter` |
+| Audit Log | `AuditLogPort` | `audit.rs` | No adapter yet (in-memory `AuditLog` in `hkask-agents/src/acp/audit.rs`) |
 | Nu Event Sink | `NuEventSink` | `event.rs` | `NuEventStore` |
-| Spec Store | `SpecStore` | `spec.rs` | `SqliteSpecStore` |
-| Spec Observer | `SpecObserver` ⚠️ REMOVED | `spec.rs` | ~~`CnsSpecObserver`~~ ⚠️ REMOVED |
-| Spec Curator | `SpecCurator` | `spec.rs` (trait) | `DefaultSpecCurator` (`hkask-agents`) |
 
-### Removed Ports (from prior v0.21.0 inventory)
+### hkask-storage (2)
+
+| Port | Trait | File | Impls |
+|---|---|---|---|
+| Spec Store | `SpecStore` | `spec_types.rs` | `SqliteSpecStore` |
+| Spec Curator | `SpecCurator` | `spec_types.rs` (trait) | `DefaultSpecCurator` (`hkask-agents/src/curator_agent/spec_curator.rs`) |
+
+### Removed Ports (from prior inventories)
 
 | Trait | Why Removed |
 |---|---|
-| `SovereigntyPort` | Inlined to concrete `SovereigntyChecker` |
-| `RateLimitPort` | Deleted — rate limiting consolidated into energy budget enforcement (`EnergyBudget.try_consume()`) |
+| `SovereigntyPort` | **Not actually removed** — trait still exists at `hkask-types/src/sovereignty.rs:374`; `SovereigntyChecker` implements it |
+| `RateLimitPort` | Deleted — rate limiting consolidated into gas budget enforcement (`GasBudget` in `hkask-cns/src/energy.rs`) |
 | `KeystorePort` | Dead — `KeychainAdapter` had no callers |
 | `OCAPPort` | Dead — `OCAPAdapter` had no callers |
 | `ManifestExecutor` | Dead — `ManifestExecutorImpl` is concrete |
@@ -82,25 +83,35 @@ All 17 traits have at least one real implementation and active `dyn` dispatch ca
 | `GoalRepositoryPort` | Inlined to `SqliteGoalRepository` |
 | `MetacognitionPort` | Inlined to `MetacognitionStoreAdapter` |
 | `AuditLogStoragePort` | Dead — only an orphan error enum |
-| `McpTransport` | Already an enum, never was a trait |
 | `CnsQueryPort` | Dead — only domain types remain in `cns_query.rs` |
-| `AcpTransport` | Removed — transport layer deferred (wire protocol abstraction not needed in v0.21.x); `AcpPort` remains |
+| `AcpTransport` | Removed — transport layer deferred; `AcpPort` remains |
 | `AcpWireMessage` | Removed — transport message types deleted with `AcpTransport` |
 | `AcpWireResponse` | Removed — transport message types deleted with `AcpTransport` |
 | `LoopbackHttpTransport` | Removed — `AcpTransport` impl deleted |
 | `StdioTransport` | Removed — `AcpTransport` impl deleted |
 | `SpecObserver` | Removed — trait deleted from `spec.rs`; CNS spec spans not yet needed |
 
+### Non-Trait Types Previously Listed as Ports
+
+| Type | Reality |
+|---|---|
+| `MemoryStoragePort` / `MemoryStorageAdapter` | **Never existed** — no trait, no impl, no file |
+| `MetacognitionStoreAdapter` | **Never existed** — no struct, no adapter file |
+| `CnsEmit` / `CnsEmitterAdapter` / `SpanScope` | **Never existed** — actual CNS port is `CnsPort` impl'd by `CnsRuntime` |
+| `SecurityGateway` | **Never existed** in `hkask-mcp` — actual OCAP enforcement is `GovernedTool` in `hkask-cns` |
+| `McpTransport` | **Never existed** as a trait or enum in current codebase |
+| `EnergyBudget` | **Never existed** — actual type is `GasBudget` (`hkask-cns/src/energy.rs`) |
+
 ## Dependency Flow
 
 ```
-hkask-cli → hkask-agents → hkask-types (ports defined here: AuditLogPort, NuEventSink, SpecStore, etc.)
-                        → hkask-cns (CnsEmit)
+hkask-cli → hkask-agents → hkask-types (ports defined here: AuditLogPort, NuEventSink)
+                        → hkask-cns (CnsPort)
                         → hkask-templates (InferencePort, McpPort, RegistryIndex)
            hkask-ensemble → hkask-agents (StandingSessionPort)
 
 hkask-mcp → hkask-templates (McpPort impl)
-          → hkask-cns (CnsEmit, optional CNS integration)
+          → hkask-cns (CnsPort, optional CNS integration)
 ```
 
 ## See Also

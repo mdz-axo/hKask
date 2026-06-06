@@ -147,7 +147,7 @@ pub fn get_improv_client(
 
 /// Open a StandingSessionStore from environment config, or in-memory as fallback.
 fn open_standing_session_store() -> Arc<dyn StandingSessionPort> {
-    let conn = match std::env::var("HKASK_API_DB")
+    let conn = match std::env::var("HKASK_DB_PATH")
         .ok()
         .zip(std::env::var("HKASK_DB_PASSPHRASE").ok())
     {
