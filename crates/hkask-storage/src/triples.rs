@@ -103,6 +103,20 @@ impl TripleStore {
         Ok(())
     }
 
+    /// Insert with CAS write-through: persists to SQLite, then writes to the Memory repo.
+    pub async fn insert_with_cas(&self, triple: &Triple) -> Result<(), TripleError> {
+        self.insert(triple)?;
+        if let Some(port) = &self.cas_port {
+            let entry = TripleEntry::from(triple);
+            let bytes = serde_json::to_vec(&entry)
+                .map_err(|e| TripleError::Infra(InfrastructureError::Other(e.to_string())))?;
+            port.put_blob(&RepoId::Memory, &bytes)
+                .await
+                .map_err(|e| TripleError::Infra(InfrastructureError::Other(e.to_string())))?;
+        }
+        Ok(())
+    }
+
     /// Query triples by entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
@@ -396,6 +410,30 @@ impl TripleStore {
                 owner_webid: row.owner_webid,
             },
         })
+    }
+}
+
+/// Convert a domain Triple into a serializable TripleEntry for CAS write-through.
+///
+/// This is a lossy conversion — access control details beyond perspective and
+/// visibility are flattened for CAS storage.
+impl From<&Triple> for TripleEntry {
+    fn from(t: &Triple) -> Self {
+        Self {
+            id: t.id.to_string(),
+            entity: t.entity.clone(),
+            attribute: t.attribute.clone(),
+            value: t.value.clone(),
+            valid_from: t.temporal.valid_from.to_rfc3339(),
+            valid_to: t.temporal.valid_to.map(|dt| dt.to_rfc3339()),
+            confidence: t.confidence.value(),
+            perspective: t
+                .access
+                .perspective
+                .map(|wid| wid.to_string())
+                .unwrap_or_default(),
+            visibility: t.access.visibility.as_str().to_string(),
+        }
     }
 }
 
