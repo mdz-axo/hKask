@@ -35,6 +35,9 @@ pub mod template;
 pub mod text;
 pub mod visibility;
 
+#[cfg(feature = "sql")]
+pub mod sql_impls;
+
 pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };

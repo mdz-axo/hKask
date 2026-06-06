@@ -22,11 +22,7 @@ pub enum ConsentStoreError {
 
 impl_from_rusqlite!(ConsentStoreError, Infra);
 
-impl From<serde_json::Error> for ConsentStoreError {
-    fn from(e: serde_json::Error) -> Self {
-        ConsentStoreError::Infra(InfrastructureError::from(e))
-    }
-}
+impl_from_serde_json!(ConsentStoreError, Infra);
 
 /// Persistent consent record
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -25,11 +25,7 @@ pub enum SovereigntyStoreError {
 
 impl_from_rusqlite!(SovereigntyStoreError, Infra);
 
-impl From<serde_json::Error> for SovereigntyStoreError {
-    fn from(e: serde_json::Error) -> Self {
-        InfrastructureError::from(e).into()
-    }
-}
+impl_from_serde_json!(SovereigntyStoreError, Infra);
 
 /// Stored sovereignty boundary entry
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -365,8 +365,4 @@ pub enum SpecError {
 
 impl_from_rusqlite!(SpecError, Infra);
 
-impl From<serde_json::Error> for SpecError {
-    fn from(e: serde_json::Error) -> Self {
-        hkask_types::InfrastructureError::from(e).into()
-    }
-}
+impl_from_serde_json!(SpecError, Infra);

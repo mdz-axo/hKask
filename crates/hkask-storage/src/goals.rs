@@ -12,7 +12,7 @@ use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
-use std::str::FromStr;
+
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
@@ -95,7 +95,7 @@ impl SqliteGoalRepository {
     fn load_goal(&self, goal_id: GoalID) -> Result<Goal> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE id = ?1")?;
-        let mut rows = stmt.query([goal_id.to_string()])?;
+        let mut rows = stmt.query([goal_id])?;
         match rows.next()? {
             Some(row) => Ok(Self::goal_from_row(row)?),
             None => Err(GoalRepositoryError::NotFound(format!(
@@ -114,28 +114,18 @@ impl SqliteGoalRepository {
     pub fn try_goal_from_row(
         row: &rusqlite::Row,
     ) -> std::result::Result<Goal, GoalRepositoryError> {
-        let id_str: String = row.get(0).map_err(|e| corrupt_to_repo_error(0, &e))?;
-        let webid_str: String = row.get(1).map_err(|e| corrupt_to_repo_error(1, &e))?;
+        let id: GoalID = row.get(0).map_err(|e| corrupt_to_repo_error(0, &e))?;
+        let webid: WebID = row.get(1).map_err(|e| corrupt_to_repo_error(1, &e))?;
         let text: String = row.get(2).map_err(|e| corrupt_to_repo_error(2, &e))?;
-        let state_str: String = row.get(3).map_err(|e| corrupt_to_repo_error(3, &e))?;
-        let visibility_str: String = row.get(4).map_err(|e| corrupt_to_repo_error(4, &e))?;
+        let state: GoalState = row.get(3).map_err(|e| corrupt_to_repo_error(3, &e))?;
+        let visibility: Visibility = row.get(4).map_err(|e| corrupt_to_repo_error(4, &e))?;
         let created_at: String = row.get(5).map_err(|e| corrupt_to_repo_error(5, &e))?;
         let completed_at: Option<String> = row.get(6).map_err(|e| corrupt_to_repo_error(6, &e))?;
-        let parent_goal_id: Option<String> =
+        let parent_goal_id: Option<GoalID> =
             row.get(7).map_err(|e| corrupt_to_repo_error(7, &e))?;
         let depth: i32 = row.get(8).map_err(|e| corrupt_to_repo_error(8, &e))?;
         let display_name: Option<String> = row.get(9).ok().unwrap_or(None);
 
-        let id = GoalID::from_str(&id_str)
-            .map_err(|e| GoalRepositoryError::Corrupt(format!("unparseable goal ID: {e}")))?;
-        let webid = WebID::from_str(&webid_str)
-            .map_err(|e| GoalRepositoryError::Corrupt(format!("unparseable WebID: {e}")))?;
-        let state = GoalState::parse_str(&state_str).ok_or_else(|| {
-            GoalRepositoryError::Corrupt(format!("unparseable goal state: {state_str:?}"))
-        })?;
-        let visibility = Visibility::parse_str(&visibility_str).ok_or_else(|| {
-            GoalRepositoryError::Corrupt(format!("unparseable visibility: {visibility_str:?}"))
-        })?;
         let created_at = chrono::DateTime::parse_from_rfc3339(&created_at)
             .map(|dt| dt.with_timezone(&Utc))
             .map_err(|_| {
@@ -151,13 +141,6 @@ impl SqliteGoalRepository {
             ),
             None => None,
         };
-        let parent_goal_id = parent_goal_id
-            .map(|s| {
-                GoalID::from_str(&s).map_err(|e| {
-                    GoalRepositoryError::Corrupt(format!("unparseable parent goal ID: {e}"))
-                })
-            })
-            .transpose()?;
         let depth = u8::try_from(depth)
             .map_err(|_| GoalRepositoryError::Corrupt(format!("depth out of range: {depth}")))?;
 
@@ -176,46 +159,21 @@ impl SqliteGoalRepository {
     }
 
     pub fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
-        let id_str: String = row.get(0)?;
-        let webid_str: String = row.get(1)?;
+        let id: GoalID = row.get(0)?;
+        let webid: WebID = row.get(1)?;
         let text: String = row.get(2)?;
-        let state_str: String = row.get(3)?;
-        let visibility_str: String = row.get(4)?;
+        let state: GoalState = row.get(3)?;
+        let visibility: Visibility = row.get(4)?;
         let created_at: String = row.get(5)?;
         let completed_at: Option<String> = row.get(6)?;
-        let parent_goal_id: Option<String> = row.get(7)?;
+        let parent_goal_id: Option<GoalID> = row.get(7)?;
         let depth: i32 = row.get(8)?;
         let display_name: Option<String> = row.get(9).unwrap_or(None);
 
-        let id = GoalID::from_str(&id_str).map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(
-                0,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("unparseable goal ID: {e}"),
-                )),
-            )
-        })?;
-        let webid = WebID::from_str(&webid_str).map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(
-                1,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("unparseable WebID: {e}"),
-                )),
-            )
-        })?;
-        // Persisted enum/timestamp columns are authority- and lifecycle-bearing.
-        // Corruption must surface as an error, never be silently coerced to a
-        // default (which could, e.g., reopen a terminal goal or downgrade
-        // visibility). Map parse failures to a real SQLite conversion error so
-        // they propagate through `query_map` and become `GoalRepositoryError`.
-        let state =
-            GoalState::parse_str(&state_str).ok_or_else(|| corrupt_column(3, &state_str))?;
-        let visibility = Visibility::parse_str(&visibility_str)
-            .ok_or_else(|| corrupt_column(4, &visibility_str))?;
+        // Timestamps require manual parsing — DateTime<Utc> can't impl FromSql
+        // here (orphan rule). Corruption must surface as an error, never be
+        // silently coerced to a default (which could, e.g., reopen a terminal
+        // goal or downgrade visibility).
         let created_at = chrono::DateTime::parse_from_rfc3339(&created_at)
             .map(|dt| dt.with_timezone(&Utc))
             .map_err(|_| corrupt_column(5, &created_at))?;
@@ -227,9 +185,6 @@ impl SqliteGoalRepository {
             ),
             None => None,
         };
-        let parent_goal_id = parent_goal_id
-            .map(|s| GoalID::from_str(&s).map_err(|e| corrupt_column(7, &format!("{e}"))))
-            .transpose()?;
         let depth = u8::try_from(depth).map_err(|_| corrupt_column(8, &depth.to_string()))?;
 
         Ok(Goal {
@@ -284,7 +239,7 @@ impl SqliteGoalRepository {
         // non-RFC3339 string that the reader (correctly) rejects as corrupt.
         self.lock_conn()?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, depth, created_at, display_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32, goal.created_at.to_rfc3339(), goal.display_name.clone()),
+            (goal.id, goal.webid, goal.text.clone(), goal.state, goal.visibility, goal.depth as i32, goal.created_at.to_rfc3339(), goal.display_name.clone()),
         )?;
 
         Ok(goal)
@@ -294,7 +249,7 @@ impl SqliteGoalRepository {
     pub fn get_goal(&self, goal_id: GoalID) -> Result<Option<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE id = ?1")?;
-        let mut rows = stmt.query([goal_id.to_string()])?;
+        let mut rows = stmt.query([goal_id])?;
 
         if let Some(row) = rows.next()? {
             Ok(Some(Self::goal_from_row(row)?))
@@ -327,12 +282,12 @@ impl SqliteGoalRepository {
         if let Some(completed) = completed_at {
             conn.execute(
                 "UPDATE goals SET state = ?1, completed_at = ?2 WHERE id = ?3",
-                (state.as_str(), completed, goal_id.to_string()),
+                (state, completed, goal_id),
             )?;
         } else {
             conn.execute(
                 "UPDATE goals SET state = ?1 WHERE id = ?2",
-                (state.as_str(), goal_id.to_string()),
+                (state, goal_id),
             )?;
         }
 
@@ -347,16 +302,14 @@ impl SqliteGoalRepository {
         match state_filter {
             Some(state) => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
-                let rows = stmt.query_map((webid.to_string(), state.as_str()), |row| {
-                    Self::goal_from_row(row)
-                })?;
+                let rows = stmt.query_map((webid, state), |row| Self::goal_from_row(row))?;
                 for goal in rows.flatten() {
                     goals.push(goal);
                 }
             }
             None => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE webid = ?1 ORDER BY created_at DESC")?;
-                let rows = stmt.query_map([webid.to_string()], Self::goal_from_row)?;
+                let rows = stmt.query_map([webid], Self::goal_from_row)?;
                 for goal in rows.flatten() {
                     goals.push(goal);
                 }
@@ -379,7 +332,7 @@ impl SqliteGoalRepository {
 
         self.lock_conn()?.execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
-            (criterion.id, criterion.goal_id.to_string(), criterion.criterion_type, criterion.description, criterion.satisfied as i32),
+            (criterion.id, criterion.goal_id, criterion.criterion_type, criterion.description, criterion.satisfied as i32),
         )?;
         Ok(())
     }
@@ -396,7 +349,7 @@ impl SqliteGoalRepository {
 
         self.lock_conn()?.execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            (artifact.id, artifact.goal_id.to_string(), artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
+            (artifact.id, artifact.goal_id, artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
         )?;
         Ok(())
     }
@@ -405,19 +358,10 @@ impl SqliteGoalRepository {
     pub fn get_criteria(&self, goal_id: GoalID) -> Result<Vec<GoalCriterion>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
-        let rows = stmt.query_map([goal_id.to_string()], |row| {
+        let rows = stmt.query_map([goal_id], |row| {
             Ok(GoalCriterion {
                 id: row.get(0)?,
-                goal_id: GoalID::from_str(&row.get::<_, String>(1)?).map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        1,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!("unparseable goal ID: {e}"),
-                        )),
-                    )
-                })?,
+                goal_id: row.get(1)?,
                 criterion_type: row.get(2)?,
                 description: row.get(3)?,
                 satisfied: row.get::<_, i32>(4)? != 0,
@@ -436,19 +380,10 @@ impl SqliteGoalRepository {
     pub fn get_artifacts(&self, goal_id: GoalID) -> Result<Vec<GoalArtifact>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
-        let rows = stmt.query_map([goal_id.to_string()], |row| {
+        let rows = stmt.query_map([goal_id], |row| {
             Ok(GoalArtifact {
                 id: row.get(0)?,
-                goal_id: GoalID::from_str(&row.get::<_, String>(1)?).map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        1,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!("unparseable goal ID: {e}"),
-                        )),
-                    )
-                })?,
+                goal_id: row.get(1)?,
                 artifact_ref: row.get(2)?,
                 artifact_type: row.get(3)?,
                 created_at: {
@@ -491,7 +426,7 @@ impl SqliteGoalRepository {
 
         self.lock_conn()?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth, created_at, display_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32, subgoal.created_at.to_rfc3339(), subgoal.display_name.clone()),
+            (subgoal.id, subgoal.webid, subgoal.text.clone(), subgoal.state, subgoal.visibility, parent_id, subgoal.depth as i32, subgoal.created_at.to_rfc3339(), subgoal.display_name.clone()),
         )?;
 
         Ok(subgoal)
@@ -501,7 +436,7 @@ impl SqliteGoalRepository {
     pub fn get_subgoals(&self, parent_id: GoalID) -> Result<Vec<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
-        let rows = stmt.query_map([parent_id.to_string()], Self::goal_from_row)?;
+        let rows = stmt.query_map([parent_id], Self::goal_from_row)?;
 
         let mut subgoals = Vec::new();
         for goal in rows.flatten() {
@@ -516,7 +451,7 @@ impl SqliteGoalRepository {
         let _goal = self.load_goal(goal_id)?;
 
         self.lock_conn()?
-            .execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])?;
+            .execute("DELETE FROM goals WHERE id = ?1", [goal_id])?;
         Ok(())
     }
 
@@ -535,12 +470,12 @@ impl SqliteGoalRepository {
         conn.execute(
             "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
              VALUES (?1, ?2, ?3, ?4, 0, 0)",
-            rusqlite::params![goal_id.to_string(), original_data, reason, now_rfc3339()],
+            rusqlite::params![goal_id, original_data, reason, now_rfc3339()],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
 
         // Remove from main goals table
-        conn.execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])
+        conn.execute("DELETE FROM goals WHERE id = ?1", [goal_id])
             .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
 
         Ok(())
@@ -567,19 +502,10 @@ impl SqliteGoalRepository {
             let mut stmt = conn.prepare(
                 "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals WHERE id = ?1",
             )?;
-            let mut rows = stmt.query([goal_id.to_string()])?;
+            let mut rows = stmt.query([goal_id])?;
             match rows.next()? {
                 Some(row) => QuarantinedGoal {
-                    id: GoalID::from_str(&row.get::<_, String>(0)?).map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            0,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("unparseable goal ID: {e}"),
-                            )),
-                        )
-                    })?,
+                    id: row.get(0)?,
                     original_data: row.get::<_, String>(1)?,
                     quarantine_reason: row.get::<_, String>(2)?,
                     quarantined_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
@@ -598,7 +524,7 @@ impl SqliteGoalRepository {
             let conn = self.lock_conn()?;
             conn.execute(
                 "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
-                [goal_id.to_string()],
+                [goal_id],
             )
             .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
             return Ok(false);
@@ -611,7 +537,7 @@ impl SqliteGoalRepository {
                 let conn = self.lock_conn()?;
                 conn.execute(
                     "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
-                    [goal_id.to_string()],
+                    [goal_id],
                 )
                 .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
                 return Ok(false);
@@ -624,14 +550,14 @@ impl SqliteGoalRepository {
             "INSERT INTO goals (id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
-                goal.id.to_string(),
-                goal.webid.to_string(),
+                goal.id,
+                goal.webid,
                 goal.text,
-                goal.state.as_str(),
-                goal.visibility.as_str(),
+                goal.state,
+                goal.visibility,
                 goal.created_at.to_rfc3339(),
                 goal.completed_at.map(|dt| dt.to_rfc3339()),
-                goal.parent_goal_id.map(|id| id.to_string()),
+                goal.parent_goal_id,
                 goal.depth as i32,
                 goal.display_name,
             ],
@@ -641,7 +567,7 @@ impl SqliteGoalRepository {
         // Mark the quarantine record as repaired.
         conn.execute(
             "UPDATE quarantined_goals SET repaired = 1, repair_attempts = repair_attempts + 1 WHERE id = ?1",
-            [goal_id.to_string()],
+            [goal_id],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
 
@@ -657,16 +583,7 @@ impl SqliteGoalRepository {
         let mapped: Vec<_> = stmt
             .query_map([], |row| {
                 Ok(QuarantinedGoal {
-                    id: GoalID::from_str(&row.get::<_, String>(0)?).map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            0,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("unparseable goal ID: {e}"),
-                            )),
-                        )
-                    })?,
+                    id: row.get(0)?,
                     original_data: row.get(1)?,
                     quarantine_reason: row.get(2)?,
                     quarantined_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)

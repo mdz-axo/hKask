@@ -3,28 +3,24 @@
 //! Uses `entity/attribute/value` naming (aligned with hKask schema conventions)
 //! and `valid_from`/`valid_to` for temporal tracking.
 
-use crate::{Store, now_rfc3339};
+use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
-use hkask_types::{InfrastructureError, TripleID, Visibility, WebID};
+use hkask_types::id::{TripleID, WebID};
+use hkask_types::{InfrastructureError, Visibility};
 use serde_json::Value;
-use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TripleError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
+
     #[error("Triple not found")]
     NotFound,
 }
 
 impl_from_rusqlite!(TripleError, Infra);
-
-impl From<serde_json::Error> for TripleError {
-    fn from(e: serde_json::Error) -> Self {
-        InfrastructureError::from(e).into()
-    }
-}
+impl_from_serde_json!(TripleError, Infra);
 
 /// Bitemporal triple
 #[derive(Debug, Clone)]
@@ -75,10 +71,12 @@ impl Triple {
         self
     }
 
+    /// Is this an episodic (perspective-bound) triple?
     pub fn is_episodic(&self) -> bool {
         self.perspective.is_some()
     }
 
+    /// Is this a semantic (shared, perspective-free) triple?
     pub fn is_semantic(&self) -> bool {
         self.perspective.is_none()
     }
@@ -86,24 +84,25 @@ impl Triple {
 
 define_store!(TripleStore);
 
+const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
+
 impl TripleStore {
     /// Insert a triple
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute(
-            "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"),
             rusqlite::params![
-                triple.id.as_uuid().to_string(),
+                triple.id,
                 triple.entity,
                 triple.attribute,
                 serde_json::to_string(&triple.value)?,
                 triple.valid_from.to_rfc3339(),
                 triple.valid_to.map(|t| t.to_rfc3339()),
                 triple.confidence,
-                triple.perspective.map(|p| p.0.to_string()),
-                triple.visibility.as_str(),
-                triple.owner_webid.0.to_string(),
+                triple.perspective,
+                triple.visibility,
+                triple.owner_webid,
             ],
         )?;
         Ok(())
@@ -112,57 +111,15 @@ impl TripleStore {
     /// Query triples by entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
-             FROM triples
-             WHERE entity = ?1 AND valid_to IS NULL
-             ORDER BY valid_from DESC",
-        )?;
-
-        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
-            .query_map(rusqlite::params![entity], |row| {
-                let id_str: String = row.get(0)?;
-                let entity: String = row.get(1)?;
-                let attribute: String = row.get(2)?;
-                let value_str: String = row.get(3)?;
-                let valid_from_str: String = row.get(4)?;
-                let valid_to_str: Option<String> = row.get(5)?;
-                let confidence: f64 = row.get(6)?;
-                let perspective_str: Option<String> = row.get(7)?;
-                let visibility_str: String = row.get(8)?;
-                let owner_webid_str: String = row.get(9)?;
-
-                Ok(TripleRow {
-                    id: id_str,
-                    entity,
-                    attribute,
-                    value: value_str,
-                    valid_from: valid_from_str,
-                    valid_to: valid_to_str,
-                    confidence,
-                    perspective: perspective_str,
-                    visibility: visibility_str,
-                    owner_webid: owner_webid_str,
-                })
-            })?
-            .collect();
-
-        let mut triples = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(row) => match Self::row_to_triple(row) {
-                    Ok(triple) => triples.push(triple),
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
-
-        Ok(triples)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples WHERE entity = ?1 AND valid_to IS NULL ORDER BY valid_from DESC"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![entity],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
     }
 
     /// Query triples by entity and attribute
@@ -172,113 +129,29 @@ impl TripleStore {
         attribute: &str,
     ) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
-             FROM triples
-             WHERE entity = ?1 AND attribute = ?2 AND valid_to IS NULL
-             ORDER BY valid_from DESC",
-        )?;
-
-        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
-            .query_map(rusqlite::params![entity, attribute], |row| {
-                let id_str: String = row.get(0)?;
-                let entity: String = row.get(1)?;
-                let attribute: String = row.get(2)?;
-                let value_str: String = row.get(3)?;
-                let valid_from_str: String = row.get(4)?;
-                let valid_to_str: Option<String> = row.get(5)?;
-                let confidence: f64 = row.get(6)?;
-                let perspective_str: Option<String> = row.get(7)?;
-                let visibility_str: String = row.get(8)?;
-                let owner_webid_str: String = row.get(9)?;
-
-                Ok(TripleRow {
-                    id: id_str,
-                    entity,
-                    attribute,
-                    value: value_str,
-                    valid_from: valid_from_str,
-                    valid_to: valid_to_str,
-                    confidence,
-                    perspective: perspective_str,
-                    visibility: visibility_str,
-                    owner_webid: owner_webid_str,
-                })
-            })?
-            .collect();
-
-        let mut triples = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(row) => match Self::row_to_triple(row) {
-                    Ok(triple) => triples.push(triple),
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
-
-        Ok(triples)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples WHERE entity = ?1 AND attribute = ?2 AND valid_to IS NULL ORDER BY valid_from DESC"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![entity, attribute],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
     }
 
     /// Query all triples for a perspective (episodic memories)
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
-             FROM triples
-             WHERE perspective = ?1 AND valid_to IS NULL
-             ORDER BY valid_from DESC",
-        )?;
-
-        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
-            .query_map(rusqlite::params![perspective.0.to_string()], |row| {
-                let id_str: String = row.get(0)?;
-                let entity: String = row.get(1)?;
-                let attribute: String = row.get(2)?;
-                let value_str: String = row.get(3)?;
-                let valid_from_str: String = row.get(4)?;
-                let valid_to_str: Option<String> = row.get(5)?;
-                let confidence: f64 = row.get(6)?;
-                let perspective_str: Option<String> = row.get(7)?;
-                let visibility_str: String = row.get(8)?;
-                let owner_webid_str: String = row.get(9)?;
-
-                Ok(TripleRow {
-                    id: id_str,
-                    entity,
-                    attribute,
-                    value: value_str,
-                    valid_from: valid_from_str,
-                    valid_to: valid_to_str,
-                    confidence,
-                    perspective: perspective_str,
-                    visibility: visibility_str,
-                    owner_webid: owner_webid_str,
-                })
-            })?
-            .collect();
-
-        let mut triples = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(row) => match Self::row_to_triple(row) {
-                    Ok(triple) => triples.push(triple),
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
-
-        Ok(triples)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples WHERE perspective = ?1 AND valid_to IS NULL ORDER BY valid_from DESC"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![perspective],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
     }
 
     /// Update a triple's value (closes current version, inserts new)
@@ -293,7 +166,7 @@ impl TripleStore {
 
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
-            rusqlite::params![now, id.as_uuid().to_string()],
+            rusqlite::params![now, id],
         )?;
 
         let mut stmt = conn.prepare(
@@ -301,22 +174,21 @@ impl TripleStore {
              FROM triples WHERE id = ?1",
         )?;
 
-        let row = stmt.query_row(rusqlite::params![id.as_uuid().to_string()], |row| {
+        let row = stmt.query_row(rusqlite::params![id], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, String>(4)?,
+                row.get::<_, Option<WebID>>(2)?,
+                row.get::<_, Visibility>(3)?,
+                row.get::<_, WebID>(4)?,
             ))
         })?;
 
         let new_id = TripleID::new();
         conn.execute(
-            "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
-             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)",
+            &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"),
             rusqlite::params![
-                new_id.as_uuid().to_string(),
+                new_id,
                 row.0,
                 row.1,
                 serde_json::to_string(&new_value)?,
@@ -334,59 +206,16 @@ impl TripleStore {
     /// Get a single triple by ID (must be current: valid_to IS NULL)
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
-             FROM triples
-             WHERE id = ?1 AND valid_to IS NULL",
-        )?;
-
-        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
-            .query_map(rusqlite::params![id.as_uuid().to_string()], |row| {
-                let id_str: String = row.get(0)?;
-                let entity: String = row.get(1)?;
-                let attribute: String = row.get(2)?;
-                let value_str: String = row.get(3)?;
-                let valid_from_str: String = row.get(4)?;
-                let valid_to_str: Option<String> = row.get(5)?;
-                let confidence: f64 = row.get(6)?;
-                let perspective_str: Option<String> = row.get(7)?;
-                let visibility_str: String = row.get(8)?;
-                let owner_webid_str: String = row.get(9)?;
-
-                Ok(TripleRow {
-                    id: id_str,
-                    entity,
-                    attribute,
-                    value: value_str,
-                    valid_from: valid_from_str,
-                    valid_to: valid_to_str,
-                    confidence,
-                    perspective: perspective_str,
-                    visibility: visibility_str,
-                    owner_webid: owner_webid_str,
-                })
-            })?
-            .collect();
-
-        let mut result = None;
-        for row_result in mapped {
-            match row_result {
-                Ok(row) => match Self::row_to_triple(row) {
-                    Ok(triple) => {
-                        result = Some(triple);
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
-
-        Ok(result)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples WHERE id = ?1 AND valid_to IS NULL"
+        ))?;
+        let triples = collect_rows!(
+            stmt,
+            rusqlite::params![id],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        );
+        Ok(triples.into_iter().next())
     }
 
     /// Query semantic triples (perspective IS NULL) with lowest confidence,
@@ -398,58 +227,18 @@ impl TripleStore {
         limit: usize,
     ) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
-             FROM triples
-             WHERE perspective IS NULL AND valid_to IS NULL
-             ORDER BY confidence ASC, valid_from ASC
-             LIMIT ?1",
-        )?;
-
-        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
-            .query_map(rusqlite::params![limit as i64], |row| {
-                let id_str: String = row.get(0)?;
-                let entity: String = row.get(1)?;
-                let attribute: String = row.get(2)?;
-                let value_str: String = row.get(3)?;
-                let valid_from_str: String = row.get(4)?;
-                let valid_to_str: Option<String> = row.get(5)?;
-                let confidence: f64 = row.get(6)?;
-                let perspective_str: Option<String> = row.get(7)?;
-                let visibility_str: String = row.get(8)?;
-                let owner_webid_str: String = row.get(9)?;
-
-                Ok(TripleRow {
-                    id: id_str,
-                    entity,
-                    attribute,
-                    value: value_str,
-                    valid_from: valid_from_str,
-                    valid_to: valid_to_str,
-                    confidence,
-                    perspective: perspective_str,
-                    visibility: visibility_str,
-                    owner_webid: owner_webid_str,
-                })
-            })?
-            .collect();
-
-        let mut triples = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(row) => match Self::row_to_triple(row) {
-                    Ok(triple) => triples.push(triple),
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
-
-        Ok(triples)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples \
+             WHERE perspective IS NULL AND valid_to IS NULL \
+             ORDER BY confidence ASC, valid_from ASC \
+             LIMIT ?1"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![limit as i64],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
     }
 
     /// Count semantic triples with confidence at or below a threshold.
@@ -478,58 +267,18 @@ impl TripleStore {
         limit: usize,
     ) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
-             FROM triples
-             WHERE perspective IS NULL AND valid_to IS NULL AND confidence <= ?1
-             ORDER BY confidence ASC, valid_from ASC
-             LIMIT ?2",
-        )?;
-
-        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
-            .query_map(rusqlite::params![threshold, limit as i64], |row| {
-                let id_str: String = row.get(0)?;
-                let entity: String = row.get(1)?;
-                let attribute: String = row.get(2)?;
-                let value_str: String = row.get(3)?;
-                let valid_from_str: String = row.get(4)?;
-                let valid_to_str: Option<String> = row.get(5)?;
-                let confidence: f64 = row.get(6)?;
-                let perspective_str: Option<String> = row.get(7)?;
-                let visibility_str: String = row.get(8)?;
-                let owner_webid_str: String = row.get(9)?;
-
-                Ok(TripleRow {
-                    id: id_str,
-                    entity,
-                    attribute,
-                    value: value_str,
-                    valid_from: valid_from_str,
-                    valid_to: valid_to_str,
-                    confidence,
-                    perspective: perspective_str,
-                    visibility: visibility_str,
-                    owner_webid: owner_webid_str,
-                })
-            })?
-            .collect();
-
-        let mut triples = Vec::with_capacity(mapped.len());
-        for row_result in mapped {
-            match row_result {
-                Ok(row) => match Self::row_to_triple(row) {
-                    Ok(triple) => triples.push(triple),
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
-                }
-            }
-        }
-
-        Ok(triples)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples \
+             WHERE perspective IS NULL AND valid_to IS NULL AND confidence <= ?1 \
+             ORDER BY confidence ASC, valid_from ASC \
+             LIMIT ?2"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![threshold, limit as i64],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
     }
 
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
@@ -565,7 +314,7 @@ impl TripleStore {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM triples WHERE perspective = ?1 AND valid_to IS NULL",
-            rusqlite::params![perspective.0.to_string()],
+            rusqlite::params![perspective],
             |row| row.get(0),
         )?;
         Ok(count as usize)
@@ -582,7 +331,7 @@ impl TripleStore {
         let now = now_rfc3339();
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
-            rusqlite::params![now, id.as_uuid().to_string()],
+            rusqlite::params![now, id],
         )?;
         Ok(())
     }
@@ -593,16 +342,37 @@ impl TripleStore {
     /// Unlike update (which sets `valid_to`), this removes the row entirely.
     pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
-        conn.execute(
-            "DELETE FROM triples WHERE id = ?1",
-            rusqlite::params![id.as_uuid().to_string()],
-        )?;
+        conn.execute("DELETE FROM triples WHERE id = ?1", rusqlite::params![id])?;
         Ok(())
     }
 
+    /// Map a database row to a TripleRow using FromSql impls.
+    ///
+    /// This eliminates the manual `String → parse()` boilerplate for
+    /// ID types, WebID, and Visibility (Fowler C3 + C1).
+    /// Timestamps remain as Strings because DateTime<Utc> can't have
+    /// FromSql/ToSql impls here (orphan rule).
+    fn row_to_triple_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TripleRow> {
+        Ok(TripleRow {
+            id: row.get(0)?,
+            entity: row.get(1)?,
+            attribute: row.get(2)?,
+            value: row.get(3)?,
+            valid_from: row.get(4)?,
+            valid_to: row.get(5)?,
+            confidence: row.get(6)?,
+            perspective: row.get(7)?,
+            visibility: row.get(8)?,
+            owner_webid: row.get(9)?,
+        })
+    }
+
+    /// Convert a TripleRow into a domain Triple.
+    ///
+    /// Uses FromSql impls for ID types, WebID, and Visibility.
+    /// Timestamp parsing and JSON deserialization happen here since
+    /// DateTime<Utc> can't have FromSql in this crate (orphan rule).
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {
-        let id = TripleID::from_str(&row.id)
-            .map_err(|e| InfrastructureError::Database(format!("unparseable triple ID: {e}")))?;
         let value: Value = serde_json::from_str(&row.value)?;
         let valid_from = DateTime::parse_from_rfc3339(&row.valid_from)
             .map(|dt| dt.with_timezone(&Utc))
@@ -611,35 +381,30 @@ impl TripleStore {
             .valid_to
             .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&Utc));
-        let perspective = row.perspective.and_then(|s| s.parse().ok());
-        let visibility = Visibility::parse_str(&row.visibility).unwrap_or_default();
-        let owner_webid = WebID::from_str(&row.owner_webid)
-            .map_err(|e| InfrastructureError::Database(format!("unparseable owner WebID: {e}")))?;
-
         Ok(Triple {
-            id,
+            id: row.id,
             entity: row.entity,
             attribute: row.attribute,
             value,
             valid_from,
             valid_to,
             confidence: row.confidence,
-            perspective,
-            visibility,
-            owner_webid,
+            perspective: row.perspective,
+            visibility: row.visibility,
+            owner_webid: row.owner_webid,
         })
     }
 }
 
 struct TripleRow {
-    id: String,
+    id: TripleID,
     entity: String,
     attribute: String,
     value: String,
     valid_from: String,
     valid_to: Option<String>,
     confidence: f64,
-    perspective: Option<String>,
-    visibility: String,
-    owner_webid: String,
+    perspective: Option<WebID>,
+    visibility: Visibility,
+    owner_webid: WebID,
 }

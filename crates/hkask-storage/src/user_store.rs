@@ -9,10 +9,9 @@
 use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
+use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession, WebID};
 use rand::RngCore;
 use rusqlite::params;
-use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
@@ -84,7 +83,7 @@ impl UserStore {
             "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                user_id.as_uuid().to_string(),
+                user_id,
                 email_enc,
                 phone_enc,
                 passphrase_hash,
@@ -103,8 +102,8 @@ impl UserStore {
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 identity.replicant_name,
-                identity.user_id.as_uuid().to_string(),
-                identity.replicant_webid.to_string(),
+                identity.user_id,
+                identity.replicant_webid,
                 identity.first_name_enc,
                 identity.last_name_enc,
                 1,
@@ -152,28 +151,8 @@ impl UserStore {
             Ok(UserSession {
                 session_id: row.get(0)?,
                 replicant_name: row.get(1)?,
-                replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?).map_err(
-                    |e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            2,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("unparseable WebID: {e}"),
-                            )),
-                        )
-                    },
-                )?,
-                user_id: UserID::from_uuid(row.get::<_, String>(3)?.parse().map_err(|_| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        0,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "Invalid UUID",
-                        )),
-                    )
-                })?),
+                replicant_webid: row.get::<_, WebID>(2)?,
+                user_id: row.get::<_, UserID>(3)?,
                 session_key_salt: row.get(4)?,
                 expires_at: row.get(5)?,
                 last_active: row.get(6)?,
@@ -197,27 +176,8 @@ impl UserStore {
                 Ok(UserSession {
                     session_id: row.get(0)?,
                     replicant_name: row.get(1)?,
-                    replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?)
-                        .map_err(|e| {
-                            rusqlite::Error::FromSqlConversionFailure(
-                                2,
-                                rusqlite::types::Type::Text,
-                                Box::new(std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("unparseable WebID: {e}"),
-                                )),
-                            )
-                        })?,
-                    user_id: UserID::from_uuid(row.get::<_, String>(3)?.parse().map_err(|_| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            0,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                "Invalid UUID",
-                            )),
-                        )
-                    })?),
+                    replicant_webid: row.get::<_, WebID>(2)?,
+                    user_id: row.get::<_, UserID>(3)?,
                     session_key_salt: row.get(4)?,
                     expires_at: row.get(5)?,
                     last_active: row.get(6)?,
@@ -249,28 +209,8 @@ impl UserStore {
         match stmt.query_row(params![replicant_name], |row| {
             Ok(ReplicantIdentity {
                 replicant_name: row.get(0)?,
-                user_id: UserID::from_uuid(row.get::<_, String>(1)?.parse().map_err(|_| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        0,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "Invalid UUID",
-                        )),
-                    )
-                })?),
-                replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?).map_err(
-                    |e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            2,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("unparseable WebID: {e}"),
-                            )),
-                        )
-                    },
-                )?,
+                user_id: row.get::<_, UserID>(1)?,
+                replicant_webid: row.get::<_, WebID>(2)?,
                 first_name_enc: row.get(3)?,
                 last_name_enc: row.get(4)?,
                 persona_yaml: row.get(5)?,
@@ -292,7 +232,7 @@ impl UserStore {
              FROM human_users WHERE user_id = ?1",
         )?;
 
-        stmt.query_row(params![user_id.as_uuid().to_string()], |row| {
+        stmt.query_row(params![user_id], |row| {
             Ok(HumanUser {
                 user_id: *user_id,
                 email_enc: row.get(1)?,
@@ -316,30 +256,11 @@ impl UserStore {
         )?;
 
         let mapped: Vec<_> = stmt
-            .query_map(params![user_id.as_uuid().to_string()], |row| {
+            .query_map(params![user_id], |row| {
                 Ok(ReplicantIdentity {
                     replicant_name: row.get(0)?,
-                    user_id: UserID::from_uuid(row.get::<_, String>(1)?.parse().map_err(|_| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            0,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                "Invalid UUID",
-                            )),
-                        )
-                    })?),
-                    replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?)
-                        .map_err(|e| {
-                            rusqlite::Error::FromSqlConversionFailure(
-                                2,
-                                rusqlite::types::Type::Text,
-                                Box::new(std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("unparseable WebID: {e}"),
-                                )),
-                            )
-                        })?,
+                    user_id: row.get::<_, UserID>(1)?,
+                    replicant_webid: row.get::<_, WebID>(2)?,
                     first_name_enc: row.get(3)?,
                     last_name_enc: row.get(4)?,
                     persona_yaml: row.get(5)?,
@@ -377,8 +298,8 @@ impl UserStore {
             params![
                 session_id,
                 identity.replicant_name,
-                identity.replicant_webid.to_string(),
-                identity.user_id.as_uuid().to_string(),
+                identity.replicant_webid,
+                identity.user_id,
                 session_key_salt,
                 expires_at,
                 now

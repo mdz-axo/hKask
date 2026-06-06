@@ -105,3 +105,83 @@ macro_rules! impl_from_rusqlite {
         }
     };
 }
+
+/// Implement `From<serde_json::Error>` for a store error type, mapping to
+/// `XxxError::Infra(InfrastructureError::from(e))`.
+///
+/// Six stores currently hand-write this identical impl. The macro eliminates
+/// that boilerplate (Fowler C2: Duplicated Code).
+///
+/// # Example
+/// ```ignore
+/// impl_from_serde_json!(TripleError, Infra);
+/// impl_from_serde_json!(NuEventError, Infra);
+/// ```
+#[macro_export]
+macro_rules! impl_from_serde_json {
+    ($error:ident, $infra_variant:ident) => {
+        impl From<serde_json::Error> for $error {
+            fn from(e: serde_json::Error) -> Self {
+                $error::$infra_variant(hkask_types::InfrastructureError::from(e))
+            }
+        }
+    };
+}
+
+/// Collect mapped rows into a result vector with graceful error logging.
+///
+/// Eliminates the repeated `collect → for row_result in mapped { match Ok/Err }`
+/// pattern that appears ~15 times across all stores (Fowler C1: Duplicated Code).
+///
+/// The closure `$mapper` receives a `&rusqlite::Row` and should return
+/// `Result<T, rusqlite::Error>`. Each row is mapped and collected; rows that
+/// fail mapping or domain conversion are logged as warnings and skipped
+/// rather than failing the entire query.
+///
+/// # Example
+/// ```ignore
+/// let triples: Vec<Triple> = collect_rows!(
+///     stmt,
+///     rusqlite::params![entity],
+///     |row: &rusqlite::Row<'_>| -> rusqlite::Result<TripleRow> {
+///         Ok(TripleRow { ... })
+///     },
+///     TripleStore::row_to_triple
+/// )?;
+/// ```
+#[macro_export]
+macro_rules! collect_rows {
+    ($stmt:expr, $params:expr, $mapper:expr, $convert:expr) => {{
+        let mapped: Vec<Result<_, rusqlite::Error>> =
+            $stmt.query_map($params, $mapper)?.collect();
+        let mut results = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match $convert(row) {
+                    Ok(item) => results.push(item),
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed database row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
+        results
+    }};
+    ($stmt:expr, $params:expr, $mapper:expr) => {{
+        let mapped: Vec<Result<_, rusqlite::Error>> =
+            $stmt.query_map($params, $mapper)?.collect();
+        let mut results = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(item) => results.push(item),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
+        results
+    }};
+}

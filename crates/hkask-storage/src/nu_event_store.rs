@@ -2,8 +2,7 @@
 use crate::{Store, now_rfc3339};
 use hkask_types::event::{Phase, Span, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
-use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
-use std::str::FromStr;
+use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
 use thiserror::Error;
 
 /// Per-domain decay constants for weighted replay.
@@ -52,11 +51,7 @@ pub enum NuEventError {
 
 impl_from_rusqlite!(NuEventError, Infra);
 
-impl From<serde_json::Error> for NuEventError {
-    fn from(e: serde_json::Error) -> Self {
-        InfrastructureError::from(e).into()
-    }
-}
+impl_from_serde_json!(NuEventError, Infra);
 
 /// Algedonic-significant span categories for Curation review.
 ///
@@ -126,9 +121,9 @@ impl NuEventStore {
             "INSERT INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
-                event.id.as_uuid().to_string(),
+                event.id,
                 event.timestamp.to_rfc3339(),
-                event.observer_webid.0.to_string(),
+                event.observer_webid,
                 span_category,
                 span_path,
                 event.phase.as_str(),
@@ -136,7 +131,7 @@ impl NuEventStore {
                 event.regulation.as_ref().and_then(|v| serde_json::to_string(v).ok()),
                 event.outcome.as_ref().and_then(|v| serde_json::to_string(v).ok()),
                 event.recursion_depth,
-                event.parent_event.map(|p| p.as_uuid().to_string()),
+                event.parent_event,
                 event.visibility,
             ],
         )?;
@@ -236,9 +231,9 @@ impl NuEventStore {
 
 /// Reconstruct a NuEvent from a database row.
 fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> {
-    let id_str: String = row.get(0)?;
+    let id: EventID = row.get(0)?;
     let timestamp_str: String = row.get(1)?;
-    let observer_webid_str: String = row.get(2)?;
+    let observer_webid: WebID = row.get(2)?;
     let span_category: String = row.get(3)?;
     let span_path: String = row.get(4)?;
     let phase_str: String = row.get(5)?;
@@ -246,22 +241,15 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
     let regulation_str: Option<String> = row.get(7)?;
     let outcome_str: Option<String> = row.get(8)?;
     let recursion_depth: u8 = row.get(9)?;
-    let parent_event_str: Option<String> = row.get(10)?;
-    let visibility: String = row.get(11)?;
-
-    let id = EventID::from_str(&id_str).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
-    })?;
+    let parent_event: Option<EventID> = row.get(10)?;
+    let visibility: Visibility = row.get(11)?;
+    let visibility_str = visibility.as_str().to_string();
 
     let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
         .map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e))
         })?
         .to_utc();
-
-    let observer_webid = WebID::from_str(&observer_webid_str).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::new(e))
-    })?;
 
     // Reconstruct Span from stored category + path
     let namespace_str = format!("cns.{}", span_category);
@@ -289,11 +277,6 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
 
-    let parent_event = parent_event_str
-        .as_deref()
-        .and_then(|s| uuid::Uuid::parse_str(s).ok())
-        .map(EventID::from_uuid);
-
     Ok(NuEvent {
         id,
         timestamp,
@@ -305,7 +288,7 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         outcome,
         recursion_depth,
         parent_event,
-        visibility,
+        visibility: visibility_str,
     })
 }
 

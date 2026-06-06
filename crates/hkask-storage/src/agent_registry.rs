@@ -17,11 +17,7 @@ pub enum AgentRegistryError {
 
 impl_from_rusqlite!(AgentRegistryError, Infra);
 
-impl From<serde_json::Error> for AgentRegistryError {
-    fn from(e: serde_json::Error) -> Self {
-        InfrastructureError::from(e).into()
-    }
-}
+impl_from_serde_json!(AgentRegistryError, Infra);
 
 define_store!(AgentRegistryStore);
 
@@ -142,7 +138,7 @@ impl AgentRegistryStore {
         )?;
 
         let mapped: Vec<_> = stmt
-            .query_map(rusqlite::params![kind.as_str()], |row| {
+            .query_map(rusqlite::params![kind], |row| {
                 let definition_json: String = row.get(0)?;
                 let token_hash: String = row.get(1)?;
                 let registered_at: String = row.get(2)?;
