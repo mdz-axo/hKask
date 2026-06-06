@@ -6,7 +6,11 @@
 //! This module provides a deserialization wrapper that flattens this structure
 //! into the canonical `BundleManifest` type.
 
-use hkask_types::BundleManifest;
+use hkask_types::Visibility;
+use hkask_types::bundle::{
+    AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,
+    BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
+};
 use serde::Deserialize;
 use tracing::info;
 
@@ -33,25 +37,25 @@ use tracing::info;
 struct ManifestFile {
     manifest: ManifestHeader,
     #[serde(default)]
-    steps: Vec<hkask_types::BundleManifestStep>,
+    steps: Vec<BundleManifestStep>,
     #[serde(default)]
-    skills: Vec<hkask_types::BundleSkill>,
+    skills: Vec<BundleSkill>,
     #[serde(default)]
-    conflicts: Vec<hkask_types::BundleConflict>,
+    conflicts: Vec<BundleConflict>,
     #[serde(default)]
-    complementarities: Vec<hkask_types::BundleComplementarity>,
+    complementarities: Vec<BundleComplementarity>,
     #[serde(default)]
-    convergence: Option<hkask_types::ConvergenceConfig>,
+    convergence: Option<ConvergenceConfig>,
     #[serde(default)]
-    gas: Option<hkask_types::GasConfig>,
+    gas: Option<GasConfig>,
     #[serde(default)]
-    error_handling: Option<hkask_types::ErrorHandlingConfig>,
+    error_handling: Option<ErrorHandlingConfig>,
     #[serde(default)]
-    ocap: Option<hkask_types::OcapConfig>,
+    ocap: Option<OcapConfig>,
     #[serde(default)]
-    cns: Option<hkask_types::CnsConfig>,
+    cns: Option<CnsConfig>,
     #[serde(default)]
-    audit: Option<hkask_types::AuditConfig>,
+    audit: Option<AuditConfig>,
 }
 
 /// Inner header from the `manifest:` key in YAML files.
@@ -67,7 +71,7 @@ struct ManifestHeader {
     #[serde(default)]
     editor: String,
     #[serde(default)]
-    visibility: Option<hkask_types::Visibility>,
+    visibility: Option<Visibility>,
 }
 
 /// Load a BundleManifest from a YAML file at the given path.
@@ -99,10 +103,7 @@ pub fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoa
         description: file.manifest.description,
         version: file.manifest.version,
         editor: file.manifest.editor,
-        visibility: file
-            .manifest
-            .visibility
-            .unwrap_or(hkask_types::Visibility::Shared),
+        visibility: file.manifest.visibility.unwrap_or(Visibility::Shared),
         skills: file.skills,
         conflicts: file.conflicts,
         complementarities: file.complementarities,
