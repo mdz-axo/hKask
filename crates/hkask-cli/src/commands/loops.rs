@@ -77,7 +77,8 @@ pub fn run(rt: &tokio::runtime::Runtime) {
             Arc::clone(&dispatch),
             escalation_queue,
         )
-        .with_acp(Arc::clone(&acp_runtime) as Arc<dyn AcpPort>),
+        .with_acp(Arc::clone(&acp_runtime) as Arc<dyn AcpPort>)
+        .with_loop_dispatch_tx(loop_system.dispatch_sender()),
     );
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),

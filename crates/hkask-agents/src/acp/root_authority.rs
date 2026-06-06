@@ -78,40 +78,4 @@ impl RootAuthority {
 
         Ok(token)
     }
-
-    /// Verify attenuation chain from root to current token
-    ///
-    /// Returns Ok if:
-    /// - Root nonce starts with expected root prefix
-    /// - Attenuation level is within expected bounds
-    /// - Chain is unbroken (each level increments by 1)
-    pub fn verify_attenuation_chain(
-        &self,
-        token: &DelegationToken,
-        expected_root: &WebID,
-    ) -> Result<(), AcpError> {
-        let root_nonce = token.root_context_nonce();
-        let expected_prefix = format!("root-{}", expected_root);
-
-        if !root_nonce.starts_with(&expected_prefix) {
-            return Err(AcpError::CapabilityDenied(
-                token.delegated_to,
-                "Root nonce mismatch".to_string(),
-            ));
-        }
-
-        if token.attenuation_level > token.max_attenuation {
-            return Err(AcpError::CapabilityDenied(
-                token.delegated_to,
-                "Attenuation level exceeds maximum".to_string(),
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Get root WebID
-    pub fn root_webid(&self) -> &WebID {
-        &self.root_webid
-    }
 }

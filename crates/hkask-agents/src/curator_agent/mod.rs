@@ -23,6 +23,7 @@ pub mod metacognition;
 pub mod spec_curator;
 
 use crate::curator::context::CuratorContext;
+use crate::curator::curation_gate::CurationConfidenceGate;
 use crate::curator::curation_loop::CurationLoop;
 use std::sync::Arc;
 
@@ -43,6 +44,10 @@ pub struct CuratorAgent {
     curation_loop: Arc<CurationLoop>,
     metacognition: Arc<metacognition::MetacognitionLoop>,
     context: Arc<CuratorContext>,
+    /// Spec curator — evaluates spec coherence and drift, sends
+    /// SpecDriftAlert through the Communication Loop when drift
+    /// exceeds threshold.
+    spec_curator: spec_curator::DefaultSpecCurator,
 }
 
 impl CuratorAgent {
@@ -56,12 +61,20 @@ impl CuratorAgent {
             metacognition::MetacognitionConfig::default(),
         ));
         let curator_handle = context.handle().clone();
-        let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
+        let curation_loop = Arc::new(
+            CurationLoop::new(curator_handle, Arc::clone(&context))
+                .with_confidence_gate(CurationConfidenceGate::new(vec![])),
+        );
+        let spec_curator = match context.loop_dispatch_tx() {
+            Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
+            None => spec_curator::DefaultSpecCurator::default(),
+        };
 
         Self {
             curation_loop,
             metacognition,
             context,
+            spec_curator,
         }
     }
 
@@ -75,12 +88,20 @@ impl CuratorAgent {
             config,
         ));
         let curator_handle = context.handle().clone();
-        let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
+        let curation_loop = Arc::new(
+            CurationLoop::new(curator_handle, Arc::clone(&context))
+                .with_confidence_gate(CurationConfidenceGate::new(vec![])),
+        );
+        let spec_curator = match context.loop_dispatch_tx() {
+            Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
+            None => spec_curator::DefaultSpecCurator::default(),
+        };
 
         Self {
             curation_loop,
             metacognition,
             context,
+            spec_curator,
         }
     }
 
@@ -98,16 +119,20 @@ impl CuratorAgent {
             config,
         ));
         let curator_handle = context.handle().clone();
-        let curation_loop = Arc::new(CurationLoop::with_consolidation(
-            curator_handle,
-            Arc::clone(&context),
-            consolidation,
-        ));
+        let curation_loop = Arc::new(
+            CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation)
+                .with_confidence_gate(CurationConfidenceGate::new(vec![])),
+        );
+        let spec_curator = match context.loop_dispatch_tx() {
+            Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
+            None => spec_curator::DefaultSpecCurator::default(),
+        };
 
         Self {
             curation_loop,
             metacognition,
             context,
+            spec_curator,
         }
     }
 
@@ -124,6 +149,14 @@ impl CuratorAgent {
     /// Access the CuratorContext (capability-disciplined runtime references).
     pub fn context(&self) -> &Arc<CuratorContext> {
         &self.context
+    }
+
+    /// Access the DefaultSpecCurator for spec coherence and drift evaluation.
+    ///
+    /// When `CuratorContext` has a `loop_dispatch_tx`, the spec curator
+    /// sends `SpecDriftAlert` payloads through the Communication Loop.
+    pub fn spec_curator(&self) -> &spec_curator::DefaultSpecCurator {
+        &self.spec_curator
     }
 }
 

@@ -90,85 +90,54 @@ pub enum AcpError {
     Infra(#[from] hkask_types::InfrastructureError),
 }
 
-/// ACP agent registration
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcpAgent {
-    /// Agent WebID
     pub webid: WebID,
-    /// Agent type (Bot or Replicant)
     pub agent_type: AgentKind,
-    /// Registered capabilities (explicit, no wildcards)
+    /// Explicit capabilities — no wildcards
     pub capabilities: Vec<String>,
-    /// Registration timestamp (Unix epoch)
     pub registered_at: i64,
-    /// Active status
     pub active: bool,
 }
 
-/// A2A message types
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "message_type")]
-pub enum A2AMessage {
-    /// Template dispatch request
+    /// Template dispatch
     TemplateDispatch {
-        /// Sender WebID
         from: WebID,
-        /// Recipient WebID (or broadcast)
+        /// Recipient (or broadcast)
         to: Option<WebID>,
-        /// Template ID to invoke
         template_id: String,
-        /// Input data
         input: serde_json::Value,
-        /// Correlation ID for response matching
         correlation_id: String,
     },
-    /// Template dispatch response
+    /// Template response
     TemplateResponse {
-        /// Original correlation ID
         correlation_id: String,
-        /// Response data
         result: serde_json::Value,
-        /// Error message (if any)
         error: Option<String>,
     },
     /// Memory artifact notification
     MemoryArtifact {
-        /// Producer WebID
         producer: WebID,
-        /// Artifact type
         artifact_type: String,
-        /// Artifact ID
         artifact_id: String,
-        /// Visibility setting
         visibility: String,
     },
 }
 
 pub struct AcpRuntime {
-    /// Registered agents
     agents: Arc<RwLock<HashMap<WebID, AcpAgent>>>,
-    /// Pending messages (correlation_id -> message)
     pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
-    /// Delegation tokens indexed by holder WebID
-    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<DelegationToken>>>>,
-    /// Master secret for HMAC signing (Arc<Zeroizing> to avoid copying on Clone)
+    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<DelegationToken>>>,
+    /// Arc<Zeroizing> to avoid copying on Clone
     secret: Arc<Zeroizing<Vec<u8>>>,
-    /// Per-agent derived signing keys (HKDF-SHA256 from master key, lazily populated)
+    /// HKDF-SHA256 from master key, lazily populated
     agent_secrets: Arc<RwLock<HashMap<WebID, AgentSecret>>>,
-    /// Audit log for A2A message tracking
     audit_log: Arc<AuditLog>,
-    /// Root authority for OCAP capability delegation
     root_authority: Arc<RootAuthority>,
-    /// Revoked capability token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl AcpRuntime {
-    /// Create new ACP runtime with explicit secret
-    ///
-    /// # Arguments
-    ///
-    /// * `secret` - HMAC secret key (will be zeroized on drop)
+    /// `secret` is HMAC key (zeroized on drop).
     pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
@@ -188,14 +157,7 @@ impl AcpRuntime {
         }
     }
 
-    /// Derive a per-agent signing key from the master secret using HKDF-SHA256.
-    ///
-    /// Each agent gets a unique key derived with `info = "hkask:acp-agent:{webid}"`.
-    /// This limits blast radius: compromising one agent's key doesn't compromise
-    /// others, because keys are cryptographically independent.
-    ///
-    /// Derived keys are cached for reuse. The master key can still derive any
-    /// agent's key (root authority).
+    /// Keys are cryptographically independent — compromising one doesn't compromise others.
     pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
@@ -219,31 +181,7 @@ impl AcpRuntime {
         arc_key
     }
 
-    /// Resolve the signing key for a token based on its `delegated_from` field.
-    ///
-    /// - Root tokens (delegated_from == root authority) → master key
-    /// - Delegated tokens (delegated_from == agent) → that agent's derived key
-    async fn resolve_signing_key(&self, delegated_from: &WebID) -> AgentSecret {
-        let root_webid = self.root_authority.root_webid();
-        if *delegated_from == *root_webid {
-            // Root authority tokens are signed with the master key
-            Arc::clone(&self.secret)
-        } else {
-            // Agent-delegated tokens are signed with the agent's derived key
-            self.derive_agent_secret(delegated_from).await
-        }
-    }
-
-    /// Register an agent with the ACP runtime
-    ///
-    /// # Arguments
-    /// * `webid` — Agent's WebID
-    /// * `agent_type` — Agent kind (Bot or Replicant)
-    /// * `capabilities` — List of capability strings
-    ///
-    /// # Returns
-    /// * `Ok(DelegationToken)` — Primary delegation token for the agent
-    /// * `Err(AcpError)` — Registration error
+    /// Returns primary DelegationToken for the agent.
     pub async fn register_agent(
         &self,
         webid: WebID,
@@ -313,7 +251,7 @@ impl AcpRuntime {
         Ok(primary_token)
     }
 
-    /// Unregister an agent
+
     pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
         let mut agents = self.agents.write().await;
 
@@ -338,15 +276,7 @@ impl AcpRuntime {
         Ok(())
     }
 
-    /// Restore agent state from storage (R2: Persist Agent State)
-    ///
-    /// # Arguments
-    /// * `agents` - List of registered agents to restore
-    /// * `tokens` - Map of WebID to capability tokens
-    ///
-    /// # Returns
-    /// * `Ok(usize)` - Number of agents restored
-    /// * `Err(AcpError)` - Restoration error
+    /// R2: Persist Agent State. Returns count of agents restored.
     pub async fn restore_from_storage(
         &self,
         agents: Vec<AcpAgent>,
@@ -374,19 +304,13 @@ impl AcpRuntime {
         Ok(count)
     }
 
-    /// Get agent by WebID
-    pub(crate) async fn get_agent(&self, webid: &WebID) -> Option<AcpAgent> {
-        let agents = self.agents.read().await;
-        agents.get(webid).cloned()
-    }
 
-    /// Check if agent is registered
     pub(crate) async fn is_registered(&self, webid: &WebID) -> bool {
         let agents = self.agents.read().await;
         agents.contains_key(webid)
     }
 
-    /// Send A2A message
+
     pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
         let (correlation_id, from, to, message_type) = match &message {
             A2AMessage::TemplateDispatch {
@@ -448,113 +372,10 @@ impl AcpRuntime {
         Ok(correlation_id)
     }
 
-    /// Get pending message by correlation ID
-    pub(crate) async fn get_message(&self, correlation_id: &str) -> Option<A2AMessage> {
-        let pending = self.pending_messages.read().await;
-        pending.get(correlation_id).cloned()
-    }
-
-    /// Remove pending message
-    pub(crate) async fn remove_message(&self, correlation_id: &str) -> Option<A2AMessage> {
-        let mut pending = self.pending_messages.write().await;
-        pending.remove(correlation_id)
-    }
-
-    /// Verify capability token (HMAC signature + revocation check + expiry check)
-    ///
-    /// Uses per-agent signing keys: the key is resolved from `token.delegated_from`.
-    /// Root tokens use the master key; delegated tokens use the delegating agent's
-    /// derived key.
-    pub(crate) async fn verify_capability(&self, token: &DelegationToken) -> bool {
-        let signing_key = self.resolve_signing_key(&token.delegated_from).await;
-        let current_time = chrono::Utc::now().timestamp();
-        token.verify(signing_key.as_ref()) && !token.is_expired(current_time) && {
-            let revoked = self.revoked_tokens.read().await;
-            !revoked.contains(&token.id)
-        }
-    }
-
     /// Revoke a capability token by ID
     pub(crate) async fn revoke_capability(&self, token_id: &str) {
         let mut revoked = self.revoked_tokens.write().await;
         revoked.insert(token_id.to_string());
-    }
-
-    /// Delegate capability to another agent
-    ///
-    /// Creates an attenuated child token from the parent token.
-    /// The child token has reduced authority (attenuation_level + 1).
-    ///
-    /// The child token is signed with the delegating agent's derived key
-    /// (the current holder of the parent token), not the master key.
-    /// This limits blast radius: compromising the master key is not sufficient
-    /// to forge delegated tokens.
-    ///
-    /// # Arguments
-    /// * `parent_token` — Parent capability token
-    /// * `new_holder` — WebID of the delegate
-    /// * `current_time` — Current Unix timestamp for expiry
-    ///
-    /// # Returns
-    /// * `Ok(DelegationToken)` — Attenuated child token
-    /// * `Err(AcpError)` — Delegation failed (attenuation limit, etc.)
-    pub(crate) async fn delegate_capability(
-        &self,
-        parent_token: &DelegationToken,
-        new_holder: WebID,
-        current_time: i64,
-    ) -> Result<DelegationToken, AcpError> {
-        // Verify parent token is valid
-        if !self.verify_capability(parent_token).await {
-            return Err(AcpError::CapabilityDenied(
-                parent_token.delegated_to,
-                "Invalid parent token signature".to_string(),
-            ));
-        }
-
-        // Verify attenuation chain
-        self.root_authority
-            .verify_attenuation_chain(parent_token, self.root_authority.root_webid())?;
-
-        // Resolve the signing key for the delegating agent (parent token holder)
-        let signing_key = self.resolve_signing_key(&parent_token.delegated_to).await;
-
-        // Create attenuated token signed with the delegating agent's key
-        let child = parent_token
-            .attenuate(new_holder, signing_key.as_ref(), current_time)
-            .ok_or_else(|| {
-                AcpError::CapabilityDenied(
-                    parent_token.delegated_to,
-                    "Attenuation limit exceeded".to_string(),
-                )
-            })?;
-
-        Ok(child)
-    }
-
-    /// Verify capability attenuation chain
-    ///
-    /// Ensures the token traces back to the root authority
-    /// and the attenuation chain is unbroken.
-    pub(crate) async fn verify_capability_chain(
-        &self,
-        token: &DelegationToken,
-    ) -> Result<(), AcpError> {
-        if !self.verify_capability(token).await {
-            return Err(AcpError::CapabilityDenied(
-                token.delegated_to,
-                "Invalid token signature".to_string(),
-            ));
-        }
-
-        self.root_authority
-            .verify_attenuation_chain(token, self.root_authority.root_webid())
-    }
-
-    /// Store delegation token for agent
-    pub(crate) async fn store_capability(&self, webid: WebID, token: DelegationToken) {
-        let mut tokens = self.capability_tokens.write().await;
-        tokens.entry(webid).or_insert_with(Vec::new).push(token);
     }
 
     /// Get all delegation tokens for agent
@@ -567,12 +388,6 @@ impl AcpRuntime {
     pub async fn list_agents(&self) -> Vec<AcpAgent> {
         let agents = self.agents.read().await;
         agents.values().cloned().collect()
-    }
-
-    /// Get agent count
-    pub(crate) async fn agent_count(&self) -> usize {
-        let agents = self.agents.read().await;
-        agents.len()
     }
 }
 
@@ -683,120 +498,5 @@ mod tests {
         let key1 = rt.derive_agent_secret(&webid).await;
         let key2 = rt.derive_agent_secret(&webid).await;
         assert!(Arc::ptr_eq(&key1, &key2));
-    }
-
-    //
-    // These tests validate that derived per-agent secrets are usable in the
-    // full ACP token lifecycle: register → delegate → verify → revoke.
-    // This exercises the same code path the replicant MCP server uses when
-    // calling AcpRuntime::derive_agent_secret() for per-replicant signing.
-
-    #[tokio::test]
-    async fn per_replicant_secret_allows_delegated_token_verification() {
-        let rt = AcpRuntime::new(b"integration-master-key");
-
-        // 1. Register a root agent — this mints tokens signed with the master key
-        let agent_webid = WebID::from_persona(b"replicant-alpha");
-        let root_token = rt
-            .register_agent(
-                agent_webid,
-                AgentKind::Replicant,
-                vec!["tool:execute".into()],
-            )
-            .await
-            .expect("register agent");
-
-        // 2. Verify the root token — should be valid (signed with master key)
-        assert!(
-            rt.verify_capability(&root_token).await,
-            "root token should verify with master key"
-        );
-
-        // 3. Derive a per-agent secret — this is the same code path the
-        //    replicant MCP server uses via AcpRuntime::derive_agent_secret()
-        let _agent_secret = rt.derive_agent_secret(&agent_webid).await;
-
-        // 4. Verify the root token still verifies after key derivation
-        //    (deriving an agent key must not affect root token verification)
-        assert!(
-            rt.verify_capability(&root_token).await,
-            "root token should still verify after agent key derivation"
-        );
-    }
-
-    #[tokio::test]
-    async fn per_replicant_secret_delegation_chain_uses_correct_keys() {
-        let rt = AcpRuntime::new(b"delegation-master-key");
-
-        // Register agent A (delegator)
-        let agent_a = WebID::from_persona(b"agent-a");
-        let agent_a_token = rt
-            .register_agent(agent_a, AgentKind::Bot, vec!["tool:execute".into()])
-            .await
-            .expect("register agent A");
-
-        // Register agent B (delegate)
-        let agent_b = WebID::from_persona(b"agent-b");
-        let _agent_b_token = rt
-            .register_agent(agent_b, AgentKind::Bot, vec!["tool:read".into()])
-            .await
-            .expect("register agent B");
-
-        // Agent A delegates a subset of its capability to agent B
-        let now = chrono::Utc::now().timestamp();
-        let delegated = rt
-            .delegate_capability(&agent_a_token, agent_b, now)
-            .await
-            .expect("delegate capability");
-
-        // The delegated token should verify (signed with agent A's derived key)
-        assert!(
-            rt.verify_capability(&delegated).await,
-            "delegated token should verify"
-        );
-
-        // Verify the full chain from root authority
-        assert!(
-            rt.verify_capability_chain(&delegated).await.is_ok(),
-            "delegation chain should trace back to root authority"
-        );
-
-        // Revoking the parent token should invalidate the delegated token
-        rt.revoke_capability(&agent_a_token.id).await;
-        assert!(
-            !rt.verify_capability(&agent_a_token).await,
-            "revoked parent token should not verify"
-        );
-    }
-
-    #[tokio::test]
-    async fn per_replicant_secret_cross_isolation() {
-        // Two different master keys should produce completely independent
-        // ACP runtimes. A token minted under one runtime should not verify
-        // under another, even with the same agent WebID.
-        let rt1 = AcpRuntime::new(b"master-alpha");
-        let rt2 = AcpRuntime::new(b"master-beta");
-
-        let webid = WebID::from_persona(b"shared-agent-name");
-        let token1 = rt1
-            .register_agent(webid, AgentKind::Replicant, vec!["tool:execute".into()])
-            .await
-            .expect("register under rt1");
-        let _token2 = rt2
-            .register_agent(webid, AgentKind::Replicant, vec!["tool:execute".into()])
-            .await
-            .expect("register under rt2");
-
-        // Token from rt1 should NOT verify under rt2 (different master key)
-        assert!(
-            !rt2.verify_capability(&token1).await,
-            "token from rt1 should not verify under rt2 — different master key"
-        );
-
-        // Token from rt1 should verify under rt1 (its own runtime)
-        assert!(
-            rt1.verify_capability(&token1).await,
-            "token from rt1 should verify under rt1"
-        );
     }
 }

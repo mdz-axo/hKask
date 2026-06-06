@@ -7,7 +7,7 @@ use hkask_cns::CnsRuntime;
 use hkask_storage::NuEventStore;
 use hkask_types::CuratorHandle;
 use hkask_types::loops::curation::CuratorDirective;
-use hkask_types::loops::dispatch::TraceId;
+use hkask_types::loops::dispatch::{LoopMessage, TraceId};
 use std::sync::Arc;
 
 /// CuratorContext — aggregates the runtime references the Curator needs.
@@ -22,6 +22,10 @@ pub struct CuratorContext {
     /// ACP port for A2A messaging (e.g. directing bots).
     /// Optional so existing construction sites don't break.
     acp: Option<Arc<dyn AcpPort>>,
+    /// Dispatch channel for sending LoopMessages through the Communication Loop.
+    /// When set, components like DefaultSpecCurator can send SpecDriftAlert
+    /// payloads that flow through Communication → Curation's inbox.
+    loop_dispatch_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
 }
 
 impl CuratorContext {
@@ -38,6 +42,7 @@ impl CuratorContext {
             escalation_queue,
             nu_event_store: None,
             acp: None,
+            loop_dispatch_tx: None,
         }
     }
 
@@ -56,12 +61,24 @@ impl CuratorContext {
             escalation_queue,
             nu_event_store: Some(nu_event_store),
             acp: None,
+            loop_dispatch_tx: None,
         }
     }
 
     /// Builder: attach an ACP port for A2A bot-directed messaging.
     pub fn with_acp(mut self, acp: Arc<dyn AcpPort>) -> Self {
         self.acp = Some(acp);
+        self
+    }
+
+    /// Builder: attach a dispatch sender for sending LoopMessages through
+    /// the Communication Loop (e.g. SpecDriftAlert from DefaultSpecCurator).
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_loop_dispatch_tx(
+        mut self,
+        tx: tokio::sync::mpsc::UnboundedSender<LoopMessage>,
+    ) -> Self {
+        self.loop_dispatch_tx = Some(tx);
         self
     }
 
@@ -93,6 +110,16 @@ impl CuratorContext {
     /// Returns None if no ACP port is configured (graceful degradation).
     pub(crate) fn acp(&self) -> Option<&Arc<dyn AcpPort>> {
         self.acp.as_ref()
+    }
+
+    /// Access the loop dispatch sender for sending LoopMessages through
+    /// the Communication Loop.
+    ///
+    /// Returns None if no dispatch channel is configured (graceful degradation).
+    pub(crate) fn loop_dispatch_tx(
+        &self,
+    ) -> Option<&tokio::sync::mpsc::UnboundedSender<LoopMessage>> {
+        self.loop_dispatch_tx.as_ref()
     }
 
     /// Issue a CuratorDirective unconditionally.

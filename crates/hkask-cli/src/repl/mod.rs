@@ -14,6 +14,7 @@ mod handlers;
 mod helper;
 mod tool_augmented;
 
+use hkask_agents::CurationConfidenceGate;
 use hkask_agents::CurationLoop;
 use hkask_agents::CuratorContext;
 use hkask_agents::CyberneticsLoopHandle;
@@ -310,13 +311,17 @@ pub fn run(
     };
     let curator_handle = CuratorHandle::system();
     let cns_for_curator: Arc<CnsRuntime> = Arc::new(rt_handle.block_on(cns.read()).clone());
-    let curator_context = Arc::new(CuratorContext::new(
-        curator_handle,
-        cns_for_curator,
-        dispatch.clone(),
-        escalation_queue,
-    ));
-    let curation_loop = CurationLoop::new(CuratorHandle::system(), curator_context);
+    let curator_context = Arc::new(
+        CuratorContext::new(
+            curator_handle,
+            cns_for_curator,
+            dispatch.clone(),
+            escalation_queue,
+        )
+        .with_loop_dispatch_tx(loop_system.dispatch_sender()),
+    );
+    let curation_loop = CurationLoop::new(CuratorHandle::system(), curator_context)
+        .with_confidence_gate(CurationConfidenceGate::new(vec![]));
     let curation_loop_arc: Arc<dyn hkask_types::loops::HkaskLoop> = Arc::new(curation_loop);
 
     // The autonomous homeostatic regulator: reads CNS variety counters and

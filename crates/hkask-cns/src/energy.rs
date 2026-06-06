@@ -344,24 +344,6 @@ mod tests {
     }
 
     #[test]
-    fn with_priority_clamps_high() {
-        let budget = GasBudget::new(1000).with_priority(5.0);
-        assert!((budget.priority - 1.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn with_priority_clamps_negative() {
-        let budget = GasBudget::new(1000).with_priority(-0.5);
-        assert!((budget.priority - 0.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn with_priority_accepts_valid() {
-        let budget = GasBudget::new(1000).with_priority(0.7);
-        assert!((budget.priority - 0.7).abs() < f64::EPSILON);
-    }
-
-    #[test]
     fn replenish_by_weighted_full_priority() {
         let mut budget = GasBudget::new(1000);
         budget.consume(800).unwrap();

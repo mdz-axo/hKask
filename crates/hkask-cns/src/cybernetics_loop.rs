@@ -233,42 +233,24 @@ impl SetPoints {
 /// Episodic, Semantic) and may signal the Curation Loop via algedonic
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
-    /// CNS runtime for variety and alert access
     cns: Arc<RwLock<CnsRuntime>>,
-    /// Gas budgets keyed by agent WebID
     gas_budgets: Arc<RwLock<std::collections::HashMap<WebID, GasBudget>>>,
-    /// Homeostatic set-points
     set_points: SetPoints,
-    /// Maximum number of loop iterations before forced stabilization
-    /// (cascade detection — prevents unbounded sense→act cycles)
+    /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
-    /// Channel to Communication Loop for inter-loop message dispatch
     dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    /// Inbox for receiving inter-loop messages (CuratorDirectives, etc.)
     inbox: Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>,
-    /// Dampener to suppress repeated CuratorDirectives within a time window
     dampener: Arc<Dampener>,
-    /// Persistent event sink (NuEventStore) for algedonic alert durability.
-    /// When present, algedonic alerts are persisted to survive restarts.
+    /// When present, algedonic alerts are persisted to NuEventStore for restart durability.
     event_sink: Option<Arc<dyn NuEventSink>>,
-    /// Active Curation overrides on agent gas budgets.
-    /// Keyed by agent WebID — agents with active overrides are skipped
-    /// during `replenish_all_budgets()` so that Curation's override is not
-    /// overwritten by the normal replenishment cycle.
+    /// Agents with active overrides are skipped during replenish_all_budgets().
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
-    /// Shared communication queue depth counter.
-    ///
-    /// When present, `sense()` reads this counter to produce a
-    /// `communication_queue_depth` signal. The counter is written by
-    /// CommunicationLoop and read by CyberneticsLoop — lock-free, Relaxed ordering.
+    /// Lock-free counter written by CommunicationLoop, read by sense(). Relaxed ordering.
     communication_queue_depth: Option<Arc<AtomicU64>>,
 }
 
 impl CyberneticsLoop {
-    /// Create a new Cybernetics Loop with default set-points.
-    ///
-    /// The inbox is "dead" (no sender exists) — use `with_inbox()` if you
-    /// need to receive inter-loop messages from the Communication Loop.
+    /// Inbox is "dead" (no sender) — use `with_inbox()` for inter-loop messages.
     pub fn new(
         cns: Arc<RwLock<CnsRuntime>>,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
@@ -288,10 +270,7 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Create a Cybernetics Loop with custom set-points.
-    ///
-    /// The inbox is "dead" (no sender exists) — use `with_inbox()`
-    /// if you need to receive inter-loop messages from the Communication Loop.
+    /// Inbox is "dead" (no sender) — use `with_inbox()` for inter-loop messages.
     pub fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
@@ -312,32 +291,21 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Set the persistent event sink for algedonic alert durability.
-    ///
-    /// When present, algedonic alerts (Escalate → Curation) are persisted
-    /// to the NuEventStore so they survive restarts. Directive acknowledgments
-    /// are also persisted for auditability.
+    /// Algedonic alerts and directive acknowledgments persisted to NuEventStore.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
 
-    /// Set the shared communication queue depth counter.
-    ///
-    /// When present, `sense()` reads this counter to produce a
-    /// `communication_queue_depth` signal. The counter is written by
-    /// CommunicationLoop and read by CyberneticsLoop — lock-free, Relaxed ordering.
+    /// Lock-free counter written by CommunicationLoop, read by sense(). Relaxed ordering.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_communication_queue_depth(mut self, counter: Arc<AtomicU64>) -> Self {
         self.communication_queue_depth = Some(counter);
         self
     }
 
-    /// Create a Cybernetics Loop with a fresh inbox channel pair.
-    ///
-    /// Returns `(loop_instance, inbox_sender)` where the sender should be
-    /// registered with the Communication Loop for message delivery.
+    /// Returns `(loop_instance, inbox_sender)`. Register sender with Communication Loop.
     pub fn with_inbox(
         cns: Arc<RwLock<CnsRuntime>>,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
@@ -358,13 +326,11 @@ impl CyberneticsLoop {
         (loop_instance, inbox_tx)
     }
 
-    /// Register a gas budget for an agent.
     pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
         let mut budgets = self.gas_budgets.write().await;
         budgets.insert(agent, budget);
     }
 
-    /// Check if an agent can proceed with an operation costing `gas`.
     pub async fn can_proceed(&self, agent: &WebID, gas: u64) -> bool {
         let budgets = self.gas_budgets.read().await;
         if let Some(budget) = budgets.get(agent) {
@@ -375,19 +341,13 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Get a read-only snapshot of an agent's gas budget status.
-    ///
-    /// Returns `None` if the agent has no registered budget.
-    /// Used by the InferenceLoop gas sync and the `cns_energy` MCP tool.
+    /// Returns `None` if agent has no registered budget.
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
         let budgets = self.gas_budgets.read().await;
         budgets.get(agent).map(|b| AgentGasStatus::from(b))
     }
 
-    /// Reserve gas for an in-flight operation (hold-settle pattern).
-    ///
-    /// Gas is reserved but not consumed. Call `settle_gas()` after the
-    /// operation completes to consume or refund the actual cost.
+    /// Hold-settle pattern: gas reserved but not consumed. Call settle_gas() after.
     pub async fn reserve_gas(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
@@ -398,10 +358,7 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Settle a gas reservation after operation completion.
-    ///
-    /// `reserved_gas` is the amount that was reserved. `actual_gas` is the
-    /// real cost. If actual < reserved, the difference is refunded.
+    /// If actual < reserved, the difference is refunded.
     pub async fn settle_gas(
         &self,
         agent: &WebID,
@@ -417,10 +374,7 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Acquire gas budget for an agent's operation (immediate, non-reserved).
-    ///
-    /// Use this for operations where the exact cost is known upfront.
-    /// For operations with estimated cost, prefer `reserve_gas` + `settle_gas`.
+    /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
     pub async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
@@ -431,9 +385,6 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Replenish all gas budgets by their configured replenish_rate.
-    ///
-    /// Called by the Cybernetics Loop on its regulation cycle.
     pub async fn replenish_all_budgets(&self) {
         let budget_ids: Vec<WebID> = {
             let budgets = self.gas_budgets.read().await;
@@ -466,7 +417,6 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Replenish a specific agent's gas budget by a specific amount.
     /// Used by CuratorDirective::ReplenishBudget.
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) {
         let mut budgets = self.gas_budgets.write().await;
@@ -482,15 +432,11 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Get a sender clone for the dispatch channel.
     pub fn dispatch_sender(&self) -> mpsc::UnboundedSender<LoopMessage> {
         self.dispatch_tx.clone()
     }
 
-    /// Process pending inbox messages (CuratorDirectives from Curation).
-    ///
-    /// This is called during the `sense()` phase so that directives
-    /// are applied before the loop computes regulatory actions.
+    /// Called during sense() so directives are applied before computing actions.
     pub async fn process_inbox(&self) {
         let mut inbox = self.inbox.write().await;
         let mut processed = 0;
@@ -553,11 +499,6 @@ impl CyberneticsLoop {
         }
     }
 
-
-    /// Handle a CurationDirective payload from the inbox.
-    ///
-    /// Dampens repeated directives, applies the directive, persists
-    /// an acknowledgment event, and logs compliance.
     async fn handle_curation_directive(
         &self,
         directive_type: &str,
@@ -588,11 +529,6 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Apply a directive based on its type string.
-    ///
-    /// Dispatches to the appropriate handler for known directive types,
-    /// logs informational directives that are self-produced, and warns on
-    /// unknown types.
     async fn apply_directive(
         &self,
         directive_type: &str,
@@ -644,7 +580,6 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Apply a CalibrateThreshold directive from Curation.
     async fn apply_calibrate_threshold(&self, parameters: &serde_json::Value) {
         if let Some(domain) = parameters.get("domain").and_then(|v| v.as_str())
             && let Some(new_threshold) = parameters.get("new_threshold").and_then(|v| v.as_u64())
@@ -661,12 +596,7 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Apply an OverrideGasBudget directive from Curation.
-    ///
-    /// OverrideGasBudget: Curation can exceed set-point bounds.
-    /// This is the metacognitive override — stronger than AdjustGasBudget.
-    /// The override is recorded in `active_overrides` so that
-    /// `replenish_all_budgets()` does not overwrite it on the next cycle.
+    /// Metacognitive override — recorded in active_overrides so replenish skips it.
     async fn apply_override_gas_budget(&self, target: WebID, parameters: &serde_json::Value) {
         if let Some(new_budget) = parameters.get("new_budget").and_then(|v| v.as_u64()) {
             // Extract optional TTL (default: 0 = no expiry)
@@ -707,10 +637,7 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Apply a ClearOverride directive from Curation.
-    ///
-    /// Removes the agent from `active_overrides`, allowing normal
-    /// replenishment to resume on the next regulation cycle.
+    /// Removes agent from active_overrides, resuming normal replenishment.
     async fn apply_clear_override(&self, target: WebID) {
         let mut overrides = self.active_overrides.write().await;
         if overrides.remove(&target).is_some() {
@@ -728,11 +655,7 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Apply a ReplenishBudget directive from Curation.
-    ///
-    /// ReplenishBudget: Curation can inject gas into an agent's budget.
-    /// This is the gas refund mechanism governed by Curator authority.
-    /// When priority is provided, replenishment is scaled by that weight.
+    /// Priority-scaled: when priority is provided, replenishment is weighted.
     async fn apply_replenish_budget(&self, target: WebID, parameters: &serde_json::Value) {
         if let Some(amount) = parameters.get("amount").and_then(|v| v.as_u64()) {
             let priority = parameters.get("priority").and_then(|v| v.as_f64());
@@ -757,7 +680,6 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Persist directive acknowledgment to NuEventStore for auditability.
     fn persist_directive_acknowledgment(&self, directive_type: &str) {
         if let Some(ref sink) = self.event_sink {
             let ack = NuEvent::new(
@@ -780,7 +702,6 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Handle an AlgedonicAlert payload from the inbox.
     fn handle_algedonic_alert(&self, current: u64, threshold: u64, deficit: u64) {
         tracing::info!(
             target: "cns.cybernetics",
@@ -798,11 +719,7 @@ impl HkaskLoop for CyberneticsLoop {
         LoopId::Cybernetics
     }
 
-    /// Sense: read variety counters, energy budgets, and CNS health.
-    ///
-    /// Produces `Signal`s for each metric that the loop monitors:
-    /// - Per-agent energy remaining ratio
-    /// - Overall variety deficit from CNS health
+    /// Produces signals for: per-agent energy ratio, variety deficit, queue depth.
     async fn sense(&self) -> Vec<Signal> {
         // Process pending directives before sensing state
         self.process_inbox().await;
@@ -847,7 +764,6 @@ impl HkaskLoop for CyberneticsLoop {
         signals
     }
 
-    /// Compute: produce regulatory actions for detected deviations.
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
         for dev in deviations {
@@ -938,13 +854,7 @@ impl HkaskLoop for CyberneticsLoop {
         actions
     }
 
-    /// Act: route LoopActions through the Communication Loop via dispatch channel,
-    /// and replenish all gas budgets each regulation cycle.
-    ///
-    /// Each `LoopAction` is converted to a `LoopMessage` and sent through the
-    /// `dispatch_tx` channel. The Communication Loop receives and delivers them.
-    ///
-    /// Gas budgets are replenished by their configured `replenish_rate` each cycle.
+    /// Routes actions via dispatch channel; replenishes gas budgets each cycle.
     async fn act(&self, actions: &[LoopAction]) {
         // Replenish all gas budgets each regulation cycle
         self.replenish_all_budgets().await;

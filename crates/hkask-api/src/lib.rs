@@ -238,6 +238,7 @@ fn build_loop_system(
     if let Some(acp_port) = acp {
         curator_context = curator_context.with_acp(acp_port);
     }
+    curator_context = curator_context.with_loop_dispatch_tx(loop_system.dispatch_sender());
     let curator_context = Arc::new(curator_context);
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),

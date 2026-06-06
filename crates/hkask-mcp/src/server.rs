@@ -64,51 +64,18 @@ impl CredentialRequirement {
     }
 }
 
-// ServerContext — Resolved dependencies for server construction
-
-/// Context provided to the server factory by `run_stdio_server`.
-///
-/// Contains all resolved dependencies. Servers receive this context
-/// rather than reading `std::env::var` or global singletons —
-/// no ambient authority. Credentials are resolved once at bootstrap
-/// via `resolve_credential` (keystore → env var) and injected here.
-///
-/// The `webid` field carries the calling agent's identity, derived
-/// from `HKASK_WEBID` (direct UUID) or `HKASK_AGENT_PERSONA` (deterministic
-/// derivation via `WebID::from_persona`). If neither is set, an anonymous
-/// WebID is generated. This enables energy budget enforcement, OCAP gating, and CNS
-/// attribution without ambient authority.
+/// Server construction context. No ambient authority — all deps injected here.
 pub struct ServerContext {
-    /// Resolved credential values, keyed by env var name.
-    /// Only credentials declared in the `CredentialRequirement` list are present.
-    /// Required credentials are guaranteed to be present; optional ones
-    /// may be absent (check with ctx.credentials.get("KEY")).
     pub credentials: HashMap<String, String>,
 
-    /// Adapter container for shared adapters (GitCAS, etc.).
     pub adapters: crate::AdapterContainer,
 
-    /// Identity of the calling agent.
-    ///
-    /// Resolved from (in order of precedence):
-    /// 1. `HKASK_WEBID` — direct UUID string
-    /// 2. `HKASK_AGENT_PERSONA` — deterministic derivation via `WebID::from_persona`
-    /// 3. Anonymous — `WebID::new()` (random UUID)
-    ///
-    /// Use this for energy budget enforcement, OCAP gating, and CNS span attribution.
+    /// Resolved from HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous.
     pub webid: hkask_types::WebID,
 }
 
 impl ServerContext {
-    /// Open a database from credentials resolved in this context.
-    ///
-    /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE` from resolved credentials.
-    /// If `db_env_var` is absent, falls back to an in-memory database.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `HKASK_DB_PASSPHRASE` is absent when `db_env_var` is present,
-    /// or if the database fails to open.
+    /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE`. Falls back to in-memory DB.
     pub fn open_database(&self, db_env_var: &str) -> anyhow::Result<hkask_storage::Database> {
         use hkask_storage::open_database;
         match self.credentials.get(db_env_var) {
@@ -122,13 +89,7 @@ impl ServerContext {
         }
     }
 
-    /// Open a database with custom schema extensions from credentials resolved in this context.
-    ///
-    /// Like `open_database`, but passes additional DDL to execute after core schema init.
-    /// Use this for servers that need custom tables (e.g., FTS5 virtual tables).
-    ///
-    /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE` from resolved credentials.
-    /// If `db_env_var` is absent, falls back to an in-memory database with extensions.
+    /// Like `open_database`, but passes DDL for custom tables (e.g. FTS5).
     pub fn open_database_with_extensions(
         &self,
         db_env_var: &str,
@@ -150,27 +111,7 @@ impl ServerContext {
     }
 }
 
-// ToolSpanGuard — RAII guard for automatic CNS tool span emission
-
-/// RAII guard that automatically emits a CNS tool span when dropped.
-///
-/// This eliminates the need for manual `emit_tool_span` / `emit_tool_span_with_caller`
-/// calls at every exit point in a tool handler. Instead, create the guard at the
-/// start of a tool method, and it will emit the span when the guard is consumed.
-///
-/// # Usage
-///
-/// ```rust,ignore
-/// async fn my_tool(&self, ...) -> String {
-///     let span = ToolSpanGuard::new("my_tool", &self.webid);
-///     // ... tool logic ...
-///     span.ok(McpToolOutput::new(json!({...})).to_json_string())
-/// }
-/// ```
-///
-/// For error paths, use `span.error(kind, output)` which sets the error kind
-/// and returns the output string. If the guard is dropped without calling `ok()`
-/// or `error()`, it emits a span with outcome `"dropped"` (indicating a bug).
+/// RAII guard — emits CNS tool span on drop. Use `span.ok(output)` or `span.error(kind, output)`.
 pub struct ToolSpanGuard {
     tool_name: String,
     start: Instant,
@@ -179,10 +120,6 @@ pub struct ToolSpanGuard {
 }
 
 impl ToolSpanGuard {
-    /// Create a new tool span guard with timing starting now.
-    ///
-    /// The `caller` parameter is the calling agent's WebID, used for
-    /// CNS attribution in the emitted span.
     pub fn new(tool_name: &str, caller: &hkask_types::WebID) -> Self {
         Self {
             tool_name: tool_name.to_string(),
@@ -192,9 +129,6 @@ impl ToolSpanGuard {
         }
     }
 
-    /// Mark the tool invocation as successful and return the output string.
-    ///
-    /// Emits a CNS span with outcome `"ok"` and no error kind.
     pub fn ok(mut self, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
@@ -202,9 +136,6 @@ impl ToolSpanGuard {
         output
     }
 
-    /// Mark the tool invocation as an error and return the output string.
-    ///
-    /// Emits a CNS span with outcome `"error"` and the given error kind.
     pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
@@ -218,17 +149,12 @@ impl ToolSpanGuard {
         output
     }
 
-    /// Return a success response with a JSON value.
-    ///
     /// Equivalent to `self.ok(McpToolOutput::new(value).to_json_string())`.
     pub fn ok_json(self, value: Value) -> String {
         self.ok(McpToolOutput::new(value).to_json_string())
     }
 
-    /// Return an internal error response with a JSON value.
-    ///
-    /// Produces `McpToolError` wire format (`{"error":"...","kind":"Internal"}`)
-    /// instead of `McpToolOutput` format, so clients can distinguish errors from successes.
+    /// Produces McpToolError wire format so clients can distinguish errors from successes.
     pub fn internal_error(self, value: Value) -> String {
         let message = match value {
             Value::String(s) => s,
@@ -257,24 +183,15 @@ impl Drop for ToolSpanGuard {
     }
 }
 
-// McpToolOutput
-
-/// Successful result from a tool dispatch, with optional observability metadata.
-///
-/// Tool methods return `McpToolOutput::to_json_string()` which rmcp wraps
-/// in the MCP content envelope. Metadata is optional structured context
-/// for CNS observability (latency, model used, page count, etc.).
+/// Tool result with optional observability metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolOutput {
-    /// The tool's result content (typically a JSON-serialized value).
     pub content: Value,
-    /// Optional structured metadata for observability or downstream processing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
 }
 
 impl McpToolOutput {
-    /// Create output with JSON content and no metadata.
     pub fn new(content: Value) -> Self {
         Self {
             content,
@@ -282,7 +199,6 @@ impl McpToolOutput {
         }
     }
 
-    /// Create output with metadata attached.
     pub fn with_metadata(content: Value, metadata: Value) -> Self {
         Self {
             content,
