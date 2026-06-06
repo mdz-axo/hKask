@@ -397,6 +397,21 @@ pub enum GitAction {
         #[arg(short, long)]
         message: String,
     },
+
+    /// Restore files from local CAS by listing tree and retrieving blobs
+    CasRestore {
+        /// Repository to restore from (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
+        #[arg(short, long, default_value = "registry")]
+        repo: String,
+
+        /// Git ref to list tree at (default: HEAD)
+        #[arg(short, long)]
+        r#ref: Option<String>,
+
+        /// Optional path prefix filter
+        #[arg(short, long)]
+        prefix: Option<String>,
+    },
 }
 
 /// Ensemble multi-agent actions (Phase 7)

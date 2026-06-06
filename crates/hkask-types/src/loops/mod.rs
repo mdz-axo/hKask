@@ -126,6 +126,8 @@ pub enum SignalMetric {
     MetacognitionCriticalAlerts,
     /// Metacognition bot failure count (Curation Loop 5)
     MetacognitionBotFailures,
+    /// Seconds since last CAS snapshot vs. policy interval (Cybernetics Loop 6)
+    SnapshotInterval,
 }
 
 impl std::fmt::Display for SignalMetric {
@@ -167,6 +169,7 @@ impl SignalMetric {
             SignalMetric::MetacognitionVarietyDeficit => "metacognition_variety_deficit",
             SignalMetric::MetacognitionCriticalAlerts => "metacognition_critical_alerts",
             SignalMetric::MetacognitionBotFailures => "metacognition_bot_failures",
+            SignalMetric::SnapshotInterval => "snapshot_interval",
         }
     }
 }

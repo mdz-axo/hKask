@@ -7,7 +7,7 @@ use crate::block_on;
 use crate::cli::GitAction;
 use crate::commands;
 use hkask_mcp::GixCasAdapter;
-use hkask_types::ports::git_cas::{GitCASPort, RepoId};
+use hkask_types::ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 
 /// Parse a RepoId from a string, returning Registry as default.
 fn parse_repo_id(repo: &str) -> RepoId {
@@ -203,6 +203,58 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             let commit = block_on!(rt, adapter.snapshot(&repo_id, &message), "Snapshot failed");
 
             println!("Snapshot created for '{}': {}", repo_id.dir_name(), commit);
+        }
+
+        GitAction::CasRestore {
+            repo,
+            r#ref,
+            prefix,
+        } => {
+            let adapter = super::helpers::or_exit(
+                GixCasAdapter::from_env(),
+                "Failed to initialize CAS adapter",
+            );
+            let repo_id = parse_repo_id(&repo);
+            let reference = r#ref.as_deref().unwrap_or("HEAD");
+            let prefix_str = prefix.as_deref().unwrap_or("");
+
+            let entries = block_on!(
+                rt,
+                adapter.list_tree(&repo_id, reference, prefix_str),
+                "List tree failed"
+            );
+
+            if entries.is_empty() {
+                println!(
+                    "No entries found for '{}' at '{}'.",
+                    repo_id.dir_name(),
+                    reference
+                );
+            } else {
+                println!(
+                    "Restoring {} entries from '{}' at '{}':",
+                    entries.len(),
+                    repo_id.dir_name(),
+                    reference
+                );
+                for entry in &entries {
+                    if entry.kind == TreeEntryKind::Blob {
+                        let content = block_on!(
+                            rt,
+                            adapter.get_blob(&repo_id, &entry.content_hash),
+                            "Get blob failed"
+                        );
+                        println!(
+                            "  {} ({} bytes, hash: {})",
+                            entry.path,
+                            content.len(),
+                            entry.content_hash
+                        );
+                    } else {
+                        println!("  {} (tree)", entry.path);
+                    }
+                }
+            }
         }
     }
 }
