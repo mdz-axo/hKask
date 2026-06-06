@@ -213,6 +213,17 @@ impl LoopSystem {
         self.dispatch_tx.clone()
     }
 
+    /// Get a clone of the Communication Loop's shared queue depth counter.
+    ///
+    /// CyberneticsLoop reads this counter to sense communication backpressure.
+    /// Wire this before calling `start()` using
+    /// `CyberneticsLoop::with_communication_queue_depth()`.
+    pub fn communication_queue_depth_counter(
+        &self,
+    ) -> std::sync::Arc<std::sync::atomic::AtomicU64> {
+        self.communication_loop.queue_depth_counter()
+    }
+
     /// Get a reference to the MessageDispatch.
     pub fn dispatch(&self) -> &Arc<MessageDispatch> {
         &self.dispatch

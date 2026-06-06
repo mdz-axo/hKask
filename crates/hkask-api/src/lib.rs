@@ -169,6 +169,10 @@ fn build_loop_system(
         Some(sink) => cybernetics_loop.with_event_sink(sink),
         None => cybernetics_loop,
     };
+    // Wire CommunicationLoop↔CyberneticsLoop queue depth counter.
+    // CommunicationLoop writes, CyberneticsLoop reads — lock-free, Relaxed ordering.
+    let cybernetics_loop = cybernetics_loop
+        .with_communication_queue_depth(loop_system.communication_queue_depth_counter());
     let cybernetics_loop_rwlock = Arc::new(tokio::sync::RwLock::new(cybernetics_loop));
     // Register loops (register_loop is async, use a small runtime for sync callers)
     let rt = tokio::runtime::Runtime::new().expect("loop system runtime");
@@ -182,7 +186,8 @@ fn build_loop_system(
 
     // Inference Loop (optional)
     if let Some(port) = inference_port {
-        let inference_loop = hkask_agents::InferenceLoop::new(port);
+        let inference_loop =
+            hkask_agents::InferenceLoop::new(port).with_dispatch(loop_system.dispatch_sender());
         rt.block_on(async {
             loop_system.register_loop(Arc::new(inference_loop)).await;
         });

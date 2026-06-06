@@ -39,6 +39,7 @@ use hkask_types::loops::{
 use hkask_types::ports::BackpressureSignal;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
 
 /// Record of an active Curation override on an agent's gas budget.
@@ -247,6 +248,12 @@ pub struct CyberneticsLoop {
     /// during `replenish_all_budgets()` so that Curation's override is not
     /// overwritten by the normal replenishment cycle.
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
+    /// Shared communication queue depth counter.
+    ///
+    /// When present, `sense()` reads this counter to produce a
+    /// `communication_queue_depth` signal. The counter is written by
+    /// CommunicationLoop and read by CyberneticsLoop — lock-free, Relaxed ordering.
+    communication_queue_depth: Option<Arc<AtomicU64>>,
 }
 
 impl CyberneticsLoop {
@@ -269,6 +276,7 @@ impl CyberneticsLoop {
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
+            communication_queue_depth: None,
         }
     }
 
@@ -292,6 +300,7 @@ impl CyberneticsLoop {
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
+            communication_queue_depth: None,
         }
     }
 
@@ -303,6 +312,17 @@ impl CyberneticsLoop {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
+        self
+    }
+
+    /// Set the shared communication queue depth counter.
+    ///
+    /// When present, `sense()` reads this counter to produce a
+    /// `communication_queue_depth` signal. The counter is written by
+    /// CommunicationLoop and read by CyberneticsLoop — lock-free, Relaxed ordering.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_communication_queue_depth(mut self, counter: Arc<AtomicU64>) -> Self {
+        self.communication_queue_depth = Some(counter);
         self
     }
 
@@ -325,6 +345,7 @@ impl CyberneticsLoop {
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
+            communication_queue_depth: None,
         };
         (loop_instance, inbox_tx)
     }
@@ -805,6 +826,17 @@ impl HkaskLoop for CyberneticsLoop {
             self.set_points.variety_max_deficit,
         ));
         drop(cns);
+
+        // Communication queue depth signal (if shared counter is wired)
+        if let Some(ref counter) = self.communication_queue_depth {
+            let depth = counter.load(Ordering::Relaxed);
+            signals.push(Signal::new(
+                LoopId::Cybernetics,
+                "communication_queue_depth",
+                depth as f64,
+                self.set_points.connector_latency_max_secs, // reuse as backpressure threshold
+            ));
+        }
 
         signals
     }

@@ -4,11 +4,14 @@
 //! 1. Reframe: transform user input to encourage honest, calibrated responses
 //! 2. Augment: append HHH directives to the system prompt
 //! 3. Gate: evaluate the response against the HHH rubric, correct if needed
+//! 4. Persona filter: strip forbidden patterns from the final response
 //!
 //! This is a toggle on the existing flow, not a separate pipeline. When HHH
 //! mode is inactive, all functions are no-ops at the call site.
 
+use crate::curator::persona_filter;
 use hkask_types::LLMParameters;
+use hkask_types::PersonaConstraints;
 use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -323,6 +326,34 @@ pub async fn hhh_evaluate(
             HhhEvaluation::default_pass()
         }
     }
+}
+
+// ── Persona filter composition ──────────────────────────────────────────────────
+
+/// Apply the Curator persona constraint filter to model output.
+///
+/// This is Stage 4 of the alignment pipeline: after the HHH gate has validated
+/// the response for honesty/helpfulness/harmlessness, the persona filter strips
+/// any remaining forbidden patterns (filler words, emoji, preamble text) that
+/// violate the Curator persona constraints.
+///
+/// When `constraints` is `None`, returns the response unchanged (no-op).
+/// When violations are found, they are stripped and logged at warn level.
+pub fn apply_persona_filter(response: &str, constraints: Option<&PersonaConstraints>) -> String {
+    let Some(constraints) = constraints else {
+        return response.to_string();
+    };
+
+    let (cleaned, violations) = persona_filter::strip_forbidden_patterns(response, constraints);
+    if !violations.is_empty() {
+        tracing::warn!(
+            target: "cns.hhh.persona",
+            violation_count = violations.len(),
+            violations = ?violations.iter().map(|(p, _)| p).collect::<Vec<_>>(),
+            "Persona constraint violations stripped from output"
+        );
+    }
+    cleaned
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

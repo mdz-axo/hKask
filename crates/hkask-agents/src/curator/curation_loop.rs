@@ -22,6 +22,7 @@ use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
 
@@ -47,9 +48,16 @@ pub struct CurationLoop {
     /// Stores the Unix timestamp (milliseconds) of the last reviewed event.
     /// Curation reads from the persistent NuEvent log, not live CNS state.
     last_review_ms: AtomicU64,
-    /// Inbox for receiving inter-loop messages (GoalTransition, etc.).
+    /// Inbox for receiving inter-loop messages (GoalTransition, SpecDriftAlert, etc.).
     /// Messages are drained during the sense phase.
     inbox: Option<Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>>,
+    /// Curation confidence gate for metacognitive evaluation.
+    ///
+    /// When present, `act()` calls `gate.decide()` during the regulation cycle
+    /// and may produce `SeekMoreEvidence` directives. Wrapped in `Mutex` for
+    /// interior mutability: `HkaskLoop::act(&self)` takes `&self`, but
+    /// `CurationConfidenceGate::decide()` requires `&mut self`.
+    confidence_gate: Option<Mutex<CurationConfidenceGate>>,
 }
 
 impl CurationLoop {
@@ -66,6 +74,7 @@ impl CurationLoop {
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
             inbox: None,
+            confidence_gate: None,
         }
     }
 
@@ -84,6 +93,7 @@ impl CurationLoop {
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
             inbox: Some(Arc::new(RwLock::new(inbox_rx))),
+            confidence_gate: None,
         };
         (loop_instance, inbox_tx)
     }
@@ -103,7 +113,19 @@ impl CurationLoop {
             consolidation: Some(consolidation),
             last_review_ms: AtomicU64::new(0),
             inbox: None,
+            confidence_gate: None,
         }
+    }
+
+    /// Set the curation confidence gate for metacognitive evaluation.
+    ///
+    /// When set, `act()` calls `evaluate_confidence_internal()` during the
+    /// regulation cycle. If confidence is in the transition zone (0.3 < R̄ < 0.8),
+    /// a `SeekMoreEvidence` directive is issued through Cybernetics.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_confidence_gate(mut self, gate: CurationConfidenceGate) -> Self {
+        self.confidence_gate = Some(Mutex::new(gate));
+        self
     }
 
     /// Access the CuratorContext (capability-disciplined runtime references).
@@ -154,6 +176,11 @@ impl CurationLoop {
 
     /// Evaluate curation confidence using the ARL confidence gate.
     ///
+    /// Two call paths exist:
+    /// 1. **External gate** — pass a `&mut CurationConfidenceGate` directly.
+    /// 2. **Internal gate** — if `with_confidence_gate()` was called, use
+    ///    `evaluate_confidence_internal()` which locks the `Mutex`-wrapped gate.
+    ///
     /// If the gate is in the transition zone (0.3 < R̄ < 0.8), returns a
     /// `CuratorDirective::SeekMoreEvidence` with the channel identified by
     /// sensitivity analysis as the most impactful to verify.
@@ -185,6 +212,45 @@ impl CurationLoop {
                 })
             }
             _ => None, // Proceed or Suppress — no directive needed
+        }
+    }
+
+    /// Evaluate curation confidence using the internal gate (Mutex-protected).
+    ///
+    /// Called from `act()` where `&self` is available but `&mut self` is not.
+    /// Returns `None` if the internal gate was not configured via `with_confidence_gate()`,
+    /// or if the gate is poisoned (lock failure).
+    pub fn evaluate_confidence_internal(&self, context: &str) -> Option<CuratorDirective> {
+        let gate = self.confidence_gate.as_ref()?;
+        let mut guard = match gate.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::warn!(
+                    target: "curation.loop",
+                    error = %e,
+                    "CurationConfidenceGate mutex poisoned — skipping confidence evaluation"
+                );
+                return None;
+            }
+        };
+        let decision = guard.decide();
+        let r_bar = guard.confidence();
+
+        match decision {
+            ConfidenceDecision::SeekMoreEvidence => {
+                let sensitivities = guard.sensitivity_analysis();
+                let top_channel = sensitivities
+                    .first()
+                    .map(|(name, _)| name.as_str())
+                    .unwrap_or("unknown");
+
+                Some(CuratorDirective::SeekMoreEvidence {
+                    context: context.to_string(),
+                    channel: top_channel.to_string(),
+                    confidence: format!("{r_bar:.3}"),
+                })
+            }
+            _ => None,
         }
     }
 
@@ -307,22 +373,23 @@ impl HkaskLoop for CurationLoop {
             .map(|port| port.consolidation_candidate_count(self.context.handle().curator_id()))
             .unwrap_or(0);
 
-        // Drain inbox for GoalTransition messages.
+        // Drain inbox for GoalTransition and SpecDriftAlert messages.
         // GoalStore emits GoalTransition NuEvents → Communication Loop delivers
         // them to Curation's inbox. Count stale/expired transitions for sensing.
+        // DefaultSpecCurator emits SpecDriftAlert when drift exceeds threshold.
         let mut goal_stale_count: u64 = 0;
         let mut goal_expired_count: u64 = 0;
+        let mut spec_drift_alert_count: u64 = 0;
         if let Some(inbox) = &self.inbox {
             let mut rx = inbox.write().await;
             while let Ok(msg) = rx.try_recv() {
-                if let LoopPayload::GoalTransition {
-                    goal_id,
-                    from_state: _,
-                    to_state,
-                    agent: _,
-                } = &msg.payload
-                {
-                    match to_state.as_str() {
+                match &msg.payload {
+                    LoopPayload::GoalTransition {
+                        goal_id,
+                        from_state: _,
+                        to_state,
+                        agent: _,
+                    } => match to_state.as_str() {
                         "stale" => {
                             goal_stale_count += 1;
                             tracing::debug!(
@@ -349,6 +416,27 @@ impl HkaskLoop for CurationLoop {
                                 "Goal transition received (non-stale)"
                             );
                         }
+                    },
+                    LoopPayload::SpecDriftAlert {
+                        spec_id,
+                        drift_magnitude,
+                        drift_threshold: _,
+                        missing_verbs: _,
+                    } => {
+                        spec_drift_alert_count += 1;
+                        tracing::warn!(
+                            target: "curation.loop",
+                            spec_id = %spec_id,
+                            drift_magnitude = drift_magnitude,
+                            "Spec drift alert received from DefaultSpecCurator"
+                        );
+                    }
+                    _ => {
+                        tracing::trace!(
+                            target: "curation.loop",
+                            payload_type = ?msg.payload,
+                            "Ignoring non-curation payload in CurationLoop inbox"
+                        );
                     }
                 }
             }
@@ -384,6 +472,12 @@ impl HkaskLoop for CurationLoop {
                 "goal_expired_count",
                 goal_expired_count as f64,
                 0.0, // set-point: zero expired goals is healthy
+            ),
+            Signal::new(
+                LoopId::Curation,
+                "spec_drift_alert_count",
+                spec_drift_alert_count as f64,
+                0.0, // set-point: zero spec drift alerts is healthy
             ),
         ]
     }
@@ -564,6 +658,19 @@ impl HkaskLoop for CurationLoop {
                 );
             }
             // None means directive was dampened or issuance failed
+        }
+
+        // Metacognitive evaluation via the internal CurationConfidenceGate.
+        // When the gate is configured and confidence is in the transition zone
+        // (0.3 < R̄ < 0.8), issue a SeekMoreEvidence directive through Cybernetics.
+        if let Some(directive) = self.evaluate_confidence_internal("curation_act") {
+            if let Some(trace_id) = self.context.issue_directive(directive).await {
+                tracing::info!(
+                    target: "curation.loop",
+                    trace_id = %trace_id,
+                    "Confidence gate directive issued through dispatch"
+                );
+            }
         }
     }
 }

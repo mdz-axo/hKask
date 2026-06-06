@@ -225,6 +225,17 @@ pub enum LoopPayload {
         gas_cost: u64,
         agent: WebID,
     },
+    /// Spec drift alert from DefaultSpecCurator when drift exceeds threshold.
+    ///
+    /// Origin: DefaultSpecCurator (domain). Consumed by: Curation (Loop 5).
+    /// Enables Curation to sense spec-tool coherence failures without
+    /// relying on the NuEvent store as the sole pathway.
+    SpecDriftAlert {
+        spec_id: String,
+        drift_magnitude: f64,
+        drift_threshold: f64,
+        missing_verbs: Vec<String>,
+    },
 }
 
 // =============================================================================

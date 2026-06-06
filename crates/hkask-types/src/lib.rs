@@ -56,7 +56,7 @@ pub use capability::{
     SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth};
-pub use curation::{CurationDecision, OCAPBoundary};
+pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};

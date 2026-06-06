@@ -33,6 +33,7 @@ use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, Se
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::{OkapiConfig, OkapiInference, SqliteRegistry};
 use hkask_types::CuratorHandle;
+use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::LoopPayload;
@@ -103,6 +104,9 @@ pub(crate) struct ReplState {
     /// memory DB as `episodic_storage` and `semantic_storage`. None if memory
     /// infrastructure is unavailable.
     pub(crate) consolidation_service: Option<ConsolidationService>,
+    /// Persona constraints for the current agent — loaded from agent definition.
+    /// When set, the persona filter strips forbidden patterns from model output.
+    pub(crate) persona_constraints: Option<PersonaConstraints>,
 }
 
 /// Build memory infrastructure from a Database: storage ports + ConsolidationService.
@@ -423,7 +427,14 @@ pub fn run(
         hhh_config: HhhConfig::default(),
         gate_inference_port,
         consolidation_service,
+        persona_constraints: None,
     };
+
+    // Load persona constraints for the initial agent
+    state.persona_constraints = rt_handle
+        .block_on(crate::commands::bot_status(&state.current_agent))
+        .ok()
+        .and_then(|agent| agent.definition.persona);
 
     let helper = KaskHelper::new();
 
@@ -1165,6 +1176,13 @@ pub fn run(
                             None => break,
                         }
                     }
+
+                    // Persona filter (Stage 4 of alignment pipeline):
+                    // strip forbidden patterns from the final Curator output.
+                    final_response = hhh_gate::apply_persona_filter(
+                        &final_response,
+                        state.persona_constraints.as_ref(),
+                    );
 
                     println!("{}: {}\n", state.current_agent, final_response);
                     state

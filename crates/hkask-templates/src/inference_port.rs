@@ -270,125 +270,141 @@ impl OkapiInference {
     }
 }
 
-#[async_trait::async_trait]
 impl InferencePort for OkapiInference {
-    async fn generate(
+    fn generate(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-    ) -> Result<InferenceResult, InferenceError> {
-        // Validate input
-        validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        let prompt = prompt.to_string();
+        let parameters = parameters.clone();
+        Box::pin(async move {
+            // Validate input
+            validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
-        // Check prompt cache before API call
-        if let Some(ref cache) = self.prompt_cache {
-            let cache_key =
-                crate::prompt_cache::PromptCache::generate_key(prompt, &self.model, parameters);
-            match cache.get(&cache_key) {
-                Ok(result) => {
-                    info!(
-                        target: "hkask.inference",
-                        model = %result.model,
-                        cache_key = %cache_key,
-                        "Cache hit - returning cached result"
-                    );
-                    return Ok(result);
+            // Check prompt cache before API call
+            if let Some(ref cache) = self.prompt_cache {
+                let cache_key = crate::prompt_cache::PromptCache::generate_key(
+                    &prompt,
+                    &self.model,
+                    &parameters,
+                );
+                match cache.get(&cache_key) {
+                    Ok(result) => {
+                        info!(
+                            target: "hkask.inference",
+                            model = %result.model,
+                            cache_key = %cache_key,
+                            "Cache hit - returning cached result"
+                        );
+                        return Ok(result);
+                    }
+                    Err(crate::prompt_cache::CacheError::Miss) => {
+                        // Cache miss, proceed with API call
+                    }
+                    Err(e) => {
+                        warn!(
+                            target: "hkask.inference",
+                            error = %e,
+                            "Cache lookup error, proceeding with API call"
+                        );
+                    }
                 }
-                Err(crate::prompt_cache::CacheError::Miss) => {
-                    // Cache miss, proceed with API call
-                }
-                Err(e) => {
+            }
+
+            let request = OkapiRequest {
+                model: self.model.clone(),
+                messages: vec![Message {
+                    role: "user".to_string(),
+                    content: prompt.clone(),
+                }],
+                temperature: parameters.temperature,
+                top_p: parameters.top_p,
+                top_k: parameters.top_k as i32,
+                frequency_penalty: parameters.frequency_penalty,
+                presence_penalty: parameters.presence_penalty,
+                max_tokens: parameters.max_tokens as i32,
+                seed: parameters.seed,
+                n_probs: Some(5),
+            };
+
+            let result = self.execute_with_retry(request).await?;
+
+            // Cache the successful result
+            if let Some(ref cache) = self.prompt_cache {
+                let cache_key = crate::prompt_cache::PromptCache::generate_key(
+                    &prompt,
+                    &self.model,
+                    &parameters,
+                );
+                if let Err(e) = cache.put(&cache_key, &prompt, &self.model, &result) {
                     warn!(
                         target: "hkask.inference",
                         error = %e,
-                        "Cache lookup error, proceeding with API call"
+                        "Failed to cache inference result"
                     );
                 }
             }
-        }
 
-        let request = OkapiRequest {
-            model: self.model.clone(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-            }],
-            temperature: parameters.temperature,
-            top_p: parameters.top_p,
-            top_k: parameters.top_k as i32,
-            frequency_penalty: parameters.frequency_penalty,
-            presence_penalty: parameters.presence_penalty,
-            max_tokens: parameters.max_tokens as i32,
-            seed: parameters.seed,
-            n_probs: Some(5),
-        };
+            info!(
+                target: "hkask.inference",
+                model = %result.model,
+                tokens = result.usage.total_tokens,
+                finish_reason = %result.finish_reason,
+                "Inference completed"
+            );
 
-        let result = self.execute_with_retry(request).await?;
-
-        // Cache the successful result
-        if let Some(ref cache) = self.prompt_cache {
-            let cache_key =
-                crate::prompt_cache::PromptCache::generate_key(prompt, &self.model, parameters);
-            if let Err(e) = cache.put(&cache_key, prompt, &self.model, &result) {
-                warn!(
-                    target: "hkask.inference",
-                    error = %e,
-                    "Failed to cache inference result"
-                );
-            }
-        }
-
-        info!(
-            target: "hkask.inference",
-            model = %result.model,
-            tokens = result.usage.total_tokens,
-            finish_reason = %result.finish_reason,
-            "Inference completed"
-        );
-
-        Ok(result)
+            Ok(result)
+        })
     }
 
-    async fn generate_with_model(
+    fn generate_with_model(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
-    ) -> Result<InferenceResult, InferenceError> {
-        // Validate input
-        validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        let prompt = prompt.to_string();
+        let parameters = parameters.clone();
+        let model_override = model_override.map(|s| s.to_string());
+        Box::pin(async move {
+            // Validate input
+            validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
-        let model_id = model_override
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.model.clone());
+            let model_id = model_override.unwrap_or_else(|| self.model.clone());
 
-        let request = OkapiRequest {
-            model: model_id.clone(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-            }],
-            temperature: parameters.temperature,
-            top_p: parameters.top_p,
-            top_k: parameters.top_k as i32,
-            frequency_penalty: parameters.frequency_penalty,
-            presence_penalty: parameters.presence_penalty,
-            max_tokens: parameters.max_tokens as i32,
-            seed: parameters.seed,
-            n_probs: Some(5),
-        };
+            let request = OkapiRequest {
+                model: model_id.clone(),
+                messages: vec![Message {
+                    role: "user".to_string(),
+                    content: prompt.clone(),
+                }],
+                temperature: parameters.temperature,
+                top_p: parameters.top_p,
+                top_k: parameters.top_k as i32,
+                frequency_penalty: parameters.frequency_penalty,
+                presence_penalty: parameters.presence_penalty,
+                max_tokens: parameters.max_tokens as i32,
+                seed: parameters.seed,
+                n_probs: Some(5),
+            };
 
-        let result = self.execute_with_retry(request).await?;
+            let result = self.execute_with_retry(request).await?;
 
-        info!(
-            target: "hkask.inference",
-            model = %result.model,
-            tokens = result.usage.total_tokens,
-            finish_reason = %result.finish_reason,
-            "Inference with model completed"
-        );
+            info!(
+                target: "hkask.inference",
+                model = %result.model,
+                tokens = result.usage.total_tokens,
+                finish_reason = %result.finish_reason,
+                "Inference with model completed"
+            );
 
-        Ok(result)
+            Ok(result)
+        })
     }
 }
 

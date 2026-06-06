@@ -319,6 +319,11 @@ pub(super) fn handle_slash_command(
                 );
             } else {
                 state.current_agent = arg1.to_string();
+                // Load persona constraints from the agent definition
+                state.persona_constraints = rt
+                    .block_on(crate::commands::bot_status(arg1))
+                    .ok()
+                    .and_then(|agent| agent.definition.persona);
                 println!("  Switched to agent: \x1b[1m{}\x1b[0m", state.current_agent);
             }
             println!();

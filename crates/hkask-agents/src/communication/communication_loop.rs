@@ -13,6 +13,7 @@ use crate::communication::dispatch::MessageDispatch;
 use hkask_types::loops::dispatch::{DispatchTarget, LoopMessage, WorkerKind};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
 
 /// Communication Loop — routes inter-loop messages.
@@ -40,6 +41,8 @@ pub(crate) struct CommunicationLoop {
     >,
     /// Maximum messages to deliver per tick (prevents unbounded delivery)
     max_deliveries_per_tick: usize,
+    /// Shared atomic counter for queue depth — readable without awaiting dispatch
+    queue_depth_counter: Arc<AtomicU64>,
 }
 
 impl CommunicationLoop {
@@ -50,6 +53,7 @@ impl CommunicationLoop {
             loop_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
             worker_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
             max_deliveries_per_tick: 64,
+            queue_depth_counter: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -108,6 +112,14 @@ impl CommunicationLoop {
         <Self as HkaskLoop>::compute(self, deviations).await
     }
 
+    /// Get a clone of the shared queue depth counter.
+    ///
+    /// CyberneticsLoop reads this counter to sense communication backpressure
+    /// without needing a direct reference to MessageDispatch.
+    pub fn queue_depth_counter(&self) -> Arc<AtomicU64> {
+        Arc::clone(&self.queue_depth_counter)
+    }
+
     /// **Act stage** (sense → compare → compute → act):
     /// Deliver message or emit backpressure signal. Dequeues messages
     /// from the dispatch and delivers them to target loop inboxes, up to
@@ -126,6 +138,8 @@ impl HkaskLoop for CommunicationLoop {
     /// Sense: read queue depths and delivery state.
     async fn sense(&self) -> Vec<Signal> {
         let queue_depth = self.dispatch.len().await;
+        self.queue_depth_counter
+            .store(queue_depth as u64, Ordering::Relaxed);
         let senders = self.loop_senders.read().await;
         let registered_loops = senders.len();
 

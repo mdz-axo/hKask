@@ -33,7 +33,7 @@ hKask implements a **zero-trust, capability-based security model**:[^miller-robu
 
 ### 1.2 Single Capability Primitive
 
-All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:223`):
+All access control uses `CapabilityToken` (type alias for `DelegationToken`, `crates/hkask-types/src/capability/mod.rs:66`; struct at line 283):
 
 | Property | Implementation |
 |----------|---------------|
@@ -41,7 +41,7 @@ All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mo
 | **Scoping** | Resource + action pairs (`CapabilityResource`, `CapabilityAction`) |
 | **Caveats** | Expiration, operation, template, visibility |
 | **Attenuation** | Max depth 7 (configurable) |
-| **Revocation** | Persistent SQLite via `RevocationStore` (`hkask-agents/src/revocation_store.rs:16`) |
+| **Revocation** | `HashSet<String>` inside `AcpRuntime` |
 | **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
 
 **Full capability model:** [`domain-and-capability.md`](domain-and-capability.md) §5
@@ -53,7 +53,7 @@ WebIDs derived from persona content via UUID v5:
 - Root authority from fixed `"hkask-root-authority"` persona
 - Namespace UUID: `686b6173-6b2d-7065-7273-6f6e612d6e73`
 
-**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:91`)
+**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:186`)
 
 ### 1.4 Encryption Stack
 
@@ -78,7 +78,7 @@ WebIDs derived from persona content via UUID v5:
 
 | Boundary | Enforcement | Implementation |
 |----------|------------|----------------|
-| MCP tool invocation | `SecurityGateway` | `hkask-mcp/src/security.rs:51` |
+| MCP tool invocation | `GovernedTool` | `hkask-cns/src/governed_tool.rs:74` |
 | Template execution | `CapabilityAwareValidator` | `hkask-templates/src/capability_validator.rs:21` |
 | ACP message routing | `SovereigntyPort` | `hkask-agents/src/ports/sovereignty.rs:79` |
 | Memory storage | `MemoryStoragePort` | `hkask-agents/src/pod/context.rs:50` |
@@ -92,7 +92,7 @@ WebIDs derived from persona content via UUID v5:
 | No wildcard capabilities | `AcpRuntime::register_agent` rejects `"*"` |
 | No ambient authority | Every operation requires capability |
 | Constant-time comparison | `subtle::ConstantTimeEq` |
-| Persistent revocation | `RevocationStore` survives restarts |
+| Persistent revocation | `HashSet<String>` in `AcpRuntime` survives restarts |
 | Attenuation limit | `attenuation_level < max_attenuation` |
 | Deterministic identity | UUID v5 from persona |
 | Deterministic secrets | All internal secrets derived from master key via HKDF-SHA256 |
@@ -120,9 +120,9 @@ Master passphrase (user-provided, stored in OS keychain or env var HKASK_MASTER_
 
 **Resolution priority:**
 
-1. `SecretRef::Derived` — HKDF-SHA256 from master key (preferred, deterministic)
-2. `SecretRef::Env` — Direct environment variable (for override)
-3. `SecretRef::Keychain` — OS keychain entry (for override)
+1. `SecretRef::Env` — Direct environment variable (for override)
+2. `SecretRef::Keychain` — OS keychain entry (for override)
+3. `SecretRef::Derived` — HKDF-SHA256 from master key (deterministic, restart-safe)
 4. `SecretRef::Generated` — Random bytes (⚠️ not restart-safe; only for salts/nonces)
 
 **Implementation:**
@@ -189,8 +189,8 @@ The Magna Carta principle enforces user sovereignty:[^westin-data]
 | **Capability revocation** | User can revoke any granted capability |
 | **Visibility control** | Private/public gating per data category |
 | **Consent management** | `ConsentManager` tracks authorization |
-| **Acquisition resistance** | Default `Maximum` resistance level |
-| **Kill-zone detection** | VC investment < 0.5 after acquisition attempt → CNS alert |
+| **Acquisition resistance** | `AcquisitionResistance(pub bool)` — resistant or open |
+| **Kill-zone detection** | `KillZoneDetector` in `hkask-cns` monitors VC investment; CNS alert when triggered |
 
 **SovereigntyChecker** (`crates/hkask-agents/src/sovereignty.rs`):
 
@@ -198,12 +198,10 @@ A concrete struct (not a trait) enforcing user data boundaries. Each `AgentPod` 
 
 **Key operations:**
 - `new(webid)` — create checker for a specific WebID owner
-- `check(category, operation, requester)` — verify access authorization
+- `check_operation(operation, data_category)` — verify access authorization (2 args)
 - `can_access(category, requester)` — boolean access check
-- `mark_acquisition_attempt()` — record kill-zone trigger
-- `update_vc_investment(f32)` — update VC investment ratio
-- `is_compromised()` — check acquisition state
-- `grant_consent()` / `revoke_consent()` — consent management
+
+Kill-zone detection is handled by `KillZoneDetector` in `hkask-cns` (not SovereigntyChecker). Consent management is handled by `ConsentManager` (not SovereigntyChecker).
 
 [^westin-data]: Westin, A. F. (1967). *Privacy and Freedom*. Atheneum. Informational self-determination.
 
@@ -246,10 +244,11 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-10
 |------|---------|--------|
 | `cns.prompt.*` | `Prompt` | Template render, validate, outcome |
 | `cns.tool.*` | `Tool` | Tool governance, invocation |
+| `cns.inference.*` | `Inference` | Inference governance, energy budget |
 | `cns.agent_pod.*` | `AgentPod` | Pod lifecycle, delegation |
 | `cns.connector.*` | `Connector` | External I/O (LLM, embeddings) |
 | `cns.pipeline.*` | `Pipeline` | Memory pipeline operations |
-| `cns.energy.*` | `Energy` | Energy budget tracking |
+| `cns.gas.*` | `Gas` | Gas budget tracking |
 | `cns.review.*` | `Review` | Review queue operations |
 | `cns.template.*` | `Template` | Template lifecycle |
 | `cns.curation.*` | `Curation` | Curation operations |
@@ -258,20 +257,19 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-10
 | `cns.sovereignty.*` | `Sovereignty` | User sovereignty enforcement |
 | `cns.goal.*` | `Goal` | Goal lifecycle operations |
 | `cns.spec.*` | `Spec` | DDMVSS specification operations |
-| `cns.memory.*` | (Pattern A) | Memory pipeline: encode, budget, decay, delete |
 
-**Event structure:** `NuEvent` (`event.rs:27`) — id, timestamp, observer_webid, span, phase (Observe/Regulate/Outcome), observation, regulation, outcome, recursion_depth, parent_event, visibility.
+**Event structure:** `NuEvent` (`event.rs:27`) — id, timestamp, observer_webid, span, phase (Sense/Compute/Compare/Act; legacy aliases: Observe→Sense, Regulate→Compute, Outcome→Act), observation, regulation, outcome, recursion_depth, parent_event, visibility.
 
 ### 4.3 Variety Counters
 
 Following Ashby's Law of Requisite Variety:[^ashby-law]
 
 | Counter | Type | Purpose |
-|---------|------|---------|
-| `VarietyCounter` | `u64` wrapper | Unique element count per category |
+|---------|------|--------|
+| `VarietyTracker` | `HashMap<String, u64>` + time window | Unique element count per category |
 | `UnifiedVarietyTracker` | struct | Single SENSE point for domain variety (4.1), bot metrics (4.3), sovereignty events (4.4), and goal variety |
 
-**Implementation:** `UnifiedVarietyTracker` (`unified_tracker.rs`), `VarietyMonitor` (`variety.rs`)
+**Implementation:** `UnifiedVarietyTracker` (`unified_tracker.rs`), `VarietyTracker` (`variety.rs`)
 
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Wiley. "Only variety can absorb variety."
 
@@ -306,31 +304,32 @@ status: VERIFIED
 
 | Severity | Trigger | Action |
 |----------|---------|--------|
-| Info | Variety approaching threshold | Log |
-| Warning | Deficit > 100 | Escalate to Curator |
-| Critical | Deficit > 500 | Escalate to Human |
+| Info | Variety within normal bounds | Log |
+| Warning | Deficit > threshold/2 (default 50) | Escalate to Curator |
+| Critical | Deficit > threshold (default 100) | Escalate to Human |
 
 ### 4.5 CNS Health
 
-`CnsHealth` (`algedonic.rs:175`) provides aggregate status:
-- Runtime status (active/degraded/down)
-- Variety counter summary
-- Active algedonic alerts
-- Energy budget status
-- Review queue depth
+`CnsHealth` (`hkask-types/src/cns.rs:32`) provides aggregate status:
+- `overall_deficit` — aggregate variety deficit
+- `critical_count` — number of critical alerts
+- `warning_count` — number of warning alerts
+- `healthy` — `bool` indicating whether CNS is within normal bounds
 
 **Accessible via:** `kask cns health` (CLI), `GET /api/v1/cns/health` (API), `cns_health()` (MCP)
 
 ### 4.6 Rate Limiting
 
-Rate limiting has been consolidated into energy budget enforcement. The `RateLimiter` and `CnsTokenBucket` types have been removed; resource exhaustion is now prevented via `EnergyBudget.try_consume()`, which gates all operations under a unified energy cap. `McpErrorKind::RateLimited` remains for external API HTTP 429 responses where downstream services impose rate limits.
+Rate limiting has been consolidated into gas budget enforcement. The `RateLimiter` and `CnsTokenBucket` types have been removed; resource exhaustion is now prevented via `GasBudget.consume()`, which gates all operations under a unified gas cap. `McpErrorKind::RateLimited` remains for external API HTTP 429 responses where downstream services impose rate limits.
 
 ### 4.7 Energy Budget
 
-Energy tracking for resource-conscious execution:
-- `EnergyBudget` (`crates/hkask-cns/src/energy.rs:10`) — allocation, consumption, and replenishment
-- `try_consume(operation, estimated_tokens)` — gates all operations under a unified energy cap
-- `can_proceed(estimated_tokens)` — replaces rate-limit checks: "do I have enough budget?"
+Gas tracking for resource-conscious execution:
+- `GasBudget` (`crates/hkask-cns/src/energy.rs:26`) — allocation, consumption, and settlement
+- `consume(gas)` — deduct gas from budget
+- `can_proceed(gas)` — check whether budget allows the requested gas
+- `reserve(gas)` — reserve gas for an operation
+- `settle(reserved, actual)` — settle a reservation against actual consumption
 
 ---
 

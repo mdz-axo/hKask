@@ -19,6 +19,7 @@
 pub mod context;
 pub mod curation_gate;
 pub mod curation_loop;
+pub mod persona_filter;
 
 pub use context::CuratorContext;
 pub use curation_gate::{ConfidenceDecision, CurationConfidenceGate, CurationPort};

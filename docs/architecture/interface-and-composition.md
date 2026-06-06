@@ -54,7 +54,7 @@ status: VERIFIED
 
 ### 1.1 MCP Server Surface
 
-**Protocol:** rmcp (Rust MCP) — JSON-RPC 2.0 over stdio transport
+**Protocol:** rmcp (Rust MCP) — JSON-RPC 2.0 over **stdio transport** (only transport currently implemented)
 
 **Runtime:** `McpRuntime` (`crates/hkask-mcp/src/runtime.rs`) — manages server lifecycle, tool discovery, and live `Peer<RoleClient>` connections.
 
@@ -68,7 +68,7 @@ status: VERIFIED
 
 **Binary:** `kask` (built from `hkask-cli`, 3,741 LOC)
 
-**20 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
+**25 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
 
 | Subcommand | Purpose |
 |-----------|---------|
@@ -89,15 +89,20 @@ status: VERIFIED
 | `kask curator` | Curator governance and metacognition |
 | `kask replicant` | Replicant identity management |
 | `kask keystore` | OS keychain secret management |
-
+| `kask bundle` | Skill bundle management (compose, apply, evolve) |
+| `kask compose` | Style composition — generate prose with exemplar retrieval |
+| `kask embed-corpus` | Style corpus embedding (download, chunk, embed, store) |
+| `kask consolidate` | Trigger episodic→semantic consolidation with optional semantic cleanup |
+| `kask loops` | Run the 6-loop regulation system |
 | `kask models` | List available LLM models |
 | `kask web-search` | Search the web |
+| `kask serve` | Start the HTTP API server (shares state with CLI) |
 
 ### 1.3 HTTP API Surface
 
 **Framework:** axum v0.8 with utoipa v5.5 OpenAPI documentation
 
-**15 route groups** (`crates/hkask-api/src/routes/`):
+**18 route groups** (`crates/hkask-api/src/routes/`):
 
 | Route Group | Purpose |
 |------------|----------|
@@ -112,8 +117,11 @@ status: VERIFIED
 | `ensemble_router` | Multi-agent ensemble |
 | `soap_infer_router` | SOAP inference (Okapi bridge) |
 | `acp_router` | ACP agent registration |
+| `bundles_router` | Skill bundle management |
 | `spec_router` | DDMVSS specification operations |
 | `curator_router` | Curator governance and metacognition |
+| `episodic_router` | Episodic memory operations |
+| `consolidation_router` | Episodic→semantic consolidation |
 | `git_router` | Git archival operations |
 | `goal_router` | Goal coordination (OCAP-gated) |
 
@@ -146,7 +154,7 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 
 | Port | Trait | Crate | Purpose |
 |------|-------|-------|---------|
-| MCP Runtime | `McpTransport` | `hkask-mcp` | MCP server communication |
+| MCP Runtime | `MCPRuntimePort` | `hkask-agents` | MCP server communication |
 | CLI | (clap derive) | `hkask-cli` | Command-line parsing |
 | HTTP API | (axum routes) | `hkask-api` | HTTP request handling |
 | ACP Transport | `AcpTransport` ⚠️ REMOVED | `hkask-agents` | Agent Communication Protocol — *transport layer deferred in v0.21.x* |
@@ -157,18 +165,20 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 |------|-------|-------|---------|
 | ACP | `AcpPort` (`ports/acp.rs`) | `hkask-agents` | Agent registration, A2A messaging |
 | Git CAS | `GitCASPort` (`ports/git_cas.rs`) | `hkask-agents` | Content-addressed template storage |
-| Memory Storage | `MemoryStoragePort` (`ports/memory_storage.rs`) | `hkask-agents` | Episodic/semantic persistence |
+| Episodic Storage | `EpisodicStoragePort` (`ports/memory_storage.rs`) | `hkask-agents` | Private, agent-scoped persistence |
+| Semantic Storage | `SemanticStoragePort` (`ports/memory_storage.rs`) | `hkask-agents` | Shared, public knowledge persistence |
 | MCP Runtime | `MCPRuntimePort` (`ports/mcp_runtime.rs`) | `hkask-agents` | Tool dispatch |
 | CNS Emit | `NuEventSink` (`event.rs`) | `hkask-types` | Cybernetic event emission |
 | CNS Emit | `CnsEmit` (`spans.rs`) | `hkask-cns` | Structured span emission |
-| Sovereignty | `SovereigntyChecker` (concrete) | `hkask-agents` | User sovereignty enforcement |
+| Sovereignty | `SovereigntyPort` (`hkask-types/src/sovereignty.rs:374`) | `hkask-types` | User sovereignty enforcement |
+| Sovereignty (impl) | `SovereigntyChecker` (concrete) | `hkask-agents` | Production implementation |
 | Inference | `InferencePort` (`inference_port.rs`) | `hkask-templates` | LLM inference (Okapi) |
 | Spec Store | `SpecStore` (`spec.rs`) | `hkask-types` | Specification persistence |
 | Spec Observer | `SpecObserver` ⚠️ REMOVED (`spec.rs`) | `hkask-types` | Spec CNS spans — *removed in v0.21.x* |
 | Spec Curator | `SpecCurator` (`spec.rs`) | `hkask-types` | Curation evaluation |
-| Audit | `AuditLogPort` (`audit.rs`) | `hkask-types` | Audit trail persistence |
+| Audit | `AuditLogPort` (`hkask-types/src/audit.rs:128`) | `hkask-types` | Audit trail persistence |
 | MCP Dispatch | `McpPort` (`ports.rs`) | `hkask-templates` | MCP tool invocation |
-| Metacognition | `MetacognitionStoreAdapter` (concrete) | `hkask-agents` | Health snapshot persistence |
+| Metacognition | `MetacognitionLoop` (`curator_agent/metacognition.rs`) | `hkask-agents` | Curator health monitoring and metacognition |
 | Standing Session | `StandingSessionPort` (`ports/standing_session.rs`) | `hkask-agents` | Session state persistence |
 | ACP Transport | `AcpTransport` ⚠️ REMOVED (`ports/acp_transport.rs`) | `hkask-agents` | Wire-level transport — *removed in v0.21.x* |
 | Ensemble Inference | `InferenceClient` (`ports.rs`) | `hkask-ensemble` | Inference with retry |
@@ -178,7 +188,7 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 
 ### 2.3 Port Composition Patterns
 
-**Adapter chaining:** Adapters wrap other adapters for cross-cutting concerns (e.g., `SecurityGateway` wraps `McpRuntime` to add OCAP verification).
+**Adapter chaining:** Adapters wrap other adapters for cross-cutting concerns (e.g., `GovernedTool` in `hkask-cns` wraps `RawMcpToolPort` to add OCAP verification).
 
 **Port aggregation:** `PodManager` aggregates multiple ports into a single facade (`pod/manager.rs:30`).
 
@@ -243,7 +253,7 @@ Template cascade follows the matroshka (nesting doll) pattern:
 1. **Cascade depth ≤ 7** — prevents infinite recursion
 2. **Manifest steps execute sequentially** — ordered ordinal execution
 3. **Capability attenuation follows composition** — each level may attenuate
-4. **Dependency graph validated** — `DependencyGraph` (`dependency.rs:21`) ensures acyclic
+4. **Cascade ordering** — `Registry::cascade_order_for_skill` resolves skill dependency order
 
 ---
 
@@ -261,18 +271,18 @@ graph LR
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-002
 verified_date: 2026-05-25
-verified_against: crates/hkask-templates/src/renderer.rs:16; context_assembly.rs:126; capability_validator.rs:21; audit.rs:87
-status: VERIFIED
+verified_against: crates/hkask-templates/src/registry_sqlite.rs; crates/hkask-cns/src/governed_tool.rs; crates/hkask-types/src/audit.rs
+status: STALE (pipeline stages no longer map to dedicated structs)
 -->
 
 | Stage | Implementation | Purpose |
 |-------|---------------|---------|
 | Select | `SqliteRegistry.get()` | Retrieve by ID and type |
-| Resolve | `DependencyGraph` + `SqliteRegistry` (`dependency.rs:29`) | Dependency graph, cascade |
-| Assemble | `ContextAssembler` (`context_assembly.rs:126`) | Build context from fragments |
-| Validate | `CapabilityAwareValidator` (`capability_validator.rs:11`) | Verify capabilities |
-| Render | `TemplateRendererImpl` (`renderer.rs:14`) | Jinja2 via minijinja |
-| Audit | `AuditTrail` (`audit.rs:87`) | Record execution + timing |
+| Resolve | `SqliteRegistry.cascade_order_for_skill()` | Cascade ordering |
+| Assemble | *(implemented inline in rendering loop)* | Build context from fragments |
+| Validate | *(OCAP enforcement via `GovernedTool` membrane)* | Verify capabilities |
+| Render | *(inline Jinja2 rendering in `SqliteRegistry`)* | Template rendering |
+| Audit | `AuditLogPort` (`hkask-types/src/audit.rs:128`) | Record execution + timing |
 
 ### 4.1 Manifest Step Grammar
 
@@ -302,16 +312,16 @@ steps:
 LLM inference delegated to Okapi via `InferencePort`:
 
 ```rust
-// crates/hkask-templates/src/inference_port.rs:95
+// crates/hkask-types/src/ports.rs:189
 pub trait InferencePort: Send + Sync {
-    async fn infer(&self, request: InferenceRequest) -> Result<InferenceResult, InferenceError>;
-    async fn models(&self) -> Result<Vec<ModelInfo>, InferenceError>;
+    async fn generate(&self, prompt: &str, parameters: &LLMParameters) -> Result<InferenceResult, InferenceError>;
+    async fn generate_with_model(&self, prompt: &str, parameters: &LLMParameters, model_override: Option<&str>) -> Result<InferenceResult, InferenceError>;
 }
 ```
 
-**Implementation:** `OkapiInference` (`inference_port.rs:156`) — HTTP client to Okapi GGUF inference server.
+**Implementation:** `OkapiInference` (`inference_port.rs:18`) — HTTP client to Okapi GGUF inference server.
 
-**Resilience:** Circuit-breaker via `CircuitState` enum (`resilience.rs:12`) — Closed, Open, HalfOpen.
+**Resilience:** Circuit-breaker via `CircuitState` enum (`hkask-types/src/cns.rs:17`) — Closed, Open, HalfOpen.
 
 ---
 
