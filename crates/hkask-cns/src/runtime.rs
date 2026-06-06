@@ -84,6 +84,12 @@ impl CnsRuntime {
         alerts
     }
 
+    /// Get the configured default threshold from the algedonic manager.
+    pub async fn default_threshold(&self) -> u64 {
+        let state = self.state.read().await;
+        state.algedonic.read().default_threshold()
+    }
+
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         let alerts = {

@@ -5,10 +5,11 @@
 //! from Curation and escalation signals from algedonic variety deficit detection.
 
 use chrono::{DateTime, Utc};
+use hkask_storage::Store;
 use hkask_types::{BotID, InfrastructureError, TemplateID};
-use rusqlite::{Connection, params};
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -36,7 +37,7 @@ pub enum EscalationStatus {
 }
 
 pub struct EscalationQueue {
-    conn: Arc<Mutex<Connection>>,
+    conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
 }
 
 #[derive(Error, Debug)]
@@ -54,19 +55,37 @@ impl From<rusqlite::Error> for EscalationError {
     }
 }
 
+impl Store for EscalationQueue {
+    fn conn_arc(&self) -> Arc<std::sync::Mutex<rusqlite::Connection>> {
+        Arc::clone(&self.conn)
+    }
+
+    fn lock_conn(
+        &self,
+    ) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, InfrastructureError> {
+        self.conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)
+    }
+}
+
+/// Helper to produce an RFC 3339 timestamp for the current moment.
+///
+/// Consolidates the repeated `Utc::now().to_rfc3339()` calls (K6.3).
+fn now_rfc3339() -> String {
+    Utc::now().to_rfc3339()
+}
+
 impl EscalationQueue {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Result<Self, EscalationError> {
+    pub fn new(conn: Arc<std::sync::Mutex<rusqlite::Connection>>) -> Result<Self, EscalationError> {
         let queue = Self { conn };
         queue.init()?;
         Ok(queue)
     }
 
     fn init(&self) -> Result<(), EscalationError> {
-        self.conn
-            .lock()
-            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?
-            .execute_batch(
-                r#"CREATE TABLE IF NOT EXISTS escalations (
+        self.lock_conn()?.execute_batch(
+            r#"CREATE TABLE IF NOT EXISTS escalations (
                 id TEXT PRIMARY KEY,
                 template_id TEXT NOT NULL,
                 bot_id TEXT NOT NULL,
@@ -80,7 +99,7 @@ impl EscalationQueue {
                 resolved_by TEXT
             )
         "#,
-            )?;
+        )?;
         Ok(())
     }
 
@@ -94,9 +113,9 @@ impl EscalationQueue {
         error_context: String,
     ) -> Result<String, EscalationError> {
         let id = format!("esc_{}", Uuid::new_v4().simple());
-        let now = Utc::now().to_rfc3339();
+        let now = now_rfc3339();
 
-        self.conn.lock().map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?.execute(
+        self.lock_conn()?.execute(
             r#"INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')"#,
             params![
@@ -115,10 +134,7 @@ impl EscalationQueue {
     }
 
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             r#"SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"#
@@ -156,10 +172,7 @@ impl EscalationQueue {
     }
 
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE id = ?1"
@@ -210,8 +223,8 @@ impl EscalationQueue {
     }
 
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
-        let now = Utc::now().to_rfc3339();
-        self.conn.lock().map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?.execute(
+        let now = now_rfc3339();
+        self.lock_conn()?.execute(
             r#"UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
@@ -219,8 +232,8 @@ impl EscalationQueue {
     }
 
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
-        let now = Utc::now().to_rfc3339();
-        self.conn.lock().map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?.execute(
+        let now = now_rfc3339();
+        self.lock_conn()?.execute(
             r#"UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
@@ -228,10 +241,7 @@ impl EscalationQueue {
     }
 
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             r#"SELECT
                 COUNT(*) as total,

@@ -100,14 +100,6 @@ struct Vault {
 
 impl Vault {
     const VERSION: u32 = 1;
-
-    #[allow(dead_code)]
-    fn new() -> Self {
-        Self {
-            version: Self::VERSION,
-            entries: HashMap::new(),
-        }
-    }
 }
 
 pub struct KeystoreServer {

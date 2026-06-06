@@ -1,10 +1,29 @@
 //! Verification logic for capability tokens
-//!
-//! Contains `CapabilityChecker` for composition-oriented capability management.
+//
+//! Contains `CapabilityChecker` for composition-oriented capability management
+//! and `verify_delegation_token` for unified verification with structured outcomes.
 
 use super::{DelegationAction, DelegationResource, DelegationToken};
 use crate::WebID;
 use zeroize::Zeroizing;
+
+/// Outcome of verifying a delegation token.
+///
+/// Provides structured, granular failure modes so call sites can map each
+/// failure to a specific error response instead of a generic boolean.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerificationOutcome {
+    /// Token passed all verification checks.
+    Valid,
+    /// Token signature is invalid or tampered.
+    InvalidSignature,
+    /// Token has expired.
+    Expired,
+    /// Token does not grant the requested access.
+    InsufficientAccess { resource_id: String, action: String },
+    /// No capability checker was provided — access denied.
+    NoChecker,
+}
 
 /// Capability checker for composition operations
 pub struct CapabilityChecker {
@@ -162,5 +181,88 @@ impl CapabilityChecker {
         current_time: i64,
     ) -> Option<DelegationToken> {
         token.attenuate(new_to, &self.secret, current_time)
+    }
+}
+
+/// Verify a delegation token against an optional capability checker.
+///
+/// Unified verification entry point that produces a structured
+/// [`VerificationOutcome`] instead of a bare boolean. Call sites
+/// in MCP servers and adapters use this to map each failure mode to
+/// a specific error response.
+///
+/// When `checker` is `None`, returns `VerificationOutcome::NoChecker`.
+pub fn verify_delegation_token(
+    checker: Option<&CapabilityChecker>,
+    token: &DelegationToken,
+    holder: &WebID,
+    resource: DelegationResource,
+    resource_id: &str,
+    action: DelegationAction,
+    current_time: i64,
+) -> VerificationOutcome {
+    let checker = match checker {
+        Some(c) => c,
+        None => return VerificationOutcome::NoChecker,
+    };
+
+    if !checker.verify(token) {
+        return VerificationOutcome::InvalidSignature;
+    }
+
+    if token.is_expired(current_time) {
+        return VerificationOutcome::Expired;
+    }
+
+    if !checker.check(token, holder, resource, resource_id, action) {
+        return VerificationOutcome::InsufficientAccess {
+            resource_id: resource_id.to_string(),
+            action: action.as_str().to_string(),
+        };
+    }
+
+    VerificationOutcome::Valid
+}
+
+/// Require write-level access from a delegation token.
+///
+/// Returns an error string if the token only grants read access.
+/// Consolidates the repeated `if token.action == DelegationAction::Read` guard
+/// that appeared in `memory_loop_adapter.rs` (4 occurrences) and `pod/context.rs`.
+///
+/// # Arguments
+/// * `token` — The delegation token to check.
+/// * `store_type` — Human-readable name of the store being accessed ("episodic" or "semantic").
+///   Used in the error message for traceability.
+///
+/// # Returns
+/// * `Ok(())` — Token grants write access.
+/// * `Err(String)` — Token is read-only; the error message explains which store was denied.
+pub fn require_write_access(token: &DelegationToken, store_type: &str) -> Result<(), String> {
+    if token.allows_write() {
+        Ok(())
+    } else {
+        Err(format!(
+            "read-only token cannot write to {} storage",
+            store_type
+        ))
+    }
+}
+
+/// Require read-level access from a delegation token.
+///
+/// Returns an error string if the token doesn't grant any read-capable action.
+///
+/// # Arguments
+/// * `token` — The delegation token to check.
+/// * `store_type` — Human-readable name of the store being accessed.
+pub fn require_read_access(token: &DelegationToken, store_type: &str) -> Result<(), String> {
+    if token.allows_read() {
+        Ok(())
+    } else {
+        Err(format!(
+            "token does not grant read access for {} recall",
+            store_type
+        ))
     }
 }

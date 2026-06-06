@@ -1,5 +1,5 @@
 //! MCP Runtime Adapter
-//!
+//
 //! Concrete implementation of MCPRuntimePort.
 //! Routes tool invocations through `McpRuntime`'s live MCP server
 //! connections when available. Falls back to capability-only verification
@@ -8,7 +8,10 @@
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_types::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
+use hkask_types::{
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, VerificationOutcome,
+    verify_delegation_token,
+};
 use std::sync::Arc;
 
 /// MCP Runtime Adapter — Concrete implementation for tool access
@@ -70,15 +73,34 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             return Err(McpError::InvalidToken("Token ID is empty".to_string()));
         }
 
-        if let Some(checker) = &self.capability_checker
-            && !checker.verify(&token)
-        {
-            return Err(McpError::InvalidToken(
+        // P1.1: Use unified verification instead of inline HMAC check
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        match verify_delegation_token(
+            self.capability_checker.as_ref().map(|a| a.as_ref()),
+            &token,
+            &token.delegated_to,
+            DelegationResource::Tool,
+            &token.resource_id,
+            DelegationAction::Execute,
+            current_time,
+        ) {
+            VerificationOutcome::Valid => Ok(()),
+            VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
                 "Token signature verification failed".to_string(),
-            ));
+            )),
+            VerificationOutcome::Expired => {
+                Err(McpError::CapabilityDenied("Token is expired".to_string()))
+            }
+            VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied(
+                format!("Token does not authorize tool: {}", token.resource_id),
+            )),
+            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied(
+                "No capability checker configured — tool access denied".to_string(),
+            )),
         }
-
-        Ok(())
     }
 
     fn invoke_tool(
@@ -87,36 +109,40 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         input: serde_json::Value,
         token: &DelegationToken,
     ) -> Result<serde_json::Value, McpError> {
-        // OCAP verification
-        if let Some(checker) = &self.capability_checker {
-            if !checker.verify(token) {
+        // P1.1: Use unified verification instead of duplicated inline HMAC check
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        match verify_delegation_token(
+            self.capability_checker.as_ref().map(|a| a.as_ref()),
+            token,
+            &token.delegated_to,
+            DelegationResource::Tool,
+            tool_name,
+            DelegationAction::Execute,
+            current_time,
+        ) {
+            VerificationOutcome::Valid => {}
+            VerificationOutcome::InvalidSignature => {
                 return Err(McpError::CapabilityDenied(
                     "Token signature verification failed".to_string(),
                 ));
             }
-
-            let current_time = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-            if token.is_expired(current_time) {
+            VerificationOutcome::Expired => {
                 return Err(McpError::CapabilityDenied("Token is expired".to_string()));
             }
-
-            if !token.is_valid_for(
-                DelegationResource::Tool,
-                tool_name,
-                DelegationAction::Execute,
-            ) {
+            VerificationOutcome::InsufficientAccess { resource_id, .. } => {
                 return Err(McpError::CapabilityDenied(format!(
                     "Token does not authorize tool: {}",
-                    tool_name
+                    resource_id
                 )));
             }
-        } else {
-            return Err(McpError::CapabilityDenied(
-                "No capability checker configured — tool invocation denied".to_string(),
-            ));
+            VerificationOutcome::NoChecker => {
+                return Err(McpError::CapabilityDenied(
+                    "No capability checker configured — tool invocation denied".to_string(),
+                ));
+            }
         }
 
         // Route through McpRuntime if available

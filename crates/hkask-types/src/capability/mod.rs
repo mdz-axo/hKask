@@ -10,12 +10,12 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
 pub(crate) mod hmac_ops;
-mod verification;
+pub mod verification;
 
 pub mod tokens;
 pub use tokens::{ConsolidationToken, IssuerVerification};
 
-pub use verification::CapabilityChecker;
+pub use verification::{CapabilityChecker, VerificationOutcome, verify_delegation_token};
 
 use crate::WebID;
 use hex;
@@ -148,6 +148,24 @@ impl DelegationAction {
             "execute" => Some(DelegationAction::Execute),
             _ => None,
         }
+    }
+
+    /// Whether this action permits write-level access.
+    ///
+    /// Only `Write` and `Execute` grant write-level authority.
+    /// `Read` tokens are read-only and must be rejected for store operations.
+    pub fn permits_write(&self) -> bool {
+        !matches!(self, DelegationAction::Read)
+    }
+
+    /// Whether this action permits read-level access.
+    ///
+    /// `Read` and `Execute` grant read authority; `Write` also implies read.
+    pub fn permits_read(&self) -> bool {
+        matches!(
+            self,
+            DelegationAction::Read | DelegationAction::Execute | DelegationAction::Write
+        )
     }
 }
 
@@ -504,7 +522,6 @@ impl DelegationToken {
     ///
     /// # Returns
     /// A new `DelegationToken` with the caveat added and re-signed
-
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
     }
@@ -539,6 +556,22 @@ impl DelegationToken {
             self.delegated_to,
             self.attenuation_level
         )
+    }
+
+    /// Whether this token authorizes write-level operations.
+    ///
+    /// Convenience wrapper that delegates to `DelegationAction::permits_write()`.
+    /// Use this instead of directly inspecting `token.action` — it encapsulates
+    /// the OCAP policy that `Read` tokens cannot mutate state.
+    pub fn allows_write(&self) -> bool {
+        self.action.permits_write()
+    }
+
+    /// Whether this token authorizes read-level operations.
+    ///
+    /// Convenience wrapper that delegates to `DelegationAction::permits_read()`.
+    pub fn allows_read(&self) -> bool {
+        self.action.permits_read()
     }
 
     /// Check if this capability is compatible with another (for CRDT merge)

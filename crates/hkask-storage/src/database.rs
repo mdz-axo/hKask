@@ -216,6 +216,18 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
     }
 }
 
+/// Open an in-memory database, panicking on failure.
+///
+/// Use this in test fixtures and CLI startup where an in-memory DB
+/// failure is always a bug, never a recoverable condition. Replaces the
+/// repeated `Database::in_memory().expect("in-memory db")` pattern.
+///
+/// For recoverable contexts (API, services), use `Database::in_memory()`
+/// and propagate the error with `?`.
+pub fn in_memory_db() -> Database {
+    Database::in_memory().expect("in-memory database initialization should never fail")
+}
+
 fn generate_salt() -> [u8; SQLCIPHER_SALT_SIZE] {
     use rand::Rng;
     rand::rng().random()

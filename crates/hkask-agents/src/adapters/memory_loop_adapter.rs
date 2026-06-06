@@ -1,5 +1,5 @@
 //! Memory Loop Adapter — routes through hkask-memory's domain logic
-//!
+//
 //! Wraps `EpisodicMemory` and `SemanticMemory` so that pods get
 //! domain-logic-enriched storage (dedup, Bayesian confidence decay,
 //! temporal attention weighting) through the loop membrane.
@@ -8,7 +8,10 @@ use crate::error::MemoryError;
 use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
-use hkask_types::{DelegationToken, ExperienceClassification, Visibility, WebID};
+use hkask_types::{
+    DelegationToken, ExperienceClassification, Visibility, WebID, require_read_access,
+    require_write_access,
+};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -30,14 +33,13 @@ impl MemoryLoopAdapter {
 
     /// Create with in-memory storage for testing.
     pub fn in_memory() -> Result<Self, MemoryError> {
-        let db = Database::in_memory().map_err(|e| MemoryError::Storage(e.to_string()))?;
+        let db = Database::in_memory()?;
         Self::from_database(db)
     }
 
     /// Create from database path and passphrase (encrypted).
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
-        let db =
-            Database::open(path, passphrase).map_err(|e| MemoryError::Storage(e.to_string()))?;
+        let db = Database::open(path, passphrase)?;
         Self::from_database(db)
     }
 
@@ -64,20 +66,14 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         confidence: f64,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        if token.action == hkask_types::DelegationAction::Read {
-            return Err(MemoryError::CapabilityDenied(
-                "Token has read-only action, write required for episodic storage".to_string(),
-            ));
-        }
+        require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
         let triple = Triple::new(entity, attribute, value, producer_webid)
             .with_visibility(Visibility::Private)
             .with_perspective(producer_webid)
             .with_confidence(confidence);
 
-        self.episodic
-            .store(triple)
-            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+        self.episodic.store(triple)?;
 
         Ok(entity.to_string())
     }
@@ -88,20 +84,10 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         owner: &WebID,
         token: &DelegationToken,
     ) -> Result<Vec<Value>, MemoryError> {
-        match token.action {
-            hkask_types::DelegationAction::Read | hkask_types::DelegationAction::Execute => {}
-            _ => {
-                return Err(MemoryError::CapabilityDenied(
-                    "Token does not grant read access for episodic recall".to_string(),
-                ));
-            }
-        }
+        require_read_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
         // Route through EpisodicMemory's deduped+decayed query
-        let triples = self
-            .episodic
-            .query_for_deduped(query, *owner)
-            .map_err(|e| MemoryError::Query(e.to_string()))?;
+        let triples = self.episodic.query_for_deduped(query, *owner)?;
 
         let results: Vec<Value> = triples
             .into_iter()
@@ -131,10 +117,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
     }
 
     fn episodic_storage_usage(&self, perspective: &WebID) -> Result<usize, MemoryError> {
-        let count = self
-            .episodic
-            .storage_usage(perspective)
-            .map_err(|e| MemoryError::Query(e.to_string()))?;
+        let count = self.episodic.storage_usage(perspective)?;
 
         tracing::debug!(
             target: "cns.memory.budget",
@@ -160,11 +143,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         confidence_override: Option<f64>,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        if token.action == hkask_types::DelegationAction::Read {
-            return Err(MemoryError::CapabilityDenied(
-                "Token has read-only action, write required for episodic storage".to_string(),
-            ));
-        }
+        require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
         let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
 
@@ -182,9 +161,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
             "Episodic experience encoded (via loop membrane)"
         );
 
-        self.episodic
-            .store(triple)
-            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+        self.episodic.store(triple)?;
 
         Ok(entity.to_string())
     }
@@ -202,19 +179,13 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         confidence: f64,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        if token.action == hkask_types::DelegationAction::Read {
-            return Err(MemoryError::CapabilityDenied(
-                "Token has read-only action, write required for semantic storage".to_string(),
-            ));
-        }
+        require_write_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
 
         let triple = Triple::new(entity, attribute, value, producer_webid)
             .with_visibility(Visibility::Shared)
             .with_confidence(confidence);
 
-        self.semantic
-            .store(triple)
-            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+        self.semantic.store(triple)?;
 
         Ok(entity.to_string())
     }
@@ -224,20 +195,10 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         query: &str,
         token: &DelegationToken,
     ) -> Result<Vec<Value>, MemoryError> {
-        match token.action {
-            hkask_types::DelegationAction::Read | hkask_types::DelegationAction::Execute => {}
-            _ => {
-                return Err(MemoryError::CapabilityDenied(
-                    "Token does not grant read access for semantic recall".to_string(),
-                ));
-            }
-        }
+        require_read_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
 
         // Route through SemanticMemory's deduped query
-        let triples = self
-            .semantic
-            .query_deduped(query)
-            .map_err(|e| MemoryError::Query(e.to_string()))?;
+        let triples = self.semantic.query_deduped(query)?;
 
         let results: Vec<Value> = triples
             .into_iter()
@@ -266,10 +227,7 @@ impl SemanticStoragePort for MemoryLoopAdapter {
     }
 
     fn semantic_storage_usage(&self, entity: &str) -> Result<usize, MemoryError> {
-        let count = self
-            .semantic
-            .triple_count_for_entity(entity)
-            .map_err(|e| MemoryError::Query(e.to_string()))?;
+        let count = self.semantic.triple_count_for_entity(entity)?;
 
         tracing::debug!(
             target: "cns.memory.budget",

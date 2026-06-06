@@ -29,8 +29,6 @@ mod root_authority;
 
 pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
-
-pub use hkask_types::AuditLogPort;
 pub(crate) use root_authority::RootAuthority;
 
 use hkask_types::{

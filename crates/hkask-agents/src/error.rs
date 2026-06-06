@@ -43,6 +43,40 @@ pub enum MemoryError {
     CapabilityDenied(String),
 }
 
+impl From<hkask_storage::DatabaseError> for MemoryError {
+    fn from(e: hkask_storage::DatabaseError) -> Self {
+        MemoryError::Storage(e.to_string())
+    }
+}
+
+impl From<hkask_memory::EpisodicMemoryError> for MemoryError {
+    fn from(e: hkask_memory::EpisodicMemoryError) -> Self {
+        match &e {
+            hkask_memory::EpisodicMemoryError::Triple(_) => MemoryError::Storage(e.to_string()),
+            hkask_memory::EpisodicMemoryError::InvalidVisibility(_)
+            | hkask_memory::EpisodicMemoryError::MissingPerspective => {
+                MemoryError::Query(e.to_string())
+            }
+        }
+    }
+}
+
+impl From<hkask_memory::SemanticMemoryError> for MemoryError {
+    fn from(e: hkask_memory::SemanticMemoryError) -> Self {
+        match &e {
+            hkask_memory::SemanticMemoryError::Triple(_)
+            | hkask_memory::SemanticMemoryError::Embedding(_) => {
+                MemoryError::Storage(e.to_string())
+            }
+            hkask_memory::SemanticMemoryError::InvalidVisibility(_)
+            | hkask_memory::SemanticMemoryError::NoEmbeddingsForCentroid(_)
+            | hkask_memory::SemanticMemoryError::HasPerspective => {
+                MemoryError::Query(e.to_string())
+            }
+        }
+    }
+}
+
 /// Registry source errors
 #[derive(Debug, Error)]
 pub enum RegistryError {

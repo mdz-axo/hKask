@@ -4,12 +4,34 @@
 //! Multiple loops interact with goals: Curation evaluates them, Cybernetics
 //! allocates energy, Communication coordinates agents around them.
 
+use std::fmt;
+
 use crate::capability::SYSTEM_MAX_RECURSION;
 pub use crate::id::GoalID;
 use crate::id::WebID;
 use crate::visibility::Visibility;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+/// Error returned when a goal state transition violates the state machine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IllegalGoalTransition {
+    pub from: GoalState,
+    pub to: GoalState,
+}
+
+impl fmt::Display for IllegalGoalTransition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "illegal goal state transition: {} → {}",
+            self.from.as_str(),
+            self.to.as_str()
+        )
+    }
+}
+
+impl std::error::Error for IllegalGoalTransition {}
 
 /// Goal state — simple, minimal states
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,31 +188,42 @@ impl Goal {
         self
     }
 
-    pub fn transition(&mut self, new_state: GoalState) {
+    /// Transition to a new state, returning `Err` if the transition is illegal.
+    ///
+    /// This enforces the state machine defined by [`GoalState::can_transition_to`].
+    /// The persistence layer also validates, but in-memory validation prevents
+    /// silent illegal mutations before data reaches the database.
+    pub fn transition(&mut self, new_state: GoalState) -> Result<(), IllegalGoalTransition> {
+        if !self.state.can_transition_to(new_state) {
+            return Err(IllegalGoalTransition {
+                from: self.state,
+                to: new_state,
+            });
+        }
         if self.state != new_state {
             self.state = new_state;
             if new_state.is_terminal() && self.completed_at.is_none() {
                 self.completed_at = Some(Utc::now());
             }
         }
+        Ok(())
     }
 
     pub fn activate(&mut self) {
-        if self.state == GoalState::Pending {
-            self.state = GoalState::Active;
-        }
+        // Pending → Active is always legal per can_transition_to
+        let _ = self.transition(GoalState::Active);
     }
 
     pub fn complete(&mut self) {
-        self.transition(GoalState::Completed);
+        let _ = self.transition(GoalState::Completed);
     }
 
     pub fn block(&mut self) {
-        self.transition(GoalState::Blocked);
+        let _ = self.transition(GoalState::Blocked);
     }
 
     pub fn abandon(&mut self) {
-        self.transition(GoalState::Abandoned);
+        let _ = self.transition(GoalState::Abandoned);
     }
 
     pub fn is_terminal(&self) -> bool {

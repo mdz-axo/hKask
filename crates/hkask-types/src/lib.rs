@@ -49,7 +49,8 @@ pub use bundle::{
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{
     CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
-    DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION, VerificationOutcome,
+    verify_delegation_token,
 };
 pub use cns::{CircuitState, CnsHealth};
 pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};

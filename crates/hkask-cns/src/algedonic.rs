@@ -250,6 +250,11 @@ impl AlgedonicManager {
         self.alerts.last()
     }
 
+    /// Get the configured default threshold
+    pub(crate) fn default_threshold(&self) -> u64 {
+        self.threshold
+    }
+
     /// Get all alerts
     pub(crate) fn alerts(&self) -> &[RuntimeAlert] {
         &self.alerts

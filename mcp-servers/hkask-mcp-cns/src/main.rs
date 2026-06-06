@@ -21,7 +21,6 @@ use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct EmitRequest {
@@ -85,7 +84,6 @@ pub struct BackpressureRequest {
 
 pub struct CnsServer {
     runtime: Arc<CnsRuntime>,
-    threshold: AtomicU64,
     webid: WebID,
 }
 
@@ -97,7 +95,6 @@ impl CnsServer {
 
         Self {
             runtime: Arc::new(runtime),
-            threshold: AtomicU64::new(threshold),
             webid,
         }
     }
@@ -154,7 +151,8 @@ impl CnsServer {
         validate_field!(span, "span_pattern", &span_pattern, 256);
 
         let variety_count = self.runtime.variety_for_domain(&span_pattern).await;
-        let deficit = variety_count > self.threshold.load(Ordering::Relaxed);
+        let threshold = self.runtime.default_threshold().await;
+        let deficit = variety_count > threshold;
 
         span.ok_json(serde_json::json!({
             "span_pattern": span_pattern,
@@ -209,11 +207,10 @@ impl CnsServer {
         // Validate identifiers
         validate_field!(span, "span_pattern", &span_pattern, 256);
 
-        let old_threshold = self.threshold.load(Ordering::Relaxed);
+        let old_threshold = self.runtime.default_threshold().await;
         self.runtime
             .calibrate_threshold(&span_pattern, new_threshold)
             .await;
-        self.threshold.store(new_threshold, Ordering::Relaxed);
 
         span.ok_json(serde_json::json!({
             "span": span_pattern,

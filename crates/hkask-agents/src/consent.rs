@@ -124,10 +124,7 @@ impl ConsentManager {
     /// Load all active consent records from the store into the in-memory cache
     fn load_from_store(&self) -> Result<(), ConsentError> {
         let records = {
-            let conn = self.store.conn_arc();
-            let conn_lock = conn
-                .lock()
-                .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
+            let conn_lock = self.store.lock_conn()?;
 
             let mut stmt = conn_lock
                 .prepare(

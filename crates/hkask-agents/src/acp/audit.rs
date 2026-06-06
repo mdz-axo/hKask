@@ -1,11 +1,9 @@
 //! Audit log for A2A message tracking
-//!
-//! Provides in-memory and persistent audit logging for ACP messages,
-//! with storage port integration for SQLite persistence.
-//!
+//
+//! Provides in-memory audit logging for ACP messages.
 //! Uses canonical `AuditEntry` from `hkask-types`.
 
-pub use hkask_types::{AuditEntry, AuditLogPort};
+pub use hkask_types::AuditEntry;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -13,7 +11,6 @@ use tokio::sync::RwLock;
 pub(crate) struct AuditLog {
     entries: Arc<RwLock<Vec<AuditEntry>>>,
     max_entries: usize,
-    store: Option<Arc<dyn AuditLogPort>>,
 }
 
 impl AuditLog {
@@ -22,15 +19,10 @@ impl AuditLog {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
             max_entries: 10000,
-            store: None,
         }
     }
 
     pub async fn log(&self, entry: AuditEntry) {
-        if let Some(ref store) = self.store {
-            store.log(entry.clone());
-        }
-
         let mut entries = self.entries.write().await;
         entries.push(entry);
 

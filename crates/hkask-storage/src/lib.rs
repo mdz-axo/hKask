@@ -24,7 +24,7 @@ pub mod user_store;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
-pub use database::{Database, DatabaseError, open_database};
+pub use database::{Database, DatabaseError, in_memory_db, open_database};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};
 pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::TripleID;

@@ -20,7 +20,7 @@ use hkask_storage::spec_types::{
 };
 use hkask_types::{
     CapabilityChecker, CurationDecision, DelegationAction, DelegationResource, DelegationToken,
-    McpErrorKind, OCAPBoundary, WebID,
+    McpErrorKind, OCAPBoundary, VerificationOutcome, WebID, verify_delegation_token,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -86,23 +86,37 @@ impl SpecServer {
             McpToolError::permission_denied(format!("Invalid token encoding: {}", e))
         })?;
 
-        if !self.capability_checker.verify(&token) {
-            return Err(McpToolError::permission_denied(
+        // P1.1: Use unified verification instead of duplicated inline checks
+        let current_time = chrono::Utc::now().timestamp();
+        match verify_delegation_token(
+            Some(&self.capability_checker),
+            &token,
+            &self.webid,
+            DelegationResource::Registry,
+            resource_id,
+            action,
+            current_time,
+        ) {
+            VerificationOutcome::Valid => Ok(()),
+            VerificationOutcome::InvalidSignature => Err(McpToolError::permission_denied(
                 "Token signature verification failed".to_string(),
-            ));
-        }
-        let now = chrono::Utc::now().timestamp();
-        if token.is_expired(now) {
-            return Err(McpToolError::permission_denied("Token expired".to_string()));
-        }
-        if !token.is_valid_for(DelegationResource::Registry, resource_id, action) {
-            return Err(McpToolError::permission_denied(format!(
+            )),
+            VerificationOutcome::Expired => {
+                Err(McpToolError::permission_denied("Token expired".to_string()))
+            }
+            VerificationOutcome::InsufficientAccess {
+                resource_id: rid,
+                action: a,
+                ..
+            } => Err(McpToolError::permission_denied(format!(
                 "Token does not grant spec:{}:{}",
-                resource_id,
-                action.as_str()
-            )));
+                rid,
+                a.as_str()
+            ))),
+            VerificationOutcome::NoChecker => Err(McpToolError::permission_denied(
+                "No capability checker configured".to_string(),
+            )),
         }
-        Ok(())
     }
 }
 

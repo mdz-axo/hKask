@@ -93,11 +93,6 @@ impl ExaProvider {
             ..Default::default()
         })
     }
-
-    #[allow(dead_code)]
-    async fn health(&self) -> Result<(), WebError> {
-        Ok(())
-    }
 }
 
 #[async_trait]
