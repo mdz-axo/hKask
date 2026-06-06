@@ -13,9 +13,7 @@ use crate::template::TemplateCrate;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-// =============================================================================
 // Circuit Breaker Port — Cybernetics membrane
-// =============================================================================
 
 /// Circuit Breaker Port — Hexagonal boundary for circuit breaking
 ///
@@ -33,9 +31,7 @@ pub trait CircuitBreakerPort: Send + Sync {
     fn state(&self) -> CircuitState;
 }
 
-// =============================================================================
 // CNS Port — Cybernetics observability membrane
-// =============================================================================
 
 /// CNS Port — Hexagonal boundary for CNS observability
 ///
@@ -52,9 +48,7 @@ pub trait CnsPort: Send + Sync {
     async fn increment_variety(&self, domain: &str, state_name: &str);
 }
 
-// =============================================================================
 // Git CAS Port — Template crate loading
-// =============================================================================
 
 /// Git CAS Port — Hexagonal boundary for template crate loading
 ///
@@ -72,9 +66,7 @@ pub trait GitCASPort: Send + Sync {
     fn commit(&self, message: &str) -> Result<String, GitError>;
 }
 
-// =============================================================================
 // Inference Port — LLM backends membrane
-// =============================================================================
 
 /// Inference error types
 #[derive(Debug, thiserror::Error)]
@@ -281,9 +273,7 @@ impl InferencePort for Arc<dyn InferencePort> {
     }
 }
 
-// =============================================================================
 // Registry Index Port — Template registry membrane
-// =============================================================================
 
 /// Registry entry for template discovery
 ///
@@ -522,9 +512,7 @@ pub trait RegistryIndex {
     fn get(&self, id: &str) -> Result<RegistryEntry, RegistryError>;
 }
 
-// =============================================================================
 // Session Store Port — Standing session persistence membrane
-// =============================================================================
 
 /// Error type for session store operations
 ///
@@ -579,9 +567,7 @@ pub trait StandingSessionPort: Send + Sync {
     fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError>;
 }
 
-// =============================================================================
 // Consolidation Port — Episodic → Semantic bridge membrane
-// =============================================================================
 
 use crate::capability::tokens::ConsolidationToken;
 
@@ -647,9 +633,7 @@ pub trait ConsolidationPort: Send + Sync {
     fn consolidation_candidate_count(&self, perspective: &WebID) -> usize;
 }
 
-// =============================================================================
 // CNS Observer Port — Bot observation membrane
-// =============================================================================
 
 use crate::event::SpanNamespace;
 use crate::loops::LoopId;
@@ -694,9 +678,7 @@ pub trait CnsObserver: Send + Sync {
     async fn on_backpressure(&self, signal: &BackpressureSignal);
 }
 
-// =============================================================================
 // Tool Port — Governance membrane for MCP tool invocation
-// =============================================================================
 
 use crate::capability::DelegationToken;
 
@@ -763,9 +745,7 @@ pub struct ToolInfo {
     pub required_capability: Option<String>,
 }
 
-// =============================================================================
 // Embedding Port — Vector storage and similarity search membrane
-// =============================================================================
 
 /// Stored embedding record with metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -846,9 +826,7 @@ pub trait EmbeddingPort: Send + Sync {
     fn count(&self) -> Result<usize, EmbeddingError>;
 }
 
-// =============================================================================
 // Embedding Generation Port — Okapi embedding API membrane
-// =============================================================================
 
 /// Error type for embedding generation via Okapi.
 #[derive(Debug, Clone, thiserror::Error)]
@@ -898,9 +876,7 @@ pub trait EmbeddingGenerationPort: Send + Sync {
     fn embedding_dim(&self) -> usize;
 }
 
-// =============================================================================
 // Agent Registration Port — Agent definition persistence membrane
-// =============================================================================
 
 use crate::AgentKind;
 use crate::RegisteredAgent;

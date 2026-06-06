@@ -120,9 +120,7 @@ impl<I: InferencePort + 'static> InferenceLoop<I> {
         self.gas_cap
     }
 
-    // ====================================================================
     // Explicit 4-stage cycle: sense → compare → compute → act
-    // ====================================================================
 
     /// **Sense stage** (sense → compare → compute → act):
     /// Read token budget remaining via `token_usage()`, check circuit breaker

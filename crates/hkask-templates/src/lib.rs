@@ -1,34 +1,11 @@
-//! hKask Templates — Registry and template execution
-//!
-//! Unified registry with template_type discriminator per architecture v0.21.0.
+//! hKask Templates — registry and template execution
+//
+//! Unified registry with template_type discriminator per architecture v0.22.0.
 //! Rust is the loom. YAML/Jinja2 is the thread.
-//!
-//! **Intended Architecture (deferred until second consumer):**
-//!
-//! This crate straddles two loops:
-//! - Inference (L1): rendering, registry for discovery, prompt assembly, OkapiInference
-//! - Curation (L5): lexicon validation, provenance
-//!
-//! When a second consumer requires it, split into:
-//! - `hkask-templates-inference` (depends on `hkask-cns` for GovernedTool)
-//! - `hkask-templates-curation` (depends on `hkask-agents` for CurationLoop)
-//!
-//! Until then, this crate serves both concerns. `hkask-ensemble` intentionally
-//! avoids depending on `hkask-templates` to prevent pulling in both inference
-//! and curation dependencies transitively.
-//!
-//! **Template Types:**
-//! - Prompt (WordAct) — What to say
-//! - Process (FlowDef) — What to do
-//! - Cognition (KnowAct) — How to think
-//!
-//! **Registry Adapters:**
-//! - `Registry` — In-memory filesystem-based registry (MVP default)
-//! - `SqliteRegistry` — SQLite-backed registry (production with search)
-//!
-//! **High-Temperature Templates:**
-//! - Anti-normative generation via temperature-controlled LLM parameters
-//! - Prevents convergence to homogeneous, predictable behavior
+//
+//! Straddles Inference (L1) and Curation (L5). Split deferred until second consumer.
+//! Template types: Prompt (WordAct), Process (FlowDef), Cognition (KnowAct).
+//! Registry adapters: `Registry` (in-memory), `SqliteRegistry` (SQLite).
 
 pub mod adapters;
 

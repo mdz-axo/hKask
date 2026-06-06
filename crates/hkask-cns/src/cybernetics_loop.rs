@@ -50,8 +50,6 @@ use tokio::sync::{RwLock, mpsc};
 /// mechanism — the core safety feature that lets Curation exceed
 /// Cybernetics' set-point range.
 struct OverrideRecord {
-    /// The overridden budget cap set by Curation
-    cap: u64,
     /// When this override was issued (for TTL expiry)
     issued_at: chrono::DateTime<chrono::Utc>,
     /// TTL in seconds (0 = no expiry, must be explicitly cleared)
@@ -703,7 +701,6 @@ impl CyberneticsLoop {
             overrides.insert(
                 target,
                 OverrideRecord {
-                    cap: new_budget,
                     issued_at: chrono::Utc::now(),
                     ttl_secs,
                 },
@@ -1199,9 +1196,7 @@ mod tests {
         loop6.tick().await;
     }
 
-    // =========================================================================
     // Task 7: Cybernetic Unit Tests — Full loop validation
-    // =========================================================================
 
     /// Test: Inject a known energy deviation (5% remaining vs 20% set-point)
     /// Assert: The loop produces a Throttle action targeting Inference
@@ -1385,9 +1380,7 @@ mod tests {
         );
     }
 
-    // =========================================================================
     // Inbox processing tests — CuratorDirective consumption
-    // =========================================================================
 
     #[tokio::test]
     async fn cybernetics_loop_processes_calibrate_directive() {
@@ -1566,9 +1559,7 @@ mod tests {
         assert_eq!(sp.connector_latency_max_secs, 60.0);
     }
 
-    // =========================================================================
     // CurationThresholdConfig tests
-    // =========================================================================
     // YAML loader tests relocated to hkask-cli::curation_config.
     // These tests verify CurationThresholdConfig still deserializes correctly
     // (the struct lives in hkask_types::curation).
@@ -1604,9 +1595,7 @@ mod tests {
         assert_eq!(config.drift_threshold, 0.5);
     }
 
-    // =========================================================================
     // T12: Curation-Directed Gas Replenishment — full path integration test
-    // =========================================================================
 
     /// Integration test: CurationLoop issues `CuratorDirective::ReplenishBudget`
     /// → CommunicationLoop dispatches → CyberneticsLoop inbox → `process_inbox()`
@@ -1672,9 +1661,7 @@ mod tests {
         );
     }
 
-    // =========================================================================
     // T13: Curation Override Persistence — override survives replenishment
-    // =========================================================================
 
     /// Regression test: OverrideGasBudget directive must survive
     /// `replenish_all_budgets()` calls. Before the fix, `act()` called

@@ -1,9 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-// ---------------------------------------------------------------------------
 // Request types
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SubscribeRequest {
@@ -73,9 +71,7 @@ pub struct EditTagRequest {
     pub remove_label: Option<String>,
 }
 
-// ---------------------------------------------------------------------------
 // Internal types
-// ---------------------------------------------------------------------------
 
 pub struct FetchResult {
     pub feed: feed_rs::model::Feed,

@@ -86,8 +86,6 @@ struct CapabilitiesResponse {
 struct SkillInfo {
     id: String,
     version: String,
-    #[allow(dead_code)]
-    description: String,
     symptoms: Vec<String>,
 }
 
@@ -95,8 +93,6 @@ struct SkillInfo {
 #[derive(Debug, Deserialize)]
 struct ProbeInfo {
     id: String,
-    #[allow(dead_code)]
-    description: String,
 }
 
 /// Russell ACP adapter — spawns Russell as child process

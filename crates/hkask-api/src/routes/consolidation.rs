@@ -52,9 +52,7 @@ fn check_rate_limit() -> Result<(), (StatusCode, Json<serde_json::Value>)> {
     }
 }
 
-// =============================================================================
 // Request / Response types
-// =============================================================================
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsolidateRequest {
@@ -81,17 +79,13 @@ pub struct ConsolidateResponse {
     pub failed_count: usize,
 }
 
-// =============================================================================
 // Router
-// =============================================================================
 
 pub fn consolidation_router() -> axum::Router<crate::ApiState> {
     axum::Router::new().route("/api/consolidate", axum::routing::post(consolidate))
 }
 
-// =============================================================================
 // Handlers
-// =============================================================================
 
 #[utoipa::path(
     post,

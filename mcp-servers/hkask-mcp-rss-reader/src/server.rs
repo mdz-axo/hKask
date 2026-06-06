@@ -12,17 +12,13 @@ use rusqlite::Connection;
 use crate::db::*;
 use crate::types::*;
 
-// ---------------------------------------------------------------------------
 // Constants
-// ---------------------------------------------------------------------------
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PAGE_SIZE: usize = 20;
 const MAX_PAGE_SIZE: usize = 100;
 
-// ---------------------------------------------------------------------------
 // Feed fetching & parsing
-// ---------------------------------------------------------------------------
 
 async fn fetch_feed(
     client: &Client,
@@ -136,9 +132,7 @@ async fn discover_feeds(
     Ok(feeds)
 }
 
-// ---------------------------------------------------------------------------
 // RssServer
-// ---------------------------------------------------------------------------
 
 pub struct RssServer {
     webid: WebID,

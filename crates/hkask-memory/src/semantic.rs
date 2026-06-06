@@ -118,9 +118,7 @@ impl SemanticMemory {
         Ok(self.triple_store.count_semantic_by_entity(entity)?)
     }
 
-    // ========================================================================
     // Embedding operations (Loop 2b) — similarity-augmented recall
-    // ========================================================================
 
     /// Store an embedding vector for a semantic triple.
     ///
@@ -169,9 +167,7 @@ impl SemanticMemory {
         Ok(self.embedding.query_by_prefix(prefix)?)
     }
 
-    // ========================================================================
     // Corpus operations (Loop 2b) — centroid + purge for style embeddings
-    // ========================================================================
 
     /// Compute the centroid (mean embedding vector) for embeddings matching a prefix.
     ///
@@ -410,9 +406,7 @@ impl SemanticMemory {
         text[start..end].trim().to_string()
     }
 
-    // ========================================================================
     // Deletion (Loop 2b) — Cybernetics membrane operation
-    // ========================================================================
 
     // Note: The following four methods (delete_triple, lowest_confidence_triples,
     // low_confidence_count, low_confidence_triples) are `pub` rather than
@@ -441,9 +435,7 @@ impl SemanticMemory {
         Ok(())
     }
 
-    // ========================================================================
     // Budget enforcement (Loop 2b) — Cybernetics membrane operation
-    // ========================================================================
 
     /// Identify the lowest-confidence semantic triples for budget enforcement.
     ///

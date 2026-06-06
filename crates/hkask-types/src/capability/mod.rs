@@ -1,36 +1,8 @@
-//! Delegation tokens (OCAP) — Inter-agent capability delegation
-//!
-//! Two kinds of authority tokens exist in hKask:
-//!
-//! 1. **Loop authority tokens** (ZST tokens in `tokens.rs`):
-//!    `ConsolidationToken` —
-//!    prove that a loop operation was authorized by the governing loop.
-//!    These encode the 6-loop authority DAG and are unforgeable outside
-//!    their issuing loop.
-//!
-//! 2. **Delegation tokens** (this module):
-//!    `DelegationToken` — HMAC-signed capability tokens for inter-agent
-//!    delegation. Agents use these to prove they hold authority for specific
-//!    resources and actions. Attenuation is cryptographic (each delegation
-//!    narrows the scope).
-//!
-//! The naming distinction is intentional: "Capability" refers to loop
-//! authority (ZST tokens); "Delegation" refers to inter-agent authority
-//! (HMAC tokens). Backward-compatible aliases (`CapabilityToken`, etc.)
-//! are provided for migration.
-//!
-//! **Delegation Resources:**
-//! - `tool:*` — Tool invocation (inference, storage, memory, etc.)
-//! - `template:*` — Template operations (read, write, render, compose)
-//! - `manifest:*` — Manifest operations (read, write, execute)
-//! - `registry:*` — Registry operations (read, write, search)
-//! - `cascade:*` — Cascade operations (execute, compose, attenuate)
-//! - `spec:*` — Spec operations (read, write, validate)
-//!
-//! **Cryptographic Verification:**
-//! - Delegation tokens are self-verifying via HMAC-SHA256 signatures
-//! - Attenuation is cryptographic: each delegation narrows scope
-//! - No central authority required — tokens verified cryptographically
+//! Delegation tokens (OCAP) — inter-agent capability delegation
+//
+//! Two token kinds: **Loop authority** (ZST tokens in `tokens.rs`) prove loop-authorized operations;
+//! **Delegation** (`DelegationToken`) are HMAC-signed tokens for inter-agent delegation with cryptographic attenuation.
+//! Backward-compatible aliases (`CapabilityToken`, etc.) are provided for migration.
 
 /// System-wide maximum recursion depth.
 ///

@@ -12,9 +12,7 @@
 
 use hkask_types::{DelegationToken, ExperienceClassification, WebID};
 
-// =============================================================================
 // Episodic Storage Port — Private, agent-scoped memory
-// =============================================================================
 
 /// Port trait for episodic memory storage operations.
 ///
@@ -90,9 +88,7 @@ pub trait EpisodicStoragePort: Send + Sync {
     ) -> Result<String, crate::error::MemoryError>;
 }
 
-// =============================================================================
 // Semantic Storage Port — Shared, public knowledge
-// =============================================================================
 
 /// Port trait for semantic memory storage operations.
 ///

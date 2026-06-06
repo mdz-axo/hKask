@@ -206,9 +206,7 @@ impl EmbeddingGenerationPort for OkapiEmbedding {
     }
 }
 
-// =============================================================================
 // Model dimension lookup
-// =============================================================================
 
 /// Return the embedding dimension for a known model, or a sensible default.
 fn embedding_dim_for_model(model: &str) -> usize {
@@ -225,9 +223,7 @@ fn embedding_dim_for_model(model: &str) -> usize {
     }
 }
 
-// =============================================================================
 // Okapi wire-format types (private)
-// =============================================================================
 
 /// Okapi embed API request structure
 #[derive(Debug, Clone, Serialize)]

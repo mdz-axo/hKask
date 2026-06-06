@@ -18,9 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::PoisonError;
 use thiserror::Error;
 
-// =============================================================================
 // InfrastructureError — Cross-Crate Foundation
-// =============================================================================
 
 /// Generic infrastructure errors shared by every crate.
 ///
@@ -71,9 +69,7 @@ impl<T> From<PoisonError<T>> for InfrastructureError {
     }
 }
 
-// =============================================================================
 // McpErrorKind — Canonical MCP Error Taxonomy
-// =============================================================================
 
 /// Semantic classification of MCP tool errors.
 ///
@@ -134,9 +130,7 @@ impl std::fmt::Display for McpErrorKind {
     }
 }
 
-// =============================================================================
 // HkaskError — Unified Error Hierarchy
-// =============================================================================
 
 /// Core error types shared across hKask crates.
 ///
@@ -209,9 +203,7 @@ impl HkaskError {
     }
 }
 
-// =============================================================================
 // GitError — Git CAS errors
-// =============================================================================
 
 /// Git CAS errors for content-addressable storage operations
 #[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]

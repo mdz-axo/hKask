@@ -67,9 +67,7 @@ impl std::fmt::Display for LoopId {
     }
 }
 
-// =============================================================================
 // Loop cycle — sense → compare → compute → act
-// =============================================================================
 
 /// Afferent signal from a loop's sensing phase.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

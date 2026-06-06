@@ -222,9 +222,7 @@ impl StandingSessionStore {
     }
 }
 
-// ============================================================================
 // StandingSessionPort adapter — hexagonal boundary implementation
-// ============================================================================
 
 impl StandingSessionPort for StandingSessionStore {
     fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError> {

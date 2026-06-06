@@ -26,14 +26,6 @@ impl CompositeGasEstimator {
         }
     }
 
-    /// Create a CompositeGasEstimator with custom table costs.
-    pub(crate) fn with_table(table: TableGasEstimator) -> Self {
-        Self {
-            inference: InferenceGasEstimator,
-            table,
-        }
-    }
-
     /// The inference server identifier used for routing.
     pub const INFERENCE_SERVER: &'static str = "hkask-mcp-inference";
 }

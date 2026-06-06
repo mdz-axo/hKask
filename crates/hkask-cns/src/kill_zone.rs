@@ -50,10 +50,4 @@ impl KillZoneDetector {
     pub(crate) fn state(&self) -> &KillZoneConfig {
         &self.state
     }
-
-    /// Get a reference to the thresholds.
-    /// CNS resilience infrastructure — awaiting runtime wiring
-    pub(crate) fn thresholds(&self) -> &KillZoneThresholds {
-        &self.thresholds
-    }
 }

@@ -207,9 +207,7 @@ impl MetacognitionLoop {
         summary
     }
 
-    // -----------------------------------------------------------------------
     // Curator metacognition: evaluate, coach, direct
-    // -----------------------------------------------------------------------
 
     /// Direct a bot to take action via ACP message
     pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
@@ -251,9 +249,7 @@ impl MetacognitionLoop {
         Ok(())
     }
 
-    // -----------------------------------------------------------------------
     // Directive issuance — Curation → Governance/Observability
-    // -----------------------------------------------------------------------
 
     /// Issue a CuratorDirective through the message dispatch with DAMPEN filtering.
     ///
@@ -272,9 +268,7 @@ impl MetacognitionLoop {
         self.context.issue_directive(directive).await
     }
 
-    // -----------------------------------------------------------------------
     // Act helpers — extracted from HkaskLoop::act()
-    // -----------------------------------------------------------------------
 
     /// Handle a Calibrate (throttle) action: issue threshold directive via
     /// dispatch (which calibrates CNS on arrival), and return an escalation entry.
@@ -449,9 +443,7 @@ impl MetacognitionLoop {
         );
     }
 
-    // ====================================================================
     // Explicit 4-stage cycle: sense → compare → compute → act
-    // ====================================================================
 
     /// **Sense stage** (sense → compare → compute → act):
     /// Read CNS health, variety counters, critical alerts, and bot status
@@ -488,9 +480,7 @@ impl MetacognitionLoop {
     }
 }
 
-// ---------------------------------------------------------------------------
 // HkaskLoop — sense → compare → compute → act
-// ---------------------------------------------------------------------------
 
 #[async_trait::async_trait]
 impl HkaskLoop for MetacognitionLoop {

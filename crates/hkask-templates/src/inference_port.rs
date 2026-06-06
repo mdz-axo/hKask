@@ -408,9 +408,7 @@ impl InferencePort for OkapiInference {
     }
 }
 
-// =============================================================================
 // Okapi wire-format types (private)
-// =============================================================================
 
 /// Okapi API request structure
 #[derive(Debug, Clone, Serialize)]

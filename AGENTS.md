@@ -1,12 +1,6 @@
 # Agent Operating Guide — hKask
 
-## Project Identity
-
-**hKask** (ℏKask - "A Minimal Viable Container for Agents") is the minimal viable unit of an agent platform.
-
-**Name:** hKask  
-**Binary:** `kask`  
-**Crate prefix:** `hkask-`
+**hKask** (ℏKask) — A Minimal Viable Container for Agents | `kask` binary | `hkask-` crate prefix
 
 ---
 
@@ -20,8 +14,6 @@
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, gas budgets |
 | **Composition** | Unified registry with `template_type` discriminator |
-
----
 
 ## Crate Map
 
@@ -40,14 +32,15 @@
 | `hkask-api` | HTTP API (utoipa) |
 
 **MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `spec`, `goal`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`, `ensemble`, `episodic`, `semantic`, `replicant`
-
 **External deps:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 
 ---
 
-## CNS — Cybernetics
+## CNS — Cybernetics & Loop Wiring
 
-The CNS is the homeostatic self-regulation loop, combining observability + governance into a single cybernetic feedback cycle. When debugging, look for these span namespaces in traces/logs:
+The CNS is the homeostatic self-regulation loop combining observability + governance into a single cybernetic feedback cycle.
+
+**CNS spans** (look for these in traces/logs):
 
 | Span | What It Covers |
 |------|---------------|
@@ -55,8 +48,20 @@ The CNS is the homeostatic self-regulation loop, combining observability + gover
 | `cns.prompt.*` | Render, validate, outcome |
 | `cns.agent_pod.*` | Lifecycle, delegation |
 | `cns.inference.*` | Inference governance (GovernedTool, gas budget) |
+| `cns.spec` | Spec drift detection, SpecDriftAlert emission |
+| `cns.hhh.persona` | Persona constraint violations stripped from output |
+| `cns.cybernetics.backpressure` | Communication queue depth backpressure regulation |
 
-**Algedonic Alert:** Variety deficit > threshold/2 (50 by default) → Warning escalation to Curator; deficit > threshold (100 by default) → Critical escalation to human
+**Algedonic Alert:** Variety deficit > threshold/2 (50) → Warning to Curator; deficit > threshold (100) → Critical to human
+
+**Loop wiring:**
+
+| Wiring | Description |
+|--------|-------------|
+| **Communication↔Cybernetics queue depth** | `Arc<AtomicU64>` counter shared between CommunicationLoop (writer) and CyberneticsLoop (reader). Lock-free, Relaxed ordering. Backpressure when depth exceeds `communication_backpressure_threshold` (default: 100). |
+| **SpecDriftAlert** | `LoopPayload::SpecDriftAlert` from `DefaultSpecCurator` when spec drift exceeds threshold. Flows through Communication Loop to Curation's inbox (alongside NuEvent persistence). |
+| **Override cooldown** | `Dampener::override_cooldown` (120s) prevents metacognitive override oscillation. After any override passes dedup, ALL subsequent overrides within cooldown are suppressed. |
+| **Persona filter** | Stage 4 of HHH pipeline. Strips persona-constraint-violating content. Loaded from `bot_status()` at init and `/agent` switch. |
 
 ---
 
@@ -64,8 +69,8 @@ The CNS is the homeostatic self-regulation loop, combining observability + gover
 
 | Type | Purpose | Interaction | Visibility |
 |------|---------|-------------|------------|
-| **Bot** | Process execution | Machine-to-machine (A2A) | Public/Shared |
-| **Replicant** | Human assistance | Human-to-agent (H2A) | Episodic=Private, Semantic=Public |
+| **Bot** | Process execution | A2A | Public/Shared |
+| **Replicant** | Human assistance | H2A | Episodic=Private, Semantic=Public |
 
 **Curator:** Single replicant, system persona, user's counterpart in `kask chat`.
 
@@ -74,105 +79,54 @@ The CNS is the homeostatic self-regulation loop, combining observability + gover
 ## Commands
 
 ```bash
-# Build & check
-cargo check -p <crate>
-cargo build --release
-
-# Test
-cargo test -p <crate>
-cargo test                          # full workspace
-
-# Lint
-cargo clippy -p <crate> -- -D warnings
-cargo fmt --check
-
-# Run
-cargo run --bin kask -- <subcommand>
-
-# Chat with model selection
-kask chat                           # Interactive (Curator, default model)
-kask chat -m qwen3:8b               # Interactive with specific model
-kask chat Russell -m llama3.1:70b   # Chat with Russell using 70B model
-echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive with model
+cargo check -p <crate>              # Build & check
+cargo test -p <crate>                # Test (cargo test for full workspace)
+cargo clippy -p <crate> -- -D warnings  # Lint
+cargo run --bin kask -- <subcommand>  # Run
+kask chat                            # Interactive (Curator, default model)
+kask chat -m qwen3:8b                 # Specific model
+kask chat Russell -m llama3.1:70b     # Named agent + model
+echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
 ```
 
-### Slash Commands (inside `kask chat`)
-
-| Command | Purpose |
-|---------|---------|
-| `/model` | Show current model |
-| `/model <name>` | Switch to a specific model |
-| `/model <query>` | Fuzzy search models matching query |
-| `/agent [NAME]` | Show or switch agent |
-| `/status` | System status (CNS, agent, model, pods) |
-
----
-
-## Architecture Reference
-
-For deeper understanding of system behavior:
-
-1. `docs/architecture/hKask-architecture-master.md` — authoritative index (v0.22.0)
-2. `docs/architecture/reference/hKask-erd.md` — entity relationship diagrams
-3. `docs/architecture/reference/subsystem-erds.md` — per-crate ERDs grounded in Rust source
-4. `docs/architecture/interface-and-composition.md` — registry & templating design (§2-§6)
+**Slash commands** (`kask chat`): `/model` show/switch, `/model <query>` fuzzy search, `/agent [NAME]` show/switch, `/status` CNS+agent+model+pods
 
 ---
 
 ## Design Constraints (Read This First)
 
-**hKask is a headless system with no visual UI.** This is a non-negotiable design principle.
+**hKask is headless — no visual UI.** Non-negotiable.
 
-### What This Means
+| Constraint | Excludes | Why |
+|------------|----------|----|
+| **No Visual UI** | Grafana, dashboards, web frontends, GUIs | CLI/MCP/API only |
+| **No Monitoring Stacks** | Prometheus, Alertmanager, external observability | CNS provides programmatic observability |
+| **No Excess Complexity** | Unused traits, stubs, deprecations, feature flags | P1-P7, C1-C7 constraints |
 
-| Constraint | What It Excludes | Why |
-|------------|------------------|-----|
-| **No Visual UI** | Grafana, dashboards, web frontends, GUIs | CLI/MCP/API only — visual interfaces add complexity without enabling core capabilities |
-| **No Monitoring Stacks** | Prometheus, Alertmanager, external observability | CNS provides programmatic observability via spans, variety counters, algedonic alerts |
-| **No Excess Complexity** | Unused traits, stubs, deprecations, feature flags | P1-P7, C1-C7 constraints enforce minimal viable complexity |
+**Interaction:** CLI (`kask <subcommand>`) · MCP (19 servers) · API (HTTP/OpenAPI)
+**Monitoring:** CNS spans (`cns.*`) · Variety counters · Algedonic alerts (>100 deficit)
 
-### How to Operate hKask
-
-All interaction occurs through:
-1. **CLI** — `kask <subcommand>` (terminal-based)
-2. **MCP** — Machine-to-machine tool calls (19 servers)
-3. **API** — HTTP API with OpenAPI docs (programmatic)
-
-All monitoring occurs through:
-1. **CNS Spans** — `cns.*` namespaces in structured logs
-2. **Variety Counters** — Per-bot/capability tracking
-3. **Algedonic Alerts** — Escalation when variety deficit >100
-
-### Verification
-
-Before adding any feature, check:
 ```bash
-# Does this introduce visual UI or monitoring infrastructure?
-if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"; then
-  echo "VIOLATION: Headless constraint violated"
-  exit 1
-fi
-
-# Does this introduce excess complexity?
-if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then
-  echo "VIOLATION: P6/P7 constraints violated"
-  exit 1
-fi
+# Constraint verification
+if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"; then echo "VIOLATION: Headless"; exit 1; fi
+if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATION: P6/P7"; exit 1; fi
 ```
 
-**If you violate these constraints, your work will be deleted.** See `docs/architecture/PRINCIPLES.md` for full rationale.
+**Violations get deleted.** See `docs/architecture/PRINCIPLES.md`.
 
 ---
 
-## Documentation
+## Architecture & Docs
 
 | Topic | Location |
 |------|----------|
+| Architecture master | `docs/architecture/hKask-architecture-master.md` (v0.22.0) |
+| ERDs | `docs/architecture/reference/hKask-erd.md`, `subsystem-erds.md` |
+| Registry & templating | `docs/architecture/interface-and-composition.md` (§2-§6) |
 | GML (Allosteric Thinking) | `docs/gml/README.md` |
-| Architecture | `docs/architecture/` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
 | Okapi Integration | `docs/architecture/reference/okapi-integration.md` |
-| Cybernetic Unit Tests (conventions + commands) | `README.md#cybernetic-unit-tests` |
+| Cybernetic Unit Tests | `README.md#cybernetic-unit-tests` |
 
 ---
 

@@ -55,9 +55,7 @@ pub trait InferenceClient: Send + Sync {
     ) -> Result<serde_json::Value, Self::Error>;
 }
 
-// =============================================================================
 // Gas Governance Port — CNS observability bridge
-// =============================================================================
 
 /// Port for CNS gas governance observability.
 ///

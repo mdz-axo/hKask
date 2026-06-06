@@ -17,9 +17,7 @@
 //! tokens verified at the port membrane). Budget enforcement is via
 //! `EpisodicLoop` (cybernetic sense→compute→act cycle with SQL COUNT queries).
 
-// =============================================================================
 // Experience Classification (Loop 2a.1)
-// =============================================================================
 
 /// Classification of an episodic experience for encoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

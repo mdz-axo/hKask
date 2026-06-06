@@ -34,9 +34,7 @@ pub(crate) const DEFAULT_DECAY_RATE: f64 = crate::bayesian::DEFAULT_DECAY_RATE;
 /// Default per-agent storage budget (max triples).
 pub(crate) const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
 
-// =============================================================================
 // EpisodicMemory — first-person experience with subloops
-// =============================================================================
 
 /// Episodic memory — first-person experience
 ///
@@ -63,9 +61,7 @@ impl EpisodicMemory {
         }
     }
 
-    // ========================================================================
     // Store
-    // ========================================================================
 
     /// Store an episodic triple (private by default, with perspective).
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
@@ -82,9 +78,7 @@ impl EpisodicMemory {
         Ok(())
     }
 
-    // ========================================================================
     // Recall — basic queries
-    // ========================================================================
 
     /// Query by entity for specific perspective with deduplication,
     /// confidence decay, and temporal attention applied (2a.3 + 2a.2).
@@ -128,13 +122,9 @@ impl EpisodicMemory {
         Ok(recall_dedup::dedup_triples(filtered))
     }
 
-    // ========================================================================
     // Query — all episodic memories
-    // ========================================================================
 
-    // ========================================================================
     // Storage Budget (2a.5) — Cybernetics membrane operations
-    // ========================================================================
 
     /// Get the current storage usage for a perspective (number of triples).
     ///

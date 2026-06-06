@@ -1,34 +1,11 @@
 //! MCP server scaffolding — shared helpers for hKask MCP server binaries.
-//!
-//! Each server uses `rmcp`'s `#[tool]` + `#[tool_router(server_handler)]` macros
-//! for the wire protocol. This module provides:
-//!
-//! - `CredentialRequirement` — declarative credential needs (bridges to keystore)
-//! - `ServerContext` — resolved credentials, WebID identity, shared infrastructure (no ambient authority)
-//! - `McpToolError` — structured errors with `McpErrorKind` classification
-//! - `McpToolOutput` — structured output with optional metadata
-//! - `run_stdio_server()` — common main() bootstrap (tracing, credential check, WebID, rmcp serve)
-//! - `classify_http_error()` — HTTP status → McpToolError mapping
-//! - `api_get()` / `api_post()` — shared HTTP helpers with automatic error classification
-//! - `resolve_credential()` — credential resolution via hkask-keystore with env var fallback
-//!
-//! ## WebID Resolution
-//!
-//! `run_stdio_server` resolves the calling agent's identity from environment
-//! variables (no ambient authority inside tool handlers):
-//!
-//! 1. `HKASK_WEBID` — direct UUID string (highest precedence)
-//! 2. `HKASK_AGENT_PERSONA` — deterministic derivation via `WebID::from_persona`
-//! 3. Anonymous — `WebID::new()` (random UUID, for unauthenticated callers)
-//!
-//! The resolved `WebID` is available as `ctx.webid` in the factory closure
-//! OCAP gating, and CNS span attribution.
-//!
-//! ## Usage
-//!
+//
+//! WebID resolution order: `HKASK_WEBID` → `HKASK_AGENT_PERSONA` → anonymous.
+//! No ambient authority — all identity and credentials flow through `ServerContext`.
+//
 //! ```rust,ignore
 //! use hkask_mcp::server::{run_stdio_server, CredentialRequirement, ServerContext};
-//!
+//
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     run_stdio_server(
@@ -44,11 +21,6 @@
 //!     ).await
 //! }
 //! ```
-//!
-//! The factory closure receives a `ServerContext` containing resolved credentials,
-//! an adapter container, and the calling agent's `WebID` —
-//! no ambient authority via `std::env::var`. All configuration and identity flows
-//! through the context.
 
 use hkask_types::McpErrorKind;
 use serde::{Deserialize, Serialize};
@@ -92,9 +64,7 @@ impl CredentialRequirement {
     }
 }
 
-// =============================================================================
 // ServerContext — Resolved dependencies for server construction
-// =============================================================================
 
 /// Context provided to the server factory by `run_stdio_server`.
 ///
@@ -180,9 +150,7 @@ impl ServerContext {
     }
 }
 
-// =============================================================================
 // ToolSpanGuard — RAII guard for automatic CNS tool span emission
-// =============================================================================
 
 /// RAII guard that automatically emits a CNS tool span when dropped.
 ///
@@ -289,9 +257,7 @@ impl Drop for ToolSpanGuard {
     }
 }
 
-// =============================================================================
 // McpToolOutput
-// =============================================================================
 
 /// Successful result from a tool dispatch, with optional observability metadata.
 ///
@@ -335,9 +301,7 @@ impl McpToolOutput {
     }
 }
 
-// =============================================================================
 // McpToolError
-// =============================================================================
 
 /// Structured error from a tool dispatch, carrying semantic classification.
 ///
@@ -435,9 +399,7 @@ impl std::fmt::Display for McpToolError {
 
 impl std::error::Error for McpToolError {}
 
-// =============================================================================
 // Input validation — Shared sanitization for MCP tool parameters
-// =============================================================================
 
 /// Validate a string identifier (owner, repo, symbol, etc.).
 ///
@@ -476,9 +438,7 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
         .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
 }
 
-// =============================================================================
 // classify_http_error — Shared HTTP Status → McpToolError mapping
-// =============================================================================
 
 /// Classify an HTTP error response into a structured `McpToolError`.
 ///
@@ -504,9 +464,7 @@ pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &st
     }
 }
 
-// =============================================================================
 // api_get / api_post — Shared HTTP helpers
-// =============================================================================
 
 /// Perform an authenticated GET request with automatic error classification.
 ///
@@ -581,9 +539,7 @@ pub async fn api_put(
         .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
 }
 
-// =============================================================================
 // resolve_credential — Keystore-first credential resolution
-// =============================================================================
 
 /// Resolve a credential value, trying hkask-keystore first, then env vars.
 ///
@@ -659,9 +615,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
     }
 }
 
-// =============================================================================
 // emit_tool_span — CNS observability for tool invocations
-// =============================================================================
 
 /// Emit a CNS tool span for observability.
 ///
@@ -702,9 +656,7 @@ pub fn emit_tool_span_with_caller(
     );
 }
 
-// =============================================================================
 // run_stdio_server — Common Server Bootstrap
-// =============================================================================
 
 /// Common bootstrap for hKask MCP server binaries.
 ///

@@ -254,9 +254,7 @@ impl CurationLoop {
         }
     }
 
-    // ====================================================================
     // Explicit 4-stage cycle: sense → compare → compute → act
-    // ====================================================================
 
     /// **Sense stage** (sense → compare → compute → act):
     /// Read NuEvent stream for curation-relevant events and read CurationPort

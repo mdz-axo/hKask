@@ -89,9 +89,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), String> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
 // Okapi Model Catalog — /api/tags
-// ---------------------------------------------------------------------------
 
 /// A model entry from Okapi's `/api/tags` endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]

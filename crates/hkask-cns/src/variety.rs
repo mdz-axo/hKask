@@ -92,15 +92,6 @@ impl VarietyMonitor {
     pub(crate) fn counters(&self) -> &HashMap<String, VarietyTracker> {
         &self.counters
     }
-
-    /// Get total variety deficit across all domains
-    #[allow(dead_code)] // Available for composition roots; not yet consumed externally
-    pub(crate) fn total_deficit(&self, expected_per_domain: u64) -> u64 {
-        self.counters
-            .values()
-            .map(|c| c.deficit(expected_per_domain))
-            .sum()
-    }
 }
 
 impl Default for VarietyMonitor {

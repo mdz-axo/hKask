@@ -13,9 +13,7 @@ use crate::id::WebID;
 use crate::loops::LoopId;
 use std::fmt;
 
-// =============================================================================
 // WorkerKind — Non-governing worker identifiers
-// =============================================================================
 
 /// Worker kinds — specialized message handlers that are NOT governing loops.
 ///
@@ -39,9 +37,7 @@ impl fmt::Display for WorkerKind {
     }
 }
 
-// =============================================================================
 // DispatchTarget — Loop or Worker target
-// =============================================================================
 
 /// Target for inter-loop/worker messages.
 ///
@@ -75,9 +71,7 @@ impl From<WorkerKind> for DispatchTarget {
     }
 }
 
-// =============================================================================
 // TraceId — Cross-loop correlation identifier
-// =============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct TraceId(pub uuid::Uuid);
@@ -115,9 +109,7 @@ impl fmt::Display for TraceId {
     }
 }
 
-// =============================================================================
 // MessagePriority — Dispatch priority
-// =============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -147,9 +139,7 @@ impl fmt::Display for MessagePriority {
     }
 }
 
-// =============================================================================
 // LoopPayload — Message content
-// =============================================================================
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -238,9 +228,7 @@ pub enum LoopPayload {
     },
 }
 
-// =============================================================================
 // LoopMessage — Inter-loop communication unit
-// =============================================================================
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoopMessage {

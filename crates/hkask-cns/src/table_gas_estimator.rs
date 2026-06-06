@@ -1,35 +1,18 @@
-//! TableGasEstimator — Per-server gas cost table
-//!
-//! Per-server configurable gas cost table.
-//! Each (server, tool) pair maps to a gas cost. Inference tools use
-//! token-based estimation via `InferenceGasEstimator`; all other
-//! tools use the flat costs from this table.
-//!
-//! Gas costs are dimensionless units on a shared scale, analogous to
-//! Ethereum gas. The principle is: cheap operations cost little, expensive
-//! operations cost much. This prevents runaway agents while keeping the
-//! implementation minimal.
-//!
-//! ## Cost Tiers
-//!
-//! | Tier | Servers | Cost Range | Rationale |
-//! |------|---------|------------|----------|
-//! | Internal | ocap, keystore, cns, registry | 1-2 | In-process, negligible compute |
-//! | Local I/O | spec, git, goal | 5 | Local I/O, no network |
-//! | Moderate | condenser | 10 | Some computation + local I/O |
-//! | External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
-//! | Heavy external | fal | 100 | GPU compute, expensive |
-//! | Inference | hkask-mcp-inference | 0 (table) | Handled by `InferenceGasEstimator` |
-//!
-//! Inference uses a token-based cost model (`InferenceGasEstimator`):
-//! `prompt_chars / 4 + max_tokens`. This reflects that LLM compute scales
-//! with token count, not with a flat per-call cost. The table returns 0 for
-//! the inference server as a signal to use the token-based estimator.
-//!
-//! Unknown servers default to 10 (moderate — conservative middle ground).
-//!
-//! For production, use `CompositeGasEstimator` which routes inference to
-//! `InferenceGasEstimator` and all other tools to this table.
+//! TableGasEstimator — per-server gas cost table
+//
+//! Each (server, tool) pair maps to a flat gas cost. Inference uses token-based
+//! `InferenceGasEstimator` instead (cost 0 in table signals this).
+//
+//! | Tier | Servers | Cost | Rationale |
+//! |------|---------|------|----------|
+//! | Internal | ocap, keystore, cns, registry | 1-2 | In-process |
+//! | Local I/O | spec, git, goal | 5 | No network |
+//! | Moderate | condenser | 10 | Compute + I/O |
+//! | External | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O |
+//! | Heavy | fal | 100 | GPU compute |
+//! | Inference | hkask-mcp-inference | 0 | Token-based estimator |
+//
+//! Unknown servers default to 10. Use `CompositeGasEstimator` for production.
 
 use crate::governed_tool::GasEstimator;
 use serde_json::Value;
@@ -135,28 +118,6 @@ impl TableGasEstimator {
         }
     }
 
-    /// Create a TableGasEstimator with custom server costs.
-    pub(crate) fn with_server_costs(server_costs: HashMap<String, u64>) -> Self {
-        Self {
-            server_costs,
-            tool_costs: HashMap::new(),
-            default_cost: 10,
-        }
-    }
-
-    /// Set a per-tool gas cost (overrides server cost for specific tools).
-    pub(crate) fn with_tool_cost(mut self, server: &str, tool: &str, cost: u64) -> Self {
-        self.tool_costs
-            .insert((server.to_string(), tool.to_string()), cost);
-        self
-    }
-
-    /// Set the default cost for unknown servers.
-    pub(crate) fn with_default_cost(mut self, cost: u64) -> Self {
-        self.default_cost = cost;
-        self
-    }
-
     /// Look up the gas cost for a (server, tool) pair.
     pub(crate) fn lookup(&self, server: &str, tool: &str) -> u64 {
         // Per-tool cost takes priority
@@ -213,39 +174,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn table_estimator_uses_tool_cost_override() {
-        let estimator = TableGasEstimator::new().with_tool_cost("hkask-mcp-web", "scrape", 200);
-        assert_eq!(
-            estimator.estimate_cost("hkask-mcp-web", "scrape", &serde_json::json!({})),
-            200
-        );
-        // Other tools still use server cost
-        assert_eq!(
-            estimator.estimate_cost("hkask-mcp-web", "search", &serde_json::json!({})),
-            50
-        );
-    }
-
-    #[test]
-    fn table_estimator_uses_default_for_unknown() {
-        let estimator = TableGasEstimator::new();
-        assert_eq!(
-            estimator.estimate_cost("unknown-server", "unknown-tool", &serde_json::json!({})),
-            10
-        );
-    }
-
-    #[test]
-    fn table_estimator_custom_default() {
-        let estimator = TableGasEstimator::new().with_default_cost(20);
-        assert_eq!(
-            estimator.estimate_cost("unknown-server", "unknown-tool", &serde_json::json!({})),
-            20
-        );
-    }
-
-    #[test]
     fn inference_server_cost_is_zero() {
         // Inference gas is handled by InferenceGasEstimator, not the table.
         // The table returns 0 for inference as a signal to use the token-based estimator.

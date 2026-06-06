@@ -12,9 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::lexicon::TemplateType;
 use crate::visibility::Visibility;
 
-// =============================================================================
 // Composition Error Types
-// =============================================================================
 
 /// Errors that can occur during bundle composition.
 ///
@@ -54,9 +52,7 @@ pub enum CompositionError {
     RetryExhausted { attempts: u32, message: String },
 }
 
-// =============================================================================
 // Enums
-// =============================================================================
 
 /// Skill polarity — the cybernetic role a skill plays in a bundle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -227,9 +223,7 @@ impl CascadePhase {
     }
 }
 
-// =============================================================================
 // Structs — Bundle skill, conflict, complementarity
-// =============================================================================
 
 /// A skill reference within a bundle
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -259,9 +253,7 @@ pub struct BundleComplementarity {
     pub detail: String,
 }
 
-// =============================================================================
 // Structs — Bundle manifest step
-// =============================================================================
 
 /// A single step in a bundle's cascade
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -282,9 +274,7 @@ pub struct BundleManifestStep {
     pub phase: CascadePhase,
 }
 
-// =============================================================================
 // Config sub-structs — mirror existing manifest YAML fields
-// =============================================================================
 
 /// Convergence configuration — controls when iterative steps stop improving
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -445,9 +435,7 @@ impl Default for AuditConfig {
     }
 }
 
-// =============================================================================
 // Top-level BundleManifest
-// =============================================================================
 
 /// BundleManifest — a composed bundle of skills with declared conflicts,
 /// complementarities, and a cascade of execution steps.
@@ -680,9 +668,7 @@ impl ValidationResult {
     }
 }
 
-// =============================================================================
 // CNS Span Namespaces
-// =============================================================================
 
 /// CNS span namespaces for bundle composition operations.
 /// These follow the hKask CNS naming convention: `cns.prompt.<operation>`.
@@ -697,9 +683,7 @@ pub mod cns_spans {
     pub const VALIDATE: &str = "cns.prompt.skill-bundler.validate";
 }
 
-// =============================================================================
 // Bundle Versioning
-// =============================================================================
 
 /// Bundle versioning strategy.
 ///
@@ -749,9 +733,7 @@ impl VersionBump {
     }
 }
 
-// =============================================================================
 // Bundle Dependency Tracking
-// =============================================================================
 
 /// Tracks which bundles depend on which skills.
 /// Used for evolution: when a skill changes, we know which bundles need updating.

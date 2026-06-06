@@ -27,11 +27,6 @@ use crate::variety::VarietyMonitor;
 ///
 /// All variety counters use domain-prefixed keys to avoid collisions
 /// between different observation domains while sharing a single tracker.
-pub mod domains {
-    /// Bot variety tracking: `bot:{webid}:{category}`
-    /// CNS resilience infrastructure — awaiting runtime wiring
-    pub(crate) const BOT: &str = "bot";
-}
 
 /// Unified variety tracker for all CNS observation domains.
 ///
@@ -55,9 +50,7 @@ impl UnifiedVarietyTracker {
         }
     }
 
-    // =========================================================================
     // Loop 4.1 — Domain-based variety (Ashby's Law)
-    // =========================================================================
 
     /// Increment variety counter for a domain.
     pub(crate) fn increment_variety(&mut self, domain: &str, state_name: &str) {
@@ -72,11 +65,6 @@ impl UnifiedVarietyTracker {
     /// Get all domain names with variety counters.
     pub(crate) fn variety_domains(&self) -> Vec<&str> {
         self.variety.domains()
-    }
-
-    /// Get total variety deficit across all domains.
-    pub(crate) fn total_variety_deficit(&self, expected_per_domain: u64) -> u64 {
-        self.variety.total_deficit(expected_per_domain)
     }
 
     /// Get a reference to the underlying variety monitor.

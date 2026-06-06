@@ -116,9 +116,7 @@ impl PodContext {
         })
     }
 
-    // ========================================================================
     // Episodic memory methods — private, agent-scoped
-    // ========================================================================
 
     /// Store an episodic triple (private, agent-scoped).
     ///
@@ -222,9 +220,7 @@ impl PodContext {
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
-    // ========================================================================
     // Semantic memory methods — shared, public knowledge
-    // ========================================================================
 
     /// Store a semantic triple (shared, public knowledge).
     ///
@@ -283,9 +279,7 @@ impl PodContext {
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
-    // ========================================================================
     // Tool invocation and CNS span emission
-    // ========================================================================
 
     /// Invoke an MCP tool by name.
     ///

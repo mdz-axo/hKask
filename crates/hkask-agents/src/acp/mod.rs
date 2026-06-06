@@ -480,12 +480,6 @@ impl AcpRuntime {
         revoked.insert(token_id.to_string());
     }
 
-    /// Check if a capability token has been revoked
-    pub(crate) async fn is_revoked(&self, token_id: &str) -> bool {
-        let revoked = self.revoked_tokens.read().await;
-        revoked.contains(token_id)
-    }
-
     /// Delegate capability to another agent
     ///
     /// Creates an attenuated child token from the parent token.
@@ -567,17 +561,6 @@ impl AcpRuntime {
     pub(crate) async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
         let tokens = self.capability_tokens.read().await;
         tokens.get(webid).cloned().unwrap_or_default()
-    }
-
-    /// Check if agent has capability for tool
-    pub(crate) async fn has_capability(&self, webid: &WebID, capability: &str) -> bool {
-        let agents = self.agents.read().await;
-        if let Some(agent) = agents.get(webid) {
-            // Check if agent has the exact capability registered (no wildcards)
-            agent.capabilities.iter().any(|cap| cap == capability)
-        } else {
-            false
-        }
     }
 
     /// List all registered agents

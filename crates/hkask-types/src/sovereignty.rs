@@ -312,9 +312,7 @@ impl Default for UserSovereigntyState {
     }
 }
 
-// =============================================================================
 // Sovereignty Port Types
-// =============================================================================
 
 /// Sovereignty operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

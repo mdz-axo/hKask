@@ -620,9 +620,7 @@ mod tests {
         checker.grant_tool(tool_name.to_string(), from, to)
     }
 
-    // =========================================================================
     // Integration: CompositeGasEstimator -> GovernedTool -> budget enforcement
-    // =========================================================================
 
     #[tokio::test]
     async fn governed_tool_with_composite_estimates_inference_gas() {

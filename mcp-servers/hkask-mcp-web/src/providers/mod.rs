@@ -39,25 +39,21 @@ pub(crate) trait WebSearchProvider: Send + Sync {
     async fn health(&self) -> Result<(), WebError>;
 }
 
-// =============================================================================
 // Provider-level URL validation (Task 6: SSRF protection)
 //
 // Every provider's extract() and browse() calls this before making
 // outbound requests. This is a capability boundary: the MCP server
 // never sends a request to a URL it hasn't validated.
-// =============================================================================
 
 pub fn validate_provider_url(url: &str) -> Result<(), WebError> {
     validate_tool_url(url).map_err(|e| WebError::BadArgs(e.message))
 }
 
-// =============================================================================
 // WebSearchPort — Application core port (hexagonal boundary)
 //
 // The application core depends on this trait, not on ProviderPool directly.
 // ProviderPool implements it as the adapter. This decouples tool handlers
 // from concrete provider infrastructure.
-// =============================================================================
 
 /// Port trait for web search operations at the application core boundary.
 ///
@@ -473,9 +469,7 @@ fn health_entry(kind: String, result: Result<(), WebError>) -> ProviderHealthEnt
     }
 }
 
-// =============================================================================
 // WebSearchPort implementation - ProviderPool as the adapter
-// =============================================================================
 
 #[async_trait]
 impl WebSearchPort for ProviderPool {

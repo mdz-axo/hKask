@@ -335,15 +335,15 @@ The capability membrane for each loop defines four boundaries:
 |----------|-------|
 | **Can read** | Message queue state only |
 | **Can write** | Message routing only |
-| **Can signal** | Delivery confirmation to sender loop |
+| **Can signal** | Delivery confirmation to sender loop, queue_depth counter to Cybernetics Loop (Arc<AtomicU64>, lock-free Relaxed ordering) |
 | **Never reaches** | Energy accounts, variety counters, prompt validation, knowledge graph internals, capability tokens |
 
 #### Curation Loop (regulatory) + Curator Agent (persona)
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue, Cybernetics set-points, variety counters, energy budget status |
-| **Can write** | CuratorDirective (CalibrateThreshold, OverrideEnergyBudget, UpdateCapabilities, SeekMoreEvidence, ReplenishBudget), goal priority, metacognitive override decisions |
+| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue, Cybernetics set-points, variety counters, energy budget status, SpecDriftAlert from DefaultSpecCurator (via Communication Loop inbox) |
+| **Can write** | CuratorDirective (CalibrateThreshold, OverrideGasBudget, UpdateCapabilities, SeekMoreEvidence, ReplenishBudget), goal priority, metacognitive override decisions |
 | **Can signal** | Metacognitive override to Cybernetics Loop, goal revision to Communication Loop |
 | **Never reaches** | Token flow, embedding indices, SQLCipher encryption keys, message routing internals |
 
@@ -351,9 +351,9 @@ The capability membrane for each loop defines four boundaries:
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | All `cns.*` spans, energy accounts, variety counters, algedonic alert state |
+| **Can read** | All `cns.*` spans, energy accounts, variety counters, algedonic alert state, communication_queue_depth from Communication Loop |
 | **Can write** | Energy budgets, variety counters, algedonic alert escalation state |
-| **Can signal** | Algedonic alert to Curation Loop, backpressure to domain loops |
+| **Can signal** | Algedonic alert to Curation Loop, backpressure to domain loops, Throttle(Communication) when backpressure threshold exceeded |
 | **Never reaches** | Prompt content, message routing logic, goal priority, Curator persona internals |
 
 ### 4.3 Cross-Loop Authority Rules

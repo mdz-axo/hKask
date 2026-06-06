@@ -15,9 +15,7 @@ use crate::id::WebID;
 use crate::sovereignty::DataCategory;
 use crate::visibility::Visibility;
 
-// =============================================================================
 // CuratorHandle — Loop 5 capability handle
-// =============================================================================
 
 /// The Curator's capability handle. Single replicant — the user's
 /// counterpart in `kask chat`. Can read all loop state and write
@@ -84,9 +82,7 @@ impl CuratorHandle {
     }
 }
 
-// =============================================================================
 // CuratorDirective — Curation → Cybernetics directives
-// =============================================================================
 
 /// Directives the Curator issues to Cybernetics.
 ///

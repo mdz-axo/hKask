@@ -3,9 +3,7 @@ use rusqlite::Connection;
 
 use crate::types::EditTagRequest;
 
-// ---------------------------------------------------------------------------
 // RSS schema DDL — executed as extensions via Database::open_with_extensions()
-// ---------------------------------------------------------------------------
 
 /// RSS-specific schema DDL for use with `Database::open_with_extensions()`.
 ///
@@ -81,9 +79,7 @@ pub const RSS_SCHEMA_DDL: &str = "
     END;
 ";
 
-// ---------------------------------------------------------------------------
 // DB write functions
-// ---------------------------------------------------------------------------
 
 pub fn upsert_feed(
     conn: &Connection,
@@ -197,9 +193,7 @@ pub fn update_feed_cache_headers(
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
 // Stream resolution (Google Reader data model)
-// ---------------------------------------------------------------------------
 
 pub fn resolve_feed_url(conn: &Connection, stream_id: &str) -> Option<String> {
     if let Some(rest) = stream_id.strip_prefix("feed/") {
@@ -245,9 +239,7 @@ pub fn build_stream_where(stream_id: &str) -> (String, Vec<Box<dyn rusqlite::typ
     (format!("{join_clause} {where_clause}"), params)
 }
 
-// ---------------------------------------------------------------------------
 // Query functions
-// ---------------------------------------------------------------------------
 
 pub fn query_entries(
     conn: &Connection,
@@ -339,9 +331,7 @@ pub fn count_entries(
     Ok(count as usize)
 }
 
-// ---------------------------------------------------------------------------
 // Mutation functions
-// ---------------------------------------------------------------------------
 
 pub fn mark_stream_read(conn: &Connection, stream_id: &str) -> Result<usize, anyhow::Error> {
     let (join_where, params) = build_stream_where(stream_id);
@@ -444,9 +434,7 @@ pub fn edit_tags(
     }))
 }
 
-// ---------------------------------------------------------------------------
 // Search and listing
-// ---------------------------------------------------------------------------
 
 pub fn search_entries(
     conn: &Connection,
@@ -527,9 +515,7 @@ pub fn list_subscriptions(
     Ok(results)
 }
 
-// ---------------------------------------------------------------------------
 // OPML export
-// ---------------------------------------------------------------------------
 
 pub fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
     let subs = list_subscriptions(conn, None)?;
@@ -594,9 +580,7 @@ fn xml_escape(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-// ---------------------------------------------------------------------------
 // OPML import
-// ---------------------------------------------------------------------------
 
 pub fn import_opml(
     conn: &Connection,

@@ -21,9 +21,7 @@
 
 use crate::id::WebID;
 
-// =============================================================================
 // CyberneticsHandle — Loop 6 capability handle
-// =============================================================================
 
 /// The Cybernetics Loop's capability handle.
 ///

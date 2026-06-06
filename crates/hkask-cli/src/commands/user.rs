@@ -20,9 +20,7 @@ use hkask_types::RegistrationRequest;
 use std::sync::{Arc, Mutex};
 use zeroize::Zeroizing;
 
-// =============================================================================
 // Application functions — pure, no I/O, testable
-// =============================================================================
 
 /// Register a new replicant identity (non-interactive)
 ///
@@ -139,9 +137,7 @@ pub fn revoke_session(
     Ok(session)
 }
 
-// =============================================================================
 // CLI adapters — interactive I/O wrappers
-// =============================================================================
 
 /// Register a new replicant identity (interactive)
 ///
@@ -339,9 +335,7 @@ pub fn list_sessions(
     Ok(sessions)
 }
 
-// =============================================================================
 // Tests removed — see git history for test code
-// =============================================================================
 
 /// CLI handler for `kask replicant` subcommand
 pub fn run_replicant(action: crate::cli::ReplicantAction) {

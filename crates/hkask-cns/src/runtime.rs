@@ -21,7 +21,7 @@ use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::warn;
+use tracing;
 
 /// CNS state shared between threads
 struct CnsState {

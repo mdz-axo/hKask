@@ -81,18 +81,6 @@ impl GasBudget {
         self
     }
 
-    /// Set the priority weight for replenishment scaling (0.0–1.0).
-    ///
-    /// Values outside [0.0, 1.0] are clamped.
-    ///
-    /// Dead code: no production caller yet. Retained for Task 7 (multi-agent
-    /// energy competition) which will need priority-weighted budget allocation.
-    #[allow(dead_code)]
-    pub(crate) fn with_priority(mut self, priority: f64) -> Self {
-        self.priority = priority.clamp(0.0, 1.0);
-        self
-    }
-
     /// Check whether an operation costing `gas` can proceed.
     ///
     /// Returns `true` if the gas fits within available (remaining - reserved) budget.
@@ -188,11 +176,6 @@ impl GasBudget {
         let before = self.remaining;
         self.remaining = (self.remaining + effective).min(self.cap);
         self.remaining - before
-    }
-
-    /// Whether the usage ratio has crossed the alert threshold.
-    pub(crate) fn should_alert(&self) -> bool {
-        self.usage_ratio() >= self.alert_threshold
     }
 
     /// Usage ratio: 0.0 = full budget, 1.0 = empty.
@@ -352,9 +335,7 @@ mod tests {
         assert!((budget.usage_ratio() - 0.0).abs() < f64::EPSILON);
     }
 
-    // =========================================================================
     // Priority and weighted replenishment tests
-    // =========================================================================
 
     #[test]
     fn gas_budget_new_has_default_priority() {

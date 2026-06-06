@@ -52,9 +52,7 @@ impl MemoryLoopAdapter {
     }
 }
 
-// =============================================================================
 // Episodic Storage Port — routed through EpisodicMemory
-// =============================================================================
 
 impl EpisodicStoragePort for MemoryLoopAdapter {
     fn store_episodic(
@@ -192,9 +190,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
     }
 }
 
-// =============================================================================
 // Semantic Storage Port — routed through SemanticMemory
-// =============================================================================
 
 impl SemanticStoragePort for MemoryLoopAdapter {
     fn store_semantic(

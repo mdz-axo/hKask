@@ -287,9 +287,7 @@ fn run_embed(
     );
 }
 
-// ========================================================================
 // Text download — simple HTTP GET with proper User-Agent
-// ========================================================================
 // When hkask-mcp-web MCP server is available, replace this with
 // a dispatch call to web:extract via the MCP dispatcher.
 // See: registry/manifests/style-corpus-embed.yaml Step 2
@@ -318,9 +316,7 @@ async fn download_text(url: &str) -> Result<String, String> {
     Ok(text)
 }
 
-// ========================================================================
 // Tests
-// ========================================================================
 
 #[cfg(test)]
 mod tests {

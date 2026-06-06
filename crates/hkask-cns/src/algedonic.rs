@@ -3,7 +3,7 @@
 //! Implements algedonic (pain/pleasure) feedback for cybernetic control.
 //! When variety deficit exceeds threshold, alerts are escalated to the Curator/human.
 //
-//! Per architecture v0.21.0: Variety deficit >100 → escalate to Curator/human
+//! Per architecture v0.22.0: Variety deficit >50 → Warning escalation to Curator; deficit >100 → Critical escalation to human
 //
 //! IP-1: The binary threshold has been replaced with an AllostericGate
 //! that produces a smooth MWC sigmoid. The existing behavior is the limit
@@ -187,16 +187,6 @@ impl AlgedonicManager {
         }
     }
 
-    /// Enable allosteric (MWC) regulation for severity classification.
-    ///
-    /// When enabled, the algedonic manager uses an AllostericGate to
-    /// compute severity via the MWC sigmoid instead of binary thresholds.
-    /// The gate's α is set from the normalized deficit (deficit / threshold).
-    pub(crate) fn with_allosteric_gate(mut self, gate: AllostericGate) -> Self {
-        self.allosteric_gate = Some(gate);
-        self
-    }
-
     /// Enable allosteric regulation with default algedonic gate config.
     pub(crate) fn with_default_allosteric(mut self) -> Self {
         self.allosteric_gate = Some(default_algedonic_gate());
@@ -274,18 +264,6 @@ impl AlgedonicManager {
     /// Get total deficit across all alerts
     pub(crate) fn total_deficit(&self) -> u64 {
         self.alerts.iter().map(|a| a.deficit).sum()
-    }
-
-    /// Clear old alerts (older than duration)
-    pub(crate) fn clear_old(&mut self, max_age: Duration) {
-        let chrono_dur = chrono::Duration::from_std(max_age).unwrap_or(chrono::Duration::zero());
-        let cutoff = Utc::now() - chrono_dur;
-        self.alerts.retain(|a| a.timestamp > cutoff);
-    }
-
-    /// Reset all alerts
-    pub(crate) fn reset(&mut self) {
-        self.alerts.clear();
     }
 }
 
