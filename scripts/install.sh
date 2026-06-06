@@ -121,7 +121,6 @@ install_system_dependencies() {
                 sqlite-devel \
                 clang-devel \
                 llvm-devel \
-                libzstd-devel \
                 cmake \
                 git \
                 curl \
@@ -138,7 +137,6 @@ install_system_dependencies() {
                 sqlite \
                 clang \
                 llvm \
-                zstd \
                 cmake \
                 git \
                 curl \
@@ -156,7 +154,6 @@ install_system_dependencies() {
                 sqlite3-devel \
                 clang \
                 llvm \
-                libzstd-devel \
                 cmake \
                 git \
                 curl \
@@ -172,7 +169,6 @@ install_system_dependencies() {
                 sqlite-dev \
                 clang \
                 llvm \
-                zstd-dev \
                 cmake \
                 git \
                 curl \
@@ -182,7 +178,7 @@ install_system_dependencies() {
             ;;
         unknown)
             log_warning "Unknown package manager. Please install dependencies manually."
-            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libclang-dev, llvm-dev, cmake, libzstd-dev, git, curl, jq"
+            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libclang-dev, llvm-dev, cmake, git, curl, jq"
             return 1
             ;;
     esac
