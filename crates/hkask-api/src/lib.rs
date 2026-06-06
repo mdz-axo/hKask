@@ -195,8 +195,10 @@ pub struct ApiState {
     pub consent_manager: Arc<ConsentManager>,
     /// Escalation queue for Curator escalations
     pub escalation_queue: Arc<EscalationQueue>,
-    /// Git CAS adapter for template archival
+    /// Git CAS adapter for template archival (legacy — template loading only)
     pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
+    /// Git CAS port for all CAS operations (hexagonal boundary)
+    pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
     /// Standing ensemble sessions (keyed by session ID)
     pub standing_sessions: Arc<
         tokio::sync::RwLock<
@@ -373,6 +375,11 @@ impl ApiState {
         let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
+        let git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort> =
+            Arc::new(hkask_mcp::GixCasAdapter::from_env().unwrap_or_else(|_| {
+                hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
+                    .expect("Failed to create GixCasAdapter")
+            }));
         let dispatcher_runtime = mcp_runtime.clone();
 
         // Build the LoopSystem with shared dispatch and escalation queue
@@ -436,6 +443,7 @@ impl ApiState {
             consent_manager: stores.consent_manager,
             escalation_queue: stores.escalation_queue,
             git_cas,
+            git_cas_port,
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             standing_session_store: stores.standing_session_store,
             session_manager,

@@ -313,3 +313,399 @@ async fn main() -> anyhow::Result<()> {
     )
     .await
 }
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::DelegationAction;
+
+    fn test_server() -> OcapServer {
+        let secret = b"test-ocap-secret-key-for-testing!!";
+        let webid = WebID::new();
+        OcapServer::new(secret.to_vec(), webid)
+    }
+
+    // ── parse_capability ──────────────────────────────────────────────
+
+    // P8 invariant: parse_capability parses 2-part capability strings
+    #[test]
+    fn parse_capability_two_parts() {
+        let (resource, resource_id, action) =
+            OcapServer::parse_capability("tool:call").expect("parse tool:call");
+        assert_eq!(resource, DelegationResource::Tool);
+        assert_eq!(resource_id, "tool:call");
+        assert_eq!(action, DelegationAction::Execute);
+    }
+
+    // P8 invariant: parse_capability parses 3-part capability strings
+    #[test]
+    fn parse_capability_three_parts() {
+        let (resource, resource_id, action) =
+            OcapServer::parse_capability("registry:my-domain:write")
+                .expect("parse registry:my-domain:write");
+        assert_eq!(resource, DelegationResource::Registry);
+        assert_eq!(resource_id, "my-domain");
+        assert_eq!(action, DelegationAction::Write);
+    }
+
+    // P8 invariant: parse_capability rejects single-part strings
+    #[test]
+    fn parse_capability_rejects_single_part() {
+        let result = OcapServer::parse_capability("invalid");
+        assert!(result.is_err(), "single-part string must fail");
+    }
+
+    // P8 invariant: parse_capability rejects unknown resource types
+    #[test]
+    fn parse_capability_rejects_unknown_resource() {
+        let result = OcapServer::parse_capability("unknown:action");
+        assert!(result.is_err(), "unknown resource type must fail");
+    }
+
+    // P8 invariant: parse_capability accepts 'memory' as alias for registry
+    #[test]
+    fn parse_capability_memory_alias() {
+        let (resource, _, _) =
+            OcapServer::parse_capability("memory:read").expect("parse memory:read");
+        assert_eq!(
+            resource,
+            DelegationResource::Registry,
+            "'memory' prefix must map to Registry"
+        );
+    }
+
+    // P8 invariant: parse_capability maps known actions
+    #[test]
+    fn parse_capability_known_actions() {
+        let (_, _, action) = OcapServer::parse_capability("tool:read").expect("read");
+        assert_eq!(action, DelegationAction::Read);
+
+        let (_, _, action) = OcapServer::parse_capability("tool:write").expect("write");
+        assert_eq!(action, DelegationAction::Write);
+
+        let (_, _, action) = OcapServer::parse_capability("tool:execute").expect("execute");
+        assert_eq!(action, DelegationAction::Execute);
+    }
+
+    // ── ocap_delegate ─────────────────────────────────────────────────
+
+    // P8 invariant: ocap_delegate creates a valid signed token
+    #[tokio::test]
+    async fn delegate_creates_valid_signed_token() {
+        let server = test_server();
+        let issuer = WebID::new().to_string();
+        let subject = WebID::new().to_string();
+
+        let result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: issuer.clone(),
+                subject: subject.clone(),
+                capabilities: "tool:inference:call".to_string(),
+            }))
+            .await;
+
+        assert!(
+            result.contains("signature_valid") && result.contains("true"),
+            "delegated token must have valid signature, got: {result}"
+        );
+        assert!(
+            result.contains("id"),
+            "result must contain token id, got: {result}"
+        );
+        assert!(
+            result.contains("issuer"),
+            "result must contain issuer, got: {result}"
+        );
+    }
+
+    // P8 invariant: ocap_delegate rejects empty issuer
+    #[tokio::test]
+    async fn delegate_rejects_empty_issuer() {
+        let server = test_server();
+
+        let result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: "".to_string(),
+                subject: WebID::new().to_string(),
+                capabilities: "tool:call".to_string(),
+            }))
+            .await;
+
+        assert!(
+            result.contains("invalid_argument") || result.contains("InvalidArgument"),
+            "empty issuer must produce invalid_argument, got: {result}"
+        );
+    }
+
+    // P8 invariant: ocap_delegate rejects invalid capability string
+    #[tokio::test]
+    async fn delegate_rejects_invalid_capability() {
+        let server = test_server();
+
+        let result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: WebID::new().to_string(),
+                capabilities: "invalid".to_string(),
+            }))
+            .await;
+
+        assert!(
+            result.contains("invalid_argument") || result.contains("InvalidFormat"),
+            "invalid capability must produce invalid_argument, got: {result}"
+        );
+    }
+
+    // ── ocap_verify ───────────────────────────────────────────────────
+
+    // P8 invariant: ocap_verify validates a valid token
+    #[tokio::test]
+    async fn verify_valid_token() {
+        let server = test_server();
+        let subject = WebID::new();
+        let subject_str = subject.to_string();
+
+        // First, delegate a token
+        let delegate_result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: subject_str.clone(),
+                capabilities: "tool:my-tool:execute".to_string(),
+            }))
+            .await;
+
+        // Extract token_id from result
+        let token_id = extract_json_string(&delegate_result, "id");
+        assert!(token_id.is_some(), "delegate must return token id");
+
+        let verify_result = server
+            .ocap_verify(Parameters(VerifyRequest {
+                token_id: token_id.unwrap(),
+                capability: "tool:my-tool:execute".to_string(),
+            }))
+            .await;
+
+        assert!(
+            verify_result.contains("signature_valid") && verify_result.contains("true"),
+            "verify must confirm valid signature, got: {verify_result}"
+        );
+        assert!(
+            verify_result.contains("valid") && verify_result.contains("true"),
+            "valid token must verify as true, got: {verify_result}"
+        );
+    }
+
+    // P8 invariant: ocap_verify returns not_found for unknown token
+    #[tokio::test]
+    async fn verify_returns_not_found_for_unknown_token() {
+        let server = test_server();
+
+        let result = server
+            .ocap_verify(Parameters(VerifyRequest {
+                token_id: "nonexistent-token".to_string(),
+                capability: "tool:call".to_string(),
+            }))
+            .await;
+
+        assert!(
+            result.contains("not_found") || result.contains("not found"),
+            "unknown token must return not_found, got: {result}"
+        );
+    }
+
+    // ── ocap_revoke ────────────────────────────────────────────────────
+
+    // P8 invariant: ocap_revoke revokes a previously created token
+    #[tokio::test]
+    async fn revoke_marks_token_as_revoked() {
+        let server = test_server();
+
+        let delegate_result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: WebID::new().to_string(),
+                capabilities: "tool:call".to_string(),
+            }))
+            .await;
+
+        let token_id = extract_json_string(&delegate_result, "id").unwrap();
+
+        let revoke_result = server
+            .ocap_revoke(Parameters(RevokeRequest {
+                token_id: token_id.clone(),
+            }))
+            .await;
+
+        assert!(
+            revoke_result.contains("revoked") && revoke_result.contains("true"),
+            "revoke must confirm revocation, got: {revoke_result}"
+        );
+
+        // Verify the revoked token is rejected
+        let verify_result = server
+            .ocap_verify(Parameters(VerifyRequest {
+                token_id,
+                capability: "tool:call".to_string(),
+            }))
+            .await;
+
+        assert!(
+            verify_result.contains("revoked") || verify_result.contains("FailedPrecondition"),
+            "revoked token must be rejected, got: {verify_result}"
+        );
+    }
+
+    // P8 invariant: ocap_revoke returns not_found for unknown token
+    #[tokio::test]
+    async fn revoke_returns_not_found_for_unknown_token() {
+        let server = test_server();
+
+        let result = server
+            .ocap_revoke(Parameters(RevokeRequest {
+                token_id: "nonexistent".to_string(),
+            }))
+            .await;
+
+        assert!(
+            result.contains("not_found") || result.contains("not found"),
+            "revoking unknown token must return not_found, got: {result}"
+        );
+    }
+
+    // ── ocap_enumerate ────────────────────────────────────────────────
+
+    // P8 invariant: ocap_enumerate returns tokens for a subject
+    #[tokio::test]
+    async fn enumerate_returns_tokens_for_subject() {
+        let server = test_server();
+        let subject = WebID::new().to_string();
+
+        // Create two tokens for the same subject
+        server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: subject.clone(),
+                capabilities: "tool:call".to_string(),
+            }))
+            .await;
+        server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: subject.clone(),
+                capabilities: "template:render".to_string(),
+            }))
+            .await;
+
+        let result = server
+            .ocap_enumerate(Parameters(EnumerateRequest {
+                subject: subject.clone(),
+            }))
+            .await;
+
+        assert!(
+            result.contains("token_count") && result.contains("2"),
+            "enumerate must return 2 tokens, got: {result}"
+        );
+    }
+
+    // P8 invariant: ocap_enumerate excludes revoked tokens
+    #[tokio::test]
+    async fn enumerate_excludes_revoked_tokens() {
+        let server = test_server();
+        let subject = WebID::new().to_string();
+
+        let delegate1 = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: subject.clone(),
+                capabilities: "tool:call".to_string(),
+            }))
+            .await;
+        let _delegate2 = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: subject.clone(),
+                capabilities: "tool:execute".to_string(),
+            }))
+            .await;
+
+        // Revoke the first token
+        let token_id = extract_json_string(&delegate1, "id").unwrap();
+        server
+            .ocap_revoke(Parameters(RevokeRequest { token_id }))
+            .await;
+
+        let result = server
+            .ocap_enumerate(Parameters(EnumerateRequest {
+                subject: subject.clone(),
+            }))
+            .await;
+
+        // After revoking one token, enumerate should return 1 active token
+        assert!(
+            result.contains("token_count") && result.contains("1"),
+            "enumerate must exclude revoked tokens, got: {result}"
+        );
+    }
+
+    // ── ocap_list_tokens ──────────────────────────────────────────────
+
+    // P8 invariant: ocap_list_tokens returns all tokens with revocation status
+    #[tokio::test]
+    async fn list_tokens_returns_all_with_status() {
+        let server = test_server();
+
+        let delegate1 = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: WebID::new().to_string(),
+                subject: WebID::new().to_string(),
+                capabilities: "tool:call".to_string(),
+            }))
+            .await;
+
+        let token_id = extract_json_string(&delegate1, "id").unwrap();
+
+        // List before revoke — should show revoked: false
+        let list_before = server.ocap_list_tokens().await;
+        assert!(
+            list_before.contains("token_count") && list_before.contains("1"),
+            "list must show 1 token before revoke, got: {list_before}"
+        );
+
+        // Revoke the token
+        server
+            .ocap_revoke(Parameters(RevokeRequest { token_id }))
+            .await;
+
+        // List after revoke — should still show the token but with revoked: true
+        let list_after = server.ocap_list_tokens().await;
+        assert!(
+            list_after.contains("token_count") && list_after.contains("1"),
+            "list must still show the token after revoke, got: {list_after}"
+        );
+        assert!(
+            list_after.contains("revoked") && list_after.contains("true"),
+            "revoked token must show revoked:true, got: {list_after}"
+        );
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────
+
+    /// Extract a string value from a JSON response for a given key.
+    /// Handles both `"key": "value"` and `"key":"value"` formats.
+    fn extract_json_string(response: &str, key: &str) -> Option<String> {
+        // Try with space after colon first, then without
+        for sep in [": \"", ":\""] {
+            let search = format!("\"{}\"{}", key, sep);
+            if let Some(start) = response.find(&search) {
+                let value_start = start + search.len();
+                if let Some(end) = response[value_start..].find('\"') {
+                    return Some(response[value_start..value_start + end].to_string());
+                }
+            }
+        }
+        None
+    }
+}

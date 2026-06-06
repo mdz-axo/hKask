@@ -8,8 +8,8 @@
 //! - `.git/` — bare git repository for snapshots and refs
 
 use hkask_types::ports::git_cas::{
-    CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, RepoId, TreeEntry,
-    TreeEntryKind, VerificationReport,
+    CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, LogEntry, RepoId,
+    TreeEntry, TreeEntryKind, VerificationReport,
 };
 use std::path::{Path, PathBuf};
 use tokio::sync::RwLock;
@@ -25,6 +25,20 @@ pub struct GixCasAdapter {
     initialized: RwLock<std::collections::HashSet<String>>,
 }
 
+/// Resolve the CAS home directory from environment or default.
+///
+/// Resolution order:
+/// 1. `HKASK_CAS_HOME` env var (explicit path)
+/// 2. `~/.hkask/repos/` (default)
+pub fn resolve_cas_home() -> PathBuf {
+    std::env::var("HKASK_CAS_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+            PathBuf::from(home).join(".hkask").join("repos")
+        })
+}
+
 impl GixCasAdapter {
     /// Create a new adapter rooted at `base_path`.
     ///
@@ -37,6 +51,16 @@ impl GixCasAdapter {
             base_path,
             initialized: RwLock::new(std::collections::HashSet::new()),
         })
+    }
+
+    /// Create a new adapter using the HKASK_CAS_HOME environment variable.
+    ///
+    /// Resolution order:
+    /// 1. `HKASK_CAS_HOME` env var (explicit path)
+    /// 2. `~/.hkask/repos/` (default)
+    pub fn from_env() -> Result<Self, GitCasError> {
+        let base_path = resolve_cas_home();
+        Self::new(base_path)
     }
 
     /// Ensure the repo directory and CAS subdirectory exist.
@@ -134,8 +158,24 @@ impl GitCASPort for GixCasAdapter {
         let msg = message.to_string();
 
         tokio::task::spawn_blocking(move || {
-            // Use git CLI for the commit operation (gix bare repo commit creation is complex)
-            // This creates a commit that references all CAS files as a git tree.
+            // Lazy git init: if no .git directory exists, initialize one.
+            if !repo_dir.join(".git").exists() {
+                let init_output = std::process::Command::new("git")
+                    .args(["init"])
+                    .current_dir(&repo_dir)
+                    .output()
+                    .map_err(|e| GitCasError::Io(format!("git init failed: {e}")))?;
+
+                if !init_output.status.success() {
+                    let stderr = String::from_utf8_lossy(&init_output.stderr);
+                    return Err(GitCasError::Git(format!(
+                        "git init failed: {}",
+                        stderr.trim()
+                    )));
+                }
+            }
+
+            // Stage all CAS content
             let output = std::process::Command::new("git")
                 .args(["add", "-A"])
                 .current_dir(&repo_dir)
@@ -424,6 +464,69 @@ impl GitCASPort for GixCasAdapter {
                 verified_blobs: verified,
                 corrupt_hashes: corrupt,
             })
+        })
+        .await
+        .map_err(|e| GitCasError::Io(format!("Task join error: {e}")))?
+    }
+
+    async fn log(&self, repo: &RepoId, max_count: usize) -> Result<Vec<LogEntry>, GitCasError> {
+        let repo_dir = self.ensure_repo_dir(repo).await?;
+        let max = max_count;
+
+        tokio::task::spawn_blocking(move || {
+            let output = std::process::Command::new("git")
+                .args([
+                    "log",
+                    "--oneline",
+                    "--pretty=format:%H %ct %s",
+                    &format!("-{}", max),
+                ])
+                .current_dir(&repo_dir)
+                .output()
+                .map_err(|e| GitCasError::Git(format!("git log failed: {e}")))?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                // No commits yet is not an error — return empty
+                if stderr.contains("does not have any commits")
+                    || stderr.contains("ambiguous argument")
+                {
+                    return Ok(Vec::new());
+                }
+                return Err(GitCasError::Git(format!(
+                    "git log failed: {}",
+                    stderr.trim()
+                )));
+            }
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let mut entries = Vec::new();
+            for line in stdout.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                // Format: <40-char-hex-sha> <unix-timestamp> <message>
+                let parts: Vec<&str> = line.splitn(3, ' ').collect();
+                if parts.len() < 3 {
+                    continue;
+                }
+                let hash_str = parts[0];
+                let timestamp_str = parts[1];
+                let message = parts[2].to_string();
+
+                let commit: CommitHash = hash_str.parse().map_err(|e: String| {
+                    GitCasError::Git(format!("Invalid commit hash in log: {e}"))
+                })?;
+                let timestamp_secs = timestamp_str.parse::<u64>().unwrap_or(0);
+
+                entries.push(LogEntry {
+                    commit,
+                    message,
+                    timestamp_secs,
+                });
+            }
+            Ok(entries)
         })
         .await
         .map_err(|e| GitCasError::Io(format!("Task join error: {e}")))?

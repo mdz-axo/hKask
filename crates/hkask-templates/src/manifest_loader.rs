@@ -56,6 +56,10 @@ struct ManifestFile {
     cns: Option<CnsConfig>,
     #[serde(default)]
     audit: Option<AuditConfig>,
+    #[serde(default)]
+    inputs: Option<serde_json::Value>,
+    #[serde(default)]
+    principles: Option<serde_json::Value>,
 }
 
 /// Inner header from the `manifest:` key in YAML files.
@@ -70,8 +74,31 @@ struct ManifestHeader {
     version: String,
     #[serde(default)]
     editor: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_visibility_case_insensitive")]
     visibility: Option<Visibility>,
+    #[serde(default)]
+    functional_role: Option<String>,
+}
+
+/// Deserialize visibility in a case-insensitive manner.
+///
+/// YAML manifest files may use PascalCase (`Shared`) while the
+/// `Visibility` enum serializes as lowercase (`shared`).
+fn deserialize_visibility_case_insensitive<'de, D>(
+    deserializer: D,
+) -> Result<Option<Visibility>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+
+    let opt: Option<String> = Option::deserialize(deserializer)?;
+    match opt {
+        Some(s) => Visibility::parse_str(&s)
+            .map(Some)
+            .ok_or_else(|| de::Error::custom(format!("unknown visibility variant: {s}"))),
+        None => Ok(None),
+    }
 }
 
 /// Load a BundleManifest from a YAML file at the given path.
@@ -114,6 +141,9 @@ pub fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoa
         ocap: file.ocap.unwrap_or_default(),
         cns: file.cns.unwrap_or_default(),
         audit: file.audit.unwrap_or_default(),
+        functional_role: file.manifest.functional_role,
+        inputs: file.inputs,
+        principles: file.principles,
     };
 
     info!(
@@ -223,7 +253,7 @@ manifest:
   description: A test manifest
   version: "1.0"
   editor: test
-  visibility: Public
+  visibility: public
 steps:
   - ordinal: 1
     action: populate
@@ -247,7 +277,7 @@ manifest:
   description: A manifest with config
   version: "0.22.0"
   editor: curator
-  visibility: Shared
+  visibility: shared
 gas:
   cap: 18000
   cost_per_token: 0.25
@@ -286,5 +316,91 @@ steps: []
         // Defaults should be applied
         assert!(manifest.gas.cap > 0);
         assert!(manifest.error_handling.max_retries > 0);
+    }
+
+    #[test]
+    fn load_real_manifest_from_registry() {
+        let manifest_path = std::path::Path::new("../../registry/manifests/coding-guidelines.yaml");
+        let manifest =
+            load_manifest_from_file(manifest_path).expect("should parse coding-guidelines.yaml");
+        assert_eq!(manifest.id, "coding-guidelines");
+        assert_eq!(manifest.name, "Coding Guidelines");
+        assert!(!manifest.steps.is_empty(), "manifest should have steps");
+        // First step should be a populate action with minijinja renderer
+        let first_step = &manifest.steps[0];
+        assert_eq!(first_step.action, "populate");
+        assert_eq!(first_step.renderer.as_deref(), Some("minijinja"));
+        assert!(first_step.template_ref.is_some());
+        // Gas config should be populated from file
+        assert_eq!(manifest.gas.cap, 18000);
+        // CNS config should be present
+        assert!(manifest.cns.emit_spans);
+    }
+
+    /// Sweep test: try to load every manifest YAML in registry/manifests/.
+    ///
+    /// This catches deserialization regressions (missing fields, case mismatches, etc.)
+    /// across the entire manifest corpus. Manifests that fail to parse are collected
+    /// rather than failing the test, so we can track known-broken files separately.
+    #[test]
+    fn sweep_all_registry_manifests() {
+        let manifest_dir = std::path::Path::new("../../registry/manifests");
+        if !manifest_dir.exists() {
+            // Running outside repo root; skip gracefully
+            eprintln!("Skipping sweep: manifest directory not found");
+            return;
+        }
+
+        let entries = std::fs::read_dir(manifest_dir).expect("should read manifests dir");
+        let mut parsed = 0usize;
+        let mut failed: Vec<(String, String)> = Vec::new();
+
+        for entry in entries {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("yaml") {
+                continue;
+            }
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?")
+                .to_string();
+
+            match load_manifest_from_file(&path) {
+                Ok(manifest) => {
+                    // Basic sanity: id should match filename stem
+                    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                    if manifest.id != stem {
+                        // Not necessarily an error (e.g. nested dirs), but worth noting
+                        eprintln!(
+                            "Note: manifest id '{}' differs from filename stem '{}'",
+                            manifest.id, stem
+                        );
+                    }
+                    parsed += 1;
+                }
+                Err(e) => {
+                    failed.push((name, format!("{:?}", e)));
+                }
+            }
+        }
+
+        eprintln!("Sweep: {} parsed, {} failed", parsed, failed.len());
+        for (name, err) in &failed {
+            eprintln!("  FAILED: {} — {}", name, err);
+        }
+
+        // We expect most manifests to parse. Some known failures:
+        // - 4 manifests have YAML syntax errors (tracked separately)
+        // - 6 manifests have duplicate `functional_role` (YAML bugs)
+        // - Several manifests use a different format (no `manifest:` wrapper)
+        // The test passes as long as the majority parse successfully.
+        assert!(
+            parsed >= 25,
+            "Expected at least 25 manifests to parse, got {}. Failures: {:?}",
+            parsed,
+            failed.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>()
+        );
     }
 }

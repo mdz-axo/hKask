@@ -65,12 +65,14 @@ erDiagram
     
     STEP {
         int ordinal
-        string action "select|populate|execute"
+        string action "select|populate|execute|feedback|validate|retrieve"
         string template_ref
         string renderer "minijinja"
         string model_tier
         string mcp
         object output_schema
+        object feedback
+        object validation_rules
     }
     
     TEMPLATE {
@@ -241,24 +243,31 @@ stateDiagram-v2
     ExecuteStep --> Select: action = "select"
     ExecuteStep --> Populate: action = "populate"
     ExecuteStep --> Execute: action = "execute"
-    
+    ExecuteStep --> Feedback: action = "feedback"
+    ExecuteStep --> Validate: action = "validate"
+    ExecuteStep --> Retrieve: action = "retrieve"
+
     Select --> RenderTemplate: Load template_ref
     RenderTemplate --> CallModel: minijinja render
     CallModel --> EmitCNSSelect: inference.call()
     EmitCNSSelect --> NextStep
-    
+
     Populate --> GetTemplate: Fetch selected_template_id
     GetTemplate --> BindFields: Jinja2 field binding
     BindFields --> NextStep
-    
+
     Execute --> ResolveTarget: From template contract
     ResolveTarget --> InvokeTool: MCP tool or LLM
     InvokeTarget --> EmitCNSOutcome: Record outcome
     EmitCNSOutcome --> NextStep
-    
+
+    Feedback --> InvokeTool: MCP tool (CNS emit)
+    Validate --> InvokeTool: MCP tool (validation)
+    Retrieve --> InvokeTool: MCP tool (semantic search)
+
     NextStep --> ExecuteStep: More steps
     NextStep --> [*]: All steps complete
-    
+
     note right of ExecuteStep
         Matroshka depth enforced
         Default: 7, configurable
@@ -267,8 +276,8 @@ stateDiagram-v2
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-004
-verified_date: 2026-05-24
-verified_against: crates/hkask-templates/src/manifest.rs
+verified_date: 2026-06-06
+verified_against: crates/hkask-templates/src/executor.rs, crates/hkask-types/src/bundle.rs
 status: VERIFIED
 -->
 

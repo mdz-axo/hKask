@@ -1,18 +1,20 @@
-//! hKask MCP Git — Git operations via GitCasAdapter
+//! hKask MCP Git — Git operations via GitCASPort
 //!
-//! This MCP server provides Git operations by composing the GitCasAdapter
-//! from hkask-agents. Implements hexagonal architecture pattern.
+//! This MCP server provides Git operations by composing the GitCASPort
+//! trait implementation (GixCasAdapter). All operations route through
+//! the hexagonal port, not through raw shell commands.
 
-use hkask_mcp::GitCasAdapter;
-use hkask_mcp::adapter_container::AdapterContainer;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
+use hkask_mcp::GixCasAdapter;
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_types::{McpErrorKind, WebID};
+use hkask_types::WebID;
+use hkask_types::ports::git_cas::{GitCASPort, GitCasError, RepoId};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 use std::path::Path;
+use std::sync::Arc;
 
 fn validate_path(path: &str) -> Result<(), McpToolError> {
     if path.contains('\0') {
@@ -29,62 +31,98 @@ fn validate_path(path: &str) -> Result<(), McpToolError> {
     Ok(())
 }
 
+/// Parse a RepoId from a string, returning a default if empty.
+fn parse_repo_id(repo: &str) -> RepoId {
+    match repo {
+        "registry" | "" => RepoId::Registry,
+        "memory" => RepoId::Memory,
+        "cns-audit" => RepoId::CnsAudit,
+        "sovereignty" => RepoId::Sovereignty,
+        "goals-specs" => RepoId::GoalsSpecs,
+        "sessions" => RepoId::Sessions,
+        "vault" => RepoId::Vault,
+        _ => RepoId::Registry, // fallback
+    }
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ResolveRequest {
     pub git_ref: String,
+    #[serde(default)]
+    pub repo: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SnapshotRequest {
     pub message: String,
-    pub branch: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CloneRequest {
-    pub url: String,
-    pub target_path: String,
-    pub branch: Option<String>,
+    #[serde(default)]
+    pub repo: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DiffRequest {
-    pub sha1: String,
-    pub sha2: String,
-    pub path: Option<String>,
+    pub from: String,
+    pub to: String,
+    #[serde(default)]
+    pub repo: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ListRequest {
-    pub path: Option<String>,
+    #[serde(default)]
+    pub prefix: String,
+    #[serde(default)]
+    pub repo: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VerifyRequest {
+    #[serde(default)]
+    pub repo: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LogRequest {
+    #[serde(default = "default_max_count")]
+    pub max_count: usize,
+    #[serde(default)]
+    pub repo: String,
+}
+
+fn default_max_count() -> usize {
+    20
 }
 
 pub struct GitServer {
-    adapter_container: AdapterContainer,
+    port: Arc<dyn GitCASPort>,
     webid: WebID,
 }
 
 impl GitServer {
-    /// Create an unconfigured server (no base path set).
-    pub fn new(webid: WebID) -> Self {
+    /// Create a server using the default GixCasAdapter resolved from environment.
+    pub fn from_env(webid: WebID) -> Result<Self, GitCasError> {
+        let adapter = GixCasAdapter::from_env()?;
+        Ok(Self {
+            port: Arc::new(adapter),
+            webid,
+        })
+    }
+
+    /// Create a server with a specific base path for the CAS adapter.
+    pub fn with_base_path(base_path: std::path::PathBuf, webid: WebID) -> Self {
+        let adapter = GixCasAdapter::new(base_path).unwrap_or_else(|_| {
+            // Fall back to from_env if the path doesn't work
+            GixCasAdapter::from_env().expect("Failed to create GixCasAdapter")
+        });
         Self {
-            adapter_container: AdapterContainer::new(),
+            port: Arc::new(adapter),
             webid,
         }
     }
 
-    /// Create a server with the given base path, or unconfigured if `None`.
-    pub fn with_base_path_or_default(base_path: Option<std::path::PathBuf>, webid: WebID) -> Self {
-        let container = AdapterContainer::new();
-        if let Some(bp) = base_path {
-            let adapter = std::sync::Arc::new(GitCasAdapter::from_path(bp.clone()));
-            container.configure_git_cas(adapter).ok();
-            container.set_base_path(bp).ok();
-        }
-        Self {
-            adapter_container: container,
-            webid,
-        }
+    /// Create a server with an injected GitCASPort (for testing).
+    pub fn with_port(port: Arc<dyn GitCASPort>, webid: WebID) -> Self {
+        Self { port, webid }
     }
 }
 
@@ -93,215 +131,176 @@ impl GitServer {
     #[tool(description = "Resolve a git reference to a SHA")]
     async fn git_resolve(
         &self,
-        Parameters(ResolveRequest { git_ref }): Parameters<ResolveRequest>,
+        Parameters(ResolveRequest { git_ref, repo }): Parameters<ResolveRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("git_resolve", &self.webid);
 
         validate_field!(span, "git_ref", &git_ref, 256);
 
-        if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
-            match adapter.resolve_sha(&git_ref) {
-                Ok(sha) => span.ok_json(json!({
-                    "ref": git_ref,
-                    "sha": sha,
-                    "resolved": true,
-                })),
-                Err(e) => span.internal_error(json!({"error": e.to_string()})),
-            }
-        } else {
-            span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition("No adapter configured").to_json_string(),
-            )
+        let repo_id = parse_repo_id(&repo);
+        match self.port.resolve_ref(&repo_id, &git_ref).await {
+            Ok(commit) => span.ok_json(json!({
+                "ref": git_ref,
+                "sha": commit.to_string(),
+                "repo": repo_id.dir_name(),
+                "resolved": true,
+            })),
+            Err(e) => span.internal_error(json!({"error": e.to_string()})),
         }
     }
 
     #[tool(description = "Create a git snapshot (commit)")]
     async fn git_snapshot(
         &self,
-        Parameters(SnapshotRequest { message, branch }): Parameters<SnapshotRequest>,
+        Parameters(SnapshotRequest { message, repo }): Parameters<SnapshotRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("git_snapshot", &self.webid);
-        let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
-        if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
-            match adapter.commit(&message) {
-                Ok(sha) => span.ok_json(json!({
-                    "sha": sha,
-                    "message": message,
-                    "branch": branch_name,
-                    "committed": true,
-                })),
-                Err(e) => span.internal_error(json!({"error": e.to_string()})),
-            }
-        } else {
-            span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition("No adapter configured").to_json_string(),
-            )
-        }
-    }
+        validate_field!(span, "message", &message, 1024);
 
-    #[tool(description = "Clone a git repository")]
-    async fn git_clone(
-        &self,
-        Parameters(CloneRequest {
-            url,
-            target_path,
-            branch,
-        }): Parameters<CloneRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("git_clone", &self.webid);
-        let branch_name = branch.unwrap_or_else(|| "main".to_string());
-
-        if let Err(e) = validate_tool_url(&url) {
-            return span.error(e.kind, e.to_json_string());
-        }
-
-        if let Err(e) = validate_path(&target_path) {
-            return span.error(e.kind, e.to_json_string());
-        }
-
-        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
-            let full_path = base_path.join(&target_path);
-            let output = std::process::Command::new("git")
-                .args(["clone", "--branch", &branch_name, &url])
-                .arg(&full_path)
-                .output();
-
-            match output {
-                Ok(out) if out.status.success() => span.ok_json(json!({
-                    "url": url,
-                    "path": target_path,
-                    "branch": branch_name,
-                    "cloned": true,
-                })),
-                Ok(out) => {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    span.internal_error(json!({"error": stderr.trim()}))
-                }
-                Err(e) => span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(e.to_string()).to_json_string(),
-                ),
-            }
-        } else {
-            span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition("No adapter configured").to_json_string(),
-            )
+        let repo_id = parse_repo_id(&repo);
+        match self.port.snapshot(&repo_id, &message).await {
+            Ok(commit) => span.ok_json(json!({
+                "sha": commit.to_string(),
+                "message": message,
+                "repo": repo_id.dir_name(),
+                "committed": true,
+            })),
+            Err(e) => span.internal_error(json!({"error": e.to_string()})),
         }
     }
 
     #[tool(description = "Show diff between two commits")]
     async fn git_diff(
         &self,
-        Parameters(DiffRequest { sha1, sha2, path }): Parameters<DiffRequest>,
+        Parameters(DiffRequest { from, to, repo }): Parameters<DiffRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("git_diff", &self.webid);
-        let path_filter = path.unwrap_or_else(|| "all".to_string());
 
-        if let Err(e) = validate_path(&path_filter) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "from", &from, 64);
+        validate_field!(span, "to", &to, 64);
 
-        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
-            let mut args = vec!["diff", &sha1, &sha2];
-            if path_filter != "all" {
-                args.push("--");
-                args.push(&path_filter);
+        let repo_id = parse_repo_id(&repo);
+        match self.port.diff(&repo_id, &from, &to).await {
+            Ok(diffs) => {
+                let diff_entries: Vec<serde_json::Value> = diffs
+                    .iter()
+                    .map(|d| {
+                        json!({
+                            "path": d.path,
+                            "kind": format!("{:?}", d.kind),
+                            "content": d.content,
+                        })
+                    })
+                    .collect();
+                span.ok_json(json!({
+                    "from": from,
+                    "to": to,
+                    "repo": repo_id.dir_name(),
+                    "diffs": diff_entries,
+                }))
             }
-
-            let output = std::process::Command::new("git")
-                .args(&args)
-                .current_dir(base_path)
-                .output();
-
-            match output {
-                Ok(out) => {
-                    let diff = String::from_utf8_lossy(&out.stdout);
-                    span.ok_json(json!({
-                        "sha1": sha1,
-                        "sha2": sha2,
-                        "path": path_filter,
-                        "diff": diff,
-                    }))
-                }
-                Err(e) => span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(e.to_string()).to_json_string(),
-                ),
-            }
-        } else {
-            span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition("No adapter configured").to_json_string(),
-            )
+            Err(e) => span.internal_error(json!({"error": e.to_string()})),
         }
     }
 
-    #[tool(description = "List files in a git path")]
-    async fn git_list(&self, Parameters(ListRequest { path }): Parameters<ListRequest>) -> String {
+    #[tool(description = "List files in a git tree")]
+    async fn git_list(
+        &self,
+        Parameters(ListRequest { prefix, repo }): Parameters<ListRequest>,
+    ) -> String {
         let span = ToolSpanGuard::new("git_list", &self.webid);
-        let p = path.unwrap_or_else(|| ".".to_string());
 
-        if let Err(e) = validate_path(&p) {
+        let prefix = if prefix.is_empty() { "" } else { &prefix };
+        if let Err(e) = validate_path(prefix) {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
-            let output = std::process::Command::new("git")
-                .args(["ls-tree", "--name-only", "HEAD", &p])
-                .current_dir(base_path)
-                .output();
-
-            match output {
-                Ok(out) if out.status.success() => {
-                    let listing = String::from_utf8_lossy(&out.stdout);
-                    let files: Vec<&str> = listing.lines().collect();
-                    span.ok_json(json!({
-                        "path": p,
-                        "files": files,
-                    }))
-                }
-                Ok(out) => {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    span.internal_error(json!({"error": stderr.trim()}))
-                }
-                Err(e) => span.error(
-                    McpErrorKind::Unavailable,
-                    McpToolError::unavailable(e.to_string()).to_json_string(),
-                ),
+        let repo_id = parse_repo_id(&repo);
+        match self.port.list_tree(&repo_id, "HEAD", prefix).await {
+            Ok(entries) => {
+                let files: Vec<serde_json::Value> = entries
+                    .iter()
+                    .map(|e| {
+                        json!({
+                            "path": e.path,
+                            "hash": e.content_hash.to_string(),
+                            "kind": format!("{:?}", e.kind),
+                        })
+                    })
+                    .collect();
+                span.ok_json(json!({
+                    "prefix": prefix,
+                    "repo": repo_id.dir_name(),
+                    "files": files,
+                }))
             }
-        } else {
-            span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition("No adapter configured").to_json_string(),
-            )
+            Err(e) => span.internal_error(json!({"error": e.to_string()})),
+        }
+    }
+
+    #[tool(description = "Verify content integrity of a repository")]
+    async fn git_verify(
+        &self,
+        Parameters(VerifyRequest { repo }): Parameters<VerifyRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("git_verify", &self.webid);
+
+        let repo_id = parse_repo_id(&repo);
+        match self.port.verify(&repo_id).await {
+            Ok(report) => span.ok_json(json!({
+                "repo": report.repo.dir_name(),
+                "total_blobs": report.total_blobs,
+                "verified_blobs": report.verified_blobs,
+                "corrupt_hashes": report.corrupt_hashes.iter().map(|h| h.to_string()).collect::<Vec<_>>(),
+                "integrity": report.corrupt_hashes.is_empty(),
+            })),
+            Err(e) => span.internal_error(json!({"error": e.to_string()})),
+        }
+    }
+
+    #[tool(description = "List snapshot history for a repository")]
+    async fn git_log(
+        &self,
+        Parameters(LogRequest { max_count, repo }): Parameters<LogRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("git_log", &self.webid);
+
+        let repo_id = parse_repo_id(&repo);
+        match self.port.log(&repo_id, max_count).await {
+            Ok(entries) => {
+                let logs: Vec<serde_json::Value> = entries
+                    .iter()
+                    .map(|e| {
+                        json!({
+                            "commit": e.commit.to_string(),
+                            "message": e.message,
+                            "timestamp": e.timestamp_secs,
+                        })
+                    })
+                    .collect();
+                span.ok_json(json!({
+                    "repo": repo_id.dir_name(),
+                    "entries": logs,
+                }))
+            }
+            Err(e) => span.internal_error(json!({"error": e.to_string()})),
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let webid = WebID::new();
+    let server = GitServer::from_env(webid)?;
+
     hkask_mcp::run_server(
         "hkask-mcp-git",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
-            let base_path = ctx
-                .credentials
-                .get("HKASK_GIT_BASE_PATH")
-                .map(std::path::PathBuf::from);
-            if let Some(ref bp) = base_path {
-                tracing::info!("Using GIT base path: {}", bp.display());
-            } else {
-                tracing::warn!("HKASK_GIT_BASE_PATH not set, Git adapter unconfigured");
-            }
-            Ok(GitServer::with_base_path_or_default(base_path, ctx.webid))
-        },
+        |_ctx| Ok(server),
         vec![hkask_mcp::CredentialRequirement::optional(
-            "HKASK_GIT_BASE_PATH",
-            "Base path for Git operations",
+            "HKASK_CAS_HOME",
+            "Base path for Git CAS operations",
         )],
     )
     .await

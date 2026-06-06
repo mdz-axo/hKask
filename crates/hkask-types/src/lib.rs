@@ -76,6 +76,7 @@ pub use loops::{
 };
 pub use ports::git_cas::{
     CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, MockGitCas, RepoId,
+    RepoSnapshotPolicy, RetentionPolicy, RetentionTier, SnapshotMetadata, SnapshotTrigger,
     TreeEntry, TreeEntryKind, VerificationReport,
 };
 pub use ports::{

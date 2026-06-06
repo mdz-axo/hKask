@@ -1467,7 +1467,7 @@ impl SpecStore for SqliteSpecStore {
 
 8. **Persistent curation audit trail.** `CurationRecord` from `curation.rs` should be stored as bitemporal triples when `SpecCurator::evaluate` is called. Currently decisions are returned but not persisted.
 
-9. **Manifest step grammar extension.** `mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended.
+9. **Manifest step grammar extension.** ~~`mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended.~~ **Done (v0.22.0):** The manifest executor now supports `select`, `populate`, `execute`, `feedback`, `validate`, and `retrieve` actions. See `executor.rs` and `bundle.rs`.
 
 10. **Spec drift detection.** `cns.spec.drift` span with drift-magnitude metric is specified in §10.5 but not implemented. Requires comparing `Spec` goals against actual implementation state — a non-trivial feedback loop.
 

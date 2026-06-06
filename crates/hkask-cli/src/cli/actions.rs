@@ -279,7 +279,7 @@ pub enum RegistryAction {
     },
 }
 
-/// Git archival actions (Phase 9)
+/// Git archival and CAS actions
 #[derive(Subcommand)]
 pub enum GitAction {
     /// Archive registry to GitHub repository
@@ -350,6 +350,50 @@ pub enum GitAction {
         repo: String,
 
         /// Commit message
+        #[arg(short, long)]
+        message: String,
+    },
+
+    /// Verify content integrity of a CAS repository
+    CasVerify {
+        /// Repository to verify (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
+        #[arg(short, long, default_value = "registry")]
+        repo: String,
+    },
+
+    /// Show diff between two snapshots in a CAS repository
+    CasDiff {
+        /// Repository (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
+        #[arg(short, long, default_value = "registry")]
+        repo: String,
+
+        /// From commit (SHA or ref)
+        #[arg(short, long)]
+        from: String,
+
+        /// To commit (SHA or ref)
+        #[arg(short, long)]
+        to: String,
+    },
+
+    /// List snapshot history for a CAS repository
+    CasLog {
+        /// Repository (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
+        #[arg(short, long, default_value = "registry")]
+        repo: String,
+
+        /// Maximum number of entries to show
+        #[arg(short, long, default_value = "20")]
+        max_count: usize,
+    },
+
+    /// Create a local CAS snapshot
+    CasSnapshot {
+        /// Repository to snapshot
+        #[arg(short, long, default_value = "registry")]
+        repo: String,
+
+        /// Snapshot message
         #[arg(short, long)]
         message: String,
     },

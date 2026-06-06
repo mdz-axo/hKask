@@ -13,6 +13,14 @@
 //! (`step.timeout_seconds`). Convergence checks (`manifest.convergence`) gate
 //! iterative refinement loops.
 //!
+//! Template rendering supports two modes:
+//!
+//! - **minijinja** (`step.renderer == "minijinja"`): Load template from
+//!   `step.template_ref` (a file path like `curator/system_state_gather.j2`)
+//!   relative to `template_base_path`, then render with full Jinja2 syntax.
+//! - **inline** (no `renderer` or any other value): Render `template_ref` or
+//!   `renderer` as an inline template string with simple `{{key}}` substitution.
+//!
 //! Architecture: hkask-templates owns the executor because it needs
 //! `InferencePort` (for select/populate) and `McpPort` (for execute),
 //! both of which are already dependencies of this crate.
@@ -23,21 +31,26 @@ use hkask_types::{
     BundleManifest, BundleManifestStep, DelegationAction, DelegationResource, DelegationToken,
     LLMParameters, WebID,
 };
+use minijinja::UndefinedBehavior;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;
+
+/// Default base path for template files relative to the project root.
+const DEFAULT_TEMPLATE_BASE_PATH: &str = "registry/templates";
 
 /// Manifest executor — drives the select → populate → execute cascade.
 ///
 /// Created once per session (or per manifest invocation) and wired into the
-/// REPL turn loop. The executor holds references to the three infrastructure
+/// REPL turn loop. The executor holds references to the infrastructure
 /// ports it needs:
 ///
 /// - `InferencePort` — for rendering selector templates and populating prompts
 /// - `McpPort` — for invoking MCP tools in execute steps
-/// - Registry — for looking up template content by reference (not yet wired;
-///   template rendering is currently string-based)
+/// - `template_base_path` — filesystem path for resolving `template_ref` values
+///   when `renderer == "minijinja"`
 pub struct ManifestExecutor<M: McpPort> {
     /// Inference port for select/populate actions
     inference: Arc<dyn InferencePort>,
@@ -47,21 +60,47 @@ pub struct ManifestExecutor<M: McpPort> {
     default_params: LLMParameters,
     /// Secret for minting delegation tokens
     acp_secret: Vec<u8>,
+    /// Base filesystem path for resolving template_ref values.
+    /// When `step.renderer == "minijinja"`, `step.template_ref` is resolved
+    /// relative to this path. Defaults to `registry/templates/`.
+    template_base_path: PathBuf,
 }
 
 impl<M: McpPort> ManifestExecutor<M> {
     /// Create a new executor with the given infrastructure ports.
+    ///
+    /// Uses the default template base path (`registry/templates/`).
     pub fn new(
         inference: Arc<dyn InferencePort>,
         mcp: Arc<M>,
         default_params: LLMParameters,
         acp_secret: Vec<u8>,
     ) -> Self {
+        Self::with_template_base_path(
+            inference,
+            mcp,
+            default_params,
+            acp_secret,
+            PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
+        )
+    }
+
+    /// Create a new executor with a custom template base path.
+    ///
+    /// Use this when templates live at a non-default location.
+    pub fn with_template_base_path(
+        inference: Arc<dyn InferencePort>,
+        mcp: Arc<M>,
+        default_params: LLMParameters,
+        acp_secret: Vec<u8>,
+        template_base_path: PathBuf,
+    ) -> Self {
         Self {
             inference,
             mcp,
             default_params,
             acp_secret,
+            template_base_path,
         }
     }
 
@@ -99,6 +138,9 @@ impl<M: McpPort> ManifestExecutor<M> {
     /// - "select" → render template, call inference, parse JSON
     /// - "populate" → render template with context
     /// - "execute" → invoke MCP tool with bound parameters
+    /// - "feedback" → emit CNS feedback via MCP tool
+    /// - "validate" → invoke MCP tool with validation rules
+    /// - "retrieve" → invoke MCP tool to retrieve data
     pub async fn execute_step(
         &self,
         step: &BundleManifestStep,
@@ -107,7 +149,9 @@ impl<M: McpPort> ManifestExecutor<M> {
         match step.action.as_str() {
             "select" => self.execute_select(step, context).await,
             "populate" => self.execute_populate(step, context).await,
-            "execute" => self.execute_tool_invoke(step, context).await,
+            "execute" | "feedback" | "validate" | "retrieve" => {
+                self.execute_tool_invoke(step, context).await
+            }
             other => Err(TemplateError::Manifest(format!(
                 "Unknown manifest step action: '{}'",
                 other
@@ -125,18 +169,7 @@ impl<M: McpPort> ManifestExecutor<M> {
         step: &BundleManifestStep,
         mut context: HashMap<String, Value>,
     ) -> Result<HashMap<String, Value>> {
-        let template_content = step
-            .template_ref
-            .as_deref()
-            .or(step.renderer.as_deref())
-            .ok_or_else(|| {
-                TemplateError::Manifest(format!(
-                    "Select step {} has no template_ref or renderer",
-                    step.ordinal
-                ))
-            })?;
-
-        let prompt = render_template(template_content, &context);
+        let prompt = self.render_step_template(step, &context)?;
 
         let params = self.default_params.clone();
 
@@ -161,18 +194,7 @@ impl<M: McpPort> ManifestExecutor<M> {
         step: &BundleManifestStep,
         mut context: HashMap<String, Value>,
     ) -> Result<HashMap<String, Value>> {
-        let template_content = step
-            .template_ref
-            .as_deref()
-            .or(step.renderer.as_deref())
-            .ok_or_else(|| {
-                TemplateError::Manifest(format!(
-                    "Populate step {} has no template_ref or renderer",
-                    step.ordinal
-                ))
-            })?;
-
-        let populated = render_template(template_content, &context);
+        let populated = self.render_step_template(step, &context)?;
         context.insert(
             format!("step_{}_populated", step.ordinal),
             Value::String(populated),
@@ -232,11 +254,95 @@ impl<M: McpPort> ManifestExecutor<M> {
     }
 }
 
-/// Render a template string with the given context.
+/// Render a template step according to its renderer mode.
 ///
-/// Simple variable substitution using `{{key}}` syntax.
-/// For Jinja2 templates, use minijinja (wired in a follow-up).
-fn render_template(template: &str, context: &HashMap<String, Value>) -> String {
+/// Dispatches based on `step.renderer`:
+/// - `"minijinja"` — Load template from `step.template_ref` (a file path
+///   like `curator/system_state_gather.j2`) relative to `template_base_path`,
+///   then render with full Jinja2 syntax via minijinja.
+/// - Inline/absent — Render `step.template_ref` or `step.renderer` as a
+///   simple template string with `{{key}}` substitution.
+impl<M: McpPort> ManifestExecutor<M> {
+    fn render_step_template(
+        &self,
+        step: &BundleManifestStep,
+        context: &HashMap<String, Value>,
+    ) -> Result<String> {
+        let renderer = step.renderer.as_deref().unwrap_or("");
+
+        match renderer {
+            "minijinja" => {
+                // template_ref is a file path relative to template_base_path
+                let template_ref = step.template_ref.as_deref().ok_or_else(|| {
+                    TemplateError::Manifest(format!(
+                        "Step {} has renderer='minijinja' but no template_ref",
+                        step.ordinal
+                    ))
+                })?;
+
+                let template_path = self.template_base_path.join(template_ref);
+                let template_content = std::fs::read_to_string(&template_path).map_err(|e| {
+                    TemplateError::NotFound(format!(
+                        "Step {}: template file not found at {}: {}",
+                        step.ordinal,
+                        template_path.display(),
+                        e
+                    ))
+                })?;
+
+                info!(
+                    target: "cns.spec.executor",
+                    step = step.ordinal,
+                    template = %template_ref,
+                    "Rendering minijinja template"
+                );
+
+                render_minijinja(&template_content, context)
+            }
+            _ => {
+                // Inline mode: template_ref or renderer contains the template string
+                let template_content = step
+                    .template_ref
+                    .as_deref()
+                    .or(step.renderer.as_deref())
+                    .ok_or_else(|| {
+                        TemplateError::Manifest(format!(
+                            "Step {} has no template_ref or renderer",
+                            step.ordinal
+                        ))
+                    })?;
+
+                Ok(render_inline_template(template_content, context))
+            }
+        }
+    }
+}
+
+/// Render a template using minijinja (full Jinja2 syntax).
+///
+/// Supports `{% for %}`, `{{ var }}`, `| filter`, `{% if %}`, etc.
+fn render_minijinja(template: &str, context: &HashMap<String, Value>) -> Result<String> {
+    let mut env = minijinja::Environment::new();
+    env.set_undefined_behavior(UndefinedBehavior::Lenient);
+
+    // Add the template to the environment
+    env.add_template("step", template)
+        .map_err(|e| TemplateError::Render(format!("Invalid template: {}", e)))?;
+
+    // Convert HashMap<String, Value> to minijinja context via serde
+    let context_value = serde_json::to_value(context)
+        .map_err(|e| TemplateError::Render(format!("Failed to serialize context: {}", e)))?;
+    let minijinja_context = minijinja::Value::from_serialize(&context_value);
+
+    env.get_template("step")
+        .and_then(|tmpl| tmpl.render(minijinja_context))
+        .map_err(|e| TemplateError::Render(format!("Template render error: {}", e)))
+}
+
+/// Render an inline template using simple `{{key}}` substitution.
+///
+/// For backward compatibility with non-minijinja templates.
+fn render_inline_template(template: &str, context: &HashMap<String, Value>) -> String {
     let mut result = template.to_string();
     for (key, value) in context {
         let placeholder = format!("{{{{{}}}}}", key);
@@ -385,13 +491,87 @@ mod tests {
     }
 
     #[test]
-    fn render_template_substitution() {
+    fn render_inline_template_substitution() {
         let template = "Hello {{name}}, your score is {{score}}.";
         let mut context = HashMap::new();
         context.insert("name".to_string(), Value::String("Alice".to_string()));
         context.insert("score".to_string(), Value::Number(42.into()));
-        let result = render_template(template, &context);
+        let result = render_inline_template(template, &context);
         assert_eq!(result, "Hello Alice, your score is 42.");
+    }
+
+    #[test]
+    fn render_minijinja_simple_substitution() {
+        let template = "Hello {{ name }}, your score is {{ score }}.";
+        let mut context = HashMap::new();
+        context.insert("name".to_string(), Value::String("Alice".to_string()));
+        context.insert("score".to_string(), Value::Number(42.into()));
+        let result = render_minijinja(template, &context).unwrap();
+        assert_eq!(result, "Hello Alice, your score is 42.");
+    }
+
+    #[test]
+    fn render_minijinja_for_loop() {
+        let template = "{% for item in items %}{{ item }}, {% endfor %}";
+        let mut context = HashMap::new();
+        context.insert(
+            "items".to_string(),
+            serde_json::json!(["alpha", "beta", "gamma"]),
+        );
+        let result = render_minijinja(template, &context).unwrap();
+        assert!(result.contains("alpha"));
+        assert!(result.contains("beta"));
+        assert!(result.contains("gamma"));
+    }
+
+    #[test]
+    fn render_minijinja_conditional() {
+        let template = r#"{% if urgent %}URGENT: {% endif %}{{ message }}"#;
+        let mut context = HashMap::new();
+        context.insert("urgent".to_string(), Value::Bool(true));
+        context.insert("message".to_string(), Value::String("act now".to_string()));
+        let result = render_minijinja(template, &context).unwrap();
+        assert_eq!(result, "URGENT: act now");
+
+        // Without urgent flag
+        context.insert("urgent".to_string(), Value::Bool(false));
+        let result = render_minijinja(template, &context).unwrap();
+        assert_eq!(result, "act now");
+    }
+
+    #[test]
+    fn render_minijinja_nested_values() {
+        let template =
+            "Result: {{ step_1_result.operation }}, confidence: {{ step_1_result.confidence }}";
+        let mut context = HashMap::new();
+        context.insert(
+            "step_1_result".to_string(),
+            serde_json::json!({"operation": "analyze", "confidence": 0.95}),
+        );
+        let result = render_minijinja(template, &context).unwrap();
+        assert!(result.contains("analyze"));
+        assert!(result.contains("0.95"));
+    }
+
+    #[test]
+    fn render_minijinja_filter_join() {
+        let template = "Alerts: {{ alerts | join(', ') }}";
+        let mut context = HashMap::new();
+        context.insert(
+            "alerts".to_string(),
+            serde_json::json!(["cpu_high", "memory_low"]),
+        );
+        let result = render_minijinja(template, &context).unwrap();
+        assert_eq!(result, "Alerts: cpu_high, memory_low");
+    }
+
+    #[test]
+    fn render_minijinja_len_filter() {
+        let template = "You have {{ items | length }} items.";
+        let mut context = HashMap::new();
+        context.insert("items".to_string(), serde_json::json!([1, 2, 3]));
+        let result = render_minijinja(template, &context).unwrap();
+        assert_eq!(result, "You have 3 items.");
     }
 
     #[test]
@@ -468,6 +648,17 @@ mod tests {
             input_mapping: None,
             output_schema: None,
             phase: hkask_types::CascadePhase::Core,
+            feedback: None,
+            validation_rules: None,
+            tool: None,
+            target: None,
+            arguments: None,
+            bindings: None,
+            loop_over: None,
+            condition: None,
+            token_cap: None,
+            temperature: None,
+            extra: serde_json::Map::new(),
         }
     }
 

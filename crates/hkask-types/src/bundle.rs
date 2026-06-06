@@ -196,10 +196,11 @@ impl ComplementarityType {
 }
 
 /// Cascade phase — where a step sits in the Pre/Core/Post pipeline
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum CascadePhase {
     Pre,
+    #[default]
     Core,
     Post,
 }
@@ -271,7 +272,45 @@ pub struct BundleManifestStep {
     pub input_mapping: Option<serde_json::Value>,
     #[serde(default)]
     pub output_schema: Option<serde_json::Value>,
+    #[serde(default)]
     pub phase: CascadePhase,
+    /// Feedback type annotations for `feedback` action steps.
+    ///
+    /// Maps feedback field names to their expected types (e.g. `{"variety_delta": "integer"}`).
+    #[serde(default)]
+    pub feedback: Option<serde_json::Value>,
+    /// Validation rules for `validate` action steps.
+    ///
+    /// A list of rule names or rule objects that constrain the step's output.
+    #[serde(default)]
+    pub validation_rules: Option<serde_json::Value>,
+    /// Alternative tool name (alias for `mcp` in some manifests).
+    #[serde(default)]
+    pub tool: Option<String>,
+    /// Target identifier for the step's output or next step routing.
+    #[serde(default)]
+    pub target: Option<String>,
+    /// Positional arguments for tool invocation.
+    #[serde(default)]
+    pub arguments: Option<serde_json::Value>,
+    /// Step-level bindings (variable mappings).
+    #[serde(default)]
+    pub bindings: Option<serde_json::Value>,
+    /// Iteration target for loop steps.
+    #[serde(default)]
+    pub loop_over: Option<String>,
+    /// Conditional expression — skip this step if false.
+    #[serde(default)]
+    pub condition: Option<String>,
+    /// Token cap for inference steps.
+    #[serde(default)]
+    pub token_cap: Option<u32>,
+    /// Model temperature override.
+    #[serde(default)]
+    pub temperature: Option<f64>,
+    /// Catch-all for step-level fields not yet explicitly modeled.
+    #[serde(default, flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 // Config sub-structs — mirror existing manifest YAML fields
@@ -461,6 +500,18 @@ pub struct BundleManifest {
     pub ocap: OcapConfig,
     pub cns: CnsConfig,
     pub audit: AuditConfig,
+    /// Functional role of this manifest (e.g. "knowact", "process").
+    ///
+    /// Set from the `manifest.functional_role` YAML field. Present in most
+    /// manifests but optional for backward compatibility.
+    #[serde(default)]
+    pub functional_role: Option<String>,
+    /// Manifest-level inputs (parameter declarations).
+    #[serde(default)]
+    pub inputs: Option<serde_json::Value>,
+    /// Principles or behavioral constraints.
+    #[serde(default)]
+    pub principles: Option<serde_json::Value>,
 }
 
 impl BundleManifest {
@@ -849,6 +900,17 @@ mod tests {
             input_mapping: None,
             output_schema: None,
             phase,
+            feedback: None,
+            validation_rules: None,
+            tool: None,
+            target: None,
+            arguments: None,
+            bindings: None,
+            loop_over: None,
+            condition: None,
+            token_cap: None,
+            temperature: None,
+            extra: Default::default(),
         }
     }
 
@@ -875,6 +937,9 @@ mod tests {
             ocap: OcapConfig::default(),
             cns: CnsConfig::default(),
             audit: AuditConfig::default(),
+            functional_role: None,
+            inputs: None,
+            principles: None,
         }
     }
 

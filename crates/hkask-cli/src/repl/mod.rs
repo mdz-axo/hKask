@@ -30,12 +30,16 @@ use hkask_agents::communication::MessageDispatch;
 use hkask_agents::hhh_gate;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasBudget, GovernedTool};
+use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
-use hkask_templates::{OkapiConfig, OkapiInference, SqliteRegistry};
+use hkask_templates::{
+    BundleManifest, ManifestExecutor, OkapiConfig, OkapiInference, SqliteRegistry,
+};
 use hkask_types::CuratorHandle;
+use hkask_types::LLMParameters;
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
@@ -116,6 +120,14 @@ pub(crate) struct ReplState {
     /// Lists available MCP tools grouped by server, derived from runtime discovery.
     /// Set once at REPL init; GovernedTool enforces authorization at invocation time.
     pub(crate) tool_prompt_section: String,
+    /// Manifest executor — runs the process_manifest cascade for agents that
+    /// have one defined. Created at REPL init from the agent's process_manifest
+    /// reference. None if the agent has no process manifest or if loading failed.
+    pub(crate) manifest_executor: Option<ManifestExecutor<McpDispatcher>>,
+    /// The resolved process manifest for the current agent.
+    /// Present when the agent definition includes a process_manifest reference
+    /// and the manifest was successfully loaded.
+    pub(crate) process_manifest: Option<BundleManifest>,
 }
 
 /// Build memory infrastructure from a Database: storage ports + ConsolidationService.
@@ -433,6 +445,8 @@ pub fn run(
         consolidation_service,
         persona_constraints: None,
         tool_prompt_section: String::new(), // populated below
+        manifest_executor: None,            // populated below
+        process_manifest: None,             // populated below
     };
 
     // Discover available MCP tools and format the system prompt section.
@@ -454,6 +468,63 @@ pub fn run(
         .block_on(crate::commands::bot_status(&state.current_agent))
         .ok()
         .and_then(|agent| agent.definition.persona);
+
+    // Load process manifest for the initial agent, if defined.
+    // The process_manifest field on AgentDefinition holds a reference (path or ID)
+    // to a BundleManifest that defines the agent's startup cascade.
+    // Resolve it from the registry or filesystem, then create a ManifestExecutor
+    // wired through the GovernedTool membrane for MCP tool invocations.
+    let agent_definition = rt_handle
+        .block_on(crate::commands::bot_status(&state.current_agent))
+        .ok();
+
+    if let Some(ref def) = agent_definition
+        && let Some(ref manifest_ref) = def.definition.process_manifest
+    {
+        // Resolve the manifest reference to a BundleManifest.
+        // Try registry first, then filesystem.
+        let manifest = hkask_templates::resolve_manifest(manifest_ref, _registry);
+
+        if let Some(bundle) = manifest {
+            // Create an McpDispatcher that routes through the GovernedTool
+            // membrane for OCAP authority, gas budgets, and CNS observability.
+            let acp_secret: &[u8] = state
+                .resolved_secrets
+                .as_ref()
+                .map(|s| s.acp_secret.as_bytes())
+                .unwrap_or(&[]);
+
+            let mcp_dispatcher = McpDispatcher::with_governed_tool(
+                _runtime.clone(),
+                acp_secret,
+                state.governed_tool.clone(),
+            );
+
+            let executor = ManifestExecutor::new(
+                state.inference_port.clone(),
+                Arc::new(mcp_dispatcher),
+                LLMParameters::default(),
+                acp_secret.to_vec(),
+            );
+
+            tracing::info!(
+                target: "hkask.repl",
+                manifest_id = %bundle.id,
+                steps = bundle.steps.len(),
+                "Loaded process manifest for agent"
+            );
+
+            state.process_manifest = Some(bundle);
+            state.manifest_executor = Some(executor);
+        } else {
+            tracing::warn!(
+                target: "hkask.repl",
+                manifest_ref = %manifest_ref,
+                agent = %state.current_agent,
+                "Failed to resolve process manifest — agent will run without manifest cascade"
+            );
+        }
+    }
 
     let helper = KaskHelper::new();
 
@@ -632,15 +703,70 @@ pub fn run(
                             .await
                     });
 
+                    // Execute manifest cascade if the agent has a process manifest.
+                    // The cascade runs select/populate/execute steps before inference,
+                    // producing a context map that enriches the input with structured data
+                    // from tool invocations and template rendering.
+                    let mut manifest_context: Option<String> = None;
+                    if let (Some(executor), Some(manifest)) =
+                        (&state.manifest_executor, &state.process_manifest)
+                    {
+                        let mut initial_ctx = std::collections::HashMap::new();
+                        initial_ctx.insert(
+                            "user_input".to_string(),
+                            serde_json::Value::String(input.to_string()),
+                        );
+                        initial_ctx.insert(
+                            "agent".to_string(),
+                            serde_json::Value::String(state.current_agent.clone()),
+                        );
+
+                        match rt.block_on(executor.execute_manifest(manifest, initial_ctx)) {
+                            Ok(ctx) => {
+                                // Format the manifest context for injection into the prompt.
+                                // Use step results and populated outputs to enrich the input.
+                                let mut context_parts: Vec<String> = Vec::new();
+                                for (key, value) in &ctx {
+                                    if key.starts_with("step_") {
+                                        context_parts.push(format!("{}: {}", key, value));
+                                    }
+                                }
+                                if !context_parts.is_empty() {
+                                    manifest_context = Some(context_parts.join("\n"));
+                                }
+                                tracing::info!(
+                                    target: "cns.spec.executor",
+                                    steps_completed = ctx.len(),
+                                    "Manifest cascade completed"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    target: "cns.spec.executor",
+                                    error = %e,
+                                    "Manifest cascade failed — continuing without manifest enrichment"
+                                );
+                            }
+                        }
+                    }
+
                     // When HHH mode is active, wrap the input in a reframe template
                     // and append HHH directives to the system prompt.
+                    // If the manifest cascade produced context, prepend it to enrich the input.
+                    let base_input: String = match &manifest_context {
+                        Some(ctx) => format!(
+                            "[Manifest Context]\n{}\n[/Manifest Context]\n\n{}",
+                            ctx, input
+                        ),
+                        None => input.to_string(),
+                    };
                     let (effective_input, hhh_suffix): (String, Option<String>) =
                         if state.hhh_mode == HhhMode::Active {
-                            let reframed = hhh_gate::hhh_reframe(input);
+                            let reframed = hhh_gate::hhh_reframe(&base_input);
                             let suffix = hhh_gate::hhh_augment_system_prompt("");
                             (reframed, Some(suffix))
                         } else {
-                            (input.to_string(), None)
+                            (base_input, None)
                         };
 
                     let chat_response = rt.block_on(crate::commands::chat_with_agent(

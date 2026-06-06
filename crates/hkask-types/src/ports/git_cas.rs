@@ -214,6 +214,159 @@ pub struct VerificationReport {
     pub corrupt_hashes: Vec<ContentHash>,
 }
 
+/// A single entry in the snapshot log.
+///
+/// Returned by [`GitCASPort::log`], each entry represents a past snapshot
+/// commit in the repository's history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEntry {
+    /// The commit hash of this snapshot.
+    pub commit: CommitHash,
+    /// The commit message.
+    pub message: String,
+    /// Unix timestamp (seconds) when the snapshot was taken.
+    pub timestamp_secs: u64,
+}
+
+// ── Retention Policy ───────────────────────────────────────────────────────────
+
+/// A single tier in a graduated retention cascade.
+///
+/// Snapshots within this tier's age range are kept at the specified interval.
+/// Older snapshots that don't satisfy any tier's interval are pruned.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetentionTier {
+    /// Maximum age of snapshots in this tier.
+    /// Snapshots older than `max_age` fall into the next tier.
+    pub max_age_secs: u64,
+
+    /// Minimum seconds between consecutive snapshots in this tier.
+    /// Snapshots taken closer together than this interval are candidates
+    /// for pruning (the oldest is kept).
+    pub interval_secs: u64,
+}
+
+/// Graduated retention policy — cascade of tiers.
+///
+/// Default cascade (matches hKask's archival requirements):
+/// - 30min intervals for snapshots up to 3 hours old
+/// - daily intervals for snapshots up to 3 days old
+/// - weekly intervals for snapshots up to 3 weeks old
+/// - monthly intervals for everything older
+///
+/// This produces approximately 6 + 3 + 3 + N ≈ 12+N snapshots per repo.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetentionPolicy {
+    /// Ordered list of tiers, from youngest to oldest.
+    /// The last tier's `max_age_secs` should be `u64::MAX` (forever).
+    pub tiers: Vec<RetentionTier>,
+}
+
+impl Default for RetentionPolicy {
+    fn default() -> Self {
+        Self {
+            tiers: vec![
+                // 0–3 hours: every 30 minutes → ~6 snapshots
+                RetentionTier {
+                    max_age_secs: 3 * 3600,
+                    interval_secs: 30 * 60,
+                },
+                // 3h–3 days: daily → ~3 snapshots
+                RetentionTier {
+                    max_age_secs: 3 * 86400,
+                    interval_secs: 86400,
+                },
+                // 3d–3 weeks: weekly → ~3 snapshots
+                RetentionTier {
+                    max_age_secs: 3 * 7 * 86400,
+                    interval_secs: 7 * 86400,
+                },
+                // 3w+: monthly (end-of-month) → indefinite retention
+                RetentionTier {
+                    max_age_secs: u64::MAX,
+                    interval_secs: 30 * 86400,
+                },
+            ],
+        }
+    }
+}
+
+/// Per-repo snapshot policy — customizes frequency and retention per repo.
+///
+/// Each repo can override the global policy. Repos that change frequently
+/// (CnsAudit, Registry) snapshot more often; stable repos (Vault) less often.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepoSnapshotPolicy {
+    /// Which repo this policy applies to.
+    pub repo: RepoId,
+    /// Whether snapshotting is enabled for this repo.
+    pub enabled: bool,
+    /// Retention policy for this repo. Uses the global default if None.
+    pub policy: Option<RetentionPolicy>,
+}
+
+impl RepoSnapshotPolicy {
+    /// Create a policy for a repo with default retention.
+    pub fn default_for(repo: RepoId) -> Self {
+        Self {
+            repo,
+            enabled: true,
+            policy: None,
+        }
+    }
+
+    /// Create a policy for a repo with custom retention.
+    pub fn with_policy(repo: RepoId, policy: RetentionPolicy) -> Self {
+        Self {
+            repo,
+            enabled: true,
+            policy: Some(policy),
+        }
+    }
+
+    /// Create a disabled policy for a repo that shouldn't be snapshotted.
+    pub fn disabled(repo: RepoId) -> Self {
+        Self {
+            repo,
+            enabled: false,
+            policy: None,
+        }
+    }
+
+    /// Get the effective retention policy, falling back to default.
+    pub fn effective_policy(&self) -> RetentionPolicy {
+        self.policy.clone().unwrap_or_default()
+    }
+}
+
+/// Snapshot metadata — recorded for each snapshot taken.
+///
+/// Stored alongside the git commit to enable pruning and rollback.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotMetadata {
+    /// The commit hash of this snapshot.
+    pub commit: CommitHash,
+    /// Which repo was snapshotted.
+    pub repo: RepoId,
+    /// Commit message.
+    pub message: String,
+    /// Timestamp (Unix epoch seconds) when the snapshot was taken.
+    pub timestamp_secs: u64,
+    /// What triggered this snapshot (manual, scheduled, cns-triggered).
+    pub trigger: SnapshotTrigger,
+}
+
+/// What triggered a snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SnapshotTrigger {
+    /// Manually triggered via `kask git snapshot`.
+    Manual,
+    /// Scheduled by the SnapshotLoop based on RetentionPolicy interval.
+    Scheduled,
+    /// Triggered by CNS variety deficit or algedonic alert.
+    CnsTriggered,
+}
+
 // ── Error Type ───────────────────────────────────────────────────────────────
 
 /// Errors from Git CAS port operations.
@@ -284,6 +437,11 @@ pub trait GitCASPort: Send + Sync {
 
     /// Verify content integrity: re-hash all blobs, compare to stored hashes.
     async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError>;
+
+    /// List snapshot history for a repo.
+    ///
+    /// Returns commit entries from newest to oldest, up to `max_count`.
+    async fn log(&self, repo: &RepoId, max_count: usize) -> Result<Vec<LogEntry>, GitCasError>;
 }
 
 // ── MockGitCas (test helper) ─────────────────────────────────────────────────
@@ -411,6 +569,22 @@ impl GitCASPort for MockGitCas {
             verified_blobs: total - corrupt.len(),
             corrupt_hashes: corrupt,
         })
+    }
+
+    async fn log(&self, repo: &RepoId, max_count: usize) -> Result<Vec<LogEntry>, GitCasError> {
+        let snapshots = self.snapshots.read().unwrap();
+        let entries: Vec<LogEntry> = snapshots
+            .iter()
+            .rev() // newest first
+            .filter(|(r, _, _)| r == repo)
+            .map(|(_, message, commit)| LogEntry {
+                commit: commit.clone(),
+                message: message.clone(),
+                timestamp_secs: 0, // mock has no timestamp
+            })
+            .take(max_count)
+            .collect();
+        Ok(entries)
     }
 }
 
@@ -586,5 +760,89 @@ mod tests {
             6,
             "each error variant should have a unique prefix"
         );
+    }
+
+    // ── Retention Policy Tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn retention_policy_default_has_four_tiers() {
+        let policy = RetentionPolicy::default();
+        assert_eq!(policy.tiers.len(), 4, "default cascade should have 4 tiers");
+    }
+
+    #[test]
+    fn retention_policy_first_tier_is_30min_interval() {
+        let policy = RetentionPolicy::default();
+        let first = &policy.tiers[0];
+        assert_eq!(
+            first.interval_secs,
+            30 * 60,
+            "first tier: 30-minute interval"
+        );
+        assert_eq!(first.max_age_secs, 3 * 3600, "first tier: 3-hour max age");
+    }
+
+    #[test]
+    fn retention_policy_last_tier_is_monthly_forever() {
+        let policy = RetentionPolicy::default();
+        let last = policy.tiers.last().expect("at least one tier");
+        assert_eq!(
+            last.interval_secs,
+            30 * 86400,
+            "last tier: monthly interval"
+        );
+        assert_eq!(last.max_age_secs, u64::MAX, "last tier: infinite max age");
+    }
+
+    #[test]
+    fn retention_policy_tiers_are_ordered_by_age() {
+        // Each tier's max_age should be strictly greater than the previous
+        let policy = RetentionPolicy::default();
+        for window in policy.tiers.windows(2) {
+            assert!(
+                window[0].max_age_secs < window[1].max_age_secs,
+                "tiers must be ordered by ascending max_age"
+            );
+        }
+    }
+
+    #[test]
+    fn retention_policy_serializes_and_deserializes() {
+        let policy = RetentionPolicy::default();
+        let json = serde_json::to_string(&policy).expect("serialize");
+        let back: RetentionPolicy = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(policy.tiers.len(), back.tiers.len());
+        for (orig, deser) in policy.tiers.iter().zip(back.tiers.iter()) {
+            assert_eq!(orig.max_age_secs, deser.max_age_secs);
+            assert_eq!(orig.interval_secs, deser.interval_secs);
+        }
+    }
+
+    #[test]
+    fn repo_snapshot_policy_default_for_uses_global_default() {
+        let policy = RepoSnapshotPolicy::default_for(RepoId::Registry);
+        assert!(policy.enabled);
+        assert!(policy.policy.is_none());
+        // effective_policy falls back to global default
+        let effective = policy.effective_policy();
+        assert_eq!(effective.tiers.len(), 4);
+    }
+
+    #[test]
+    fn repo_snapshot_policy_disabled_disables_snapshots() {
+        let policy = RepoSnapshotPolicy::disabled(RepoId::Vault);
+        assert!(!policy.enabled);
+    }
+
+    #[test]
+    fn snapshot_trigger_serializes() {
+        let triggers = vec![
+            SnapshotTrigger::Manual,
+            SnapshotTrigger::Scheduled,
+            SnapshotTrigger::CnsTriggered,
+        ];
+        let json = serde_json::to_string(&triggers).expect("serialize");
+        let back: Vec<SnapshotTrigger> = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(triggers.len(), back.len());
     }
 }

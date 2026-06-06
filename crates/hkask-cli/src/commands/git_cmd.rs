@@ -1,24 +1,34 @@
 //! Git command handlers for `kask git`
 //!
-//! Implements the CLI display logic for registry git archival operations.
+//! Implements the CLI display logic for registry git archival operations
+//! and local CAS operations (verify, diff, log, snapshot).
 
 use crate::block_on;
 use crate::cli::GitAction;
 use crate::commands;
+use hkask_mcp::GixCasAdapter;
+use hkask_types::ports::git_cas::{GitCASPort, RepoId};
+
+/// Parse a RepoId from a string, returning Registry as default.
+fn parse_repo_id(repo: &str) -> RepoId {
+    match repo {
+        "registry" | "" => RepoId::Registry,
+        "memory" => RepoId::Memory,
+        "cns-audit" => RepoId::CnsAudit,
+        "sovereignty" => RepoId::Sovereignty,
+        "goals-specs" => RepoId::GoalsSpecs,
+        "sessions" => RepoId::Sessions,
+        "vault" => RepoId::Vault,
+        _ => {
+            eprintln!("Unknown repo '{}', defaulting to 'registry'", repo);
+            RepoId::Registry
+        }
+    }
+}
 
 pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
-    // Note: The McpRuntime is unused by git_archival (which uses GitHub REST API directly).
-    // It is passed for API compatibility with the archival function signatures.
-    let runtime = hkask_mcp::runtime::McpRuntime::new();
-
-    // Resolve ACP secret and create CapabilityChecker for token minting (G9)
-    let acp_secret = super::helpers::or_exit(
-        super::config::resolve_acp_secret(),
-        "Failed to resolve ACP secret for capability tokens",
-    );
-    let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
-
     match action {
+        // ── GitHub API operations (existing) ──────────────────────────────
         GitAction::Archive {
             owner,
             repo,
@@ -27,6 +37,13 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             content,
             file,
         } => {
+            let runtime = hkask_mcp::runtime::McpRuntime::new();
+            let acp_secret = super::helpers::or_exit(
+                super::config::resolve_acp_secret(),
+                "Failed to resolve ACP secret for capability tokens",
+            );
+            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+
             let content_str = if let Some(c) = content {
                 c
             } else if let Some(f) = file {
@@ -52,12 +69,20 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                 )
             );
         }
+
         GitAction::Restore {
             owner,
             repo,
             r#ref,
             target,
         } => {
+            let runtime = hkask_mcp::runtime::McpRuntime::new();
+            let acp_secret = super::helpers::or_exit(
+                super::config::resolve_acp_secret(),
+                "Failed to resolve ACP secret for capability tokens",
+            );
+            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+
             println!(
                 "{}",
                 block_on!(
@@ -69,7 +94,15 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                 )
             );
         }
+
         GitAction::List { owner, repo } => {
+            let runtime = hkask_mcp::runtime::McpRuntime::new();
+            let acp_secret = super::helpers::or_exit(
+                super::config::resolve_acp_secret(),
+                "Failed to resolve ACP secret for capability tokens",
+            );
+            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+
             let commits = block_on!(
                 rt,
                 commands::list_registry_archives(&runtime, &checker, &owner, &repo,),
@@ -80,11 +113,19 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                 println!("  {}. {}", i + 1, sha);
             }
         }
+
         GitAction::Snapshot {
             owner,
             repo,
             message,
         } => {
+            let runtime = hkask_mcp::runtime::McpRuntime::new();
+            let acp_secret = super::helpers::or_exit(
+                super::config::resolve_acp_secret(),
+                "Failed to resolve ACP secret for capability tokens",
+            );
+            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+
             println!(
                 "{}",
                 block_on!(
@@ -93,6 +134,75 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                     "Snapshot failed"
                 )
             );
+        }
+
+        // ── Local CAS operations (Phase 5) ──────────────────────────────
+        GitAction::CasVerify { repo } => {
+            let adapter = super::helpers::or_exit(
+                GixCasAdapter::from_env(),
+                "Failed to initialize CAS adapter",
+            );
+            let repo_id = parse_repo_id(&repo);
+            let report = block_on!(rt, adapter.verify(&repo_id), "Verify failed");
+
+            println!("Verification report for '{}':", report.repo.dir_name());
+            println!("  Total blobs:   {}", report.total_blobs);
+            println!("  Verified:      {}", report.verified_blobs);
+            if report.corrupt_hashes.is_empty() {
+                println!("  Integrity:     ✓ OK");
+            } else {
+                println!("  Integrity:    ✗ CORRUPT");
+                for hash in &report.corrupt_hashes {
+                    println!("    Corrupt: {}", hash);
+                }
+            }
+        }
+
+        GitAction::CasDiff { repo, from, to } => {
+            let adapter = super::helpers::or_exit(
+                GixCasAdapter::from_env(),
+                "Failed to initialize CAS adapter",
+            );
+            let repo_id = parse_repo_id(&repo);
+            let diffs = block_on!(rt, adapter.diff(&repo_id, &from, &to), "Diff failed");
+
+            println!("Diff for '{}' ({} → {}):", repo_id.dir_name(), from, to);
+            if diffs.is_empty() {
+                println!("  No changes.");
+            } else {
+                for d in &diffs {
+                    println!("  {:?} {}", d.kind, d.path);
+                }
+            }
+        }
+
+        GitAction::CasLog { repo, max_count } => {
+            let adapter = super::helpers::or_exit(
+                GixCasAdapter::from_env(),
+                "Failed to initialize CAS adapter",
+            );
+            let repo_id = parse_repo_id(&repo);
+            let entries = block_on!(rt, adapter.log(&repo_id, max_count), "Log failed");
+
+            if entries.is_empty() {
+                println!("No snapshots found for '{}'.", repo_id.dir_name());
+            } else {
+                println!("Snapshots for '{}':", repo_id.dir_name());
+                for (i, entry) in entries.iter().enumerate() {
+                    println!("  {}. {} {}", i + 1, entry.commit, entry.message,);
+                }
+            }
+        }
+
+        GitAction::CasSnapshot { repo, message } => {
+            let adapter = super::helpers::or_exit(
+                GixCasAdapter::from_env(),
+                "Failed to initialize CAS adapter",
+            );
+            let repo_id = parse_repo_id(&repo);
+            let commit = block_on!(rt, adapter.snapshot(&repo_id, &message), "Snapshot failed");
+
+            println!("Snapshot created for '{}': {}", repo_id.dir_name(), commit);
         }
     }
 }
