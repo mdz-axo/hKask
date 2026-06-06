@@ -1,5 +1,5 @@
 //! Git CAS Adapter
-//!
+//
 //! Concrete implementation for template crate loading and Git operations.
 //! Also provides `load_template_crate_or_synthesize` which bridges the
 //! filesystem crate system and the hkask-templates::Registry. When a
@@ -8,6 +8,10 @@
 //! files and agent persona data — eliminating "crate not found" errors
 //! for templates registered in the registry but lacking a dedicated
 //! crate directory.
+
+pub mod gix_adapter;
+
+pub use gix_adapter::GixCasAdapter;
 
 use hkask_types::{GitError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};

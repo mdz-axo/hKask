@@ -74,6 +74,10 @@ pub use loops::{
     ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage, LoopPayload,
     MessagePriority, Signal, SignalMetric, WorkerKind,
 };
+pub use ports::git_cas::{
+    CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, MockGitCas, RepoId,
+    TreeEntry, TreeEntryKind, VerificationReport,
+};
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
     ConsolidationRequest, DepletionSignal, EmbeddingGenerationError, InferenceError, InferencePort,

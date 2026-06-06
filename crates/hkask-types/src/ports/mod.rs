@@ -4,6 +4,8 @@
 //! rather than concrete implementations. Per the Authority DAG,
 //! domain crates depend on these port traits (not on each other).
 
+pub mod git_cas;
+
 use crate::cns::CircuitState;
 use crate::id::WebID;
 use crate::lexicon::TemplateType;

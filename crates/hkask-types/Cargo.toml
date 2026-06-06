@@ -22,6 +22,9 @@ futures-util.workspace = true
 async-trait.workspace = true
 rusqlite = { workspace = true, optional = true }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
 [features]
 default = []
 sql = ["rusqlite"]

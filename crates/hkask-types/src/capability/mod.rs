@@ -646,3 +646,805 @@ mod capability_spec_tests {
         assert!(matches!(err, CapabilityParseError::UnknownResource(_)));
     }
 }
+
+
+#[cfg(test)]
+mod delegation_token_tests {
+    use super::{
+        DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+        SYSTEM_MAX_ATTENUATION,
+    };
+    use crate::WebID;
+
+    const SECRET: &[u8] = b"test-secret-for-delegation-token-tests";
+
+    fn alice() -> WebID {
+        WebID::from_persona(b"alice")
+    }
+
+    fn bob() -> WebID {
+        WebID::from_persona(b"bob")
+    }
+
+    fn carol() -> WebID {
+        WebID::from_persona(b"carol")
+    }
+
+    // ── DelegationAction ──────────────────────────────────────────────────
+
+    #[test]
+    fn delegation_action_as_str_roundtrips() {
+        for action in [
+            DelegationAction::Read,
+            DelegationAction::Write,
+            DelegationAction::Execute,
+        ] {
+            assert_eq!(
+                DelegationAction::parse_str(action.as_str()),
+                Some(action),
+                "action {:?} should roundtrip through as_str/parse_str",
+                action
+            );
+        }
+    }
+
+    #[test]
+    fn delegation_action_permits_write_only_for_write_and_execute() {
+        assert!(
+            !DelegationAction::Read.permits_write(),
+            "Read must not permit write"
+        );
+        assert!(
+            DelegationAction::Write.permits_write(),
+            "Write must permit write"
+        );
+        assert!(
+            DelegationAction::Execute.permits_write(),
+            "Execute must permit write"
+        );
+    }
+
+    #[test]
+    fn delegation_action_permits_read_for_all_variants() {
+        assert!(DelegationAction::Read.permits_read());
+        assert!(DelegationAction::Write.permits_read());
+        assert!(DelegationAction::Execute.permits_read());
+    }
+
+    // ── DelegationResource ──────────────────────────────────────────────
+
+    #[test]
+    fn delegation_resource_as_str_roundtrips() {
+        for resource in [
+            DelegationResource::Tool,
+            DelegationResource::Template,
+            DelegationResource::Registry,
+        ] {
+            assert_eq!(
+                DelegationResource::parse_str(resource.as_str()),
+                Some(resource),
+                "resource {:?} should roundtrip through as_str/parse_str",
+                resource
+            );
+        }
+    }
+
+    #[test]
+    fn delegation_resource_parse_str_memory_alias() {
+        assert_eq!(
+            DelegationResource::parse_str("memory"),
+            Some(DelegationResource::Registry),
+            "'memory' must alias to Registry"
+        );
+    }
+
+    #[test]
+    fn delegation_resource_parse_str_unknown_returns_none() {
+        assert_eq!(
+            DelegationResource::parse_str("unknown"),
+            None,
+            "unknown resource string must return None"
+        );
+    }
+
+    // ── DelegationToken construction & verification ──────────────────────
+
+    #[test]
+    fn new_creates_token_with_correct_fields() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        assert_eq!(token.resource, DelegationResource::Tool);
+        assert_eq!(token.resource_id, "inference");
+        assert_eq!(token.action, DelegationAction::Execute);
+        assert_eq!(token.delegated_from, alice());
+        assert_eq!(token.delegated_to, bob());
+        assert_eq!(token.attenuation_level, 0);
+        assert_eq!(token.max_attenuation, SYSTEM_MAX_ATTENUATION);
+    }
+
+    #[test]
+    fn verify_returns_true_with_same_secret() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(
+            token.verify(SECRET),
+            "token must verify with the same secret"
+        );
+    }
+
+    #[test]
+    fn verify_returns_false_with_different_secret() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(
+            !token.verify(b"wrong-secret"),
+            "token must not verify with a different secret"
+        );
+    }
+
+    // ── is_expired ───────────────────────────────────────────────────────
+
+    #[test]
+    fn is_expired_true_when_past_expiry() {
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .expires_at(1000)
+        .sign(SECRET);
+
+        assert!(
+            token.is_expired(1001),
+            "token must be expired when current_time > expires_at"
+        );
+    }
+
+    #[test]
+    fn is_expired_false_when_before_expiry() {
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .expires_at(1000)
+        .sign(SECRET);
+
+        assert!(
+            !token.is_expired(999),
+            "token must not be expired when current_time < expires_at"
+        );
+        assert!(
+            !token.is_expired(1000),
+            "token must not be expired when current_time == expires_at"
+        );
+    }
+
+    #[test]
+    fn is_expired_false_when_no_expiry() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        assert!(
+            !token.is_expired(999999),
+            "token with no expiry must never be expired"
+        );
+    }
+
+    // ── holder / issuer ──────────────────────────────────────────────────
+
+    #[test]
+    fn holder_returns_delegated_to() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert_eq!(token.holder(), bob());
+    }
+
+    #[test]
+    fn issuer_returns_delegated_from() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert_eq!(token.issuer(), alice());
+    }
+
+    // ── is_valid_for / grants_resource ────────────────────────────────────
+
+    #[test]
+    fn is_valid_for_matches_resource_id_action() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        assert!(token.is_valid_for(
+            DelegationResource::Tool,
+            "inference",
+            DelegationAction::Execute
+        ));
+    }
+
+    #[test]
+    fn is_valid_for_rejects_wrong_resource() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(!token.is_valid_for(
+            DelegationResource::Registry,
+            "inference",
+            DelegationAction::Execute
+        ));
+    }
+
+    #[test]
+    fn is_valid_for_rejects_wrong_resource_id() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(!token.is_valid_for(DelegationResource::Tool, "other", DelegationAction::Execute));
+    }
+
+    #[test]
+    fn is_valid_for_rejects_wrong_action() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(!token.is_valid_for(
+            DelegationResource::Tool,
+            "inference",
+            DelegationAction::Read
+        ));
+    }
+
+    #[test]
+    fn grants_resource_matches_type_only() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        assert!(token.grants_resource(DelegationResource::Tool));
+        assert!(!token.grants_resource(DelegationResource::Registry));
+        assert!(!token.grants_resource(DelegationResource::Template));
+    }
+
+    // ── allows_write / allows_read ───────────────────────────────────────
+
+    #[test]
+    fn allows_write_true_for_write_and_execute() {
+        for (action, label) in [
+            (DelegationAction::Write, "Write"),
+            (DelegationAction::Execute, "Execute"),
+        ] {
+            let token = DelegationToken::new(
+                DelegationResource::Tool,
+                "inference".to_string(),
+                action,
+                alice(),
+                bob(),
+                SECRET,
+            );
+            assert!(token.allows_write(), "{} must allow write", label);
+        }
+    }
+
+    #[test]
+    fn allows_write_false_for_read() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Read,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(!token.allows_write(), "Read must not allow write");
+    }
+
+    #[test]
+    fn allows_read_true_for_all_actions() {
+        for (action, label) in [
+            (DelegationAction::Read, "Read"),
+            (DelegationAction::Write, "Write"),
+            (DelegationAction::Execute, "Execute"),
+        ] {
+            let token = DelegationToken::new(
+                DelegationResource::Tool,
+                "inference".to_string(),
+                action,
+                alice(),
+                bob(),
+                SECRET,
+            );
+            assert!(token.allows_read(), "{} must allow read", label);
+        }
+    }
+
+    // ── fingerprint ──────────────────────────────────────────────────────
+
+    #[test]
+    fn fingerprint_includes_key_fields() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        let fp = token.fingerprint();
+        assert!(fp.contains(&token.id), "fingerprint must contain id");
+        assert!(
+            fp.contains("tool"),
+            "fingerprint must contain resource as_str"
+        );
+        assert!(
+            fp.contains("inference"),
+            "fingerprint must contain resource_id"
+        );
+        assert!(
+            fp.contains("execute"),
+            "fingerprint must contain action as_str"
+        );
+        assert!(
+            fp.contains(&format!("{}", token.delegated_to)),
+            "fingerprint must contain delegated_to"
+        );
+        assert!(
+            fp.contains(&token.attenuation_level.to_string()),
+            "fingerprint must contain attenuation_level"
+        );
+    }
+
+    // ── can_attenuate / attenuate ─────────────────────────────────────────
+
+    #[test]
+    fn can_attenuate_true_when_below_max() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        assert!(
+            token.can_attenuate(),
+            "new token (level 0 < max) must be attenuatable"
+        );
+    }
+
+    #[test]
+    fn can_attenuate_false_at_max() {
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .attenuation(SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_ATTENUATION)
+        .sign(SECRET);
+
+        assert!(
+            !token.can_attenuate(),
+            "token at max attenuation must not be attenuatable"
+        );
+    }
+
+    #[test]
+    fn attenuate_returns_child_with_incremented_level() {
+        let parent = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        let child = parent
+            .attenuate(carol(), SECRET, 100)
+            .expect("parent at level 0 must attenuate");
+
+        assert_eq!(
+            child.attenuation_level,
+            parent.attenuation_level + 1,
+            "child attenuation_level must be parent_level + 1"
+        );
+    }
+
+    #[test]
+    fn attenuate_child_delegated_from_is_parent_delegated_to() {
+        let parent = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        let child = parent
+            .attenuate(carol(), SECRET, 100)
+            .expect("attenuate must succeed");
+
+        assert_eq!(
+            child.delegated_from, parent.delegated_to,
+            "child's delegated_from must be parent's delegated_to"
+        );
+        assert_eq!(child.delegated_to, carol());
+    }
+
+    #[test]
+    fn attenuate_child_verifies_with_same_secret() {
+        let parent = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        let child = parent
+            .attenuate(carol(), SECRET, 100)
+            .expect("attenuate must succeed");
+
+        assert!(
+            child.verify(SECRET),
+            "attenuated child must verify with the same secret"
+        );
+    }
+
+    #[test]
+    fn attenuate_returns_none_at_max() {
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .attenuation(SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_ATTENUATION)
+        .sign(SECRET);
+
+        assert!(
+            token.attenuate(carol(), SECRET, 100).is_none(),
+            "attenuate at max must return None"
+        );
+    }
+
+    // ── to_base64 / from_base64 roundtrip ────────────────────────────────
+
+    #[test]
+    fn base64_roundtrip() {
+        let token = DelegationToken::new(
+            DelegationResource::Template,
+            "my-template".to_string(),
+            DelegationAction::Read,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        let encoded = token.to_base64().expect("encoding must succeed");
+        let decoded = DelegationToken::from_base64(&encoded).expect("decoding must succeed");
+
+        assert_eq!(decoded.id, token.id);
+        assert_eq!(decoded.resource, token.resource);
+        assert_eq!(decoded.resource_id, token.resource_id);
+        assert_eq!(decoded.action, token.action);
+        assert_eq!(decoded.delegated_from, token.delegated_from);
+        assert_eq!(decoded.delegated_to, token.delegated_to);
+        assert_eq!(decoded.signature, token.signature);
+        assert_eq!(decoded.attenuation_level, token.attenuation_level);
+        assert_eq!(decoded.max_attenuation, token.max_attenuation);
+    }
+
+    // ── is_compatible_with ───────────────────────────────────────────────
+
+    #[test]
+    fn is_compatible_with_same_resource_action_holder() {
+        let t1 = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        let t2 = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        assert!(
+            t1.is_compatible_with(&t2),
+            "tokens with same resource/id/action/holder must be compatible"
+        );
+    }
+
+    #[test]
+    fn is_compatible_with_rejects_different_holder() {
+        let t1 = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+        let t2 = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            carol(),
+            SECRET,
+        );
+
+        assert!(
+            !t1.is_compatible_with(&t2),
+            "tokens with different holders must not be compatible"
+        );
+    }
+
+    // ── verify_attenuation_chain ─────────────────────────────────────────
+
+    #[test]
+    fn verify_attenuation_chain_accepts_valid_root() {
+        let nonce = "test-root-nonce";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce(nonce.to_string())
+        .sign(SECRET);
+
+        assert!(
+            token.verify_attenuation_chain(nonce, 0),
+            "root token must verify against its own nonce at level 0"
+        );
+    }
+
+    #[test]
+    fn verify_attenuation_chain_rejects_wrong_root() {
+        let nonce = "test-root-nonce";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce(nonce.to_string())
+        .sign(SECRET);
+
+        assert!(
+            !token.verify_attenuation_chain("wrong-root", 0),
+            "wrong root nonce must fail"
+        );
+    }
+
+    #[test]
+    fn verify_attenuation_chain_rejects_exceeded_max_attenuation() {
+        let nonce = "test-root-nonce";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .attenuation(0, 255) // exceeds SYSTEM_MAX_ATTENUATION
+        .context_nonce(nonce.to_string())
+        .sign(SECRET);
+
+        assert!(
+            !token.verify_attenuation_chain(nonce, 0),
+            "max_attenuation exceeding system limit must fail"
+        );
+    }
+
+    // ── validate_context_nonce ───────────────────────────────────────────
+
+    #[test]
+    fn validate_context_nonce_accepts_exact_match() {
+        let nonce = "execution-context-42";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce(nonce.to_string())
+        .sign(SECRET);
+
+        assert!(
+            token.validate_context_nonce(nonce),
+            "exact context nonce must validate"
+        );
+    }
+
+    #[test]
+    fn validate_context_nonce_accepts_prefix_match() {
+        let nonce = "execution-context-42";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce(format!("{}-attenuated-uuid123", nonce))
+        .sign(SECRET);
+
+        assert!(
+            token.validate_context_nonce(nonce),
+            "attenuated nonce must validate against root prefix"
+        );
+    }
+
+    #[test]
+    fn validate_context_nonce_rejects_mismatch() {
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce("real-context".to_string())
+        .sign(SECRET);
+
+        assert!(
+            !token.validate_context_nonce("wrong-context"),
+            "mismatched nonce must fail"
+        );
+    }
+
+    // ── root_context_nonce ───────────────────────────────────────────────
+
+    #[test]
+    fn root_context_nonce_returns_root_before_attenuation() {
+        let nonce = "root-nonce";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce(nonce.to_string())
+        .sign(SECRET);
+
+        assert_eq!(
+            token.root_context_nonce(),
+            nonce,
+            "unattenuated token must return its own nonce as root"
+        );
+    }
+
+    #[test]
+    fn root_context_nonce_extracts_root_from_attenuated() {
+        let root = "root-nonce";
+        let token = DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .context_nonce(format!("{}-attenuated-uuid123", root))
+        .sign(SECRET);
+
+        assert_eq!(
+            token.root_context_nonce(),
+            root,
+            "attenuated nonce must extract root before '-attenuated-'"
+        );
+    }
+
+    // ── Serde roundtrip for DelegationResource / DelegationAction ────────
+
+    #[test]
+    fn serde_roundtrip_delegation_resource() {
+        for resource in [
+            DelegationResource::Tool,
+            DelegationResource::Template,
+            DelegationResource::Registry,
+        ] {
+            let json = serde_json::to_string(&resource).expect("serialize must succeed");
+            let decoded: DelegationResource =
+                serde_json::from_str(&json).expect("deserialize must succeed");
+            assert_eq!(decoded, resource, "serde roundtrip must preserve resource");
+        }
+    }
+
+    #[test]
+    fn serde_roundtrip_delegation_action() {
+        for action in [
+            DelegationAction::Read,
+            DelegationAction::Write,
+            DelegationAction::Execute,
+        ] {
+            let json = serde_json::to_string(&action).expect("serialize must succeed");
+            let decoded: DelegationAction =
+                serde_json::from_str(&json).expect("deserialize must succeed");
+            assert_eq!(decoded, action, "serde roundtrip must preserve action");
+        }
+    }
+}

@@ -98,3 +98,137 @@ fn is_private_ip(ip: &IpAddr) -> bool {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── URL validation (SSRF protection) ──────────────────────────────────
+
+    #[test]
+    fn validate_url_accepts_http() {
+        assert!(validate_url("http://example.com", &UrlValidationConfig::default()).is_ok());
+    }
+
+    #[test]
+    fn validate_url_accepts_https() {
+        assert!(validate_url("https://example.com", &UrlValidationConfig::default()).is_ok());
+    }
+
+    #[test]
+    fn validate_url_rejects_ftp_scheme() {
+        let err = validate_url("ftp://example.com", &UrlValidationConfig::default()).unwrap_err();
+        assert!(matches!(err, SecurityError::DisallowedScheme(s) if s == "ftp"));
+    }
+
+    #[test]
+    fn validate_url_rejects_javascript_scheme() {
+        let err =
+            validate_url("javascript://alert(1)", &UrlValidationConfig::default()).unwrap_err();
+        assert!(matches!(err, SecurityError::DisallowedScheme(s) if s == "javascript"));
+    }
+
+    #[test]
+    fn validate_url_rejects_embedded_credentials() {
+        let err = validate_url(
+            "https://user:pass@example.com",
+            &UrlValidationConfig::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, SecurityError::EmbeddedCredentials(_)));
+    }
+
+    #[test]
+    fn validate_url_rejects_loopback() {
+        let err =
+            validate_url("http://127.0.0.1/admin", &UrlValidationConfig::default()).unwrap_err();
+        assert!(matches!(err, SecurityError::LoopbackNotAllowed(_)));
+    }
+
+    #[test]
+    fn validate_url_rejects_private_ip_10() {
+        let err =
+            validate_url("http://10.0.0.1/internal", &UrlValidationConfig::default()).unwrap_err();
+        assert!(matches!(err, SecurityError::PrivateIpNotAllowed(_)));
+    }
+
+    #[test]
+    fn validate_url_rejects_private_ip_172() {
+        let err = validate_url(
+            "http://172.16.0.1/internal",
+            &UrlValidationConfig::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, SecurityError::PrivateIpNotAllowed(_)));
+    }
+
+    #[test]
+    fn validate_url_rejects_private_ip_192() {
+        let err = validate_url(
+            "http://192.168.1.1/internal",
+            &UrlValidationConfig::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, SecurityError::PrivateIpNotAllowed(_)));
+    }
+
+    #[test]
+    fn validate_url_rejects_link_local() {
+        let err = validate_url(
+            "http://169.254.1.1/internal",
+            &UrlValidationConfig::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, SecurityError::PrivateIpNotAllowed(_)));
+    }
+
+    #[test]
+    fn validate_url_allows_loopback_when_configured() {
+        let config = UrlValidationConfig {
+            allow_loopback: true,
+            ..Default::default()
+        };
+        assert!(validate_url("http://127.0.0.1/admin", &config).is_ok());
+    }
+
+    #[test]
+    fn validate_url_allows_private_ip_when_configured() {
+        let config = UrlValidationConfig {
+            allow_private_ips: true,
+            ..Default::default()
+        };
+        assert!(validate_url("http://10.0.0.1/internal", &config).is_ok());
+    }
+
+    #[test]
+    fn validate_url_rejects_no_scheme() {
+        let err = validate_url("example.com/path", &UrlValidationConfig::default()).unwrap_err();
+        assert!(matches!(err, SecurityError::InvalidUrl(_)));
+    }
+
+    #[test]
+    fn validate_url_accepts_hostname() {
+        // Hostnames (not IPs) are always allowed
+        assert!(
+            validate_url(
+                "https://api.example.com/v1/data",
+                &UrlValidationConfig::default()
+            )
+            .is_ok()
+        );
+    }
+
+    // ── Private IP classification ──────────────────────────────────────────
+
+    #[test]
+    fn private_ip_classification() {
+        assert!(is_private_ip(&"10.0.0.1".parse::<IpAddr>().unwrap()));
+        assert!(is_private_ip(&"172.16.0.1".parse::<IpAddr>().unwrap()));
+        assert!(is_private_ip(&"172.31.255.255".parse::<IpAddr>().unwrap()));
+        assert!(is_private_ip(&"192.168.1.1".parse::<IpAddr>().unwrap()));
+        assert!(is_private_ip(&"169.254.1.1".parse::<IpAddr>().unwrap()));
+        // Public IPs are not private
+        assert!(!is_private_ip(&"8.8.8.8".parse::<IpAddr>().unwrap()));
+        assert!(!is_private_ip(&"1.1.1.1".parse::<IpAddr>().unwrap()));
+    }
+}

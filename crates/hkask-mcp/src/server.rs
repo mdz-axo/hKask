@@ -791,3 +791,302 @@ where
     service.await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── McpErrorKind ────────────────────────────────────────────────────────
+
+    #[test]
+    fn mcp_error_kind_is_retryable() {
+        // Only Unavailable, Timeout, and RateLimited are retryable
+        assert!(McpErrorKind::Unavailable.is_retryable());
+        assert!(McpErrorKind::Timeout.is_retryable());
+        assert!(McpErrorKind::RateLimited.is_retryable());
+        // All others are not
+        assert!(!McpErrorKind::Internal.is_retryable());
+        assert!(!McpErrorKind::NotFound.is_retryable());
+        assert!(!McpErrorKind::InvalidArgument.is_retryable());
+        assert!(!McpErrorKind::PermissionDenied.is_retryable());
+        assert!(!McpErrorKind::FailedPrecondition.is_retryable());
+    }
+
+    #[test]
+    fn mcp_error_kind_requires_intervention() {
+        assert!(McpErrorKind::PermissionDenied.requires_intervention());
+        assert!(McpErrorKind::FailedPrecondition.requires_intervention());
+        // All others do not require intervention
+        assert!(!McpErrorKind::Internal.requires_intervention());
+        assert!(!McpErrorKind::Unavailable.requires_intervention());
+        assert!(!McpErrorKind::Timeout.requires_intervention());
+        assert!(!McpErrorKind::NotFound.requires_intervention());
+        assert!(!McpErrorKind::InvalidArgument.requires_intervention());
+        assert!(!McpErrorKind::RateLimited.requires_intervention());
+    }
+
+    #[test]
+    fn mcp_error_kind_display_snake_case() {
+        assert_eq!(McpErrorKind::Internal.to_string(), "internal");
+        assert_eq!(McpErrorKind::Unavailable.to_string(), "unavailable");
+        assert_eq!(McpErrorKind::Timeout.to_string(), "timeout");
+        assert_eq!(McpErrorKind::NotFound.to_string(), "not_found");
+        assert_eq!(
+            McpErrorKind::InvalidArgument.to_string(),
+            "invalid_argument"
+        );
+        assert_eq!(
+            McpErrorKind::PermissionDenied.to_string(),
+            "permission_denied"
+        );
+        assert_eq!(McpErrorKind::RateLimited.to_string(), "rate_limited");
+        assert_eq!(
+            McpErrorKind::FailedPrecondition.to_string(),
+            "failed_precondition"
+        );
+    }
+
+    // ── McpToolError ────────────────────────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_error_convenience_constructors() {
+        let err = McpToolError::internal("boom");
+        assert_eq!(err.kind, McpErrorKind::Internal);
+        assert_eq!(err.message, "boom");
+        assert!(err.details.is_none());
+
+        let err = McpToolError::not_found("gone");
+        assert_eq!(err.kind, McpErrorKind::NotFound);
+
+        let err = McpToolError::invalid_argument("bad");
+        assert_eq!(err.kind, McpErrorKind::InvalidArgument);
+
+        let err = McpToolError::unavailable("down");
+        assert_eq!(err.kind, McpErrorKind::Unavailable);
+
+        let err = McpToolError::timeout("slow");
+        assert_eq!(err.kind, McpErrorKind::Timeout);
+
+        let err = McpToolError::permission_denied("nope");
+        assert_eq!(err.kind, McpErrorKind::PermissionDenied);
+
+        let err = McpToolError::rate_limited("hold");
+        assert_eq!(err.kind, McpErrorKind::RateLimited);
+
+        let err = McpToolError::failed_precondition("not ready");
+        assert_eq!(err.kind, McpErrorKind::FailedPrecondition);
+    }
+
+    #[test]
+    fn mcp_tool_error_to_json_string_has_error_and_kind() {
+        let err = McpToolError::internal("something broke");
+        let json: Value = serde_json::from_str(&err.to_json_string()).unwrap();
+        assert_eq!(json["error"], "something broke");
+        assert_eq!(json["kind"], "internal");
+    }
+
+    #[test]
+    fn mcp_tool_error_display_format() {
+        let err = McpToolError::not_found("resource missing");
+        assert_eq!(format!("{err}"), "[not_found] resource missing");
+    }
+
+    #[test]
+    fn mcp_tool_error_new_with_kind_and_message() {
+        let err = McpToolError::new(McpErrorKind::Timeout, "timed out after 30s");
+        assert_eq!(err.kind, McpErrorKind::Timeout);
+        assert_eq!(err.message, "timed out after 30s");
+        assert!(err.details.is_none());
+    }
+
+    // ── McpToolOutput ───────────────────────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_output_new_has_no_metadata() {
+        let output = McpToolOutput::new(serde_json::json!({"result": 42}));
+        assert!(output.metadata.is_none());
+        assert_eq!(output.content["result"], 42);
+    }
+
+    #[test]
+    fn mcp_tool_output_with_metadata() {
+        let output = McpToolOutput::with_metadata(
+            serde_json::json!("hello"),
+            serde_json::json!({"source": "test"}),
+        );
+        assert_eq!(output.content, serde_json::json!("hello"));
+        assert_eq!(output.metadata.as_ref().unwrap()["source"], "test");
+    }
+
+    #[test]
+    fn mcp_tool_output_to_json_string_roundtrip() {
+        let output = McpToolOutput::new(serde_json::json!({"count": 7}));
+        let json: Value = serde_json::from_str(&output.to_json_string()).unwrap();
+        assert_eq!(json["content"]["count"], 7);
+        assert!(json.get("metadata").is_none());
+    }
+
+    #[test]
+    fn mcp_tool_output_with_metadata_json_roundtrip() {
+        let output = McpToolOutput::with_metadata(
+            serde_json::json!("ok"),
+            serde_json::json!({"latency_ms": 123}),
+        );
+        let json: Value = serde_json::from_str(&output.to_json_string()).unwrap();
+        assert_eq!(json["content"], "ok");
+        assert_eq!(json["metadata"]["latency_ms"], 123);
+    }
+
+    // ── CredentialRequirement ───────────────────────────────────────────────
+
+    #[test]
+    fn credential_requirement_required() {
+        let req = CredentialRequirement::required("HKASK_TOKEN", "API token");
+        assert_eq!(req.env_var, "HKASK_TOKEN");
+        assert_eq!(req.description, "API token");
+        assert!(req.required);
+    }
+
+    #[test]
+    fn credential_requirement_optional() {
+        let req = CredentialRequirement::optional("HKASK_DEBUG", "Enable debug logging");
+        assert_eq!(req.env_var, "HKASK_DEBUG");
+        assert_eq!(req.description, "Enable debug logging");
+        assert!(!req.required);
+    }
+
+    // ── validate_identifier ─────────────────────────────────────────────────
+
+    #[test]
+    fn validate_identifier_accepts_alphanumeric() {
+        assert!(validate_identifier("name", "hello123", 256).is_ok());
+    }
+
+    #[test]
+    fn validate_identifier_accepts_underscore_dot_hyphen() {
+        assert!(validate_identifier("id", "my_module.v2-beta", 256).is_ok());
+    }
+
+    #[test]
+    fn validate_identifier_rejects_empty() {
+        let err = validate_identifier("field", "", 256).unwrap_err();
+        assert_eq!(err.kind, McpErrorKind::InvalidArgument);
+        assert!(err.message.contains("must not be empty"));
+    }
+
+    #[test]
+    fn validate_identifier_rejects_too_long() {
+        let long = "a".repeat(257);
+        let err = validate_identifier("field", &long, 256).unwrap_err();
+        assert_eq!(err.kind, McpErrorKind::InvalidArgument);
+        assert!(err.message.contains("exceeds maximum length"));
+    }
+
+    #[test]
+    fn validate_identifier_accepts_at_max_length() {
+        let exact = "a".repeat(256);
+        assert!(validate_identifier("field", &exact, 256).is_ok());
+    }
+
+    #[test]
+    fn validate_identifier_rejects_max_length_plus_one() {
+        let over = "a".repeat(257);
+        assert!(validate_identifier("field", &over, 256).is_err());
+    }
+
+    #[test]
+    fn validate_identifier_rejects_spaces() {
+        let err = validate_identifier("name", "hello world", 256).unwrap_err();
+        assert_eq!(err.kind, McpErrorKind::InvalidArgument);
+        assert!(err.message.contains("invalid characters"));
+    }
+
+    #[test]
+    fn validate_identifier_rejects_special_chars() {
+        assert!(validate_identifier("id", "test@symbol", 256).is_err());
+        assert!(validate_identifier("id", "path/sep", 256).is_err());
+        assert!(validate_identifier("id", "has:colon", 256).is_err());
+    }
+
+    // ── validate_tool_url (public SSRF gateway) ───────────────────────────
+
+    #[test]
+    fn validate_tool_url_accepts_https() {
+        assert!(validate_tool_url("https://api.example.com/v1").is_ok());
+    }
+
+    #[test]
+    fn validate_tool_url_rejects_ftp() {
+        assert!(validate_tool_url("ftp://files.example.com").is_err());
+    }
+
+    #[test]
+    fn validate_tool_url_rejects_private_ip() {
+        assert!(validate_tool_url("http://10.0.0.1/internal").is_err());
+    }
+
+    #[test]
+    fn validate_tool_url_rejects_loopback() {
+        assert!(validate_tool_url("http://127.0.0.1/health").is_err());
+    }
+
+    // ── classify_http_error ─────────────────────────────────────────────────
+
+    #[test]
+    fn classify_http_error_permission_denied() {
+        let err = classify_http_error("GitHub", reqwest::StatusCode::FORBIDDEN, "access denied");
+        assert_eq!(err.kind, McpErrorKind::PermissionDenied);
+        assert!(err.message.contains("GitHub"));
+    }
+
+    #[test]
+    fn classify_http_error_not_found() {
+        let err = classify_http_error("FMP", reqwest::StatusCode::NOT_FOUND, "missing");
+        assert_eq!(err.kind, McpErrorKind::NotFound);
+    }
+
+    #[test]
+    fn classify_http_error_invalid_argument() {
+        let err = classify_http_error(
+            "Test",
+            reqwest::StatusCode::UNPROCESSABLE_ENTITY,
+            "bad input",
+        );
+        assert_eq!(err.kind, McpErrorKind::InvalidArgument);
+    }
+
+    #[test]
+    fn classify_http_error_rate_limited() {
+        let err = classify_http_error(
+            "GitHub",
+            reqwest::StatusCode::TOO_MANY_REQUESTS,
+            "slow down",
+        );
+        assert_eq!(err.kind, McpErrorKind::RateLimited);
+    }
+
+    #[test]
+    fn classify_http_error_unavailable_502() {
+        let err = classify_http_error("FMP", reqwest::StatusCode::BAD_GATEWAY, "gateway timeout");
+        assert_eq!(err.kind, McpErrorKind::Unavailable);
+    }
+
+    #[test]
+    fn classify_http_error_unavailable_503() {
+        let err = classify_http_error("FMP", reqwest::StatusCode::SERVICE_UNAVAILABLE, "down");
+        assert_eq!(err.kind, McpErrorKind::Unavailable);
+    }
+
+    #[test]
+    fn classify_http_error_internal_for_client_errors() {
+        // 418 Teapot or other unclassified client errors → Internal
+        let err = classify_http_error("Test", reqwest::StatusCode::IM_A_TEAPOT, "tea");
+        assert_eq!(err.kind, McpErrorKind::Internal);
+    }
+
+    #[test]
+    fn classify_http_error_unauthorized_is_permission_denied() {
+        let err = classify_http_error("GitHub", reqwest::StatusCode::UNAUTHORIZED, "no auth");
+        assert_eq!(err.kind, McpErrorKind::PermissionDenied);
+    }
+}

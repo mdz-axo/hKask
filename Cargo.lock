@@ -1285,6 +1285,8 @@ name = "hkask-mcp"
 version = "0.22.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "hex",
  "hkask-cns",
  "hkask-keystore",
  "hkask-storage",
@@ -1295,6 +1297,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -1740,6 +1743,7 @@ dependencies = [
  "sha2",
  "subtle",
  "thiserror",
+ "tokio",
  "uuid",
  "zeroize",
 ]
