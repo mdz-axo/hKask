@@ -11,10 +11,6 @@
 //! already depends on a YAML parser); this crate provides the plain types and a
 //! minimal [`HLexicon::bootstrap`] fixture.
 
-// hLexicon spec infrastructure: types and methods are part of the canonical vocabulary
-// specification but not yet consumed by the runtime. Retain for hLexicon completeness.
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -83,14 +79,6 @@ impl TemplateType {
             "yaml" | "yml" => Some(TemplateType::FlowDef),
             _ => None,
         }
-    }
-
-    /// Infer template type from a file path by examining its extension.
-    pub fn infer_from_path(path: &str) -> Option<Self> {
-        std::path::Path::new(path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .and_then(Self::infer_from_extension)
     }
 }
 
@@ -164,10 +152,6 @@ impl HLexicon {
 
     pub fn is_empty(&self) -> bool {
         self.terms.is_empty()
-    }
-
-    pub fn terms(&self) -> impl Iterator<Item = &LexiconTerm> {
-        self.terms.values()
     }
 
     /// Create the default bootstrap hLexicon.

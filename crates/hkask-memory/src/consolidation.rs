@@ -16,7 +16,7 @@ use crate::semantic::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::WebID;
 use hkask_types::capability::tokens::{ConsolidationToken, IssuerVerification};
-use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort, ConsolidationRequest};
+use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
 
 /// Consolidation Bridge — Episodic → Semantic
 ///
@@ -55,7 +55,7 @@ impl ConsolidationBridge {
     /// 2. Inherit confidence from the episodic source — the triple carries
     ///    its proven confidence into shared memory
     /// 3. Store in semantic memory
-    pub(crate) fn consolidate(
+    pub(crate) fn consolidate_inner(
         &self,
         perspective: WebID,
         request: ConsolidationRequest,
@@ -151,8 +151,11 @@ impl ConsolidationBridge {
     }
 }
 
-impl ConsolidationPort for ConsolidationBridge {
-    fn consolidate(
+impl ConsolidationBridge {
+    /// Consolidate episodic triples into semantic memory (public API).
+    ///
+    /// Requires ConsolidationToken proving Cybernetics authority.
+    pub fn consolidate(
         &self,
         token: &ConsolidationToken,
         perspective: &WebID,
@@ -165,16 +168,16 @@ impl ConsolidationPort for ConsolidationBridge {
                 ConsolidationError::UnauthorizedToken(token.issuer().to_string()).to_string(),
             );
         }
-        let result = ConsolidationBridge::consolidate(
-            self,
-            *perspective,
-            ConsolidationRequest {
-                limit: request.limit,
-                confidence_floor: None, // bridge doesn't handle cleanup
-                max_semantic_triples: None,
-            },
-        )
-        .map_err(|e| e.to_string())?;
+        let result = self
+            .consolidate_inner(
+                *perspective,
+                ConsolidationRequest {
+                    limit: request.limit,
+                    confidence_floor: None, // bridge doesn't handle cleanup
+                    max_semantic_triples: None,
+                },
+            )
+            .map_err(|e| e.to_string())?;
         Ok(ConsolidationOutcome {
             consolidated_count: result.consolidated_count,
             deleted_count: result.deleted_count, // episodic triples expired after consolidation
@@ -182,7 +185,7 @@ impl ConsolidationPort for ConsolidationBridge {
         })
     }
 
-    fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
+    pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         // Use storage_usage (COUNT query) instead of loading all candidates
         // into memory just to count them.
         self.episodic.storage_usage(perspective).unwrap_or(0)

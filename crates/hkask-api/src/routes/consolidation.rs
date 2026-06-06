@@ -7,7 +7,7 @@ use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, Se
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
-use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
+use hkask_types::ports::ConsolidationRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -195,8 +195,7 @@ async fn consolidate(
     ));
     let handle = CuratorHandle::system();
     let token = handle.issue_consolidation_token();
-    let service =
-        ConsolidationService::new(bridge as Arc<dyn ConsolidationPort>, semantic_memory, token);
+    let service = ConsolidationService::new(bridge, semantic_memory, token);
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {

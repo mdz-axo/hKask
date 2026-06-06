@@ -16,7 +16,7 @@ use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::{OkapiConfig, OkapiEmbedding, OkapiInference};
 use hkask_types::LLMParameters;
-use hkask_types::ports::{EmbeddingPort, InferencePort};
+use hkask_types::ports::InferencePort;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;

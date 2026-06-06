@@ -17,10 +17,11 @@
 
 use crate::curator::curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 use chrono::Utc;
+use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
-use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
+use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -43,7 +44,7 @@ use crate::curator::context::CuratorContext;
 pub struct CurationLoop {
     curator_handle: CuratorHandle,
     context: Arc<CuratorContext>,
-    consolidation: Option<Arc<dyn ConsolidationPort>>,
+    consolidation: Option<Arc<ConsolidationBridge>>,
     /// Cursor for incremental algedonic review.
     /// Stores the Unix timestamp (milliseconds) of the last reviewed event.
     /// Curation reads from the persistent NuEvent log, not live CNS state.
@@ -105,7 +106,7 @@ impl CurationLoop {
     pub fn with_consolidation(
         curator_handle: CuratorHandle,
         context: Arc<CuratorContext>,
-        consolidation: Arc<dyn ConsolidationPort>,
+        consolidation: Arc<ConsolidationBridge>,
     ) -> Self {
         Self {
             curator_handle,

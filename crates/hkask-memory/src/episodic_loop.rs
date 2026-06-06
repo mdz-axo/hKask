@@ -6,13 +6,14 @@
 
 use std::sync::Arc;
 
+use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
 use hkask_types::WebID;
 use hkask_types::capability::tokens::ConsolidationToken;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
-use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
+use hkask_types::ports::ConsolidationRequest;
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///
@@ -27,7 +28,7 @@ pub struct EpisodicLoop {
     storage_budget: usize,
     /// Consolidation bridge for promoting episodic triples to semantic memory
     /// when budget pressure requires it.
-    consolidation: Option<Arc<dyn ConsolidationPort>>,
+    consolidation: Option<Arc<ConsolidationBridge>>,
     /// OCAP token proving consolidation authority (issued by Curator/Cybernetics).
     consolidation_token: Option<ConsolidationToken>,
 }
@@ -56,7 +57,7 @@ impl EpisodicLoop {
         memory: Arc<EpisodicMemory>,
         perspective: WebID,
         storage_budget: usize,
-        consolidation: Arc<dyn ConsolidationPort>,
+        consolidation: Arc<ConsolidationBridge>,
         consolidation_token: ConsolidationToken,
     ) -> Self {
         Self {

@@ -5,7 +5,6 @@ mod store_macros;
 
 pub use store_macros::Store;
 
-
 pub mod agent_registry;
 pub mod consent_store;
 pub mod database;
@@ -26,10 +25,9 @@ pub mod user_store;
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
 pub use database::{Database, DatabaseError, open_database};
-pub use embeddings::EmbeddingStore;
+pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};
 pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::TripleID;
-pub use hkask_types::ports::{EmbeddingError, EmbeddingPort, SimilarityResult, StoredEmbedding};
 pub use nu_event_store::{DecayConfig, NuEventError, NuEventStore, WeightedEvent};
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};

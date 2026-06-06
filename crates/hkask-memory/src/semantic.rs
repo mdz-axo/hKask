@@ -10,9 +10,10 @@
 //! - **Prefix purge**: Idempotent re-ingest by deleting embeddings matching a prefix.
 
 use crate::recall_dedup;
-use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
+use hkask_storage::{
+    EmbeddingError, EmbeddingStore, SimilarityResult, Triple, TripleError, TripleStore,
+};
 use hkask_types::Visibility;
-use hkask_types::ports::{EmbeddingError, EmbeddingPort, SimilarityResult};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -55,7 +56,7 @@ pub struct CentroidResult {
 ///   beyond exact entity matches.
 pub struct SemanticMemory {
     triple_store: TripleStore,
-    embedding: Arc<dyn EmbeddingPort>,
+    embedding: Arc<EmbeddingStore>,
 }
 
 impl SemanticMemory {
@@ -63,17 +64,6 @@ impl SemanticMemory {
         Self {
             triple_store,
             embedding: Arc::new(embedding_store),
-        }
-    }
-
-    /// Create with a pre-wired embedding port (for testing or custom backends).
-    pub fn with_embedding_port(
-        triple_store: TripleStore,
-        embedding: Arc<dyn EmbeddingPort>,
-    ) -> Self {
-        Self {
-            triple_store,
-            embedding,
         }
     }
 
@@ -157,13 +147,6 @@ impl SemanticMemory {
     /// Uses SQL LIKE query instead of zero-vector KNN scan.
     /// Returns entity_refs for prefix-based operations (centroid, purge).
     fn entity_refs_by_prefix(&self, prefix: &str) -> Result<Vec<String>, SemanticMemoryError> {
-        // Delegate to the embedding port — requires a new method.
-        // For now, use the search port's get-by-entity capability.
-        // The EmbeddingPort trait doesn't have prefix query yet, so we
-        // access the concrete EmbeddingStore directly when available.
-        //
-        // Fallback: use the port's search with a broad query.
-        // This is a transitional approach until EmbeddingPort gains prefix_query().
         Ok(self.embedding.query_by_prefix(prefix)?)
     }
 

@@ -15,7 +15,7 @@ use crate::id::WebID;
 /// Only the Curation Loop (`hkask_agents::CurationLoop`) can mint this token.
 /// It authorizes consolidation from Episodic to Semantic memory.
 ///
-/// Required by: ConsolidationPort::consolidate()
+/// Required by: ConsolidationBridge::consolidate()
 /// Issued by: CyberneticsLoop (or Curator as Cybernetics' governor)
 #[derive(Debug, Clone)]
 #[non_exhaustive]

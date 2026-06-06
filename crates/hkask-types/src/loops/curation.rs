@@ -70,7 +70,7 @@ impl CuratorHandle {
     /// Issue a ConsolidationToken authorizing an Episodic → Semantic bridge traversal.
     ///
     /// The Curator is Cybernetics' governor, so it can delegate consolidation
-    /// authority. This token is required by `ConsolidationPort::consolidate()`.
+    /// authority. This token is required by `ConsolidationBridge::consolidate()`.
     pub fn issue_consolidation_token(&self) -> ConsolidationToken {
         ConsolidationToken::new(self.curator_id)
     }

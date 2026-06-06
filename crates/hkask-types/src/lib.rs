@@ -70,11 +70,10 @@ pub use loops::{
 };
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
-    ConsolidationPort, ConsolidationRequest, DepletionSignal, EmbeddingError,
-    EmbeddingGenerationError, EmbeddingPort, InferenceError, InferencePort, InferenceResult,
-    InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex, SessionRecord,
-    SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex, StoredEmbedding,
-    StructuredToolCall, TokenProb, TokenProbability, ToolInfo, ToolPort, ToolPortError,
+    ConsolidationRequest, DepletionSignal, EmbeddingGenerationError, InferenceError, InferencePort,
+    InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex,
+    SessionRecord, SessionStoreError, Skill, SkillRegistryIndex, StructuredToolCall, TokenProb,
+    TokenProbability, ToolInfo, ToolPort, ToolPortError,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};

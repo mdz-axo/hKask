@@ -38,7 +38,7 @@ use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::LoopPayload;
-use hkask_types::ports::{ConsolidationPort, InferencePort};
+use hkask_types::ports::InferencePort;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
 use std::sync::Arc;
@@ -137,8 +137,7 @@ fn build_memory_infra(
     ));
     let handle = CuratorHandle::system();
     let token = handle.issue_consolidation_token();
-    let service =
-        ConsolidationService::new(bridge as Arc<dyn ConsolidationPort>, semantic_memory, token);
+    let service = ConsolidationService::new(bridge, semantic_memory, token);
 
     // Storage ports — new EpisodicMemory/SemanticMemory from the same
     // connection (same pattern as MemoryLoopAdapter::from_database)

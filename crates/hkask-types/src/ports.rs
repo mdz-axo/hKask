@@ -414,8 +414,6 @@ pub struct MessageRecord {
     pub template_id: Option<String>,
 }
 
-use crate::capability::tokens::ConsolidationToken;
-
 /// Parameters for consolidation. All fields except `limit` optional.
 #[derive(Debug, Clone)]
 pub struct ConsolidationRequest {
@@ -439,20 +437,6 @@ pub struct ConsolidationOutcome {
     pub consolidated_count: usize,
     pub deleted_count: usize,
     pub failed_count: usize,
-}
-
-/// Episodic → Semantic consolidation. Requires ConsolidationToken.
-/// Impl: `ConsolidationBridge` (hkask-memory)
-pub trait ConsolidationPort: Send + Sync {
-    /// Requires ConsolidationToken proving Cybernetics authority.
-    fn consolidate(
-        &self,
-        token: &ConsolidationToken,
-        perspective: &WebID,
-        request: ConsolidationRequest,
-    ) -> Result<ConsolidationOutcome, String>;
-
-    fn consolidation_candidate_count(&self, perspective: &WebID) -> usize;
 }
 
 use crate::event::SpanNamespace;
@@ -528,59 +512,6 @@ pub struct ToolInfo {
     pub input_schema: serde_json::Value,
     pub server_id: String,
     pub required_capability: Option<String>,
-}
-
-/// Stored embedding record with metadata
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct StoredEmbedding {
-    pub id: String,
-    pub entity_ref: String,
-    pub vector: Vec<f32>,
-    pub model: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SimilarityResult {
-    pub embedding: StoredEmbedding,
-    pub distance: f64,
-}
-
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum EmbeddingError {
-    #[error("Embedding not found: {0}")]
-    NotFound(String),
-    #[error("Dimension mismatch: expected {expected}, got {actual}")]
-    DimensionMismatch { expected: usize, actual: usize },
-    #[error("Storage error: {0}")]
-    Storage(String),
-}
-
-/// Vector storage and KNN similarity search via sqlite-vec.
-/// Impl: `EmbeddingStore` (hkask-storage)
-pub trait EmbeddingPort: Send + Sync {
-    /// Stored in `embeddings` metadata table and `vec_embeddings` virtual table.
-    fn store(
-        &self,
-        entity_ref: &str,
-        vector: &[f32],
-        model: &str,
-    ) -> Result<String, EmbeddingError>;
-
-    fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError>;
-
-    /// Results ordered by ascending distance (most similar first).
-    fn search(
-        &self,
-        query_vector: &[f32],
-        limit: usize,
-    ) -> Result<Vec<SimilarityResult>, EmbeddingError>;
-
-    fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError>;
-
-    /// Used for prefix-based purge and centroid ops (avoids zero-vector KNN scan).
-    fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError>;
-
-    fn count(&self) -> Result<usize, EmbeddingError>;
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

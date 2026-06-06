@@ -25,6 +25,7 @@ pub mod spec_curator;
 use crate::curator::context::CuratorContext;
 use crate::curator::curation_gate::CurationConfidenceGate;
 use crate::curator::curation_loop::CurationLoop;
+use hkask_memory::ConsolidationBridge;
 use std::sync::Arc;
 
 /// Curator Agent — the persona layer of Curation (Loop 5).
@@ -112,7 +113,7 @@ impl CuratorAgent {
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
-        consolidation: Arc<dyn hkask_types::ports::ConsolidationPort>,
+        consolidation: Arc<ConsolidationBridge>,
     ) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),

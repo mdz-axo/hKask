@@ -6,7 +6,7 @@ use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, Se
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
-use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
+use hkask_types::ports::ConsolidationRequest;
 
 pub fn run(
     agent: Option<&str>,
@@ -52,8 +52,7 @@ pub fn run(
     ));
     let handle = CuratorHandle::system();
     let token = handle.issue_consolidation_token();
-    let service =
-        ConsolidationService::new(bridge as Arc<dyn ConsolidationPort>, semantic_memory, token);
+    let service = ConsolidationService::new(bridge, semantic_memory, token);
 
     // Resolve perspective WebID
     let perspective = match agent {

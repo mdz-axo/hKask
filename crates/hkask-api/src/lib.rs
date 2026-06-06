@@ -246,7 +246,7 @@ fn build_loop_system(
     let curator_agent = CuratorAgent::with_consolidation(
         curator_context,
         Default::default(),
-        Arc::clone(&consolidation_bridge) as Arc<dyn hkask_types::ports::ConsolidationPort>,
+        Arc::clone(&consolidation_bridge),
     );
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     rt.block_on(async {

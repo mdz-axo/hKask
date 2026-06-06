@@ -10,9 +10,33 @@
 //!
 //! **Spec Reference:** Architecture v0.21.0 §2.3, sqlite-vec integration
 
-use hkask_types::ports::{EmbeddingError, EmbeddingPort, SimilarityResult, StoredEmbedding};
 use crate::Store;
 use hkask_types::InfrastructureError;
+
+/// Stored embedding record with metadata
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StoredEmbedding {
+    pub id: String,
+    pub entity_ref: String,
+    pub vector: Vec<f32>,
+    pub model: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SimilarityResult {
+    pub embedding: StoredEmbedding,
+    pub distance: f64,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum EmbeddingError {
+    #[error("Embedding not found: {0}")]
+    NotFound(String),
+    #[error("Dimension mismatch: expected {expected}, got {actual}")]
+    DimensionMismatch { expected: usize, actual: usize },
+    #[error("Storage error: {0}")]
+    Storage(String),
+}
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -35,7 +59,9 @@ impl Store for EmbeddingStore {
         Arc::clone(&self.conn)
     }
 
-    fn lock_conn(&self) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
+    fn lock_conn(
+        &self,
+    ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
         self.conn
             .lock()
             .map_err(|_| InfrastructureError::LockPoisoned)
@@ -101,13 +127,13 @@ impl EmbeddingStore {
     }
 }
 
-impl EmbeddingPort for EmbeddingStore {
+impl EmbeddingStore {
     /// Store an embedding vector indexed by entity reference.
     ///
     /// Inserts into both the `embeddings` metadata table and the
     /// `vec_embeddings` virtual table in a single transaction.
     /// Returns the generated embedding ID.
-    fn store(
+    pub fn store(
         &self,
         entity_ref: &str,
         vector: &[f32],
@@ -168,7 +194,7 @@ impl EmbeddingPort for EmbeddingStore {
     }
 
     /// Retrieve an embedding by entity reference.
-    fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
+    pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
         let conn = self
             .conn
             .lock()
@@ -209,7 +235,7 @@ impl EmbeddingPort for EmbeddingStore {
     /// Uses sqlite-vec's KNN query: `WHERE embedding MATCH ? ORDER BY distance LIMIT ?`.
     /// Results are joined with the `embeddings` metadata table to produce
     /// `StoredEmbedding` records.
-    fn search(
+    pub fn search(
         &self,
         query_vector: &[f32],
         limit: usize,
@@ -266,7 +292,7 @@ impl EmbeddingPort for EmbeddingStore {
     ///
     /// Removes from both the `embeddings` metadata table and the
     /// `vec_embeddings` virtual table in a single transaction.
-    fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
+    pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
         let conn = self
             .conn
             .lock()
@@ -320,7 +346,7 @@ impl EmbeddingPort for EmbeddingStore {
     }
 
     /// Count total embeddings stored.
-    fn count(&self) -> Result<usize, EmbeddingError> {
+    pub fn count(&self) -> Result<usize, EmbeddingError> {
         let conn = self
             .conn
             .lock()
@@ -337,7 +363,7 @@ impl EmbeddingPort for EmbeddingStore {
     ///
     /// Uses SQL LIKE with the prefix + '%' pattern.
     /// Efficient when the `idx_embeddings_entity_ref` index exists.
-    fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
+    pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
         let conn = self
             .conn
             .lock()

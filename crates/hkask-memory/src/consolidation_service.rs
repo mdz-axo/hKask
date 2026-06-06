@@ -7,10 +7,11 @@
 
 use std::sync::Arc;
 
+use crate::consolidation::ConsolidationBridge;
 use crate::semantic::SemanticMemory;
 use hkask_types::WebID;
 use hkask_types::capability::tokens::ConsolidationToken;
-use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort, ConsolidationRequest};
+use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
 
 /// Consolidation Service — user-facing combined consolidation + semantic cleanup.
 ///
@@ -21,7 +22,7 @@ use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort, ConsolidationR
 /// The service requires a `ConsolidationToken` and a passphrase-verified
 /// `WebID` to authorize the operation.
 pub struct ConsolidationService {
-    bridge: Arc<dyn ConsolidationPort>,
+    bridge: Arc<ConsolidationBridge>,
     semantic: Arc<SemanticMemory>,
     token: ConsolidationToken,
 }
@@ -31,7 +32,7 @@ impl ConsolidationService {
     ///
     /// The token must be issued by the Curator (system-level authority).
     pub fn new(
-        bridge: Arc<dyn ConsolidationPort>,
+        bridge: Arc<ConsolidationBridge>,
         semantic: Arc<SemanticMemory>,
         token: ConsolidationToken,
     ) -> Self {
