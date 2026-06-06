@@ -107,6 +107,7 @@ install_system_dependencies() {
                 curl \
                 wget \
                 jq \
+                xz-utils \
                 protobuf-compiler \
                 libprotobuf-dev
             ;;
@@ -121,11 +122,13 @@ install_system_dependencies() {
                 sqlite-devel \
                 clang-devel \
                 llvm-devel \
+                libzstd-devel \
                 cmake \
                 git \
                 curl \
                 wget \
                 jq \
+                xz \
                 protobuf-compiler \
                 protobuf-devel
             ;;
@@ -137,11 +140,13 @@ install_system_dependencies() {
                 sqlite \
                 clang \
                 llvm \
+                zstd \
                 cmake \
                 git \
                 curl \
                 wget \
                 jq \
+                xz \
                 protobuf \
                 protobuf-c
             ;;
@@ -154,11 +159,13 @@ install_system_dependencies() {
                 sqlite3-devel \
                 clang \
                 llvm \
+                libzstd-devel \
                 cmake \
                 git \
                 curl \
                 wget \
                 jq \
+                xz \
                 protobuf-devel
             ;;
         apk)
@@ -169,16 +176,18 @@ install_system_dependencies() {
                 sqlite-dev \
                 clang \
                 llvm \
+                zstd-dev \
                 cmake \
                 git \
                 curl \
                 wget \
                 jq \
+                xz \
                 protobuf-dev
             ;;
         unknown)
             log_warning "Unknown package manager. Please install dependencies manually."
-            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libclang-dev, llvm-dev, cmake, git, curl, jq"
+            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libclang-dev, llvm-dev, libzstd-dev, cmake, git, curl, jq, xz-utils"
             return 1
             ;;
     esac
@@ -191,8 +200,11 @@ install_rust() {
         local rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
 
-        local rust_minor=$(rustc --version | grep -oP '\d+\.\K\d+' | head -1)
-        if [ -n "$rust_minor" ] && [ "$rust_minor" -lt 91 ]; then
+        # Parse version: e.g. "rustc 1.91.0 (...)", extract major.minor
+        local rust_major_minor=$(rustc --version | awk '{print $2}' | cut -d. -f1,2)
+        local rust_major=$(echo "$rust_major_minor" | cut -d. -f1)
+        local rust_minor=$(echo "$rust_major_minor" | cut -d. -f2)
+        if [ -n "$rust_major" ] && [ -n "$rust_minor" ] && { [ "$rust_major" -lt 1 ] || { [ "$rust_major" -eq 1 ] && [ "$rust_minor" -lt 91 ]; }; }; then
             log_warning "Rust version too old (project requires 1.91+). Update with 'rustup update' or install from https://rustup.rs"
         fi
     else

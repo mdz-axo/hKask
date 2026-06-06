@@ -28,7 +28,7 @@ for dir in "${hot_dirs[@]}"; do
         continue
     fi
 
-    for file in "$(find "$dir" -name '*.rs')"; do
+    while IFS= read -r file; do
         [ -f "$file" ] || continue
 
         # Extract #[cfg(test)] module line ranges: start_line end_line
@@ -112,7 +112,7 @@ for dir in "${hot_dirs[@]}"; do
             violations="${violations}${match}"$'\n'
             has_violation=true
         done < <(grep -rn '\.unwrap()' "$file" | grep -v '^\s*//')
-    done
+    done < <(find "$dir" -name '*.rs')
 done
 
 if $has_violation; then
