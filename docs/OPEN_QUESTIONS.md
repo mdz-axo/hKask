@@ -290,6 +290,96 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 
 ---
 
+### TQ-1: Mechanical vs. LLM Completeness Evaluation
+
+**DDMVSS Category:** Curation  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+Can `CompletenessCheck::is_complete()` be evaluated mechanically, or does it require LLM-assisted judgment for natural-language goals? If mechanical, implement as `#[test]`. If LLM-assisted, delegate to `CurateEvaluate`. The first tracer-bullet test is: "Given a `GoalSpec` with one criterion `satisfied: true`, `is_complete()` returns `true`." This is mechanical and should pass. Natural-language goals (e.g., "User can chat with agents") require LLM evaluation.
+
+---
+
+### TQ-2: Coherence Threshold Calibration
+
+**DDMVSS Category:** Curation  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+The 0.7 coherence threshold (`default_coherence_threshold` in `CurationThresholdConfig`) is a starting guess per DDMVSS §9.2 gap #13. What is the empirical coherence score for a well-curated test invariant set? Calibrate after operational data from at least one full crate's test rewrite.
+
+---
+
+### TQ-3: Skill Enforcement vs. Guidance
+
+**DDMVSS Category:** Trust  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+Should skills be enforced mechanically (pre-commit hooks, CI checks, `spec/skill/evaluate` returning violations that block merge) or treated as guidance (curation decisions overridable per sovereignty principle)? The architecture supports both — this is a social contract, not a technical constraint.
+
+---
+
+### TQ-4: Property-Based Testing Boundaries
+
+**DDMVSS Category:** Capability  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+Where do `proptest` and `cargo fuzz` fit? DDMVSS invariants are natural property candidates (e.g., "\forall CurationDecision, coherence_score in [0, 1]"). But property testing is not tracer-bullet — it's a different cycle. Should it be governed by its own skill (`property-testing`) or folded into the TDD skill as a specialized cycle type?
+
+---
+
+### TQ-5: Integration Test Isolation
+
+**DDMVSS Category:** Composition  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+MCP server tests require `rmcp` transport. Should integration tests use the existing `McpTestServer` pattern from `hkask-mcp-markitdown`, or should a shared test fixture crate (`hkask-test-utils`) be extracted? Per C4 ("repetition is a missing primitive"), if 3+ MCP servers duplicate test setup, extract. Current count: 2 servers with test modules. Threshold not yet met.
+
+---
+
+### TQ-6: CNS Variety Counters for Test Diversity
+
+**DDMVSS Category:** Observability  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+Should `cns.test.*` spans track test diversity (number of distinct seams tested per DDMVSS category) and emit algedonic alerts when test variety drops below threshold? This would make test coverage a homeostatic concern — cybernetically coherent, but requires defining thresholds per DDMVSS category.
+
+---
+
+### TQ-7: Skill-Bundler Composition with TDD
+
+**DDMVSS Category:** Composition  
+**Status:** Open  
+**Opened:** 2026-06-06
+
+When multiple skills are active (skill-bundler), does the TDD cycle apply per-skill (trace each skill's invariants individually) or per-task (trace the composite behavior)? If two skills govern the same behavior, which invariant wins? Resolution: Curation decides, per `CurateReconcile`.
+
+---
+
+### TQ-8: hkask-keystore Has Zero Tests
+
+**DDMVSS Category:** Trust  
+**Status:** Open — CRITICAL  
+**Opened:** 2026-06-06
+
+`hkask-keystore` is security-critical (AES-256-GCM, HKDF-SHA256, OS keychain integration) and has zero test modules. This is a P0 gap per the test inventory. Priority: behavioral tests at the `Keychain` and `Encryption` seams.
+
+---
+
+### TQ-9: hkask-mcp-spec Has Zero Tests
+
+**DDMVSS Category:** Interface  
+**Status:** Open — HIGH  
+**Opened:** 2026-06-06
+
+`hkask-mcp-spec` is the DDMVSS governance surface (8+4 tool surfaces) and has zero test modules. Priority: behavioral tests at the `SpecStore` port and `SpecServer` tool handler seams.
+
+---
+
 ## Resolution Summary
 
 | OQ | Status | Decision | Date |

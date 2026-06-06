@@ -1,7 +1,54 @@
+#![allow(dead_code)]
 //! Request/response types for the Spec MCP server
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+// ── Testing protocol types ────────────────────────────────────
+
+/// Classification of a test according to DDMVSS testing protocol (TP-1).
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
+pub enum TestClassification {
+    /// Tests behavior through a module's public API or trait seam.
+    PublicInterface,
+    /// Tests interaction between two modules through a shared trait.
+    SeamIntegration,
+    /// Tests private methods, internal state, or mocked collaborators.
+    /// Flagged as technical debt per TP-5.
+    ImplementationCoupled,
+}
+
+/// Testing protocol status for a DDMVSS requirement.
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+pub struct TestTraceability {
+    /// The DDMVSS requirement ID (e.g., "REQ-TRU-001").
+    pub requirement_id: String,
+    /// Classification of the covering test, if one exists.
+    pub classification: Option<TestClassification>,
+    /// The test function name or path, if a test exists.
+    pub test_path: Option<String>,
+    /// Whether this requirement has a documented gap (no test).
+    pub has_gap: bool,
+    /// If implementation-coupled, the `TEST-DEBT` comment location.
+    pub test_debt_location: Option<String>,
+}
+
+/// Response from the spec_curate_test_verify tool.
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+pub struct TestVerifyResponse {
+    /// Total DDMVSS requirements checked.
+    pub total_requirements: usize,
+    /// Requirements with at least one test.
+    pub tested: usize,
+    /// Requirements with documented gaps.
+    pub gaps: usize,
+    /// Requirements with implementation-coupled tests (debt).
+    pub debt: usize,
+    /// Per-requirement traceability details.
+    pub traceability: Vec<TestTraceability>,
+    /// Whether all requirements are satisfied (tested or documented gap).
+    pub complete: bool,
+}
 
 // ── Response types ───────────────────────────────────────────
 

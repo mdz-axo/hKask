@@ -13,13 +13,12 @@
 //! path (McpGovernor.authorize) has been removed — call sites must wire
 //! through GovernedTool.
 
-use crate::governor::McpGovernor;
 use crate::raw_tool_port::RawMcpToolPort;
 use crate::runtime::McpRuntime;
 use hkask_cns::GovernedTool;
 use hkask_templates::{McpPort, Result, TemplateError};
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
-use hkask_types::{DelegationToken, WebID};
+use hkask_types::{CapabilityChecker, DelegationToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -34,9 +33,9 @@ pub type DispatchGovernedTool = GovernedTool<RawMcpToolPort>;
 pub struct McpDispatcher {
     /// MCP runtime for tool discovery and invocation
     runtime: McpRuntime,
-    /// Capability governor for token issuance (`issue_capability`).
+    /// Capability checker for token issuance.
     /// Not used for invocation governance — that flows through GovernedTool.
-    governor: Arc<McpGovernor>,
+    capability_checker: Arc<CapabilityChecker>,
     /// Governed tool membrane — the singular governance boundary.
     /// When present, all tool invocations route through this membrane
     /// which handles OCAP verification, energy budgets, and CNS observability.
@@ -56,14 +55,14 @@ impl McpDispatcher {
     ) -> Self {
         Self {
             runtime,
-            governor: Arc::new(McpGovernor::new(secret)),
+            capability_checker: Arc::new(CapabilityChecker::new(secret)),
             governed_tool: Some(governed_tool),
         }
     }
 
-    /// Issue capability token to a bot (delegates to governor).
+    /// Issue capability token to a bot.
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
-        self.governor.issue_capability(tool_name, from, to)
+        self.capability_checker.grant_tool(tool_name, from, to)
     }
 
     /// List all available tools

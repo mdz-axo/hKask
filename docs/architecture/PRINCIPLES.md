@@ -179,7 +179,7 @@ The five anchors ground in the [six-loop authority model](loop-architecture.md):
 
 **Purpose:** Tailoring rules that prevent architectural decay and maintain minimal viable complexity.[^constraints]
 
-### 2.1 Process Constraints (P1–P7)
+### 2.1 Process Constraints (P1–P8)
 
 | # | Constraint | Enforcement |
 |---|------------|-------------|
@@ -190,8 +190,9 @@ The five anchors ground in the [six-loop authority model](loop-architecture.md):
 | **P5** | No feature flag without an activator | `cargo deny` check |
 | **P6** | Delete stubs, don't publish them | PR review gate |
 | **P7** | Prefer deletion over deprecation | Migration strategy |
+| **P8** | No test without an invariant | Every `#[test]` verifies a stated behavioral property of a public seam; tests without invariants are structural and must be rewritten or removed |
 
-### 2.2 Conceptual Constraints (C1–C7)
+### 2.2 Conceptual Constraints (C1–C8)
 
 | # | Constraint | Enforcement |
 |---|------------|-------------|
@@ -202,6 +203,7 @@ The five anchors ground in the [six-loop authority model](loop-architecture.md):
 | **C5** | Every error variant is a unique recovery path | No catch-all variants |
 | **C6** | A stub is a debt receipt | Track in OPEN_QUESTIONS.md |
 | **C7** | When implementations diverge, one must yield | Consolidation required |
+| **C8** | Test depth matches module depth | Shallow modules get shallow tests; deep modules get deep tests. If a module is hard to test, deepen the module first (per improve-codebase-architecture skill), then test the deep seam |
 
 **Verification Command:**
 ```bash
@@ -213,6 +215,15 @@ grep -r "todo!\|unimplemented!\|FIXME" crates/ --include="*.rs"
 
 # Check for deprecations (P7)
 grep -r "#\[deprecated\]" crates/ --include="*.rs"
+
+# Check for tests without invariants (P8)
+# A test without a stated behavioral property in its name or doc comment
+# is structural and must be rewritten. This check identifies test functions
+# that lack a doc comment describing the invariant they verify.
+for f in $(find crates/ mcp-servers/ -name '*.rs' -exec grep -l '#\[cfg(test)\]' {} \;); do
+  # Report test functions that have no doc comment above them
+  awk '/\/\//!/ { doc=$0; next } /#\[test\]/ { getline; if (doc !~ /\/\//) print FILENAME ":" NR ": test without invariant doc: " $0; doc=""; next } !/\/\// { doc="" }' "$f"
+done
 ```
 
 ---

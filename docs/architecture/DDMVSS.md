@@ -1473,6 +1473,73 @@ impl SpecStore for SqliteSpecStore {
 
 ---
 
+## 12. Testing Protocol
+
+This section codifies testing practices as normative DDMVSS requirements. Full detail lives in [`TESTING_STANDARDS.md`](../specifications/TESTING_STANDARDS.md).
+
+### 12.1 Principles
+
+| ID | Principle | Enforcement |
+|----|-----------|-------------|
+| TP-1 | Tests verify behavior through public interfaces, not implementation details | Review gate: classify every new test as Public Interface, Seam Integration, or Implementation-Coupled |
+| TP-2 | Vertical slicing: one test → one implementation → repeat | Review gate: no PR merges a batch of tests without corresponding implementation |
+| TP-3 | The interface is the test surface — hard-to-test modules signal shallow interfaces | Architecture review: flag modules with only implementation-coupled tests for deepening |
+| TP-4 | Write regression tests before fixes, but only if a correct seam exists | If no seam exists, that is an architecture finding, not a testing gap |
+| TP-5 | Implementation-coupled tests are technical debt tracked with `TEST-DEBT` comments | `grep -r "TEST-DEBT" crates/ --include="*.rs" | wc -l` must decrease over time |
+| TP-6 | Every DDMVSS requirement maps to at least one test or a documented `GAP` | Traceability matrix `Tests` column: `— GAP` for untested requirements, never bare `—` |
+| TP-7 | Skill-based workflows govern testing practices | Project-local skills in `.agents/skills/` are normative references |
+
+### 12.2 Skill References
+
+| Skill | DDMVSS Role | Location |
+|-------|------------|----------|
+| `tdd` | Red-green-refactor with vertical slicing | `.agents/skills/tdd/SKILL.md` |
+| `diagnose` | Build feedback loop before hypothesizing | `.agents/skills/diagnose/SKILL.md` |
+| `improve-codebase-architecture` | Identify shallow modules, deepen seams | `.agents/skills/improve-codebase-architecture/SKILL.md` |
+| `coding-guidelines` | Surgical changes, simplicity first, goal-driven | `.agents/skills/coding-guidelines/SKILL.md` |
+| `zoom-out` | Module map, caller graph, data flow | `.agents/skills/zoom-out/SKILL.md` |
+| `grill-me` | Socratic interrogation of design decisions | `.agents/skills/grill-me/SKILL.md` |
+| `skill-bundler` | Compose multiple skills into coordinated sessions | `.agents/skills/skill-bundler/SKILL.md` |
+
+### 12.3 Category → Test Strategy Summary
+
+| Category | Primary Seam | Key Invariant | Anti-Pattern |
+|----------|-------------|---------------|-------------|
+| Domain | `WebID`, `NuEvent`, `HLexicon` public APIs | hLexicon round-trips | Testing internal hashmap structure |
+| Capability | `Capability`, `Delegation`, `AcpRuntime` traits | Fail-closed: no checker → denied | Testing HMAC internals rather than attenuation |
+| Interface | CLI ↔ API ↔ MCP equivalence | `MCP ≡ CLI ≡ API` for every operation | Testing only one surface |
+| Composition | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` | Cascade terminates within depth limit | Testing Jinja2 string manipulation in isolation |
+| Trust & Security | `SecurityGateway`, `AcpRuntime`, key derivation | Security boundaries never relaxed by default | Only testing happy paths |
+| Observability | `CnsObserver`, `SseObserver`, `AlgedonicManager` | Alerts fire at threshold/2 (warning), threshold (critical) | Testing `tracing::info!` format rather than observer behavior |
+| Persistence | Repository traits (`GoalRepository`, `TripleStore`, `SpecStore`) | Bitemporal queries correct; encrypted storage fails without key | Testing SQL query strings rather than repository behavior |
+| Lifecycle | `main()` entry point, migration functions | Forward-only evolution — no rollback | Testing CLI arg parsing in isolation |
+| Curation | `SpecCurator`, `SpecStore`, MCP spec tool handlers | Coherence threshold gates curation decisions | Testing Jaccard similarity without full pipeline |
+
+### 12.4 Test Gap Priority
+
+Priority is determined by risk: security and correctness-critical paths first.
+
+| Priority | Category | Gap | Target Seam |
+|----------|----------|-----|-------------|
+| P0 | Trust & Security | Fail-closed capability checker | `CapabilityChecker` trait |
+| P0 | Trust & Security | Per-replicant key derivation | `AcpRuntime::derive_agent_secret` |
+| P0 | Trust & Security | Encrypted storage at rest | `Database` (SQLCipher) |
+| P1 | Capability | OCAP attenuation depth | `Delegation` trait |
+| P1 | Interface | MCP ≡ CLI ≡ API parity | `GoalServer`, `goal_router`, `kask goal` |
+| P1 | Interface | CNS SSE endpoint | `SseObserver` |
+| P2 | Observability | Algedonic alert thresholds | `AlgedonicManager` |
+| P2 | Composition | Template cascade depth | `TemplateResolver` |
+| P2 | Persistence | Bitemporal triple storage | `TripleStore` |
+| P3 | Domain | hLexicon drift detection | `ContractValidator` |
+| P3 | Lifecycle | Bootstrap sequence | `main()` |
+| P3 | Curation | Spec curation pipeline | `DefaultSpecCurator` |
+
+### 12.5 Self-Application
+
+DDMVSS self-application (§9) is extended: the Testing Protocol applies to this specification itself. Every DDMVSS requirement must have a corresponding test or a documented `GAP` in the traceability matrix. The `spec_curate_test_verify` tool in `hkask-mcp-spec` can validate this.
+
+---
+
 ## 11. References
 
 [^evans-ddd]: Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley. The "Domain-Driven" in DDMVSS derives from Evans's pattern of bounding a model within an explicit context, ubiquitous language, and anti-corruption layers.

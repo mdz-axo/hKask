@@ -788,6 +788,7 @@ pub(super) fn handle_ask(
                 Some(state.semantic_storage.clone()),
                 Some(state.agent_webid),
                 None, // No HHH suffix for /ask
+                Some(state.tool_prompt_section.as_str()),
             ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, chat_response.text);
             if let Some(ref usage) = chat_response.usage {
@@ -817,6 +818,7 @@ pub(super) fn handle_ask(
                 Some(state.semantic_storage.clone()),
                 Some(state.agent_webid),
                 None, // No HHH suffix for /ask
+                Some(state.tool_prompt_section.as_str()),
             ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, chat_response.text);
             if let Some(ref usage) = chat_response.usage {

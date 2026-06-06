@@ -103,7 +103,7 @@ echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
 |------------|----------|----|
 | **No Visual UI** | Grafana, dashboards, web frontends, GUIs | CLI/MCP/API only |
 | **No Monitoring Stacks** | Prometheus, Alertmanager, external observability | CNS provides programmatic observability |
-| **No Excess Complexity** | Unused traits, stubs, deprecations, feature flags | P1-P7, C1-C7 constraints |
+| **No Excess Complexity** | Unused traits, stubs, deprecations, feature flags | P1-P8, C1-C8 constraints |
 
 **Interaction:** CLI (`kask <subcommand>`) · MCP (21 servers) · API (HTTP/OpenAPI)
 **Monitoring:** CNS spans (`cns.*`) · Variety counters · Algedonic alerts (>100 deficit)
@@ -118,6 +118,25 @@ if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATIO
 
 ---
 
+## Test Program
+
+**P8:** Every `#[test]` verifies a stated behavioral property of a public seam. Tests without invariants are structural and must be rewritten or removed.
+
+**C8:** Test depth matches module depth. Shallow modules get shallow tests; deep modules get deep tests. If a module is hard to test, deepen the module first.
+
+**TDD Practice:** Vertical tracer-bullet discipline (RED→GREEN per behavior, never horizontal slices). Governed by DDMVSS Curation — every test invariant is evaluated via Merge/Revise/Defer/Discard.
+
+| Topic | Location |
+|-------|----------|
+| Test Program Specification | `docs/specifications/test-program.md` |
+| Test Inventory & Seam Analysis | `docs/status/test-inventory.md` |
+| Testing Standards (DDMVSS §12) | `docs/specifications/TESTING_STANDARDS.md` |
+| Architecture Principles (P8, C8) | `docs/architecture/PRINCIPLES.md` |
+| DDMVSS Testing Protocol | `docs/architecture/DDMVSS.md` §12 |
+| Skill-to-DDMVSS Mapping | `docs/specifications/test-program.md` §11 |
+
+---
+
 ## Architecture & Docs
 
 | Topic | Location |
@@ -125,6 +144,11 @@ if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATIO
 | Architecture master | `docs/architecture/hKask-architecture-master.md` (v0.22.0) |
 | ERDs | `docs/architecture/reference/hKask-erd.md`, `subsystem-erds.md` |
 | Registry & templating | `docs/architecture/interface-and-composition.md` (§2-§6) |
+| DDMVSS Specification | `docs/architecture/DDMVSS.md` (v0.2.2) |
+| Testing Protocol (DDMVSS §12) | `docs/architecture/DDMVSS.md` §12 |
+| Test Program (DDMVSS self-applying) | `docs/specifications/test-program.md` |
+| Test Inventory & Seam Analysis | `docs/status/test-inventory.md` |
+| Testing Standards | `docs/specifications/TESTING_STANDARDS.md` |
 | GML (Allosteric Thinking) | `docs/gml/README.md` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
 | Okapi Integration | `docs/architecture/reference/okapi-integration.md` |

@@ -29,6 +29,7 @@
 
 use crate::dampener::Dampener;
 use crate::energy::{AgentGasStatus, GasBudget, GasError};
+use crate::gas_budget_management::GasBudgetManager;
 use crate::runtime::CnsRuntime;
 use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 
@@ -41,24 +42,9 @@ use hkask_types::loops::{
     LoopAction, LoopId, LoopMessage, LoopPayload, Signal, SignalMetric,
 };
 use hkask_types::ports::BackpressureSignal;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
-
-/// Record of an active Curation override on an agent's gas budget.
-///
-/// When Curation issues an `OverrideGasBudget` directive, the override is
-/// recorded here so that `replenish_all_budgets()` does not overwrite it
-/// on the next regulation cycle. This preserves the metacognitive override
-/// mechanism — the core safety feature that lets Curation exceed
-/// Cybernetics' set-point range.
-struct OverrideRecord {
-    /// When this override was issued (for TTL expiry)
-    issued_at: chrono::DateTime<chrono::Utc>,
-    /// TTL in seconds (0 = no expiry, must be explicitly cleared)
-    ttl_secs: u64,
-}
 
 /// The Cybernetics Loop — homeostatic self-regulation.
 ///
@@ -68,7 +54,7 @@ struct OverrideRecord {
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
     cns: Arc<RwLock<CnsRuntime>>,
-    gas_budgets: Arc<RwLock<std::collections::HashMap<WebID, GasBudget>>>,
+    gas_budget_manager: GasBudgetManager,
     set_points: SetPoints,
     /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
@@ -77,8 +63,6 @@ pub struct CyberneticsLoop {
     dampener: Arc<Dampener>,
     /// When present, algedonic alerts are persisted to NuEventStore for restart durability.
     event_sink: Option<Arc<dyn NuEventSink>>,
-    /// Agents with active overrides are skipped during replenish_all_budgets().
-    active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
     /// Lock-free counter written by CommunicationLoop, read by sense(). Relaxed ordering.
     communication_queue_depth: Option<Arc<AtomicU64>>,
 }
@@ -92,14 +76,13 @@ impl CyberneticsLoop {
         let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
         Self {
             cns,
-            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budget_manager: GasBudgetManager::new(),
             set_points: SetPoints::default(),
             max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
-            active_overrides: Arc::new(RwLock::new(HashMap::new())),
             communication_queue_depth: None,
         }
     }
@@ -113,14 +96,13 @@ impl CyberneticsLoop {
         let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
         Self {
             cns,
-            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budget_manager: GasBudgetManager::new(),
             set_points,
             max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
-            active_overrides: Arc::new(RwLock::new(HashMap::new())),
             communication_queue_depth: None,
         }
     }
@@ -147,49 +129,36 @@ impl CyberneticsLoop {
         let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
         let loop_instance = Self {
             cns,
-            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budget_manager: GasBudgetManager::new(),
             set_points: SetPoints::default(),
             max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
-            active_overrides: Arc::new(RwLock::new(HashMap::new())),
             communication_queue_depth: None,
         };
         (loop_instance, inbox_tx)
     }
 
     pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
-        let mut budgets = self.gas_budgets.write().await;
-        budgets.insert(agent, budget);
+        self.gas_budget_manager
+            .register_gas_budget(agent, budget)
+            .await;
     }
 
     pub async fn can_proceed(&self, agent: &WebID, gas: u64) -> bool {
-        let budgets = self.gas_budgets.read().await;
-        if let Some(budget) = budgets.get(agent) {
-            budget.can_proceed(gas)
-        } else {
-            // No budget registered — allow by default (soft limit)
-            true
-        }
+        self.gas_budget_manager.can_proceed(agent, gas).await
     }
 
     /// Returns `None` if agent has no registered budget.
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
-        let budgets = self.gas_budgets.read().await;
-        budgets.get(agent).map(AgentGasStatus::from)
+        self.gas_budget_manager.agent_gas_status(agent).await
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call settle_gas() after.
     pub async fn reserve_gas(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
-        let mut budgets = self.gas_budgets.write().await;
-        if let Some(budget) = budgets.get_mut(agent) {
-            budget.reserve(gas)
-        } else {
-            // No budget registered — allow by default (soft limit)
-            Ok(0)
-        }
+        self.gas_budget_manager.reserve_gas(agent, gas).await
     }
 
     /// If actual < reserved, the difference is refunded.
@@ -199,71 +168,25 @@ impl CyberneticsLoop {
         reserved_gas: u64,
         actual_gas: u64,
     ) -> Result<u64, GasError> {
-        let mut budgets = self.gas_budgets.write().await;
-        if let Some(budget) = budgets.get_mut(agent) {
-            budget.settle(reserved_gas, actual_gas)
-        } else {
-            // No budget registered — cost is 0 (soft limit)
-            Ok(0)
-        }
+        self.gas_budget_manager
+            .settle_gas(agent, reserved_gas, actual_gas)
+            .await
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
     pub async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
-        let mut budgets = self.gas_budgets.write().await;
-        if let Some(budget) = budgets.get_mut(agent) {
-            budget.consume(gas)
-        } else {
-            // No budget registered — cost is 0 (soft limit)
-            Ok(0)
-        }
+        self.gas_budget_manager.acquire_budget(agent, gas).await
     }
 
     pub async fn replenish_all_budgets(&self) {
-        let budget_ids: Vec<WebID> = {
-            let budgets = self.gas_budgets.read().await;
-            budgets.keys().cloned().collect()
-        };
-        let overrides = self.active_overrides.read().await;
-        for agent in budget_ids {
-            if overrides.contains_key(&agent) {
-                // Skip replenishment for agents with active Curation overrides
-                continue;
-            }
-            let replenished = {
-                let mut budgets = self.gas_budgets.write().await;
-                if let Some(budget) = budgets.get_mut(&agent) {
-                    let rate = budget.replenish_rate;
-                    budget.replenish();
-                    rate
-                } else {
-                    0
-                }
-            };
-            if replenished > 0 {
-                tracing::debug!(
-                    target: "cns.cybernetics",
-                    agent = %agent,
-                    replenish_rate = replenished,
-                    "Replenished gas budget"
-                );
-            }
-        }
+        self.gas_budget_manager.replenish_all_budgets().await;
     }
 
     /// Used by CuratorDirective::ReplenishBudget.
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) {
-        let mut budgets = self.gas_budgets.write().await;
-        if let Some(budget) = budgets.get_mut(agent) {
-            budget.replenish_by(amount);
-            tracing::info!(
-                target: "cns.cybernetics",
-                agent = %agent,
-                amount = amount,
-                remaining = budget.remaining,
-                "Replenished agent gas budget by directive"
-            );
-        }
+        self.gas_budget_manager
+            .replenish_agent_budget(agent, amount)
+            .await;
     }
 
     pub fn dispatch_sender(&self) -> mpsc::UnboundedSender<LoopMessage> {
@@ -305,27 +228,7 @@ impl CyberneticsLoop {
         }
 
         // Expire overrides with non-zero TTL
-        {
-            let mut overrides = self.active_overrides.write().await;
-            let now = chrono::Utc::now();
-            overrides.retain(|agent, record| {
-                if record.ttl_secs == 0 {
-                    return true; // No TTL — persists until explicitly cleared
-                }
-                let expires_at =
-                    record.issued_at + chrono::Duration::seconds(record.ttl_secs as i64);
-                if now > expires_at {
-                    tracing::info!(
-                        target: "cns.cybernetics",
-                        agent = %agent,
-                        "Curation override expired — resuming normal replenishment"
-                    );
-                    false
-                } else {
-                    true
-                }
-            });
-        }
+        self.gas_budget_manager.expire_overrides().await;
     }
 
     async fn handle_curation_directive(&self, directive: CuratorDirective) {
@@ -413,78 +316,21 @@ impl CyberneticsLoop {
 
     /// Metacognitive override — recorded in active_overrides so replenish skips it.
     async fn apply_override_gas_budget(&self, agent: WebID, new_budget: u64) {
-        // Default TTL of 0 means override persists until explicitly cleared
-        let ttl_secs: u64 = 0;
-        let mut budgets = self.gas_budgets.write().await;
-        if let Some(budget) = budgets.get_mut(&agent) {
-            // Override can set budget above or below set-points
-            budget.cap = new_budget;
-            budget.remaining = new_budget;
-            tracing::warn!(
-                target: "cns.cybernetics",
-                agent = %agent,
-                new_budget = new_budget,
-                "Applied OverrideGasBudget directive from Curation (set-point override)"
-            );
-        } else {
-            budgets.insert(agent, GasBudget::new(new_budget));
-            tracing::warn!(
-                target: "cns.cybernetics",
-                agent = %agent,
-                new_budget = new_budget,
-                "Registered new gas budget from OverrideGasBudget directive"
-            );
-        }
-        drop(budgets);
-        // Record the override so replenish_all_budgets() skips this agent
-        let mut overrides = self.active_overrides.write().await;
-        overrides.insert(
-            agent,
-            OverrideRecord {
-                issued_at: chrono::Utc::now(),
-                ttl_secs,
-            },
-        );
+        self.gas_budget_manager
+            .apply_override_gas_budget(agent, new_budget)
+            .await;
     }
 
     /// Removes agent from active_overrides, resuming normal replenishment.
     async fn apply_clear_override(&self, agent: WebID) {
-        let mut overrides = self.active_overrides.write().await;
-        if overrides.remove(&agent).is_some() {
-            tracing::info!(
-                target: "cns.cybernetics",
-                agent = %agent,
-                "Cleared Curation override — normal replenishment resumes"
-            );
-        } else {
-            tracing::debug!(
-                target: "cns.cybernetics",
-                agent = %agent,
-                "ClearOverride directive received but no active override found"
-            );
-        }
+        self.gas_budget_manager.apply_clear_override(agent).await;
     }
 
     /// Priority-scaled: when priority is provided, replenishment is weighted.
     async fn apply_replenish_budget(&self, agent: WebID, amount: u64, priority: Option<f64>) {
-        let mut budgets = self.gas_budgets.write().await;
-        if let Some(budget) = budgets.get_mut(&agent) {
-            let replenished = if let Some(p) = priority {
-                budget.replenish_by_weighted(amount, p)
-            } else {
-                budget.replenish_by(amount);
-                amount.min(budget.cap - budget.remaining)
-            };
-            drop(budgets);
-            tracing::info!(
-                target: "cns.cybernetics",
-                agent = %agent,
-                amount = amount,
-                priority = priority,
-                replenished = replenished,
-                "Replenished agent gas budget by directive"
-            );
-        }
+        self.gas_budget_manager
+            .apply_replenish_budget(agent, amount, priority)
+            .await;
     }
 
     fn persist_directive_acknowledgment(&self, directive_type: &str) {
@@ -534,9 +380,9 @@ impl HkaskLoop for CyberneticsLoop {
         let mut signals = Vec::new();
 
         // Energy signals: per-agent remaining ratio
-        let budgets = self.gas_budgets.read().await;
-        for (_agent, budget) in budgets.iter() {
-            let ratio = budget.remaining as f64 / budget.cap.max(1) as f64;
+        let budget_ratios = self.gas_budget_manager.energy_ratios().await;
+        for (remaining, cap) in budget_ratios {
+            let ratio = remaining as f64 / cap.max(1) as f64;
             signals.push(Signal::new(
                 LoopId::Cybernetics,
                 SignalMetric::EnergyRemaining,
@@ -544,7 +390,6 @@ impl HkaskLoop for CyberneticsLoop {
                 self.set_points.gas_min_remaining,
             ));
         }
-        drop(budgets);
 
         // Variety deficit signal from CNS
         let cns = self.cns.read().await;

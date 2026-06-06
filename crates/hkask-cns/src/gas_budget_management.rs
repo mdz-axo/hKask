@@ -48,6 +48,12 @@ pub struct GasBudgetManager {
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
 }
 
+impl Default for GasBudgetManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GasBudgetManager {
     /// Create a new `GasBudgetManager` with empty budget and override maps.
     pub fn new() -> Self {
@@ -244,6 +250,38 @@ impl GasBudgetManager {
             );
         }
     }
+    /// Expire overrides with non-zero TTL that have passed their expiry time.
+    /// Called during the Cybernetics Loop's sense→compare→compute→act cycle.
+    pub async fn expire_overrides(&self) {
+        let mut overrides = self.active_overrides.write().await;
+        let now = chrono::Utc::now();
+        overrides.retain(|agent, record| {
+            if record.ttl_secs == 0 {
+                return true; // No TTL — persists until explicitly cleared
+            }
+            let expires_at = record.issued_at + chrono::Duration::seconds(record.ttl_secs as i64);
+            if now > expires_at {
+                tracing::info!(
+                    target: "cns.cybernetics",
+                    agent = %agent,
+                    "Curation override expired — resuming normal replenishment"
+                );
+                false
+            } else {
+                true
+            }
+        });
+    }
+
+    /// Iterate over gas budgets to produce energy signals.
+    /// Returns `(remaining, cap)` for each registered agent.
+    pub async fn energy_ratios(&self) -> Vec<(u64, u64)> {
+        let budgets = self.gas_budgets.read().await;
+        budgets
+            .values()
+            .map(|budget| (budget.remaining, budget.cap))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -364,16 +402,18 @@ mod tests {
         // Clear override
         manager.apply_clear_override(agent).await;
 
-        // Now replenish should work for this agent
-        let _ = manager.acquire_budget(&agent, 4000).await;
+        // Consume some gas
+        let _ = manager.acquire_budget(&agent, 4_000).await;
+
+        // Replenish — should restore up to cap
         manager.replenish_all_budgets().await;
 
         let status = manager.agent_gas_status(&agent).await.unwrap();
-        // After replenishment, remaining should be higher than before replenishment
-        assert!(
-            status.remaining > 6000,
-            "agent should be replenished after clearing override, got {}",
-            status.remaining
+        // remaining was 1000, replenish_rate is 1000, cap is 10000
+        // After replenishment: remaining = min(1000 + 1000, 10000) = 2000
+        assert_eq!(
+            status.remaining, 2_000,
+            "remaining should reflect replenishment after clearing override"
         );
     }
 

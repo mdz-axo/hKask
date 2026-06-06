@@ -262,6 +262,40 @@ impl HLexicon {
             "Nurture growth and coherence over time",
         ));
 
+        // KnowAct terms — verification and diagnosis (test program)
+        lexicon.add(LexiconTerm::new(
+            "diagnose",
+            TemplateType::KnowAct,
+            "Construct a feedback loop to identify root causes",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "verify",
+            TemplateType::KnowAct,
+            "Mechanically check whether behavioral tests exist for a seam",
+        ));
+
+        // FlowDef terms — test program and skill workflows
+        lexicon.add(LexiconTerm::new(
+            "trace",
+            TemplateType::FlowDef,
+            "Execute a tracer-bullet test cycle (RED→GREEN for one invariant)",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "deepen",
+            TemplateType::FlowDef,
+            "Extract a smaller interface from a shallow module to create a testable seam",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "register",
+            TemplateType::FlowDef,
+            "Record a skill-to-DDMVSS mapping as a SpecArtifact",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "handoff",
+            TemplateType::FlowDef,
+            "Transfer session context to a fresh agent for continuity",
+        ));
+
         lexicon
     }
 }

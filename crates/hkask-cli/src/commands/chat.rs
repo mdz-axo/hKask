@@ -95,6 +95,7 @@ pub async fn chat_with_agent(
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     agent_webid: Option<WebID>,
     system_prompt_suffix: Option<&str>,
+    tool_section: Option<&str>,
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
@@ -162,28 +163,34 @@ pub async fn chat_with_agent(
     };
 
     // Append tool call format instructions so the model can invoke MCP tools.
-    // This enables tool-augmented chat: the model emits <<tool:server/tool\n{args}\n>>
-    // directives in its response, which the REPL parses and invokes through
-    // GovernedTool (OCAP + gas budget + CNS observability).
-    system_prompt.push_str(
-        "\n## Tool Calls\n\
-     You have access to MCP tools. When you need to invoke a tool, include a \
-     tool call directive in your response using this format:\n\
-     \n\
-     <<tool:server/tool_name\n\
-     {\"key\": \"value\"}\n\
-     >>\n\
-     \n\
-     For example, to recall semantic memory:\n\
-     <<tool:hkask-mcp-semantic/semantic_recall\n\
-     {\"entity\": \"rust\"}\n\
-     >>\n\
-     \n\
-     You may include multiple tool calls in a single response. After the tool \
-     executes, the system will feed the results back to you for a follow-up response.\n\
-     Use tools when they would provide better or more current information than your training data.\
-     ",
-    );
+    // When a tool_section is provided (discovered from running MCP servers),
+    // use the dynamic section that lists available tools. Otherwise fall back
+    // to the minimal hardcoded instruction for contexts without MCP runtime.
+    if let Some(section) = tool_section {
+        if !section.is_empty() {
+            system_prompt.push_str(section);
+        }
+    } else {
+        system_prompt.push_str(
+            "\n## Tool Calls\n\
+             You have access to MCP tools. When you need to invoke a tool, include a \
+             tool call directive in your response using this format:\n\
+             \n\
+             <<tool:server/tool_name\n\
+             {\"key\": \"value\"}\n\
+             >>\n\
+             \n\
+             For example, to recall semantic memory:\n\
+             <<tool:hkask-mcp-semantic/semantic_recall\n\
+             {\"entity\": \"rust\"}\n\
+             >>\n\
+             \n\
+             You may include multiple tool calls in a single response. After the tool \
+             executes, the system will feed the results back to you for a follow-up response.\n\
+             Use tools when they would provide better or more current information than your training data.\
+             ",
+        );
+    }
 
     // Append HHH alignment suffix when active (Helpful, Harmless, Honest).
     // The suffix is passed from the REPL turn loop when HHH mode is active.
@@ -528,6 +535,7 @@ pub fn run_chat(
             None, // No persistent storage in non-interactive mode
             None, // WebID derived from agent name
             None, // No HHH suffix in non-interactive mode
+            None, // No tool section — non-interactive mode has no MCP runtime
         ));
         println!("{}: {}", agent, chat_response.text);
         if let Some(ref usage) = chat_response.usage {

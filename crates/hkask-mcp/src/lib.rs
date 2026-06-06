@@ -10,7 +10,6 @@
 pub mod adapter_container;
 pub mod dispatch; // Loop 1 (inference tool dispatch)
 pub mod git_cas;
-pub(crate) mod governor; // Loop 6 (capability governance)
 pub mod raw_tool_port; // Ungoverned tool executor (inner port for GovernedTool)
 pub mod runtime;
 pub(crate) mod security;

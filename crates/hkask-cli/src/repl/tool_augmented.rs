@@ -13,9 +13,62 @@
 
 use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
-use hkask_types::ports::{StructuredToolCall, ToolPort};
+use hkask_types::ports::{StructuredToolCall, ToolInfo, ToolPort};
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
+use std::collections::BTreeMap;
 use std::sync::Arc;
+
+/// Format available MCP tools into a system prompt section.
+///
+/// Derives the tool list from runtime discovery, grouped by server.
+/// This replaces the hardcoded tool format string in `chat.rs` — the
+/// LLM now sees only tools that are actually running.
+///
+/// GovernedTool still enforces authorization at invocation time.
+/// This section is advisory — it tells the LLM what's available.
+pub fn format_tool_prompt_section(tools: &[ToolInfo]) -> String {
+    if tools.is_empty() {
+        return String::new();
+    }
+
+    // Group tools by server_id for readable formatting
+    let mut by_server: BTreeMap<&str, Vec<&ToolInfo>> = BTreeMap::new();
+    for tool in tools {
+        by_server.entry(&tool.server_id).or_default().push(tool);
+    }
+
+    let mut section = String::from(
+        "\n## Tool Calls\n\
+         You have access to MCP tools. When you need to invoke a tool, include a \
+         tool call directive in your response using this format:\n\
+         \n\
+         <<tool:server/tool_name\n\
+         {\"key\": \"value\"}\n\
+         >>\n\
+         \n",
+    );
+
+    for (server_id, server_tools) in &by_server {
+        section.push_str(&format!("**{}:**\n", server_id));
+        for tool in server_tools {
+            if tool.description.is_empty() {
+                section.push_str(&format!("- {}\n", tool.name));
+            } else {
+                section.push_str(&format!("- {} — {}\n", tool.name, tool.description));
+            }
+        }
+        section.push('\n');
+    }
+
+    section.push_str(
+        "You may include multiple tool calls in a single response. After the tool \
+         executes, the system will feed the results back to you for a follow-up response. \
+         Use tools when they would provide better or more current information than your training data.\
+         ",
+    );
+
+    section
+}
 
 /// A parsed tool call directive from a model response.
 #[derive(Debug, Clone)]
