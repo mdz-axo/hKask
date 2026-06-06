@@ -177,7 +177,6 @@ impl InferenceClient for CircuitBreakerInferenceAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
     use hkask_types::cns::CircuitState;
     use hkask_types::ports::InferenceUsage;
     use hkask_types::ports::{CircuitBreakerPort, InferenceError, InferencePort, InferenceResult};
@@ -202,39 +201,54 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl InferencePort for MockInferencePort {
-        async fn generate(
+        fn generate(
             &self,
             _prompt: &str,
             _params: &LLMParameters,
-        ) -> Result<InferenceResult, InferenceError> {
-            self.call_count.fetch_add(1, Ordering::Relaxed);
-            if self.should_fail.load(Ordering::Relaxed) {
-                Err(InferenceError::Connection("mock failure".to_string()))
-            } else {
-                Ok(InferenceResult {
-                    text: "mock response".to_string(),
-                    model: "mock-model".to_string(),
-                    usage: InferenceUsage {
-                        prompt_tokens: 0,
-                        completion_tokens: 0,
-                        total_tokens: 0,
-                    },
-                    finish_reason: "stop".to_string(),
-                    token_probabilities: None,
-                    tool_calls: vec![],
-                })
-            }
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = Result<InferenceResult, InferenceError>>
+                    + Send
+                    + '_,
+            >,
+        > {
+            let call_count = &self.call_count;
+            let should_fail = &self.should_fail;
+            Box::pin(async move {
+                call_count.fetch_add(1, Ordering::Relaxed);
+                if should_fail.load(Ordering::Relaxed) {
+                    Err(InferenceError::Connection("mock failure".to_string()))
+                } else {
+                    Ok(InferenceResult {
+                        text: "mock response".to_string(),
+                        model: "mock-model".to_string(),
+                        usage: InferenceUsage {
+                            prompt_tokens: 0,
+                            completion_tokens: 0,
+                            total_tokens: 0,
+                        },
+                        finish_reason: "stop".to_string(),
+                        token_probabilities: None,
+                        tool_calls: vec![],
+                    })
+                }
+            })
         }
 
-        async fn generate_with_model(
+        fn generate_with_model(
             &self,
             prompt: &str,
             params: &LLMParameters,
             _model: Option<&str>,
-        ) -> Result<InferenceResult, InferenceError> {
-            self.generate(prompt, params).await
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = Result<InferenceResult, InferenceError>>
+                    + Send
+                    + '_,
+            >,
+        > {
+            self.generate(prompt, params)
         }
     }
 

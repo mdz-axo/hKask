@@ -84,6 +84,8 @@ pub struct ReplicantServer {
     persona: String,
     /// Default model for inference
     default_model: String,
+    /// Okapi API base URL
+    okapi_base_url: String,
     /// Per-session conversation state
     session: Arc<RwLock<SessionState>>,
 }
@@ -93,6 +95,7 @@ impl ReplicantServer {
         webid: WebID,
         persona: &str,
         default_model: &str,
+        okapi_base_url: String,
         credentials: Option<&HashMap<String, String>>,
     ) -> anyhow::Result<Self> {
         // Resolve ACP secret through the full derivation chain
@@ -113,6 +116,7 @@ impl ReplicantServer {
             webid,
             persona: persona.to_string(),
             default_model: default_model.to_string(),
+            okapi_base_url,
             session: Arc::new(RwLock::new(SessionState {
                 turns: VecDeque::new(),
                 acp_runtime,
@@ -123,8 +127,7 @@ impl ReplicantServer {
 
     /// Build an inference port for the given model using Okapi config from env.
     fn build_inference_port(&self, model: &str) -> Result<Arc<dyn InferencePort>, String> {
-        let base_url = std::env::var("OKAPI_BASE_URL")
-            .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+        let base_url = self.okapi_base_url.clone();
         let config = hkask_templates::OkapiConfig {
             base_url,
             ..hkask_templates::OkapiConfig::default()
@@ -389,8 +392,7 @@ visibility:
             "server_webid": self.webid.redacted_display().to_string(),
             "has_registry_definition": has_definition,
             "session_history_turns": history_turns,
-            "okapi_base_url": std::env::var("OKAPI_BASE_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string()),
+            "okapi_base_url": self.okapi_base_url,
         }))
     }
 

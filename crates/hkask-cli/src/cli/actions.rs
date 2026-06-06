@@ -175,6 +175,9 @@ pub enum CnsAction {
         /// Set connector_latency_max_secs
         #[arg(long)]
         connector_latency_max_secs: Option<f64>,
+        /// Set communication_backpressure_threshold (message count)
+        #[arg(long)]
+        communication_backpressure_threshold: Option<f64>,
     },
 }
 

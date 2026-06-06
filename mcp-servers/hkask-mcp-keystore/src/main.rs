@@ -118,13 +118,15 @@ pub struct KeystoreServer {
 }
 
 impl KeystoreServer {
-    pub fn new(service_name: &str, webid: WebID) -> Self {
-        let vault_dir = std::env::var("HKASK_KEYSTORE_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-                PathBuf::from(home).join(".hkask").join("keystore")
-            });
+    pub fn new(service_name: &str, webid: WebID, keystore_dir: Option<PathBuf>) -> Self {
+        let vault_dir = keystore_dir.unwrap_or_else(|| {
+            std::env::var("HKASK_KEYSTORE_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| {
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+                    PathBuf::from(home).join(".hkask").join("keystore")
+                })
+        });
         let vault_path = vault_dir.join("vault.json");
 
         let entries = match Self::load_vault(&vault_path) {
@@ -477,12 +479,19 @@ async fn main() -> anyhow::Result<()> {
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
             let service_name = "hkask-mcp-keystore".to_string();
-            Ok(KeystoreServer::new(&service_name, ctx.webid))
+            let keystore_dir = ctx.credentials.get("HKASK_KEYSTORE_DIR").map(PathBuf::from);
+            Ok(KeystoreServer::new(&service_name, ctx.webid, keystore_dir))
         },
-        vec![CredentialRequirement::optional(
-            "HKASK_KEYSTORE_SERVICE",
-            "Service name for OS keychain (default: hkask-mcp-keystore)",
-        )],
+        vec![
+            CredentialRequirement::optional(
+                "HKASK_KEYSTORE_SERVICE",
+                "Service name for OS keychain (default: hkask-mcp-keystore)",
+            ),
+            CredentialRequirement::optional(
+                "HKASK_KEYSTORE_DIR",
+                "Path to keystore vault directory (default: ~/.hkask/keystore)",
+            ),
+        ],
     )
     .await
 }

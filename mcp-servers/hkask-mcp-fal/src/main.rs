@@ -1,8 +1,6 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
-use hkask_mcp::server::{
-    McpToolError, ToolSpanGuard, classify_http_error, resolve_credential, validate_tool_url,
-};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_tool_url};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -15,15 +13,11 @@ const QUEUE_BASE: &str = "https://queue.fal.run";
 const MAX_POLL_SECS: u64 = 60;
 const POLL_INTERVAL_SECS: u64 = 2;
 
-fn build_client() -> Result<reqwest::Client, McpToolError> {
-    let key = resolve_credential("HKASK_FAL_API_KEY").map_err(|_| {
-        McpToolError::failed_precondition("HKASK_FAL_API_KEY not found in keychain or environment")
-    })?;
-
+fn build_client(api_key: &str) -> Result<reqwest::Client, McpToolError> {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::AUTHORIZATION,
-        format!("Key {key}")
+        format!("Key {api_key}")
             .parse()
             .map_err(|e| McpToolError::internal(format!("Invalid header: {e}")))?,
     );
@@ -109,8 +103,8 @@ pub struct FalServer {
 }
 
 impl FalServer {
-    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
-        let client = build_client()?;
+    pub fn new(webid: WebID, api_key: String) -> Result<Self, anyhow::Error> {
+        let client = build_client(&api_key)?;
         Ok(Self { webid, client })
     }
 
@@ -403,7 +397,14 @@ async fn main() -> anyhow::Result<()> {
     hkask_mcp::run_server(
         "hkask-mcp-fal",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| FalServer::new(ctx.webid),
+        |ctx: hkask_mcp::ServerContext| {
+            let api_key = ctx
+                .credentials
+                .get("HKASK_FAL_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            FalServer::new(ctx.webid, api_key)
+        },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_FAL_API_KEY",
             "Fal.ai API key for AI image generation",

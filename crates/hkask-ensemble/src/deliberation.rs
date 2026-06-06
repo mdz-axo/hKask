@@ -9,22 +9,10 @@
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::info;
-
-/// Minimal participant descriptor for deliberation sessions.
-/// Decoupled from `ChatParticipant` (which lives in hkask-ensemble chat) to avoid
-/// circular dependencies.
-#[allow(dead_code)] // Infrastructure awaiting consumers; fields read via derived Debug/Clone
-#[derive(Debug, Clone)]
-pub(crate) struct DeliberationParticipant {
-    pub webid: WebID,
-    pub name: String,
-}
 
 /// Deliberation session for coordinating multi-agent responses
 pub struct DeliberationSession {
     session_id: String,
-    participants: Vec<DeliberationParticipant>,
     responses: HashMap<WebID, AgentResponse>,
     status: DeliberationStatus,
 }
@@ -34,8 +22,6 @@ pub struct DeliberationSession {
 pub(crate) enum DeliberationStatus {
     Pending,
     InProgress,
-    Completed,
-    Cancelled,
 }
 
 /// Individual agent response
@@ -84,16 +70,9 @@ impl DeliberationSession {
     pub fn new(session_id: String, _curator_webid: WebID) -> Self {
         Self {
             session_id,
-            participants: Vec::new(),
             responses: HashMap::new(),
             status: DeliberationStatus::Pending,
         }
-    }
-
-    /// Add a participant to deliberation
-    #[allow(dead_code)] // Infrastructure awaiting wiring
-    pub(crate) fn add_participant(&mut self, participant: DeliberationParticipant) {
-        self.participants.push(participant);
     }
 
     /// Record an agent's response
@@ -130,34 +109,9 @@ impl DeliberationSession {
         }
     }
 
-    /// Get session status
-    #[allow(dead_code)] // Infrastructure awaiting wiring
-    pub(crate) fn status(&self) -> &DeliberationStatus {
-        &self.status
-    }
-
     /// Mark deliberation as in progress
     pub fn start(&mut self) {
         self.status = DeliberationStatus::InProgress;
-    }
-
-    /// Mark deliberation as completed
-    #[allow(dead_code)] // Infrastructure awaiting wiring
-    pub(crate) fn complete(&mut self) {
-        self.status = DeliberationStatus::Completed;
-        info!("Deliberation session {} completed", self.session_id);
-    }
-
-    /// Cancel deliberation
-    #[allow(dead_code)] // Infrastructure awaiting wiring
-    pub(crate) fn cancel(&mut self) {
-        self.status = DeliberationStatus::Cancelled;
-        info!("Deliberation session {} cancelled", self.session_id);
-    }
-
-    /// Get participant count
-    pub fn participant_count(&self) -> usize {
-        self.participants.len()
     }
 
     /// Get response count

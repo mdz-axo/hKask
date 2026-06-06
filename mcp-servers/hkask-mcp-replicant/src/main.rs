@@ -51,7 +51,18 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_DEFAULT_MODEL")
                 .cloned()
                 .unwrap_or_else(|| "deepseek-v4-pro".to_string());
-            ReplicantServer::new(ctx.webid, &persona, &default_model, Some(&ctx.credentials))
+            let okapi_base_url = ctx
+                .credentials
+                .get("OKAPI_BASE_URL")
+                .cloned()
+                .unwrap_or_else(|| "http://127.0.0.1:11435".to_string());
+            ReplicantServer::new(
+                ctx.webid,
+                &persona,
+                &default_model,
+                okapi_base_url,
+                Some(&ctx.credentials),
+            )
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
@@ -61,6 +72,10 @@ async fn main() -> anyhow::Result<()> {
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DEFAULT_MODEL",
                 "Default LLM model for inference (default: deepseek-v4-pro)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "OKAPI_BASE_URL",
+                "Okapi API base URL (default: http://127.0.0.1:11435)",
             ),
         ],
     )

@@ -1,6 +1,6 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
-use hkask_mcp::server::{ToolSpanGuard, api_get, api_post, resolve_credential, validate_tool_url};
+use hkask_mcp::server::{ToolSpanGuard, api_get, api_post, validate_tool_url};
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -48,11 +48,7 @@ pub struct TelnyxServer {
 }
 
 impl TelnyxServer {
-    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
-        let api_key = resolve_credential("HKASK_TELNYX_API_KEY").map_err(|_| {
-            anyhow::anyhow!("HKASK_TELNYX_API_KEY not found in keychain or environment")
-        })?;
-
+    pub fn new(webid: WebID, api_key: String) -> Result<Self, anyhow::Error> {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}")) {
             headers.insert(reqwest::header::AUTHORIZATION, val);
@@ -227,7 +223,14 @@ async fn main() -> anyhow::Result<()> {
     hkask_mcp::run_server(
         "hkask-mcp-telnyx",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| TelnyxServer::new(ctx.webid),
+        |ctx: hkask_mcp::ServerContext| {
+            let api_key = ctx
+                .credentials
+                .get("HKASK_TELNYX_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            TelnyxServer::new(ctx.webid, api_key)
+        },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_TELNYX_API_KEY",
             "Telnyx API key for messaging and number management",

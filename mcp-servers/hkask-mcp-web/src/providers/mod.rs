@@ -121,12 +121,10 @@ pub struct ProviderPool {
     pub(crate) extract_providers: Vec<Box<dyn WebExtractProvider>>,
     pub(crate) browse_providers: Vec<Box<dyn WebBrowseProvider>>,
     pub(crate) exa: Option<ExaProvider>,
-    #[allow(dead_code)] // Task 2: Wired for future per-request credential resolution
-    pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
 }
 
 impl ProviderPool {
-    /// Construct a new `ProviderPool` with the given providers and credential resolver.
+    /// Construct a new `ProviderPool` with the given providers.
     ///
     /// This is the authoritative constructor — all pool creation should go through
     /// here rather than setting fields directly, to maintain the hexagonal boundary.
@@ -135,14 +133,12 @@ impl ProviderPool {
         extract_providers: Vec<Box<dyn WebExtractProvider>>,
         browse_providers: Vec<Box<dyn WebBrowseProvider>>,
         exa: Option<ExaProvider>,
-        credential_resolver: Arc<dyn CredentialResolver>,
     ) -> Self {
         Self {
             search_providers,
             extract_providers,
             browse_providers,
             exa,
-            credential_resolver,
         }
     }
 }

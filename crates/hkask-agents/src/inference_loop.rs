@@ -61,21 +61,6 @@ impl<I: InferencePort + 'static> InferenceLoop<I> {
         }
     }
 
-    /// Create an Inference Loop with a circuit breaker.
-    pub(crate) fn with_circuit_breaker(
-        inference: I,
-        circuit_breaker: Arc<dyn CircuitBreakerPort>,
-    ) -> Self {
-        Self {
-            inference,
-            circuit_breaker: Some(circuit_breaker),
-            gas_remaining: Arc::new(AtomicU64::new(0)),
-            gas_cap: 0,
-            current_model: None,
-            dispatch_tx: None,
-        }
-    }
-
     /// Set the gas budget for this loop.
     ///
     /// `cap` is the total gas allocation; `remaining` is the current balance.
@@ -103,11 +88,6 @@ impl<I: InferencePort + 'static> InferenceLoop<I> {
         self
     }
 
-    /// Access the underlying inference port.
-    pub(crate) fn inference(&self) -> &I {
-        &self.inference
-    }
-
     /// Get the current gas remaining value (read-only sense signal).
     pub fn gas_remaining(&self) -> u64 {
         self.gas_remaining.load(Ordering::Relaxed)
@@ -120,22 +100,6 @@ impl<I: InferencePort + 'static> InferenceLoop<I> {
     /// authoritative regulator; this counter is a read-only mirror.
     pub fn token_usage(&self) -> (u64, u64) {
         (self.gas_remaining.load(Ordering::Relaxed), self.gas_cap)
-    }
-
-    /// Consume gas from this loop's budget. Returns the old remaining value.
-    ///
-    /// `pub(crate)` — external callers should use `sync_gas_state()` to
-    /// mirror the authoritative L6 budget, not incrementally adjust this counter.
-    pub(crate) fn consume_gas(&self, amount: u64) -> u64 {
-        self.gas_remaining.fetch_sub(amount, Ordering::Relaxed)
-    }
-
-    /// Replenish gas in this loop's budget. Returns the old remaining value.
-    ///
-    /// `pub(crate)` — external callers should use `sync_gas_state()` to
-    /// mirror the authoritative L6 budget, not incrementally adjust this counter.
-    pub(crate) fn replenish_gas(&self, amount: u64) -> u64 {
-        self.gas_remaining.fetch_add(amount, Ordering::Relaxed)
     }
 
     /// Sync this loop's gas counter from the authoritative L6 budget.
@@ -154,21 +118,6 @@ impl<I: InferencePort + 'static> InferenceLoop<I> {
     /// Get the gas budget cap.
     pub fn gas_cap(&self) -> u64 {
         self.gas_cap
-    }
-
-    /// Get the current model name, if set.
-    pub(crate) fn current_model(&self) -> Option<&str> {
-        self.current_model.as_deref()
-    }
-
-    /// Set the current model (e.g., after a model selection event).
-    pub(crate) fn set_model(&mut self, model: impl Into<String>) {
-        self.current_model = Some(model.into());
-    }
-
-    /// Clear the current model (e.g., model became unavailable).
-    pub(crate) fn clear_model(&mut self) {
-        self.current_model = None;
     }
 
     // ====================================================================

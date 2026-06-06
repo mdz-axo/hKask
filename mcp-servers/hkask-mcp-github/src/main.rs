@@ -5,7 +5,7 @@
 
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, api_get, api_post,
-    classify_http_error, resolve_credential, validate_identifier,
+    classify_http_error, validate_identifier,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -72,11 +72,7 @@ pub struct SearchReposRequest {
     pub limit: Option<u32>,
 }
 
-fn build_client() -> Result<reqwest::Client, McpToolError> {
-    let token = resolve_credential("HKASK_GITHUB_TOKEN").map_err(|_| {
-        McpToolError::failed_precondition("HKASK_GITHUB_TOKEN not found in keychain or environment")
-    })?;
-
+fn build_client(token: &str) -> Result<reqwest::Client, McpToolError> {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::ACCEPT,
@@ -160,8 +156,8 @@ pub struct GithubServer {
 }
 
 impl GithubServer {
-    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
-        let client = build_client()?;
+    pub fn new(webid: WebID, token: String) -> Result<Self, anyhow::Error> {
+        let client = build_client(&token)?;
         Ok(Self { webid, client })
     }
 }
@@ -438,7 +434,14 @@ async fn main() -> anyhow::Result<()> {
     hkask_mcp::run_server(
         "hkask-mcp-github",
         SERVER_VERSION,
-        |ctx: ServerContext| GithubServer::new(ctx.webid),
+        |ctx: ServerContext| {
+            let token = ctx
+                .credentials
+                .get("HKASK_GITHUB_TOKEN")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            GithubServer::new(ctx.webid, token)
+        },
         vec![CredentialRequirement::required(
             "HKASK_GITHUB_TOKEN",
             "GitHub personal access token for API authentication",

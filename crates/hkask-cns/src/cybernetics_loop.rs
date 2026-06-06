@@ -1536,6 +1536,7 @@ mod tests {
             variety_max_deficit: None,
             error_rate_max: None,
             connector_latency_max_secs: None,
+            communication_backpressure_threshold: None,
         };
         let sp = SetPoints::from_config(&config);
         assert_eq!(sp.gas_min_remaining, 0.5);

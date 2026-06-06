@@ -76,6 +76,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             variety_max_deficit,
             error_rate_max,
             connector_latency_max_secs,
+            communication_backpressure_threshold,
         } => {
             let defaults = hkask_cns::SetPoints::default();
             println!("CNS Set-Points");
@@ -96,16 +97,23 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 "  connector_latency_max_secs: {}",
                 connector_latency_max_secs.unwrap_or(defaults.connector_latency_max_secs)
             );
+            println!(
+                "  communication_backpressure_threshold: {}",
+                communication_backpressure_threshold
+                    .unwrap_or(defaults.communication_backpressure_threshold)
+            );
             if gas_min_remaining.is_some()
                 || variety_max_deficit.is_some()
                 || error_rate_max.is_some()
                 || connector_latency_max_secs.is_some()
+                || communication_backpressure_threshold.is_some()
             {
                 let config = hkask_cns::SetPointsConfig {
                     gas_min_remaining,
                     variety_max_deficit,
                     error_rate_max,
                     connector_latency_max_secs,
+                    communication_backpressure_threshold,
                 };
                 let updated = hkask_cns::SetPoints::from_config(&config);
                 println!();
@@ -119,6 +127,10 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 println!(
                     "  connector_latency_max_secs: {}",
                     updated.connector_latency_max_secs
+                );
+                println!(
+                    "  communication_backpressure_threshold: {}",
+                    updated.communication_backpressure_threshold
                 );
             }
         }

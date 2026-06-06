@@ -14,9 +14,7 @@
 //! - `fmp_analyst_estimates` — Analyst estimates
 //! - `fmp_dcf` — Discounted cash flow analysis
 
-use hkask_mcp::server::{
-    McpToolError, ToolSpanGuard, classify_http_error, resolve_credential, validate_identifier,
-};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_identifier};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -87,10 +85,7 @@ pub struct FmpServer {
 }
 
 impl FmpServer {
-    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
-        let api_key = resolve_credential("HKASK_FMP_API_KEY").map_err(|_| {
-            anyhow::anyhow!("HKASK_FMP_API_KEY not found in keychain or environment")
-        })?;
+    pub fn new(webid: WebID, api_key: String) -> Result<Self, anyhow::Error> {
         let client = reqwest::Client::new();
         Ok(Self {
             webid,
@@ -355,7 +350,14 @@ async fn main() -> anyhow::Result<()> {
     hkask_mcp::run_server(
         "hkask-mcp-fmp",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| FmpServer::new(ctx.webid),
+        |ctx: hkask_mcp::ServerContext| {
+            let api_key = ctx
+                .credentials
+                .get("HKASK_FMP_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            FmpServer::new(ctx.webid, api_key)
+        },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_FMP_API_KEY",
             "Financial Modeling Prep API key",

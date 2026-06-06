@@ -123,6 +123,21 @@ pub struct AuthContext {
     pub webid: WebID,
 }
 
+/// Build a response safely, falling back to a minimal status-only response if
+/// the body cannot be constructed (e.g., header size overflow).
+///
+/// This avoids `.unwrap()` panics on `Response::builder().body(...)` which can
+/// fail in edge cases (e.g., very large status codes or header values).
+fn build_response(status: StatusCode, body: Body) -> Response {
+    Response::builder()
+        .status(status)
+        .body(body)
+        .unwrap_or_else(|_| {
+            // Minimal fallback: status line only, no body
+            Response::new(Body::empty())
+        })
+}
+
 /// Middleware function that performs capability token authentication.
 ///
 /// Returns:
@@ -150,10 +165,10 @@ pub async fn auth_middleware(
     let token_str = match auth_header {
         Some(h) if h.starts_with("Bearer ") => &h[7..],
         Some(_) | None => {
-            return Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Body::from("Missing or malformed Authorization header"))
-                .unwrap();
+            return build_response(
+                StatusCode::UNAUTHORIZED,
+                Body::from("Missing or malformed Authorization header"),
+            );
         }
     };
 
@@ -161,10 +176,10 @@ pub async fn auth_middleware(
     let token = match DelegationToken::from_base64(token_str) {
         Ok(t) => t,
         Err(_) => {
-            return Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Body::from("Invalid token encoding"))
-                .unwrap();
+            return build_response(
+                StatusCode::UNAUTHORIZED,
+                Body::from("Invalid token encoding"),
+            );
         }
     };
 
@@ -173,10 +188,10 @@ pub async fn auth_middleware(
         TokenVerification::Valid => {
             // Double-check revocation via async-safe method
             if service.is_token_revoked(&token.id) {
-                return Response::builder()
-                    .status(StatusCode::UNAUTHORIZED)
-                    .body(Body::from("Token has been revoked"))
-                    .unwrap();
+                return build_response(
+                    StatusCode::UNAUTHORIZED,
+                    Body::from("Token has been revoked"),
+                );
             }
 
             let webid = token.holder();
@@ -187,17 +202,16 @@ pub async fn auth_middleware(
 
             next.run(req).await
         }
-        TokenVerification::Expired => Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body(Body::from("Token expired"))
-            .unwrap(),
-        TokenVerification::Invalid => Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .body(Body::from("Invalid capability token"))
-            .unwrap(),
-        TokenVerification::Revoked => Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .body(Body::from("Token has been revoked"))
-            .unwrap(),
+        TokenVerification::Expired => {
+            build_response(StatusCode::FORBIDDEN, Body::from("Token expired"))
+        }
+        TokenVerification::Invalid => build_response(
+            StatusCode::UNAUTHORIZED,
+            Body::from("Invalid capability token"),
+        ),
+        TokenVerification::Revoked => build_response(
+            StatusCode::UNAUTHORIZED,
+            Body::from("Token has been revoked"),
+        ),
     }
 }

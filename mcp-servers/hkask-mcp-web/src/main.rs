@@ -3,7 +3,9 @@ pub mod providers;
 pub mod strip_html;
 pub mod types;
 
-use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard, validate_tool_url};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, validate_tool_url,
+};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Arc;
@@ -34,17 +36,27 @@ impl WebServer {
         serpapi_api_key: Option<String>,
         exa_api_key: Option<String>,
         browserbase_api_key: Option<String>,
+        cache_ttl_secs: Option<u64>,
+        cache_max_entries: Option<usize>,
     ) -> Result<Self, anyhow::Error> {
-        let cache_ttl = std::env::var("HKASK_WEB_CACHE_TTL_SECS")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok())
+        let cache_ttl = cache_ttl_secs
             .map(|s| s.min(MAX_CACHE_TTL_SECS))
-            .unwrap_or(DEFAULT_CACHE_TTL_SECS);
-        let cache_max = std::env::var("HKASK_WEB_CACHE_MAX_ENTRIES")
-            .ok()
-            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or_else(|| {
+                std::env::var("HKASK_WEB_CACHE_TTL_SECS")
+                    .ok()
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .map(|s| s.min(MAX_CACHE_TTL_SECS))
+                    .unwrap_or(DEFAULT_CACHE_TTL_SECS)
+            });
+        let cache_max = cache_max_entries
             .map(|s| s.min(MAX_CACHE_MAX_ENTRIES))
-            .unwrap_or(DEFAULT_CACHE_MAX_ENTRIES);
+            .unwrap_or_else(|| {
+                std::env::var("HKASK_WEB_CACHE_MAX_ENTRIES")
+                    .ok()
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .map(|s| s.min(MAX_CACHE_MAX_ENTRIES))
+                    .unwrap_or(DEFAULT_CACHE_MAX_ENTRIES)
+            });
 
         let mut search_providers: Vec<Box<dyn providers::WebSearchProvider>> = Vec::new();
         let mut extract_providers: Vec<Box<dyn providers::WebExtractProvider>> = Vec::new();
@@ -92,7 +104,6 @@ impl WebServer {
                 extract_providers,
                 browse_providers,
                 exa_provider,
-                Arc::new(EnvCredentialResolver),
             )),
             cache: Arc::new(ResponseCache::new(
                 cache_max,
@@ -470,6 +481,14 @@ async fn main() -> anyhow::Result<()> {
             let serpapi_key = ctx.credentials.get("HKASK_SERPAPI_API_KEY").cloned();
             let exa_key = ctx.credentials.get("HKASK_EXA_API_KEY").cloned();
             let browserbase_key = ctx.credentials.get("HKASK_BROWSERBASE_API_KEY").cloned();
+            let cache_ttl_secs = ctx
+                .credentials
+                .get("HKASK_WEB_CACHE_TTL_SECS")
+                .and_then(|s| s.parse::<u64>().ok());
+            let cache_max_entries = ctx
+                .credentials
+                .get("HKASK_WEB_CACHE_MAX_ENTRIES")
+                .and_then(|s| s.parse::<usize>().ok());
 
             WebServer::new(
                 ctx.webid,
@@ -479,6 +498,8 @@ async fn main() -> anyhow::Result<()> {
                 serpapi_key,
                 exa_key,
                 browserbase_key,
+                cache_ttl_secs,
+                cache_max_entries,
             )
         },
         vec![
@@ -505,6 +526,14 @@ async fn main() -> anyhow::Result<()> {
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_BROWSERBASE_API_KEY",
                 "Browserbase API key for headless browser browsing",
+            ),
+            CredentialRequirement::optional(
+                "HKASK_WEB_CACHE_TTL_SECS",
+                "Cache TTL in seconds (default: 3600)",
+            ),
+            CredentialRequirement::optional(
+                "HKASK_WEB_CACHE_MAX_ENTRIES",
+                "Maximum cache entries (default: 1000)",
             ),
         ],
         dotenv,

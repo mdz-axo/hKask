@@ -1,6 +1,5 @@
 //! Core types, constants, and re-exports for the hKask MCP Web crate.
 
-mod credential;
 mod freshness;
 mod ranking;
 mod rate_limiter;
@@ -44,7 +43,6 @@ pub const FIRECRAWL_API_VERSION: &str = "v2";
 
 // ── Re-exports from submodules ───────────────────────────────────────────────
 
-pub use credential::{CredentialResolver, EnvCredentialResolver};
 pub use freshness::{Freshness, freshness_brave, freshness_serpapi, normalize_freshness};
 pub use hkask_memory::ranking::parse_age_to_days;
 pub use ranking::{apply_rerank, dedup_results, normalize_date_bucket, rrf_score};

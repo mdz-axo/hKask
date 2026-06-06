@@ -10,7 +10,7 @@
 //! 7. Kata Readiness — Verify kata domain owned, emit readiness span
 //! 8. CNS Active — Activate all bots, begin monitoring
 
-use hkask_keystore::derive_all_internal_secrets;
+use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -206,7 +206,27 @@ impl BootstrapSequence {
                     target: "bootstrap",
                     "Security phase: Derived all 4 internal secrets from HKASK_MASTER_KEY"
                 );
-                let _ = secrets; // Secrets will be used by ACP, MCP, API, OCAP subsystems
+
+                // Store derived secrets in OS keychain so resolve_secret_chain()
+                // can find them later without re-running Argon2id derivation.
+                let keychain = Keychain::default();
+                let store_entries = [
+                    ("acp-secret", &secrets.acp_secret),
+                    ("capability-key", &secrets.capability_key),
+                    ("mcp-security-key", &secrets.mcp_security_key),
+                    ("hkask-ocap-secret", &secrets.ocap_secret),
+                ];
+                for (key, value) in &store_entries {
+                    if let Err(e) = keychain.store_by_key(key, value) {
+                        error!(
+                            target: "bootstrap",
+                            key = %key,
+                            error = %e,
+                            "Failed to store derived secret in OS keychain"
+                        );
+                    }
+                }
+                info!(target: "bootstrap", "Security phase: Stored derived secrets in OS keychain");
             }
             Err(_) => {
                 error!(

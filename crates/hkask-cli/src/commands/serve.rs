@@ -115,16 +115,30 @@ async fn start_api_servers(runtime: &McpRuntime) -> usize {
 }
 
 /// Resolve the capability secret for OCAP signing.
-/// In dev mode, uses a fixed secret. Production should derive from the keystore.
+///
+/// Resolution chain:
+/// 1. Keystore `resolve_capability_key()` (master key derivation → env → keychain)
+/// 2. Legacy `HKASK_CAPABILITY_SECRET` env var (backward compat)
+/// 3. Dev fallback (with warning — not for production)
 fn resolve_capability_secret() -> Vec<u8> {
-    match std::env::var("HKASK_CAPABILITY_SECRET") {
-        Ok(s) => s.as_bytes().to_vec(),
-        Err(_) => {
-            tracing::warn!(
-                target: "hkask.serve",
-                "HKASK_CAPABILITY_SECRET not set — using dev secret (not for production)"
-            );
-            b"hkask-dev-capability-secret".to_vec()
-        }
+    // Tier 1: Canonical keystore chain (derived → HKASK_CAPABILITY_KEY env → keychain)
+    if let Ok(key) = hkask_keystore::resolve_capability_key() {
+        return (*key).clone();
     }
+
+    // Tier 2: Legacy HKASK_CAPABILITY_SECRET env var
+    if let Ok(s) = std::env::var("HKASK_CAPABILITY_SECRET") {
+        tracing::warn!(
+            target: "hkask.serve",
+            "HKASK_CAPABILITY_SECRET is deprecated — use HKASK_CAPABILITY_KEY or set HKASK_MASTER_KEY for derivation"
+        );
+        return s.as_bytes().to_vec();
+    }
+
+    // Tier 3: Dev fallback (last resort)
+    tracing::warn!(
+        target: "hkask.serve",
+        "No capability key available via keystore or env — using dev secret (not for production)"
+    );
+    b"hkask-dev-capability-secret".to_vec()
 }
