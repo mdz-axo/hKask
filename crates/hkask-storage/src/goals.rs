@@ -350,15 +350,6 @@ impl SqliteGoalRepository {
     pub fn get_criteria(&self, goal_id: GoalID) -> Result<Vec<GoalCriterion>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
-        let rows = stmt.query_map([goal_id], |row| {
-            Ok(GoalCriterion {
-                id: row.get(0)?,
-                goal_id: row.get(1)?,
-                criterion_type: row.get(2)?,
-                description: row.get(3)?,
-                satisfied: row.get::<_, i32>(4)? != 0,
-            })
-        })?;
 
         let criteria = collect_rows!(
             stmt,
@@ -381,20 +372,6 @@ impl SqliteGoalRepository {
     pub fn get_artifacts(&self, goal_id: GoalID) -> Result<Vec<GoalArtifact>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
-        let rows = stmt.query_map([goal_id], |row| {
-            Ok(GoalArtifact {
-                id: row.get(0)?,
-                goal_id: row.get(1)?,
-                artifact_ref: row.get(2)?,
-                artifact_type: row.get(3)?,
-                created_at: {
-                    let raw: String = row.get(4)?;
-                    chrono::DateTime::parse_from_rfc3339(&raw)
-                        .map(|dt| dt.with_timezone(&Utc))
-                        .map_err(|_| corrupt_column(4, &raw))?
-                },
-            })
-        })?;
 
         let artifacts = collect_rows!(
             stmt,

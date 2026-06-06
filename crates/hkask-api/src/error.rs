@@ -1,135 +1,257 @@
-//! Unified API error type with Axum `IntoResponse` implementation.
+//! API error type with Axum IntoResponse implementation
 //!
-//! Route handlers return `Result<Json<T>, ApiError>` instead of hand-building
-//! `(StatusCode, Json<ErrorResponse>)` tuples. Domain error types implement
-//! `From<_X_> for ApiError` so that `?` propagation works directly in handlers.
+//! Replaces the hand-built `(StatusCode, Json(ErrorResponse{...}))` tuples
+//! that were repeated identically across every route handler (Fowler C5).
+//!
+//! Each variant maps to an appropriate HTTP status code. The `IntoResponse`
+//! impl converts these into the JSON format expected by API clients.
 
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use hkask_agents::{ConsentError, MemoryError};
-use hkask_storage::GoalRepositoryError;
+use hkask_storage::{
+    AgentRegistryError, ConsentStoreError, GoalRepositoryError, NuEventError,
+    SovereigntyStoreError, StandingSessionError, TripleError, UserStoreError,
+};
+use hkask_types::InfrastructureError;
+use serde::Serialize;
 
-use crate::ErrorResponse;
-
-// ---------------------------------------------------------------------------
-// ApiError
-// ---------------------------------------------------------------------------
-
-/// Unified error type for all API route handlers.
+/// Unified API error type.
 ///
-/// Each variant maps to a specific HTTP status code and produces a
-/// JSON body matching the existing `ErrorResponse` shape
-/// (`{ error, code, details }`).
+/// Each variant maps to an appropriate HTTP status code and carries
+/// a human-readable error message. The `IntoResponse` impl converts
+/// these into the JSON format expected by clients.
 #[derive(Debug)]
 pub enum ApiError {
-    /// `404 Not Found` — the requested resource does not exist.
+    /// The requested resource was not found (404)
     NotFound { resource: String, id: String },
-    /// `401 Unauthorized` — authentication failed or is missing.
+    /// The request was unauthorized (401)
     Unauthorized { reason: String },
-    /// `403 Forbidden` — authenticated but not authorised for this action.
+    /// The request was forbidden (403)
     Forbidden { reason: String },
-    /// `400 Bad Request` — the request body or parameters are invalid.
+    /// The request was malformed (400)
     BadRequest { message: String },
-    /// `409 Conflict` — the request conflicts with existing state.
+    /// A conflict occurred (409)
     Conflict { message: String },
-    /// `429 Too Many Requests` — rate-limited; includes retry hint.
-    RateLimited {
-        retry_after_secs: u64,
-        message: String,
-    },
-    /// `500 Internal Server Error` — unexpected server-side failure.
+    /// An internal server error occurred (500)
     Internal { message: String },
 }
 
-// ---------------------------------------------------------------------------
-// IntoResponse
-// ---------------------------------------------------------------------------
+/// JSON error response body — mirrors the existing `ErrorResponse` struct
+/// for backward compatibility with API clients.
+#[derive(Serialize)]
+struct ErrorBody {
+    error: String,
+}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (status, error, code, details) = match self {
-            ApiError::NotFound { resource, id } => (
-                StatusCode::NOT_FOUND,
-                "not_found".to_string(),
-                "NOT_FOUND".to_string(),
-                Some(serde_json::json!({
-                    "message": format!("{resource} {id} not found")
-                })),
-            ),
-            ApiError::Unauthorized { reason } => (
-                StatusCode::UNAUTHORIZED,
-                "unauthorized".to_string(),
-                "UNAUTHORIZED".to_string(),
-                Some(serde_json::json!({ "message": reason })),
-            ),
-            ApiError::Forbidden { reason } => (
-                StatusCode::FORBIDDEN,
-                "forbidden".to_string(),
-                "FORBIDDEN".to_string(),
-                Some(serde_json::json!({ "message": reason })),
-            ),
-            ApiError::BadRequest { message } => (
-                StatusCode::BAD_REQUEST,
-                "bad_request".to_string(),
-                "BAD_REQUEST".to_string(),
-                Some(serde_json::json!({ "message": message })),
-            ),
-            ApiError::Conflict { message } => (
-                StatusCode::CONFLICT,
-                "conflict".to_string(),
-                "CONFLICT".to_string(),
-                Some(serde_json::json!({ "message": message })),
-            ),
-            ApiError::RateLimited {
-                retry_after_secs,
-                message,
-            } => (
-                StatusCode::TOO_MANY_REQUESTS,
-                "rate_limited".to_string(),
-                "RATE_LIMITED".to_string(),
-                Some(serde_json::json!({
-                    "message": message,
-                    "retry_after_secs": retry_after_secs,
-                })),
-            ),
-            ApiError::Internal { message } => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal_error".to_string(),
-                "INTERNAL_ERROR".to_string(),
-                Some(serde_json::json!({ "message": message })),
-            ),
+        let (status, message) = match self {
+            ApiError::NotFound { resource, id } => {
+                (StatusCode::NOT_FOUND, format!("{resource} not found: {id}"))
+            }
+            ApiError::Unauthorized { reason } => (StatusCode::UNAUTHORIZED, reason),
+            ApiError::Forbidden { reason } => (StatusCode::FORBIDDEN, reason),
+            ApiError::BadRequest { message } => (StatusCode::BAD_REQUEST, message),
+            ApiError::Conflict { message } => (StatusCode::CONFLICT, message),
+            ApiError::Internal { message } => (StatusCode::INTERNAL_SERVER_ERROR, message),
         };
-
-        let body = ErrorResponse {
-            error,
-            code,
-            details,
-        };
-        (status, Json(body)).into_response()
+        (status, Json(ErrorBody { error: message })).into_response()
     }
 }
 
-// ---------------------------------------------------------------------------
-// From impls — enable `?` propagation in handlers
-// ---------------------------------------------------------------------------
+// ── Store error conversions ──────────────────────────────────────────
 
-/// Map goal repository errors to API errors.
-///
-/// Authority denials surface as 403; not-found as 404; invalid
-/// transitions as 400; everything else as 500.
+impl From<TripleError> for ApiError {
+    fn from(e: TripleError) -> Self {
+        match e {
+            TripleError::NotFound => ApiError::NotFound {
+                resource: "triple".into(),
+                id: "unknown".into(),
+            },
+            TripleError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
 impl From<GoalRepositoryError> for ApiError {
     fn from(e: GoalRepositoryError) -> Self {
-        use GoalRepositoryError as E;
         match &e {
-            E::VisibilityDenied(_) => ApiError::Forbidden {
-                reason: e.to_string(),
-            },
-            E::NotFound(id) => ApiError::NotFound {
-                resource: "Goal".to_string(),
+            GoalRepositoryError::NotFound(id) => ApiError::NotFound {
+                resource: "goal".into(),
                 id: id.clone(),
             },
-            E::InvalidTransition(_) | E::MaxDepthExceeded(_) => ApiError::BadRequest {
+            GoalRepositoryError::VisibilityDenied(reason) => ApiError::Forbidden {
+                reason: reason.clone(),
+            },
+            GoalRepositoryError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+            GoalRepositoryError::InvalidTransition(msg) => ApiError::BadRequest {
+                message: msg.clone(),
+            },
+            GoalRepositoryError::MaxDepthExceeded(msg) => ApiError::BadRequest {
+                message: msg.clone(),
+            },
+            GoalRepositoryError::Corrupt(msg) => ApiError::Internal {
+                message: msg.clone(),
+            },
+            GoalRepositoryError::QuarantineFailed(msg) => ApiError::Internal {
+                message: msg.clone(),
+            },
+        }
+    }
+}
+
+impl From<AgentRegistryError> for ApiError {
+    fn from(e: AgentRegistryError) -> Self {
+        match &e {
+            AgentRegistryError::NotFound(name) => ApiError::NotFound {
+                resource: "agent".into(),
+                id: name.clone(),
+            },
+            AgentRegistryError::AlreadyRegistered(name) => ApiError::Conflict {
+                message: format!("Agent already registered: {name}"),
+            },
+            AgentRegistryError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<NuEventError> for ApiError {
+    fn from(e: NuEventError) -> Self {
+        ApiError::Internal {
+            message: e.to_string(),
+        }
+    }
+}
+
+impl From<ConsentStoreError> for ApiError {
+    fn from(e: ConsentStoreError) -> Self {
+        match &e {
+            ConsentStoreError::NotFound(id) => ApiError::NotFound {
+                resource: "consent".into(),
+                id: id.clone(),
+            },
+            ConsentStoreError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<SovereigntyStoreError> for ApiError {
+    fn from(e: SovereigntyStoreError) -> Self {
+        match &e {
+            SovereigntyStoreError::UuidParse(msg) => ApiError::BadRequest {
+                message: msg.clone(),
+            },
+            SovereigntyStoreError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<StandingSessionError> for ApiError {
+    fn from(e: StandingSessionError) -> Self {
+        match &e {
+            StandingSessionError::NotFound(id) => ApiError::NotFound {
+                resource: "session".into(),
+                id: id.clone(),
+            },
+            StandingSessionError::Sealed(id) => ApiError::Forbidden {
+                reason: format!("Session is sealed (key version mismatch): {id}"),
+            },
+            StandingSessionError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<UserStoreError> for ApiError {
+    fn from(e: UserStoreError) -> Self {
+        match &e {
+            UserStoreError::NotFound(id) => ApiError::NotFound {
+                resource: "user".into(),
+                id: id.clone(),
+            },
+            UserStoreError::ReplicantNameTaken(name) => ApiError::Conflict {
+                message: format!("Replicant name already registered: {name}"),
+            },
+            UserStoreError::InvalidCredentials => ApiError::Unauthorized {
+                reason: "Invalid credentials".into(),
+            },
+            UserStoreError::Encryption(msg) => ApiError::Internal {
+                message: msg.clone(),
+            },
+            UserStoreError::Decryption(msg) => ApiError::Internal {
+                message: msg.clone(),
+            },
+            UserStoreError::KeyDerivation(msg) => ApiError::Internal {
+                message: msg.clone(),
+            },
+            UserStoreError::PasswordHash(msg) => ApiError::Internal {
+                message: msg.clone(),
+            },
+            UserStoreError::Infra(e) => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<InfrastructureError> for ApiError {
+    fn from(e: InfrastructureError) -> Self {
+        ApiError::Internal {
+            message: e.to_string(),
+        }
+    }
+}
+
+// ── Agent error conversions ────────────────────────────────────────────
+
+impl From<hkask_agents::ConsentError> for ApiError {
+    fn from(e: hkask_agents::ConsentError) -> Self {
+        match &e {
+            hkask_agents::ConsentError::ConsentNotFound(id) => ApiError::NotFound {
+                resource: "consent".into(),
+                id: id.clone(),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<hkask_agents::EscalationError> for ApiError {
+    fn from(e: hkask_agents::EscalationError) -> Self {
+        match &e {
+            hkask_agents::EscalationError::NotFound(id) => ApiError::NotFound {
+                resource: "escalation".into(),
+                id: id.clone(),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<hkask_types::GitError> for ApiError {
+    fn from(e: hkask_types::GitError) -> Self {
+        match &e {
+            hkask_types::GitError::CrateNotFound(name) => ApiError::NotFound {
+                resource: "template crate".into(),
+                id: name.clone(),
+            },
+            hkask_types::GitError::Io(_) => ApiError::BadRequest {
                 message: e.to_string(),
             },
             _ => ApiError::Internal {
@@ -139,32 +261,50 @@ impl From<GoalRepositoryError> for ApiError {
     }
 }
 
-/// Map episodic memory errors to API errors.
-///
-/// Capability denials surface as 403; everything else as 500.
-impl From<MemoryError> for ApiError {
-    fn from(e: MemoryError) -> Self {
+impl From<hkask_agents::AcpError> for ApiError {
+    fn from(e: hkask_agents::AcpError) -> Self {
         match &e {
-            MemoryError::CapabilityDenied(reason) => ApiError::Forbidden {
-                reason: reason.clone(),
+            hkask_agents::AcpError::AgentAlreadyRegistered(webid) => ApiError::Conflict {
+                message: format!("Agent already registered: {}", webid),
             },
-            other => ApiError::Internal {
-                message: other.to_string(),
+            hkask_agents::AcpError::AgentNotFound(webid) => ApiError::NotFound {
+                resource: "agent".into(),
+                id: webid.to_string(),
+            },
+            hkask_agents::AcpError::CapabilityDenied(webid, perm) => ApiError::Forbidden {
+                reason: format!("Agent {} lacks permission: {}", webid, perm),
+            },
+            hkask_agents::AcpError::WildcardCapabilityNotAllowed => ApiError::BadRequest {
+                message: "Wildcard capabilities are not allowed".into(),
+            },
+            hkask_agents::AcpError::MalformedCapability(msg) => ApiError::BadRequest {
+                message: msg.clone(),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
             },
         }
     }
 }
 
-/// Map consent errors to API errors.
-///
-/// Not-found consent maps to 404; everything else to 500.
-impl From<ConsentError> for ApiError {
-    fn from(e: ConsentError) -> Self {
-        use ConsentError as E;
+impl From<hkask_templates::TemplateError> for ApiError {
+    fn from(e: hkask_templates::TemplateError) -> Self {
         match &e {
-            E::ConsentNotFound(id) => ApiError::NotFound {
-                resource: "Consent".to_string(),
+            hkask_templates::TemplateError::NotFound(id) => ApiError::NotFound {
+                resource: "template".into(),
                 id: id.clone(),
+            },
+            hkask_templates::TemplateError::CapabilityDenied(msg) => ApiError::Forbidden {
+                reason: msg.clone(),
+            },
+            hkask_templates::TemplateError::PathTraversal(_) => ApiError::BadRequest {
+                message: e.to_string(),
+            },
+            hkask_templates::TemplateError::SandboxViolation(_) => ApiError::Forbidden {
+                reason: e.to_string(),
+            },
+            hkask_templates::TemplateError::Validation(msg) => ApiError::BadRequest {
+                message: msg.clone(),
             },
             _ => ApiError::Internal {
                 message: e.to_string(),

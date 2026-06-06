@@ -87,6 +87,57 @@ pub struct DbConfig {
     pub passphrase: Option<String>,
 }
 
+/// Database-backed stores initialized from a `DbConfig`.
+///
+/// Extracted from `ApiState::new()` so that store creation is composable
+/// and independently testable.
+struct Stores {
+    consent_manager: Arc<ConsentManager>,
+    escalation_queue: Arc<EscalationQueue>,
+    goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
+    standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>>,
+}
+
+impl Stores {
+    /// Open and initialise all persistent stores.
+    ///
+    /// Each store gets its own database connection (and therefore its own
+    /// connection pool) so a slow store cannot starve another.
+    fn init(db_config: Option<&DbConfig>) -> Self {
+        let consent_conn = open_db(db_config, "consent").conn_arc();
+        let consent_store = hkask_storage::ConsentStore::new(consent_conn);
+        consent_store
+            .initialize_schema()
+            .expect("consent store schema init");
+        let consent_manager = Arc::new(ConsentManager::new(consent_store));
+
+        let escalation_conn = open_db(db_config, "escalation").conn_arc();
+        let escalation_queue =
+            Arc::new(EscalationQueue::new(escalation_conn).expect("escalation queue init"));
+
+        let goal_conn = open_db(db_config, "goal").conn_arc();
+        let goal_sink: Arc<dyn NuEventSink> =
+            Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
+        let goal_repo =
+            Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
+
+        let standing_conn = open_db(db_config, "standing session").conn_arc();
+        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
+        standing_session_store
+            .initialize_schema()
+            .expect("standing session schema init");
+        let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
+            Some(Arc::new(standing_session_store));
+
+        Self {
+            consent_manager,
+            escalation_queue,
+            goal_repo,
+            standing_session_store,
+        }
+    }
+}
+
 /// Open a persistent database, or fall back to in-memory with a warning.
 ///
 /// Extracts the repeated pattern of `db_config.and_then(...)` → `Database::open`
@@ -296,33 +347,10 @@ impl ApiState {
         db_config: Option<&DbConfig>,
         acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     ) -> Self {
-        // ── Persistent stores (P2.2: extracted init_stores) ──
-        let consent_conn = open_db(db_config, "consent").conn_arc();
-        let consent_store = hkask_storage::ConsentStore::new(consent_conn);
-        consent_store
-            .initialize_schema()
-            .expect("consent store schema init");
-        let consent_manager = Arc::new(ConsentManager::new(consent_store));
+        // ── Persistent stores ──
+        let stores = Stores::init(db_config);
 
-        let escalation_conn = open_db(db_config, "escalation").conn_arc();
-        let escalation_queue =
-            Arc::new(EscalationQueue::new(escalation_conn).expect("escalation queue init"));
-
-        let goal_conn = open_db(db_config, "goal").conn_arc();
-        let goal_sink: Arc<dyn NuEventSink> =
-            Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
-        let goal_repo =
-            Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
-
-        let standing_conn = open_db(db_config, "standing session").conn_arc();
-        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
-        standing_session_store
-            .initialize_schema()
-            .expect("standing session schema init");
-        let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
-            Some(Arc::new(standing_session_store));
-
-        // ── Subsystems (P2.2: extracted init_subsystems) ──
+        // ── Subsystems ──
         let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
@@ -341,7 +369,7 @@ impl ApiState {
             Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
 
         let (loop_system, episodic_storage, cybernetics_loop_rwlock) = build_loop_system(
-            Arc::clone(&escalation_queue),
+            Arc::clone(&stores.escalation_queue),
             dispatch,
             inference_port,
             system_webid,
@@ -388,13 +416,13 @@ impl ApiState {
             system_webid,
             ensemble_inferencer,
             spec_store: None,
-            consent_manager,
-            escalation_queue,
+            consent_manager: stores.consent_manager,
+            escalation_queue: stores.escalation_queue,
             git_cas,
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
-            standing_session_store,
+            standing_session_store: stores.standing_session_store,
             session_manager,
-            goal_repo,
+            goal_repo: stores.goal_repo,
             loop_system,
             episodic_storage,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),

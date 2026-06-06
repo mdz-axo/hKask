@@ -40,7 +40,7 @@ pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 
 pub use error::{GitError, MemoryError};
-pub use escalation::{EscalationEntry, EscalationQueue};
+pub use escalation::{EscalationEntry, EscalationError, EscalationQueue};
 pub use hhh_gate::{HhhConfig, HhhMode};
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};

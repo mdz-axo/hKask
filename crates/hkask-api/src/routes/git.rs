@@ -1,13 +1,14 @@
 //! Git CAS archival and resolution routes
 
 use axum::extract::Extension;
-use axum::{Json, extract::Path, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::Path, extract::State, routing::Router};
 use hkask_storage::sanitize_path;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Archive repository request
 #[derive(Debug, Deserialize, ToSchema)]
@@ -65,60 +66,19 @@ async fn archive(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ArchiveRequest>,
-) -> Result<Json<ArchiveResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<ArchiveResponse>, ApiError> {
     // Validate path to prevent directory traversal
-    let base = std::path::PathBuf::from("/tmp/hkask-templates");
-    sanitize_path(&base, &req.path).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_path".to_string(),
-                code: "GIT_BAD_REQUEST".to_string(),
-                details: Some(serde_json::json!({
-                    "message": format!("Path validation failed: {}", e)
-                })),
-            }),
-        )
+    sanitize_path(&std::path::PathBuf::from("/tmp/hkask-templates"), &req.path).map_err(|e| {
+        ApiError::BadRequest {
+            message: format!("Path validation failed: {}", e),
+        }
     })?;
 
     // Construct crate name from owner/repo
     let crate_name = format!("{}/{}", req.owner, req.repo);
 
     let git_cas = state.git_cas.clone();
-    let template_crate = git_cas
-        .load_template_crate(&crate_name)
-        .map_err(|e| match e {
-            hkask_agents::GitError::CrateNotFound(_) => (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "crate_not_found".to_string(),
-                    code: "GIT_NOT_FOUND".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("Template crate '{}' not found", crate_name)
-                    })),
-                }),
-            ),
-            hkask_agents::GitError::Io(_) => (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error: "invalid_path".to_string(),
-                    code: "GIT_BAD_REQUEST".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("Invalid path: {}", e)
-                    })),
-                }),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "archive_failed".to_string(),
-                    code: "GIT_ERROR".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": e.to_string()
-                    })),
-                }),
-            ),
-        })?;
+    let template_crate = git_cas.load_template_crate(&crate_name)?;
 
     let sha = git_cas
         .resolve_sha(&crate_name)
@@ -157,22 +117,13 @@ async fn resolve_sha(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(sha): Path<String>,
-) -> Result<Json<ResolveShaResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<ResolveShaResponse>, ApiError> {
     // The SHA parameter here is used as a crate identifier for the resolve call.
     // GitCasAdapter.resolve_sha runs `git rev-parse HEAD` against the base path,
     // so we pass the crate name to resolve the current HEAD SHA for that crate.
     let git_cas = state.git_cas.clone();
-    let resolved = git_cas.resolve_sha(&sha).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "resolve_failed".to_string(),
-                code: "GIT_ERROR".to_string(),
-                details: Some(serde_json::json!({
-                    "message": format!("Failed to resolve SHA: {}", e)
-                })),
-            }),
-        )
+    let resolved = git_cas.resolve_sha(&sha).map_err(|e| ApiError::Internal {
+        message: format!("Failed to resolve SHA: {}", e),
     })?;
 
     Ok(Json(ResolveShaResponse { sha: resolved }))

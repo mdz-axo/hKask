@@ -1,12 +1,13 @@
 //! Curator escalation and metacognition routes
 
 use axum::extract::Extension;
-use axum::{Json, extract::Path, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::Path, extract::State, routing::Router};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Escalation entry response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -116,18 +117,9 @@ pub fn curator_router() -> Router<ApiState> {
 async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<ListEscalationsResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<ListEscalationsResponse>, ApiError> {
     let queue = state.escalation_queue.clone();
-    let entries = queue.list_pending().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "escalation_list_failed".to_string(),
-                code: "CURATOR_ERROR".to_string(),
-                details: Some(serde_json::json!({ "message": e.to_string() })),
-            }),
-        )
-    })?;
+    let entries = queue.list_pending()?;
 
     let escalations: Vec<EscalationEntryResponse> = entries
         .into_iter()
@@ -167,44 +159,19 @@ async fn resolve_escalation(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
-) -> Result<Json<ResolveEscalationResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<ResolveEscalationResponse>, ApiError> {
     let queue = state.escalation_queue.clone();
 
     // Verify escalation exists
-    let entry = queue.get(&id).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "escalation_lookup_failed".to_string(),
-                code: "CURATOR_ERROR".to_string(),
-                details: Some(serde_json::json!({ "message": e.to_string() })),
-            }),
-        )
-    })?;
-
+    let entry = queue.get(&id)?;
     if entry.is_none() {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "escalation_not_found".to_string(),
-                code: "CURATOR_NOT_FOUND".to_string(),
-                details: Some(serde_json::json!({
-                    "message": format!("Escalation '{}' not found", id)
-                })),
-            }),
-        ));
+        return Err(ApiError::NotFound {
+            resource: "Escalation".to_string(),
+            id,
+        });
     }
 
-    queue.resolve(&id, &req.resolved_by).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "escalation_resolve_failed".to_string(),
-                code: "CURATOR_ERROR".to_string(),
-                details: Some(serde_json::json!({ "message": e.to_string() })),
-            }),
-        )
-    })?;
+    queue.resolve(&id, &req.resolved_by)?;
 
     Ok(Json(ResolveEscalationResponse {
         id,
@@ -230,44 +197,19 @@ async fn dismiss_escalation(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
-) -> Result<Json<DismissEscalationResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<DismissEscalationResponse>, ApiError> {
     let queue = state.escalation_queue.clone();
 
     // Verify escalation exists
-    let entry = queue.get(&id).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "escalation_lookup_failed".to_string(),
-                code: "CURATOR_ERROR".to_string(),
-                details: Some(serde_json::json!({ "message": e.to_string() })),
-            }),
-        )
-    })?;
-
+    let entry = queue.get(&id)?;
     if entry.is_none() {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "escalation_not_found".to_string(),
-                code: "CURATOR_NOT_FOUND".to_string(),
-                details: Some(serde_json::json!({
-                    "message": format!("Escalation '{}' not found", id)
-                })),
-            }),
-        ));
+        return Err(ApiError::NotFound {
+            resource: "Escalation".to_string(),
+            id,
+        });
     }
 
-    queue.dismiss(&id, &req.dismissed_by).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "escalation_dismiss_failed".to_string(),
-                code: "CURATOR_ERROR".to_string(),
-                details: Some(serde_json::json!({ "message": e.to_string() })),
-            }),
-        )
-    })?;
+    queue.dismiss(&id, &req.dismissed_by)?;
 
     Ok(Json(DismissEscalationResponse {
         id,
@@ -289,18 +231,9 @@ async fn dismiss_escalation(
 async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<MetacognitionStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
     let queue = state.escalation_queue.clone();
-    let stats = queue.stats().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "escalation_stats_failed".to_string(),
-                code: "CURATOR_ERROR".to_string(),
-                details: Some(serde_json::json!({ "message": e.to_string() })),
-            }),
-        )
-    })?;
+    let stats = queue.stats()?;
 
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,

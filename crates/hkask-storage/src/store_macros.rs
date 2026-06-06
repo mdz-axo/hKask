@@ -152,7 +152,7 @@ macro_rules! impl_from_serde_json {
 #[macro_export]
 macro_rules! collect_rows {
     ($stmt:expr, $params:expr, $mapper:expr, $convert:expr) => {{
-        let mapped: Vec<Result<_, rusqlite::Error>> =
+        let mapped: Vec<std::result::Result<_, rusqlite::Error>> =
             $stmt.query_map($params, $mapper)?.collect();
         let mut results = Vec::with_capacity(mapped.len());
         for row_result in mapped {
@@ -171,7 +171,7 @@ macro_rules! collect_rows {
         results
     }};
     ($stmt:expr, $params:expr, $mapper:expr) => {{
-        let mapped: Vec<Result<_, rusqlite::Error>> =
+        let mapped: Vec<std::result::Result<_, rusqlite::Error>> =
             $stmt.query_map($params, $mapper)?.collect();
         let mut results = Vec::with_capacity(mapped.len());
         for row_result in mapped {

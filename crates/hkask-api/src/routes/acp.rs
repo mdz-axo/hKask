@@ -1,37 +1,22 @@
 //! ACP registration and listing routes
 
 use axum::extract::{Extension, Path};
-use axum::{Json, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::State, routing::Router};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Parse a WebID from a string, returning a structured error on failure.
-///
-/// Consolidates the repeated `uuid::Uuid::parse_str(...)` → `WebID` pattern
-/// that appeared in `acp_register` and `acp_unregister_agent`.
-fn parse_webid(
-    raw: &str,
-    error_code: &str,
-    message_prefix: &str,
-) -> Result<WebID, (StatusCode, Json<ErrorResponse>)> {
+fn parse_webid(raw: &str) -> Result<WebID, ApiError> {
     uuid::Uuid::parse_str(raw)
-        .map_err(|_| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error: "invalid_webid".to_string(),
-                    code: error_code.to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("{}{}", message_prefix, raw)
-                    })),
-                }),
-            )
-        })
         .map(WebID)
+        .map_err(|_| ApiError::BadRequest {
+            message: format!("Invalid WebID format: {}", raw),
+        })
 }
 
 /// ACP registration request
@@ -88,61 +73,27 @@ async fn acp_register(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<AcpRegisterRequest>,
-) -> Result<Json<AcpRegisterResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let webid = parse_webid(&req.webid, "ACP_BAD_REQUEST", "Invalid WebID format: ")?;
+) -> Result<Json<AcpRegisterResponse>, ApiError> {
+    let webid = parse_webid(&req.webid)?;
 
-    let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_agent_type".to_string(),
-                code: "ACP_BAD_REQUEST".to_string(),
-                details: Some(serde_json::json!({
-                    "message": format!("Agent type must be 'Bot' or 'Replicant', got: {}", req.agent_type)
-                })),
-            }),
-        )
-    })?;
+    let agent_kind =
+        hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| ApiError::BadRequest {
+            message: format!(
+                "Agent type must be 'Bot' or 'Replicant', got: {}",
+                req.agent_type
+            ),
+        })?;
 
     if req.capabilities.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "empty_capabilities".to_string(),
-                code: "ACP_BAD_REQUEST".to_string(),
-                details: Some(serde_json::json!({
-                    "message": "At least one capability is required"
-                })),
-            }),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "At least one capability is required".to_string(),
+        });
     }
 
     let acp = state.pod_manager.acp_runtime();
     let token = acp
         .register_agent(webid, agent_kind, req.capabilities)
-        .await
-        .map_err(|e| match e {
-            hkask_agents::AcpError::AgentAlreadyRegistered(_) => (
-                StatusCode::CONFLICT,
-                Json(ErrorResponse {
-                    error: "agent_already_registered".to_string(),
-                    code: "ACP_CONFLICT".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": e.to_string()
-                    })),
-                }),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "registration_failed".to_string(),
-                    code: "ACP_ERROR".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": e.to_string()
-                    })),
-                }),
-            ),
-        })?;
+        .await?;
 
     Ok(Json(AcpRegisterResponse {
         token: token.id.clone(),
@@ -165,7 +116,7 @@ async fn acp_register(
 async fn acp_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<AgentListResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<AgentListResponse>, ApiError> {
     let acp = state.pod_manager.acp_runtime();
     let agents = acp.list_agents().await;
 
@@ -202,32 +153,13 @@ async fn acp_unregister_agent(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let webid = parse_webid(&agent_id, "ACP_BAD_REQUEST", "Invalid WebID format: ")?;
+) -> Result<StatusCode, ApiError> {
+    use axum::http::StatusCode;
+
+    let webid = parse_webid(&agent_id)?;
 
     let acp = state.pod_manager.acp_runtime();
-    acp.unregister_agent(&webid).await.map_err(|e| match e {
-        hkask_agents::AcpError::AgentNotFound(_) => (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "agent_not_found".to_string(),
-                code: "ACP_NOT_FOUND".to_string(),
-                details: Some(serde_json::json!({
-                    "message": format!("Agent '{}' not found", agent_id)
-                })),
-            }),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "unregister_failed".to_string(),
-                code: "ACP_ERROR".to_string(),
-                details: Some(serde_json::json!({
-                    "message": e.to_string()
-                })),
-            }),
-        ),
-    })?;
+    acp.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }

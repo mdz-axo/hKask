@@ -15,6 +15,25 @@ use hkask_types::{
 use serde_json::Value;
 use std::sync::Arc;
 
+// ── Template Method helpers (P2.4) ──────────────────────────────────────
+
+/// Convert a `Triple` into its canonical JSON representation.
+///
+/// Both `recall_episodic` and `recall_semantic` produce the same JSON
+/// shape — this function eliminates that duplication.
+fn triple_to_json(t: Triple) -> Value {
+    serde_json::json!({
+        "id": t.id.to_string(),
+        "entity": t.entity,
+        "attribute": t.attribute,
+        "value": t.value,
+        "confidence": t.confidence,
+        "perspective": t.perspective.map(|p| p.to_string()),
+        "visibility": t.visibility.as_str(),
+        "valid_from": t.valid_from.to_rfc3339(),
+    })
+}
+
 /// Capture-common-parameters struct for memory storage operations (P2.4/P1.5).
 ///
 /// Groups the fields that every store call shares (entity, attribute, value,
@@ -49,7 +68,6 @@ impl StorageRequest {
     }
 }
 
-/// Capture-common-parameters struct for memory storage operations (P2.4/P1.5).
 /// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
 ///
 /// Routes pod storage requests through `hkask-memory`'s domain logic
@@ -128,21 +146,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         // Route through EpisodicMemory's deduped+decayed query
         let triples = self.episodic.query_for_deduped(query, *owner)?;
 
-        let results: Vec<Value> = triples
-            .into_iter()
-            .map(|t| {
-                serde_json::json!({
-                    "id": t.id.to_string(),
-                    "entity": t.entity,
-                    "attribute": t.attribute,
-                    "value": t.value,
-                    "confidence": t.confidence,
-                    "perspective": t.perspective.map(|p| p.to_string()),
-                    "visibility": t.visibility.as_str(),
-                    "valid_from": t.valid_from.to_rfc3339(),
-                })
-            })
-            .collect();
+        let results: Vec<Value> = triples.into_iter().map(triple_to_json).collect();
 
         tracing::debug!(
             target: "hkask.memory.episodic",
@@ -248,21 +252,7 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         // Route through SemanticMemory's deduped query
         let triples = self.semantic.query_deduped(query)?;
 
-        let results: Vec<Value> = triples
-            .into_iter()
-            .map(|t| {
-                serde_json::json!({
-                    "id": t.id.to_string(),
-                    "entity": t.entity,
-                    "attribute": t.attribute,
-                    "value": t.value,
-                    "confidence": t.confidence,
-                    "perspective": t.perspective.map(|p| p.to_string()),
-                    "visibility": t.visibility.as_str(),
-                    "valid_from": t.valid_from.to_rfc3339(),
-                })
-            })
-            .collect();
+        let results: Vec<Value> = triples.into_iter().map(triple_to_json).collect();
 
         tracing::debug!(
             target: "hkask.memory.semantic",
