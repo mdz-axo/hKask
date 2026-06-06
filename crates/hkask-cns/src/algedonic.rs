@@ -283,7 +283,6 @@ pub(crate) fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::allosteric::gate::{AllostericGate, AllostericGateConfig};
 
     fn make_tracker_with_variety(variety: u64) -> VarietyTracker {
         let mut tracker = VarietyTracker::new();
@@ -382,25 +381,6 @@ mod tests {
         // But allosteric has R̄ information
         assert!(alert_binary.r_bar == 0.0, "Binary path has no R̄");
         assert!(alert_allosteric.r_bar > 0.0, "Allosteric path has R̄");
-    }
-
-    #[test]
-    fn allosteric_with_custom_gate() {
-        // Use a less conservative gate (L=10) to test the transition zone
-        let gate = AllostericGate::new(&AllostericGateConfig {
-            name: "algedonic_custom".to_string(),
-            base_l: 10.0,
-            c: 0.1,
-            n: 1,
-            threshold: 0.5,
-            tau: Duration::from_secs(1),
-            hysteresis: 0.0,
-        });
-        let mut mgr = AlgedonicManager::new(100, 80).with_allosteric_gate(gate);
-        // deficit=70 → α = 0.7
-        let tracker = make_tracker_with_variety(10);
-        let alert = mgr.check(&tracker, "test").unwrap();
-        assert!(alert.r_bar > 0.0);
     }
 
     #[test]

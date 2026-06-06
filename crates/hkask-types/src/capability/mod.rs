@@ -2,24 +2,11 @@
 //
 //! Two token kinds: **Loop authority** (ZST tokens in `tokens.rs`) prove loop-authorized operations;
 //! **Delegation** (`DelegationToken`) are HMAC-signed tokens for inter-agent delegation with cryptographic attenuation.
-//! Backward-compatible aliases (`CapabilityToken`, etc.) are provided for migration.
 
-/// System-wide maximum recursion depth.
-///
-/// Grounds all structurally-bounded recursion across the system:
-/// capability attenuation levels, template cascade depth, subgoal nesting.
-/// Each domain may further restrict (≤ this value) but none may exceed.
-///
-/// The name `RECURSION` is the structural bound; `SYSTEM_MAX_ATTENUATION`
-/// is the capability-specific alias — same number, different Miller designation
-/// (naming is a security boundary for least-authority reasoning).
+/// Shared structural bound: capability attenuation, cascade depth, subgoal nesting.
 pub const SYSTEM_MAX_RECURSION: u8 = 7;
 
-/// System-wide maximum attenuation depth.
-/// Tokens with max_attenuation exceeding this value are rejected at verification time.
-///
-/// This is a capability-domain alias for [`SYSTEM_MAX_RECURSION`] — sharing one
-/// literal prevents accidental drift between attenuation, cascade, and subgoal bounds.
+/// Capability-domain alias for SYSTEM_MAX_RECURSION.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
 pub(crate) mod hmac_ops;
@@ -30,30 +17,20 @@ pub use tokens::{ConsolidationToken, IssuerVerification};
 
 pub use verification::CapabilityChecker;
 
-/// Backward-compatible type aliases for the renamed delegation types.
-/// New code should use `DelegationResource`, `DelegationAction`, `DelegationToken`,
-/// `DelegationTokenBuilder`, and `AgentDelegation` directly.
-pub type CapabilityResource = DelegationResource;
-pub type CapabilityAction = DelegationAction;
-pub type CapabilityToken = DelegationToken;
-
 use crate::WebID;
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Helper to convert WebID to string
 fn to_string(webid: &WebID) -> String {
     webid.to_string()
 }
 
-/// Base64 encode bytes to string
 fn base64_encode(data: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(data)
 }
 
-/// Base64 decode string to bytes
 fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD
@@ -61,28 +38,10 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Parsed capability specification — the canonical result of parsing a
-/// colon-separated capability string like `"tool:inference:call"` or
-/// `"registry:episodic_memory:read"`.
-///
-/// This is the **single source of truth** for how capability strings map to
-/// typed OCAP fields. All code that parses capability strings must use
-/// [`CapabilitySpec::parse`] instead of rolling its own parser.
-///
-/// # Format
-///
-/// - 2-part: `"resource:action"` → `resource_id = full string`
-/// - 3-part: `"resource:domain:action"` → `resource_id = domain part`
-///
-/// # Example
-///
-/// ```
-/// use hkask_types::CapabilitySpec;
-/// let spec = CapabilitySpec::parse("registry:episodic_memory:read").unwrap();
-/// assert_eq!(spec.resource, hkask_types::DelegationResource::Registry);
-/// assert_eq!(spec.resource_id, "episodic_memory");
-/// assert_eq!(spec.action, hkask_types::DelegationAction::Read);
-/// ```
+/// Parsed colon-separated capability string (e.g. `"tool:inference:call"`).
+/// Single source of truth — all parsing must use [`CapabilitySpec::parse`].
+/// 2-part: `"resource:action"` → `resource_id = full string`
+/// 3-part: `"resource:domain:action"` → `resource_id = domain`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapabilitySpec {
     pub resource: DelegationResource,
@@ -130,7 +89,6 @@ impl CapabilitySpec {
     }
 }
 
-/// Error type for capability string parsing.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CapabilityParseError {
     #[error(
@@ -141,8 +99,6 @@ pub enum CapabilityParseError {
     UnknownResource(String),
 }
 
-/// Delegation resource types — what an agent can act on
-/// Loop: Cybernetics (Access Guard subloop 6.1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DelegationResource {
     Tool,
@@ -169,8 +125,6 @@ impl DelegationResource {
     }
 }
 
-/// Delegation action types — what an agent can do to a resource
-/// Loop: Cybernetics (Access Guard subloop 6.1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DelegationAction {
     Read,
@@ -197,22 +151,10 @@ impl DelegationAction {
     }
 }
 
-/// Caveat — A restriction on a capability token
-/// Loop: Cybernetics
-///
-/// Caveats are additive restrictions that limit the scope of a capability.
-/// Each caveat has a type identifier and associated data.
-///
-/// # Common Caveat Types
-/// - `expiration`: Unix timestamp after which the capability is invalid
-/// - `operation`: Specific operation allowed (e.g., "generate", "chat")
-/// - `template`: Template ID scope restriction
-/// - `visibility`: Visibility level requirement (e.g., "private", "shared")
+/// Additive restrictions on a capability token.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct Caveat {
-    /// Caveat type identifier (e.g., "expiration", "operation", "template")
     pub caveat_id: String,
-    /// Caveat data (e.g., timestamp, operation name, template ID)
     pub data: String,
 }
 
@@ -220,7 +162,6 @@ pub(crate) struct Caveat {
 // but not yet consumed by runtime enforcement. Retain for OCAP completeness.
 #[allow(dead_code)]
 impl Caveat {
-    /// Create a new caveat
     pub(crate) fn new(caveat_id: impl Into<String>, data: impl Into<String>) -> Self {
         Self {
             caveat_id: caveat_id.into(),
@@ -228,54 +169,38 @@ impl Caveat {
         }
     }
 
-    /// Create an expiration caveat
     pub(crate) fn expiration(unix_timestamp: i64) -> Self {
         Self::new("expiration", unix_timestamp.to_string())
     }
 
-    /// Create an operation caveat
     pub(crate) fn operation(operation: impl Into<String>) -> Self {
         Self::new("operation", operation)
     }
 
-    /// Create a template caveat
     pub(crate) fn template(template_id: impl Into<String>) -> Self {
         Self::new("template", template_id)
     }
 
-    /// Create a visibility caveat
     pub(crate) fn visibility(visibility: impl Into<String>) -> Self {
         Self::new("visibility", visibility)
     }
 }
 
-/// Capability token for tool access and composition operations
-/// Loop: Cybernetics
+/// HMAC-signed OCAP token for inter-agent capability delegation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DelegationToken {
-    /// Unique token identifier
     pub id: String,
-    /// Resource type (tool, template, manifest, registry, cascade)
     pub resource: DelegationResource,
-    /// Resource identifier (e.g., tool name, template ID)
     pub resource_id: String,
-    /// Action granted (read, write, execute, render, compose, attenuate)
     pub action: DelegationAction,
-    /// WebID that delegated this capability
     pub delegated_from: WebID,
-    /// WebID that received this capability
     pub delegated_to: WebID,
-    /// Token signature (HMAC over fields)
     pub signature: String,
-    /// Expiration timestamp (Unix epoch seconds)
     pub expires_at: Option<i64>,
-    /// Attenuation level (0 = full authority, increases with each delegation)
+    /// 0 = full authority, increases with each delegation
     pub attenuation_level: u8,
-    /// Maximum attenuation level allowed (prevents infinite delegation)
     pub max_attenuation: u8,
-    /// Context nonce for binding token to specific execution context
     pub context_nonce: String,
-    /// Caveats (restrictions on this capability)
     pub(crate) caveats: Vec<Caveat>,
 }
 
@@ -290,11 +215,7 @@ struct SigningPayload {
     caveats: Vec<Caveat>,
 }
 
-/// Builder for constructing delegation tokens with the OCAP pattern.
-///
-/// Each method returns `Self`, so the builder itself is an unforgeable authority
-/// that can only be exercised by its holder. No ambient authority is leaked
-/// through parameter ordering.
+/// Builder for constructing delegation tokens. Each method returns Self.
 pub struct DelegationTokenBuilder {
     resource: DelegationResource,
     resource_id: String,
@@ -309,7 +230,6 @@ pub struct DelegationTokenBuilder {
 }
 
 impl DelegationTokenBuilder {
-    /// Create a new builder with the required fields.
     pub fn new(
         resource: DelegationResource,
         resource_id: String,
@@ -331,32 +251,27 @@ impl DelegationTokenBuilder {
         }
     }
 
-    /// Set expiration timestamp.
     pub fn expires_at(mut self, ts: i64) -> Self {
         self.expires_at = Some(ts);
         self
     }
 
-    /// Set attenuation level and max.
     pub fn attenuation(mut self, level: u8, max: u8) -> Self {
         self.attenuation_level = level;
         self.max_attenuation = max;
         self
     }
 
-    /// Set context nonce.
     pub fn context_nonce(mut self, nonce: String) -> Self {
         self.context_nonce = Some(nonce);
         self
     }
 
-    /// Add a caveat.
     pub(crate) fn caveat(mut self, caveat: Caveat) -> Self {
         self.caveats.push(caveat);
         self
     }
 
-    /// Build and sign the delegation token.
     pub fn sign(self, secret: &[u8]) -> DelegationToken {
         let id = DelegationToken::generate_id(
             &self.resource,
@@ -397,7 +312,6 @@ impl DelegationTokenBuilder {
 }
 
 impl DelegationToken {
-    /// Create a new delegation token with default settings.
     pub fn new(
         resource: DelegationResource,
         resource_id: String,
@@ -410,7 +324,6 @@ impl DelegationToken {
             .sign(secret)
     }
 
-    /// Generate unique token ID
     fn generate_id(
         resource: &DelegationResource,
         resource_id: &str,
@@ -427,7 +340,7 @@ impl DelegationToken {
         hex::encode(hasher.finalize())
     }
 
-    /// Sign the token payload using HMAC-SHA256.
+    /// HMAC-SHA256.
     fn sign_payload(payload: &SigningPayload, secret: &[u8]) -> String {
         let mut builder = hmac_ops::HmacBuilder::new(secret);
         builder.update(payload.id.as_bytes());
@@ -444,7 +357,7 @@ impl DelegationToken {
         builder.finalize_hex()
     }
 
-    /// Verify the token signature using constant-time comparison.
+    /// Constant-time comparison to prevent timing attacks.
     pub fn verify(&self, secret: &[u8]) -> bool {
         let payload = SigningPayload {
             id: self.id.clone(),
@@ -461,42 +374,35 @@ impl DelegationToken {
         hmac_ops::verify_hmac_constant_time(expected.as_bytes(), self.signature.as_bytes())
     }
 
-    /// Check if token is expired
     pub fn is_expired(&self, current_time: i64) -> bool {
         self.expires_at
             .map(|exp| current_time > exp)
             .unwrap_or(false)
     }
 
-    /// Get the holder (recipient) of this capability token
     pub fn holder(&self) -> WebID {
         self.delegated_to
     }
 
-    /// Get the issuer (delegator) of this capability token
     pub fn issuer(&self) -> WebID {
         self.delegated_from
     }
 
-    /// Serialize token to base64-encoded JSON
     pub fn to_base64(&self) -> Result<String, serde_json::Error> {
         let json = serde_json::to_string(self)?;
         Ok(base64_encode(json.as_bytes()))
     }
 
-    /// Deserialize token from base64-encoded JSON
     pub fn from_base64(encoded: &str) -> Result<Self, String> {
         let json = base64_decode(encoded)?;
         serde_json::from_slice(&json).map_err(|e| e.to_string())
     }
 
-    /// Check if attenuation allows further delegation
     pub fn can_attenuate(&self) -> bool {
         self.attenuation_level < self.max_attenuation
     }
 
-    /// Create attenuated child token for delegation.
-    /// Uses a 1-hour expiry from `current_time`.
+    /// 1-hour expiry from `current_time`.
     pub fn attenuate(
         &self,
         new_to: WebID,
@@ -736,7 +642,6 @@ impl AgentDelegation {
         self.capabilities.iter().any(|cap| cap == tool_name)
     }
 }
-
 
 #[cfg(test)]
 mod capability_spec_tests {

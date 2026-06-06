@@ -6,7 +6,7 @@
 //! `RegistryEntry`, `RegistryIndex`, and `RegistryError` are canonical in
 //! `hkask_types::ports` and re-exported here for backward compatibility.
 
-use hkask_types::CapabilityToken;
+use hkask_types::DelegationToken;
 use serde_json::Value;
 
 /// Error type for template operations
@@ -75,7 +75,7 @@ pub trait McpPort: Send + Sync {
         &self,
         tool_name: &str,
         input: Value,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> impl std::future::Future<Output = Result<Value>> + Send;
     fn get_tool_info(
         &self,

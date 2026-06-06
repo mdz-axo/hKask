@@ -243,17 +243,10 @@ impl Default for KillZoneState {
     }
 }
 
-/// Backward-compatible type alias: KillZoneConfig = KillZoneState.
-///
-/// Kill zone thresholds are now separate (`KillZoneThresholds`).
-/// This alias preserves serialization compatibility.
-pub type KillZoneConfig = KillZoneState;
-
-/// User sovereignty state — aggregate view of user's sovereignty
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSovereigntyState {
     pub boundary: DataSovereigntyBoundary,
-    pub kill_zone_state: KillZoneConfig,
+    pub kill_zone_state: KillZoneState,
     /// Kill zone thresholds (set by Curation, immutable at runtime)
     #[serde(skip)]
     pub kill_zone_threshold: f32,
@@ -267,7 +260,7 @@ impl UserSovereigntyState {
     pub fn new() -> Self {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
-            kill_zone_state: KillZoneConfig::default(),
+            kill_zone_state: KillZoneState::default(),
             kill_zone_threshold: KillZoneThresholds::default().threshold,
             explicit_consent: false,
             last_check: chrono::Utc::now(),

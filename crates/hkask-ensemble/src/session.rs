@@ -140,7 +140,7 @@ impl SessionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chat::{ChatMessage, GasBudgetConfig};
+    use crate::chat::ChatMessage;
     use hkask_types::WebID;
     use std::sync::atomic::{AtomicUsize, Ordering};
 

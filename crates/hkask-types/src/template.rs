@@ -5,10 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::capability::CapabilityToken;
+use crate::capability::DelegationToken;
 use crate::id::BotID;
-
-pub type TemplateId = crate::id::TemplateID;
 
 /// LLMParameters — Full parameter set for LLM invocation
 /// Loop: Inference
@@ -93,8 +91,8 @@ impl std::fmt::Display for TemplateOutcome {
 /// Loop: Inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateInvocation {
-    pub id: TemplateId,
-    pub template_id: TemplateId,
+    pub id: TemplateID,
+    pub template_id: TemplateID,
     pub bot_id: BotID,
     pub temperature: f32,
     pub parameters: LLMParameters,
@@ -105,7 +103,7 @@ pub struct TemplateInvocation {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     /// Capability token authorizing this invocation (for OCAP verification)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub capability_token: Option<CapabilityToken>,
+    pub capability_token: Option<DelegationToken>,
 }
 
 /// Template file within a crate
@@ -137,13 +135,13 @@ pub struct TemplateCrate {
 
 impl TemplateInvocation {
     pub fn new(
-        template_id: TemplateId,
+        template_id: TemplateID,
         bot_id: BotID,
         parameters: LLMParameters,
         input: serde_json::Value,
     ) -> Self {
         Self {
-            id: TemplateId::new(),
+            id: TemplateID::new(),
             template_id,
             bot_id,
             temperature: parameters.temperature,

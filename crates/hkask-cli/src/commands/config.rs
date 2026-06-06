@@ -49,7 +49,6 @@ pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connec
     Ok(db.conn_arc())
 }
 
-
 /// Open a SovereigntyBoundaryStore (used by `kask sovereignty` subcommands).
 /// Opens the shared database and wraps it in a sovereignty store.
 pub fn open_sovereignty_store()
@@ -156,7 +155,7 @@ pub fn create_disconnected_governed_dispatcher(
 /// dispatch, the GovernedTool is created in `repl::run()` using the
 /// session's shared CyberneticsLoop and dispatch channel.
 pub fn create_mcp_dispatcher()
--> Result<(hkask_mcp::McpDispatcher, hkask_types::CapabilityToken), RegistryError> {
+-> Result<(hkask_mcp::McpDispatcher, hkask_types::DelegationToken), RegistryError> {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
     let mcp_secret = resolve_mcp_secret()?;
     let (dispatcher, _) = create_disconnected_governed_dispatcher(runtime, mcp_secret.as_bytes());
@@ -177,7 +176,7 @@ pub fn create_mcp_dispatcher()
 pub fn create_mcp_dispatcher_with_servers(
     rt: &tokio::runtime::Runtime,
     servers: &[(&str, &str)],
-) -> Result<(hkask_mcp::McpDispatcher, hkask_types::CapabilityToken), RegistryError> {
+) -> Result<(hkask_mcp::McpDispatcher, hkask_types::DelegationToken), RegistryError> {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
 
     // Start each MCP server as a child process
@@ -209,14 +208,12 @@ pub fn create_mcp_dispatcher_with_servers(
     Ok((dispatcher, token))
 }
 
-
 /// Pre-resolved secrets for onboarding, passed explicitly instead of
 /// mutating environment variables.
 pub struct ResolvedSecrets {
     pub acp_secret: String,
     pub db_passphrase: String,
 }
-
 
 /// Initialize the registry by resolving secrets from env/keychain/derivation.
 pub(crate) async fn init_registry() -> Result<

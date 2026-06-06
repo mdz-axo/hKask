@@ -4,7 +4,7 @@
 //! threshold after an acquisition attempt, triggers an algedonic alert.
 //! This is CNS regulation logic, not type data.
 
-use hkask_types::sovereignty::{KillZoneConfig, KillZoneThresholds};
+use hkask_types::sovereignty::{KillZoneState, KillZoneThresholds};
 
 /// Kill zone detector — CNS regulation function.
 ///
@@ -12,18 +12,18 @@ use hkask_types::sovereignty::{KillZoneConfig, KillZoneThresholds};
 /// sense (vc_investment) → compare (against threshold) → compute (alert?) → act (escalate)
 ///
 /// Configuration (`KillZoneThresholds`) is set by Curation and is immutable.
-/// State (`KillZoneConfig`) is the mutable operational state that Cybernetics
+/// State (`KillZoneState`) is the mutable operational state that Cybernetics
 /// senses and compares.
 pub(crate) struct KillZoneDetector {
     thresholds: KillZoneThresholds,
-    state: KillZoneConfig,
+    state: KillZoneState,
 }
 
 impl KillZoneDetector {
     pub(crate) fn new(thresholds: KillZoneThresholds) -> Self {
         Self {
             thresholds,
-            state: KillZoneConfig::default(),
+            state: KillZoneState::default(),
         }
     }
 
@@ -47,7 +47,7 @@ impl KillZoneDetector {
     }
 
     /// Get a reference to the current state.
-    pub(crate) fn state(&self) -> &KillZoneConfig {
+    pub(crate) fn state(&self) -> &KillZoneState {
         &self.state
     }
 }

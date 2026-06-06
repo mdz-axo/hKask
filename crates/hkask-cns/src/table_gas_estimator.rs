@@ -173,14 +173,4 @@ mod tests {
             50
         );
     }
-
-    fn inference_server_cost_is_zero() {
-        // Inference gas is handled by InferenceGasEstimator, not the table.
-        // The table returns 0 for inference as a signal to use the token-based estimator.
-        let estimator = TableGasEstimator::new();
-        assert_eq!(
-            estimator.estimate_cost("hkask-mcp-inference", "generate", &serde_json::json!({})),
-            0
-        );
-    }
 }

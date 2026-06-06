@@ -16,12 +16,19 @@
 //!
 //! # How it works
 //!
-//! When a directive is issued, the dampener records a "fingerprint" of the
-//! directive (type + target) along with a timestamp. If the same fingerprint
-//! is seen again within the dampening window, the directive is suppressed.
+//! Two dampening layers:
 //!
-//! This prevents oscillation in cybernetic feedback loops without preventing
-//! genuine new directives from being delivered.
+//! 1. **Per-fingerprint dedup** — When a directive is issued, the dampener
+//!    records a "fingerprint" (type + target) with a timestamp. If the same
+//!    fingerprint is seen again within the standard window, the directive is
+//!    suppressed. This prevents repeated identical directives.
+//!
+//! 2. **Override cooldown** — After any metacognitive override
+//!    (`override_gas_budget`, `seek_more_evidence`) passes the fingerprint
+//!    dedup, ALL subsequent overrides are suppressed for the cooldown period
+//!    (default 120s), regardless of type or target. This prevents override
+//!    oscillation: a different override targeting a different agent cannot
+//!    bypass the cooldown by changing its fingerprint.
 
 use hkask_types::WebID;
 use std::collections::HashMap;
@@ -41,6 +48,14 @@ pub(crate) const DEFAULT_DAMPEN_WINDOW: Duration = Duration::from_secs(60);
 /// to prevent premature re-issuance while still allowing genuine re-triggering.
 pub(crate) const METACOGNITIVE_DAMPEN_WINDOW: Duration = Duration::from_secs(300);
 
+/// Default override cooldown: 120 seconds.
+///
+/// After any metacognitive override passes the per-fingerprint dedup check,
+/// ALL subsequent overrides are suppressed for this duration regardless of
+/// type or target. This prevents override oscillation — the scenario where
+/// the Curation↔Cybernetics feedback loop rapidly fires different overrides.
+pub(crate) const DEFAULT_OVERRIDE_COOLDOWN: Duration = Duration::from_secs(120);
+
 /// A fingerprint that identifies a directive for dampening.
 ///
 /// Two directives with the same fingerprint will be suppressed if the
@@ -51,6 +66,16 @@ struct DirectiveFingerprint {
     directive_type: String,
     /// The target agent (if applicable)
     target: Option<WebID>,
+}
+
+/// Whether a directive type is a metacognitive override.
+///
+/// Metacognitive overrides are higher-order Curation interventions that
+/// reconfigure Cybernetics regulation itself (gas budgets, evidence seeking).
+/// These are subject to the override cooldown in addition to per-fingerprint
+/// dedup, because override oscillation is especially destabilizing.
+fn is_metacognitive_override(directive_type: &str) -> bool {
+    matches!(directive_type, "override_gas_budget" | "seek_more_evidence")
 }
 
 /// DAMPEN — Suppress repeated directives within a configurable time window.
@@ -69,10 +94,19 @@ pub(crate) struct Dampener {
     window: Duration,
     /// Extended dampening window for metacognitive overrides (used for eviction)
     metacognitive_window: Duration,
+    /// Timestamp of the last metacognitive override that passed dedup.
+    /// After any override passes, ALL subsequent overrides are suppressed
+    /// for `override_cooldown` seconds. This prevents override oscillation.
+    last_override: Mutex<Option<std::time::Instant>>,
+    /// Cooldown window after a metacognitive override passes dedup.
+    /// Default: 120 seconds. Within this window, ALL overrides are suppressed
+    /// regardless of type or target.
+    override_cooldown: Duration,
 }
 
 impl Dampener {
-    /// Create a new dampener with the default 60-second window.
+    /// Create a new dampener with the default 60-second window and 120-second
+    /// override cooldown.
     pub(crate) fn new() -> Self {
         Self::with_window(DEFAULT_DAMPEN_WINDOW)
     }
@@ -80,19 +114,39 @@ impl Dampener {
     /// Create a new dampener with a custom standard dampening window.
     ///
     /// The metacognitive window defaults to 300 seconds.
+    /// The override cooldown defaults to 120 seconds.
     pub(crate) fn with_window(window: Duration) -> Self {
         Self {
             seen: Mutex::new(HashMap::new()),
             window,
             metacognitive_window: METACOGNITIVE_DAMPEN_WINDOW,
+            last_override: Mutex::new(None),
+            override_cooldown: DEFAULT_OVERRIDE_COOLDOWN,
         }
+    }
+
+    /// Create a dampener with a custom override cooldown.
+    ///
+    /// Useful for testing: set a short cooldown to avoid sleeping in tests.
+    #[allow(dead_code)]
+    pub(crate) fn with_override_cooldown(mut self, cooldown: Duration) -> Self {
+        self.override_cooldown = cooldown;
+        self
     }
 
     /// Check if a directive should be dampened (suppressed).
     ///
-    /// Accepts the directive type and target directly, for use when the
-    /// full `CuratorDirective` is not available (e.g., from
-    /// `LoopPayload::CurationDirective`).
+    /// Two dampening layers are applied in order:
+    ///
+    /// 1. **Per-fingerprint dedup** — if the same (type, target) directive
+    ///    was seen within the standard window, suppress.
+    ///
+    /// 2. **Override cooldown** — for metacognitive overrides only: if any
+    ///    override passed dedup within the cooldown period, suppress ALL
+    ///    subsequent overrides regardless of type or target.
+    ///
+    /// If neither layer suppresses the directive, the fingerprint is recorded
+    /// and (for overrides) the override timestamp is set.
     pub(crate) async fn should_dampen_directive(
         &self,
         directive_type: &str,
@@ -103,22 +157,40 @@ impl Dampener {
             target: Some(target),
         };
         let now = std::time::Instant::now();
-        let mut seen = self.seen.lock().await;
 
-        // Evict expired entries first (lazy garbage collection).
-        // Use the larger window to avoid premature eviction.
-        let max_window = self.window.max(self.metacognitive_window);
-        seen.retain(|_, last_seen| now.duration_since(*last_seen) < max_window);
-
-        // Check if this fingerprint was seen recently
-        if let Some(last_seen) = seen.get(&fingerprint)
-            && now.duration_since(*last_seen) < self.window
+        // Step 1: Per-fingerprint dedup check
         {
-            return true; // Dampen: same directive within standard window
+            let mut seen = self.seen.lock().await;
+            // Evict expired entries first (lazy garbage collection).
+            // Use the larger window to avoid premature eviction.
+            let max_window = self.window.max(self.metacognitive_window);
+            seen.retain(|_, last_seen| now.duration_since(*last_seen) < max_window);
+
+            if let Some(last_seen) = seen.get(&fingerprint)
+                && now.duration_since(*last_seen) < self.window
+            {
+                return true; // Dampen: same directive within standard window
+            }
         }
 
-        // Record this directive as seen
-        seen.insert(fingerprint, now);
+        // Step 2: Override cooldown for metacognitive overrides
+        if is_metacognitive_override(directive_type) {
+            let mut last_override = self.last_override.lock().await;
+            if let Some(last) = *last_override
+                && now.duration_since(last) < self.override_cooldown
+            {
+                return true; // Dampen: override cooldown active
+            }
+            // Override passes — record timestamp
+            *last_override = Some(now);
+        }
+
+        // Step 3: Record fingerprint (directive allowed through)
+        {
+            let mut seen = self.seen.lock().await;
+            seen.insert(fingerprint, now);
+        }
+
         false
     }
 }
@@ -135,6 +207,10 @@ mod tests {
 
     fn test_agent() -> WebID {
         WebID::from_persona(b"test-agent")
+    }
+
+    fn other_agent() -> WebID {
+        WebID::from_persona(b"other-agent")
     }
 
     #[tokio::test]
@@ -189,6 +265,138 @@ mod tests {
         assert!(
             !dampener
                 .should_dampen_directive("calibrate_threshold", agent)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn override_cooldown_suppresses_all_subsequent_overrides() {
+        // Short cooldown for testing
+        let dampener = Dampener::new().with_override_cooldown(Duration::from_millis(200));
+        let agent_a = test_agent();
+        let agent_b = other_agent();
+
+        // First override passes
+        assert!(
+            !dampener
+                .should_dampen_directive("override_gas_budget", agent_a)
+                .await
+        );
+
+        // Different override type, same agent — suppressed by cooldown
+        assert!(
+            dampener
+                .should_dampen_directive("seek_more_evidence", agent_a)
+                .await
+        );
+
+        // Same override type, different agent — suppressed by cooldown
+        assert!(
+            dampener
+                .should_dampen_directive("override_gas_budget", agent_b)
+                .await
+        );
+
+        // Routine directive NOT suppressed by cooldown
+        assert!(
+            !dampener
+                .should_dampen_directive("calibrate_threshold", agent_a)
+                .await
+        );
+
+        // After cooldown expires, override passes again
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        assert!(
+            !dampener
+                .should_dampen_directive("override_gas_budget", agent_b)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn override_cooldown_does_not_affect_routine_directives() {
+        let dampener = Dampener::new().with_override_cooldown(Duration::from_secs(300));
+        let agent = test_agent();
+
+        // Trigger override cooldown
+        assert!(
+            !dampener
+                .should_dampen_directive("override_gas_budget", agent)
+                .await
+        );
+
+        // Routine directives still pass (per-fingerprint dedup is separate)
+        assert!(
+            !dampener
+                .should_dampen_directive("calibrate_threshold", agent)
+                .await
+        );
+        assert!(
+            !dampener
+                .should_dampen_directive("replenish_budget", agent)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn override_dampened_by_fingerprint_before_cooldown_check() {
+        // Per-fingerprint dedup runs first: same override, same agent
+        let dampener = Dampener::new().with_override_cooldown(Duration::from_secs(300));
+        let agent = test_agent();
+
+        // First override passes (sets last_override)
+        assert!(
+            !dampener
+                .should_dampen_directive("override_gas_budget", agent)
+                .await
+        );
+
+        // Same override, same agent — dampened by per-fingerprint dedup
+        // (not by cooldown, though the effect is the same)
+        assert!(
+            dampener
+                .should_dampen_directive("override_gas_budget", agent)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn seek_more_evidence_is_metacognitive_override() {
+        let dampener = Dampener::new().with_override_cooldown(Duration::from_millis(200));
+        let agent = test_agent();
+
+        // First seek_more_evidence passes
+        assert!(
+            !dampener
+                .should_dampen_directive("seek_more_evidence", agent)
+                .await
+        );
+
+        // Subsequent override_gas_budget suppressed by cooldown
+        assert!(
+            dampener
+                .should_dampen_directive("override_gas_budget", agent)
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn clear_override_is_not_metacognitive() {
+        // clear_override is a housekeeping directive, not a metacognitive override
+        let dampener = Dampener::new().with_override_cooldown(Duration::from_secs(300));
+        let agent = test_agent();
+
+        // Trigger override cooldown
+        assert!(
+            !dampener
+                .should_dampen_directive("override_gas_budget", agent)
+                .await
+        );
+
+        // clear_override passes — it's not subject to the override cooldown
+        assert!(
+            !dampener
+                .should_dampen_directive("clear_override", agent)
                 .await
         );
     }

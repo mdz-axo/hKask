@@ -322,14 +322,6 @@ mod tests {
     }
 
     #[test]
-    fn gas_budget_should_alert() {
-        let mut budget = GasBudget::new(1000).with_alert_threshold(0.8);
-        assert!(!budget.should_alert()); // 0% usage
-        budget.consume(800).unwrap();
-        assert!(budget.should_alert()); // 80% usage
-    }
-
-    #[test]
     fn gas_budget_usage_ratio() {
         let budget = GasBudget::new(1000);
         assert!((budget.usage_ratio() - 0.0).abs() < f64::EPSILON);

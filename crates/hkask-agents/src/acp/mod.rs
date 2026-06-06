@@ -90,6 +90,7 @@ pub enum AcpError {
     Infra(#[from] hkask_types::InfrastructureError),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcpAgent {
     pub webid: WebID,
     pub agent_type: AgentKind,
@@ -99,6 +100,9 @@ pub struct AcpAgent {
     pub active: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "message_type")]
+pub enum A2AMessage {
     /// Template dispatch
     TemplateDispatch {
         from: WebID,
@@ -126,10 +130,10 @@ pub struct AcpAgent {
 pub struct AcpRuntime {
     agents: Arc<RwLock<HashMap<WebID, AcpAgent>>>,
     pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
-    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<DelegationToken>>>,
-    /// Arc<Zeroizing> to avoid copying on Clone
+    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<DelegationToken>>>>,
+    // Arc<Zeroizing> to avoid copying on Clone
     secret: Arc<Zeroizing<Vec<u8>>>,
-    /// HKDF-SHA256 from master key, lazily populated
+    // HKDF-SHA256 from master key, lazily populated
     agent_secrets: Arc<RwLock<HashMap<WebID, AgentSecret>>>,
     audit_log: Arc<AuditLog>,
     root_authority: Arc<RootAuthority>,
@@ -251,7 +255,6 @@ impl AcpRuntime {
         Ok(primary_token)
     }
 
-
     pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
         let mut agents = self.agents.write().await;
 
@@ -304,12 +307,10 @@ impl AcpRuntime {
         Ok(count)
     }
 
-
     pub(crate) async fn is_registered(&self, webid: &WebID) -> bool {
         let agents = self.agents.read().await;
         agents.contains_key(webid)
     }
-
 
     pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
         let (correlation_id, from, to, message_type) = match &message {

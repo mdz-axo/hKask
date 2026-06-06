@@ -16,7 +16,7 @@ use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::event::SpanNamespace;
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
-use hkask_types::sovereignty::KillZoneConfig;
+use hkask_types::sovereignty::KillZoneState;
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -314,7 +314,7 @@ impl CnsRuntime {
     /// Get the current kill zone configuration/state.
     ///
     /// Exposed via the CNS MCP server's `cns_kill_zone` tool.
-    pub async fn kill_zone_state(&self) -> KillZoneConfig {
+    pub async fn kill_zone_state(&self) -> KillZoneState {
         let state = self.state.read().await;
         state.kill_zone.lock().await.state().clone()
     }

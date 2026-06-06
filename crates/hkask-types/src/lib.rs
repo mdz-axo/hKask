@@ -51,9 +51,8 @@ pub use bundle::{
 };
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{
-    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilitySpec, CapabilityToken,
-    DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
-    SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
+    DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth};
 pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};
@@ -85,10 +84,10 @@ pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use soap_config::InferenceConfig;
 pub use sovereignty::{
-    DataCategory, KillZoneConfig, SovereigntyCheckResult, SovereigntyPort, UserSovereigntyState,
+    DataCategory, SovereigntyCheckResult, SovereigntyPort, UserSovereigntyState,
 };
 pub use template::{
-    LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,
+    LLMParameters, TemplateCrate, TemplateFile, TemplateID, TemplateInvocation, TemplateOutcome,
 };
 pub use text::blake3_hash;
 pub use visibility::Visibility;
