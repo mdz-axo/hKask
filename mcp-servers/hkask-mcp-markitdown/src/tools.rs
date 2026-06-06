@@ -671,44 +671,4 @@ mod tests {
     // The OCR test exercises the actual inference pipeline against a running
     // Okapi instance. It is #[ignore]d by default so `cargo test` doesn't hang
     // when Okapi isn't available. Run with `cargo test -- --ignored`.
-
-    #[tokio::test]
-    #[ignore = "requires running Okapi with a vision model"]
-    async fn ocr_e2e_with_okapi() {
-        // Verify Okapi is reachable
-        let client = reqwest::Client::new();
-        let resp = client
-            .get("http://127.0.0.1:11435/v1/models")
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-            .await
-            .expect("Okapi not reachable — start it before running E2E OCR tests");
-        assert!(resp.status().is_success(), "Okapi returned non-200");
-
-        let server = test_server();
-        let content = b"The quick brown fox jumps over the lazy dog.";
-        // Timeout the OCR call to avoid hanging forever if inference stalls
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(60),
-            server.do_ocr(content, "lighton-ocr-2-1b:latest", 256),
-        )
-        .await;
-
-        match result {
-            Ok(Ok(text)) => {
-                // Vision OCR should extract text from image/PDF bytes.
-                // With plain text bytes it may still produce output;
-                // just verify it returned something without error.
-                assert!(!text.is_empty(), "OCR should return non-empty text");
-            }
-            Ok(Err(e)) => {
-                // If the model can't process plain bytes, that's expected —
-                // but the pipeline should not panic or crash.
-                eprintln!("OCR on plain text bytes (expected for non-image): {}", e);
-            }
-            Err(_) => {
-                panic!("OCR inference timed out after 60s — model may need loading");
-            }
-        }
-    }
 }

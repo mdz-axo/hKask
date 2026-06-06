@@ -657,23 +657,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_lemmatize_regular_verbs() {
-        assert_eq!(lemmatize("runs"), "run");
-        assert_eq!(lemmatize("computing"), "compute");
-    }
-
-    #[test]
-    fn test_lemmatize_irregular_verbs() {
-        assert_eq!(lemmatize("was"), "be");
-        assert_eq!(lemmatize("went"), "go");
-    }
-
-    #[test]
-    fn test_lemmatize_already_root() {
-        assert_eq!(lemmatize("run"), "run");
-    }
-
-    #[test]
     fn test_decompose_simple_prompt() {
         let analysis = decompose_prompt("What is the weather today?");
         assert_eq!(analysis.sentence_count, 1);

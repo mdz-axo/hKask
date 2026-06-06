@@ -89,11 +89,4 @@ mod tests {
         assert_eq!(config.coherence_threshold, 0.7); // default
         assert_eq!(config.drift_threshold, 0.5); // default
     }
-
-    #[test]
-    fn curation_threshold_config_default_values() {
-        let config = CurationThresholdConfig::default();
-        assert_eq!(config.coherence_threshold, 0.7);
-        assert_eq!(config.drift_threshold, 0.5);
-    }
 }

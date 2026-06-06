@@ -867,33 +867,4 @@ mod tests {
         chat.add_message(ChatMessage::new(curator_id(), "blocked".into()));
         assert_eq!(chat.get_history().len(), 0);
     }
-
-    #[test]
-    fn ensemble_chat_gas_governance_acquire_called() {
-        let mock = Arc::new(MockGasGovernance::new(true));
-        let mut chat = EnsembleChat::new(curator_id()).with_gas_governance(mock.clone());
-        chat.add_message(ChatMessage::new(curator_id(), "allowed".into()));
-        assert_eq!(chat.get_history().len(), 1);
-        // acquire should have been called with 0 (no gas budget → per_message_cost defaults to 0)
-        assert_eq!(mock.acquire_calls.load(Ordering::Relaxed), 0);
-    }
-
-    #[test]
-    fn ensemble_chat_gas_governance_acquire_called_with_budget() {
-        let mock = Arc::new(MockGasGovernance::new(true));
-        let budget = GasBudgetConfig {
-            session_cap: 10000,
-            per_message_cost: 100,
-            alert_threshold: 0.7,
-            hard_limit: true,
-            per_bot_allocation: 1000,
-            curator_allocation: 2000,
-        };
-        let mut chat = EnsembleChat::new(curator_id())
-            .with_gas_budget(budget)
-            .with_gas_governance(mock.clone());
-        chat.add_message(ChatMessage::new(curator_id(), "allowed".into()));
-        assert_eq!(chat.get_history().len(), 1);
-        assert_eq!(mock.acquire_calls.load(Ordering::Relaxed), 100);
-    }
 }

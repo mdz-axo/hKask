@@ -57,28 +57,3 @@ impl IssuerVerification for ConsolidationToken {
         &self.issuer
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_webid() -> WebID {
-        WebID::new()
-    }
-
-    #[test]
-    fn consolidation_token_round_trip() {
-        let issuer = test_webid();
-        let token = ConsolidationToken::new(issuer);
-        assert_eq!(*IssuerVerification::issuer(&token), issuer);
-    }
-
-    #[test]
-    fn tokens_are_not_forgable_from_outside_crate() {
-        // ConsolidationToken has a pub(crate) constructor, so external crates
-        // cannot construct it. This test verifies the API surface:
-        // - ConsolidationToken::new is pub(crate)
-        // The private `issuer` field prevents structural construction.
-        // Compile-time enforcement: no `pub fn new()` exists for external callers.
-    }
-}

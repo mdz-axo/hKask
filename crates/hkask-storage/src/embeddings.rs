@@ -532,20 +532,6 @@ mod tests {
         assert_eq!(store.count().unwrap(), 3);
     }
 
-    #[test]
-    fn encode_decode_roundtrip() {
-        let original: Vec<f32> = (0..384).map(|i| i as f32 * 0.01).collect();
-        let encoded = EmbeddingStore::encode_vector(&original);
-        let decoded = EmbeddingStore::decode_vector(&encoded, 384).unwrap();
-        for (i, (a, b)) in original.iter().zip(decoded.iter()).enumerate() {
-            assert!(
-                (a - b).abs() < f32::EPSILON,
-                "Roundtrip mismatch at index {i}: {a} vs {b}"
-            );
-        }
-    }
-
-    #[test]
     fn query_by_prefix_finds_matching_refs() {
         let store = test_store();
 

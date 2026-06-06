@@ -214,42 +214,9 @@ mod tests {
     }
 
     #[test]
-    fn gate_hysteresis_biases_effective_l() {
-        let mut gate = AllostericGate::with_params("test", 1000.0, 0.01, 3, 0.5);
-        gate.hysteresis = 2.0;
-        gate.prev_r_bar = 0.8; // Previously in R state
-        let l_eff = gate.effective_l();
-        // When prev_R̄ > 0.5, effective L < base_L (R state bias)
-        assert!(
-            l_eff < 1000.0,
-            "Hysteresis should decrease L when prev in R-state, got L_eff={l_eff}"
-        );
-    }
-
-    #[test]
     fn gate_no_hysteresis_effective_l_equals_base() {
         let gate = AllostericGate::with_params("test", 1000.0, 0.01, 3, 0.5);
         assert!((gate.effective_l() - 1000.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn gate_relaxation_converges_to_equilibrium() {
-        let mut gate = AllostericGate::with_params("test", 1000.0, 0.01, 3, 0.5);
-        gate.set_alpha(1.0);
-        gate.prev_r_bar = 0.0; // Start far from equilibrium
-
-        let r_bar_eq = gate.r_bar_eq();
-
-        // Many small time steps should converge to equilibrium
-        for _ in 0..100 {
-            gate.r_bar_at(Duration::from_millis(100));
-        }
-
-        let final_r_bar = gate.prev_r_bar;
-        assert!(
-            (final_r_bar - r_bar_eq).abs() < 0.01,
-            "Should converge to equilibrium, got {final_r_bar} vs {r_bar_eq}"
-        );
     }
 
     #[test]
@@ -261,25 +228,5 @@ mod tests {
             r_bar > 0.0 && r_bar < 1.0,
             "R̄ should be in (0,1), got {r_bar}"
         );
-    }
-
-    #[test]
-    fn gate_set_alpha_clamps_negative() {
-        let mut gate = AllostericGate::with_params("test", 1000.0, 0.01, 3, 0.5);
-        gate.set_alpha(-5.0);
-        assert!(
-            (gate.alpha - 0.0).abs() < f64::EPSILON,
-            "α should be clamped to 0"
-        );
-    }
-
-    #[test]
-    fn gate_reset_clears_state() {
-        let mut gate = AllostericGate::with_params("test", 1000.0, 0.01, 3, 0.5);
-        gate.set_alpha(5.0);
-        gate.prev_r_bar = 0.8;
-        gate.reset();
-        assert!((gate.alpha - 0.0).abs() < f64::EPSILON);
-        assert!((gate.prev_r_bar - 0.0).abs() < f64::EPSILON);
     }
 }

@@ -34,7 +34,7 @@ use crate::runtime::CnsRuntime;
 use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 
 #[cfg(test)]
-use crate::set_points::{CurationThresholdConfig, SetPointsConfig};
+use crate::set_points::SetPointsConfig;
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
@@ -1155,42 +1155,6 @@ mod tests {
         assert_eq!(sp.variety_max_deficit, 200.0);
         assert_eq!(sp.error_rate_max, 0.4);
         assert_eq!(sp.connector_latency_max_secs, 60.0);
-    }
-
-    // CurationThresholdConfig tests
-    // YAML loader tests relocated to hkask-cli::curation_config.
-    // These tests verify CurationThresholdConfig still deserializes correctly
-    // (the struct lives in hkask_types::curation).
-
-    #[test]
-    fn curation_threshold_config_from_yaml() {
-        let yaml = "coherence_threshold: 0.85\ndrift_threshold: 0.3\n";
-        let config: CurationThresholdConfig = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(config.coherence_threshold, 0.85);
-        assert_eq!(config.drift_threshold, 0.3);
-    }
-
-    #[test]
-    fn curation_threshold_config_partial_yaml_uses_defaults() {
-        let yaml = "coherence_threshold: 0.9\n";
-        let config: CurationThresholdConfig = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(config.coherence_threshold, 0.9);
-        assert_eq!(config.drift_threshold, 0.5); // default
-    }
-
-    #[test]
-    fn curation_threshold_config_empty_yaml_uses_defaults() {
-        let yaml = "{}\n";
-        let config: CurationThresholdConfig = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(config.coherence_threshold, 0.7); // default
-        assert_eq!(config.drift_threshold, 0.5); // default
-    }
-
-    #[test]
-    fn curation_threshold_config_default_values() {
-        let config = CurationThresholdConfig::default();
-        assert_eq!(config.coherence_threshold, 0.7);
-        assert_eq!(config.drift_threshold, 0.5);
     }
 
     // T12: Curation-Directed Gas Replenishment — full path integration test

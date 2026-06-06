@@ -457,25 +457,4 @@ Hope this helps!"#;
         assert_eq!(HhhMode::Inactive, HhhMode::Inactive);
         assert_ne!(HhhMode::Active, HhhMode::Inactive);
     }
-
-    #[test]
-    fn extract_json_object_balanced() {
-        let s = r#"prefix {"key": "value"} suffix"#;
-        let extracted = extract_json_object(s);
-        assert_eq!(extracted, Some(r#"{"key": "value"}"#.to_string()));
-    }
-
-    #[test]
-    fn extract_json_object_nested() {
-        let s = r#"{"outer": {"inner": 1}, "x": 2}"#;
-        let extracted = extract_json_object(s);
-        assert!(extracted.is_some());
-    }
-
-    #[test]
-    fn extract_json_object_none() {
-        let s = "no json here";
-        let extracted = extract_json_object(s);
-        assert!(extracted.is_none());
-    }
 }

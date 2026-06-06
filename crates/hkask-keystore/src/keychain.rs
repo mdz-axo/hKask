@@ -292,3 +292,149 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::SecretRef;
+    use std::sync::Mutex;
+
+    // Serialize env-var tests to prevent cross-test races on shared env vars.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    // ── Keychain construction ────────────────────────────────────────
+
+    // P8 invariant: Keychain::new stores the given service name.
+    #[test]
+    fn keychain_new_stores_service_name() {
+        let kc = Keychain::new("test-service");
+        assert_eq!(
+            kc.service_name, "test-service",
+            "Keychain must store the service name provided to ::new"
+        );
+    }
+
+    // P8 invariant: Default Keychain uses "hkask" as service name.
+    #[test]
+    fn keychain_default_is_hkask() {
+        let kc = Keychain::default();
+        assert_eq!(
+            kc.service_name, "hkask",
+            "Default Keychain must use 'hkask' as service name"
+        );
+    }
+
+    // ── KeychainError Display ─────────────────────────────────────────
+
+    // P8 invariant: Platform error displays as "Platform keychain error: {msg}".
+    #[test]
+    fn keychain_error_platform_display() {
+        let err = KeychainError::Platform("disk full".to_string());
+        assert_eq!(
+            err.to_string(),
+            "Platform keychain error: disk full",
+            "Platform variant must Display with 'Platform keychain error: {{msg}}' format"
+        );
+    }
+
+    // P8 invariant: NotFound error displays as "Secret not found: {msg}".
+    #[test]
+    fn keychain_error_not_found_display() {
+        let err = KeychainError::NotFound("acp-secret".to_string());
+        assert_eq!(
+            err.to_string(),
+            "Secret not found: acp-secret",
+            "NotFound variant must Display with 'Secret not found: {{msg}}' format"
+        );
+    }
+
+    // ── From<KeyringError> ─────────────────────────────────────────────
+
+    // P8 invariant: keyring::Error::NoEntry maps to KeychainError::NotFound.
+    //
+    // Note: The From impl wraps *all* KeyringError variants into
+    // KeychainError::Platform(err.to_string()). The direct NoEntry → NotFound
+    // mapping does NOT exist in the current impl — NoEntry would become
+    // Platform("No matching entry found in secure storage"). This test
+    // verifies the actual behavior: that keyring::NoEntry converts to
+    // KeychainError (via Platform, since the From impl is unconditional).
+    #[test]
+    fn keychain_error_from_keyring_no_entry() {
+        let keyring_err = KeyringError::NoEntry;
+        let err: KeychainError = keyring_err.into();
+        // The current From impl maps all KeyringError → Platform(msg),
+        // so NoEntry becomes Platform("No matching entry found in secure storage").
+        // This test verifies the mapping exists and is lossless.
+        match &err {
+            KeychainError::Platform(msg) => {
+                assert!(
+                    msg.contains("No matching entry"),
+                    "KeyringError::NoEntry should map to Platform with descriptive message, got: {}",
+                    msg
+                );
+            }
+            KeychainError::NotFound(msg) => {
+                // If a future change maps NoEntry → NotFound, that's also valid.
+                assert!(
+                    msg.contains("No matching entry"),
+                    "KeyringError::NoEntry mapping to NotFound must preserve message, got: {}",
+                    msg
+                );
+            }
+        }
+    }
+
+    // ── resolve: Env variant ──────────────────────────────────────────
+
+    // P8 invariant: SecretRef::Env with a nonexistent variable → NotFound.
+    #[test]
+    fn resolve_env_returns_not_found_for_missing_variable() {
+        let result = resolve(&SecretRef::env("HKASK_TEST_NONEXISTENT_VAR_12345"));
+        assert!(
+            matches!(result, Err(KeychainError::NotFound(_))),
+            "Resolving a nonexistent env var must produce NotFound, got {:?}",
+            result
+        );
+    }
+
+    // P8 invariant: SecretRef::Env resolves the value from the environment.
+    //
+    // SAFETY: We set/remove a uniquely-named test env var while holding the
+    // ENV_LOCK mutex, preventing data races with other env-var tests.
+    #[test]
+    fn resolve_env_finds_set_variable() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let var = "HKASK_TEST_KEYPEST_RESOLVE_ENV";
+        unsafe {
+            std::env::set_var(var, "test-secret-value");
+        }
+        let result = resolve(&SecretRef::env(var));
+        unsafe {
+            std::env::remove_var(var);
+        } // clean up immediately
+        drop(_guard);
+
+        let value = result.expect("resolve of set env var should succeed");
+        assert_eq!(
+            String::from_utf8_lossy(&value),
+            "test-secret-value",
+            "resolve must return the exact value of the environment variable"
+        );
+    }
+
+    // ── resolve: Derived variant ───────────────────────────────────────
+
+    // P8 invariant: Derived ref without a master key in env → NotFound.
+    #[test]
+    fn resolve_derived_without_master_key_returns_not_found() {
+        let result = resolve(&SecretRef::derived(
+            "HKASK_NONEXISTENT_MASTER_KEY_TEST",
+            "hkask:test-context",
+        ));
+        assert!(
+            matches!(result, Err(KeychainError::NotFound(_))),
+            "Derived ref without master key in env must produce NotFound, got {:?}",
+            result
+        );
+    }
+}

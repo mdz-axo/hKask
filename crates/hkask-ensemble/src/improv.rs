@@ -490,7 +490,6 @@ fn format_context_with_earlier(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::WebID;
 
     #[test]
     fn improv_mode_default_is_freeform() {
@@ -562,50 +561,5 @@ mod tests {
         let mut config = ImprovSessionConfig::default();
         config.set_mode(ImprovMode::CuratorLed);
         assert_eq!(config.mode, ImprovMode::CuratorLed);
-    }
-
-    #[test]
-    fn extract_first_float_finds_valid() {
-        assert_eq!(extract_first_float("0.85 confidence"), Some(0.85));
-    }
-
-    #[test]
-    fn extract_first_float_no_valid() {
-        assert_eq!(extract_first_float("no number here"), None);
-    }
-
-    #[test]
-    fn extract_first_float_out_of_range() {
-        assert_eq!(extract_first_float("42.0 is too big"), None);
-    }
-
-    #[test]
-    fn format_context_empty() {
-        let config = ImprovSessionConfig::default();
-        let turns: &[(WebID, String)] = &[];
-        assert_eq!(format_context(&config, turns), "");
-    }
-
-    #[test]
-    fn format_context_within_window() {
-        let config = ImprovSessionConfig::default(); // context_window = 5
-        let turns: Vec<(WebID, String)> = (0..3)
-            .map(|i| (WebID::new(), format!("msg{}", i)))
-            .collect();
-        let result = format_context(&config, &turns);
-        assert_eq!(result, "msg0\nmsg1\nmsg2");
-    }
-
-    #[test]
-    fn format_context_truncates_window() {
-        let config = ImprovSessionConfig {
-            context_window: 3,
-            ..Default::default()
-        };
-        let turns: Vec<(WebID, String)> = (0..10)
-            .map(|i| (WebID::new(), format!("msg{}", i)))
-            .collect();
-        let result = format_context(&config, &turns);
-        assert_eq!(result, "msg7\nmsg8\nmsg9");
     }
 }

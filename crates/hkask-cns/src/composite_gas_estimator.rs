@@ -80,9 +80,4 @@ mod tests {
         let cost = estimator.estimate_cost("unknown-server", "unknown-tool", &args);
         assert_eq!(cost, 10);
     }
-
-    #[test]
-    fn composite_default() {
-        let _estimator = CompositeGasEstimator::default();
-    }
 }

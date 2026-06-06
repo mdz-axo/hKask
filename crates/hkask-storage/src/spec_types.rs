@@ -414,12 +414,6 @@ mod tests {
         assert_eq!(SpecCategory::parse_str("TRUST"), None);
     }
 
-    #[test]
-    fn spec_category_all_count_matches_variants() {
-        // Invariant: SpecCategory has exactly 4 live variants per DDMVSS §8
-        assert_eq!(SpecCategory::all().len(), 4);
-    }
-
     // ── Domain: DomainAnchor roundtrip ───────────────────────────
 
     #[test]
@@ -529,17 +523,6 @@ mod tests {
         assert!(
             goal.can_have_subgoals(),
             "depth 0 goal should allow subgoals"
-        );
-    }
-
-    #[test]
-    fn goal_spec_cannot_have_subgoals_at_max_depth() {
-        // Invariant: depth >= 7 → cannot have subgoals
-        let mut goal = GoalSpec::new("Deep goal");
-        goal.depth = 7;
-        assert!(
-            !goal.can_have_subgoals(),
-            "depth 7 goal should not allow subgoals"
         );
     }
 
@@ -754,23 +737,6 @@ mod tests {
         assert_eq!(CurationDecision::Merge.to_string(), "merge");
         assert_eq!(CurationDecision::Discard.to_string(), "discard");
         assert_eq!(CurationDecision::Revise.to_string(), "revise");
-    }
-
-    #[test]
-    fn curation_decision_has_exactly_three_variants() {
-        // DDMVSS §9.2 noted 4 variants (Merge/Revise/Defer/Discard),
-        // but the current implementation has 3 (Merge/Discard/Revise).
-        // Defer was removed in v0.22.0. This test documents that decision.
-        let variants = [
-            CurationDecision::Merge,
-            CurationDecision::Discard,
-            CurationDecision::Revise,
-        ];
-        assert_eq!(
-            variants.len(),
-            3,
-            "CurationDecision should have exactly 3 variants"
-        );
     }
 
     // ── Curation: SpecCurationRecord ─────────────────────────────

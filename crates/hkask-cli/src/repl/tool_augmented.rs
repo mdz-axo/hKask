@@ -430,17 +430,4 @@ mod tests {
         assert!(formatted.contains("✓ cns_health"));
         assert!(formatted.contains("healthy"));
     }
-
-    #[test]
-    fn test_structured_tool_call_conversion() {
-        let stc = StructuredToolCall {
-            server: "hkask-mcp-cns".to_string(),
-            tool: "cns_health".to_string(),
-            args: serde_json::json!({}),
-            call_id: Some("call_abc123".to_string()),
-        };
-        let tc: ToolCall = stc.into();
-        assert_eq!(tc.server, "hkask-mcp-cns");
-        assert_eq!(tc.tool, "cns_health");
-    }
 }

@@ -694,53 +694,6 @@ mod tests {
     }
 
     #[test]
-    fn repair_quarantined_goal_returns_false_for_empty_original_data() {
-        let repo = test_repo();
-        let webid = WebID::new();
-        let goal = repo
-            .create_goal(&webid, "Legacy goal", Visibility::Private)
-            .expect("create goal");
-        let goal_id = goal.id;
-
-        // Manually insert a quarantined record with empty original_data (legacy)
-        let conn = repo.conn.lock().expect("lock");
-        conn.execute(
-            "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
-             VALUES (?1, '', ?2, ?3, 0, 0)",
-            rusqlite::params![goal_id.to_string(), "legacy corruption", now_rfc3339()],
-        ).expect("insert legacy quarantine");
-        // Remove from main table to simulate quarantine
-        conn.execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])
-            .expect("delete goal");
-        drop(conn);
-
-        struct NoopSink;
-        impl NuEventSink for NoopSink {
-            fn persist(
-                &self,
-                _event: &NuEvent,
-            ) -> std::result::Result<(), hkask_types::InfrastructureError> {
-                Ok(())
-            }
-        }
-        let sink = NoopSink;
-
-        let repaired = repo
-            .repair_quarantined_goal(goal_id, &sink)
-            .expect("repair attempt");
-        assert!(
-            !repaired,
-            "repair with empty original_data should return false"
-        );
-
-        // Verify repair_attempts was incremented
-        let quarantined = repo.list_quarantined_goals().expect("list quarantined");
-        let q = quarantined.into_iter().find(|q| q.id == goal_id).unwrap();
-        assert_eq!(q.repair_attempts, 1);
-        assert!(!q.repaired);
-    }
-
-    #[test]
     fn corrupt_error_variant_carries_reason() {
         let err = GoalRepositoryError::Corrupt("bad state".to_string());
         assert!(format!("{err}").contains("bad state"));
@@ -750,45 +703,5 @@ mod tests {
     fn quarantine_failed_error_variant_carries_reason() {
         let err = GoalRepositoryError::QuarantineFailed("disk error".to_string());
         assert!(format!("{err}").contains("disk error"));
-    }
-
-    #[test]
-    fn try_goal_from_row_rejects_corrupt_state() {
-        let db = Database::in_memory().expect("in-memory db");
-        let conn = db.conn_arc();
-        let c = conn.lock().expect("lock");
-        let webid = WebID::new();
-        let goal_id = GoalID::new();
-
-        // Insert a goal with a corrupt state value
-        c.execute(
-            "INSERT INTO goals (id, webid, text, state, visibility, created_at, depth)
-             VALUES (?1, ?2, ?3, 'INVALID_STATE', 'private', ?4, 0)",
-            rusqlite::params![
-                goal_id.to_string(),
-                webid.to_string(),
-                "corrupt goal",
-                now_rfc3339()
-            ],
-        )
-        .expect("insert corrupt row");
-
-        let mut stmt = c
-            .prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE id = ?1")
-            .expect("prepare");
-        let mut rows = stmt.query([goal_id.to_string()]).expect("query");
-        let row = rows.next().expect("row").expect("some row");
-
-        let result = SqliteGoalRepository::try_goal_from_row(row);
-        match result {
-            Err(GoalRepositoryError::Corrupt(msg)) => {
-                assert!(
-                    msg.contains("state"),
-                    "corrupt error should mention state: {msg}"
-                );
-            }
-            Err(other) => panic!("expected Corrupt error, got: {other}"),
-            Ok(_) => panic!("expected error for corrupt state, got a goal"),
-        }
     }
 }

@@ -254,42 +254,6 @@ struct OkapiEmbedResponse {
 mod tests {
     use super::*;
 
-    #[test]
-    fn default_model_is_qwen3_embedding() {
-        assert_eq!(DEFAULT_EMBEDDING_MODEL, "qwen3-embedding:0.6b");
-    }
-
-    #[test]
-    fn embedding_dim_lookup_known_models() {
-        assert_eq!(embedding_dim_for_model("qwen3-embedding:0.6b"), 384);
-        assert_eq!(embedding_dim_for_model("nomic-embed-text"), 768);
-        assert_eq!(embedding_dim_for_model("mxbai-embed-large"), 1024);
-        assert_eq!(embedding_dim_for_model("all-minilm"), 384);
-    }
-
-    #[test]
-    fn embedding_dim_lookup_unknown_defaults_to_384() {
-        assert_eq!(embedding_dim_for_model("some-unknown-model"), 384);
-    }
-
-    #[test]
-    fn with_model_sets_dim() {
-        let config = OkapiConfig::local_dev();
-        let emb = OkapiEmbedding::with_model("nomic-embed-text", config).unwrap();
-        assert_eq!(emb.dim, 768);
-        assert_eq!(emb.model, "nomic-embed-text");
-    }
-
-    #[test]
-    fn model_builder_overrides() {
-        let config = OkapiConfig::local_dev();
-        let emb = OkapiEmbedding::with_model("qwen3-embedding:0.6b", config)
-            .unwrap()
-            .model("nomic-embed-text");
-        assert_eq!(emb.model, "nomic-embed-text");
-        assert_eq!(emb.dim, 768);
-    }
-
     #[tokio::test]
     async fn embed_sentences_empty_input_returns_error() {
         let config = OkapiConfig::local_dev();

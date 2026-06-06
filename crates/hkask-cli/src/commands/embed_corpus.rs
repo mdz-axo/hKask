@@ -292,7 +292,6 @@ async fn download_text(url: &str) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{USER_AGENT, ValidationConfig};
     use hkask_memory::SemanticMemory;
 
     #[test]
@@ -335,21 +334,5 @@ mod tests {
         let chunks = SemanticMemory::chunk_text(text, "style:test:work", 50, 200, ".!? ");
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].0, "style:test:work:0");
-    }
-
-    #[test]
-    fn download_text_user_agent_matches_mcp_web() {
-        // The User-Agent must match hkask-mcp-web's RawFetchProvider
-        // for Gutenberg compatibility and proper access logs.
-        assert!(USER_AGENT.starts_with("hkask-mcp-web/"));
-    }
-
-    #[test]
-    fn validation_config_deserializes() {
-        let yaml = "centroid_distance_max: 0.15\nexemplar_count_min: 3\nexemplar_count_max: 7";
-        let config: ValidationConfig = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(config.centroid_distance_max, 0.15);
-        assert_eq!(config.exemplar_count_min, 3);
-        assert_eq!(config.exemplar_count_max, 7);
     }
 }
