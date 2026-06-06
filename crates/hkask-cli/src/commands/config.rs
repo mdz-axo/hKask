@@ -49,7 +49,6 @@ pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connec
     Ok(db.conn_arc())
 }
 
-// ── Shared Database Initialization Helpers ──────────────────────────────────
 
 /// Open a SovereigntyBoundaryStore (used by `kask sovereignty` subcommands).
 /// Opens the shared database and wraps it in a sovereignty store.
@@ -210,7 +209,6 @@ pub fn create_mcp_dispatcher_with_servers(
     Ok((dispatcher, token))
 }
 
-// ── Pre-resolved Secrets ────────────────────────────────────────────────────
 
 /// Pre-resolved secrets for onboarding, passed explicitly instead of
 /// mutating environment variables.
@@ -219,7 +217,6 @@ pub struct ResolvedSecrets {
     pub db_passphrase: String,
 }
 
-// ── Registry Initialization ─────────────────────────────────────────────────
 
 /// Initialize the registry by resolving secrets from env/keychain/derivation.
 pub(crate) async fn init_registry() -> Result<

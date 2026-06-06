@@ -190,12 +190,11 @@ pub fn run(
     // Gas budget: 10000 units per session (roughly 20 turns at ~500 tokens each)
     // Arc-wrapped so it can be shared with the LoopSystem.
     let inference_loop = Arc::new(
-        InferenceLoop::new(inference_port.clone())
+        InferenceLoop::new()
             .with_gas_budget(10_000, 10_000)
             .with_model(initial_model_str),
     );
 
-    // ── HHH Gate inference port (eager creation) ─────────────────────────
     // Created eagerly to avoid cold-start latency when /hhh on is first called.
     // If the gate model is unavailable, the port is None and HHH mode
     // auto-disables — the user can configure a different model with /hhh model.
@@ -214,7 +213,6 @@ pub fn run(
         }
     };
 
-    // ── Onboarding / Sign-in ──────────────────────────────────────────
     // Runs before the interactive loop. If keys are already configured,
     // this is transparent. Otherwise, walks the user through creating or
     // signing into a replicant.
@@ -233,7 +231,6 @@ pub fn run(
         "replicant",
     );
 
-    // ── Memory infrastructure (per-agent DB) ─────────────────────────────
     // Build EpisodicMemory and SemanticMemory from the agent's per-agent DB
     // (hkask-memory-{agent}.db). Both the storage ports (inference/recall)
     // and the ConsolidationService (/consolidate) share the same underlying
@@ -278,7 +275,6 @@ pub fn run(
     // topic diversity via `decompose_prompt()` after each inference turn.
     let cns = Arc::new(RwLock::new(CnsRuntime::default()));
 
-    // ── Loop System (7d) ────────────────────────────────────────────────
     // Construct the cybernetic loop system: MessageDispatch → LoopSystem
     // → register Curation + Cybernetics + Inference → tick after each turn.
     //
@@ -295,7 +291,6 @@ pub fn run(
     // after construction because LoopSystem owns the channel internally.
     let dispatch_sender = loop_system.dispatch_sender();
 
-    // ── CurationLoop (Loop 5) ──────────────────────────────────────────
     // The metacognitive observer: reviews algedonic events, processes
     // escalations, and issues CuratorDirectives. It is the ONLY loop that
     // can override Cybernetics (authority DAG: Curation → Cybernetics).
@@ -324,7 +319,6 @@ pub fn run(
     let curation_loop = CurationLoop::new(CuratorHandle::system(), curator_context);
     let curation_loop_arc: Arc<dyn hkask_types::loops::HkaskLoop> = Arc::new(curation_loop);
 
-    // ── CyberneticsLoop (Loop 6) ───────────────────────────────────────
     // The autonomous homeostatic regulator: reads CNS variety counters and
     // gas budgets, produces regulatory actions (Throttle, AdjustGasBudget,
     // Escalate) via sense→compute→compute→act.
@@ -367,7 +361,6 @@ pub fn run(
     let cybernetics_loop_arc: Arc<dyn hkask_types::loops::HkaskLoop> =
         Arc::new(CyberneticsLoopHandle(cybernetics_loop.clone()));
 
-    // ── InferenceLoop (Loop 1) ────────────────────────────────────────
     // Already constructed above, wrapped in Arc for sharing with LoopSystem.
     let inference_loop_arc: Arc<dyn hkask_types::loops::HkaskLoop> = inference_loop.clone();
 
@@ -376,7 +369,6 @@ pub fn run(
     rt_handle.block_on(loop_system.register_loop(cybernetics_loop_arc));
     rt_handle.block_on(loop_system.register_loop(inference_loop_arc));
 
-    // ── GovernedTool (7f: MCP tool dispatch through governance membrane) ─────
     // The GovernedTool membrane enforces OCAP authority, gas budgets, and
     // CNS observability for all MCP tool invocations. It shares the same
     // CyberneticsLoop as the REPL's loop system — tool invocations contribute
@@ -569,7 +561,6 @@ pub fn run(
                         Err(e) => println!("  \x1b[31mEnsemble error:\x1b[0m {}", e),
                     }
                 } else {
-                    // ── Gas consumption (7g: token-based) ─────────────────────────────
                     // Two-track gas accounting:
                     //
                     // 1. InferenceLoop (fast path): AtomicU64 counter, used for
@@ -614,7 +605,6 @@ pub fn run(
                             .await
                     });
 
-                    // ── HHH alignment: reframe input and augment system prompt ────
                     // When HHH mode is active, wrap the input in a reframe template
                     // and append HHH directives to the system prompt.
                     let (effective_input, hhh_suffix): (String, Option<String>) =
@@ -671,7 +661,6 @@ pub fn run(
 
                     let response = chat_response.text;
 
-                    // ── Tool-augmented chat ─────────────────────────────────────
                     // Both single-agent REPL and ensemble turns call the same
                     // `process_response` function. It checks for structured
                     // tool_calls first (native function calling), then falls back
@@ -696,7 +685,6 @@ pub fn run(
                     ));
                     let mut final_response = processed.text;
 
-                    // ── Followup inference loop (single-agent only) ────────────
                     // If tool calls were found, feed the results back to the model
                     // for another inference turn. This gives the model a chance to
                     // synthesize the tool results into a final answer.
@@ -800,7 +788,6 @@ pub fn run(
                             );
                         }
 
-                        // ── HHH evaluation gate ──────────────────────────────────────
                         // When HHH mode is active, evaluate the final response through
                         // the gate model. If it fails, loop with correction prompts.
                         if state.hhh_mode == HhhMode::Active {
@@ -1104,7 +1091,6 @@ pub fn run(
                         }
                     }
 
-                    // ── Loop System regulation cycle (7d/7e) ─────────────────
                     // Tick the LoopSystem to run sense→compare→compute→act for
                     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
                     // CNS variety and gas budgets, producing regulatory actions

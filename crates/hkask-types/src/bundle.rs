@@ -820,7 +820,6 @@ mod tests {
     use crate::lexicon::TemplateType;
     use crate::visibility::Visibility;
 
-    // ── Helpers ───────────────────────────────────────────────────────────
 
     fn make_skill(id: &str, polarity: SkillPolarity, terms: Vec<&str>) -> BundleSkill {
         BundleSkill {
@@ -880,7 +879,6 @@ mod tests {
         }
     }
 
-    // ── SkillPolarity ────────────────────────────────────────────────────
 
     #[test]
     fn skill_polarity_roundtrip() {
@@ -929,7 +927,6 @@ mod tests {
         assert!(!SkillPolarity::Procedural.is_convergent());
     }
 
-    // ── ConflictType ─────────────────────────────────────────────────────
 
     #[test]
     fn conflict_type_roundtrip() {
@@ -966,7 +963,6 @@ mod tests {
         assert_eq!(ConflictType::parse_str("nonsense"), None);
     }
 
-    // ── ConflictResolution ────────────────────────────────────────────────
 
     #[test]
     fn conflict_resolution_roundtrip() {
@@ -1006,7 +1002,6 @@ mod tests {
         assert_eq!(ConflictResolution::parse_str("bogus"), None);
     }
 
-    // ── ComplementarityType ──────────────────────────────────────────────
 
     #[test]
     fn complementarity_type_roundtrip() {
@@ -1036,7 +1031,6 @@ mod tests {
         assert_eq!(ComplementarityType::parse_str("nope"), None);
     }
 
-    // ── CascadePhase ─────────────────────────────────────────────────────
 
     #[test]
     fn cascade_phase_roundtrip() {
@@ -1054,7 +1048,6 @@ mod tests {
         assert_eq!(CascadePhase::parse_str("invalid"), None);
     }
 
-    // ── BundleManifest validation ─────────────────────────────────────────
 
     #[test]
     fn bundle_manifest_validate_valid() {
@@ -1208,7 +1201,6 @@ mod tests {
         assert!(result.errors.iter().any(|e| e.contains("sequential")));
     }
 
-    // ── total_step_gas ───────────────────────────────────────────────────
 
     #[test]
     fn bundle_manifest_total_step_gas() {
@@ -1217,7 +1209,6 @@ mod tests {
         assert_eq!(manifest.total_step_gas(), 300);
     }
 
-    // ── skill_ids ─────────────────────────────────────────────────────────
 
     #[test]
     fn bundle_manifest_skill_ids() {

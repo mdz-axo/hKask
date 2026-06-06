@@ -63,7 +63,6 @@ impl<'de, T: IdKind> serde::Deserialize<'de> for Id<T> {
     }
 }
 
-// ── Core methods ────────────────────────────────────────────────────────────
 
 impl<T: IdKind> Id<T> {
     pub fn new() -> Self {
@@ -104,7 +103,6 @@ impl<T: IdKind> std::fmt::Display for Id<T> {
     }
 }
 
-// ── Kind markers ──────────────────────────────────────────────────────────
 
 pub enum TemplateKind {}
 impl private::Sealed for TemplateKind {}
@@ -142,7 +140,6 @@ pub enum PodKind {}
 impl private::Sealed for PodKind {}
 impl IdKind for PodKind {}
 
-// ── Type aliases ──────────────────────────────────────────────────────────
 
 pub type TemplateID = Id<TemplateKind>;
 pub type BotID = Id<BotKind>;
@@ -154,7 +151,6 @@ pub type UserID = Id<UserKind>;
 pub(crate) type SovereigntyId = Id<SovereigntyKind>;
 pub type PodID = Id<PodKind>;
 
-// ── WebID — kept as a separate struct (extra methods) ─────────────────────
 
 use std::hash::Hash;
 use uuid::Uuid;

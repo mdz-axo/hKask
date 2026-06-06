@@ -75,7 +75,6 @@ pub use manager::{PodManager, PodManagerBuilder, PodStatus};
 
 pub use types::{AgentKind, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile};
 
-// ── AgentPod ──────────────────────────────────────────────────────────────
 
 /// Agent Pod — Runtime container for ACP agents
 pub struct AgentPod {
@@ -378,7 +377,6 @@ impl AgentPod {
     }
 }
 
-// ── Helper functions ─────────────────────────────────────────────────────
 
 fn current_timestamp() -> Result<i64, AgentPodError> {
     use std::time::{SystemTime, UNIX_EPOCH};

@@ -8,7 +8,6 @@ use utoipa::ToSchema;
 use crate::middleware::AuthContext;
 use crate::{ApiState, ErrorResponse};
 
-// ── Request / Response types ──────────────────────────────────────────────
 
 /// Escalation entry response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -83,7 +82,6 @@ pub struct MetacognitionStatusResponse {
     pub bot_reports: Vec<BotStatusReportResponse>,
 }
 
-// ── Router ───────────────────────────────────────────────────────────────
 
 /// Create curator router
 pub fn curator_router() -> Router<ApiState> {
@@ -106,7 +104,6 @@ pub fn curator_router() -> Router<ApiState> {
         )
 }
 
-// ── Handlers ─────────────────────────────────────────────────────────────
 
 /// List pending escalations
 #[utoipa::path(

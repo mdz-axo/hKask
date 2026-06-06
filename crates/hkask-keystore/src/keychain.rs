@@ -103,7 +103,6 @@ impl Default for Keychain {
     }
 }
 
-// ── Domain-Specific Secret Resolution ──────────────────────────────────────
 //
 // These functions encapsulate the standard 3-tier resolution chain
 // (derived → env → keychain) for each well-known secret. Every call site

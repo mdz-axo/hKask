@@ -604,7 +604,6 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-    // ── Mock GasGovernancePort ──────────────────────────────────────
 
     struct MockGasGovernance {
         can_proceed_result: AtomicBool,
@@ -629,7 +628,6 @@ mod tests {
         }
     }
 
-    // ── GasBudgetConfig tests ──────────────────────────────────────
 
     #[test]
     fn gas_budget_config_default() {
@@ -688,7 +686,6 @@ mod tests {
         assert_eq!(cfg.curator_allocation, 25000);
     }
 
-    // ── EnsembleChat dedup tests ────────────────────────────────────
 
     fn curator_id() -> WebID {
         WebID::from_persona(b"curator")
@@ -759,7 +756,6 @@ mod tests {
         assert_eq!(chat.get_history().len(), 0);
     }
 
-    // ── EnsembleChat gas budget tests ──────────────────────────────
 
     #[test]
     fn ensemble_chat_gas_budget_hard_limit_rejects() {
@@ -855,7 +851,6 @@ mod tests {
         assert_eq!(chat.gas_used(), 800);
     }
 
-    // ── EnsembleChat gas governance tests ──────────────────────────
 
     #[test]
     fn ensemble_chat_gas_governance_can_proceed_blocks() {

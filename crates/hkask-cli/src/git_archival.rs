@@ -352,7 +352,6 @@ mod tests {
         }
     }
 
-    // ── Integration: error message quality ─────────────────────────────────────
     //
     // These tests verify that git_archival error messages are clear, actionable,
     // and mention the specific environment variable needed. This is the primary

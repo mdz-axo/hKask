@@ -165,7 +165,6 @@ fn open_standing_session_store() -> Arc<dyn StandingSessionPort> {
     Arc::new(store)
 }
 
-// ── Chat Sessions ──────────────────────────────────────────────────────────
 
 /// Create chat session
 pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
@@ -232,7 +231,6 @@ pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
     Ok(sessions)
 }
 
-// ── Improv ─────────────────────────────────────────────────────────────────
 
 pub async fn ensemble_improv_turn(
     session_id: &str,
@@ -334,7 +332,6 @@ pub async fn ensemble_participants(
     Ok(result)
 }
 
-// ── Deliberation ───────────────────────────────────────────────────────────
 
 pub async fn ensemble_deliberation_create(session: String) -> Result<String, String> {
     let manager = get_session_manager();
@@ -399,7 +396,6 @@ pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
     Ok(sessions)
 }
 
-// ── Standing Session ───────────────────────────────────────────────────────
 
 /// Bootstrap the standing ensemble session from a YAML manifest.
 pub fn ensemble_standing_start(

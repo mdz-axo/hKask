@@ -685,7 +685,6 @@ mod tests {
         assert!(Arc::ptr_eq(&key1, &key2));
     }
 
-    // ── Integration: per-replicant secret end-to-end ─────────────────────────
     //
     // These tests validate that derived per-agent secrets are usable in the
     // full ACP token lifecycle: register → delegate → verify → revoke.

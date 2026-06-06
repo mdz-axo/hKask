@@ -553,7 +553,6 @@ impl CyberneticsLoop {
         }
     }
 
-    // ── Inbox message handlers ──────────────────────────────────────────
 
     /// Handle a CurationDirective payload from the inbox.
     ///

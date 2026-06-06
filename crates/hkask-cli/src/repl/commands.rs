@@ -569,7 +569,6 @@ pub(super) fn handle_slash_command(
     false
 }
 
-// ── HHH alignment mode handler ──────────────────────────────────────────────
 
 fn handle_hhh(arg: &str, state: &mut super::ReplState) {
     use hkask_agents::HhhMode;
@@ -649,10 +648,8 @@ fn handle_hhh(arg: &str, state: &mut super::ReplState) {
     println!();
 }
 
-// ── Consolidation handler (delegated to handlers::consolidation) ──────────────
 // handle_consolidate is provided by super::handlers::handle_consolidate
 
-// ── Inline sub-handlers (small enough to stay here) ────────────────────────
 
 pub(super) fn handle_filter(
     arg: &str,

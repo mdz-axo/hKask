@@ -90,7 +90,6 @@ fn run_compose(
     okapi_url: Option<String>,
     no_validate: bool,
 ) {
-    // ── Step 1: Load cognition config ───────────────────────────────────────
     let config_str = std::fs::read_to_string(&cognition_path).unwrap_or_else(|e| {
         eprintln!(
             "Failed to read cognition config {}: {}",
@@ -108,7 +107,6 @@ fn run_compose(
         config.embedding.model, config.embedding.dim, config.embedding.centroid_entity_ref
     );
 
-    // ── Step 2: Open database ───────────────────────────────────────────────
     let db = Database::open(&db_path.to_string_lossy(), &passphrase).unwrap_or_else(|e| {
         eprintln!("Failed to open database {}: {}", db_path.display(), e);
         std::process::exit(1);
@@ -120,7 +118,6 @@ fn run_compose(
     // Keep a separate EmbeddingStore for direct access (centroid retrieval)
     let embedding_store_direct = EmbeddingStore::new(Arc::clone(&conn));
 
-    // ── Step 3: Embed the prompt via Okapi (→ semantic_embed for search) ────
     let okapi_config = match okapi_url {
         Some(ref url) => OkapiConfig {
             base_url: url.clone(),
@@ -142,7 +139,6 @@ fn run_compose(
             std::process::exit(1);
         });
 
-    // ── Step 4: KNN search for exemplar passages (→ semantic_search) ────────
     eprintln!(
         "Searching for {}-{} exemplar passages...",
         config.embedding.retrieval.k_min, config.embedding.retrieval.k_max
@@ -207,7 +203,6 @@ fn run_compose(
         );
     }
 
-    // ── Step 5: Compose the system prompt with exemplars ────────────────────
     let exemplar_block = if exemplar_passages.is_empty() {
         String::new()
     } else {
@@ -274,7 +269,6 @@ fn run_compose(
 
     eprintln!("System prompt composed ({} chars)", system_prompt.len());
 
-    // ── Step 6: Send to inference (→ hkask-mcp-inference) ──────────────────
     // Use a generation model (not the embedding model) for prose generation.
     // Default to the same model family; override via OKAPI_MODEL env if needed.
     let gen_model = std::env::var("OKAPI_MODEL").unwrap_or_else(|_| config.embedding.model.clone());
@@ -311,7 +305,6 @@ fn run_compose(
     let generated_prose = result.text.trim().to_string();
     eprintln!("\n{}", generated_prose);
 
-    // ── Step 7: (Optional) Validate centroid distance ─────────────────────
     if !no_validate {
         eprintln!("\nValidating style centroid distance...");
 

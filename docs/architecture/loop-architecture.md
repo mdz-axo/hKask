@@ -470,7 +470,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Checkpointed:** Loop state is periodically checkpointed to SQLite. Enables recovery but requires schema migration on every loop state change.
 - **C. Event-sourced:** Loop state is reconstructed by replaying `NuEvent` history. Principled but potentially expensive for long-running systems.
 
-**Status:** Open. Option A is the simplest and aligns with the current implementation. Option C is the most cybernetically principled (the `NuEvent` stream already exists) but needs a truncation strategy.
+**Status:** Open. Option A is the simplest and aligns with the current implementation. Option C is the most cybernetically principled (the `NuEvent` stream already exists) but needs a truncation strategy. CurationLoop `restore_cursor()` now persists the algedonic review cursor to `NuEventStore` for crash recovery. Other loop state remains volatile (Option A).
 
 ### 5.5 Multi-Agent Energy Competition
 
@@ -492,7 +492,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Bounded recursion:** The Curator may override up to N levels of recursion (e.g., the Curator overrides Cybernetics, which triggers a re-evaluation, which the Curator may override again, up to N times). Prevents infinite loops but requires a depth counter.
 - **C. Cooldown-based:** After a metacognitive override, the same override cannot be re-applied for a cooldown period. Prevents rapid oscillation without a hard depth limit.
 
-**Status:** Open. Option A is the current implementation (the `recursion_depth` field on `NuEvent` caps at 7 per ADR-025). Option C is the most pragmatic — it prevents oscillation without introducing recursion depth as a new governance concept.
+**Status:** Resolved. Option C — cooldown-based. Implemented in `Dampener` with a 120-second `override_cooldown`. After any metacognitive override passes dedup, ALL subsequent overrides within the cooldown window are suppressed regardless of fingerprint. This prevents oscillation without introducing a hard depth counter.
 
 ### 5.7 Energy Budget Replenishment
 

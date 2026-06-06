@@ -121,12 +121,6 @@ impl WebServer {
         let span = ToolSpanGuard::new("web_ping", &self.webid);
         // Task 9: Rate limit web_ping to prevent DoS amplification
         if let Err(e) = self.rate_limiter.check("web_ping") {
-            // Task 11: Return PingOutput with rate_limited status instead of McpToolError
-            let output = PingOutput {
-                status: "rate_limited".to_string(),
-                version: SERVER_VERSION.to_string(),
-                providers: vec![],
-            };
             tracing::warn!(
                 target: "cns.web",
                 message = %e.message,

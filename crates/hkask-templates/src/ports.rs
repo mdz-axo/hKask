@@ -70,8 +70,15 @@ pub use hkask_types::ports::ToolInfo;
 
 /// MCP port for tool invocation
 pub trait McpPort: Send + Sync {
-    async fn discover_tools(&self) -> Vec<String>;
-    async fn invoke(&self, tool_name: &str, input: Value, token: &CapabilityToken)
-    -> Result<Value>;
-    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
+    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send;
+    fn invoke(
+        &self,
+        tool_name: &str,
+        input: Value,
+        token: &CapabilityToken,
+    ) -> impl std::future::Future<Output = Result<Value>> + Send;
+    fn get_tool_info(
+        &self,
+        tool_name: &str,
+    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send;
 }

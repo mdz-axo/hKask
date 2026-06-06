@@ -103,7 +103,6 @@ fn run_embed(
     passphrase: String,
     okapi_url: Option<String>,
 ) {
-    // ── Step 1: Read corpus config (declarative manifest input) ───────────
     let config_str = std::fs::read_to_string(&config_path).unwrap_or_else(|e| {
         eprintln!(
             "Failed to read corpus config {}: {}",
@@ -124,7 +123,6 @@ fn run_embed(
         config.embedding.model
     );
 
-    // ── Step 2: Open database + purge (→ semantic_purge) ──────────────────
     let db = Database::open(&db_path.to_string_lossy(), &passphrase).unwrap_or_else(|e| {
         eprintln!("Failed to open database {}: {}", db_path.display(), e);
         std::process::exit(1);
@@ -148,7 +146,6 @@ fn run_embed(
         );
     }
 
-    // ── Step 3: Download texts (web_extract) ──────────────────────────────
     // Download via HTTP. When hkask-mcp-web MCP server is available,
     // this should route through web_extract instead.
     // See: registry/manifests/style-corpus-embed.yaml Step 2
@@ -191,7 +188,6 @@ fn run_embed(
             text
         };
 
-        // ── Step 4: Chunk text (→ semantic_chunk) ───────────────────────
         let cleaned = SemanticMemory::strip_gutenberg_headers(&text);
         let entity_ref_prefix = format!("style:{}:{}", config.author, work.slug);
         let chunks = SemanticMemory::chunk_text(
@@ -205,7 +201,6 @@ fn run_embed(
         all_passages.extend(chunks);
     }
 
-    // ── Step 5: Add foundational rules (semantic_store) ────────────────────
     for rule in &config.foundational_rules {
         let entity_ref = format!("style:{}:rule:{}", config.author, rule.slug);
         all_passages.push((entity_ref, rule.text.clone()));
@@ -213,7 +208,6 @@ fn run_embed(
 
     eprintln!("Total passages to embed: {}", all_passages.len());
 
-    // ── Step 6: Embed in batches (Okapi embed_sentences) ───────────────────
     let okapi_config = match okapi_url {
         Some(url) => OkapiConfig {
             base_url: url,
@@ -239,7 +233,6 @@ fn run_embed(
             });
 
         for ((entity_ref, _text), vector) in chunk.iter().zip(vectors.iter()) {
-            // ── Step 7: Store embedding (→ semantic_embed) ──────────────
             semantic
                 .store_embedding(entity_ref, vector, &config.embedding.model)
                 .unwrap_or_else(|e| {
@@ -255,7 +248,6 @@ fn run_embed(
         );
     }
 
-    // ── Step 8: Compute and store centroid (→ semantic_centroid) ─────────
     eprintln!("Computing style centroid...");
     let rule_prefix = format!("style:{}:rule:", config.author);
     let centroid_ref = config.centroid_entity_ref.clone();

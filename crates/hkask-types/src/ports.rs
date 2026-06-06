@@ -200,7 +200,7 @@ pub trait InferencePort: Send + Sync {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-        model_override: Option<&str>,
+        _model_override: Option<&str>,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
@@ -856,20 +856,25 @@ pub trait EmbeddingGenerationPort: Send + Sync {
     ///
     /// Returns one vector per input sentence, in the same order.
     /// Vector dimension is determined by the model (e.g., 384 for qwen3-embedding:0.6b).
-    async fn embed_sentences(
+    fn embed_sentences(
         &self,
         sentences: &[&str],
-    ) -> Result<Vec<Vec<f32>>, EmbeddingGenerationError>;
+    ) -> impl std::future::Future<Output = Result<Vec<Vec<f32>>, EmbeddingGenerationError>> + Send;
 
     /// Generate an embedding vector for a single sentence.
     ///
     /// Convenience wrapper around `embed_sentences` for single-input cases.
-    async fn embed_sentence(&self, sentence: &str) -> Result<Vec<f32>, EmbeddingGenerationError> {
-        let results = self.embed_sentences(&[sentence]).await?;
-        results
-            .into_iter()
-            .next()
-            .ok_or(EmbeddingGenerationError::EmptyResponse)
+    fn embed_sentence(
+        &self,
+        sentence: &str,
+    ) -> impl std::future::Future<Output = Result<Vec<f32>, EmbeddingGenerationError>> + Send {
+        async move {
+            let results = self.embed_sentences(&[sentence]).await?;
+            results
+                .into_iter()
+                .next()
+                .ok_or(EmbeddingGenerationError::EmptyResponse)
+        }
     }
 
     /// Get the embedding dimension for the current model.

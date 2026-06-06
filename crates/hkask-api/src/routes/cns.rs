@@ -401,7 +401,6 @@ mod tests {
         assert_eq!(valid[2].as_str(), "cns.variety");
     }
 
-    // ── Integration: SSE event serialization ──────────────────────────────────
     //
     // These tests validate that CnsSseEvent variants serialize to the correct
     // JSON structure and that the event type mapping produces the right SSE

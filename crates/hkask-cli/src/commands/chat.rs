@@ -279,7 +279,6 @@ pub async fn chat_with_agent(
         acp_secret.as_bytes(),
     );
 
-    // ── Semantic recall (before inference) ──────────────────────────────
     // Recall relevant knowledge from semantic memory to enrich the prompt.
     let semantic_context = match (&semantic_storage, &memory_adapter) {
         (Some(sem_port), _) => match sem_port.recall_semantic(input, &capability_token) {
@@ -391,7 +390,6 @@ pub async fn chat_with_agent(
         }
     };
 
-    // ── Episodic storage (after inference) ──────────────────────────────
     // Store the exchange as an episodic triple: (agent, "chatted", response_text)
     // This is private, agent-scoped memory — episodic_override: private.
     let store_result = match (&episodic_storage, &memory_adapter) {

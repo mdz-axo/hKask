@@ -190,7 +190,6 @@ impl Registry {
         self.templates.len()
     }
 
-    // ── Skill composition methods ──────────────────────────────────
 
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
@@ -229,7 +228,6 @@ impl Registry {
             .collect()
     }
 
-    // ── Bundle manifest methods ──────────────────────────────────
 
     /// Register a bundle manifest.
     pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
@@ -273,7 +271,6 @@ impl Registry {
     /// and `matroshka_limit` is set to `SYSTEM_MAX_RECURSION` at runtime.
     #[allow(clippy::type_complexity)]
     const BOOTSTRAP_TEMPLATES: &[(&str, TemplateType, &str, &[&str], &str, &str)] = &[
-        // ── WordAct templates (Jinja2 prompts — "what to say") ──────
         (
             "wordact/selector",
             TemplateType::WordAct,
@@ -306,7 +303,6 @@ impl Registry {
             "Generate prose using Kansas City Star rules, Iceberg Theory, Fish generative forms, and embedding-based exemplar retrieval",
             "registry/templates/composition/hemingway-style-synthesizer.j2",
         ),
-        // ── KnowAct templates (Jinja2 cognition — "how to think") ───
         (
             "knowact/detect",
             TemplateType::KnowAct,
@@ -446,7 +442,6 @@ impl Registry {
             "Assemble final handoff document with redaction and skill suggestions",
             "registry/templates/handoff/handoff-compose.j2",
         ),
-        // ── FlowDef templates (YAML manifests — "what to do") ──────
         (
             "flowdef/dispatch",
             TemplateType::FlowDef,
@@ -512,7 +507,6 @@ impl Registry {
             "Route input to best-fit specification template",
             "registry/templates/spec/selector.j2",
         ),
-        // ── Skill Bundler templates (FlowDef — skill composition) ────
         (
             "skill-bundler/compose-bundle",
             TemplateType::FlowDef,

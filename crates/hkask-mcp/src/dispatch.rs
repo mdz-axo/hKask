@@ -99,16 +99,16 @@ impl McpDispatcher {
 }
 
 impl McpPort for McpDispatcher {
-    async fn discover_tools(&self) -> Vec<String> {
+    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send {
         self.runtime.discover_tools().await
     }
 
-    async fn invoke(
+    fn invoke(
         &self,
         tool_name: &str,
         input: Value,
         token: &DelegationToken,
-    ) -> Result<Value> {
+    ) -> impl std::future::Future<Output = Result<Value>> + Send {
         if let Some(governed) = &self.governed_tool {
             // Route through GovernedTool membrane
             let server_id = self
@@ -139,7 +139,10 @@ impl McpPort for McpDispatcher {
         }
     }
 
-    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+    fn get_tool_info(
+        &self,
+        tool_name: &str,
+    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send {
         self.runtime.get_tool_info(tool_name).await
     }
 }

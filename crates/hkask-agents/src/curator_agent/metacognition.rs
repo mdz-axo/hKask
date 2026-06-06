@@ -142,16 +142,6 @@ impl MetacognitionLoop {
         }
     }
 
-    /// Access the CuratorContext (capability-disciplined runtime references).
-    pub(crate) fn context(&self) -> &Arc<CuratorContext> {
-        &self.context
-    }
-
-    /// Access the metacognition config (thresholds, intervals).
-    pub(crate) fn config(&self) -> &MetacognitionConfig {
-        &self.config
-    }
-
     /// Get current bot status reports
     pub(crate) async fn get_bot_reports(&self) -> Vec<BotStatusReport> {
         self.bot_reports.read().await.clone()

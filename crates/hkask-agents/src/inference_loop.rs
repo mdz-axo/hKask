@@ -12,7 +12,7 @@ use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
-use hkask_types::ports::{CircuitBreakerPort, InferencePort};
+use hkask_types::ports::CircuitBreakerPort;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -30,8 +30,7 @@ const GAS_SET_POINT: f64 = 0.2;
 /// `Throttle`/`AdjustGasBudget` actions targeting itself (self-throttle).
 /// When the model is unavailable, it produces `Calibrate` to signal that
 /// model selection is needed.
-pub struct InferenceLoop<I: InferencePort = Arc<dyn InferencePort>> {
-    inference: I,
+pub struct InferenceLoop {
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
     /// Gas remaining in this loop's own budget (simple atomic counter,
     /// updated by external callers after each inference call).
@@ -48,11 +47,10 @@ pub struct InferenceLoop<I: InferencePort = Arc<dyn InferencePort>> {
     dispatch_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
 }
 
-impl<I: InferencePort + 'static> InferenceLoop<I> {
-    /// Create a new Inference Loop wrapping an inference port.
-    pub fn new(inference: I) -> Self {
+impl InferenceLoop {
+    /// Create a new Inference Loop.
+    pub fn new() -> Self {
         Self {
-            inference,
             circuit_breaker: None,
             gas_remaining: Arc::new(AtomicU64::new(0)),
             gas_cap: 0,
@@ -157,7 +155,7 @@ impl<I: InferencePort + 'static> InferenceLoop<I> {
 }
 
 #[async_trait::async_trait]
-impl<I: InferencePort + 'static> HkaskLoop for InferenceLoop<I> {
+impl HkaskLoop for InferenceLoop {
     fn id(&self) -> LoopId {
         LoopId::Inference
     }

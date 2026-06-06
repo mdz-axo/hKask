@@ -737,7 +737,6 @@ impl AgentDelegation {
     }
 }
 
-// ── Tests: Capability token security invariants ────────────────────────
 
 #[cfg(test)]
 mod capability_spec_tests {
