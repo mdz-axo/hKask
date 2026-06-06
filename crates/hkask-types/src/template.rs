@@ -5,9 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::capability::DelegationToken;
-use crate::id::{BotID, TemplateID};
-
 /// LLMParameters — Full parameter set for LLM invocation
 /// Loop: Inference
 ///
@@ -67,45 +64,6 @@ impl Default for LLMParameters {
     }
 }
 
-/// TemplateOutcome — Result of template invocation
-/// Loop: Inference
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TemplateOutcome {
-    /// Template produced useful output
-    Success,
-    /// Template produced broken/invalid output
-    Failure,
-}
-
-impl std::fmt::Display for TemplateOutcome {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TemplateOutcome::Success => write!(f, "success"),
-            TemplateOutcome::Failure => write!(f, "failure"),
-        }
-    }
-}
-
-/// TemplateInvocation — Record of a single template execution
-/// Loop: Inference
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateInvocation {
-    pub id: TemplateID,
-    pub template_id: TemplateID,
-    pub bot_id: BotID,
-    pub temperature: f32,
-    pub parameters: LLMParameters,
-    pub input: serde_json::Value,
-    pub outputs: Vec<serde_json::Value>,
-    pub selected_index: Option<usize>,
-    pub outcome: TemplateOutcome,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-    /// Capability token authorizing this invocation (for OCAP verification)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub capability_token: Option<DelegationToken>,
-}
-
 /// Template file within a crate
 /// Loop: Inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,27 +89,4 @@ pub struct TemplateCrate {
     pub templates: Vec<TemplateFile>,
     /// hLexicon terms used
     pub hlexicon_terms: Vec<String>,
-}
-
-impl TemplateInvocation {
-    pub fn new(
-        template_id: TemplateID,
-        bot_id: BotID,
-        parameters: LLMParameters,
-        input: serde_json::Value,
-    ) -> Self {
-        Self {
-            id: TemplateID::new(),
-            template_id,
-            bot_id,
-            temperature: parameters.temperature,
-            parameters,
-            input,
-            outputs: Vec::new(),
-            selected_index: None,
-            outcome: TemplateOutcome::Failure,
-            timestamp: chrono::Utc::now(),
-            capability_token: None,
-        }
-    }
 }

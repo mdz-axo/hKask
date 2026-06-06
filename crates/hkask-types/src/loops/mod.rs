@@ -32,7 +32,6 @@ pub mod inference;
 pub mod semantic;
 
 pub use curation::{CuratorDirective, CuratorHandle};
-pub use cybernetics::CyberneticsHandle;
 pub use dispatch::{
     DispatchTarget, LoopMessage, LoopPayload, MessagePriority, TraceId, WorkerKind,
 };

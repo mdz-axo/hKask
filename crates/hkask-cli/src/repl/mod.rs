@@ -14,6 +14,8 @@ mod handlers;
 mod helper;
 mod tool_augmented;
 
+pub(crate) use tool_augmented::TOOL_CALL_FORMAT_INTRO;
+
 use hkask_agents::CurationConfidenceGate;
 use hkask_agents::CurationLoop;
 use hkask_agents::CuratorContext;

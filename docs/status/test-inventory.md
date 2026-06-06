@@ -30,7 +30,7 @@ This document maps every public interface (seam) in hKask's 11 core crates and 2
 ```mermaid
 graph TD
     subgraph Core["Core Crates (11)"]
-        TYPES[hkask-types<br/>8 test modules]
+        TYPES[hkask-types<br/>10 test modules]
         STORAGE[hkask-storage<br/>3 test modules]
         CNS[hkask-cns<br/>10 test modules]
         MEMORY[hkask-memory<br/>1 test module]
@@ -282,10 +282,14 @@ graph TD
 | **Composition** | Registry cascade depth ≤ 7 (matroshka) | `TemplateType` | P2 |
 | **Trust** | `CapabilityToken` verification rejects forged tokens | `verify_capability` | P2 |
 | **Trust** | `OCAPBoundary` enforcement prevents unauthorized operations | `OCAPBoundary` | P2 |
-| **Observability** | ∀ `cns.*` namespace in `CANONICAL_NAMESPACES`, ∃ `tracing::instrument` annotation | `SpanNamespace` | P3 |
+| **Observability** | ∀ `cns.*` namespace in `CANONICAL_NAMESPACES`, ∃ `SpanNamespace::new()` that doesn't panic | `SpanNamespace` | P4 ✅ |
+| **Observability** | `cns.test` is a valid canonical namespace for test span emission | `SpanNamespace` | P4 ✅ |
+| **Observability** | `Phase` roundtrips through `as_str()` / `from_str()` with backward compat | `Phase` | P4 ✅ |
 | **Persistence** | `SpecStore::save` → `load` roundtrip preserves all fields | `SpecStore` | P1 |
 | **Persistence** | Bitemporal queries return correct time-slices | `NuEventStore` | P2 |
-| **Lifecycle** | `GoalState::can_transition_to` enforces state machine | `GoalState` | P1 |
+| **Lifecycle** | `GoalState::can_transition_to` enforces state machine | `GoalState` | P5 ✅ |
+| **Lifecycle** | `Goal::transition` sets `completed_at` on terminal state | `Goal` | P5 ✅ |
+| **Lifecycle** | `Goal::new` starts in Pending with no parent and depth 0 | `Goal` | P5 ✅ |
 | **Lifecycle** | Bootstrap sequence initializes all required components | Integration | P3 |
 | **Curation** | ∀ `SpecCurationRecord`, `decision ∈ {Merge, Discard, Revise}` ∧ `rationale ≠ ∅` | `SpecCurator` | P1 |
 | **Curation** | `coherence_score ∈ [0.0, 1.0]` for all curation results | `SpecCurator` | P1 |
@@ -303,7 +307,8 @@ Classification complete. Structural tests removed per Testing Standards §2.2 (n
 | hkask-types | `sql_impls.rs` tests | ✅ Behavioral | Kept — SQL serialization roundtrips through public traits |
 | hkask-types | `allosteric/mwc.rs` tests | ✅ Behavioral | Kept — MWC model is deep science seam |
 | hkask-types | `allosteric/gate.rs` tests | 🔀 Mixed | **Removed 4 structural** (internal state fields); kept 5 behavioral |
-| hkask-types | `loops/curation.rs` test | N/A | No test module exists |
+| hkask-types | `goal.rs` tests | ✅ Behavioral | New — GoalState lifecycle, state machine transitions, Goal construction |
+| hkask-types | `event.rs` tests | ✅ Behavioral | New — SpanNamespace validation, Phase roundtrip, cns.test namespace |
 | hkask-storage | `nu_event_store.rs` tests | 🔀 Mixed | **Removed 2 structural** (`decay_config_default_values`, `lambda_for_category_mapping`); kept 2 behavioral |
 | hkask-storage | `embeddings.rs` tests | 🔀 Mixed | **Removed 1 structural** (`encode_decode_roundtrip`); kept 9 behavioral |
 | hkask-storage | `goals.rs` tests | 🔀 Mixed | **Removed 2 structural** (raw SQL, `try_goal_from_row`); kept 5 behavioral |
@@ -362,10 +367,29 @@ Classification complete. Structural tests removed per Testing Standards §2.2 (n
 9. `SpecCurator` behavioral — evaluate returns valid decision, cultivate returns bounded score ✅
 10. `SpecId::from_string()` — valid UUID, invalid UUID ✅
 
-### Phase 2: hkask-cns Alignment
+### Phase 2: hkask-cns Alignment — ✅ COMPLETED
 
-11. Verify existing tests verify DDMVSS invariants (algedonic thresholds, gas budgets)
-12. Add `cns.spec.*` span emission tests if missing
+11. Verify existing tests verify DDMVSS invariants (algedonic thresholds, gas budgets) ✅
+12. Add `cns.test` to `CANONICAL_NAMESPACES` ✅
+
+### Phase 2.5: GoalState Behavioral (hkask-types) — ✅ COMPLETED
+
+- `GoalState` 5 variants, as_str/parse_str roundtrip, case-insensitive, invalid → None
+- `GoalState::is_terminal()` for terminal/non-terminal states
+- `GoalState::can_transition_to()` full state machine: Pending, Active, Blocked, Completed, Abandoned transitions
+- `IllegalGoalTransition` Display format and Error impl
+- `Goal::new` starts Pending, no parent, depth 0
+- `Goal::transition` legal/illegal, terminal state rejection, completed_at setting
+- `Goal::can_have_subgoals` for active/terminal states
+
+### Phase 2.6: CNS Event Types (hkask-types) — ✅ COMPLETED
+
+- `SpanNamespace::new()` for all 16 canonical namespaces (including cns.test)
+- `SpanNamespace::parse()` short/full form, invalid → None
+- `SpanNamespace` Display, short_name, from_str roundtrip
+- `Phase` roundtrip through as_str/from_str with backward compat
+- `Span::new()` constructs full path
+- `cns.test` namespace validated as canonical
 
 ### Phase 3: Integration Tests
 

@@ -100,6 +100,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.sovereignty",
     "cns.goal",
     "cns.spec",
+    "cns.test",
 ];
 
 impl SpanNamespace {
@@ -224,4 +225,136 @@ impl Phase {
 /// Implemented by storage backends (e.g., NuEventStore in hkask-storage).
 pub trait NuEventSink: Send + Sync {
     fn persist(&self, event: &NuEvent) -> Result<(), crate::InfrastructureError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    // ── SpanNamespace ──────────────────────────────────────────────
+
+    #[test]
+    // P8 invariant: every canonical namespace constructs successfully
+    fn span_namespace_new_valid_namespaces() {
+        for &ns in CANONICAL_NAMESPACES {
+            let span = SpanNamespace::new(ns);
+            assert_eq!(span.as_str(), ns);
+        }
+    }
+
+    #[test]
+    // P8 invariant: invalid namespace panics at construction
+    fn span_namespace_new_invalid_namespace_panics() {
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            SpanNamespace::new("invalid.namespace");
+        }));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    // P8 invariant: short form 'tool' parses to cns.tool
+    fn span_namespace_parse_short_form() {
+        let ns = SpanNamespace::parse("tool");
+        assert!(ns.is_some());
+        assert_eq!(ns.unwrap().short_name(), "tool");
+    }
+
+    #[test]
+    // P8 invariant: full form 'cns.tool' parses to cns.tool
+    fn span_namespace_parse_full_form() {
+        let ns = SpanNamespace::parse("cns.tool");
+        assert!(ns.is_some());
+        assert_eq!(ns.unwrap().as_str(), "cns.tool");
+    }
+
+    #[test]
+    // P8 invariant: invalid namespace returns None
+    fn span_namespace_parse_invalid_returns_none() {
+        assert!(SpanNamespace::parse("invalid").is_none());
+    }
+
+    #[test]
+    // P8 invariant: from_str roundtrips for all canonical namespaces
+    fn span_namespace_from_str_roundtrip() {
+        for &ns in CANONICAL_NAMESPACES {
+            let short = &ns[4..]; // strip "cns."
+            let parsed: SpanNamespace = short.parse().expect("short form should parse");
+            assert_eq!(parsed.as_str(), ns);
+
+            let parsed_full: SpanNamespace = ns.parse().expect("full form should parse");
+            assert_eq!(parsed_full.as_str(), ns);
+        }
+    }
+
+    #[test]
+    // P8 invariant: Display format equals the full namespace string
+    fn span_namespace_display_matches_as_str() {
+        for &ns in CANONICAL_NAMESPACES {
+            let span = SpanNamespace::new(ns);
+            assert_eq!(format!("{span}"), span.as_str());
+        }
+    }
+
+    #[test]
+    // P8 invariant: short_name() returns the part after 'cns.'
+    fn span_namespace_short_name_skips_cns_prefix() {
+        for &ns in CANONICAL_NAMESPACES {
+            let span = SpanNamespace::new(ns);
+            assert_eq!(span.short_name(), &ns[4..]);
+        }
+    }
+
+    #[test]
+    // P8 invariant: cns.test is a valid canonical namespace
+    fn span_namespace_cns_test_is_valid() {
+        let ns = SpanNamespace::new("cns.test");
+        assert_eq!(ns.as_str(), "cns.test");
+        let parsed = SpanNamespace::parse("test");
+        assert!(parsed.is_some());
+        assert_eq!(parsed.unwrap().as_str(), "cns.test");
+    }
+
+    // ── Phase ──────────────────────────────────────────────────────
+
+    #[test]
+    // P8 invariant: every Phase variant roundtrips through as_str() and from_str()
+    fn phase_as_str_roundtrip() {
+        for variant in [Phase::Sense, Phase::Compute, Phase::Compare, Phase::Act] {
+            assert_eq!(Phase::from_str(variant.as_str()), variant);
+        }
+    }
+
+    #[test]
+    // P8 invariant: backward-compatible names (observe→Sense, regulate→Compute, outcome→Act) parse correctly
+    fn phase_from_str_backward_compat() {
+        assert_eq!(Phase::from_str("observe"), Phase::Sense);
+        assert_eq!(Phase::from_str("regulate"), Phase::Compute);
+        assert_eq!(Phase::from_str("outcome"), Phase::Act);
+    }
+
+    #[test]
+    // P8 invariant: from_str handles mixed case
+    fn phase_from_str_case_insensitive() {
+        assert_eq!(Phase::from_str("Sense"), Phase::Sense);
+        assert_eq!(Phase::from_str("Act"), Phase::Act);
+        assert_eq!(Phase::from_str("Compute"), Phase::Compute);
+        assert_eq!(Phase::from_str("Compare"), Phase::Compare);
+    }
+
+    #[test]
+    // P8 invariant: unknown phase string defaults to Sense
+    fn phase_from_str_unknown_defaults_to_sense() {
+        assert_eq!(Phase::from_str("unknown"), Phase::Sense);
+    }
+
+    // ── Span ──────────────────────────────────────────────────────
+
+    #[test]
+    // P8 invariant: Span::new concatenates namespace and path
+    fn span_new_constructs_full_path() {
+        let ns = SpanNamespace::new("cns.tool");
+        let span = Span::new(ns, "invoked");
+        assert_eq!(span.path, "cns.tool.invoked");
+    }
 }

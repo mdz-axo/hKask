@@ -13,6 +13,8 @@ use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::{OkapiConfig, OkapiInference};
 use hkask_types::ports::InferencePort;
+
+use crate::repl::TOOL_CALL_FORMAT_INTRO;
 use hkask_types::{
     Confidence, DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID,
 };
@@ -171,24 +173,16 @@ pub async fn chat_with_agent(
             system_prompt.push_str(section);
         }
     } else {
+        system_prompt.push_str(TOOL_CALL_FORMAT_INTRO);
         system_prompt.push_str(
-            "\n## Tool Calls\n\
-             You have access to MCP tools. When you need to invoke a tool, include a \
-             tool call directive in your response using this format:\n\
-             \n\
-             <<tool:server/tool_name\n\
-             {\"key\": \"value\"}\n\
-             >>\n\
-             \n\
-             For example, to recall semantic memory:\n\
+            "For example, to recall semantic memory:\n\
              <<tool:hkask-mcp-semantic/semantic_recall\n\
              {\"entity\": \"rust\"}\n\
              >>\n\
              \n\
              You may include multiple tool calls in a single response. After the tool \
              executes, the system will feed the results back to you for a follow-up response.\n\
-             Use tools when they would provide better or more current information than your training data.\
-             ",
+             Use tools when they would provide better or more current information than your training data."
         );
     }
 

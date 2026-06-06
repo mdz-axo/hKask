@@ -597,34 +597,6 @@ impl DelegationToken {
     }
 }
 
-/// Agent delegation manifest
-/// Loop: Cybernetics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentDelegation {
-    /// Agent's WebID
-    pub bot_id: WebID,
-    /// List of tool capabilities this agent holds
-    pub capabilities: Vec<String>,
-}
-
-impl AgentDelegation {
-    pub fn new(bot_id: WebID) -> Self {
-        Self {
-            bot_id,
-            capabilities: vec![],
-        }
-    }
-
-    pub fn with_capabilities(mut self, caps: Vec<&str>) -> Self {
-        self.capabilities = caps.into_iter().map(String::from).collect();
-        self
-    }
-
-    pub fn has_capability(&self, tool_name: &str) -> bool {
-        self.capabilities.iter().any(|cap| cap == tool_name)
-    }
-}
-
 #[cfg(test)]
 mod capability_spec_tests {
     use super::{CapabilityParseError, CapabilitySpec, DelegationAction, DelegationResource};

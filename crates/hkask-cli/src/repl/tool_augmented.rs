@@ -1,18 +1,31 @@
 //! Tool-augmented chat — parse model responses for tool call directives
 //! and invoke them through GovernedTool or the Communication Loop.
-//!
+//
 //! Both single-agent REPL and ensemble turns call the same `process_response`
 //! function. Any agent response that contains tool calls (either structured
 //! `InferenceResult.tool_calls` from native function calling or `<<tool:...>>`
 //! text directives) gets parsed, invoked, and optionally fed back to the model
 //! for a followup.
-//!
+//
 //! Tool call sources (in priority order):
 //! 1. **Structured**: `InferenceResult.tool_calls` when `finish_reason == "tool_calls"`
 //! 2. **Text fallback**: `<<tool:server/tool_name\n{args}\n>>` directives in text
 
 use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
+
+/// Common prefix for the tool-call instruction section of the system prompt.
+///
+/// Used by both `format_tool_prompt_section` (dynamic) and the hardcoded
+/// fallback in `chat_with_agent` (when no MCP runtime is available).
+pub const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
+         You have access to MCP tools. When you need to invoke a tool, include a \
+         tool call directive in your response using this format:\n\
+         \n\
+         <<tool:server/tool_name\n\
+         {\"key\": \"value\"}\n\
+         >>\n\
+         \n";
 use hkask_types::ports::{StructuredToolCall, ToolInfo, ToolPort};
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
 use std::collections::BTreeMap;
@@ -37,16 +50,7 @@ pub fn format_tool_prompt_section(tools: &[ToolInfo]) -> String {
         by_server.entry(&tool.server_id).or_default().push(tool);
     }
 
-    let mut section = String::from(
-        "\n## Tool Calls\n\
-         You have access to MCP tools. When you need to invoke a tool, include a \
-         tool call directive in your response using this format:\n\
-         \n\
-         <<tool:server/tool_name\n\
-         {\"key\": \"value\"}\n\
-         >>\n\
-         \n",
-    );
+    let mut section = TOOL_CALL_FORMAT_INTRO.to_string();
 
     for (server_id, server_tools) in &by_server {
         section.push_str(&format!("**{}:**\n", server_id));

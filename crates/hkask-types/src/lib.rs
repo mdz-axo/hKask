@@ -42,7 +42,7 @@ pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
 pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};
-pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
+pub use audit::{AuditEntry, AuditOutcome};
 pub use bundle::{
     BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
     BundleManifestStep, BundleSkill, BundleSkillChange, CascadePhase, ComplementarityType,
@@ -70,9 +70,9 @@ pub use identity::{
 };
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
-    DispatchTarget, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopPayload, MessagePriority, Signal, SignalMetric, WorkerKind,
+    ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, DispatchTarget,
+    ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage, LoopPayload,
+    MessagePriority, Signal, SignalMetric, WorkerKind,
 };
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
@@ -84,11 +84,7 @@ pub use ports::{
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use soap_config::InferenceConfig;
-pub use sovereignty::{
-    DataCategory, SovereigntyCheckResult, SovereigntyPort, UserSovereigntyState,
-};
-pub use template::{
-    LLMParameters, TemplateCrate, TemplateFile, TemplateInvocation, TemplateOutcome,
-};
+pub use sovereignty::{DataCategory, SovereigntyPort, UserSovereigntyState};
+pub use template::{LLMParameters, TemplateCrate, TemplateFile};
 pub use text::blake3_hash;
 pub use visibility::{AccessControl, Confidence, TemporalBounds, Visibility};

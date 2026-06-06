@@ -24,18 +24,14 @@ pub use embedding_port::OkapiEmbedding;
 pub use hkask_types::ports::BundleRegistryIndex;
 pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
-pub use hkask_types::{
-    BundleDependencyIndex, BundleManifest, BundleSkillChange, SkillPolarity, VersionBump,
-};
+pub use hkask_types::{BundleManifest, SkillPolarity};
 pub use inference_port::OkapiInference;
 pub use lexicon::{load_hlexicon_default, load_hlexicon_from_file, load_hlexicon_from_yaml};
 pub use okapi_config::OkapiConfig;
 pub use okapi_config::OkapiModelDetails;
 pub use okapi_config::OkapiModelEntry;
 pub use okapi_config::{list_okapi_models, search_okapi_models};
-pub use ports::{
-    McpPort, RegistryEntry, RegistryError, RegistryIndex, Result, TemplateError, ToolInfo,
-};
+pub use ports::{McpPort, RegistryEntry, RegistryIndex, Result, TemplateError};
 pub use prompt_strategy::PromptStrategy;
 pub use provenance::TemplateProvenance;
 pub use registry::Registry;

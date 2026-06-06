@@ -20,5 +20,4 @@ pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{EpisodicStoragePort, SemanticStoragePort};
 
 pub use registry_source::RegistrySourcePort;
-pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{MessageRecord, SessionRecord, StandingSessionPortError};

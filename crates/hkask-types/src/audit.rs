@@ -118,23 +118,3 @@ impl AuditEntry {
         self
     }
 }
-
-/// Audit log port trait (hexagonal architecture boundary)
-///
-/// Implementations:
-/// - In-memory buffer (for testing)
-/// - SQLite persistence (production)
-/// - External audit systems
-pub trait AuditLogPort: Send + Sync {
-    /// Record an audit entry
-    fn log(&self, entry: AuditEntry);
-
-    /// Query recent entries
-    fn query_recent(&self, limit: usize) -> Vec<AuditEntry>;
-
-    /// Query entries by actor
-    fn query_by_actor(&self, actor: &WebID, limit: usize) -> Vec<AuditEntry>;
-
-    /// Query entries by correlation ID
-    fn query_by_correlation(&self, correlation_id: &str) -> Vec<AuditEntry>;
-}
