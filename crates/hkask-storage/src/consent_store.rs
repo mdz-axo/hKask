@@ -45,13 +45,12 @@ impl ConsentStore {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS consent_records (
                 id TEXT PRIMARY KEY,
-                webid TEXT NOT NULL,
+                webid TEXT NOT NULL UNIQUE,
                 granted_categories TEXT NOT NULL,
                 granted_at INTEGER NOT NULL,
                 revoked_at INTEGER,
                 active INTEGER NOT NULL DEFAULT 1
             );
-            CREATE INDEX IF NOT EXISTS idx_consent_webid ON consent_records(webid);
             CREATE INDEX IF NOT EXISTS idx_consent_active ON consent_records(active);
             ",
         )?;

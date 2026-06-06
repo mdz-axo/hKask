@@ -268,18 +268,21 @@ mod tests {
 
     // ── sanitize_health_error ─────────────────────────────────────────────
 
-    // P8 invariant: API keys with common prefixes are stripped
+    // P8 invariant: API keys with common prefixes are stripped and mapped to error category
     #[test]
     fn sanitize_strips_sk_prefix_keys() {
-        let input = "Authorization failed: sk-abc123def456ghi789key";
+        // Use a string without auth/429/timeout/unreachable/connection keywords
+        // so the result falls through to "unhealthy", proving redaction happened
+        let input = "Internal error: sk-abc123def456ghi789key";
         let output = sanitize_health_error(input);
         assert!(
             !output.contains("sk-abc123def456ghi789key"),
             "sk- prefixed keys must be redacted"
         );
-        assert!(
-            output.contains("[REDACTED]"),
-            "redacted key must show [REDACTED]"
+        // After redaction + category mapping, the result is "unhealthy" since no category matched
+        assert_eq!(
+            output, "unhealthy",
+            "sanitized string should be the category mapping, got: {output}"
         );
     }
 

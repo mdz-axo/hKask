@@ -117,16 +117,31 @@ mod tests {
 
     // ── apply_rerank ──────────────────────────────────────────────────────
 
-    // P8 invariant: Recency boost applies 1/(1 + days/7) * 0.1 to results with published date
+    // P8 invariant: Recency boost: no boost without published date
     #[test]
-    fn apply_rerank_recency_boosts_recent_results() {
+    fn apply_rerank_recency_no_boost_without_published_date() {
         let mut results = vec![make_result("https://a.com", 0.5)];
         apply_rerank(&mut results, RerankSignal::Recency);
-        // Result has no published date, so no boost applied
+        // Result has no published date, so no boost applied — score unchanged
+        assert_eq!(
+            results[0].rrf_score, 0.5,
+            "result with no published date should not get recency boost"
+        );
+    }
+
+    // P8 invariant: Recency boost adds 1/(1 + days/7) * 0.1 when published date is present
+    #[test]
+    fn apply_rerank_recency_boosts_with_published_date() {
+        let mut results = vec![make_result("https://a.com", 0.5)];
+        results[0].published = Some("0 days ago".to_string());
+        apply_rerank(&mut results, RerankSignal::Recency);
+        // For "0 days ago", parse_age_to_days returns 0.0, so boost = 1/(1+0/7)*0.1 = 0.1
+        let expected = 0.5 + 0.1;
         assert!(
-            results[0].rrf_score > 0.5,
-            "result with no published date should not get recency boost, got {}",
-            results[0].rrf_score
+            (results[0].rrf_score - expected).abs() < 1e-10,
+            "recency boost: got {}, expected {}",
+            results[0].rrf_score,
+            expected
         );
     }
 

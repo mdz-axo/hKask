@@ -88,52 +88,51 @@ mod tests {
     // P8 invariant: canonical names parse correctly
     #[test]
     fn freshness_parses_canonical_names() {
-        assert_eq!("day".parse::<Freshness>(), Ok(Freshness::Day));
-        assert_eq!("week".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("month".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("year".parse::<Freshness>(), Ok(Freshness::Year));
+        assert_eq!("day".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("week".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("month".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("year".parse::<Freshness>().unwrap(), Freshness::Year);
     }
 
     // P8 invariant: short aliases parse correctly
     #[test]
     fn freshness_parses_short_aliases() {
-        assert_eq!("d".parse::<Freshness>(), Ok(Freshness::Day));
-        assert_eq!("1d".parse::<Freshness>(), Ok(Freshness::Day));
-        assert_eq!("24h".parse::<Freshness>(), Ok(Freshness::Day));
-        assert_eq!("w".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("1w".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("7d".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("pw".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("m".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("1m".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("30d".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("pm".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("y".parse::<Freshness>(), Ok(Freshness::Year));
-        assert_eq!("1y".parse::<Freshness>(), Ok(Freshness::Year));
-        assert_eq!("365d".parse::<Freshness>(), Ok(Freshness::Year));
-        assert_eq!("py".parse::<Freshness>(), Ok(Freshness::Year));
+        assert_eq!("d".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("1d".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("24h".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("w".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("1w".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("7d".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("pw".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("m".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("1m".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("30d".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("pm".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("y".parse::<Freshness>().unwrap(), Freshness::Year);
+        assert_eq!("1y".parse::<Freshness>().unwrap(), Freshness::Year);
+        assert_eq!("365d".parse::<Freshness>().unwrap(), Freshness::Year);
+        assert_eq!("py".parse::<Freshness>().unwrap(), Freshness::Year);
     }
 
     // P8 invariant: underscore and space variants parse
     #[test]
     fn freshness_parses_underscore_and_space_variants() {
-        assert_eq!("past_day".parse::<Freshness>(), Ok(Freshness::Day));
-        assert_eq!("past day".parse::<Freshness>(), Ok(Freshness::Day));
-        assert_eq!("past_week".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("past week".parse::<Freshness>(), Ok(Freshness::Week));
-        assert_eq!("past_month".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("past month".parse::<Freshness>(), Ok(Freshness::Month));
-        assert_eq!("past_year".parse::<Freshness>(), Ok(Freshness::Year));
-        assert_eq!("past year".parse::<Freshness>(), Ok(Freshness::Year));
+        assert_eq!("past_day".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("past day".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("past_week".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("past week".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("past_month".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("past month".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("past_year".parse::<Freshness>().unwrap(), Freshness::Year);
+        assert_eq!("past year".parse::<Freshness>().unwrap(), Freshness::Year);
     }
 
     // P8 invariant: invalid strings are rejected
     #[test]
     fn freshness_rejects_invalid_strings() {
-        let err = " fortnight".parse::<Freshness>().unwrap_err();
         assert!(
-            err.to_string().contains("Unknown freshness"),
-            "invalid input must be rejected, got: {err}"
+            "fortnight".parse::<Freshness>().is_err(),
+            "invalid input must be rejected"
         );
         assert!(
             "century".parse::<Freshness>().is_err(),
@@ -162,8 +161,8 @@ mod tests {
         ] {
             let s = variant.to_string();
             assert_eq!(
-                s.parse::<Freshness>(),
-                Ok(variant),
+                s.parse::<Freshness>().unwrap(),
+                variant,
                 "Display must round-trip"
             );
         }

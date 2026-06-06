@@ -801,7 +801,7 @@ mod tests {
             serde_json::json!({"test": "public"}),
             0,
         )
-        .with_visibility(Visibility::Public);
+        .with_visibility("public");
 
         store.insert(&event).expect("insert");
         let since = chrono::Utc::now() - chrono::Duration::hours(1);
@@ -827,7 +827,7 @@ mod tests {
             serde_json::json!({"test": "shared"}),
             0,
         )
-        .with_visibility(Visibility::Shared);
+        .with_visibility("shared");
 
         store.insert(&event).expect("insert");
         let since = chrono::Utc::now() - chrono::Duration::hours(1);
