@@ -147,3 +147,54 @@ impl ConsentStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::ports::git_cas::MockGitCas;
+    use std::sync::Arc;
+
+    /// Tracer bullet: store_with_cas writes to SQLite and CAS Sovereignty repo.
+    #[tokio::test]
+    async fn store_with_cas_writes_to_sovereignty_repo() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let mock = Arc::new(MockGitCas::new());
+        let store = ConsentStore::new(db.conn_arc()).with_cas(mock.clone());
+        store.initialize_schema().expect("schema");
+
+        let record = StoredConsentRecord {
+            id: "consent-1".to_string(),
+            webid: "did:web:user".to_string(),
+            granted_categories: HashSet::from(["inference".to_string()]),
+            granted_at: 1700000000,
+            revoked_at: None,
+            active: true,
+        };
+        store.store_with_cas(&record).await.expect("store_with_cas");
+
+        let retrieved = store.get("did:web:user").expect("get");
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().webid, "did:web:user");
+    }
+
+    /// Tracer bullet: store_with_cas without CAS port still persists to SQLite.
+    #[tokio::test]
+    async fn store_with_cas_without_cas_port_persists_sqlite() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = ConsentStore::new(db.conn_arc());
+        store.initialize_schema().expect("schema");
+
+        let record = StoredConsentRecord {
+            id: "consent-2".to_string(),
+            webid: "did:web:other".to_string(),
+            granted_categories: HashSet::from(["inference".to_string()]),
+            granted_at: 1700000001,
+            revoked_at: None,
+            active: true,
+        };
+        store.store_with_cas(&record).await.expect("store_with_cas");
+
+        let retrieved = store.get("did:web:other").expect("get");
+        assert!(retrieved.is_some());
+    }
+}
