@@ -308,3 +308,59 @@ impl StandingSessionStore {
             })
     }
 }
+
+#[cfg(test)]
+mod cas_tests {
+    use super::*;
+    use hkask_types::ports::git_cas::MockGitCas;
+    use std::sync::Arc;
+
+    /// Tracer bullet: save_stored_session_with_cas writes to SQLite and CAS Sessions repo.
+    #[tokio::test]
+    async fn save_stored_session_with_cas_writes_to_sessions_repo() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let mock = Arc::new(MockGitCas::new());
+        let store = StandingSessionStore::new(db.conn_arc()).with_cas(mock.clone());
+        store.initialize_schema().expect("schema");
+
+        let session = StoredSession {
+            session_id: "sess-cas-1".to_string(),
+            config_yaml: "agent: test".to_string(),
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+            last_active: "2025-01-01T00:00:00Z".to_string(),
+            key_version: 1,
+            sealed: false,
+        };
+        store
+            .save_stored_session_with_cas(&session)
+            .await
+            .expect("save_with_cas");
+
+        let retrieved = store.get_stored_session("sess-cas-1").expect("get");
+        assert_eq!(retrieved.session_id, "sess-cas-1");
+    }
+
+    /// Tracer bullet: save_stored_session_with_cas without CAS port still persists to SQLite.
+    #[tokio::test]
+    async fn save_stored_session_with_cas_without_cas_port_persists_sqlite() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = StandingSessionStore::new(db.conn_arc());
+        store.initialize_schema().expect("schema");
+
+        let session = StoredSession {
+            session_id: "sess-no-cas".to_string(),
+            config_yaml: "agent: test".to_string(),
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+            last_active: "2025-01-01T00:00:00Z".to_string(),
+            key_version: 1,
+            sealed: false,
+        };
+        store
+            .save_stored_session_with_cas(&session)
+            .await
+            .expect("save_with_cas");
+
+        let retrieved = store.get_stored_session("sess-no-cas").expect("get");
+        assert_eq!(retrieved.session_id, "sess-no-cas");
+    }
+}

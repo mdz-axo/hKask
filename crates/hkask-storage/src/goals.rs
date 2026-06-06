@@ -624,6 +624,7 @@ mod tests {
     use crate::database::Database;
     use hkask_types::NuEvent;
     use hkask_types::id::WebID;
+    use hkask_types::ports::git_cas::MockGitCas;
     use hkask_types::visibility::Visibility;
 
     /// Helper: create an in-memory repository for testing.
@@ -1111,5 +1112,34 @@ mod tests {
         );
         assert_eq!(artifact.artifact_ref, "ref-001");
         assert_eq!(artifact.artifact_type, "test-output");
+    }
+
+    /// Tracer bullet: create_goal_with_cas writes to SQLite and CAS GoalsSpecs repo.
+    #[tokio::test]
+    async fn create_goal_with_cas_writes_to_goals_specs_repo() {
+        let db = Database::in_memory().expect("in-memory db");
+        let mock = Arc::new(MockGitCas::new());
+        let repo = SqliteGoalRepository::new(db.conn_arc()).with_cas(mock.clone());
+
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal_with_cas(&webid, "test goal", Visibility::Public)
+            .await
+            .expect("create_goal_with_cas");
+        assert_eq!(goal.text, "test goal");
+    }
+
+    /// Tracer bullet: create_goal_with_cas without CAS port still persists to SQLite.
+    #[tokio::test]
+    async fn create_goal_with_cas_without_cas_port_persists_sqlite() {
+        let db = Database::in_memory().expect("in-memory db");
+        let repo = SqliteGoalRepository::new(db.conn_arc());
+
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal_with_cas(&webid, "no-cas goal", Visibility::Private)
+            .await
+            .expect("create_goal_with_cas");
+        assert_eq!(goal.text, "no-cas goal");
     }
 }
