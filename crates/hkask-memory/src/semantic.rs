@@ -76,19 +76,19 @@ impl SemanticMemory {
         let triples = self.triple_store.query_by_entity(entity)?;
         let filtered: Vec<Triple> = triples
             .into_iter()
-            .filter(|t| t.visibility == Visibility::Shared)
+            .filter(|t| t.access.visibility == Visibility::Shared)
             .collect();
         Ok(recall_dedup::dedup_triples(filtered))
     }
 
     pub fn store(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
-        if triple.visibility != Visibility::Shared {
+        if triple.access.visibility != Visibility::Shared {
             return Err(SemanticMemoryError::InvalidVisibility(format!(
                 "Semantic memory requires Shared visibility, got {:?}",
-                triple.visibility
+                triple.access.visibility
             )));
         }
-        if triple.perspective.is_some() {
+        if triple.access.perspective.is_some() {
             return Err(SemanticMemoryError::HasPerspective);
         }
         self.triple_store.insert(&triple)?;

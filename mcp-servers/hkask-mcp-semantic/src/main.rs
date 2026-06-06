@@ -155,7 +155,7 @@ impl SemanticServer {
                             "attribute": t.attribute,
                             "value": t.value,
                             "confidence": t.confidence,
-                            "valid_from": t.valid_from.to_rfc3339(),
+                            "valid_from": t.temporal.valid_from.to_rfc3339(),
                         })
                     })
                     .collect();

@@ -11,7 +11,7 @@ use crate::episodic::EpisodicMemory;
 use hkask_types::WebID;
 use hkask_types::capability::tokens::ConsolidationToken;
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_types::ports::ConsolidationRequest;
 
@@ -93,13 +93,13 @@ impl HkaskLoop for EpisodicLoop {
         vec![
             Signal::new(
                 LoopId::Episodic,
-                "storage_usage",
+                SignalMetric::StorageUsage,
                 usage as f64,
                 self.storage_budget as f64,
             ),
             Signal::new(
                 LoopId::Episodic,
-                "decay_rate",
+                SignalMetric::DecayRate,
                 decay_rate,
                 decay_rate, // set-point = current (no deviation expected)
             ),
@@ -114,7 +114,7 @@ impl HkaskLoop for EpisodicLoop {
         let mut actions = Vec::new();
 
         for dev in deviations {
-            if dev.signal.metric == "storage_usage"
+            if dev.signal.metric == SignalMetric::StorageUsage
                 && dev.direction == DeviationDirection::AboveSetPoint
             {
                 let ratio = dev.signal.value / dev.signal.set_point;

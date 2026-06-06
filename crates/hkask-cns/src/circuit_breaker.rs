@@ -12,6 +12,15 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{error, info};
 
+/// Default number of consecutive failures before opening the circuit.
+pub(crate) const DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD: u32 = 5;
+
+/// Default duration (in seconds) to keep the circuit open before attempting half-open.
+pub(crate) const DEFAULT_CIRCUIT_BREAKER_OPEN_TIMEOUT_SECS: u64 = 60;
+
+/// Default number of consecutive successes in half-open state to close the circuit.
+pub(crate) const DEFAULT_CIRCUIT_BREAKER_SUCCESS_THRESHOLD: u32 = 2;
+
 /// Circuit breaker configuration
 #[derive(Debug, Clone)]
 pub(crate) struct CircuitBreakerConfig {
@@ -23,9 +32,9 @@ pub(crate) struct CircuitBreakerConfig {
 impl Default for CircuitBreakerConfig {
     fn default() -> Self {
         Self {
-            failure_threshold: 5,
-            open_timeout: Duration::from_secs(60),
-            success_threshold: 2,
+            failure_threshold: DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+            open_timeout: Duration::from_secs(DEFAULT_CIRCUIT_BREAKER_OPEN_TIMEOUT_SECS),
+            success_threshold: DEFAULT_CIRCUIT_BREAKER_SUCCESS_THRESHOLD,
         }
     }
 }

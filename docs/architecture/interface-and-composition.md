@@ -25,7 +25,7 @@ ddmvss_categories: [interface, composition]
 ```mermaid
 graph LR
     subgraph Surfaces["Interface Surfaces"]
-        MCP_S["MCP Server<br/>19 servers, rmcp"]
+        MCP_S["MCP Server<br/>21 servers, rmcp"]
         CLI_S["CLI Binary<br/>kask, clap v4"]
         API_S["HTTP API<br/>axum, utoipa"]
     end

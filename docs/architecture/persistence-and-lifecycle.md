@@ -224,8 +224,8 @@ sequenceDiagram
     CLI->>CAP: Mint root capability token
     CLI->>CUR: Initialize Curator singleton
     CLI->>CNS: Start CNS runtime
-    CLI->>MCP: Connect 19 MCP servers
-    CLI-->>CLI: System ready
+        CLI->>MCP: Connect 21 MCP servers
+        CLI-->>CLI: System ready
 ```
 
 <!-- DIAGRAM_ALIGNMENT

@@ -21,6 +21,7 @@
 use crate::agent_def::AgentKind;
 use crate::goal::GoalState;
 use crate::id::{BotID, EventID, GoalID, PodID, TemplateID, TripleID, UserID, WebID};
+use crate::visibility::Confidence;
 use crate::visibility::Visibility;
 use rusqlite::ToSql;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, ValueRef};
@@ -134,6 +135,22 @@ impl ToSql for AgentKind {
     }
 }
 
+// ── Confidence (f64 newtype, clamped [0.0, 1.0]) ──────────────────────────
+
+impl FromSql for Confidence {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        let raw: f64 = f64::column_result(value)?;
+        Ok(Confidence::new(raw))
+    }
+}
+
+impl ToSql for Confidence {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        // f64::to_sql borrows from the f64, so we need an owned value.
+        Ok(ToSqlOutput::Owned(self.value().into()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,5 +213,27 @@ mod tests {
     #[test]
     fn invalid_webid_returns_error() {
         assert!(WebID::from_str("not-a-uuid").is_err());
+    }
+
+    #[test]
+    fn confidence_clamps_and_round_trips() {
+        // Within range
+        let c = Confidence::new(0.75);
+        assert!((c.into_inner() - 0.75).abs() < f64::EPSILON);
+
+        // Clamp above 1.0
+        let c = Confidence::new(1.5);
+        assert!((c.into_inner() - 1.0).abs() < f64::EPSILON);
+
+        // Clamp below 0.0
+        let c = Confidence::new(-0.5);
+        assert!((c.into_inner() - 0.0).abs() < f64::EPSILON);
+
+        // From<f64> conversion
+        let c: Confidence = 0.5.into();
+        assert!((c.into_inner() - 0.5).abs() < f64::EPSILON);
+
+        // ToSql compiles
+        let _ = c.to_sql();
     }
 }

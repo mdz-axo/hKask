@@ -87,6 +87,46 @@ pub enum SignalMetric {
     ConnectorLatency,
     /// Communication queue depth (backpressure signal)
     CommunicationQueueDepth,
+    /// Episodic storage usage fraction (Episodic Loop 2a)
+    StorageUsage,
+    /// Confidence decay rate (Episodic Loop 2a)
+    DecayRate,
+    /// Semantic triple count (Semantic Loop 2b)
+    TripleCount,
+    /// Low-confidence triple count (Semantic Loop 2b)
+    LowConfidenceCount,
+    /// Dispatch queue depth (Communication Loop 4)
+    QueueDepth,
+    /// Registered loop count (Communication Loop 4)
+    RegisteredLoops,
+    /// Tool dispatch queue depth (Communication Loop 4)
+    ToolDispatchQueueDepth,
+    /// Circuit breaker state 0.0/1.0 (Inference Loop 1)
+    CircuitBreakerState,
+    /// Inference availability 0.0/1.0 (Inference Loop 1)
+    InferenceAvailable,
+    /// Inference gas remaining fraction (Inference Loop 1)
+    InferenceGasRemaining,
+    /// Model availability 0.0/1.0 (Inference Loop 1)
+    InferenceModelAvailable,
+    /// Algedonic event count (Cybernetics Loop 6)
+    AlgedonicEvents,
+    /// Pending escalation count (Curation Loop 5)
+    PendingEscalations,
+    /// Consolidation candidate count (Episodic → Semantic bridge)
+    ConsolidationCandidates,
+    /// Stale goal count (Curation Loop 5)
+    GoalStaleCount,
+    /// Expired goal count (Curation Loop 5)
+    GoalExpiredCount,
+    /// Spec drift alert count (Cybernetics Loop 6)
+    SpecDriftAlertCount,
+    /// Metacognition variety deficit (Curation Loop 5)
+    MetacognitionVarietyDeficit,
+    /// Metacognition critical alert count (Curation Loop 5)
+    MetacognitionCriticalAlerts,
+    /// Metacognition bot failure count (Curation Loop 5)
+    MetacognitionBotFailures,
 }
 
 impl std::fmt::Display for SignalMetric {
@@ -108,19 +148,26 @@ impl SignalMetric {
             SignalMetric::ErrorRate => "error_rate",
             SignalMetric::ConnectorLatency => "connector_latency",
             SignalMetric::CommunicationQueueDepth => "communication_queue_depth",
-        }
-    }
-}
-
-impl From<&str> for SignalMetric {
-    fn from(s: &str) -> Self {
-        match s {
-            "energy_remaining" => SignalMetric::EnergyRemaining,
-            "variety_deficit" => SignalMetric::VarietyDeficit,
-            "error_rate" => SignalMetric::ErrorRate,
-            "connector_latency" => SignalMetric::ConnectorLatency,
-            "communication_queue_depth" => SignalMetric::CommunicationQueueDepth,
-            _ => SignalMetric::ErrorRate, // unknown metrics default to ErrorRate
+            SignalMetric::StorageUsage => "storage_usage",
+            SignalMetric::DecayRate => "decay_rate",
+            SignalMetric::TripleCount => "triple_count",
+            SignalMetric::LowConfidenceCount => "low_confidence_count",
+            SignalMetric::QueueDepth => "queue_depth",
+            SignalMetric::RegisteredLoops => "registered_loops",
+            SignalMetric::ToolDispatchQueueDepth => "tool_dispatch_queue_depth",
+            SignalMetric::CircuitBreakerState => "circuit_breaker_state",
+            SignalMetric::InferenceAvailable => "inference_available",
+            SignalMetric::InferenceGasRemaining => "inference_gas_remaining",
+            SignalMetric::InferenceModelAvailable => "inference_model_available",
+            SignalMetric::AlgedonicEvents => "algedonic_events",
+            SignalMetric::PendingEscalations => "pending_escalations",
+            SignalMetric::ConsolidationCandidates => "consolidation_candidates",
+            SignalMetric::GoalStaleCount => "goal_stale_count",
+            SignalMetric::GoalExpiredCount => "goal_expired_count",
+            SignalMetric::SpecDriftAlertCount => "spec_drift_alert_count",
+            SignalMetric::MetacognitionVarietyDeficit => "metacognition_variety_deficit",
+            SignalMetric::MetacognitionCriticalAlerts => "metacognition_critical_alerts",
+            SignalMetric::MetacognitionBotFailures => "metacognition_bot_failures",
         }
     }
 }
@@ -136,15 +183,10 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn new(
-        source: LoopId,
-        metric: impl Into<SignalMetric>,
-        value: f64,
-        set_point: f64,
-    ) -> Self {
+    pub fn new(source: LoopId, metric: SignalMetric, value: f64, set_point: f64) -> Self {
         Self {
             source,
-            metric: metric.into(),
+            metric,
             value,
             set_point,
             timestamp: chrono::Utc::now(),

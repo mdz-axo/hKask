@@ -46,22 +46,38 @@ impl HkaskLoop for CyberneticsLoopHandle {
     }
 }
 
-/// Per-loop default tick intervals.
-///
-/// Each loop has a natural cadence based on its regulatory role:
-/// - Inference: fast (500ms) — must respond quickly to circuit breaker changes
-/// - Episodic/Semantic: moderate (5s) — storage changes are infrequent
-/// - Communication: fast (100ms) — message routing should be responsive
-/// - Cybernetics: moderate (2s) — variety counters update at moderate pace
-/// - Curation: slow (10s) — reviews algedonic events, not real-time
+// Per-loop default tick intervals.
+//
+// Each loop has a natural cadence based on its regulatory role.
+// See [`INFERENCE_TICK_MS`], [`EPISODIC_SEMANTIC_TICK_SECS`], [`COMMUNICATION_TICK_MS`],
+// [`CYBERNETICS_TICK_SECS`], and [`CURATION_TICK_SECS`] for the values.
+
+/// Default tick interval for the Inference loop (500ms).
+pub const INFERENCE_TICK_MS: u64 = 500;
+
+/// Default tick interval for the Episodic and Semantic loops (5s).
+pub const EPISODIC_SEMANTIC_TICK_SECS: u64 = 5;
+
+/// Default tick interval for the Communication loop (100ms).
+pub const COMMUNICATION_TICK_MS: u64 = 100;
+
+/// Default tick interval for the Cybernetics loop (2s).
+pub const CYBERNETICS_TICK_SECS: u64 = 2;
+
+/// Default tick interval for the Curation loop (10s).
+pub const CURATION_TICK_SECS: u64 = 10;
+
+/// Fallback tick interval for unregistered loops (1s).
+pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
+
 pub fn default_tick_interval(loop_id: LoopId) -> Duration {
     match loop_id {
-        LoopId::Inference => Duration::from_millis(500),
-        LoopId::Episodic => Duration::from_secs(5),
-        LoopId::Semantic => Duration::from_secs(5),
-        LoopId::Communication => Duration::from_millis(100),
-        LoopId::Cybernetics => Duration::from_secs(2),
-        LoopId::Curation => Duration::from_secs(10),
+        LoopId::Inference => Duration::from_millis(INFERENCE_TICK_MS),
+        LoopId::Episodic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
+        LoopId::Semantic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
+        LoopId::Communication => Duration::from_millis(COMMUNICATION_TICK_MS),
+        LoopId::Cybernetics => Duration::from_secs(CYBERNETICS_TICK_SECS),
+        LoopId::Curation => Duration::from_secs(CURATION_TICK_SECS),
     }
 }
 
@@ -292,7 +308,7 @@ impl LoopSystem {
                 .tick_intervals
                 .get(&LoopId::Communication)
                 .copied()
-                .unwrap_or(Duration::from_millis(100));
+                .unwrap_or(Duration::from_millis(COMMUNICATION_TICK_MS));
             let cancel = self.cancel.clone();
 
             tokio::spawn(async move {
@@ -320,7 +336,7 @@ impl LoopSystem {
                 .tick_intervals
                 .get(&id)
                 .copied()
-                .unwrap_or(Duration::from_secs(1));
+                .unwrap_or(Duration::from_secs(DEFAULT_FALLBACK_TICK_SECS));
 
             tokio::spawn(async move {
                 info!(

@@ -241,10 +241,63 @@ Okapi inference emits CNS spans at key boundary points:
 
 ---
 
+## Vision Inference
+
+### `OkapiInference::generate_vision()`
+
+Sends base64-encoded images along with a text prompt to a vision-capable model via Okapi. This is a direct `impl OkapiInference` method — **not** part of the `InferencePort` trait, which remains text-only.
+
+**Source:** `crates/hkask-templates/src/inference_port.rs` (lines 414–510)
+
+#### Request Schema
+
+The `Message` struct includes an optional `images` field for vision inference:
+
+```json
+{
+  "role": "user",
+  "content": "Extract all text from this document.",
+  "images": ["base64-encoded-image-data"]
+}
+```
+
+- `images` is `Option<Vec<String>>` with `#[serde(skip_serializing_if)]` — text-only requests omit it entirely.
+- Images are base64-encoded file bytes (PDF, PNG, JPEG, etc.).
+- The Okapi chat API receives images inline in the message content.
+
+#### Method Signature
+
+```rust
+pub async fn generate_vision(
+    &self,
+    prompt: &str,
+    images: &[String],          // base64-encoded
+    model_override: Option<&str>,
+    fallback_model: Option<&str>,
+    parameters: &LLMParameters,
+) -> Result<InferenceResult, InferenceError>
+```
+
+#### Usage: OCR Pipeline
+
+The `hkask-mcp-markitdown` server uses `generate_vision` for OCR fallback:
+
+1. `markitdown_convert` extracts text from PDF/MD/HTML/TXT
+2. If text extraction yields < 50 words (likely a scanned PDF), falls back to OCR
+3. OCR sends the file bytes (base64) to a vision model via `generate_vision`
+4. Vision model returns extracted text
+
+**Environment variable:** `HKASK_OCR_MODEL` — must be set to a vision-capable model (e.g., `minicpm-v`). If unset, OCR requests return an error with guidance.
+
+**MCP tool:** `inference_generate_vision` in `hkask-mcp-inference` (prompt, images, model, fallback_model, temperature, max_tokens, caller_id)
+
+---
+
 ## Architecture Notes
 
 - `InferencePort` is the single async inference trait; the synchronous `SyncInferencePort` was removed in v0.21.0-p4.
 - `OkapiInference` supports three construction modes: `new`, `with_retry_config`, `with_circuit_breaker`
+- `OkapiInference::generate_vision()` is a direct impl method (not on the trait) for multimodal/vision inference
 - Token probabilities (`n_probs`) are enabled by default (5 top tokens) for confidence scoring
 - Anti-normative generation patterns use `generate_n` for multi-output selection
 
@@ -261,4 +314,4 @@ Okapi inference emits CNS spans at key boundary points:
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.22.0*

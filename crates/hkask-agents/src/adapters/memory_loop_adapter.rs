@@ -9,8 +9,8 @@ use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{
-    DelegationToken, ExperienceClassification, Visibility, WebID, require_read_access,
-    require_write_access,
+    AccessControl, Confidence, DelegationToken, ExperienceClassification, WebID,
+    require_read_access, require_write_access,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -27,10 +27,10 @@ fn triple_to_json(t: Triple) -> Value {
         "entity": t.entity,
         "attribute": t.attribute,
         "value": t.value,
-        "confidence": t.confidence,
-        "perspective": t.perspective.map(|p| p.to_string()),
-        "visibility": t.visibility.as_str(),
-        "valid_from": t.valid_from.to_rfc3339(),
+        "confidence": t.confidence.value(),
+        "perspective": t.access.perspective.map(|p| p.to_string()),
+        "visibility": t.access.visibility.as_str(),
+        "valid_from": t.temporal.valid_from.to_rfc3339(),
     })
 }
 
@@ -44,10 +44,8 @@ pub struct StorageRequest {
     pub entity: String,
     pub attribute: String,
     pub value: Value,
-    pub producer: WebID,
-    pub confidence: f64,
-    pub visibility: Visibility,
-    pub perspective: Option<WebID>,
+    pub confidence: Confidence,
+    pub access: AccessControl,
 }
 
 impl StorageRequest {
@@ -57,11 +55,11 @@ impl StorageRequest {
             &self.entity,
             &self.attribute,
             self.value.clone(),
-            self.producer,
+            self.access.owner_webid,
         )
-        .with_visibility(self.visibility)
+        .with_visibility(self.access.visibility)
         .with_confidence(self.confidence);
-        if let Some(p) = self.perspective {
+        if let Some(p) = self.access.perspective {
             triple = triple.with_perspective(p);
         }
         triple
@@ -116,7 +114,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         entity: &str,
         attribute: &str,
         value: Value,
-        confidence: f64,
+        confidence: Confidence,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
         require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
@@ -125,10 +123,8 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
             entity: entity.to_string(),
             attribute: attribute.to_string(),
             value,
-            producer: producer_webid,
             confidence,
-            visibility: Visibility::Private,
-            perspective: Some(producer_webid),
+            access: AccessControl::episodic(producer_webid, producer_webid),
         };
         self.episodic.store(req.to_triple())?;
 
@@ -183,17 +179,18 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         attribute: &str,
         value: Value,
         classification: ExperienceClassification,
-        confidence_override: Option<f64>,
+        confidence_override: Option<Confidence>,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
         require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
-        let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
+        let confidence = confidence_override
+            .unwrap_or_else(|| Confidence::new(classification.default_confidence()));
 
         tracing::info!(
             target: "cns.memory.encode",
             classification = %classification,
-            confidence = confidence,
+            confidence = %confidence,
             entity = entity,
             attribute = attribute,
             "Episodic experience encoded (via loop membrane)"
@@ -203,10 +200,8 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
             entity: entity.to_string(),
             attribute: attribute.to_string(),
             value,
-            producer: producer_webid,
             confidence,
-            visibility: Visibility::Private,
-            perspective: Some(producer_webid),
+            access: AccessControl::episodic(producer_webid, producer_webid),
         };
         self.episodic.store(req.to_triple())?;
 
@@ -223,7 +218,7 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         entity: &str,
         attribute: &str,
         value: Value,
-        confidence: f64,
+        confidence: Confidence,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
         require_write_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
@@ -232,10 +227,8 @@ impl SemanticStoragePort for MemoryLoopAdapter {
             entity: entity.to_string(),
             attribute: attribute.to_string(),
             value,
-            producer: producer_webid,
             confidence,
-            visibility: Visibility::Shared,
-            perspective: None,
+            access: AccessControl::semantic(producer_webid),
         };
         self.semantic.store(req.to_triple())?;
 

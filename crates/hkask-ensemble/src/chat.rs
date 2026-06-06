@@ -44,15 +44,28 @@ pub struct GasBudgetConfig {
     pub curator_allocation: u64,
 }
 
+impl GasBudgetConfig {
+    /// Default session capacity (total gas units per session).
+    pub const DEFAULT_SESSION_CAP: u64 = 150_000;
+    /// Default gas cost per message.
+    pub const DEFAULT_PER_MESSAGE_COST: u64 = 100;
+    /// Default alert threshold (70% consumed).
+    pub const DEFAULT_ALERT_THRESHOLD: f64 = 0.7;
+    /// Default per-bot gas allocation.
+    pub const DEFAULT_PER_BOT_ALLOCATION: u64 = 15_000;
+    /// Default curator gas allocation.
+    pub const DEFAULT_CURATOR_ALLOCATION: u64 = 25_000;
+}
+
 impl Default for GasBudgetConfig {
     fn default() -> Self {
         Self {
-            session_cap: 150000,
-            per_message_cost: 100,
-            alert_threshold: 0.7,
+            session_cap: Self::DEFAULT_SESSION_CAP,
+            per_message_cost: Self::DEFAULT_PER_MESSAGE_COST,
+            alert_threshold: Self::DEFAULT_ALERT_THRESHOLD,
             hard_limit: true,
-            per_bot_allocation: 15000,
-            curator_allocation: 25000,
+            per_bot_allocation: Self::DEFAULT_PER_BOT_ALLOCATION,
+            curator_allocation: Self::DEFAULT_CURATOR_ALLOCATION,
         }
     }
 }
@@ -64,15 +77,15 @@ impl GasBudgetConfig {
             session_cap: gas
                 .get("session_cap")
                 .and_then(|v| v.as_u64())
-                .unwrap_or(150000),
+                .unwrap_or(Self::DEFAULT_SESSION_CAP),
             per_message_cost: gas
                 .get("per_message_cost")
                 .and_then(|v| v.as_u64())
-                .unwrap_or(100),
+                .unwrap_or(Self::DEFAULT_PER_MESSAGE_COST),
             alert_threshold: gas
                 .get("alert_threshold")
                 .and_then(|v| v.as_f64())
-                .unwrap_or(0.7),
+                .unwrap_or(Self::DEFAULT_ALERT_THRESHOLD),
             hard_limit: gas
                 .get("hard_limit")
                 .and_then(|v| v.as_bool())
@@ -80,11 +93,11 @@ impl GasBudgetConfig {
             per_bot_allocation: gas
                 .get("per_bot_allocation")
                 .and_then(|v| v.as_u64())
-                .unwrap_or(15000),
+                .unwrap_or(Self::DEFAULT_PER_BOT_ALLOCATION),
             curator_allocation: gas
                 .get("curator_allocation")
                 .and_then(|v| v.as_u64())
-                .unwrap_or(25000),
+                .unwrap_or(Self::DEFAULT_CURATOR_ALLOCATION),
         }
     }
 

@@ -7,7 +7,6 @@
 //! - 2a.4 Episodic Storage Budget (GUARD) — per-agent storage limit, mark oldest for consolidation
 //! - 2a.5 Episodic Context Assembly (FILTER+ADAPT) — temporal-ordered, recency-weighted, budget-constrained
 
-use crate::bayesian;
 use crate::recall_dedup;
 use chrono::Utc;
 use hkask_storage::{Triple, TripleError, TripleStore};
@@ -40,7 +39,7 @@ pub(crate) const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
 ///
 /// Provides the following subloops:
 /// - **Confidence decay** (2a.3): Decays confidence based on time since
-///   storage using `bayesian::decay()`. Applied at recall time, not persisted.
+///   storage using `Confidence::decay()`. Applied at recall time, not persisted.
 /// - **Temporal attention** (2a.2): Weights recalled triples by recency.
 /// - **Storage budget** (2a.4): Per-agent storage limit with consolidation
 ///   candidate identification (uses decayed confidence for prioritization).
@@ -65,13 +64,13 @@ impl EpisodicMemory {
 
     /// Store an episodic triple (private by default, with perspective).
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
-        if triple.visibility == Visibility::Shared {
+        if triple.access.visibility == Visibility::Shared {
             return Err(EpisodicMemoryError::InvalidVisibility(
                 "Episodic memory is sovereign — Shared triples belong in semantic memory"
                     .to_string(),
             ));
         }
-        if triple.perspective.is_none() {
+        if triple.access.perspective.is_none() {
             return Err(EpisodicMemoryError::MissingPerspective);
         }
         self.triple_store.insert(&triple)?;
@@ -84,7 +83,7 @@ impl EpisodicMemory {
     /// confidence decay, and temporal attention applied (2a.3 + 2a.2).
     ///
     /// Decays confidence based on time since `valid_from` using
-    /// `bayesian::decay()`, then deduplicates by EAV hash.
+    /// `Confidence::decay()`, then deduplicates by EAV hash.
     ///
     /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     pub fn query_for_deduped(
@@ -96,18 +95,18 @@ impl EpisodicMemory {
         let now = Utc::now();
         let mut filtered: Vec<Triple> = triples
             .into_iter()
-            .filter(|t| t.perspective == Some(perspective))
+            .filter(|t| t.access.perspective == Some(perspective))
             .map(|mut t| {
                 // Apply confidence decay (2a.3): e^(-λt)
-                let time_since = (now - t.valid_from).num_seconds() as f64;
+                let time_since = (now - t.temporal.valid_from).num_seconds() as f64;
                 let original_confidence = t.confidence;
-                t.confidence = bayesian::decay(t.confidence, self.decay_rate, time_since);
+                t.confidence = t.confidence.decay(self.decay_rate, time_since);
                 tracing::debug!(
                     target: "cns.memory.decay",
                     entity = %t.entity,
                     attribute = %t.attribute,
-                    original_confidence = original_confidence,
-                    decayed_confidence = t.confidence,
+                    original_confidence = %original_confidence,
+                    decayed_confidence = %t.confidence,
                     time_since_secs = time_since,
                     decay_rate = self.decay_rate,
                     "Episodic confidence decayed"
@@ -117,7 +116,7 @@ impl EpisodicMemory {
             .collect();
 
         // Sort by recency (most recent first) — temporal attention (2a.2)
-        filtered.sort_by(|a, b| b.valid_from.cmp(&a.valid_from));
+        filtered.sort_by(|a, b| b.temporal.valid_from.cmp(&a.temporal.valid_from));
 
         Ok(recall_dedup::dedup_triples(filtered))
     }
@@ -152,20 +151,24 @@ impl EpisodicMemory {
 
         // Sort by decayed confidence ascending, then by valid_from ascending (oldest first)
         triples.sort_by(|a, b| {
-            let a_effective = bayesian::decay(
-                a.confidence,
-                self.decay_rate,
-                (now - a.valid_from).num_seconds() as f64,
-            );
-            let b_effective = bayesian::decay(
-                b.confidence,
-                self.decay_rate,
-                (now - b.valid_from).num_seconds() as f64,
-            );
+            let a_effective = a
+                .confidence
+                .decay(
+                    self.decay_rate,
+                    (now - a.temporal.valid_from).num_seconds() as f64,
+                )
+                .value();
+            let b_effective = b
+                .confidence
+                .decay(
+                    self.decay_rate,
+                    (now - b.temporal.valid_from).num_seconds() as f64,
+                )
+                .value();
             a_effective
                 .partial_cmp(&b_effective)
                 .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.valid_from.cmp(&b.valid_from))
+                .then_with(|| a.temporal.valid_from.cmp(&b.temporal.valid_from))
         });
 
         triples.truncate(limit);

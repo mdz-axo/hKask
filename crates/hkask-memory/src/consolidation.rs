@@ -87,12 +87,9 @@ impl ConsolidationBridge {
                 entity: triple.entity.clone(),
                 attribute: triple.attribute.clone(),
                 value: triple.value.clone(),
-                valid_from: triple.valid_from,
-                valid_to: triple.valid_to,
+                temporal: triple.temporal.clone(),
                 confidence: triple.confidence,
-                perspective: None,
-                visibility: hkask_types::Visibility::Shared,
-                owner_webid: triple.owner_webid,
+                access: triple.access.to_semantic(),
             };
 
             // 2. Store in semantic memory
@@ -116,7 +113,7 @@ impl ConsolidationBridge {
                         target: "cns.consolidation",
                         entity = %triple.entity,
                         attribute = %triple.attribute,
-                        inherited_confidence = triple.confidence,
+                        inherited_confidence = %triple.confidence,
                         "Triple consolidated into semantic memory, episodic source expired"
                     );
                 }

@@ -29,6 +29,34 @@ pub const DEFAULT_THRESHOLD: u64 = 100;
 /// Default expected variety per domain
 pub(crate) const DEFAULT_EXPECTED_VARIETY: u64 = 10;
 
+/// R̄ threshold for Critical severity in algedonic escalation.
+///
+/// R̄ ≥ this value → AlertSeverity::Critical (high confidence escalation needed).
+const ALGEDONIC_CRITICAL_R_BAR: f64 = 0.8;
+
+/// R̄ threshold for Warning severity in algedonic escalation.
+///
+/// R̄ > this value and < Critical → AlertSeverity::Warning (transition zone).
+const ALGEDONIC_WARNING_R_BAR: f64 = 0.3;
+
+/// Allosteric gate base L parameter (low skepticism — sigmoid activates within 1-5× threshold).
+const ALGEDONIC_GATE_BASE_L: f64 = 10.0;
+
+/// Allosteric gate cooperativity parameter (moderate).
+const ALGEDONIC_GATE_C: f64 = 0.1;
+
+/// Allosteric gate number of evidence channels (variety, energy, error rate).
+const ALGEDONIC_GATE_N: usize = 3;
+
+/// Allosteric gate MWC threshold (R̄ at which escalation becomes likely).
+const ALGEDONIC_GATE_THRESHOLD: f64 = 0.5;
+
+/// Allosteric gate relaxation time in seconds (gates don't jump instantly).
+const ALGEDONIC_GATE_TAU_SECS: u64 = 5;
+
+/// Allosteric gate hysteresis (resists rapid state changes).
+const ALGEDONIC_GATE_HYSTERESIS: f64 = 1.0;
+
 /// Alert severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlertSeverity {
@@ -102,9 +130,9 @@ impl RuntimeAlert {
         let r_bar = gate.r_bar_eq();
         let expected = gate.decide();
 
-        let severity = if expected >= 0.8 {
+        let severity = if expected >= ALGEDONIC_CRITICAL_R_BAR {
             AlertSeverity::Critical
-        } else if expected > 0.3 {
+        } else if expected > ALGEDONIC_WARNING_R_BAR {
             AlertSeverity::Warning
         } else {
             AlertSeverity::Info
@@ -155,12 +183,12 @@ impl RuntimeAlert {
 fn default_algedonic_gate() -> AllostericGate {
     AllostericGate::new(&AllostericGateConfig {
         name: "algedonic".to_string(),
-        base_l: 10.0,
-        c: 0.1,
-        n: 3,
-        threshold: 0.5,
-        tau: Duration::from_secs(5),
-        hysteresis: 1.0,
+        base_l: ALGEDONIC_GATE_BASE_L,
+        c: ALGEDONIC_GATE_C,
+        n: ALGEDONIC_GATE_N,
+        threshold: ALGEDONIC_GATE_THRESHOLD,
+        tau: Duration::from_secs(ALGEDONIC_GATE_TAU_SECS),
+        hysteresis: ALGEDONIC_GATE_HYSTERESIS,
     })
 }
 

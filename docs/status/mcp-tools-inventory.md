@@ -10,11 +10,11 @@ ddmvss_categories: [capability, interface]
 
 # MCP Tools Inventory
 
-**Complete catalog of all MCP tools across all 19 hKask MCP servers.**
+**Complete catalog of all MCP tools across all 21 hKask MCP servers.**
 
 **Version:** hKask v0.22.0
-**Total servers:** 19
-**Total tools:** 117
+**Total servers:** 21
+**Total tools:** 123
 
 ---
 
@@ -40,7 +40,9 @@ ddmvss_categories: [capability, interface]
 | 16 | `hkask-mcp-web` | 5 | 50 | Web search (SSRF-protected) |
 | 17 | `hkask-mcp-telnyx` | 7 | 50 | SMS/voice (Telnyx) |
 | 18 | `hkask-mcp-fal` | 9 | 100 | Media generation (FAL) |
-| 19 | `hkask-mcp-inference` | 3 | 0* | Okapi LLM inference |
+| 19 | `hkask-mcp-inference` | 4 | 0* | Okapi LLM inference |
+| 20 | `hkask-mcp-doc-knowledge` | 4 | 5 | Document parsing and chunking |
+| 21 | `hkask-mcp-markitdown` | 3 | 10 | Document format conversion and OCR |
 
 \* Inference gas cost is overridden by `InferenceGasEstimator` (token-based).
 
@@ -284,15 +286,43 @@ These tools call external services — rate limits, API keys, and costs apply.
 
 ## Inference (Special Gas Model)
 
-### `hkask-mcp-inference` — Okapi LLM (3 tools)
+### `hkask-mcp-inference` — Okapi LLM (4 tools)
 
 | Tool | Description |
 |------|-------------|
 | `inference_generate` | Generate text using Okapi-backed LLM inference. Model selection with automatic failover. |
+| `inference_generate_vision` | Generate text from images (vision/multimodal) via Okapi. Requires a vision-capable model. |
 | `inference_metrics` | Get current inference metrics (requests, tokens, errors, failovers) |
 | `inference_models` | List available model tiers and their configurations |
 
 **Gas model:** Overridden by `InferenceGasEstimator` — cost is token-based, not flat-rate. Table entry is `0` as sentinel.
+
+---
+
+## Document Processing
+
+### `hkask-mcp-doc-knowledge` — Document Parsing & Chunking (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `doc_knowledge_detect_format` | Detect document format from path/extension |
+| `doc_knowledge_parse` | Parse document into IR with multi-tier chunking |
+| `doc_knowledge_chunk` | Chunk text into segments (coarse/medium/fine) |
+| `doc_knowledge_extract_html` | Extract text from HTML, removing script/style tags |
+
+**Credential:** `HKASK_SPEC_DB_PATH` + `HKASK_DB_PASSPHRASE` (SQLCipher)
+
+---
+
+### `hkask-mcp-markitdown` — Document Conversion & OCR (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `markitdown_convert` | Extract text from document with automatic OCR fallback for scanned PDFs |
+| `markitdown_detect_format` | Detect document format from path/extension |
+| `markitdown_ocr` | Explicitly OCR a document using local vision model (requires `HKASK_OCR_MODEL`) |
+
+**Credential:** `HKASK_OCR_MODEL` (optional, required for OCR), `OKAPI_BASE_URL` (optional, default `http://127.0.0.1:11435`)
 
 ---
 
@@ -328,9 +358,11 @@ Servers ordered by gas cost (cheapest to most expensive). Tool count on Y axis.
 | `hkask-mcp-fal` | `HKASK_FAL_API_KEY` | Fal.ai API key |
 | `hkask-mcp-web` | `HKASK_WEB_*` | Web search provider keys (optional per provider) |
 | `hkask-mcp-spec` | `HKASK_SPEC_DB_PATH` + `HKASK_DB_PASSPHRASE` | SQLCipher database path and passphrase |
+| `hkask-mcp-doc-knowledge` | `HKASK_SPEC_DB_PATH` + `HKASK_DB_PASSPHRASE` | SQLCipher database path and passphrase |
+| `hkask-mcp-markitdown` | `HKASK_OCR_MODEL` (optional) | Vision model for OCR; `OKAPI_BASE_URL` (optional) |
 
-Servers without credential requirements: `ocap`, `cns`, `keystore`, `registry`, `ensemble`, `episodic`, `semantic`, `goal`, `git`, `replicant`, `condenser`, `rss-reader`, `inference`.
+Servers without credential requirements: `ocap`, `cns`, `keystore`, `registry`, `ensemble`, `episodic`, `semantic`, `goal`, `git`, `replicant`, `condenser`, `rss-reader`, `inference`, `doc-knowledge` (uses spec DB passphrase if SQLCipher), `markitdown` (optional OCR model).
 
 ---
 
-*ℏKask MCP Tools Inventory — 19 servers, 117 tools — v0.22.0*
+*ℏKask MCP Tools Inventory — 21 servers, 123 tools — v0.22.0*

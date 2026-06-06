@@ -6,6 +6,9 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+/// Default variety counter window duration (1 minute).
+pub(crate) const DEFAULT_VARIETY_WINDOW_SECS: u64 = 60;
+
 /// Variety counter for tracking state diversity in a domain
 #[derive(Debug, Clone)]
 pub(crate) struct VarietyTracker {
@@ -20,7 +23,7 @@ impl VarietyTracker {
         Self {
             counts: HashMap::new(),
             window_start: Instant::now(),
-            window_duration: Duration::from_secs(60),
+            window_duration: Duration::from_secs(DEFAULT_VARIETY_WINDOW_SECS),
         }
     }
 

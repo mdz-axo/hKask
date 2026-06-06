@@ -28,6 +28,122 @@ fn tokens_to_words(tokens: usize) -> usize {
     ((tokens as f64) * 1.33) as usize
 }
 
+/// Strip HTML tags and extract visible text content.
+///
+/// Removes script/style elements entirely, preserves word boundaries
+/// for block-level elements (p, div, h1-h6, li, etc.), and collapses
+/// consecutive whitespace.
+fn strip_html(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let mut in_tag = false;
+    let mut in_strip_tag = false;
+    let chars: Vec<char> = html.chars().collect();
+    let len = chars.len();
+
+    /// Block-level tags that should insert a space when stripped.
+    const BLOCK_TAGS: &[&str] = &[
+        "p",
+        "div",
+        "br",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "li",
+        "tr",
+        "table",
+        "blockquote",
+        "pre",
+        "section",
+        "article",
+        "header",
+        "footer",
+        "main",
+        "aside",
+        "nav",
+        "figure",
+    ];
+
+    let mut i = 0;
+    while i < len {
+        let ch = chars[i];
+
+        if ch == '<' {
+            let remaining: String = chars[i..].iter().collect();
+            let lower_remaining = remaining.to_lowercase();
+
+            // Check for closing script/style tags
+            if lower_remaining.starts_with("</script") || lower_remaining.starts_with("</style") {
+                if in_strip_tag
+                    && !result.is_empty()
+                    && !result.chars().last().is_none_or(|c| c.is_whitespace())
+                {
+                    result.push(' ');
+                }
+                in_strip_tag = false;
+                while i < len && chars[i] != '>' {
+                    i += 1;
+                }
+                if i < len {
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Check for opening script/style tags
+            if lower_remaining.starts_with("<script") || lower_remaining.starts_with("<style") {
+                if !result.is_empty() && !result.chars().last().is_none_or(|c| c.is_whitespace()) {
+                    result.push(' ');
+                }
+                in_strip_tag = true;
+                while i < len && chars[i] != '>' {
+                    i += 1;
+                }
+                if i < len {
+                    i += 1;
+                }
+                continue;
+            }
+
+            // For regular tags, check if it's a block-level tag
+            let tag_name = remaining
+                .trim_start_matches('<')
+                .split(|c: char| c.is_whitespace() || c == '>' || c == '/')
+                .next()
+                .unwrap_or("")
+                .to_lowercase();
+            let is_block = BLOCK_TAGS.contains(&tag_name.as_str());
+
+            if is_block
+                && !result.is_empty()
+                && !result.chars().last().is_none_or(|c| c.is_whitespace())
+            {
+                result.push(' ');
+            }
+
+            in_tag = true;
+            i += 1;
+            continue;
+        }
+
+        if ch == '>' {
+            in_tag = false;
+            i += 1;
+            continue;
+        }
+
+        if !in_tag && !in_strip_tag {
+            result.push(ch);
+        }
+
+        i += 1;
+    }
+
+    result.split_whitespace().collect::<Vec<&str>>().join(" ")
+}
+
 // ── Request structs ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -221,19 +337,28 @@ impl DocKnowledgeServer {
             .unwrap_or("")
             .to_lowercase();
 
-        let (format, supported) = match ext.as_str() {
-            "md" | "markdown" => ("markdown", true),
-            "html" | "htm" => ("html", true),
-            "txt" => ("plain", true),
-            "pdf" => ("pdf", false),
-            _ => ("unknown", false),
+        let (format, supported, note) = match ext.as_str() {
+            "md" | "markdown" => ("markdown", true, None),
+            "html" | "htm" => ("html", true, None),
+            "txt" => ("plain", true, None),
+            "pdf" => (
+                "pdf",
+                false,
+                Some("Use markitdown_convert for PDF text extraction + OCR"),
+            ),
+            _ => ("unknown", false, None),
         };
 
-        span.ok_json(json!({
+        let mut result = json!({
             "format": format,
             "path": path,
             "supported": supported,
-        }))
+        });
+        if let Some(note) = note {
+            result["note"] = json!(note);
+        }
+
+        span.ok_json(result)
     }
 
     #[tool(description = "Extract text and image refs from markdown")]
@@ -295,7 +420,9 @@ impl DocKnowledgeServer {
         }))
     }
 
-    #[tool(description = "Extract text from HTML")]
+    #[tool(
+        description = "Extract text from HTML. Removes script/style tags and preserves word boundaries for block-level elements."
+    )]
     async fn doc_knowledge_extract_html(
         &self,
         Parameters(ExtractHtmlRequest { content, label }): Parameters<ExtractHtmlRequest>,
@@ -309,20 +436,7 @@ impl DocKnowledgeServer {
             );
         }
 
-        // Simple state machine to strip HTML tags
-        let mut result = String::with_capacity(content.len());
-        let mut in_tag = false;
-        for ch in content.chars() {
-            match ch {
-                '<' => in_tag = true,
-                '>' => in_tag = false,
-                _ if !in_tag => result.push(ch),
-                _ => {}
-            }
-        }
-
-        // Collapse multiple whitespace
-        let text = result.split_whitespace().collect::<Vec<&str>>().join(" ");
+        let text = strip_html(&content);
 
         span.ok_json(json!({
             "text": text,
@@ -360,9 +474,22 @@ impl DocKnowledgeServer {
             "md" | "markdown" => ("markdown", true),
             "html" | "htm" => ("html", true),
             "txt" => ("plain", true),
-            "pdf" => ("pdf", false),
+            "pdf" => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!(
+                        "PDF is not supported by doc_knowledge_parse. Use markitdown_convert for PDF text extraction (with OCR fallback for scanned PDFs), then pass the extracted text to doc_knowledge_chunk. Path: '{}'",
+                        path
+                    ))
+                    .to_json_string(),
+                );
+                // Compiler needs a value for match type; unreachable after return
+            }
             _ => ("unknown", false),
         };
+
+        // Suppress unused-mut-requirement: pdf returns early, supported is always true here
+        let _ = supported;
 
         if !supported {
             return span.error(
@@ -399,19 +526,7 @@ impl DocKnowledgeServer {
                     content
                 }
             }
-            "html" => {
-                let mut result = String::with_capacity(content.len());
-                let mut in_tag = false;
-                for ch in content.chars() {
-                    match ch {
-                        '<' => in_tag = true,
-                        '>' => in_tag = false,
-                        _ if !in_tag => result.push(ch),
-                        _ => {}
-                    }
-                }
-                result.split_whitespace().collect::<Vec<&str>>().join(" ")
-            }
+            "html" => strip_html(&content),
             _ => content,
         };
 

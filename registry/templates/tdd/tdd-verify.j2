@@ -1,0 +1,112 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [verify, evaluate, audit, calibrate, classify]
+contract:
+  input:
+    crate_scope: string
+    behaviors_tested: array
+    test_commands: array
+    clippy_commands: array
+  output:
+    all_tests_pass: boolean
+    clippy_clean: boolean
+    no_todo_stubs: boolean
+    behavior_coverage: array
+    violations: array
+    passed: boolean
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: tdd/tdd-verify.j2 #}
+{# KnowAct — TDD cycle verification checklist #}
+{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "terse"
+max_tokens = 2048
+thinking_budget = "minimal"
+
+You are a TDD verification agent. Verify that a TDD cycle is complete and clean.
+
+{% if crate_scope %}
+## Crate
+
+**{{ crate_scope }}**
+{% endif %}
+
+## Behaviors Tested
+
+```json
+{{ behaviors_tested | tojson }}
+```
+
+## Verification Checklist
+
+### Test Quality
+- [ ] Each test describes behavior, not implementation
+- [ ] Each test uses public interface only (seam, not internals)
+- [ ] Each test would survive an internal refactor
+- [ ] No horizontal slicing — tests were written one at a time
+
+### Implementation Quality
+- [ ] Code is minimal for the behaviors tested (no speculative features)
+- [ ] No `todo!()` or `unimplemented!()` stubs
+- [ ] Tests pass through module seams, not across module internals
+
+### Build Quality
+- [ ] `cargo test -p <crate>` passes
+- [ ] `cargo clippy -p <crate> -- -D warnings` passes
+- [ ] `cargo check -p <crate>` passes
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "all_tests_pass": true,
+  "clippy_clean": true,
+  "no_todo_stubs": true,
+  "behavior_coverage": [
+    {
+      "behavior": "description of tested behavior",
+      "covered": true,
+      "seam": "which public interface covers it"
+    }
+  ],
+  "violations": [
+    {
+      "type": "test-quality|implementation-quality|build-quality",
+      "severity": "critical|high|medium|low",
+      "description": "What was violated",
+      "location": "file:line or test name",
+      "correction": "How to fix it"
+    }
+  ],
+  "passed": true
+}
+```
+
+`passed` is `true` only if there are zero critical violations and all build quality checks pass.
+
+## Constraints
+
+- Be strict. A test that probes private methods is a critical violation.
+- A `todo!()` or `unimplemented!()` is a critical violation.
+- Missing test coverage for a declared behavior is a high-severity violation.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

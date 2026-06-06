@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
-const FALLBACK_MODEL: &str = "ollama/llama-3.1-8b-instruct";
+const FALLBACK_MODEL: &str = "qwen3.5";
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateRequest {
@@ -43,7 +43,7 @@ pub struct GenerateRequest {
 }
 
 fn default_model() -> String {
-    "ollama/llama-3.1-8b-instruct".to_string()
+    "qwen3.5".to_string()
 }
 
 fn default_temperature() -> f32 {
@@ -101,11 +101,7 @@ impl InferenceServer {
         Ok(Self {
             webid,
             metrics: Arc::new(InferenceMetrics::default()),
-            active_models: Arc::new(RwLock::new(vec![
-                "ollama/llama-3.1-8b-instruct".to_string(),
-                "ollama/llama-3.1-70b-instruct".to_string(),
-                "ollama/codellama-34b".to_string(),
-            ])),
+            active_models: Arc::new(RwLock::new(vec!["qwen3.5".to_string()])),
         })
     }
 

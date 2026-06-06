@@ -45,6 +45,9 @@ impl From<GasCost> for u64 {
     }
 }
 
+/// Default gas budget alert threshold — alert when 80% of gas is consumed.
+pub const DEFAULT_GAS_ALERT_THRESHOLD: f64 = 0.8;
+
 /// Threshold for R̄ (confidence) in the curation gate's transition zone.
 ///
 /// Newtype wrapper around `f64` that prevents accidental confusion with
@@ -132,12 +135,12 @@ pub struct GasBudget {
 impl GasBudget {
     /// Create a new gas budget with the given cap.
     ///
-    /// Defaults: replenish_rate = cap / 10, alert_threshold = 0.8, hard_limit = true.
+    /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_GAS_ALERT_THRESHOLD, hard_limit = true.
     pub fn new(cap: u64) -> Self {
         Self {
             remaining: cap,
             replenish_rate: cap / 10,
-            alert_threshold: 0.8,
+            alert_threshold: DEFAULT_GAS_ALERT_THRESHOLD,
             hard_limit: true,
             reserved: 0,
             priority: 1.0,

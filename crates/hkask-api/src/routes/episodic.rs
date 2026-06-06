@@ -12,6 +12,7 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
+use hkask_types::Confidence;
 
 /// Create episodic memory router
 pub fn episodic_router() -> Router<ApiState> {
@@ -105,7 +106,7 @@ async fn store_episode(
         });
     }
 
-    let confidence = req.confidence.unwrap_or(1.0);
+    let confidence = Confidence::new(req.confidence.unwrap_or(1.0));
     state
         .episodic_storage
         .store_episodic(
@@ -133,7 +134,7 @@ async fn store_episode(
         target: "cns.memory.episodic",
         entity = %req.entity,
         attribute = %req.attribute,
-        confidence = confidence,
+        confidence = %confidence,
         "Episodic triple stored via API (through port membrane)"
     );
 

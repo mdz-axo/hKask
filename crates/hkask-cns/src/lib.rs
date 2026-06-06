@@ -15,6 +15,7 @@ pub(crate) mod inference_estimator; // Loop 6 → Inference gas estimation
 pub(crate) mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
 pub mod prompt_decomposition; // CNS variety sensing — prompt analysis for REPL
 pub mod runtime; // Loop 6 — runtime
+pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod table_gas_estimator; // Per-server gas cost table
 
 pub(crate) mod unified_tracker; // Loop 6 — variety tracking
@@ -24,10 +25,19 @@ pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_gas_estimator::CompositeGasEstimator;
-pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig, load_set_points};
-pub use energy::{AgentGasStatus, GasBudget, GasCost, GasError, QueueDepth, RBarThreshold};
+pub use cybernetics_loop::CyberneticsLoop;
+pub use energy::{
+    AgentGasStatus, DEFAULT_GAS_ALERT_THRESHOLD, GasBudget, GasCost, GasError, QueueDepth,
+    RBarThreshold,
+};
 pub use governed_tool::{GasEstimator, GovernedTool};
 pub use runtime::CnsRuntime;
+pub use set_points::{
+    CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
+    DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ERROR_RATE_MAX, DEFAULT_GAS_MIN_REMAINING_RATIO,
+    DEFAULT_MAX_ITERATIONS, DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig,
+    load_curation_thresholds, load_set_points,
+};
 
 // Re-export types moved to hkask-types for backward compatibility
 pub use hkask_types::cns::{CircuitState, CnsHealth};

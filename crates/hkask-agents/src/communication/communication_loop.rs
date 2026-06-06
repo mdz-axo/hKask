@@ -11,7 +11,7 @@
 
 use crate::communication::dispatch::MessageDispatch;
 use hkask_types::loops::dispatch::{DispatchTarget, LoopMessage, WorkerKind};
-use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
+use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
@@ -111,13 +111,13 @@ impl HkaskLoop for CommunicationLoop {
         vec![
             Signal::new(
                 LoopId::Communication,
-                "queue_depth",
+                SignalMetric::QueueDepth,
                 queue_depth as f64,
                 100.0, // set-point: 100 messages before considered overloaded
             ),
             Signal::new(
                 LoopId::Communication,
-                "registered_loops",
+                SignalMetric::RegisteredLoops,
                 registered_loops as f64,
                 6.0, // set-point: all 6 loops types should be registered
             ),

@@ -30,11 +30,15 @@
 use crate::dampener::Dampener;
 use crate::energy::{AgentGasStatus, GasBudget, GasError};
 use crate::runtime::CnsRuntime;
+use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
+
+#[cfg(test)]
+use crate::set_points::{CurationThresholdConfig, SetPointsConfig};
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
     ActionType, CuratorDirective, Deviation, DeviationDirection, DispatchTarget, HkaskLoop,
-    LoopAction, LoopId, LoopMessage, LoopPayload, Signal,
+    LoopAction, LoopId, LoopMessage, LoopPayload, Signal, SignalMetric,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::collections::HashMap;
@@ -54,176 +58,6 @@ struct OverrideRecord {
     issued_at: chrono::DateTime<chrono::Utc>,
     /// TTL in seconds (0 = no expiry, must be explicitly cleared)
     ttl_secs: u64,
-}
-
-/// Homeostatic set-points for the Cybernetics Loop.
-///
-/// These define the reference values against which sensed signals
-/// are compared. When a signal deviates beyond its set-point,
-/// the loop produces an efferent action.
-#[derive(Debug, Clone)]
-pub struct SetPoints {
-    /// Minimum energy budget remaining ratio (0.0-1.0). Default: 0.2 (20% remaining)
-    pub gas_min_remaining: f64,
-    /// Maximum variety deficit before escalation. Default: 100
-    pub variety_max_deficit: f64,
-    /// Maximum error rate (0.0-1.0). Default: 0.3 (30% errors)
-    pub error_rate_max: f64,
-    /// Maximum connector latency in seconds. Default: 30.0
-    pub connector_latency_max_secs: f64,
-    /// Communication queue depth threshold for backpressure regulation.
-    /// When the Communication Loop's queue depth exceeds this value,
-    /// CyberneticsLoop produces a Throttle(Communication) action.
-    /// Default: 100 messages
-    pub communication_backpressure_threshold: f64,
-}
-
-/// Configurable thresholds for Curation decisions (spec coherence, drift).
-/// Loaded from YAML via `HKASK_CNS_CONFIG` (same pattern as `SetPointsConfig`).
-///
-/// Type definition lives in `hkask_types::curation`; YAML loading methods
-/// relocated to `hkask_cli::curation_config` (I/O is not Cybernetics).
-pub use hkask_types::curation::CurationThresholdConfig;
-
-/// YAML-configurable set-points. Fields are Optional so partial configs work.
-/// Missing fields fall back to the `SetPoints::default()` values.
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct SetPointsConfig {
-    pub gas_min_remaining: Option<f64>,
-    pub variety_max_deficit: Option<f64>,
-    pub error_rate_max: Option<f64>,
-    pub connector_latency_max_secs: Option<f64>,
-    pub communication_backpressure_threshold: Option<f64>,
-}
-
-impl SetPointsConfig {
-    /// Load set-points from a YAML string.
-    pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(yaml)
-    }
-
-    /// Load set-points from a YAML file.
-    pub fn load_from_file(path: &str) -> Result<Self, std::io::Error> {
-        let contents = std::fs::read_to_string(path)?;
-        Self::from_yaml(&contents)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-    }
-}
-
-impl Default for SetPoints {
-    fn default() -> Self {
-        Self {
-            gas_min_remaining: 0.2,
-            variety_max_deficit: 100.0,
-            error_rate_max: 0.3,
-            connector_latency_max_secs: 30.0,
-            communication_backpressure_threshold: 100.0,
-        }
-    }
-}
-
-/// Load set-points from `HKASK_CNS_CONFIG` env var, falling back to defaults.
-///
-/// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
-/// If unset or the file doesn't exist, returns default set-points.
-pub fn load_set_points() -> SetPoints {
-    match std::env::var("HKASK_CNS_CONFIG") {
-        Ok(path) => match SetPointsConfig::load_from_file(&path) {
-            Ok(config) => {
-                tracing::info!(
-                    target: "cns.config",
-                    path = %path,
-                    "Loaded CNS set-points from config file"
-                );
-                SetPoints::from_config(&config)
-            }
-            Err(e) => {
-                tracing::warn!(
-                    target: "cns.config",
-                    path = %path,
-                    error = %e,
-                    "Failed to load CNS config file, using defaults"
-                );
-                SetPoints::default()
-            }
-        },
-        Err(_) => SetPoints::default(),
-    }
-}
-
-/// Load curation thresholds from `HKASK_CNS_CONFIG` env var, falling back to defaults.
-///
-/// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
-/// If unset or the file doesn't exist, returns default thresholds.
-///
-/// NOTE: The canonical loader is now `hkask_cli::curation_config::load_curation_thresholds`.
-/// This wrapper is retained for backward compatibility within the CNS crate.
-pub fn load_curation_thresholds() -> CurationThresholdConfig {
-    // Helper: parse YAML string into CurationThresholdConfig
-    let from_yaml = |yaml: &str| -> Result<CurationThresholdConfig, serde_yaml::Error> {
-        serde_yaml::from_str(yaml)
-    };
-    // Helper: read file and parse
-    let from_file = |path: &str| -> Result<CurationThresholdConfig, std::io::Error> {
-        let contents = std::fs::read_to_string(path)?;
-        from_yaml(&contents).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-    };
-
-    match std::env::var("HKASK_CNS_CONFIG") {
-        Ok(path) => match from_file(&path) {
-            Ok(config) => {
-                tracing::info!(
-                    target: "cns.config",
-                    path = %path,
-                    coherence_threshold = config.coherence_threshold,
-                    drift_threshold = config.drift_threshold,
-                    "Loaded CNS curation thresholds from config file"
-                );
-                config
-            }
-            Err(e) => {
-                tracing::warn!(
-                    target: "cns.config",
-                    path = %path,
-                    error = %e,
-                    "Failed to load CNS config file for curation thresholds, using defaults"
-                );
-                CurationThresholdConfig::default()
-            }
-        },
-        Err(_) => {
-            let defaults = CurationThresholdConfig::default();
-            tracing::info!(
-                target: "cns.config",
-                coherence_threshold = defaults.coherence_threshold,
-                drift_threshold = defaults.drift_threshold,
-                "HKASK_CNS_CONFIG not set, using default curation thresholds"
-            );
-            defaults
-        }
-    }
-}
-
-impl SetPoints {
-    /// Create SetPoints from a config, using defaults for missing fields.
-    pub fn from_config(config: &SetPointsConfig) -> Self {
-        let defaults = SetPoints::default();
-        Self {
-            gas_min_remaining: config
-                .gas_min_remaining
-                .unwrap_or(defaults.gas_min_remaining),
-            variety_max_deficit: config
-                .variety_max_deficit
-                .unwrap_or(defaults.variety_max_deficit),
-            error_rate_max: config.error_rate_max.unwrap_or(defaults.error_rate_max),
-            connector_latency_max_secs: config
-                .connector_latency_max_secs
-                .unwrap_or(defaults.connector_latency_max_secs),
-            communication_backpressure_threshold: config
-                .communication_backpressure_threshold
-                .unwrap_or(defaults.communication_backpressure_threshold),
-        }
-    }
 }
 
 /// The Cybernetics Loop — homeostatic self-regulation.
@@ -260,7 +94,7 @@ impl CyberneticsLoop {
             cns,
             gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points: SetPoints::default(),
-            max_iterations: 100,
+            max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
@@ -281,7 +115,7 @@ impl CyberneticsLoop {
             cns,
             gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points,
-            max_iterations: 100,
+            max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
@@ -315,7 +149,7 @@ impl CyberneticsLoop {
             cns,
             gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points: SetPoints::default(),
-            max_iterations: 100,
+            max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
@@ -705,7 +539,7 @@ impl HkaskLoop for CyberneticsLoop {
             let ratio = budget.remaining as f64 / budget.cap.max(1) as f64;
             signals.push(Signal::new(
                 LoopId::Cybernetics,
-                "energy_remaining",
+                SignalMetric::EnergyRemaining,
                 ratio,
                 self.set_points.gas_min_remaining,
             ));
@@ -717,7 +551,7 @@ impl HkaskLoop for CyberneticsLoop {
         let health = cns.health().await;
         signals.push(Signal::new(
             LoopId::Cybernetics,
-            "variety_deficit",
+            SignalMetric::VarietyDeficit,
             health.overall_deficit as f64,
             self.set_points.variety_max_deficit,
         ));
@@ -728,7 +562,7 @@ impl HkaskLoop for CyberneticsLoop {
             let depth = counter.load(Ordering::Relaxed);
             signals.push(Signal::new(
                 LoopId::Cybernetics,
-                "communication_queue_depth",
+                SignalMetric::CommunicationQueueDepth,
                 depth as f64,
                 self.set_points.communication_backpressure_threshold,
             ));
@@ -740,8 +574,10 @@ impl HkaskLoop for CyberneticsLoop {
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
         for dev in deviations {
-            let action = match dev.signal.metric.as_str() {
-                "energy_remaining" if dev.direction == DeviationDirection::BelowSetPoint => {
+            let action = match dev.signal.metric {
+                SignalMetric::EnergyRemaining
+                    if dev.direction == DeviationDirection::BelowSetPoint =>
+                {
                     // Produce both Throttle (for immediate protection) and
                     // AdjustGasBudget (for automatic budget reallocation)
                     // Throttle signals downstream loops to reduce consumption
@@ -766,7 +602,9 @@ impl HkaskLoop for CyberneticsLoop {
                     ));
                     None // Already added actions above
                 }
-                "variety_deficit" if dev.direction == DeviationDirection::AboveSetPoint => {
+                SignalMetric::VarietyDeficit
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
                     Some(LoopAction::new(
                         LoopId::Curation,
                         ActionType::Escalate,
@@ -777,7 +615,7 @@ impl HkaskLoop for CyberneticsLoop {
                         }),
                     ))
                 }
-                "error_rate" if dev.direction == DeviationDirection::AboveSetPoint => {
+                SignalMetric::ErrorRate if dev.direction == DeviationDirection::AboveSetPoint => {
                     Some(LoopAction::new(
                         LoopId::Inference,
                         ActionType::CircuitBreak,
@@ -788,7 +626,9 @@ impl HkaskLoop for CyberneticsLoop {
                         }),
                     ))
                 }
-                "connector_latency" if dev.direction == DeviationDirection::AboveSetPoint => {
+                SignalMetric::ConnectorLatency
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
                     Some(LoopAction::new(
                         LoopId::Communication,
                         ActionType::Throttle,
@@ -799,7 +639,7 @@ impl HkaskLoop for CyberneticsLoop {
                         }),
                     ))
                 }
-                "communication_queue_depth"
+                SignalMetric::CommunicationQueueDepth
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     tracing::info!(
@@ -963,6 +803,7 @@ mod tests {
     use super::*;
     use hkask_types::loops::{
         ActionType, CuratorDirective, DeviationDirection, HkaskLoop, LoopId, LoopPayload,
+        SignalMetric,
     };
 
     fn test_dispatch_tx() -> mpsc::UnboundedSender<LoopMessage> {
@@ -983,7 +824,12 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: energy remaining at 5% (below 20% set-point)
-        let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.05, 0.2);
+        let signal = Signal::new(
+            LoopId::Cybernetics,
+            SignalMetric::EnergyRemaining,
+            0.05,
+            0.2,
+        );
         let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
         assert_eq!(deviations[0].direction, DeviationDirection::BelowSetPoint);
@@ -1002,7 +848,12 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: variety deficit at 150 (above 100 threshold)
-        let signal = Signal::new(LoopId::Cybernetics, "variety_deficit", 150.0, 100.0);
+        let signal = Signal::new(
+            LoopId::Cybernetics,
+            SignalMetric::VarietyDeficit,
+            150.0,
+            100.0,
+        );
         let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
         assert_eq!(deviations[0].direction, DeviationDirection::AboveSetPoint);
@@ -1019,7 +870,7 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: error rate at 50% (above 30% threshold)
-        let signal = Signal::new(LoopId::Cybernetics, "error_rate", 0.5, 0.3);
+        let signal = Signal::new(LoopId::Cybernetics, SignalMetric::ErrorRate, 0.5, 0.3);
         let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
 
@@ -1035,7 +886,7 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: energy at 50% (above 20% set-point — no deviation)
-        let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.5, 0.2);
+        let signal = Signal::new(LoopId::Cybernetics, SignalMetric::EnergyRemaining, 0.5, 0.2);
         let deviations = loop6.compare(&[signal]).await;
         // Deviation exists (above set-point) but no action for above-set-point energy
         let actions = loop6.compute(&deviations).await;
@@ -1089,7 +940,12 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Step 1: Inject known deviation — energy at 5% (set-point: 20%)
-        let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.05, 0.2);
+        let signal = Signal::new(
+            LoopId::Cybernetics,
+            SignalMetric::EnergyRemaining,
+            0.05,
+            0.2,
+        );
 
         // Step 2: Compare — detect deviation
         let deviations = loop6.compare(&[signal]).await;
@@ -1110,7 +966,12 @@ mod tests {
         assert_ne!(actions[0].target, DispatchTarget::Loop(LoopId::Curation));
 
         // Step 5: Simulate stabilization — after throttling, energy recovers
-        let recovered_signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.25, 0.2);
+        let recovered_signal = Signal::new(
+            LoopId::Cybernetics,
+            SignalMetric::EnergyRemaining,
+            0.25,
+            0.2,
+        );
         let new_deviations = loop6.compare(&[recovered_signal]).await;
         let new_actions = loop6.compute(&new_deviations).await;
         // Above-set-point energy is fine — no throttle action
@@ -1124,9 +985,19 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         let signals = vec![
-            Signal::new(LoopId::Cybernetics, "energy_remaining", 0.05, 0.2),
-            Signal::new(LoopId::Cybernetics, "variety_deficit", 150.0, 100.0),
-            Signal::new(LoopId::Cybernetics, "error_rate", 0.5, 0.3),
+            Signal::new(
+                LoopId::Cybernetics,
+                SignalMetric::EnergyRemaining,
+                0.05,
+                0.2,
+            ),
+            Signal::new(
+                LoopId::Cybernetics,
+                SignalMetric::VarietyDeficit,
+                150.0,
+                100.0,
+            ),
+            Signal::new(LoopId::Cybernetics, SignalMetric::ErrorRate, 0.5, 0.3),
         ];
 
         let deviations = loop6.compare(&signals).await;
@@ -1154,7 +1025,12 @@ mod tests {
         for i in 0..max_iterations {
             // Energy recovers from 5% to 25% over iterations
             let energy = 0.05 + (i as f64 * 0.02);
-            let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", energy, 0.2);
+            let signal = Signal::new(
+                LoopId::Cybernetics,
+                SignalMetric::EnergyRemaining,
+                energy,
+                0.2,
+            );
             let deviations = loop6.compare(&[signal]).await;
             let actions = loop6.compute(&deviations).await;
 
@@ -1249,7 +1125,12 @@ mod tests {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
-        let signal = Signal::new(LoopId::Cybernetics, "connector_latency", 60.0, 30.0);
+        let signal = Signal::new(
+            LoopId::Cybernetics,
+            SignalMetric::ConnectorLatency,
+            60.0,
+            30.0,
+        );
         let deviations = loop6.compare(&[signal]).await;
         let actions = loop6.compute(&deviations).await;
 

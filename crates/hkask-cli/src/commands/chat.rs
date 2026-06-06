@@ -13,7 +13,9 @@ use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::{OkapiConfig, OkapiInference};
 use hkask_types::ports::InferencePort;
-use hkask_types::{DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID};
+use hkask_types::{
+    Confidence, DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID,
+};
 use std::sync::Arc;
 
 use crate::commands::config::{
@@ -401,7 +403,7 @@ pub async fn chat_with_agent(
                 "user_input": input,
                 "agent_response": response_text,
             }),
-            0.7,
+            Confidence::new(0.7),
             &capability_token,
         ),
         (None, Some(adapter)) => adapter.store_episodic(
@@ -412,7 +414,7 @@ pub async fn chat_with_agent(
                 "user_input": input,
                 "agent_response": response_text,
             }),
-            0.7,
+            Confidence::new(0.7),
             &capability_token,
         ),
         (None, None) => Err(hkask_agents::error::MemoryError::Storage(

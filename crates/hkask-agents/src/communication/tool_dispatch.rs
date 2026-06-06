@@ -23,7 +23,7 @@
 
 use hkask_types::capability::DelegationToken;
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority, WorkerKind};
-use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
+use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric};
 use hkask_types::ports::ToolPort;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -201,7 +201,7 @@ impl<P: ToolPort + 'static> HkaskLoop for LoopRoutedToolDispatch<P> {
 
         vec![Signal::new(
             LoopId::Communication,
-            "tool_dispatch_queue_depth",
+            SignalMetric::ToolDispatchQueueDepth,
             _queue_depth as f64,
             10.0, // Set-point: 10 pending invocations before considered overloaded
         )]

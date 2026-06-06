@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::semantic::SemanticMemory;
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 
 /// Default storage budget for semantic triple count.
@@ -113,13 +113,13 @@ impl HkaskLoop for SemanticLoop {
         vec![
             Signal::new(
                 LoopId::Semantic,
-                "triple_count",
+                SignalMetric::TripleCount,
                 count as f64,
                 self.storage_budget as f64,
             ),
             Signal::new(
                 LoopId::Semantic,
-                "low_confidence_count",
+                SignalMetric::LowConfidenceCount,
                 low_count as f64,
                 0.0, // set-point = 0: any low-confidence triples are a deviation
             ),
@@ -134,8 +134,8 @@ impl HkaskLoop for SemanticLoop {
         let mut actions = Vec::new();
 
         for dev in deviations {
-            match dev.signal.metric.as_str() {
-                "triple_count" if dev.direction == DeviationDirection::AboveSetPoint => {
+            match dev.signal.metric {
+                SignalMetric::TripleCount if dev.direction == DeviationDirection::AboveSetPoint => {
                     let overage = (dev.signal.value - dev.signal.set_point) as usize;
                     actions.push(LoopAction::new(
                         LoopId::Semantic,
@@ -148,7 +148,9 @@ impl HkaskLoop for SemanticLoop {
                         }),
                     ));
                 }
-                "low_confidence_count" if dev.direction == DeviationDirection::AboveSetPoint => {
+                SignalMetric::LowConfidenceCount
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
                     actions.push(LoopAction::new(
                         LoopId::Semantic,
                         ActionType::Calibrate,
@@ -214,7 +216,7 @@ impl HkaskLoop for SemanticLoop {
                                                 triple_id = %triple.id,
                                                 entity = %triple.entity,
                                                 attribute = %triple.attribute,
-                                                confidence = triple.confidence,
+                                                confidence = %triple.confidence,
                                                 error = %e,
                                                 "Failed to delete low-confidence semantic triple"
                                             );

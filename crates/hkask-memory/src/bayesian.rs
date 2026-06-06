@@ -1,11 +1,7 @@
 //! Bayesian confidence operations
 //!
-//! Free functions for the episodic and semantic memory subloops:
-//! - `decay` — Loop 2a.3: Confidence decay (RECONCILE)
-//!
-//! **Cybernetics regulation note:** `decay` is an involuntary dampening
-//! function owned by the Cybernetics loop. It is invoked from
-//! `EpisodicMemory` at recall time for time-based confidence decay.
+//! Constants for episodic and semantic memory subloops.
+//! Confidence decay is handled by `Confidence::decay()` (hkask-types).
 
 /// Default half-life for episodic confidence decay (3 months in seconds).
 ///
@@ -20,51 +16,37 @@ pub const DEFAULT_DECAY_HALF_LIFE_SECS: f64 = 90.0 * 24.0 * 3600.0; // 3 months
 /// giving confidence half-life of 90 days.
 pub const DEFAULT_DECAY_RATE: f64 = std::f64::consts::LN_2 / DEFAULT_DECAY_HALF_LIFE_SECS;
 
-/// Decay confidence over time
-///
-/// Exponential decay: `confidence × e^(-rate × time_elapsed)`.
-/// Used in Loop 2a.3 (Confidence Decay) to reduce episodic triple
-/// confidence at recall time based on time since storage.
-pub fn decay(confidence: f64, decay_rate: f64, time_elapsed: f64) -> f64 {
-    // Exponential decay: conf * e^(-rate * time)
-    confidence * (-decay_rate * time_elapsed).exp()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_types::Confidence;
 
     #[test]
     fn decay_half_life_default() {
-        // After one half-life, confidence should be approximately half
-        let original = 1.0;
-        let decayed = decay(original, DEFAULT_DECAY_RATE, DEFAULT_DECAY_HALF_LIFE_SECS);
+        let original = Confidence::full();
+        let decayed = original.decay(DEFAULT_DECAY_RATE, DEFAULT_DECAY_HALF_LIFE_SECS);
         assert!(
-            (decayed - 0.5).abs() < 0.001,
+            (decayed.value() - 0.5).abs() < 0.001,
             "Expected ~0.5, got {}",
-            decayed
+            decayed.value()
         );
     }
 
     #[test]
     fn decay_no_time_elapsed() {
-        let confidence = 0.8;
-        let decayed = decay(confidence, DEFAULT_DECAY_RATE, 0.0);
-        assert!((decayed - confidence).abs() < f64::EPSILON);
+        let original = Confidence::new(0.8);
+        let decayed = original.decay(DEFAULT_DECAY_RATE, 0.0);
+        assert!((decayed.value() - original.value()).abs() < f64::EPSILON);
     }
 
     #[test]
     fn decay_two_half_lives() {
-        let original = 1.0;
-        let decayed = decay(
-            original,
-            DEFAULT_DECAY_RATE,
-            DEFAULT_DECAY_HALF_LIFE_SECS * 2.0,
-        );
+        let original = Confidence::full();
+        let decayed = original.decay(DEFAULT_DECAY_RATE, DEFAULT_DECAY_HALF_LIFE_SECS * 2.0);
         assert!(
-            (decayed - 0.25).abs() < 0.001,
+            (decayed.value() - 0.25).abs() < 0.001,
             "Expected ~0.25, got {}",
-            decayed
+            decayed.value()
         );
     }
 }

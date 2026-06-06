@@ -26,7 +26,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>19 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>21 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -137,7 +137,7 @@ status: VERIFIED
 
 **Implementation:**
 - `hkask-cli` — Terminal-based REPL and subcommands
-- `hkask-mcp-*` — Machine-to-machine tool calls (19 servers)
+- `hkask-mcp-*` — Machine-to-machine tool calls (21 servers)
 - `hkask-api` — HTTP API with auto-generated OpenAPI docs
 
 **Constraints:**
@@ -168,7 +168,7 @@ The five anchors ground in the [six-loop authority model](loop-architecture.md):
 | Anchor | Loop(s) | Rationale |
 |--------|---------|-----------|
 | 1. Agent Enablement | Curation (Loop 5) | Bot/Replicant pods, ACP, persona — the Curator enables agents |
-| 2. Essential Tools | Inference (L1) + Communication (L4) + Cybernetics (L6) + Episodic (L2) | 19 MCP servers span multiple loops: inference (L1), dispatch (L4), OCAP/keystore enforcement (L6), condenser (L2), registry bridge (L1↔L5). See [loop-architecture.md §3.4](loop-architecture.md) for per-server assignments. |
+| 2. Essential Tools | Inference (L1) + Communication (L4) + Cybernetics (L6) + Episodic (L2) | 21 MCP servers span multiple loops: inference (L1), dispatch (L4), OCAP/keystore enforcement (L6), condenser (L2), registry bridge (L1↔L5). See [loop-architecture.md §3.4](loop-architecture.md) for per-server assignments. |
 | 3. User Sovereignty | Cybernetics (Loop 6) | OCAP, SQLCipher, gating, kill-zone — all regulation is Cybernetics |
 | 4. CNS | Cybernetics (Loop 6) | Homeostatic self-regulation IS the Cybernetics loop |
 | 5. Composition | Semantic (Loop 2b) | Unified registry, hLexicon, cascade — shared knowledge composition |

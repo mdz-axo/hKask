@@ -30,7 +30,7 @@ hKask is a **minimal agent-native container platform** — the unit of compositi
 
 **Delegated (out of scope):**
 - LLM inference → Okapi (external service)
-External service integration → 19 MCP servers (tool surface) + AllostericGate in `hkask-cns::allosteric`
+External service integration → 21 MCP servers (tool surface) + AllostericGate in `hkask-cns::allosteric`
 - Storage encryption → SQLCipher (library dependency)
 - Key management → OS keychain (platform service)
 
@@ -45,7 +45,7 @@ graph TD
 
     subgraph Delegated["Delegated"]
         OKAPI["Okapi<br/>LLM inference"]
-        MCP_EXT["19 MCP Servers<br/>tool surface"]
+        MCP_EXT["21 MCP Servers<br/>tool surface"]
         SQLITE["SQLite + SQLCipher<br/>encrypted storage"]
         KEYCHAIN["OS Keychain<br/>key management"]
     end
@@ -77,7 +77,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | # | Anchor | Implementation | DDMVSS Category |
 |---|--------|---------------|-----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP | Domain |
-| 2 | **Essential Tools** | 19 MCP servers + Okapi + AllostericGate in CNS | Capability |
+| 2 | **Essential Tools** | 21 MCP servers + Okapi + AllostericGate in CNS | Capability |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating | Trust |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts | Observability |
 | 5 | **Composition** | Unified registry with `template_type` discriminator | Composition |
@@ -314,7 +314,7 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-19 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `GovernedTool` (`crates/hkask-cns/src/governed_tool.rs:74`):
+21 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `GovernedTool` (`crates/hkask-cns/src/governed_tool.rs:74`):
 
 | MCP Server | Crate | LOC | Status | Loop | Domain |
 |-----------|-------|-----|--------|------|--------|
@@ -337,8 +337,10 @@ status: VERIFIED
 | episodic | `hkask-mcp-episodic` | 219 | ✅ Complete | L2 (Episodic) | Episodic memory (private, perspective-bound) |
 | semantic | `hkask-mcp-semantic` | 437 | ✅ Complete | L2b (Semantic) | Semantic memory (public, shared) |
 | replicant | `hkask-mcp-replicant` | 815 | ✅ Complete | L5 (Curation) | Replicant chat (MCP bridge for external integrations) |
+| doc-knowledge | `hkask-mcp-doc-knowledge` | 747 | ✅ Complete | L2 (Episodic) | Document parsing and chunking (HTML/text extraction, multi-tier chunking) |
+| markitdown | `hkask-mcp-markitdown` | 724 | ✅ Complete | L1 (Inference) | Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback) |
 
-**Total:** 19 servers, 117+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
+**Total:** 21 servers, 123+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 

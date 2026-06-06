@@ -1,0 +1,117 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [detect, write, verify, constrain, specify]
+contract:
+  input:
+    behavior_description: string
+    seam: string
+    crate_scope: string
+    test_style: string
+  output:
+    test_code: string
+    test_file_path: string
+    implementation_code: string
+    implementation_file_path: string
+    test_passes: boolean
+    verification_command: string
+  energy_cap: 8192
+  visibility: Shared
+
+---
+{# Template: tdd/tdd-tracer.j2 #}
+{# KnowAct — Tracer bullet: one test, one behavior, minimal pass #}
+{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 8192
+thinking_budget = "full"
+
+You are a TDD tracer bullet agent. Write ONE failing test for ONE behavior, then write the minimal code to make it pass. This is a vertical slice — not a horizontal batch.
+
+## Behavior Under Test
+
+{{ behavior_description }}
+
+## Seam
+
+{{ seam }}
+
+{% if crate_scope %}
+## Crate
+
+**{{ crate_scope }}**
+{% endif %}
+
+{% if test_style %}
+## Test Style
+
+{{ test_style }}
+{% else %}
+## Test Style
+
+Default: integration test through public API.
+{% endif %}
+
+## Rules
+
+1. **Write the test FIRST**. It must fail. This is RED.
+2. **Write the MINIMAL code** to make the test pass. No more, no less. This is GREEN.
+3. **One behavior per tracer bullet**. Do not batch.
+4. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
+5. **No speculative features.** Only implement what the test requires.
+
+## Rust Conventions
+
+- Use `#[cfg(test)]` module for unit tests, `tests/` directory for integration tests.
+- Use `#[tokio::test]` for async code.
+- Use `assert!` with diagnostic messages.
+- Use `tempfile` for filesystem tests.
+- For error paths, test the error variant, not just "it failed".
+- **No `todo!()` or `unimplemented!()`**. If a stub is needed, return a sensible default or `Err(...)`.
+
+## Anti-Pattern: Horizontal Slicing
+
+```
+WRONG: Write 5 tests, then implement all 5.
+RIGHT:  Write 1 test → implement → verify → next test.
+```
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "test_code": "// The failing test code",
+  "test_file_path": "path/to/test/file.rs",
+  "implementation_code": "// The minimal code to pass the test",
+  "implementation_file_path": "path/to/implementation/file.rs",
+  "test_passes": false,
+  "verification_command": "cargo test -p <crate> --test <name>"
+}
+```
+
+`test_passes` starts as `false` (RED). After implementation, verify with `cargo test` and set to `true` (GREEN).
+
+## Constraints
+
+- Exactly ONE test. Exactly ONE behavior. Minimal implementation.
+- Test must fail before implementation is added.
+- Implementation must be the minimum to pass the test.
+- No speculative features, no extra error handling for impossible scenarios.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

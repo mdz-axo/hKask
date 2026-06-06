@@ -22,13 +22,31 @@ use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
+
+/// Default interval between metacognition cycles (1 hour).
+pub(crate) const DEFAULT_METACOGNITION_INTERVAL_SECS: u64 = 3600;
+
+/// Default expected variety per domain for deficit calculation.
+pub(crate) const DEFAULT_EXPECTED_VARIETY_PER_DOMAIN: u64 = 50;
+
+/// Default maximum concurrent escalations (VSM algedonic paradox — fewer signals = higher fidelity).
+pub(crate) const DEFAULT_MAX_CONCURRENT_ESCALATIONS: usize = 3;
+
+/// Default variety deficit threshold for escalation.
+pub(crate) const DEFAULT_ESCALATION_VARIETY_DEFICIT: u64 = 100;
+
+/// Default critical alert count threshold for escalation.
+pub(crate) const DEFAULT_ESCALATION_CRITICAL_ALERTS: usize = 3;
+
+/// Default bot failure count threshold for escalation.
+pub(crate) const DEFAULT_ESCALATION_BOT_FAILURES: usize = 2;
 
 #[derive(Debug, Error)]
 pub enum MetacognitionError {
@@ -52,9 +70,9 @@ pub(crate) struct EscalationThresholds {
 impl Default for EscalationThresholds {
     fn default() -> Self {
         Self {
-            variety_deficit: 100,
-            critical_alerts: 3,
-            bot_failures: 2,
+            variety_deficit: DEFAULT_ESCALATION_VARIETY_DEFICIT,
+            critical_alerts: DEFAULT_ESCALATION_CRITICAL_ALERTS,
+            bot_failures: DEFAULT_ESCALATION_BOT_FAILURES,
         }
     }
 }
@@ -103,10 +121,10 @@ pub struct MetacognitionConfig {
 impl Default for MetacognitionConfig {
     fn default() -> Self {
         Self {
-            interval: Duration::from_secs(3600), // 1 hour
+            interval: Duration::from_secs(DEFAULT_METACOGNITION_INTERVAL_SECS),
             thresholds: EscalationThresholds::default(),
-            expected_variety_per_domain: 50,
-            max_concurrent_escalations: 3,
+            expected_variety_per_domain: DEFAULT_EXPECTED_VARIETY_PER_DOMAIN,
+            max_concurrent_escalations: DEFAULT_MAX_CONCURRENT_ESCALATIONS,
         }
     }
 }
@@ -549,7 +567,7 @@ impl HkaskLoop for MetacognitionLoop {
             // Variety deficit: act when total_deficit > threshold (strict >)
             Signal::new(
                 LoopId::Curation,
-                "metacognition_variety_deficit",
+                SignalMetric::MetacognitionVarietyDeficit,
                 total_variety_deficit as f64,
                 self.config.thresholds.variety_deficit as f64,
             ),
@@ -558,7 +576,7 @@ impl HkaskLoop for MetacognitionLoop {
             // produces an AboveSetPoint deviation.
             Signal::new(
                 LoopId::Curation,
-                "metacognition_critical_alerts",
+                SignalMetric::MetacognitionCriticalAlerts,
                 critical_alerts.len() as f64,
                 self.config.thresholds.critical_alerts as f64 - 0.5,
             ),
@@ -566,7 +584,7 @@ impl HkaskLoop for MetacognitionLoop {
             // Same threshold - 0.5 technique as critical_alerts.
             Signal::new(
                 LoopId::Curation,
-                "metacognition_bot_failures",
+                SignalMetric::MetacognitionBotFailures,
                 failed_bot_count as f64,
                 self.config.thresholds.bot_failures as f64 - 0.5,
             ),
@@ -585,8 +603,8 @@ impl HkaskLoop for MetacognitionLoop {
         let mut actions = Vec::new();
 
         for dev in deviations {
-            match dev.signal.metric.as_str() {
-                "metacognition_variety_deficit"
+            match dev.signal.metric {
+                SignalMetric::MetacognitionVarietyDeficit
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let deficit = dev.signal.value as u64;
@@ -603,7 +621,7 @@ impl HkaskLoop for MetacognitionLoop {
                         }),
                     ));
                 }
-                "metacognition_critical_alerts"
+                SignalMetric::MetacognitionCriticalAlerts
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let count = dev.signal.value as u64;
@@ -617,7 +635,7 @@ impl HkaskLoop for MetacognitionLoop {
                         }),
                     ));
                 }
-                "metacognition_bot_failures"
+                SignalMetric::MetacognitionBotFailures
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let count = dev.signal.value as u64;

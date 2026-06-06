@@ -30,7 +30,7 @@ ddmvss_categories: [persistence]
 | [§8 hkask-storage — SQLite & SQLCipher](#8-hkask-storage--sqlite-persistence--sqlcipher) | Bitemporal triples, sqlite-vec, encryption |
 | [§9 hkask-cns — Cybernetic Nervous System](#9-hkask-cns--cybernetic-nervous-system) | Spans, variety counters, algedonic alerts |
 | [§10 hkask-templates — Registry & Cascade](#10-hkask-templates--registry-cascade--manifest-execution) | Template registry, cascade, and manifest execution |
-| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 19 MCP servers in composite view |
+| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 21 MCP servers in composite view |
 | [§12 Cross-Crate Dependency Graph](#12-cross-crate-dependency-graph) | Workspace-wide crate dependency relationships |
 | [References](#references) | Citations and references |
 
@@ -1048,7 +1048,7 @@ status: CORRECTED — DependencyGraph/AuditTrail/engine.rs/manifest.rs/cascade.r
 
 ## 11. MCP Server Composite ERD
 
-All 19 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
+All 21 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
 
 ```mermaid
 erDiagram

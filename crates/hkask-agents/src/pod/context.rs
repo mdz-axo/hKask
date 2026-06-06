@@ -14,7 +14,7 @@ use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_types::ports::ToolPort;
 use hkask_types::{
-    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken,
+    CapabilityChecker, Confidence, DelegationAction, DelegationResource, DelegationToken,
     ExperienceClassification, InferencePort, WebID,
 };
 use std::sync::Arc;
@@ -127,7 +127,7 @@ impl PodContext {
         entity: &str,
         attribute: &str,
         value: serde_json::Value,
-        confidence: f64,
+        confidence: impl Into<Confidence>,
     ) -> Result<String, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
@@ -140,7 +140,7 @@ impl PodContext {
                 entity,
                 attribute,
                 value,
-                confidence,
+                confidence.into(),
                 &self.capability_token,
             )
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
@@ -196,7 +196,7 @@ impl PodContext {
         attribute: &str,
         value: serde_json::Value,
         classification: ExperienceClassification,
-        confidence_override: Option<f64>,
+        confidence_override: Option<Confidence>,
     ) -> Result<String, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
@@ -231,7 +231,7 @@ impl PodContext {
         entity: &str,
         attribute: &str,
         value: serde_json::Value,
-        confidence: f64,
+        confidence: impl Into<Confidence>,
     ) -> Result<String, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
@@ -244,7 +244,7 @@ impl PodContext {
                 entity,
                 attribute,
                 value,
-                confidence,
+                confidence.into(),
                 &self.capability_token,
             )
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))

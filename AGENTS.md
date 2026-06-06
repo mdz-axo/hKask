@@ -10,7 +10,7 @@
 |--------|-------------|
 | **Agent Enablement** | Bots + Replicants run in pods with WebID, ACP |
 | **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
-| **Essential Tools** | 19 MCP servers + Okapi for inference |
+| **Essential Tools** | 21 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, gas budgets |
 | **Composition** | Unified registry with `template_type` discriminator |
@@ -29,9 +29,11 @@
 | `hkask-keystore` | OS keychain, AES-256-GCM, master key derivation (HKDF-SHA256) |
 | `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
 | `hkask-cli` | CLI commands |
+| `hkask-mcp-doc-knowledge` | Document parsing and chunking MCP server (HTML/text extraction, multi-tier chunking) |
+| `hkask-mcp-markitdown` | Document format conversion and OCR MCP server (PDF/MD/HTML/TXT + vision OCR fallback) |
 | `hkask-api` | HTTP API (utoipa) |
 
-**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `spec`, `goal`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`, `ensemble`, `episodic`, `semantic`, `replicant`
+**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `spec`, `goal`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`, `ensemble`, `episodic`, `semantic`, `replicant`, `doc-knowledge`, `markitdown` (OCR/vision fallback)
 **External deps:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 
 ---
@@ -103,7 +105,7 @@ echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
 | **No Monitoring Stacks** | Prometheus, Alertmanager, external observability | CNS provides programmatic observability |
 | **No Excess Complexity** | Unused traits, stubs, deprecations, feature flags | P1-P7, C1-C7 constraints |
 
-**Interaction:** CLI (`kask <subcommand>`) · MCP (19 servers) · API (HTTP/OpenAPI)
+**Interaction:** CLI (`kask <subcommand>`) · MCP (21 servers) · API (HTTP/OpenAPI)
 **Monitoring:** CNS spans (`cns.*`) · Variety counters · Algedonic alerts (>100 deficit)
 
 ```bash

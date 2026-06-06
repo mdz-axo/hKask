@@ -20,7 +20,7 @@ use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
-use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
+use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric};
 use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -444,37 +444,37 @@ impl HkaskLoop for CurationLoop {
         vec![
             Signal::new(
                 LoopId::Curation,
-                "algedonic_events",
+                SignalMetric::AlgedonicEvents,
                 algedonic_count as f64,
                 0.0, // set-point: zero algedonic events is healthy
             ),
             Signal::new(
                 LoopId::Curation,
-                "pending_escalations",
+                SignalMetric::PendingEscalations,
                 pending_escalations as f64,
                 0.0, // set-point: zero pending escalations is healthy
             ),
             Signal::new(
                 LoopId::Curation,
-                "consolidation_candidates",
+                SignalMetric::ConsolidationCandidates,
                 consolidation_candidates as f64,
                 0.0, // set-point: zero pending consolidation candidates is healthy
             ),
             Signal::new(
                 LoopId::Curation,
-                "goal_stale_count",
+                SignalMetric::GoalStaleCount,
                 goal_stale_count as f64,
                 0.0, // set-point: zero stale goals is healthy
             ),
             Signal::new(
                 LoopId::Curation,
-                "goal_expired_count",
+                SignalMetric::GoalExpiredCount,
                 goal_expired_count as f64,
                 0.0, // set-point: zero expired goals is healthy
             ),
             Signal::new(
                 LoopId::Curation,
-                "spec_drift_alert_count",
+                SignalMetric::SpecDriftAlertCount,
                 spec_drift_alert_count as f64,
                 0.0, // set-point: zero spec drift alerts is healthy
             ),
@@ -491,8 +491,8 @@ impl HkaskLoop for CurationLoop {
         let mut actions = Vec::new();
 
         for dev in deviations {
-            match dev.signal.metric.as_str() {
-                "algedonic_events" if dev.signal.value > 0.0 => {
+            match dev.signal.metric {
+                SignalMetric::AlgedonicEvents if dev.signal.value > 0.0 => {
                     // Algedonic events from NuEvent store require Curation review
                     actions.push(LoopAction::new(
                         LoopId::Cybernetics,
@@ -503,7 +503,7 @@ impl HkaskLoop for CurationLoop {
                         }),
                     ));
                 }
-                "pending_escalations" if dev.signal.value > 0.0 => {
+                SignalMetric::PendingEscalations if dev.signal.value > 0.0 => {
                     // Pending escalations require Curator attention
                     actions.push(LoopAction::new(
                         LoopId::Curation,

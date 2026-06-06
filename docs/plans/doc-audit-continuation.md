@@ -126,7 +126,7 @@ The surfaces table in §10.8 was already updated to show MCP Semantic can consol
 
 **`docs/architecture/PRINCIPLES.md`** (v1.1.0, last_updated 2026-05-28)
 
-- Lines 29, 69, 98, 140, 171: "19 MCP servers" — verify count is still 19 (it is)
+- Lines 29, 69, 98, 140, 171: "21 MCP servers" — updated from 19 (doc-knowledge + markitdown added)
 - Scan for any consolidation or credential references that lag
 
 **`docs/specifications/REQUIREMENTS.md`** (v1.2.0, last_updated 2026-05-29)

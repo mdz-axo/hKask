@@ -91,4 +91,4 @@ pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateInvocation, TemplateOutcome,
 };
 pub use text::blake3_hash;
-pub use visibility::Visibility;
+pub use visibility::{AccessControl, Confidence, TemporalBounds, Visibility};

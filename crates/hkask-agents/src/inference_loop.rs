@@ -10,7 +10,7 @@
 use hkask_types::WebID;
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_types::ports::CircuitBreakerPort;
 use std::sync::Arc;
@@ -206,17 +206,27 @@ impl HkaskLoop for InferenceLoop {
         };
 
         vec![
-            Signal::new(LoopId::Inference, "circuit_breaker_state", cb_state, 0.0),
-            Signal::new(LoopId::Inference, "inference_available", available, 1.0),
             Signal::new(
                 LoopId::Inference,
-                "inference_gas_remaining",
+                SignalMetric::CircuitBreakerState,
+                cb_state,
+                0.0,
+            ),
+            Signal::new(
+                LoopId::Inference,
+                SignalMetric::InferenceAvailable,
+                available,
+                1.0,
+            ),
+            Signal::new(
+                LoopId::Inference,
+                SignalMetric::InferenceGasRemaining,
                 gas_ratio,
                 GAS_SET_POINT,
             ),
             Signal::new(
                 LoopId::Inference,
-                "inference_model_available",
+                SignalMetric::InferenceModelAvailable,
                 model_available,
                 1.0,
             ),
@@ -234,8 +244,10 @@ impl HkaskLoop for InferenceLoop {
         let mut actions = Vec::new();
 
         for dev in deviations {
-            match dev.signal.metric.as_str() {
-                "circuit_breaker_state" if dev.direction == DeviationDirection::AboveSetPoint => {
+            match dev.signal.metric {
+                SignalMetric::CircuitBreakerState
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
                     actions.push(LoopAction::new(
                         LoopId::Inference,
                         ActionType::Throttle,
@@ -245,7 +257,9 @@ impl HkaskLoop for InferenceLoop {
                         }),
                     ));
                 }
-                "inference_available" if dev.direction == DeviationDirection::BelowSetPoint => {
+                SignalMetric::InferenceAvailable
+                    if dev.direction == DeviationDirection::BelowSetPoint =>
+                {
                     actions.push(LoopAction::new(
                         LoopId::Inference,
                         ActionType::Throttle,
@@ -255,7 +269,9 @@ impl HkaskLoop for InferenceLoop {
                         }),
                     ));
                 }
-                "inference_gas_remaining" if dev.direction == DeviationDirection::BelowSetPoint => {
+                SignalMetric::InferenceGasRemaining
+                    if dev.direction == DeviationDirection::BelowSetPoint =>
+                {
                     actions.push(LoopAction::new(
                         LoopId::Inference,
                         ActionType::AdjustGasBudget,
@@ -266,7 +282,7 @@ impl HkaskLoop for InferenceLoop {
                         }),
                     ));
                 }
-                "inference_model_available"
+                SignalMetric::InferenceModelAvailable
                     if dev.direction == DeviationDirection::BelowSetPoint =>
                 {
                     actions.push(LoopAction::new(

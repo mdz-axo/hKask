@@ -6,7 +6,7 @@
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
-use hkask_types::{InfrastructureError, Visibility};
+use hkask_types::{AccessControl, Confidence, InfrastructureError, TemporalBounds, Visibility};
 use serde_json::Value;
 use thiserror::Error;
 
@@ -29,12 +29,9 @@ pub struct Triple {
     pub entity: String,
     pub attribute: String,
     pub value: Value,
-    pub valid_from: DateTime<Utc>,
-    pub valid_to: Option<DateTime<Utc>>,
-    pub confidence: f64,
-    pub perspective: Option<WebID>,
-    pub visibility: Visibility,
-    pub owner_webid: WebID,
+    pub temporal: TemporalBounds,
+    pub confidence: Confidence,
+    pub access: AccessControl,
 }
 
 impl Triple {
@@ -44,41 +41,38 @@ impl Triple {
             entity: entity.to_string(),
             attribute: attribute.to_string(),
             value,
-            valid_from: Utc::now(),
-            valid_to: None,
-            confidence: 1.0,
-            perspective: None,
-            visibility: Visibility::Private,
-            owner_webid,
+            temporal: TemporalBounds::now(),
+            confidence: Confidence::full(),
+            access: AccessControl::new(owner_webid),
         }
     }
 
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_confidence(mut self, confidence: f64) -> Self {
-        self.confidence = confidence;
+    pub fn with_confidence(mut self, confidence: impl Into<Confidence>) -> Self {
+        self.confidence = confidence.into();
         self
     }
 
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_perspective(mut self, perspective: WebID) -> Self {
-        self.perspective = Some(perspective);
+        self.access = self.access.with_perspective(perspective);
         self
     }
 
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
-        self.visibility = visibility;
+        self.access = self.access.with_visibility(visibility);
         self
     }
 
     /// Is this an episodic (perspective-bound) triple?
     pub fn is_episodic(&self) -> bool {
-        self.perspective.is_some()
+        self.access.is_episodic()
     }
 
     /// Is this a semantic (shared, perspective-free) triple?
     pub fn is_semantic(&self) -> bool {
-        self.perspective.is_none()
+        self.access.is_semantic()
     }
 }
 
@@ -97,12 +91,12 @@ impl TripleStore {
                 triple.entity,
                 triple.attribute,
                 serde_json::to_string(&triple.value)?,
-                triple.valid_from.to_rfc3339(),
-                triple.valid_to.map(|t| t.to_rfc3339()),
+                triple.temporal.valid_from.to_rfc3339(),
+                triple.temporal.valid_to.map(|t| t.to_rfc3339()),
                 triple.confidence,
-                triple.perspective,
-                triple.visibility,
-                triple.owner_webid,
+                triple.access.perspective,
+                triple.access.visibility,
+                triple.access.owner_webid,
             ],
         )?;
         Ok(())
@@ -159,8 +153,9 @@ impl TripleStore {
         &self,
         id: &TripleID,
         new_value: Value,
-        new_confidence: f64,
+        new_confidence: impl Into<Confidence>,
     ) -> Result<(), TripleError> {
+        let new_confidence = new_confidence.into();
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
 
@@ -184,6 +179,12 @@ impl TripleStore {
             ))
         })?;
 
+        let access = AccessControl {
+            perspective: row.2,
+            visibility: row.3,
+            owner_webid: row.4,
+        };
+
         let new_id = TripleID::new();
         conn.execute(
             &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"),
@@ -194,9 +195,9 @@ impl TripleStore {
                 serde_json::to_string(&new_value)?,
                 now,
                 new_confidence,
-                row.2,
-                row.3,
-                row.4,
+                access.perspective,
+                access.visibility,
+                access.owner_webid,
             ],
         )?;
 
@@ -386,12 +387,13 @@ impl TripleStore {
             entity: row.entity,
             attribute: row.attribute,
             value,
-            valid_from,
-            valid_to,
+            temporal: TemporalBounds::new(valid_from, valid_to),
             confidence: row.confidence,
-            perspective: row.perspective,
-            visibility: row.visibility,
-            owner_webid: row.owner_webid,
+            access: AccessControl {
+                perspective: row.perspective,
+                visibility: row.visibility,
+                owner_webid: row.owner_webid,
+            },
         })
     }
 }
@@ -403,7 +405,7 @@ struct TripleRow {
     value: String,
     valid_from: String,
     valid_to: Option<String>,
-    confidence: f64,
+    confidence: Confidence,
     perspective: Option<WebID>,
     visibility: Visibility,
     owner_webid: WebID,

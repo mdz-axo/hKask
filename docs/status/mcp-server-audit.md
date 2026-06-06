@@ -12,8 +12,8 @@ ddmvss_categories: [capability, observability]
 
 **Date:** 2026-05-29
 **Version:** hKask v0.22.0
-**Total servers:** 19
-**Total tools:** 115+
+**Total servers:** 21
+**Total tools:** 123+
 
 ---
 
@@ -40,6 +40,8 @@ ddmvss_categories: [capability, observability]
 | `hkask-mcp-episodic` | 190 | 4 | **Full** | Episodic memory (private, perspective-bound) |
 | `hkask-mcp-semantic` | 290 | 6 | **Full** | Semantic memory (public, shared) |
 | `hkask-mcp-replicant` | ~310 | 3 | **Full** | Replicant chat — MCP bridge for external integrations (Zed, etc.) |
+| `hkask-mcp-doc-knowledge` | 747 | 4 | **Full** | Document parsing and chunking (HTML/text extraction, multi-tier chunking) |
+| `hkask-mcp-markitdown` | 724 | 3 | **Full** | Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback) |
 
 ---
 
@@ -47,7 +49,7 @@ ddmvss_categories: [capability, observability]
 
 | Status | Count | Servers |
 |--------|-------|---------|
-| **Full** | 19 | All servers |
+| **Full** | 21 | All servers |
 | **Partial** | 0 | — |
 | **Shell** | 0 | — |
 
@@ -245,7 +247,7 @@ Registered in `table_gas_estimator.rs` with gas cost **5** (internal LLM-mediate
 
 ## Recommendations
 
-1. **No shell servers.** All 19 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
+1. **No shell servers.** All 21 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
 
 2. **Per-crate README:** Create individual `README.md` files in each `mcp-servers/hkask-mcp-*/README.md` documenting the tool surface, configuration, and any external service dependencies.
 
@@ -257,4 +259,4 @@ Registered in `table_gas_estimator.rs` with gas cost **5** (internal LLM-mediate
 
 ---
 
-*ℏKask MCP Arsenal — 19 servers, ~117 tools, 0 stubs — v0.22.0*
+*ℏKask MCP Arsenal — 21 servers, ~123 tools, 0 stubs — v0.22.0*

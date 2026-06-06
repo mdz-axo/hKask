@@ -1,0 +1,56 @@
+# Template crate manifest for improve-codebase-architecture skill
+# ℏKask v0.22.0
+
+crate:
+  name: improve-codebase-architecture
+  version: "0.22.0"
+  description: >
+    Find deepening opportunities in the codebase. Surfaces shallow modules,
+    proposes deep modules with small interfaces and large implementations.
+    Informed by hLexicon domain vocabulary and architecture docs. Aligned with
+    hKask's cybernetic design: crate boundaries as first-class seams.
+
+templates:
+  - id: improve-codebase-architecture/arch-explore
+    path: arch-explore.j2
+    type: Cognition
+    lexicon_terms: [detect, explore, classify, discriminate, orient]
+    description: >
+      Explore the codebase for architectural friction: shallow modules, tight
+      coupling, missing locality, wide import surfaces, untested code. Apply
+      the deletion test to suspected shallowness.
+
+  - id: improve-codebase-architecture/arch-candidates
+    path: arch-candidates.j2
+    type: KnowAct
+    lexicon_terms: [assess, rank, propose, evaluate, specify]
+    description: >
+      Present deepening candidates with files, problem, solution, benefits
+      (leverage and locality), and recommendation strength. Use hKask domain
+      vocabulary. Ask user which to explore.
+
+  - id: improve-codebase-architecture/arch-deepen
+    path: arch-deepen.j2
+    type: KnowAct
+    lexicon_terms: [deepen, design, constrain, verify, crystallize]
+    description: >
+      Grill loop for a selected candidate: walk the design tree, define the
+      deepened module shape, identify seams and adapters, confirm test surface.
+      Update glossary and ADRs inline as decisions crystallize.
+
+hlexicon_terms:
+  - detect
+  - explore
+  - classify
+  - discriminate
+  - orient
+  - assess
+  - rank
+  - propose
+  - evaluate
+  - specify
+  - deepen
+  - design
+  - constrain
+  - verify
+  - crystallize

@@ -319,6 +319,7 @@ impl InferencePort for OkapiInference {
                 messages: vec![Message {
                     role: "user".to_string(),
                     content: prompt.clone(),
+                    images: None,
                 }],
                 temperature: parameters.temperature,
                 top_p: parameters.top_p,
@@ -382,6 +383,7 @@ impl InferencePort for OkapiInference {
                 messages: vec![Message {
                     role: "user".to_string(),
                     content: prompt.clone(),
+                    images: None,
                 }],
                 temperature: parameters.temperature,
                 top_p: parameters.top_p,
@@ -405,6 +407,103 @@ impl InferencePort for OkapiInference {
 
             Ok(result)
         })
+    }
+}
+
+// Direct impl (not part of InferencePort trait)
+impl OkapiInference {
+    /// Generate text from images (vision/multimodal) via Okapi.
+    ///
+    /// Sends base64-encoded images along with a text prompt to a vision-capable
+    /// model. Not part of the `InferencePort` trait — this is a direct method
+    /// for multimodal inference that doesn't fit the text-only trait signature.
+    ///
+    /// Falls back to `fallback_model` if the primary model fails.
+    pub async fn generate_vision(
+        &self,
+        prompt: &str,
+        images: &[String],
+        model_override: Option<&str>,
+        fallback_model: Option<&str>,
+        parameters: &LLMParameters,
+    ) -> Result<InferenceResult, InferenceError> {
+        validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
+
+        if images.is_empty() {
+            return Err(InferenceError::Generation(
+                "No images provided for vision inference".to_string(),
+            ));
+        }
+
+        let model_id = model_override
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| self.model.clone());
+
+        let request = OkapiRequest {
+            model: model_id.clone(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: prompt.to_string(),
+                images: Some(images.to_vec()),
+            }],
+            temperature: parameters.temperature,
+            top_p: parameters.top_p,
+            top_k: parameters.top_k as i32,
+            frequency_penalty: parameters.frequency_penalty,
+            presence_penalty: parameters.presence_penalty,
+            max_tokens: parameters.max_tokens as i32,
+            seed: parameters.seed,
+            n_probs: Some(5),
+        };
+
+        match self.execute_with_retry(request).await {
+            Ok(result) => {
+                info!(
+                    target: "hkask.inference",
+                    model = %result.model,
+                    tokens = result.usage.total_tokens,
+                    finish_reason = %result.finish_reason,
+                    "Vision inference completed"
+                );
+                Ok(result)
+            }
+            Err(primary_err) => {
+                if let Some(fallback) = fallback_model {
+                    if fallback != model_id {
+                        warn!(
+                            target: "hkask.inference",
+                            primary_model = %model_id,
+                            fallback_model = %fallback,
+                            error = %primary_err,
+                            "Primary vision model failed, attempting failover"
+                        );
+
+                        let fallback_request = OkapiRequest {
+                            model: fallback.to_string(),
+                            messages: vec![Message {
+                                role: "user".to_string(),
+                                content: prompt.to_string(),
+                                images: Some(images.to_vec()),
+                            }],
+                            temperature: parameters.temperature,
+                            top_p: parameters.top_p,
+                            top_k: parameters.top_k as i32,
+                            frequency_penalty: parameters.frequency_penalty,
+                            presence_penalty: parameters.presence_penalty,
+                            max_tokens: parameters.max_tokens as i32,
+                            seed: parameters.seed,
+                            n_probs: Some(5),
+                        };
+
+                        self.execute_with_retry(fallback_request).await
+                    } else {
+                        Err(primary_err)
+                    }
+                } else {
+                    Err(primary_err)
+                }
+            }
+        }
     }
 }
 
@@ -495,4 +594,8 @@ struct RawFunctionCall {
 struct Message {
     role: String,
     content: String,
+    /// Base64-encoded images for multimodal/vision requests.
+    /// Ollama's chat API accepts `images` per-message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    images: Option<Vec<String>>,
 }

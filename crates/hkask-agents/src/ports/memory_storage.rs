@@ -10,7 +10,7 @@
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
 
-use hkask_types::{DelegationToken, ExperienceClassification, WebID};
+use hkask_types::{Confidence, DelegationToken, ExperienceClassification, WebID};
 
 // Episodic Storage Port — Private, agent-scoped memory
 
@@ -33,7 +33,7 @@ pub trait EpisodicStoragePort: Send + Sync {
         entity: &str,
         attribute: &str,
         value: serde_json::Value,
-        confidence: f64,
+        confidence: Confidence,
         token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 
@@ -83,7 +83,7 @@ pub trait EpisodicStoragePort: Send + Sync {
         attribute: &str,
         value: serde_json::Value,
         classification: ExperienceClassification,
-        confidence_override: Option<f64>,
+        confidence_override: Option<Confidence>,
         token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 }
@@ -108,7 +108,7 @@ pub trait SemanticStoragePort: Send + Sync {
         entity: &str,
         attribute: &str,
         value: serde_json::Value,
-        confidence: f64,
+        confidence: Confidence,
         token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 

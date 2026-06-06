@@ -54,12 +54,22 @@ impl GasSection {
     /// Convert YAML gas section to GasBudgetConfig, applying defaults for missing fields
     pub fn to_config(&self) -> GasBudgetConfig {
         GasBudgetConfig {
-            session_cap: self.session_cap.unwrap_or(150000),
-            per_message_cost: self.per_message_cost.unwrap_or(100),
-            alert_threshold: self.alert_threshold.unwrap_or(0.7),
+            session_cap: self
+                .session_cap
+                .unwrap_or(GasBudgetConfig::DEFAULT_SESSION_CAP),
+            per_message_cost: self
+                .per_message_cost
+                .unwrap_or(GasBudgetConfig::DEFAULT_PER_MESSAGE_COST),
+            alert_threshold: self
+                .alert_threshold
+                .unwrap_or(GasBudgetConfig::DEFAULT_ALERT_THRESHOLD),
             hard_limit: self.hard_limit.unwrap_or(true),
-            per_bot_allocation: self.per_bot_allocation.unwrap_or(15000),
-            curator_allocation: self.curator_allocation.unwrap_or(25000),
+            per_bot_allocation: self
+                .per_bot_allocation
+                .unwrap_or(GasBudgetConfig::DEFAULT_PER_BOT_ALLOCATION),
+            curator_allocation: self
+                .curator_allocation
+                .unwrap_or(GasBudgetConfig::DEFAULT_CURATOR_ALLOCATION),
         }
     }
 }
