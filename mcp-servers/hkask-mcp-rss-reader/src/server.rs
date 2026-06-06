@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use base64::Engine;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
-use hkask_storage::Database;
+
 use hkask_types::{McpErrorKind, WebID};
 use reqwest::Client;
 use rmcp::handler::server::wrapper::Parameters;
@@ -152,26 +152,8 @@ impl RssServer {
     /// - `HKASK_RSS_DB` + `HKASK_DB_PASSPHRASE` (optional): persistent encrypted database.
     ///   Absent → in-memory (ephemeral, data lost on restart).
     pub fn new(ctx: hkask_mcp::ServerContext) -> Result<Self, anyhow::Error> {
-        let db: Arc<std::sync::Mutex<Connection>> = match (
-            ctx.credentials.get("HKASK_RSS_DB"),
-            ctx.credentials.get("HKASK_DB_PASSPHRASE"),
-        ) {
-            (Some(path), Some(passphrase)) => {
-                Database::open_with_extensions(path, passphrase, RSS_SCHEMA_DDL)
-                    .map_err(|e| anyhow::anyhow!("Failed to open RSS database: {e}"))?
-                    .conn_arc()
-            }
-            _ => {
-                tracing::warn!(
-                    target: "hkask.mcp.rss_reader",
-                    "No persistent database configured — RSS data is in-memory and will be lost on restart. \
-                     Set HKASK_RSS_DB and HKASK_DB_PASSPHRASE for encrypted persistence."
-                );
-                Database::in_memory_with_extensions(RSS_SCHEMA_DDL)
-                    .map_err(|e| anyhow::anyhow!("Failed to open in-memory RSS database: {e}"))?
-                    .conn_arc()
-            }
-        };
+        let db = ctx.open_database_with_extensions("HKASK_RSS_DB", RSS_SCHEMA_DDL)?;
+        let db: Arc<std::sync::Mutex<Connection>> = db.conn_arc();
 
         let client = Client::builder()
             .user_agent(format!("hkask-mcp-rss-reader/{}", SERVER_VERSION))

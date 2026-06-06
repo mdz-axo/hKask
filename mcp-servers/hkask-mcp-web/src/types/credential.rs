@@ -15,6 +15,10 @@ pub trait CredentialResolver: Send + Sync {
 }
 
 /// Production credential resolver that reads from environment / .env files.
+///
+/// Note: Initial credentials at server construction time come from `ctx.credentials`
+/// (resolved by `run_stdio_server_with_preloaded` from keystore, env vars, and .env files).
+/// This resolver is used by `ProviderPool` for runtime credential refresh only.
 pub struct EnvCredentialResolver;
 
 #[async_trait::async_trait]

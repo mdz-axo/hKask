@@ -21,8 +21,8 @@ pub use hkask_types::ports::ToolInfo;
 pub use raw_tool_port::RawMcpToolPort;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
-    CredentialRequirement, ServerContext, api_get, api_put, resolve_credential, run_stdio_server,
-    validate_identifier,
+    CredentialRequirement, ServerContext, api_get, api_put, load_dotenv, resolve_credential,
+    run_stdio_server, run_stdio_server_with_preloaded, validate_identifier,
 };
 
 /// Run an MCP server with stdio transport.
@@ -41,6 +41,22 @@ where
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
     run_stdio_server(name, version, factory, credentials).await
+}
+
+/// Run an MCP server with preloaded .env credentials.
+pub async fn run_server_with_preloaded<S, F>(
+    name: &str,
+    version: &str,
+    factory: F,
+    credentials: Vec<CredentialRequirement>,
+    preloaded: std::collections::HashMap<String, String>,
+) -> anyhow::Result<()>
+where
+    S: rmcp::ServiceExt<rmcp::RoleServer>,
+    S: rmcp::Service<rmcp::RoleServer>,
+    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+{
+    run_stdio_server_with_preloaded(name, version, factory, credentials, preloaded).await
 }
 
 /// Macro to validate an identifier field and return early on error.

@@ -379,7 +379,7 @@ impl<I: InferencePort + 'static> HkaskLoop for InferenceLoop<I> {
                         _ => continue, // Skip non-routable actions
                     }
                     .to_string(),
-                    target: WebID::new(),
+                    target: WebID::from_persona(b"inference_loop"),
                     parameters: action.parameters.clone(),
                 };
                 let msg = LoopMessage::new(action.priority, LoopId::Inference, payload)

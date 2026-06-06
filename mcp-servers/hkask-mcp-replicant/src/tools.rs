@@ -48,6 +48,7 @@ use hkask_types::ports::InferencePort;
 use hkask_types::{CapabilityChecker, LLMParameters, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -88,7 +89,12 @@ pub struct ReplicantServer {
 }
 
 impl ReplicantServer {
-    pub fn new(webid: WebID, persona: &str, default_model: &str) -> anyhow::Result<Self> {
+    pub fn new(
+        webid: WebID,
+        persona: &str,
+        default_model: &str,
+        credentials: Option<&HashMap<String, String>>,
+    ) -> anyhow::Result<Self> {
         // Resolve ACP secret through the full derivation chain
         // (master key → env → keychain → deterministic default) so that the ACP runtime
         // is initialized with the same secret as the CLI and other MCP servers.
@@ -101,7 +107,7 @@ impl ReplicantServer {
         // This provides charter, responsibilities, rights, and voice/tone for
         // rich system prompts. If the registry is not available, we fall back
         // to the minimal built-in persona.
-        let agent_definition = load_agent_definition(persona);
+        let agent_definition = load_agent_definition(persona, credentials);
 
         Ok(Self {
             webid,

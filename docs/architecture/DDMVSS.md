@@ -697,8 +697,8 @@ variety_counters:
     action: algedonic_alert
 
 algedonic:
-  trigger: "variety_deficit > threshold"
-  escalation: "Curator → Human"
+  trigger: "variety_deficit > threshold/2 (Warning) or > threshold (Critical)"
+  escalation: "Curator (Warning) → Human (Critical)"
   cooldown_seconds: 300
 
 focusing_assumptions:
@@ -1189,9 +1189,11 @@ See [`trust-security-observability.md`](trust-security-observability.md) for imp
 ## 8. Rust Type-Level Skeleton (Task 8)
 
 ```rust
-//! hkask-types/src/spec.rs — DDMVSS domain types
+//! hkask-storage/src/spec_types.rs — DDMVSS domain types
 //!
 //! Load-bearing skeleton: types + traits only, no business logic.
+//! NOTE: This skeleton shows the DDMVSS type design. The actual implementation
+//! lives in hkask-storage/src/spec_types.rs (not hkask-types).
 
 use crate::id::WebID;
 use crate::capability::{CapabilityResource, CapabilityAction};
@@ -1300,9 +1302,7 @@ pub trait SpecStore {
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
 }
 
-pub trait SpecObserver {
-    fn emit_span(&self, spec_id: SpecId, operation: &str, outcome: &serde_json::Value);
-}
+// SpecObserver trait removed in v0.22.0 — CNS span emission replaces it
 
 // ── Error ────────────────────────────────────────────────────
 
@@ -1347,7 +1347,7 @@ impl SpecStore for SqliteSpecStore {
 - Traits define ports; `SqliteSpecStore` demonstrates the adapter pattern.
 - Zero `async` in domain core — async only at adapter boundary (via `async-trait` in adapters).
 - Newtypes `SpecId`, `CapabilityId` follow existing `hkask-types/src/id.rs` conventions.
-- `SpecCurationRecord` integrates with existing `CurationDecision` and `OCAPBoundary` from `curation.rs`.
+- `SpecCurationRecord` integrates with existing `CurationDecision` (3 variants: Merge, Discard, Revise) from `curation.rs`. The `Defer` variant was removed in v0.22.0.
 - `SpecCurator` trait has ≥2 potential consumers (spec-curator bot, human-via-CLI) — P1 compliant.
 - `SpecCategory` reduced to 4 live variants (Domain, Capability, Interface, Composition).
 - `SpecError::CurationDenied` and `SpecError::CoherenceInsufficient` — distinct recovery paths per C5.

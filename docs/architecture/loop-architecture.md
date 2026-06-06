@@ -430,7 +430,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 
 ### 5.1 Set-Point Derivation
 
-**Tension:** The Cybernetics Loop needs target values (set-points) for energy budgets, variety counters, and algedonic thresholds. Currently these are hardcoded constants (e.g., variety deficit >100 triggers warning, >500 triggers critical).[^beer-vsm]
+**Tension:** The Cybernetics Loop needs target values (set-points) for energy budgets, variety counters, and algedonic thresholds. Currently these are hardcoded constants (e.g., warning at deficit > threshold/2 (=50 default), critical at deficit > threshold (=100 default)).[^beer-vsm]
 
 **Options:**
 - **A. Static configuration:** Set-points in YAML, loaded at bootstrap. Simple but inflexible.

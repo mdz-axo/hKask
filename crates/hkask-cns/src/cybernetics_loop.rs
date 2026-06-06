@@ -73,6 +73,11 @@ pub struct SetPoints {
     pub error_rate_max: f64,
     /// Maximum connector latency in seconds. Default: 30.0
     pub connector_latency_max_secs: f64,
+    /// Communication queue depth threshold for backpressure regulation.
+    /// When the Communication Loop's queue depth exceeds this value,
+    /// CyberneticsLoop produces a Throttle(Communication) action.
+    /// Default: 100 messages
+    pub communication_backpressure_threshold: f64,
 }
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
@@ -90,6 +95,7 @@ pub struct SetPointsConfig {
     pub variety_max_deficit: Option<f64>,
     pub error_rate_max: Option<f64>,
     pub connector_latency_max_secs: Option<f64>,
+    pub communication_backpressure_threshold: Option<f64>,
 }
 
 impl SetPointsConfig {
@@ -113,6 +119,7 @@ impl Default for SetPoints {
             variety_max_deficit: 100.0,
             error_rate_max: 0.3,
             connector_latency_max_secs: 30.0,
+            communication_backpressure_threshold: 100.0,
         }
     }
 }
@@ -214,6 +221,9 @@ impl SetPoints {
             connector_latency_max_secs: config
                 .connector_latency_max_secs
                 .unwrap_or(defaults.connector_latency_max_secs),
+            communication_backpressure_threshold: config
+                .communication_backpressure_threshold
+                .unwrap_or(defaults.communication_backpressure_threshold),
         }
     }
 }
@@ -834,7 +844,7 @@ impl HkaskLoop for CyberneticsLoop {
                 LoopId::Cybernetics,
                 "communication_queue_depth",
                 depth as f64,
-                self.set_points.connector_latency_max_secs, // reuse as backpressure threshold
+                self.set_points.communication_backpressure_threshold,
             ));
         }
 
@@ -900,6 +910,25 @@ impl HkaskLoop for CyberneticsLoop {
                         serde_json::json!({
                             "reason": "connector_latency_exceeded",
                             "latency_secs": dev.signal.value,
+                            "threshold": dev.signal.set_point,
+                        }),
+                    ))
+                }
+                "communication_queue_depth"
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
+                    tracing::info!(
+                        target: "cns.cybernetics.backpressure",
+                        queue_depth = dev.signal.value,
+                        threshold = dev.signal.set_point,
+                        "Communication queue depth exceeded backpressure threshold"
+                    );
+                    Some(LoopAction::new(
+                        LoopId::Communication,
+                        ActionType::Throttle,
+                        serde_json::json!({
+                            "reason": "communication_backpressure",
+                            "queue_depth": dev.signal.value,
                             "threshold": dev.signal.set_point,
                         }),
                     ))

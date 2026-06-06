@@ -40,22 +40,18 @@ graph TD
         DB["Database<br/>SQLCipher connection"]
         TRIPLES["TripleStore<br/>bitemporal triples"]
         EVENTS["NuEventStore<br/>CNS audit trail"]
-        BLOBS["BlobStore<br/>binary content"]
         EMBEDS["EmbeddingStore<br/>vector search"]
         SPECS["SqliteSpecStore<br/>DDMVSS specs"]
         SESSIONS["StandingSessionStore<br/>chat sessions"]
-        META["MetacognitionStore<br/>curator snapshots"]
-        GITCAS["GitCas<br/>content-addressed"]
-        GOAL["GoalJudgeAdapter<br/>goal verification"]
+        GITCAS["GitCasAdapter<br/>content-addressed"]
+        GOAL["SqliteGoalRepository<br/>goal persistence"]
     end
 
     DB --> TRIPLES
     DB --> EVENTS
-    DB --> BLOBS
     DB --> EMBEDS
     DB --> SPECS
     DB --> SESSIONS
-    DB --> META
     DB --> GITCAS
     DB --> GOAL
 ```
@@ -64,7 +60,7 @@ graph TD
 id: DIAG-PL-001
 verified_date: 2026-05-28
 verified_against: crates/hkask-storage/src/database.rs:74; triples.rs:79; nu_event_store.rs:21; embeddings.rs:49; spec_store.rs:10
-status: VERIFIED
+status: STALE (BlobStore, MetacognitionStore, GoalJudgeAdapter removed; GitCas→GitCasAdapter, GoalStore→SqliteGoalRepository)
 -->
 
 **ERD diagrams:** [`reference/hKask-erd.md`](reference/hKask-erd.md), [`reference/registry-erd.md`](reference/registry-erd.md), [`reference/subsystem-erds.md`](reference/subsystem-erds.md)
@@ -86,30 +82,25 @@ status: VERIFIED
 
 ### 2.1 Core Schema
 
-hKask stores knowledge as **bitemporal triples** — subject-predicate-object with two time dimensions:[^snodgrass-bitemporal]
+hKask stores knowledge as **bitemporal triples** — entity-attribute-value with two time dimensions:[^snodgrass-bitemporal]
 
 ```sql
 CREATE TABLE IF NOT EXISTS triples (
     id          TEXT PRIMARY KEY,
-    subject     TEXT NOT NULL,
-    predicate   TEXT NOT NULL,
-    object      TEXT NOT NULL,
-    confidence  REAL DEFAULT 1.0,
+    entity      TEXT NOT NULL,
+    attribute   TEXT NOT NULL,
+    value       TEXT NOT NULL,      -- serialized serde_json::Value
+    confidence  REAL NOT NULL DEFAULT 1.0,
     -- Valid time: when the fact was true in the domain
     valid_from  TEXT NOT NULL,
-    valid_to    TEXT,           -- NULL = still valid
+    valid_to    TEXT,                -- NULL = still valid
     -- Transaction time: when we recorded the fact
-    tx_from     TEXT NOT NULL DEFAULT (datetime('now')),
-    tx_to       TEXT,           -- NULL = current record
-    -- Observer identity
-    observer_id TEXT NOT NULL,
-    source      TEXT            -- provenance reference
+    transaction_at TEXT DEFAULT (datetime('now')),
+    -- Observer identity & perspective
+    owner_webid TEXT NOT NULL,      -- WebID of the triple owner
+    perspective TEXT,              -- Option<WebID>: Some = episodic, None = semantic
+    visibility  TEXT NOT NULL DEFAULT 'private'  -- Visibility enum
 );
-
-CREATE INDEX idx_triples_subject ON triples(subject);
-CREATE INDEX idx_triples_predicate ON triples(predicate);
-CREATE INDEX idx_triples_valid ON triples(valid_from, valid_to);
-CREATE INDEX idx_triples_tx ON triples(tx_from, tx_to);
 ```
 
 **Implementation:** `TripleStore` (`triples.rs:79`), `Triple` (`triples.rs:22`)
@@ -123,6 +114,8 @@ CREATE INDEX idx_triples_tx ON triples(tx_from, tx_to);
 | **Valid time** | When fact was true in domain | "Agent X had capability Y from May 1-15" |
 | **Transaction time** | When we recorded the fact | "We learned about Y on May 2" |
 | **Confidence** | Bayesian probability [0.0, 1.0] | Combined evidence from observers |
+| **Perspective** | Owning agent WebID (Some) or None | Some = episodic (private), None = semantic (public) |
+| **Visibility** | Access scope of the triple | Private (episodic) or Public (semantic) |
 
 ### 2.3 Memory Perspectives
 
@@ -140,20 +133,29 @@ CREATE INDEX idx_triples_tx ON triples(tx_from, tx_to);
 ### 3.1 sqlite-vec Integration
 
 ```sql
-CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
+CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT PRIMARY KEY,
-    embedding FLOAT[384],     -- model-dependent dimensions
-    triple_id TEXT REFERENCES triples(id),
+    entity_ref TEXT NOT NULL,      -- reference to triple entity (no FK constraint)
+    vector BLOB NOT NULL,
+    dimensions INTEGER NOT NULL,
     model TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_entity_ref ON embeddings(entity_ref);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(
+    id TEXT PRIMARY KEY,
+    embedding float[$DIM]        -- model-dependent dimensions
 );
 ```
 
-**Implementation:** `EmbeddingStore` (`embeddings.rs:49`), `Embedding` (`embeddings.rs:17`), `KnnResult` (`embeddings.rs:44`)
+**Implementation:** `EmbeddingStore` (`embeddings.rs:49`)
 
 **KNN query:**
 ```rust
-pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, EmbeddingError>;
+// Via EmbeddingPort trait (hkask-types/src/ports.rs)
+fn search(&self, query_vector: &[f32], limit: usize) -> Result<Vec<SimilarityResult>, EmbeddingError>;
 ```
 
 ### 3.2 Configuration
@@ -171,8 +173,7 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 
 ### 4.1 Git CAS
 
-`GitCas` adapter (`hkask-agents/src/adapters/git_cas.rs`) provides content-addressed blob storage:
-- **BLAKE3 hashing** for content addressing
+`GitCasAdapter` (`hkask-agents/src/adapters/git_cas.rs`) provides content-addressed blob storage:
 - **Git objects** for immutable storage
 - **Provenance tracking** via git history
 - **Tamper detection** via content hash verification
@@ -189,7 +190,6 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 - Implements `SpecStore` trait (`hkask-types/src/spec.rs:314`)
 - CRUD operations for `Spec` entities
 - `DefaultSpecCurator` (`hkask-agents/src/curator/spec_curator.rs`) — evaluate, reconcile, cultivate
-- `CnsSpecObserver` (`spec_store.rs:192`) — emits `cns.spec.*` spans
 
 ---
 
@@ -198,8 +198,8 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | `StandingSessionStore` | `crates/hkask-storage/src/standing_session.rs` | Chat session persistence |
-| `MetacognitionStoreAdapter` | `crates/hkask-agents` | Curator health snapshot persistence |
-| `GoalStore` | `crates/hkask-storage/src/goals.rs` | Goal persistence and verification |
+| `MetacognitionLoop` | `crates/hkask-agents/src/curator_agent/metacognition.rs` | Curator health monitoring and metacognition |
+| `SqliteGoalRepository` | `crates/hkask-storage/src/goals.rs` | Goal persistence and verification |
 
 ---
 

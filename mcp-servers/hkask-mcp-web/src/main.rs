@@ -3,10 +3,7 @@ pub mod providers;
 pub mod strip_html;
 pub mod types;
 
-use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, resolve_credential,
-    validate_tool_url,
-};
+use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard, validate_tool_url};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Arc;
@@ -459,98 +456,58 @@ impl WebServer {
     }
 }
 
-fn load_dotenv() {
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let paths = [cwd.join(".env")];
-    if let Some(parent) = cwd.parent() {
-        let more = [parent.join(".env")];
-        for path in paths.iter().chain(more.iter()) {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.is_empty() || line.starts_with('#') {
-                        continue;
-                    }
-                    if let Some((key, value)) = line.split_once('=') {
-                        let key = key.trim();
-                        let value = value.trim();
-                        if !key.is_empty() && !value.is_empty() && std::env::var(key).is_err() {
-                            // SAFETY: set_var is called only at startup before any concurrent access
-                            unsafe {
-                                std::env::set_var(key, value);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
-        }
-    } else {
-        for path in &paths {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.is_empty() || line.starts_with('#') {
-                        continue;
-                    }
-                    if let Some((key, value)) = line.split_once('=') {
-                        let key = key.trim();
-                        let value = value.trim();
-                        if !key.is_empty() && !value.is_empty() && std::env::var(key).is_err() {
-                            // SAFETY: set_var is called only at startup before any concurrent access
-                            unsafe {
-                                std::env::set_var(key, value);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
-        }
-    }
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    load_dotenv();
+    let dotenv = hkask_mcp::load_dotenv();
 
-    let brave_key = resolve_credential("HKASK_BRAVE_API_KEY").ok();
-    let firecrawl_key = resolve_credential("HKASK_FIRECRAWL_API_KEY").ok();
-    let tavily_key = resolve_credential("HKASK_TAVILY_API_KEY").ok();
-    let serpapi_key = resolve_credential("HKASK_SERPAPI_API_KEY").ok();
-    let exa_key = resolve_credential("HKASK_EXA_API_KEY").ok();
-    let browserbase_key = resolve_credential("HKASK_BROWSERBASE_API_KEY").ok();
-
-    let mut required_creds = Vec::new();
-    if brave_key.is_none()
-        && firecrawl_key.is_none()
-        && tavily_key.is_none()
-        && serpapi_key.is_none()
-        && exa_key.is_none()
-    {
-        required_creds.push(CredentialRequirement::required(
-            "HKASK_BRAVE_API_KEY",
-            "At least one search provider API key is required \
-             (HKASK_BRAVE_API_KEY, HKASK_TAVILY_API_KEY, HKASK_SERPAPI_API_KEY, \
-              HKASK_FIRECRAWL_API_KEY, or HKASK_EXA_API_KEY)",
-        ));
-    }
-
-    hkask_mcp::run_server(
+    hkask_mcp::run_server_with_preloaded(
         "hkask-mcp-web",
         SERVER_VERSION,
-        |_ctx: ServerContext| {
+        |ctx: ServerContext| {
+            let brave_key = ctx.credentials.get("HKASK_BRAVE_API_KEY").cloned();
+            let firecrawl_key = ctx.credentials.get("HKASK_FIRECRAWL_API_KEY").cloned();
+            let tavily_key = ctx.credentials.get("HKASK_TAVILY_API_KEY").cloned();
+            let serpapi_key = ctx.credentials.get("HKASK_SERPAPI_API_KEY").cloned();
+            let exa_key = ctx.credentials.get("HKASK_EXA_API_KEY").cloned();
+            let browserbase_key = ctx.credentials.get("HKASK_BROWSERBASE_API_KEY").cloned();
+
             WebServer::new(
-                _ctx.webid,
-                brave_key.clone(),
-                firecrawl_key.clone(),
-                tavily_key.clone(),
-                serpapi_key.clone(),
-                exa_key.clone(),
-                browserbase_key.clone(),
+                ctx.webid,
+                brave_key,
+                firecrawl_key,
+                tavily_key,
+                serpapi_key,
+                exa_key,
+                browserbase_key,
             )
         },
-        required_creds,
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_BRAVE_API_KEY",
+                "Brave Search API key for web search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_FIRECRAWL_API_KEY",
+                "Firecrawl API key for web extract/browse",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_TAVILY_API_KEY",
+                "Tavily API key for AI-optimized web search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_SERPAPI_API_KEY",
+                "SerpAPI API key for Google search results",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_EXA_API_KEY",
+                "Exa API key for neural/semantic web search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_BROWSERBASE_API_KEY",
+                "Browserbase API key for headless browser browsing",
+            ),
+        ],
+        dotenv,
     )
     .await
 }

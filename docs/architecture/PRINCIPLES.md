@@ -115,7 +115,7 @@ status: VERIFIED
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
 - Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.killzone.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`
-- Algedonic Alert: Variety deficit >100 → escalate to Curator/human
+- Algedonic Alert: Variety deficit > threshold/2 (50 default) → escalate to Curator; deficit > threshold (100 default) → escalate to human
 
 **Constraint:** CNS monitors production system health. Tests verify correctness. Separate concerns.
 

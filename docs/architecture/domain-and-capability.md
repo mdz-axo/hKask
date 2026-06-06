@@ -2,7 +2,7 @@
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-03
-version: "2.2.2"
+version: "2.2.3"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability]
@@ -62,7 +62,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-001
 verified_date: 2026-05-29
-verified_against: crates/hkask-agents/src/pod/mod.rs:83; crates/hkask-types/src/capability/mod.rs:223; Cargo.toml workspace members
+verified_against: crates/hkask-agents/src/pod/mod.rs:83; crates/hkask-types/src/capability/mod.rs:66; Cargo.toml workspace members
 status: VERIFIED
 -->
 
@@ -93,20 +93,20 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | Entity | Crate | Location | Description |
 |--------|-------|----------|-------------|
 | **AgentPod** | `hkask-agents` | `pod/mod.rs:82` | Agent lifecycle container |
-| **WebID** | `hkask-types` | `id.rs:77` | Deterministic identity (UUID v5) |
-| **CapabilityToken** | `hkask-types` | `capability/mod.rs:237` | OCAP token with caveats, HMAC-SHA256 signing |
-| **NuEvent** | `hkask-types` | `event.rs:10` | Cybernetic event primitive (observer → span → phase) |
-| **Goal** | `hkask-types` | `goal.rs:137` | DDMVSS goal specification |
-| **Spec** | `hkask-types` | `spec.rs:209` | Minimum viable specification |
-| **AgentDefinition** | `hkask-types` | `agent_def.rs:175` | Declarative agent configuration |
-| **TemplateInvocation** | `hkask-types` | `template.rs:143` | Template rendering record |
+| **WebID** | `hkask-types` | `id.rs:164` | Deterministic identity (UUID v5) |
+| **DelegationToken** | `hkask-types` | `capability/mod.rs:283` | OCAP delegation token with caveats, HMAC-SHA256 signing |
+| **NuEvent** | `hkask-types` | `event.rs:16` | Cybernetic event primitive (observer → span → phase) |
+| **Goal** | `hkask-types` | `goal.rs:129` | DDMVSS goal specification |
+| **Spec** | `hkask-storage` | `spec_types.rs:199` | Minimum viable specification |
+| **AgentDefinition** | `hkask-types` | `agent_def.rs:127` | Declarative agent configuration |
+| **TemplateInvocation** | `hkask-types` | `template.rs:95` | Template rendering record |
 
 ### 3.2 Agent Taxonomy
 
-| Type | Struct | Purpose | Interaction | Visibility |
-|------|--------|---------|-------------|------------|
-| **Bot** | `Bot` (`bot.rs:14`) | Process execution | Machine-to-machine (A2A) | Public/Shared |
-| **Replicant** | `Replicant` (`replicant.rs:14`) | Human assistance | Human-to-agent (H2A) | Episodic=Private, Semantic=Public |
+| Type | Kind | Purpose | Interaction | Visibility |
+|------|------|---------|-------------|------------|
+| **Bot** | `AgentKind::Bot` (`agent_def.rs:72`) | Process execution | Machine-to-machine (A2A) | Public/Shared |
+| **Replicant** | `AgentKind::Replicant` (`agent_def.rs:72`) | Human assistance | Human-to-agent (H2A) | Episodic=Private, Semantic=Public |
 | **Curator** | Singleton replicant | System persona | User's counterpart in `kask chat` | System-wide |
 
 **Constraint:** No escalation primitive between bots and replicants. Algedonic alerts handle severity escalation to human.[^beer-vsm]
@@ -145,8 +145,8 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `id` | `EventID` | Unique event identifier |
 | `timestamp` | `DateTime<Utc>` | Timestamp of event |
 | `observer_webid` | `WebID` | Emitting agent identity |
-| `span` | `SpanCategory` enum | Typed namespace (14 variants) |
-| `phase` | `Phase` enum | Observe / Regulate / Outcome |
+| `span` | `SpanCategory` enum | Typed namespace (15 variants) |
+| `phase` | `Phase` enum | Sense / Compute / Compare / Act |
 | `observation` | `Value` | Observed state |
 | `regulation` | `Option<Value>` | Regulatory action taken |
 | `outcome` | `Option<Value>` | Outcome of regulation |
@@ -154,16 +154,17 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `parent_event` | `Option<EventID>` | Parent event for chaining |
 | `visibility` | `String` | Data visibility classification ("private" by default) |
 
-**Span namespaces** (`crates/hkask-types/src/event.rs:92-106`):
+**Span namespaces** (`crates/hkask-types/src/event.rs:87-103`):
 
 | Variant | Namespace | Covers |
 |---------|-----------|--------|
-| `Prompt` | `cns.prompt.*` | Template render, validate, outcome |
 | `Tool` | `cns.tool.*` | Tool governance, invocation |
+| `Prompt` | `cns.prompt.*` | Template render, validate, outcome |
+| `Inference` | `cns.inference.*` | Inference governance (GovernedTool, energy budget) |
 | `AgentPod` | `cns.agent_pod.*` | Pod lifecycle, delegation |
 | `Connector` | `cns.connector.*` | External I/O (LLM, embeddings) |
 | `Pipeline` | `cns.pipeline.*` | Memory pipeline operations |
-| `Energy` | `cns.energy.*` | Energy budget tracking |
+| `Gas` | `cns.gas.*` | Gas/energy budget tracking |
 | `Review` | `cns.review.*` | Review queue operations |
 | `Template` | `cns.template.*` | Template lifecycle |
 | `Curation` | `cns.curation.*` | Curation operations |
@@ -206,7 +207,7 @@ status: VERIFIED
 | Component | Type | Purpose |
 |-----------|------|---------|
 | Identity | `AgentPersona` | WebID + agent type + charter |
-| Capability | `CapabilityToken` | Primary OCAP token |
+| Capability | `DelegationToken` | Primary OCAP delegation token |
 | Templates | `TemplateCrate` | Bundled templates |
 | State | `PodLifecycleState` | Populated → Registered → Activated → Deactivated |
 | Sovereignty | `SovereigntyChecker` | User data boundary enforcement |
@@ -229,14 +230,14 @@ status: VERIFIED
 
 ### 5.1 Single Capability Primitive
 
-All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:223`):[^miller-ocap]
+All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:283`; backward-compatible alias `CapabilityToken` at line 66):[^miller-ocap]
 
 | Property | Implementation |
 |----------|---------------|
 | **Signing** | HMAC-SHA256 with `subtle::ConstantTimeEq` |
-| **Scoping** | Resource + action pairs (`CapabilityResource`, `CapabilityAction`) |
-| **Caveats** | Expiration, operation, template, visibility (`Caveat` at `capability/mod.rs:136`) |
-| **Attenuation** | Chains with max depth (default: 7, configurable via `SYSTEM_MAX_ATTENUATION`) |
+| **Scoping** | Resource + action pairs (`DelegationResource`, `DelegationAction`) |
+| **Caveats** | Expiration, operation, template, visibility (`Caveat` at `capability/mod.rs:240`) |
+| **Attenuation** | Chains with max depth (default: 7, compile-time const `SYSTEM_MAX_ATTENUATION`) |
 | **Revocation** | Persistent SQLite via `RevocationStore` (`hkask-agents/src/revocation_store.rs:16`) |
 | **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
 
@@ -244,13 +245,11 @@ All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mo
 
 | Type | Location | Purpose |
 |------|----------|---------|
-| `CapabilityToken` | `capability/mod.rs:223` | Core OCAP token with self-verification |
-| `CapabilityTokenBuilder` | `capability/mod.rs:266` | Builder with caveats, attenuation, context nonce |
-| `CapabilityResource` | `capability/mod.rs:52` | Resource enum (Tool, Template, Manifest, Registry, Cascade, Spec) |
-| `CapabilityAction` | `capability/mod.rs:88` | Action enum (Read, Write, Execute, Render, Compose, Attenuate, Validate) |
-| `Caveat` | `capability/mod.rs:136` | Expiration, operation, template, visibility restrictions |
-| `CaveatContext` | `capability/mod.rs:174` | Runtime context for caveat evaluation |
-| `BotCapabilities` | `capability/mod.rs:769` | Per-bot capability set |
+| `DelegationToken` | `capability/mod.rs:283` | Core OCAP delegation token with self-verification |
+| `DelegationTokenBuilder` | `capability/mod.rs:326` | Builder with caveats, attenuation, context nonce |
+| `DelegationResource` | `capability/mod.rs:175` | Resource enum (Tool, Template, Registry) |
+| `DelegationAction` | `capability/mod.rs:203` | Action enum (Read, Write, Execute) |
+| `Caveat` | `capability/mod.rs:240` | Expiration, operation, template, visibility restrictions |
 | `RevocationStore` | `hkask-agents/src/revocation_store.rs:16` | Persistent capability revocation |
 | `OCAP` | `hkask-agents/src/ocap.rs:15` | OCAP enforcement with attenuation history |
 
@@ -296,15 +295,15 @@ status: VERIFIED
 | Operation | Resource | Action | Interface | Attenuatable? |
 |-----------|----------|--------|-----------|---------------|
 | Invoke MCP tool | `tool:{server}:{name}` | Execute | MCP, CLI, API | Yes |
-| Render template | `template:{id}` | Render | MCP, CLI, API | Yes |
-| Create agent pod | `pod:*` | Create | CLI, API | No (root only) |
-| Activate pod | `pod:{id}` | Activate | CLI, API | Yes |
-| Delegate capability | `capability:{id}` | Attenuate | MCP, CLI | Yes (always) |
-| Register template | `template:*` | Register | CLI, API | No (root only) |
+| Render template | `template:{id}` | Execute | MCP, CLI, API | Yes |
+| Create agent pod | `pod:*` | Write | CLI, API | No (root only) |
+| Activate pod | `pod:{id}` | Execute | CLI, API | Yes |
+| Delegate capability | `capability:{id}` | Execute | MCP, CLI | Yes (always) |
+| Register template | `template:*` | Write | CLI, API | No (root only) |
 | Query CNS | `cns:*` | Read | CLI, API | Yes |
 | Capture goal | `spec:{id}` | Write | MCP, CLI, API | Yes |
 | Curate artifact | `spec:{id}` | Execute | MCP, CLI, API | Yes |
-| Validate spec graph | `spec:*` | Validate | MCP, CLI, API | Yes |
+| Validate spec graph | `spec:*` | Execute | MCP, CLI, API | Yes |
 | Manage sovereignty | `sovereignty:*` | Execute | CLI | No (user only) |
 | Manage ensemble | `ensemble:*` | Execute | CLI, API | Yes |
 
@@ -316,7 +315,7 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-19 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
+19 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `GovernedTool` (`crates/hkask-cns/src/governed_tool.rs:74`):
 
 | MCP Server | Crate | LOC | Status | Loop | Domain |
 |-----------|-------|-----|--------|------|--------|
@@ -359,7 +358,7 @@ status: VERIFIED
 | `spec/graph/query` | Query spec graph by category | recognize, match |
 | `spec/graph/validate` | Validate spec graph completeness | evaluate, ground |
 
-**verified-against:** `mcp-servers/hkask-mcp-spec/src/lib.rs` (tool_router at lines 278, 329, 397, 460, 519, 619, 674, 733)
+**verified-against:** `mcp-servers/hkask-mcp-spec/src/main.rs` (tool_router at lines 112, 163, 236, 303, 366, 467, 522, 583)
 
 ### 6.3 `hkask-mcp-replicant` — External Integration Bridge
 
@@ -414,17 +413,17 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 
 | Crate | LOC | Purpose | Key Types |
 |-------|-----|---------|-----------|
-| `hkask-types` | 5,154 | ID types, ν-event, hLexicon, specs | `WebID`, `NuEvent`, `Span`, `CapabilityToken`, `Goal`, `Spec` |
+| `hkask-types` | 5,154 | ID types, ν-event, hLexicon, specs | `WebID`, `NuEvent`, `Span`, `DelegationToken`, `Goal`, `Spec` |
 | `hkask-storage` | 4,010 | SQLite + SQLCipher + sqlite-vec | `Database`, `TripleStore`, `EmbeddingStore`, `GitCas` |
 | `hkask-memory` | 695 | Semantic/episodic pipelines | Memory consolidation (episodic → semantic) |
 | `hkask-cns` | 2,039 | Cybernetic Nervous System | `CnsRuntime`, `AlgedonicManager`, `VarietyCounter` |
-| `hkask-templates` | 8,259 | Registry, rendering, cascade | `SqliteRegistry`, `TemplateRendererImpl`, `ContextAssembler` |
-| `hkask-agents` | 7,474 | Pods, ACP, bot/replicant | `AgentPod`, `PodManager`, `Bot`, `ConsentManager` |
+| `hkask-templates` | 3,514 | Registry, rendering, cascade | `SqliteRegistry`, `TemplateRendererImpl`, `ContextAssembler` |
+| `hkask-agents` | 7,474 | Pods, ACP, bot/replicant | `AgentPod`, `PodManager`, `ConsentManager` |
 | `hkask-ensemble` | 4,698 | Multi-agent chat | Ensemble coordination |
 | `hkask-keystore` | 384 | OS keychain, AES-256-GCM | Key derivation, secret storage |
-| `hkask-mcp` | 1,911 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `SecurityGateway` |
-| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 20 subcommand groups (chat, template, bot, pod, mcp, cns, sovereignty, goal, registry, git, ensemble, spec, docs, agent, curator, replicant, keystore, admin, models, web-search) |
-| `hkask-api` | 2,449 | HTTP API (utoipa) | 15 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, models, ensemble, soap_infer, acp, spec, curator, git, goal) |
+| `hkask-mcp` | 1,573 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `GovernedTool` |
+| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 25 subcommand groups (chat, template, bot, pod, mcp, cns, sovereignty, goal, registry, git, ensemble, spec, docs, agent, curator, replicant, keystore, models, web-search, bundle, compose, embed-corpus, consolidate, loops, serve) |
+| `hkask-api` | 2,449 | HTTP API (utoipa) | 18 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, models, ensemble, soap_infer, acp, spec, curator, git, goal, bundles, episodic, consolidation) |
 
 ### 8.2 Dependency Graph
 
@@ -433,11 +432,11 @@ graph TD
     TYPES["hkask-types<br/>5,154 LOC"] --> STORAGE["hkask-storage<br/>4,010 LOC"]
     STORAGE --> MEMORY["hkask-memory<br/>695 LOC"]
     MEMORY --> CNS["hkask-cns<br/>2,039 LOC"]
-    CNS --> TEMPLATES["hkask-templates<br/>8,259 LOC"]
+    TEMPLATES["hkask-templates<br/>3,514 LOC"]
     TEMPLATES --> AGENTS["hkask-agents<br/>7,474 LOC"]
     AGENTS --> ENSEMBLE["hkask-ensemble<br/>4,698 LOC"]
     KEYSTORE["hkask-keystore<br/>384 LOC"] --> AGENTS
-    MCP["hkask-mcp<br/>1,911 LOC"] --> AGENTS
+    MCP["hkask-mcp<br/>1,573 LOC"] --> AGENTS
     CLI["hkask-cli<br/>3,741 LOC"] --> API["hkask-api<br/>2,449 LOC"]
     API --> AGENTS
 ```

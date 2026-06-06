@@ -28,6 +28,7 @@ impl std::fmt::Display for CurationDecision {
 ///
 /// Replaces stringly-typed capability identifiers with typed enum variants.
 /// Each variant maps to a ZST token in `crate::capability::tokens`.
+#[allow(dead_code)] // TODO: wire when Curation/Cybernetics tokens are adopted by consumers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OcapTokenKind {

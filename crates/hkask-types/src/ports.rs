@@ -182,42 +182,58 @@ pub struct InferenceResult {
 /// Defined in hkask-types so domain crates (e.g. hkask-agents) can use it
 /// without depending on hkask-templates.
 ///
+/// Uses explicit `Pin<Box<dyn Future>>` return types instead of `async_trait`
+/// to make the boxing visible at the trait level. This keeps the trait
+/// object-safe (usable as `dyn InferencePort`) while eliminating hidden
+/// control flow from proc macros.
+///
 /// Implementations:
 /// - `OkapiInference` — Production implementation (in hkask-templates)
 /// - `Arc<dyn InferencePort>` — Delegating wrapper (backward compat for InferenceLoop default type param)
-#[async_trait::async_trait]
 pub trait InferencePort: Send + Sync {
     /// Generate text with parameters
-    async fn generate(
+    fn generate(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-    ) -> Result<InferenceResult, InferenceError>;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    >;
 
     /// Generate text with an optional model override.
     /// The `model_override` parameter specifies a model ID to use
     /// instead of the default. Implementations should fall back to
     /// `generate()` when `None` is passed.
-    async fn generate_with_model(
+    fn generate_with_model(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-        _model_override: Option<&str>,
-    ) -> Result<InferenceResult, InferenceError> {
-        self.generate(prompt, parameters).await
+        model_override: Option<&str>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        self.generate(prompt, parameters)
     }
 
     /// Generate multiple outputs for template selection
-    async fn generate_n(
+    fn generate_n(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
         n: usize,
-    ) -> Result<Vec<InferenceResult>, InferenceError> {
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<Vec<InferenceResult>, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
         use futures_util::future::join_all;
         let futures: Vec<_> = (0..n).map(|_| self.generate(prompt, parameters)).collect();
-        let results = join_all(futures).await;
-        results.into_iter().collect()
+        Box::pin(async move {
+            let results = join_all(futures).await;
+            results.into_iter().collect()
+        })
     }
 }
 
@@ -227,34 +243,41 @@ pub trait InferencePort: Send + Sync {
 /// The vtable dispatch here is only at the construction boundary;
 /// the hot path inside InferenceLoop uses static dispatch when a
 /// concrete type (e.g. OkapiInference, GovernedTool) is provided.
-#[async_trait::async_trait]
 impl InferencePort for Arc<dyn InferencePort> {
-    async fn generate(
+    fn generate(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-    ) -> Result<InferenceResult, InferenceError> {
-        (**self).generate(prompt, parameters).await
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        (**self).generate(prompt, parameters)
     }
 
-    async fn generate_with_model(
+    fn generate_with_model(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
-    ) -> Result<InferenceResult, InferenceError> {
-        (**self)
-            .generate_with_model(prompt, parameters, model_override)
-            .await
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        (**self).generate_with_model(prompt, parameters, model_override)
     }
 
-    async fn generate_n(
+    fn generate_n(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
         n: usize,
-    ) -> Result<Vec<InferenceResult>, InferenceError> {
-        (**self).generate_n(prompt, parameters, n).await
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<Vec<InferenceResult>, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        (**self).generate_n(prompt, parameters, n)
     }
 }
 

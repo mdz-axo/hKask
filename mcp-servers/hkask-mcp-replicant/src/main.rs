@@ -9,6 +9,9 @@
 //!
 //! - `HKASK_AGENT_PERSONA` — Replicant persona name (default: "Curator")
 //! - `HKASK_DEFAULT_MODEL` — Default model for inference (default: "deepseek-v4-pro")
+//! - `HKASK_REGISTRY_PATH` — Registry path for YAML agent definitions (default: "registry/bots")
+//! - `HKASK_DB_PATH` — SQLite registry database path (default: "hkask.db")
+//! - `HKASK_DB_PASSPHRASE` — Database encryption passphrase (optional)
 //! - `OKAPI_BASE_URL` — Okapi API base URL (default: "http://127.0.0.1:11435")
 //!
 //! # ACP Integration
@@ -38,13 +41,28 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-replicant",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
-            let persona =
-                std::env::var("HKASK_AGENT_PERSONA").unwrap_or_else(|_| "Curator".to_string());
-            let default_model = std::env::var("HKASK_DEFAULT_MODEL")
-                .unwrap_or_else(|_| "deepseek-v4-pro".to_string());
-            ReplicantServer::new(ctx.webid, &persona, &default_model)
+            let persona = ctx
+                .credentials
+                .get("HKASK_AGENT_PERSONA")
+                .cloned()
+                .unwrap_or_else(|| "Curator".to_string());
+            let default_model = ctx
+                .credentials
+                .get("HKASK_DEFAULT_MODEL")
+                .cloned()
+                .unwrap_or_else(|| "deepseek-v4-pro".to_string());
+            ReplicantServer::new(ctx.webid, &persona, &default_model, Some(&ctx.credentials))
         },
-        vec![],
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_AGENT_PERSONA",
+                "Replicant persona name (default: Curator)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DEFAULT_MODEL",
+                "Default LLM model for inference (default: deepseek-v4-pro)",
+            ),
+        ],
     )
     .await
 }

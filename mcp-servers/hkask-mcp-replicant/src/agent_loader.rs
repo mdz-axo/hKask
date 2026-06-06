@@ -8,10 +8,20 @@
 //! These are standalone functions used during [`ReplicantServer`](super::tools::ReplicantServer)
 //! initialization to set up ACP runtime and persona configuration.
 
+use std::collections::HashMap;
+
 use hkask_agents::adapters::FilesystemRegistrySource;
 use hkask_agents::ports::RegistrySourcePort;
 use hkask_storage::Database;
 use hkask_types::{AgentDefinition, AgentKind, Charter, PersonaConstraints};
+
+/// Read a credential value from the resolved credentials map, falling back to
+/// `std::env::var()` when credentials is `None` or the key is absent.
+fn cred_or_env(credentials: Option<&HashMap<String, String>>, key: &str) -> Option<String> {
+    credentials
+        .and_then(|c| c.get(key).cloned())
+        .or_else(|| std::env::var(key).ok())
+}
 
 // ── ACP Secret Resolution ────────────────────────────────────────────────────
 // Delegates to hkask_keystore::resolve_acp_secret() for the full resolution
@@ -41,15 +51,24 @@ pub fn resolve_acp_secret() -> String {
 ///
 /// Tries the SQLite registry database first, then falls back to YAML file
 /// discovery under `registry_path`.
-pub fn load_agent_definition(persona: &str) -> Option<AgentDefinition> {
-    let registry_path =
-        std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string());
+///
+/// When `credentials` is provided, environment-derived values are read from the
+/// already-resolved credential map instead of calling `std::env::var()` directly.
+/// When `None`, falls back to `std::env::var()` for backward compatibility.
+pub fn load_agent_definition(
+    persona: &str,
+    credentials: Option<&HashMap<String, String>>,
+) -> Option<AgentDefinition> {
+    let registry_path = cred_or_env(credentials, "HKASK_REGISTRY_PATH")
+        .unwrap_or_else(|| "registry/bots".to_string());
 
-    let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+    let db_path =
+        cred_or_env(credentials, "HKASK_DB_PATH").unwrap_or_else(|| "hkask.db".to_string());
 
     // Try to open the registry database. If it doesn't exist or we can't
     // read it, we fall back to the minimal persona definition.
-    let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
+    let passphrase = cred_or_env(credentials, "HKASK_DB_PASSPHRASE")
+        .ok_or("not in credentials or env".to_string())
         .or_else(|_| {
             hkask_keystore::Keychain::default()
                 .retrieve_by_key("hkask-db-passphrase")

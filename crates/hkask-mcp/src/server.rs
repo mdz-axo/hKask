@@ -151,6 +151,33 @@ impl ServerContext {
             None => Ok(hkask_storage::Database::in_memory()?),
         }
     }
+
+    /// Open a database with custom schema extensions from credentials resolved in this context.
+    ///
+    /// Like `open_database`, but passes additional DDL to execute after core schema init.
+    /// Use this for servers that need custom tables (e.g., FTS5 virtual tables).
+    ///
+    /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE` from resolved credentials.
+    /// If `db_env_var` is absent, falls back to an in-memory database with extensions.
+    pub fn open_database_with_extensions(
+        &self,
+        db_env_var: &str,
+        extensions: &str,
+    ) -> anyhow::Result<hkask_storage::Database> {
+        match self.credentials.get(db_env_var) {
+            Some(path) => {
+                let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                    anyhow::anyhow!("{} set but HKASK_DB_PASSPHRASE missing", db_env_var)
+                })?;
+                Ok(hkask_storage::Database::open_with_extensions(
+                    path, passphrase, extensions,
+                )?)
+            }
+            None => Ok(hkask_storage::Database::in_memory_with_extensions(
+                extensions,
+            )?),
+        }
+    }
 }
 
 // =============================================================================
@@ -565,6 +592,45 @@ pub async fn api_put(
 /// 2. Environment variable (traditional `std::env::var`)
 ///
 /// This allows servers to get credentials from either source transparently.
+/// Parse .env files and return key-value pairs without mutating the process environment.
+///
+/// Searches for `.env` in the current directory, then the parent directory.
+/// Only sets keys that are not already present in the environment (same semantics
+/// as the original load_dotenv, but without the unsafe set_var).
+///
+/// This is the safe alternative to `unsafe std::env::set_var()` — the returned
+/// map can be passed to `run_stdio_server_with_preloaded()` to inject values
+/// into credential resolution without mutating global state.
+pub fn load_dotenv() -> HashMap<String, String> {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let paths = [cwd.join(".env")];
+    let parent_paths = cwd
+        .parent()
+        .map(|p| vec![p.join(".env")])
+        .unwrap_or_default();
+
+    for path in paths.iter().chain(parent_paths.iter()) {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            let mut map = HashMap::new();
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    let key = key.trim();
+                    let value = value.trim();
+                    if !key.is_empty() && !value.is_empty() && std::env::var(key).is_err() {
+                        map.insert(key.to_string(), value.to_string());
+                    }
+                }
+            }
+            return map;
+        }
+    }
+    HashMap::new()
+}
+
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
     let keychain = hkask_keystore::Keychain::default();
     match keychain.retrieve_by_key(env_var) {
@@ -725,6 +791,110 @@ where
         hkask_types::WebID::from_persona(persona.as_bytes())
     } else {
         // Anonymous caller — random UUID
+        hkask_types::WebID::new()
+    };
+
+    tracing::info!(
+        webid = %webid.redacted_display(),
+        "Agent identity resolved"
+    );
+
+    // 4. Build server context (no ambient authority)
+    let ctx = ServerContext {
+        credentials: resolved,
+        adapters: crate::AdapterContainer::new(),
+        webid,
+    };
+
+    // 5. Construct server (only after credential checks pass)
+    let server = server_factory(ctx)?;
+
+    // 6. Serve via rmcp stdio transport
+    tracing::info!(
+        server = server_name,
+        version = version,
+        "MCP server starting"
+    );
+    let service = server.serve(rmcp::transport::stdio());
+    service.await?;
+    Ok(())
+}
+
+/// Like `run_stdio_server`, but with pre-resolved credentials from .env files.
+///
+/// Preloaded credentials take precedence over `resolve_credential()` results.
+/// This allows .env file values to be injected without mutating the process
+/// environment (no `unsafe set_var`).
+pub async fn run_stdio_server_with_preloaded<S, F>(
+    server_name: &str,
+    version: &str,
+    server_factory: F,
+    credentials: Vec<CredentialRequirement>,
+    preloaded: HashMap<String, String>,
+) -> anyhow::Result<()>
+where
+    S: rmcp::ServiceExt<rmcp::RoleServer>,
+    S: rmcp::Service<rmcp::RoleServer>,
+    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+{
+    // 1. Tracing initialization
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
+    // 2. Credential checks — preloaded values override resolve_credential
+    let mut resolved = HashMap::new();
+    let mut missing_required = Vec::new();
+
+    for cred in &credentials {
+        if let Some(val) = preloaded.get(&cred.env_var) {
+            tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
+            resolved.insert(cred.env_var.clone(), val.clone());
+            continue;
+        }
+        match resolve_credential(&cred.env_var) {
+            Ok(val) => {
+                tracing::debug!(credential = %cred.env_var, "Credential resolved");
+                resolved.insert(cred.env_var.clone(), val);
+            }
+            Err(_) if cred.required => {
+                tracing::error!(
+                    credential = %cred.env_var,
+                    description = %cred.description,
+                    "Required credential not set — server cannot function"
+                );
+                missing_required.push(cred.env_var.clone());
+            }
+            Err(_) => {
+                tracing::warn!(
+                    credential = %cred.env_var,
+                    description = %cred.description,
+                    "Optional credential not set — server will operate with degraded functionality"
+                );
+            }
+        }
+    }
+
+    if !missing_required.is_empty() {
+        anyhow::bail!(
+            "Missing required credentials: {}. Set them via environment variables or hkask-keystore.",
+            missing_required.join(", ")
+        );
+    }
+
+    // 3. Resolve calling agent identity (WebID)
+    let webid = if let Some(uuid_str) = preloaded.get("HKASK_WEBID") {
+        hkask_types::WebID::from_str(uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
+    } else if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
+        hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
+    } else if let Some(persona) = preloaded.get("HKASK_AGENT_PERSONA") {
+        hkask_types::WebID::from_persona(persona.as_bytes())
+    } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
+        hkask_types::WebID::from_persona(persona.as_bytes())
+    } else {
         hkask_types::WebID::new()
     };
 

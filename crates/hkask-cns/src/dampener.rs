@@ -115,9 +115,11 @@ pub(crate) struct Dampener {
     metacognitive_window: Duration,
     /// Timestamp of the last metacognitive override that passed fingerprint
     /// deduplication. Used to enforce the override cooldown.
+    #[allow(dead_code)] // read in should_dampen() via async Mutex — compiler can't trace
     last_override: Mutex<Option<std::time::Instant>>,
     /// Override cooldown duration. Within this window after ANY metacognitive
     /// override, ALL subsequent metacognitive overrides are suppressed.
+    #[allow(dead_code)] // read in should_dampen() via async Mutex — compiler can't trace
     override_cooldown: Duration,
 }
 
@@ -154,6 +156,8 @@ impl Dampener {
     /// metacognitive overrides are suppressed — even if they have different
     /// fingerprints. This prevents oscillation when Curation overrides
     /// Cybernetics and the response triggers a second override.
+    ///
+    /// Only used in tests; production uses DEFAULT_OVERRIDE_COOLDOWN.
     pub(crate) fn with_override_cooldown(mut self, cooldown: Duration) -> Self {
         self.override_cooldown = cooldown;
         self

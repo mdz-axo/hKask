@@ -18,7 +18,7 @@
 | **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
 | **Essential Tools** | 19 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
-| **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, energy budgets |
+| **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, gas budgets |
 | **Composition** | Unified registry with `template_type` discriminator |
 
 ---
@@ -54,9 +54,9 @@ The CNS is the homeostatic self-regulation loop, combining observability + gover
 | `cns.tool.*` | Tool governance, invocation |
 | `cns.prompt.*` | Render, validate, outcome |
 | `cns.agent_pod.*` | Lifecycle, delegation |
-| `cns.inference` | Inference governance (GovernedTool, energy budget) |
+| `cns.inference.*` | Inference governance (GovernedTool, gas budget) |
 
-**Algedonic Alert:** Variety deficit >100 → escalation to Curator/human
+**Algedonic Alert:** Variety deficit > threshold/2 (50 by default) → Warning escalation to Curator; deficit > threshold (100 by default) → Critical escalation to human
 
 ---
 
