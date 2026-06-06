@@ -1,7 +1,7 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 use crate::Store;
 use hkask_types::ports::RegistryError;
-use hkask_types::ports::git_cas::{GitCASPort, RepoId};
+use hkask_types::ports::git_cas::RepoId;
 use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
 use thiserror::Error;
 
@@ -180,13 +180,11 @@ impl AgentRegistryStore {
         self.insert(agent)?;
         if let Some(port) = &self.cas_port {
             let bytes = serde_json::to_vec(agent).map_err(|e| {
-                AgentRegistryError::Infra(InfrastructureError::Other(e.to_string()))
+                AgentRegistryError::Infra(InfrastructureError::Serialization(e.to_string()))
             })?;
             port.put_blob(&RepoId::Registry, &bytes)
                 .await
-                .map_err(|e| {
-                    AgentRegistryError::Infra(InfrastructureError::Other(e.to_string()))
-                })?;
+                .map_err(|e| AgentRegistryError::Infra(InfrastructureError::Io(e.to_string())))?;
         }
         Ok(())
     }
@@ -227,5 +225,68 @@ impl AgentRegistryStore {
             AgentRegistryError::NotFound(s) => RegistryError::NotFound(s),
             other => RegistryError::Other(other.to_string()),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::agent_def::{AgentDefinition, AgentKind};
+    use hkask_types::ports::git_cas::MockGitCas;
+    use std::sync::Arc;
+
+    fn make_agent(name: &str) -> RegisteredAgent {
+        RegisteredAgent {
+            definition: AgentDefinition {
+                name: name.to_string(),
+                agent_kind: AgentKind::Bot,
+                charter: None,
+                capabilities: vec![],
+                rights: vec![],
+                responsibilities: vec![],
+                persona: None,
+                depends_on: vec![],
+                process_manifest: None,
+            },
+            token_hash: "test-hash".to_string(),
+            registered_at: "2025-01-01T00:00:00Z".to_string(),
+            source_yaml: "test".to_string(),
+        }
+    }
+
+    /// Tracer bullet: insert_with_cas writes to SQLite and CAS Registry repo.
+    #[tokio::test]
+    async fn insert_with_cas_writes_to_registry_repo() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let mock = Arc::new(MockGitCas::new());
+        let store = AgentRegistryStore::new(db.conn_arc()).with_cas(mock.clone());
+        store.initialize_schema().expect("schema");
+
+        let agent = make_agent("cas-agent");
+        store
+            .insert_with_cas(&agent)
+            .await
+            .expect("insert_with_cas");
+
+        // Verify the agent was persisted to SQLite
+        let retrieved = store.get("cas-agent").expect("get");
+        assert_eq!(retrieved.definition.name, "cas-agent");
+    }
+
+    /// Tracer bullet: insert_with_cas with no CAS port still persists to SQLite.
+    #[tokio::test]
+    async fn insert_with_cas_without_cas_port_persists_sqlite() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = AgentRegistryStore::new(db.conn_arc());
+        store.initialize_schema().expect("schema");
+
+        let agent = make_agent("no-cas-agent");
+        store
+            .insert_with_cas(&agent)
+            .await
+            .expect("insert_with_cas");
+
+        let retrieved = store.get("no-cas-agent").expect("get");
+        assert_eq!(retrieved.definition.name, "no-cas-agent");
     }
 }

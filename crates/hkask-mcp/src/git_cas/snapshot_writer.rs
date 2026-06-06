@@ -17,51 +17,8 @@ use hkask_storage::StoredSession;
 use hkask_types::agent_def::RegisteredAgent;
 use hkask_types::event::NuEvent;
 use hkask_types::goal::Goal;
-use hkask_types::ports::git_cas::{ContentHash, GitCASPort, GitCasError, RepoId};
+use hkask_types::ports::git_cas::{ContentHash, GitCASPort, GitCasError, RepoId, TripleEntry};
 use std::sync::Arc;
-
-/// Serializable representation of a [`Triple`](hkask_storage::Triple).
-///
-/// `Triple` in `hkask-storage` does not derive `Serialize`, so we create
-/// a lightweight DTO that captures the same fields in a serializable form.
-/// The `value` field is already a `serde_json::Value`, which serializes natively.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TripleEntry {
-    pub id: String,
-    pub entity: String,
-    pub attribute: String,
-    pub value: serde_json::Value,
-    pub valid_from: String,
-    pub valid_to: Option<String>,
-    pub confidence: f64,
-    pub perspective: String,
-    pub visibility: String,
-}
-
-impl TripleEntry {
-    /// Construct from a [`Triple`](hkask_storage::Triple) by extracting
-    /// the serializable fields.
-    ///
-    /// Note: This is a lossy conversion — access control details beyond
-    /// perspective and visibility are flattened for CAS storage.
-    pub fn from_triple(t: &hkask_storage::Triple) -> Self {
-        Self {
-            id: t.id.to_string(),
-            entity: t.entity.clone(),
-            attribute: t.attribute.clone(),
-            value: t.value.clone(),
-            valid_from: t.temporal.valid_from.to_rfc3339(),
-            valid_to: t.temporal.valid_to.map(|dt| dt.to_rfc3339()),
-            confidence: t.confidence.value(),
-            perspective: t
-                .access
-                .perspective
-                .map(|wid| wid.to_string())
-                .unwrap_or_default(),
-            visibility: t.access.visibility.as_str().to_string(),
-        }
-    }
-}
 
 /// Thin serialization layer that writes domain types through a [`GitCASPort`].
 ///

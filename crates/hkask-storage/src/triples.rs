@@ -6,7 +6,7 @@
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
-use hkask_types::ports::git_cas::{GitCASPort, RepoId, TripleEntry};
+use hkask_types::ports::git_cas::{RepoId, TripleEntry};
 use hkask_types::{AccessControl, Confidence, InfrastructureError, TemporalBounds, Visibility};
 use serde_json::Value;
 use thiserror::Error;
@@ -108,11 +108,12 @@ impl TripleStore {
         self.insert(triple)?;
         if let Some(port) = &self.cas_port {
             let entry = TripleEntry::from(triple);
-            let bytes = serde_json::to_vec(&entry)
-                .map_err(|e| TripleError::Infra(InfrastructureError::Other(e.to_string())))?;
+            let bytes = serde_json::to_vec(&entry).map_err(|e| {
+                TripleError::Infra(InfrastructureError::Serialization(e.to_string()))
+            })?;
             port.put_blob(&RepoId::Memory, &bytes)
                 .await
-                .map_err(|e| TripleError::Infra(InfrastructureError::Other(e.to_string())))?;
+                .map_err(|e| TripleError::Infra(InfrastructureError::Io(e.to_string())))?;
         }
         Ok(())
     }

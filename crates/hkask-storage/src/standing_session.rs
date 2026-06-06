@@ -9,6 +9,7 @@
 
 use crate::{Store, now_rfc3339};
 use hkask_types::InfrastructureError;
+use hkask_types::ports::git_cas::RepoId;
 use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -50,7 +51,7 @@ pub struct StoredMessage {
     pub template_id: Option<String>,
 }
 
-define_store!(StandingSessionStore);
+define_store_cas!(StandingSessionStore);
 
 impl StandingSessionStore {
     /// Initialize the standing session tables.
@@ -92,6 +93,23 @@ impl StandingSessionStore {
                 session.sealed as i32,
             ],
         )?;
+        Ok(())
+    }
+
+    /// Save session with CAS write-through: persists to SQLite, then writes to the Sessions repo.
+    pub async fn save_stored_session_with_cas(
+        &self,
+        session: &StoredSession,
+    ) -> Result<(), StandingSessionError> {
+        self.save_stored_session(session)?;
+        if let Some(port) = &self.cas_port {
+            let bytes = serde_json::to_vec(session).map_err(|e| {
+                StandingSessionError::Infra(InfrastructureError::Serialization(e.to_string()))
+            })?;
+            port.put_blob(&RepoId::Sessions, &bytes)
+                .await
+                .map_err(|e| StandingSessionError::Infra(InfrastructureError::Io(e.to_string())))?;
+        }
         Ok(())
     }
 

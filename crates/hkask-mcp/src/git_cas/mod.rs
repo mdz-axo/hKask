@@ -14,8 +14,9 @@ pub mod repo_manager;
 pub mod snapshot_writer;
 
 pub use gix_adapter::{GixCasAdapter, resolve_cas_home};
+pub use hkask_types::TripleEntry;
 pub use repo_manager::RepoManager;
-pub use snapshot_writer::{SnapshotWriter, TripleEntry};
+pub use snapshot_writer::SnapshotWriter;
 
 use hkask_types::{GitError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
