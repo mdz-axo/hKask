@@ -8,6 +8,14 @@
 use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+/// Produce an RFC 3339 timestamp string for the current moment.
+///
+/// Consolidates the repeated `Utc::now().to_rfc3339()` pattern across
+/// stores and agents (P4.3).
+pub fn now_rfc3339() -> String {
+    chrono::Utc::now().to_rfc3339()
+}
+
 /// Shared trait for all SQLite-backed stores.
 ///
 /// Provides the standard `conn_arc()` and `lock_conn()` methods over

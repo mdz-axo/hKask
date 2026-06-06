@@ -23,11 +23,6 @@
 
 use crate::variety::VarietyMonitor;
 
-/// Domain prefixes for unified variety counting.
-///
-/// All variety counters use domain-prefixed keys to avoid collisions
-/// between different observation domains while sharing a single tracker.
-
 /// Unified variety tracker for all CNS observation domains.
 ///
 /// A single structure that tracks variety across all SENSE subloops:

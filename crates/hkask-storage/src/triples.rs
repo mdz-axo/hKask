@@ -3,7 +3,7 @@
 //! Uses `entity/attribute/value` naming (aligned with hKask schema conventions)
 //! and `valid_from`/`valid_to` for temporal tracking.
 
-use crate::Store;
+use crate::{Store, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::{InfrastructureError, TripleID, Visibility, WebID};
 use serde_json::Value;
@@ -289,7 +289,7 @@ impl TripleStore {
         new_confidence: f64,
     ) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
-        let now = Utc::now().to_rfc3339();
+        let now = now_rfc3339();
 
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
@@ -579,7 +579,7 @@ impl TripleStore {
     /// (which filter on `valid_to IS NULL`).
     pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
-        let now = Utc::now().to_rfc3339();
+        let now = now_rfc3339();
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
             rusqlite::params![now, id.as_uuid().to_string()],

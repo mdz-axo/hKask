@@ -344,7 +344,7 @@ impl CyberneticsLoop {
     /// Returns `None` if agent has no registered budget.
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
         let budgets = self.gas_budgets.read().await;
-        budgets.get(agent).map(|b| AgentGasStatus::from(b))
+        budgets.get(agent).map(AgentGasStatus::from)
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call settle_gas() after.
@@ -862,12 +862,9 @@ impl HkaskLoop for CyberneticsLoop {
         // Emit backpressure signals for gas budget depletion.
         // When the Cybernetics Loop detects energy depletion (gas_budget_low),
         // it signals subscribers so downstream loops can throttle consumption.
-        let has_energy_depletion = actions.iter().any(|a| {
-            a.parameters
-                .get("reason")
-                .and_then(|v| v.as_str())
-                .map_or(false, |r| r == "gas_budget_low")
-        });
+        let has_energy_depletion = actions
+            .iter()
+            .any(|a| a.parameters.get("reason").and_then(|v| v.as_str()) == Some("gas_budget_low"));
         if has_energy_depletion {
             let cns = self.cns.read().await;
             // Find the worst remaining ratio from the actions

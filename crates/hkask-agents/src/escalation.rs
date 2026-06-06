@@ -5,7 +5,7 @@
 //! from Curation and escalation signals from algedonic variety deficit detection.
 
 use chrono::{DateTime, Utc};
-use hkask_storage::Store;
+use hkask_storage::{Store, now_rfc3339};
 use hkask_types::{BotID, InfrastructureError, TemplateID};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -67,13 +67,6 @@ impl Store for EscalationQueue {
             .lock()
             .map_err(|_| InfrastructureError::LockPoisoned)
     }
-}
-
-/// Helper to produce an RFC 3339 timestamp for the current moment.
-///
-/// Consolidates the repeated `Utc::now().to_rfc3339()` calls (K6.3).
-fn now_rfc3339() -> String {
-    Utc::now().to_rfc3339()
 }
 
 impl EscalationQueue {

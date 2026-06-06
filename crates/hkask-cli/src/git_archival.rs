@@ -270,6 +270,7 @@ mod tests {
         // SAFETY: Test-only helper that temporarily removes an env var and
         // restores it. Safe because: (1) no other thread reads this var at
         // test time, (2) we always restore the original value.
+        // SAFETY: remove_var is safe here: single-threaded test context, value restored.
         unsafe { std::env::remove_var("HKASK_GITHUB_TOKEN") };
         let result = f();
         if let Some(val) = saved {

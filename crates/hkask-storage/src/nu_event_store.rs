@@ -1,5 +1,5 @@
 //! NuEventStore — Persistent storage for CNS ν-events
-use crate::Store;
+use crate::{Store, now_rfc3339};
 use hkask_types::event::{Phase, Span, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
@@ -161,7 +161,7 @@ impl NuEventStore {
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR REPLACE INTO loop_cursors (key, value, updated_at) VALUES (?1, ?2, ?3)",
-            rusqlite::params![key, value, chrono::Utc::now().to_rfc3339()],
+            rusqlite::params![key, value, now_rfc3339()],
         )?;
         Ok(())
     }

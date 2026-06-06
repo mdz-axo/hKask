@@ -282,10 +282,7 @@ impl AcpPort for RussellAcpAdapter {
         agent_type: hkask_types::AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, AcpError> {
-        let persona = match agent_type {
-            hkask_types::AgentKind::Replicant => "replicant",
-            _ => "bot",
-        };
+        let persona = agent_type.as_russell_persona();
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Value::String(uuid::Uuid::new_v4().to_string()),

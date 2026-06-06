@@ -96,7 +96,7 @@ for dir in "${hot_dirs[@]}"; do
 
             # Check if this line is inside any cfg(test) range
             in_test=false
-            for range in "${test_ranges[@]:-}"; do
+            for range in "${test_ranges[@]}"; do
                 range_start="$(echo "$range" | cut -d' ' -f1)"
                 range_end="$(echo "$range" | cut -d' ' -f2)"
                 if [ "$linenum" -ge "$range_start" ] && [ "$linenum" -le "$range_end" ]; then

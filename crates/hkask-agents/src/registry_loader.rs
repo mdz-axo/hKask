@@ -2,7 +2,7 @@
 
 use crate::acp::{AcpError, AcpRuntime};
 use crate::ports::RegistrySourcePort;
-use hkask_storage::{AgentRegistryError, AgentRegistryStore};
+use hkask_storage::{AgentRegistryError, AgentRegistryStore, now_rfc3339};
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -325,7 +325,7 @@ impl AgentRegistryLoader {
         let registered = RegisteredAgent {
             definition: definition.clone(),
             token_hash: token.signature.clone(),
-            registered_at: chrono::Utc::now().to_rfc3339(),
+            registered_at: now_rfc3339(),
             source_yaml: path.to_string(),
         };
 

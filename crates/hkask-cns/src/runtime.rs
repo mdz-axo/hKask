@@ -71,17 +71,15 @@ impl CnsRuntime {
 
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
-        let health = {
+        {
             let mgr = state.algedonic.read();
             cns_health_check(&mgr)
-        };
-        health
+        }
     }
 
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        let alerts = state.algedonic.read().alerts().to_vec();
-        alerts
+        state.algedonic.read().alerts().to_vec()
     }
 
     /// Get the configured default threshold from the algedonic manager.
@@ -92,7 +90,7 @@ impl CnsRuntime {
 
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        let alerts = {
+        {
             state
                 .algedonic
                 .read()
@@ -100,8 +98,7 @@ impl CnsRuntime {
                 .into_iter()
                 .cloned()
                 .collect()
-        };
-        alerts
+        }
     }
 
     // ── Variety ──
@@ -161,22 +158,22 @@ impl CnsRuntime {
             drop(subscribers);
 
             // If alert is critical, emit depletion signals
-            if let Some(ref a) = alert {
-                if a.severity == crate::algedonic::AlertSeverity::Critical {
-                    let signal = DepletionSignal {
-                        agent: WebID::default(),
-                        remaining: a.threshold.saturating_sub(a.deficit),
-                        cap: a.threshold,
-                        usage_ratio: if a.threshold > 0 {
-                            a.deficit as f64 / a.threshold as f64
-                        } else {
-                            1.0
-                        },
-                    };
-                    let subscribers = self.subscribers.read().await;
-                    for observer in subscribers.iter() {
-                        observer.on_depletion(&signal).await;
-                    }
+            if let Some(ref a) = alert
+                && a.severity == crate::algedonic::AlertSeverity::Critical
+            {
+                let signal = DepletionSignal {
+                    agent: WebID::default(),
+                    remaining: a.threshold.saturating_sub(a.deficit),
+                    cap: a.threshold,
+                    usage_ratio: if a.threshold > 0 {
+                        a.deficit as f64 / a.threshold as f64
+                    } else {
+                        1.0
+                    },
+                };
+                let subscribers = self.subscribers.read().await;
+                for observer in subscribers.iter() {
+                    observer.on_depletion(&signal).await;
                 }
             }
         }

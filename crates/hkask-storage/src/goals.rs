@@ -3,7 +3,7 @@
 //! Goals are transient coordination substrates.
 //! Long-term retention lives in agent memory (episodic/semantic).
 
-use crate::Store;
+use crate::{Store, now_rfc3339};
 use chrono::Utc;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEventSink;
@@ -318,7 +318,7 @@ impl SqliteGoalRepository {
         }
 
         let completed_at = if state.is_terminal() {
-            Some(Utc::now().to_rfc3339())
+            Some(now_rfc3339())
         } else {
             None
         };
@@ -535,7 +535,7 @@ impl SqliteGoalRepository {
         conn.execute(
             "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
              VALUES (?1, ?2, ?3, ?4, 0, 0)",
-            rusqlite::params![goal_id.to_string(), original_data, reason, chrono::Utc::now().to_rfc3339()],
+            rusqlite::params![goal_id.to_string(), original_data, reason, now_rfc3339()],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
 
@@ -811,7 +811,7 @@ mod tests {
         conn.execute(
             "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
              VALUES (?1, '', ?2, ?3, 0, 0)",
-            rusqlite::params![goal_id.to_string(), "legacy corruption", chrono::Utc::now().to_rfc3339()],
+            rusqlite::params![goal_id.to_string(), "legacy corruption", now_rfc3339()],
         ).expect("insert legacy quarantine");
         // Remove from main table to simulate quarantine
         conn.execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])
@@ -872,7 +872,7 @@ mod tests {
                 goal_id.to_string(),
                 webid.to_string(),
                 "corrupt goal",
-                chrono::Utc::now().to_rfc3339()
+                now_rfc3339()
             ],
         )
         .expect("insert corrupt row");

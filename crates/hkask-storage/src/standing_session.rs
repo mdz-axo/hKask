@@ -7,7 +7,7 @@
 //!   they are archival, consistent with the architecture's forward-only
 //!   migration policy (no automatic re-encryption).
 
-use crate::Store;
+use crate::{Store, now_rfc3339};
 use hkask_types::InfrastructureError;
 use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError};
 use serde::{Deserialize, Serialize};
@@ -205,7 +205,7 @@ impl StandingSessionStore {
 
     pub fn update_stored_last_active(&self, session_id: &str) -> Result<(), StandingSessionError> {
         let conn = self.lock_conn()?;
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = now_rfc3339();
         conn.execute(
             "UPDATE standing_sessions SET last_active = ?1 WHERE session_id = ?2",
             rusqlite::params![now, session_id],

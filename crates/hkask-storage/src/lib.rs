@@ -4,6 +4,7 @@
 mod store_macros;
 
 pub use store_macros::Store;
+pub use store_macros::now_rfc3339;
 
 pub mod agent_registry;
 pub mod consent_store;
