@@ -31,6 +31,7 @@
 //!    bypass the cooldown by changing its fingerprint.
 
 use hkask_types::WebID;
+use hkask_types::loops::CuratorDirective;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -62,20 +63,10 @@ pub(crate) const DEFAULT_OVERRIDE_COOLDOWN: Duration = Duration::from_secs(120);
 /// second arrives within the dampening window.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct DirectiveFingerprint {
-    /// The directive type: "calibrate_threshold", "update_capabilities", "adjust_gas_budget"
-    directive_type: String,
-    /// The target agent (if applicable)
+    /// The directive variant name (e.g., "calibrate_threshold", "override_gas_budget").
+    variant: String,
+    /// The target agent (if applicable).
     target: Option<WebID>,
-}
-
-/// Whether a directive type is a metacognitive override.
-///
-/// Metacognitive overrides are higher-order Curation interventions that
-/// reconfigure Cybernetics regulation itself (gas budgets, evidence seeking).
-/// These are subject to the override cooldown in addition to per-fingerprint
-/// dedup, because override oscillation is especially destabilizing.
-fn is_metacognitive_override(directive_type: &str) -> bool {
-    matches!(directive_type, "override_gas_budget" | "seek_more_evidence")
 }
 
 /// DAMPEN — Suppress repeated directives within a configurable time window.
@@ -138,14 +129,10 @@ impl Dampener {
     ///
     /// If neither layer suppresses the directive, the fingerprint is recorded
     /// and (for overrides) the override timestamp is set.
-    pub(crate) async fn should_dampen_directive(
-        &self,
-        directive_type: &str,
-        target: WebID,
-    ) -> bool {
+    pub(crate) async fn should_dampen_directive(&self, directive: &CuratorDirective) -> bool {
         let fingerprint = DirectiveFingerprint {
-            directive_type: directive_type.to_string(),
-            target: Some(target),
+            variant: directive.variant_name().to_string(),
+            target: directive.agent_target(),
         };
         let now = std::time::Instant::now();
 
@@ -165,7 +152,7 @@ impl Dampener {
         }
 
         // Step 2: Override cooldown for metacognitive overrides
-        if is_metacognitive_override(directive_type) {
+        if directive.is_metacognitive() {
             let mut last_override = self.last_override.lock().await;
             if let Some(last) = *last_override
                 && now.duration_since(last) < self.override_cooldown
@@ -204,6 +191,7 @@ impl Dampener {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_types::loops::CuratorDirective;
 
     fn test_agent() -> WebID {
         WebID::from_persona(b"test-agent")
@@ -216,15 +204,20 @@ mod tests {
     #[tokio::test]
     async fn routine_directive_dampened_at_standard_window() {
         let dampener = Dampener::new();
-        let agent = test_agent();
         assert!(
             !dampener
-                .should_dampen_directive("calibrate_threshold", agent)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
         assert!(
             dampener
-                .should_dampen_directive("calibrate_threshold", agent)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
     }
@@ -236,12 +229,20 @@ mod tests {
         // replenish_budget uses the standard window
         assert!(
             !dampener
-                .should_dampen_directive("replenish_budget", agent)
+                .should_dampen_directive(&CuratorDirective::ReplenishBudget {
+                    agent,
+                    amount: 100,
+                    priority: None,
+                })
                 .await
         );
         assert!(
             dampener
-                .should_dampen_directive("replenish_budget", agent)
+                .should_dampen_directive(&CuratorDirective::ReplenishBudget {
+                    agent,
+                    amount: 100,
+                    priority: None,
+                })
                 .await
         );
     }
@@ -249,22 +250,30 @@ mod tests {
     #[tokio::test]
     async fn should_dampen_directive_uses_standard_window() {
         let dampener = Dampener::with_window(Duration::from_millis(100));
-        let agent = test_agent();
         assert!(
             !dampener
-                .should_dampen_directive("calibrate_threshold", agent)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
         assert!(
             dampener
-                .should_dampen_directive("calibrate_threshold", agent)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
         // After window expires, directive is no longer dampened
         tokio::time::sleep(Duration::from_millis(150)).await;
         assert!(
             !dampener
-                .should_dampen_directive("calibrate_threshold", agent)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
     }
@@ -279,28 +288,41 @@ mod tests {
         // First override passes
         assert!(
             !dampener
-                .should_dampen_directive("override_gas_budget", agent_a)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent: agent_a,
+                    new_budget: 5000,
+                })
                 .await
         );
 
         // Different override type, same agent — suppressed by cooldown
         assert!(
             dampener
-                .should_dampen_directive("seek_more_evidence", agent_a)
+                .should_dampen_directive(&CuratorDirective::SeekMoreEvidence {
+                    context: "test".to_string(),
+                    channel: "llm_confidence".to_string(),
+                    confidence: "0.5".to_string(),
+                })
                 .await
         );
 
         // Same override type, different agent — suppressed by cooldown
         assert!(
             dampener
-                .should_dampen_directive("override_gas_budget", agent_b)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent: agent_b,
+                    new_budget: 3000,
+                })
                 .await
         );
 
         // Routine directive NOT suppressed by cooldown
         assert!(
             !dampener
-                .should_dampen_directive("calibrate_threshold", agent_a)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
 
@@ -308,7 +330,10 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(250)).await;
         assert!(
             !dampener
-                .should_dampen_directive("override_gas_budget", agent_b)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent: agent_b,
+                    new_budget: 3000,
+                })
                 .await
         );
     }
@@ -321,19 +346,29 @@ mod tests {
         // Trigger override cooldown
         assert!(
             !dampener
-                .should_dampen_directive("override_gas_budget", agent)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent,
+                    new_budget: 5000,
+                })
                 .await
         );
 
         // Routine directives still pass (per-fingerprint dedup is separate)
         assert!(
             !dampener
-                .should_dampen_directive("calibrate_threshold", agent)
+                .should_dampen_directive(&CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold: 100,
+                })
                 .await
         );
         assert!(
             !dampener
-                .should_dampen_directive("replenish_budget", agent)
+                .should_dampen_directive(&CuratorDirective::ReplenishBudget {
+                    agent,
+                    amount: 100,
+                    priority: None,
+                })
                 .await
         );
     }
@@ -347,7 +382,10 @@ mod tests {
         // First override passes (sets last_override)
         assert!(
             !dampener
-                .should_dampen_directive("override_gas_budget", agent)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent,
+                    new_budget: 5000,
+                })
                 .await
         );
 
@@ -355,7 +393,10 @@ mod tests {
         // (not by cooldown, though the effect is the same)
         assert!(
             dampener
-                .should_dampen_directive("override_gas_budget", agent)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent,
+                    new_budget: 5000,
+                })
                 .await
         );
     }
@@ -368,14 +409,21 @@ mod tests {
         // First seek_more_evidence passes
         assert!(
             !dampener
-                .should_dampen_directive("seek_more_evidence", agent)
+                .should_dampen_directive(&CuratorDirective::SeekMoreEvidence {
+                    context: "test".to_string(),
+                    channel: "llm_confidence".to_string(),
+                    confidence: "0.5".to_string(),
+                })
                 .await
         );
 
         // Subsequent override_gas_budget suppressed by cooldown
         assert!(
             dampener
-                .should_dampen_directive("override_gas_budget", agent)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent,
+                    new_budget: 5000,
+                })
                 .await
         );
     }
@@ -389,14 +437,17 @@ mod tests {
         // Trigger override cooldown
         assert!(
             !dampener
-                .should_dampen_directive("override_gas_budget", agent)
+                .should_dampen_directive(&CuratorDirective::OverrideGasBudget {
+                    agent,
+                    new_budget: 5000,
+                })
                 .await
         );
 
         // clear_override passes — it's not subject to the override cooldown
         assert!(
             !dampener
-                .should_dampen_directive("clear_override", agent)
+                .should_dampen_directive(&CuratorDirective::ClearOverride { agent })
                 .await
         );
     }

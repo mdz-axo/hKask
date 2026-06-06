@@ -104,75 +104,10 @@ impl MessageDispatch {
         directive: CuratorDirective,
         sender: WebID,
     ) -> TraceId {
-        let (directive_type, target, parameters) = match &directive {
-            CuratorDirective::CalibrateThreshold {
-                domain,
-                new_threshold,
-            } => (
-                "calibrate_threshold".to_string(),
-                WebID::new(), // no specific target for threshold calibration
-                serde_json::json!({
-                    "domain": domain,
-                    "new_threshold": new_threshold,
-                }),
-            ),
-            CuratorDirective::UpdateCapabilities {
-                agent,
-                additions,
-                removals,
-            } => (
-                "update_capabilities".to_string(),
-                *agent,
-                serde_json::json!({
-                    "additions": additions,
-                    "removals": removals,
-                }),
-            ),
-            CuratorDirective::OverrideGasBudget { agent, new_budget } => (
-                "override_gas_budget".to_string(),
-                *agent,
-                serde_json::json!({
-                    "new_budget": new_budget,
-                }),
-            ),
-            CuratorDirective::SeekMoreEvidence {
-                context,
-                channel,
-                confidence,
-            } => (
-                "seek_more_evidence".to_string(),
-                WebID::new(),
-                serde_json::json!({
-                    "context": context,
-                    "channel": channel,
-                    "confidence": confidence,
-                }),
-            ),
-            CuratorDirective::ReplenishBudget {
-                agent,
-                amount,
-                priority,
-            } => {
-                let mut params = serde_json::json!({
-                    "amount": amount,
-                });
-                if let Some(p) = priority {
-                    params["priority"] = serde_json::json!(p);
-                }
-                ("replenish_budget".to_string(), *agent, params)
-            }
-        };
-
-        let message = LoopMessage::warning(
-            LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type,
-                target,
-                parameters,
-            },
-        )
-        .with_sender(sender)
-        .with_target(LoopId::Cybernetics);
+        let message =
+            LoopMessage::warning(LoopId::Curation, LoopPayload::CurationDirective(directive))
+                .with_sender(sender)
+                .with_target(LoopId::Cybernetics);
 
         self.send(message).await
     }

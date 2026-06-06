@@ -1,6 +1,7 @@
 //! Template management routes
 
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::{Json, routing::Router};
 use hkask_templates::RegistryIndex;
 

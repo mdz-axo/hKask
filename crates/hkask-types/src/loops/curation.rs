@@ -130,4 +130,53 @@ pub enum CuratorDirective {
         /// Defaults to 1.0 (full replenishment).
         priority: Option<f64>,
     },
+    /// Clear a Curation override on an agent's gas budget.
+    ///
+    /// Removes the agent from the active-overrides registry so that
+    /// normal replenishment resumes. This is the inverse of `OverrideGasBudget`.
+    ClearOverride {
+        agent: WebID,
+    },
+}
+
+impl CuratorDirective {
+    /// Returns the snake_case variant name for logging and fingerprinting.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            CuratorDirective::CalibrateThreshold { .. } => "calibrate_threshold",
+            CuratorDirective::UpdateCapabilities { .. } => "update_capabilities",
+            CuratorDirective::OverrideGasBudget { .. } => "override_gas_budget",
+            CuratorDirective::SeekMoreEvidence { .. } => "seek_more_evidence",
+            CuratorDirective::ReplenishBudget { .. } => "replenish_budget",
+            CuratorDirective::ClearOverride { .. } => "clear_override",
+        }
+    }
+
+    /// Returns the agent targeted by this directive, if applicable.
+    ///
+    /// Directives that target a domain rather than an agent
+    /// (e.g., `CalibrateThreshold`, `SeekMoreEvidence`) return `None`.
+    pub fn agent_target(&self) -> Option<WebID> {
+        match self {
+            CuratorDirective::CalibrateThreshold { .. } => None,
+            CuratorDirective::UpdateCapabilities { agent, .. } => Some(*agent),
+            CuratorDirective::OverrideGasBudget { agent, .. } => Some(*agent),
+            CuratorDirective::SeekMoreEvidence { .. } => None,
+            CuratorDirective::ReplenishBudget { agent, .. } => Some(*agent),
+            CuratorDirective::ClearOverride { agent } => Some(*agent),
+        }
+    }
+
+    /// Whether this directive is a metacognitive override.
+    ///
+    /// Metacognitive overrides are higher-order Curation interventions that
+    /// reconfigure Cybernetics regulation itself. They are subject to the
+    /// override cooldown in addition to per-fingerprint dedup, because
+    /// override oscillation is especially destabilizing.
+    pub fn is_metacognitive(&self) -> bool {
+        matches!(
+            self,
+            CuratorDirective::OverrideGasBudget { .. } | CuratorDirective::SeekMoreEvidence { .. }
+        )
+    }
 }

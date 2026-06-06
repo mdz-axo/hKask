@@ -33,8 +33,8 @@ use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, DispatchTarget, HkaskLoop, LoopAction, LoopId,
-    LoopMessage, LoopPayload, Signal,
+    ActionType, CuratorDirective, Deviation, DeviationDirection, DispatchTarget, HkaskLoop,
+    LoopAction, LoopId, LoopMessage, LoopPayload, Signal,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::collections::HashMap;
@@ -443,13 +443,8 @@ impl CyberneticsLoop {
         while let Ok(msg) = inbox.try_recv() {
             processed += 1;
             match &msg.payload {
-                LoopPayload::CurationDirective {
-                    directive_type,
-                    target,
-                    parameters,
-                } => {
-                    self.handle_curation_directive(directive_type, *target, parameters)
-                        .await;
+                LoopPayload::CurationDirective(directive) => {
+                    self.handle_curation_directive(directive.clone()).await;
                 }
                 LoopPayload::AlgedonicAlert {
                     current,
@@ -499,184 +494,162 @@ impl CyberneticsLoop {
         }
     }
 
-    async fn handle_curation_directive(
-        &self,
-        directive_type: &str,
-        target: WebID,
-        parameters: &serde_json::Value,
-    ) {
+    async fn handle_curation_directive(&self, directive: CuratorDirective) {
         // Dampen repeated directives to prevent feedback oscillation
-        if self
-            .dampener
-            .should_dampen_directive(directive_type, target)
-            .await
-        {
+        if self.dampener.should_dampen_directive(&directive).await {
             tracing::debug!(
                 target: "cns.cybernetics",
-                directive_type = directive_type,
+                directive = %directive.variant_name(),
                 "Directive dampened (repeated within window)"
             );
         } else {
-            self.apply_directive(directive_type, target, parameters)
-                .await;
-            self.persist_directive_acknowledgment(directive_type);
+            let variant_name = directive.variant_name();
+            self.apply_directive(directive).await;
+            self.persist_directive_acknowledgment(variant_name);
             tracing::info!(
                 target: "cns.cybernetics",
-                directive_type = directive_type,
+                directive = %variant_name,
                 outcome = "applied",
                 "Directive acknowledged (Curation→Cybernetics compliance)"
             );
         }
     }
 
-    async fn apply_directive(
-        &self,
-        directive_type: &str,
-        target: WebID,
-        parameters: &serde_json::Value,
-    ) {
-        match directive_type {
-            "calibrate_threshold" => {
-                self.apply_calibrate_threshold(parameters).await;
+    async fn apply_directive(&self, directive: CuratorDirective) {
+        match directive {
+            CuratorDirective::CalibrateThreshold {
+                domain,
+                new_threshold,
+            } => {
+                self.apply_calibrate_threshold(&domain, new_threshold).await;
             }
-            "override_gas_budget" => {
-                self.apply_override_gas_budget(target, parameters).await;
+            CuratorDirective::OverrideGasBudget { agent, new_budget } => {
+                self.apply_override_gas_budget(agent, new_budget).await;
             }
-            "clear_override" => {
-                self.apply_clear_override(target).await;
+            CuratorDirective::ClearOverride { agent } => {
+                self.apply_clear_override(agent).await;
             }
-            "replenish_budget" => {
-                self.apply_replenish_budget(target, parameters).await;
+            CuratorDirective::ReplenishBudget {
+                agent,
+                amount,
+                priority,
+            } => {
+                self.apply_replenish_budget(agent, amount, priority).await;
             }
-            "update_capabilities" => {
+            CuratorDirective::UpdateCapabilities {
+                agent,
+                additions,
+                removals,
+            } => {
                 tracing::info!(
                     target: "cns.cybernetics",
-                    agent = %target,
-                    ?parameters,
+                    agent = %agent,
+                    additions = ?additions,
+                    removals = ?removals,
                     "Applied UpdateCapabilities directive from Curation (capabilities updated)"
                 );
             }
-            "seek_more_evidence" => {
+            CuratorDirective::SeekMoreEvidence {
+                context,
+                channel,
+                confidence,
+            } => {
                 tracing::info!(
                     target: "cns.cybernetics",
-                    ?parameters,
+                    context = %context,
+                    channel = %channel,
+                    confidence = %confidence,
                     "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)"
                 );
             }
-            "throttle" | "dampen" | "escalate" | "circuit_break" => {
-                tracing::debug!(
-                    target: "cns.cybernetics",
-                    directive_type = directive_type,
-                    "Received informational directive (already self-produced)"
-                );
-            }
-            _ => {
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    directive_type = directive_type,
-                    "Unknown directive type in CyberneticsLoop inbox"
-                );
-            }
         }
     }
 
-    async fn apply_calibrate_threshold(&self, parameters: &serde_json::Value) {
-        if let Some(domain) = parameters.get("domain").and_then(|v| v.as_str())
-            && let Some(new_threshold) = parameters.get("new_threshold").and_then(|v| v.as_u64())
-        {
-            let cns = self.cns.read().await;
-            cns.calibrate_threshold(domain, new_threshold).await;
-            drop(cns);
-            tracing::info!(
-                target: "cns.cybernetics",
-                domain = domain,
-                new_threshold = new_threshold,
-                "Applied CalibrateThreshold directive from Curation"
-            );
-        }
+    async fn apply_calibrate_threshold(&self, domain: &str, new_threshold: u64) {
+        let cns = self.cns.read().await;
+        cns.calibrate_threshold(domain, new_threshold).await;
+        drop(cns);
+        tracing::info!(
+            target: "cns.cybernetics",
+            domain = domain,
+            new_threshold = new_threshold,
+            "Applied CalibrateThreshold directive from Curation"
+        );
     }
 
     /// Metacognitive override — recorded in active_overrides so replenish skips it.
-    async fn apply_override_gas_budget(&self, target: WebID, parameters: &serde_json::Value) {
-        if let Some(new_budget) = parameters.get("new_budget").and_then(|v| v.as_u64()) {
-            // Extract optional TTL (default: 0 = no expiry)
-            let ttl_secs = parameters
-                .get("ttl_secs")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
-            let mut budgets = self.gas_budgets.write().await;
-            if let Some(budget) = budgets.get_mut(&target) {
-                // Override can set budget above or below set-points
-                budget.cap = new_budget;
-                budget.remaining = new_budget;
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    agent = %target,
-                    new_budget = new_budget,
-                    "Applied OverrideGasBudget directive from Curation (set-point override)"
-                );
-            } else {
-                budgets.insert(target, GasBudget::new(new_budget));
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    agent = %target,
-                    new_budget = new_budget,
-                    "Registered new gas budget from OverrideGasBudget directive"
-                );
-            }
-            drop(budgets);
-            // Record the override so replenish_all_budgets() skips this agent
-            let mut overrides = self.active_overrides.write().await;
-            overrides.insert(
-                target,
-                OverrideRecord {
-                    issued_at: chrono::Utc::now(),
-                    ttl_secs,
-                },
+    async fn apply_override_gas_budget(&self, agent: WebID, new_budget: u64) {
+        // Default TTL of 0 means override persists until explicitly cleared
+        let ttl_secs: u64 = 0;
+        let mut budgets = self.gas_budgets.write().await;
+        if let Some(budget) = budgets.get_mut(&agent) {
+            // Override can set budget above or below set-points
+            budget.cap = new_budget;
+            budget.remaining = new_budget;
+            tracing::warn!(
+                target: "cns.cybernetics",
+                agent = %agent,
+                new_budget = new_budget,
+                "Applied OverrideGasBudget directive from Curation (set-point override)"
+            );
+        } else {
+            budgets.insert(agent, GasBudget::new(new_budget));
+            tracing::warn!(
+                target: "cns.cybernetics",
+                agent = %agent,
+                new_budget = new_budget,
+                "Registered new gas budget from OverrideGasBudget directive"
             );
         }
+        drop(budgets);
+        // Record the override so replenish_all_budgets() skips this agent
+        let mut overrides = self.active_overrides.write().await;
+        overrides.insert(
+            agent,
+            OverrideRecord {
+                issued_at: chrono::Utc::now(),
+                ttl_secs,
+            },
+        );
     }
 
     /// Removes agent from active_overrides, resuming normal replenishment.
-    async fn apply_clear_override(&self, target: WebID) {
+    async fn apply_clear_override(&self, agent: WebID) {
         let mut overrides = self.active_overrides.write().await;
-        if overrides.remove(&target).is_some() {
+        if overrides.remove(&agent).is_some() {
             tracing::info!(
                 target: "cns.cybernetics",
-                agent = %target,
+                agent = %agent,
                 "Cleared Curation override — normal replenishment resumes"
             );
         } else {
             tracing::debug!(
                 target: "cns.cybernetics",
-                agent = %target,
+                agent = %agent,
                 "ClearOverride directive received but no active override found"
             );
         }
     }
 
     /// Priority-scaled: when priority is provided, replenishment is weighted.
-    async fn apply_replenish_budget(&self, target: WebID, parameters: &serde_json::Value) {
-        if let Some(amount) = parameters.get("amount").and_then(|v| v.as_u64()) {
-            let priority = parameters.get("priority").and_then(|v| v.as_f64());
-            let mut budgets = self.gas_budgets.write().await;
-            if let Some(budget) = budgets.get_mut(&target) {
-                let replenished = if let Some(p) = priority {
-                    budget.replenish_by_weighted(amount, p)
-                } else {
-                    budget.replenish_by(amount);
-                    amount.min(budget.cap - budget.remaining)
-                };
-                drop(budgets);
-                tracing::info!(
-                    target: "cns.cybernetics",
-                    agent = %target,
-                    amount = amount,
-                    priority = priority,
-                    replenished = replenished,
-                    "Replenished agent gas budget by directive"
-                );
-            }
+    async fn apply_replenish_budget(&self, agent: WebID, amount: u64, priority: Option<f64>) {
+        let mut budgets = self.gas_budgets.write().await;
+        if let Some(budget) = budgets.get_mut(&agent) {
+            let replenished = if let Some(p) = priority {
+                budget.replenish_by_weighted(amount, p)
+            } else {
+                budget.replenish_by(amount);
+                amount.min(budget.cap - budget.remaining)
+            };
+            drop(budgets);
+            tracing::info!(
+                target: "cns.cybernetics",
+                agent = %agent,
+                amount = amount,
+                priority = priority,
+                replenished = replenished,
+                "Replenished agent gas budget by directive"
+            );
         }
     }
 
@@ -988,7 +961,9 @@ impl HkaskLoop for CyberneticsLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::loops::{ActionType, DeviationDirection, HkaskLoop, LoopId, LoopPayload};
+    use hkask_types::loops::{
+        ActionType, CuratorDirective, DeviationDirection, HkaskLoop, LoopId, LoopPayload,
+    };
 
     fn test_dispatch_tx() -> mpsc::UnboundedSender<LoopMessage> {
         let (tx, _rx) = mpsc::unbounded_channel();
@@ -1296,14 +1271,10 @@ mod tests {
         // Send a CalibrateThreshold directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "calibrate_threshold".to_string(),
-                target: WebID::new(),
-                parameters: serde_json::json!({
-                    "domain": "variety",
-                    "new_threshold": 200,
-                }),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::CalibrateThreshold {
+                domain: "variety".to_string(),
+                new_threshold: 200,
+            }),
         )
         .with_target(LoopId::Cybernetics);
 
@@ -1332,13 +1303,10 @@ mod tests {
         // Send OverrideGasBudget directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "override_gas_budget".to_string(),
-                target: agent,
-                parameters: serde_json::json!({
-                    "new_budget": 5000,
-                }),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::OverrideGasBudget {
+                agent,
+                new_budget: 5000,
+            }),
         )
         .with_target(LoopId::Cybernetics);
 
@@ -1365,11 +1333,10 @@ mod tests {
         // Send override gas budget directive before tick
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "override_gas_budget".to_string(),
-                target: agent,
-                parameters: serde_json::json!({"new_budget": 100}),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::OverrideGasBudget {
+                agent,
+                new_budget: 100,
+            }),
         )
         .with_target(LoopId::Cybernetics);
         inbox_tx.send(msg).unwrap();
@@ -1390,11 +1357,10 @@ mod tests {
         // Send OverrideGasBudget for an unregistered agent
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "override_gas_budget".to_string(),
-                target: agent,
-                parameters: serde_json::json!({"new_budget": 500}),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::OverrideGasBudget {
+                agent,
+                new_budget: 500,
+            }),
         )
         .with_target(LoopId::Cybernetics);
         inbox_tx.send(msg).unwrap();
@@ -1534,13 +1500,11 @@ mod tests {
         let replenish_amount = 50u64;
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "replenish_budget".to_string(),
-                target: agent,
-                parameters: serde_json::json!({
-                    "amount": replenish_amount,
-                }),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::ReplenishBudget {
+                agent,
+                amount: replenish_amount,
+                priority: None,
+            }),
         )
         .with_target(LoopId::Cybernetics);
 
@@ -1585,11 +1549,10 @@ mod tests {
         // Override to a much lower budget (500) via Curation directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "override_gas_budget".to_string(),
-                target: agent,
-                parameters: serde_json::json!({"new_budget": 500}),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::OverrideGasBudget {
+                agent,
+                new_budget: 500,
+            }),
         )
         .with_target(LoopId::Cybernetics);
         inbox_tx.send(msg).unwrap();
@@ -1633,11 +1596,10 @@ mod tests {
         // Override to 200 via Curation
         let override_msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "override_gas_budget".to_string(),
-                target: agent,
-                parameters: serde_json::json!({"new_budget": 200}),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::OverrideGasBudget {
+                agent,
+                new_budget: 200,
+            }),
         )
         .with_target(LoopId::Cybernetics);
         inbox_tx.send(override_msg).unwrap();
@@ -1649,11 +1611,7 @@ mod tests {
         // Send ClearOverride directive
         let clear_msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CurationDirective {
-                directive_type: "clear_override".to_string(),
-                target: agent,
-                parameters: serde_json::json!({}),
-            },
+            LoopPayload::CurationDirective(CuratorDirective::ClearOverride { agent }),
         )
         .with_target(LoopId::Cybernetics);
         inbox_tx.send(clear_msg).unwrap();

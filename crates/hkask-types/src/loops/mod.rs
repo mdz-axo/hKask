@@ -69,21 +69,82 @@ impl std::fmt::Display for LoopId {
 
 // Loop cycle — sense → compare → compute → act
 
+/// Metric names for afferent signals from loop sensing.
+///
+/// Each variant identifies the kind of measurement a signal carries,
+/// replacing magic strings with an exhaustive, type-safe enum
+/// (Fowler H7: Replace Type Code with Strategy).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignalMetric {
+    /// Fraction of gas budget remaining (Cybernetics Loop 6)
+    EnergyRemaining,
+    /// Raw variety deficit count (Cybernetics Loop 6)
+    VarietyDeficit,
+    /// Error rate as a fraction (Cybernetics Loop 6)
+    ErrorRate,
+    /// Connector latency in milliseconds (Cybernetics Loop 6)
+    ConnectorLatency,
+    /// Communication queue depth (backpressure signal)
+    CommunicationQueueDepth,
+}
+
+impl std::fmt::Display for SignalMetric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = serde_json::to_value(self)
+            .ok()
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_else(|| format!("{:?}", self));
+        write!(f, "{}", s)
+    }
+}
+
+impl SignalMetric {
+    /// Returns the snake_case string representation for comparison.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SignalMetric::EnergyRemaining => "energy_remaining",
+            SignalMetric::VarietyDeficit => "variety_deficit",
+            SignalMetric::ErrorRate => "error_rate",
+            SignalMetric::ConnectorLatency => "connector_latency",
+            SignalMetric::CommunicationQueueDepth => "communication_queue_depth",
+        }
+    }
+}
+
+impl From<&str> for SignalMetric {
+    fn from(s: &str) -> Self {
+        match s {
+            "energy_remaining" => SignalMetric::EnergyRemaining,
+            "variety_deficit" => SignalMetric::VarietyDeficit,
+            "error_rate" => SignalMetric::ErrorRate,
+            "connector_latency" => SignalMetric::ConnectorLatency,
+            "communication_queue_depth" => SignalMetric::CommunicationQueueDepth,
+            _ => SignalMetric::ErrorRate, // unknown metrics default to ErrorRate
+        }
+    }
+}
+
 /// Afferent signal from a loop's sensing phase.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Signal {
     pub source: LoopId,
-    pub metric: String,
+    pub metric: SignalMetric,
     pub value: f64,
     pub set_point: f64,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl Signal {
-    pub fn new(source: LoopId, metric: &str, value: f64, set_point: f64) -> Self {
+    pub fn new(
+        source: LoopId,
+        metric: impl Into<SignalMetric>,
+        value: f64,
+        set_point: f64,
+    ) -> Self {
         Self {
             source,
-            metric: metric.to_string(),
+            metric: metric.into(),
             value,
             set_point,
             timestamp: chrono::Utc::now(),

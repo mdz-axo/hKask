@@ -154,11 +154,7 @@ pub enum LoopPayload {
     ///
     /// Origin: Curation (Loop 5). Consumed by: Cybernetics (Loop 6).
     /// Per the authority DAG: Curation → Cybernetics.
-    CurationDirective {
-        directive_type: String,
-        target: WebID,
-        parameters: serde_json::Value,
-    },
+    CurationDirective(crate::loops::CuratorDirective),
     /// Regulation action from Cybernetics to a domain loop.
     ///
     /// Origin: Cybernetics (Loop 6). Consumed by: domain loops (1, 2a, 2b, 4).

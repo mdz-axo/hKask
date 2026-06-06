@@ -46,18 +46,17 @@ use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_storage::{EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::curation::CuratorHandle;
 use hkask_types::{CapabilityChecker, WebID};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa::ToSchema;
+
 use utoipa_axum::router::OpenApiRouter;
 
 pub mod error;
@@ -103,38 +102,46 @@ impl Stores {
     ///
     /// Each store gets its own database connection (and therefore its own
     /// connection pool) so a slow store cannot starve another.
-    fn init(db_config: Option<&DbConfig>) -> Self {
-        let consent_conn = open_db(db_config, "consent").conn_arc();
+    fn init(db_config: Option<&DbConfig>) -> Result<Stores, ApiError> {
+        let consent_conn = open_db(db_config, "consent")?.conn_arc();
         let consent_store = hkask_storage::ConsentStore::new(consent_conn);
         consent_store
             .initialize_schema()
-            .expect("consent store schema init");
+            .map_err(|e| ApiError::Internal {
+                message: format!("Failed to initialize consent store schema: {e}"),
+            })?;
         let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
-        let escalation_conn = open_db(db_config, "escalation").conn_arc();
+        let escalation_conn = open_db(db_config, "escalation")?.conn_arc();
         let escalation_queue =
-            Arc::new(EscalationQueue::new(escalation_conn).expect("escalation queue init"));
+            Arc::new(
+                EscalationQueue::new(escalation_conn).map_err(|e| ApiError::Internal {
+                    message: format!("Failed to initialize escalation queue: {e}"),
+                })?,
+            );
 
-        let goal_conn = open_db(db_config, "goal").conn_arc();
+        let goal_conn = open_db(db_config, "goal")?.conn_arc();
         let goal_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
         let goal_repo =
             Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
 
-        let standing_conn = open_db(db_config, "standing session").conn_arc();
+        let standing_conn = open_db(db_config, "standing session")?.conn_arc();
         let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
         standing_session_store
             .initialize_schema()
-            .expect("standing session schema init");
+            .map_err(|e| ApiError::Internal {
+                message: format!("Failed to initialize standing session store schema: {e}"),
+            })?;
         let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
             Some(Arc::new(standing_session_store));
 
-        Self {
+        Ok(Stores {
             consent_manager,
             escalation_queue,
             goal_repo,
             standing_session_store,
-        }
+        })
     }
 }
 
@@ -143,17 +150,23 @@ impl Stores {
 /// Extracts the repeated pattern of `db_config.and_then(...)` → `Database::open`
 /// that appeared 4 times in `ApiState::new()`. Returns the `Database`,
 /// so callers can extract `.conn_arc()` or use it directly.
-fn open_db(db_config: Option<&DbConfig>, purpose: &str) -> hkask_storage::Database {
+fn open_db(
+    db_config: Option<&DbConfig>,
+    purpose: &str,
+) -> Result<hkask_storage::Database, ApiError> {
     match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref())) {
-        Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
-            .unwrap_or_else(|_| panic!("Failed to open {purpose} database")),
+        Some((path, passphrase)) => {
+            hkask_storage::Database::open(path, passphrase).map_err(|e| ApiError::Internal {
+                message: format!("Failed to open {purpose} database: {e}"),
+            })
+        }
         None => {
             tracing::warn!(
                 target: "hkask.api",
                 "No persistent database configured — {purpose} store is in-memory and will be lost on restart. \
                  Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
             );
-            hkask_storage::Database::in_memory().expect("in-memory db")
+            Ok(hkask_storage::in_memory_db())
         }
     }
 }
@@ -213,6 +226,7 @@ pub struct ApiState {
 /// Cybernetics, Episodic, Semantic, and Curation loops.
 /// Communication Loop is managed internally by LoopSystem.
 /// Inference Loop is registered only if an inference port is provided.
+#[allow(clippy::type_complexity)]
 fn build_loop_system(
     escalation_queue: Arc<EscalationQueue>,
     dispatch: Arc<MessageDispatch>,
@@ -220,11 +234,14 @@ fn build_loop_system(
     system_webid: WebID,
     acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     event_sink: Option<Arc<dyn NuEventSink>>,
-) -> (
-    Arc<LoopSystem>,
-    Arc<dyn EpisodicStoragePort>,
-    Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-) {
+) -> Result<
+    (
+        Arc<LoopSystem>,
+        Arc<dyn EpisodicStoragePort>,
+        Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+    ),
+    ApiError,
+> {
     let loop_system = LoopSystem::new(Arc::clone(&dispatch));
 
     // Cybernetics Loop
@@ -248,7 +265,9 @@ fn build_loop_system(
         .with_communication_queue_depth(loop_system.communication_queue_depth_counter());
     let cybernetics_loop_rwlock = Arc::new(tokio::sync::RwLock::new(cybernetics_loop));
     // Register loops (register_loop is async, use a small runtime for sync callers)
-    let rt = tokio::runtime::Runtime::new().expect("loop system runtime");
+    let rt = tokio::runtime::Runtime::new().map_err(|e| ApiError::Internal {
+        message: format!("Failed to create tokio runtime for loop system: {e}"),
+    })?;
     rt.block_on(async {
         loop_system
             .register_loop(Arc::new(CyberneticsLoopHandle(Arc::clone(
@@ -267,7 +286,7 @@ fn build_loop_system(
     }
 
     // Episodic Loop
-    let db = Database::in_memory().expect("in-memory db");
+    let db = hkask_storage::in_memory_db();
     let conn = db.conn_arc();
     let triple_store = TripleStore::new(Arc::clone(&conn));
     let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
@@ -279,7 +298,7 @@ fn build_loop_system(
     });
 
     // Semantic Loop
-    let db2 = Database::in_memory().expect("in-memory db");
+    let db2 = hkask_storage::in_memory_db();
     let conn2 = db2.conn_arc();
     let triple_store2 = TripleStore::new(Arc::clone(&conn2));
     let embedding_store = EmbeddingStore::new(Arc::clone(&conn2));
@@ -328,11 +347,11 @@ fn build_loop_system(
     });
 
     drop(rt);
-    (
+    Ok((
         Arc::new(loop_system),
         episodic_storage,
         cybernetics_loop_rwlock,
-    )
+    ))
 }
 
 impl ApiState {
@@ -346,9 +365,9 @@ impl ApiState {
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
         db_config: Option<&DbConfig>,
         acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
-    ) -> Self {
+    ) -> Result<Self, ApiError> {
         // ── Persistent stores ──
-        let stores = Stores::init(db_config);
+        let stores = Stores::init(db_config)?;
 
         // ── Subsystems ──
         let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
@@ -362,9 +381,7 @@ impl ApiState {
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
 
         // Create CNS event sink for governance observability
-        let cns_event_conn = hkask_storage::Database::in_memory()
-            .expect("cns event db")
-            .conn_arc();
+        let cns_event_conn = hkask_storage::in_memory_db().conn_arc();
         let cns_event_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
 
@@ -375,7 +392,7 @@ impl ApiState {
             system_webid,
             acp,
             Some(Arc::clone(&cns_event_sink)),
-        );
+        )?;
 
         // Create GovernedTool membrane with CompositeGasEstimator
         let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
@@ -407,7 +424,7 @@ impl ApiState {
         let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
 
-        Self {
+        Ok(Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
             mcp_dispatcher,
@@ -427,7 +444,7 @@ impl ApiState {
             episodic_storage,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
             inference_port,
-        }
+        })
     }
 
     /// Create ApiState with default adapters.
@@ -446,7 +463,7 @@ impl ApiState {
         acp_secret: &[u8],
         system_webid: WebID,
         db_config: Option<&DbConfig>,
-    ) -> Self {
+    ) -> Result<Self, ApiError> {
         let git_cas = hkask_mcp::GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
         let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
@@ -456,7 +473,7 @@ impl ApiState {
         );
 
         // Use MemoryLoopAdapter (routes through hkask-memory domain logic)
-        let db = Database::in_memory().expect("in-memory db");
+        let db = hkask_storage::in_memory_db();
         let conn = db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&conn));
         let episodic_memory_for_adapter = EpisodicMemory::new(triple_store);
@@ -504,15 +521,18 @@ impl ApiState {
         system_webid: WebID,
         model: &str,
         db_config: Option<&DbConfig>,
-    ) -> Self {
+    ) -> Result<Self, ApiError> {
         let base_url = std::env::var("OKAPI_BASE_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
         let config = hkask_templates::OkapiConfig {
             base_url,
             ..hkask_templates::OkapiConfig::default()
         };
-        let inference = hkask_templates::OkapiInference::new(model, config)
-            .expect("Failed to create Okapi inference");
+        let inference = hkask_templates::OkapiInference::new(model, config).map_err(|e| {
+            ApiError::Internal {
+                message: format!("Failed to create Okapi inference: {e}"),
+            }
+        })?;
         let port: Arc<dyn hkask_types::ports::InferencePort> = Arc::new(inference);
         let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(port));
         Self::new(
@@ -612,14 +632,6 @@ pub fn resolve_soap_capability_secret() -> Result<[u8; 32], String> {
                 e
             )
         })
-}
-
-/// Error response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ErrorResponse {
-    pub error: String,
-    pub code: String,
-    pub details: Option<serde_json::Value>,
 }
 
 /// Create API router with OpenAPI documentation and authentication

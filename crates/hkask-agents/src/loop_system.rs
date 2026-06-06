@@ -552,11 +552,12 @@ mod tests {
         // Send a message targeting the Cybernetics loop
         let msg = LoopMessage::warning(
             hkask_types::loops::LoopId::Curation,
-            hkask_types::loops::dispatch::LoopPayload::CurationDirective {
-                directive_type: "calibrate".to_string(),
-                target: hkask_types::WebID::new(),
-                parameters: serde_json::json!({"reason": "test"}),
-            },
+            hkask_types::loops::dispatch::LoopPayload::CurationDirective(
+                hkask_types::loops::CuratorDirective::CalibrateThreshold {
+                    domain: "test".to_string(),
+                    new_threshold: 100,
+                },
+            ),
         )
         .with_target(hkask_types::loops::LoopId::Cybernetics);
 

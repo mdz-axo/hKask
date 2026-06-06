@@ -4,8 +4,8 @@ use utoipa::OpenApi;
 
 use crate::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
-    CreatePodResponse, ErrorResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry,
-    ModelListResponse, ModelSearchQuery, PodStatusResponse, TemplateResponse,
+    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
+    ModelSearchQuery, PodStatusResponse, TemplateResponse,
 };
 
 use crate::routes::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
@@ -25,7 +25,6 @@ use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusR
         GrantCapabilityRequest,
         CnsHealthResponse,
         CnsVarietyResponse,
-        ErrorResponse,
         CreatePodRequest,
         CreatePodResponse,
         PodStatusResponse,

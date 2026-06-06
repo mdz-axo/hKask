@@ -12,8 +12,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Create ensemble router
 pub fn ensemble_router() -> Router<ApiState> {
@@ -471,7 +472,7 @@ async fn standing_start(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<StandingStartRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<(StatusCode, Json<StandingStartResponse>), ApiError> {
     // Build a StandingSessionConfig from the request
     let config = StandingSessionConfig {
         session: hkask_ensemble::standing_session::SessionMetadata {
@@ -524,7 +525,7 @@ async fn standing_start(
     Ok((
         StatusCode::CREATED,
         Json(StandingStartResponse {
-            session_id: req.session_id,
+            session_id: req.session_id.clone(),
             description: status.description,
             participant_count,
             message: "Standing session started".to_string(),
@@ -546,7 +547,7 @@ async fn standing_start(
 async fn standing_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<StandingStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<StandingStatusResponse>, ApiError> {
     // Return the first available standing session, or 404 if none exist
     let sessions = state.standing_sessions.read().await;
     let session_guard = sessions.values().next();
@@ -577,15 +578,9 @@ async fn standing_status(
 
             Ok(Json(response))
         }
-        None => Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "no_standing_session".to_string(),
-                code: "ENSEMBLE_NOT_FOUND".to_string(),
-                details: Some(serde_json::json!({
-                    "message": "No standing session exists. Start one with /api/v1/ensemble/standing-start"
-                })),
-            }),
-        )),
+        None => Err(ApiError::NotFound {
+            resource: "standing_session".into(),
+            id: "none".into(),
+        }),
     }
 }

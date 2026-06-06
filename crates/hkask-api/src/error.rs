@@ -37,6 +37,21 @@ pub enum ApiError {
     Internal { message: String },
 }
 
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApiError::NotFound { resource, id } => write!(f, "{resource} not found: {id}"),
+            ApiError::Unauthorized { reason } => write!(f, "Unauthorized: {reason}"),
+            ApiError::Forbidden { reason } => write!(f, "Forbidden: {reason}"),
+            ApiError::BadRequest { message } => write!(f, "Bad request: {message}"),
+            ApiError::Conflict { message } => write!(f, "Conflict: {message}"),
+            ApiError::Internal { message } => write!(f, "Internal error: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for ApiError {}
+
 /// JSON error response body — mirrors the existing `ErrorResponse` struct
 /// for backward compatibility with API clients.
 #[derive(Serialize)]
@@ -308,6 +323,20 @@ impl From<hkask_templates::TemplateError> for ApiError {
             },
             _ => ApiError::Internal {
                 message: e.to_string(),
+            },
+        }
+    }
+}
+
+impl From<hkask_types::ports::RegistryError> for ApiError {
+    fn from(e: hkask_types::ports::RegistryError) -> Self {
+        match &e {
+            hkask_types::ports::RegistryError::NotFound(id) => ApiError::NotFound {
+                resource: "template".into(),
+                id: id.clone(),
+            },
+            hkask_types::ports::RegistryError::Other(msg) => ApiError::Internal {
+                message: msg.clone(),
             },
         }
     }

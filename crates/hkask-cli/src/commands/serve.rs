@@ -70,6 +70,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         None,
         None,
     )
+    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?
     .with_session_manager(session_manager);
 
     // Build router (OpenApiRouter -> axum::Router via From impl)

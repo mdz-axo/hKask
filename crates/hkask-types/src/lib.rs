@@ -72,7 +72,7 @@ pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
     DispatchTarget, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopPayload, MessagePriority, Signal, WorkerKind,
+    LoopPayload, MessagePriority, Signal, SignalMetric, WorkerKind,
 };
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
