@@ -1,6 +1,7 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 use crate::Store;
 use hkask_types::ports::RegistryError;
+use hkask_types::ports::git_cas::{GitCASPort, RepoId};
 use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
 use thiserror::Error;
 
@@ -19,7 +20,7 @@ impl_from_rusqlite!(AgentRegistryError, Infra);
 
 impl_from_serde_json!(AgentRegistryError, Infra);
 
-define_store!(AgentRegistryStore);
+define_store_cas!(AgentRegistryStore);
 
 impl AgentRegistryStore {
     pub fn initialize_schema(&self) -> Result<(), AgentRegistryError> {
@@ -170,6 +171,22 @@ impl AgentRegistryStore {
         )?;
         if deleted == 0 {
             return Err(AgentRegistryError::NotFound(name.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Insert with CAS write-through: persists to SQLite, then writes to the Registry repo.
+    pub async fn insert_with_cas(&self, agent: &RegisteredAgent) -> Result<(), AgentRegistryError> {
+        self.insert(agent)?;
+        if let Some(port) = &self.cas_port {
+            let bytes = serde_json::to_vec(agent).map_err(|e| {
+                AgentRegistryError::Infra(InfrastructureError::Other(e.to_string()))
+            })?;
+            port.put_blob(&RepoId::Registry, &bytes)
+                .await
+                .map_err(|e| {
+                    AgentRegistryError::Infra(InfrastructureError::Other(e.to_string()))
+                })?;
         }
         Ok(())
     }

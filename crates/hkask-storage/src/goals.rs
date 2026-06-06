@@ -704,4 +704,382 @@ mod tests {
         let err = GoalRepositoryError::QuarantineFailed("disk error".to_string());
         assert!(format!("{err}").contains("disk error"));
     }
+
+    // ── Goal CRUD behavioral tests (P2) ─────────────────────────────────
+
+    // P8 invariant: create_goal persists and retrieves a goal with correct fields
+    #[test]
+    fn create_goal_roundtrips_through_sqlite() {
+        let repo = test_repo();
+        let webid = WebID::new();
+
+        let goal = repo
+            .create_goal(&webid, "Test goal roundtrip", Visibility::Public)
+            .expect("create goal");
+
+        assert_eq!(goal.webid, webid, "webid must round-trip");
+        assert_eq!(goal.text, "Test goal roundtrip", "text must round-trip");
+        assert_eq!(goal.state, GoalState::Pending, "new goal must be Pending");
+        assert_eq!(
+            goal.visibility,
+            Visibility::Public,
+            "visibility must round-trip"
+        );
+        assert_eq!(goal.depth, 0, "root goal depth must be 0");
+        assert!(
+            goal.parent_goal_id.is_none(),
+            "root goal must have no parent"
+        );
+
+        // Verify it persists through SQLite
+        let fetched = repo
+            .get_goal(goal.id)
+            .expect("get goal query")
+            .expect("goal exists");
+        assert_eq!(fetched.id, goal.id, "id must round-trip");
+        assert_eq!(fetched.webid, webid, "webid must round-trip from SQLite");
+        assert_eq!(
+            fetched.text, "Test goal roundtrip",
+            "text must round-trip from SQLite"
+        );
+        assert_eq!(fetched.state, GoalState::Pending, "state must round-trip");
+        assert_eq!(
+            fetched.visibility,
+            Visibility::Public,
+            "visibility must round-trip"
+        );
+    }
+
+    // P8 invariant: get_goal returns None for nonexistent ID
+    #[test]
+    fn get_goal_returns_none_for_nonexistent_id() {
+        let repo = test_repo();
+        let fake_id = GoalID::new();
+        let result = repo.get_goal(fake_id).expect("query");
+        assert!(result.is_none(), "nonexistent goal must return None");
+    }
+
+    // P8 invariant: update_goal_state transitions Pending → Active
+    #[test]
+    fn update_goal_state_pending_to_active() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "transition test", Visibility::Private)
+            .expect("create");
+
+        repo.update_goal_state(goal.id, GoalState::Active)
+            .expect("transition");
+
+        let fetched = repo.get_goal(goal.id).expect("get").expect("exists");
+        assert_eq!(
+            fetched.state,
+            GoalState::Active,
+            "state must be Active after transition"
+        );
+        assert!(
+            fetched.completed_at.is_none(),
+            "Active goal must not have completed_at"
+        );
+    }
+
+    // P8 invariant: update_goal_state sets completed_at on terminal transition
+    #[test]
+    fn update_goal_state_sets_completed_at_on_terminal() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "terminal test", Visibility::Private)
+            .expect("create");
+
+        // Pending → Active → Completed
+        repo.update_goal_state(goal.id, GoalState::Active)
+            .expect("activate");
+        repo.update_goal_state(goal.id, GoalState::Completed)
+            .expect("complete");
+
+        let fetched = repo.get_goal(goal.id).expect("get").expect("exists");
+        assert_eq!(fetched.state, GoalState::Completed, "must be Completed");
+        assert!(
+            fetched.completed_at.is_some(),
+            "terminal state must set completed_at"
+        );
+    }
+
+    // P8 invariant: update_goal_state rejects illegal transition (Pending → Completed)
+    #[test]
+    fn update_goal_state_rejects_illegal_transition() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "illegal transition", Visibility::Private)
+            .expect("create");
+
+        let result = repo.update_goal_state(goal.id, GoalState::Completed);
+        assert!(result.is_err(), "Pending -> Completed must fail");
+        match result {
+            Err(GoalRepositoryError::InvalidTransition(msg)) => {
+                assert!(
+                    msg.contains("Pending") || msg.contains("pending"),
+                    "error must mention source state, got: {}",
+                    msg
+                );
+            }
+            Err(other) => panic!("expected InvalidTransition, got: {:?}", other),
+            Ok(_) => panic!("expected error, got success"),
+        }
+    }
+
+    // P8 invariant: update_goal_state rejects transition for nonexistent goal
+    #[test]
+    fn update_goal_state_rejects_nonexistent_goal() {
+        let repo = test_repo();
+        let fake_id = GoalID::new();
+        let result = repo.update_goal_state(fake_id, GoalState::Active);
+        assert!(result.is_err(), "transition on nonexistent goal must fail");
+    }
+
+    // P8 invariant: list_goals filters by webid and state
+    #[test]
+    fn list_goals_filters_by_webid_and_state() {
+        let repo = test_repo();
+        let webid1 = WebID::new();
+        let webid2 = WebID::new();
+
+        repo.create_goal(&webid1, "w1 goal 1", Visibility::Private)
+            .expect("create");
+        repo.create_goal(&webid1, "w1 goal 2", Visibility::Public)
+            .expect("create");
+        repo.create_goal(&webid2, "w2 goal 1", Visibility::Private)
+            .expect("create");
+
+        // Filter by webid1 only
+        let all_w1 = repo.list_goals(&webid1, None).expect("list w1");
+        assert_eq!(all_w1.len(), 2, "webid1 must have 2 goals");
+
+        // Filter by webid2 only
+        let all_w2 = repo.list_goals(&webid2, None).expect("list w2");
+        assert_eq!(all_w2.len(), 1, "webid2 must have 1 goal");
+
+        // Filter by state
+        let pending = repo
+            .list_goals(&webid1, Some(GoalState::Pending))
+            .expect("list pending");
+        assert_eq!(pending.len(), 2, "all new goals start as Pending");
+
+        // Empty result for unknown webid
+        let unknown = WebID::new();
+        let empty = repo.list_goals(&unknown, None).expect("list unknown");
+        assert!(empty.is_empty(), "unknown webid must return no goals");
+    }
+
+    // P8 invariant: add_criterion persists and retrieves criterion
+    #[test]
+    fn add_criterion_roundtrips() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "goal with criteria", Visibility::Private)
+            .expect("create");
+
+        let criterion = GoalCriterion::new(goal.id, "acceptance", "all tests pass");
+        repo.add_criterion(goal.id, criterion)
+            .expect("add criterion");
+
+        let criteria = repo.get_criteria(goal.id).expect("get criteria");
+        assert_eq!(criteria.len(), 1, "must have 1 criterion");
+        assert_eq!(criteria[0].criterion_type, "acceptance");
+        assert_eq!(criteria[0].description, "all tests pass");
+        assert!(!criteria[0].satisfied, "new criterion must be unsatisfied");
+    }
+
+    // P8 invariant: add_criterion rejects mismatched goal_id
+    #[test]
+    fn add_criterion_rejects_mismatched_goal_id() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "mismatch test", Visibility::Private)
+            .expect("create");
+        let other_id = GoalID::new();
+
+        let criterion = GoalCriterion::new(other_id, "type", "desc");
+        let result = repo.add_criterion(goal.id, criterion);
+        assert!(
+            result.is_err(),
+            "criterion with wrong goal_id must be rejected"
+        );
+    }
+
+    // P8 invariant: add_artifact persists and retrieves artifact
+    #[test]
+    fn add_artifact_roundtrips() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "goal with artifact", Visibility::Private)
+            .expect("create");
+
+        let artifact = GoalArtifact::new(goal.id, "artifact-ref-001", "test-result");
+        repo.add_artifact(goal.id, artifact).expect("add artifact");
+
+        let artifacts = repo.get_artifacts(goal.id).expect("get artifacts");
+        assert_eq!(artifacts.len(), 1, "must have 1 artifact");
+        assert_eq!(artifacts[0].artifact_ref, "artifact-ref-001");
+        assert_eq!(artifacts[0].artifact_type, "test-result");
+    }
+
+    // P8 invariant: add_artifact rejects mismatched goal_id
+    #[test]
+    fn add_artifact_rejects_mismatched_goal_id() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "mismatch test", Visibility::Private)
+            .expect("create");
+        let other_id = GoalID::new();
+
+        let artifact = GoalArtifact::new(other_id, "ref", "type");
+        let result = repo.add_artifact(goal.id, artifact);
+        assert!(
+            result.is_err(),
+            "artifact with wrong goal_id must be rejected"
+        );
+    }
+
+    // P8 invariant: create_subgoal sets parent and increments depth
+    #[test]
+    fn create_subgoal_sets_parent_and_depth() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let parent = repo
+            .create_goal(&webid, "parent goal", Visibility::Private)
+            .expect("create");
+
+        // Activate parent so it can have subgoals
+        repo.update_goal_state(parent.id, GoalState::Active)
+            .expect("activate");
+
+        let subgoal = repo
+            .create_subgoal(parent.id, &webid, "sub goal", Visibility::Private)
+            .expect("subgoal");
+        assert_eq!(
+            subgoal.parent_goal_id,
+            Some(parent.id),
+            "subgoal must reference parent"
+        );
+        assert_eq!(subgoal.depth, 1, "subgoal depth must be parent depth + 1");
+
+        // Verify persisted
+        let fetched = repo.get_goal(subgoal.id).expect("get").expect("exists");
+        assert_eq!(fetched.parent_goal_id, Some(parent.id));
+        assert_eq!(fetched.depth, 1);
+    }
+
+    // P8 invariant: create_subgoal rejects nonexistent parent
+    #[test]
+    fn create_subgoal_rejects_nonexistent_parent() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let fake_id = GoalID::new();
+
+        let result = repo.create_subgoal(fake_id, &webid, "orphan", Visibility::Private);
+        assert!(result.is_err(), "subgoal with nonexistent parent must fail");
+        if let Err(GoalRepositoryError::NotFound(msg)) = result {
+            assert!(msg.contains("not found"), "error must mention not found");
+        }
+    }
+
+    // P8 invariant: get_subgoals returns children for a parent
+    #[test]
+    fn get_subgoals_returns_children() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let parent = repo
+            .create_goal(&webid, "parent", Visibility::Private)
+            .expect("create");
+        repo.update_goal_state(parent.id, GoalState::Active)
+            .expect("activate");
+
+        let sub1 = repo
+            .create_subgoal(parent.id, &webid, "sub1", Visibility::Private)
+            .expect("sub1");
+        let sub2 = repo
+            .create_subgoal(parent.id, &webid, "sub2", Visibility::Private)
+            .expect("sub2");
+
+        let subgoals = repo.get_subgoals(parent.id).expect("get subgoals");
+        assert_eq!(subgoals.len(), 2, "must have 2 subgoals");
+
+        let ids: Vec<GoalID> = subgoals.iter().map(|g| g.id).collect();
+        assert!(ids.contains(&sub1.id));
+        assert!(ids.contains(&sub2.id));
+    }
+
+    // P8 invariant: delete_goal removes the goal
+    #[test]
+    fn delete_goal_removes_goal() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "to delete", Visibility::Private)
+            .expect("create");
+
+        assert!(
+            repo.get_goal(goal.id).expect("get").is_some(),
+            "goal must exist before delete"
+        );
+
+        repo.delete_goal(goal.id).expect("delete");
+        assert!(
+            repo.get_goal(goal.id).expect("get").is_none(),
+            "goal must not exist after delete"
+        );
+    }
+
+    // P8 invariant: delete_goal returns NotFound for nonexistent ID
+    #[test]
+    fn delete_goal_returns_not_found_for_nonexistent() {
+        let repo = test_repo();
+        let fake_id = GoalID::new();
+        let result = repo.delete_goal(fake_id);
+        assert!(result.is_err(), "deleting nonexistent goal must fail");
+    }
+
+    // P8 invariant: GoalCriterion::new starts unsatisfied with correct prefix
+    #[test]
+    fn goal_criterion_new_starts_unsatisfied() {
+        let goal_id = GoalID::new();
+        let criterion = GoalCriterion::new(goal_id, "acceptance", "all tests pass");
+        assert!(!criterion.satisfied, "new criterion must start unsatisfied");
+        assert!(
+            criterion.id.starts_with("gc_"),
+            "criterion ID must start with gc_"
+        );
+        assert_eq!(criterion.criterion_type, "acceptance");
+        assert_eq!(criterion.description, "all tests pass");
+    }
+
+    // P8 invariant: GoalCriterion::mark_satisfied flips to true
+    #[test]
+    fn goal_criterion_mark_satisfied_flips_state() {
+        let goal_id = GoalID::new();
+        let mut criterion = GoalCriterion::new(goal_id, "verification", "code review done");
+        assert!(!criterion.satisfied);
+        criterion.mark_satisfied();
+        assert!(criterion.satisfied, "mark_satisfied must flip to true");
+    }
+
+    // P8 invariant: GoalArtifact::new has correct prefix
+    #[test]
+    fn goal_artifact_new_has_correct_prefix() {
+        let goal_id = GoalID::new();
+        let artifact = GoalArtifact::new(goal_id, "ref-001", "test-output");
+        assert!(
+            artifact.id.starts_with("ga_"),
+            "artifact ID must start with ga_"
+        );
+        assert_eq!(artifact.artifact_ref, "ref-001");
+        assert_eq!(artifact.artifact_type, "test-output");
+    }
 }

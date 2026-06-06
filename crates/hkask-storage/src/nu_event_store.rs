@@ -354,7 +354,7 @@ mod tests {
         let store = NuEventStore::new(db.conn_arc());
 
         // Insert an event with timestamp 5 minutes ago
-        // For variety (cybernetics λ ≈ 0.00231), weight = exp(-0.00231 * 300) ≈ 0.50
+        // For variety (cybernetics \u03bb \u2248 0.00231), weight = exp(-0.00231 * 300) \u2248 0.50
         let mut event = NuEvent::new(
             WebID::new(),
             Span::new(SpanNamespace::new("cns.variety"), "test"),
@@ -384,5 +384,231 @@ mod tests {
                 weighted.weight
             );
         }
+    }
+
+    // ── NuEventStore behavioral tests (P2) ──────────────────────────────
+
+    // P8 invariant: persist_cursor / load_cursor round-trip
+    #[test]
+    fn cursor_roundtrip_persists_and_retrieves() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        store
+            .persist_cursor("curation_last_review", 12345)
+            .expect("persist cursor");
+        let value = store
+            .load_cursor("curation_last_review")
+            .expect("load cursor");
+        assert_eq!(value, Some(12345), "cursor must round-trip through SQLite");
+    }
+
+    // P8 invariant: load_cursor returns None for absent key
+    #[test]
+    fn cursor_load_returns_none_for_absent_key() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        let value = store.load_cursor("nonexistent").expect("load cursor");
+        assert!(value.is_none(), "absent key must return None");
+    }
+
+    // P8 invariant: persist_cursor overwrites previous value
+    #[test]
+    fn cursor_overwrite_replaces_value() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        store.persist_cursor("key", 100).expect("persist 100");
+        store.persist_cursor("key", 200).expect("persist 200");
+        let value = store.load_cursor("key").expect("load cursor");
+        assert_eq!(value, Some(200), "second write must overwrite first");
+    }
+
+    // P8 invariant: cursor keys are isolated
+    #[test]
+    fn cursor_keys_are_isolated() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        store.persist_cursor("key_a", 1).expect("persist a");
+        store.persist_cursor("key_b", 2).expect("persist b");
+
+        assert_eq!(store.load_cursor("key_a").expect("load a"), Some(1));
+        assert_eq!(store.load_cursor("key_b").expect("load b"), Some(2));
+    }
+
+    // P8 invariant: insert + query_algedonic returns only algedonic Act events after since
+    #[test]
+    fn query_algedonic_returns_only_algedonic_act_events() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        // Algedonic category (variety) + Act phase → should be returned
+        let algedonic_act = NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.variety"), "depleted"),
+            Phase::Act,
+            serde_json::json!({"count": 0}),
+            0,
+        );
+        store.insert(&algedonic_act).expect("insert");
+
+        // Algedonic category (variety) + Sense phase → should NOT be returned
+        let algedonic_sense = NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.variety"), "observed"),
+            Phase::Sense,
+            serde_json::json!({"count": 10}),
+            0,
+        );
+        store.insert(&algedonic_sense).expect("insert");
+
+        // Non-algedonic category (inference) + Act phase → should NOT be returned
+        let non_algedonic_act = NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.inference"), "invoked"),
+            Phase::Act,
+            serde_json::json!({"model": "test"}),
+            0,
+        );
+        store.insert(&non_algedonic_act).expect("insert");
+
+        let since = chrono::Utc::now() - chrono::Duration::hours(1);
+        let results = store.query_algedonic(since, 100).expect("query");
+
+        // Only the variety+Act event should be returned
+        assert_eq!(
+            results.len(),
+            1,
+            "only algedonic Act events should be returned"
+        );
+        assert_eq!(
+            results[0].id, algedonic_act.id,
+            "returned event must be the Act-phase one"
+        );
+    }
+
+    // P8 invariant: query_algedonic returns empty for no matching events
+    #[test]
+    fn query_algedonic_returns_empty_for_no_events() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        let since = chrono::Utc::now() - chrono::Duration::hours(1);
+        let results = store.query_algedonic(since, 100).expect("query");
+        assert!(results.is_empty(), "no events should return empty");
+    }
+
+    // P8 invariant: insert + query_algedonic round-trips event fields
+    #[test]
+    fn nu_event_round_trips_through_sqlite() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        let event = NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.killzone"), "threshold_exceeded"),
+            Phase::Act,
+            serde_json::json!({"severity": "critical", "deficit": 95}),
+            1,
+        )
+        .with_outcome(serde_json::json!({"action": "escalate"}))
+        .with_regulation(serde_json::json!({"dampener": "override_applied"}));
+
+        store.insert(&event).expect("insert");
+
+        let since = chrono::Utc::now() - chrono::Duration::hours(1);
+        let results = store.query_algedonic(since, 100).expect("query");
+
+        assert_eq!(results.len(), 1, "should find the inserted event");
+        let retrieved = &results[0];
+
+        // Verify round-trip fidelity
+        assert_eq!(retrieved.id, event.id, "id must round-trip");
+        assert_eq!(
+            retrieved.observer_webid, event.observer_webid,
+            "webid must round-trip"
+        );
+        assert_eq!(retrieved.phase, Phase::Act, "phase must round-trip");
+        assert_eq!(
+            retrieved.recursion_depth, 1,
+            "recursion_depth must round-trip"
+        );
+        assert!(retrieved.outcome.is_some(), "outcome must be preserved");
+        assert!(
+            retrieved.regulation.is_some(),
+            "regulation must be preserved"
+        );
+        // Span round-trip: namespace must be reconstructed
+        assert_eq!(
+            retrieved.span.namespace.short_name(),
+            event.span.namespace.short_name(),
+            "span namespace must round-trip"
+        );
+    }
+
+    // P8 invariant: DecayConfig default values match stated half-lives
+    #[test]
+    fn decay_config_default_half_lives() {
+        let config = DecayConfig::default();
+
+        // Half-life = ln(2) / lambda
+        // Cybernetics: 5 min = 300s
+        let cybernetics_half_life = std::f64::consts::LN_2 / config.cybernetics_lambda;
+        assert!(
+            (cybernetics_half_life - 300.0).abs() < 1.0,
+            "cybernetics half-life should be ~300s, got {}",
+            cybernetics_half_life
+        );
+
+        // Curation: 15 min = 900s
+        let curation_half_life = std::f64::consts::LN_2 / config.curation_lambda;
+        assert!(
+            (curation_half_life - 900.0).abs() < 1.0,
+            "curation half-life should be ~900s, got {}",
+            curation_half_life
+        );
+
+        // Inference: 2 min = 120s
+        let inference_half_life = std::f64::consts::LN_2 / config.inference_lambda;
+        assert!(
+            (inference_half_life - 120.0).abs() < 1.0,
+            "inference half-life should be ~120s, got {}",
+            inference_half_life
+        );
+
+        // Episodic: 10 min = 600s
+        let episodic_half_life = std::f64::consts::LN_2 / config.episodic_lambda;
+        assert!(
+            (episodic_half_life - 600.0).abs() < 1.0,
+            "episodic half-life should be ~600s, got {}",
+            episodic_half_life
+        );
+
+        // Weight threshold
+        assert_eq!(
+            config.weight_threshold, 0.001,
+            "default threshold should be 0.001"
+        );
+    }
+
+    // P8 invariant: NuEventSink::persist maps Infra errors correctly
+    #[test]
+    fn nu_event_sink_persist_maps_infra_errors() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        let event = NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.variety"), "depleted"),
+            Phase::Act,
+            serde_json::json!({"count": 42}),
+            0,
+        );
+
+        // NuEventSink::persist should succeed for a valid event
+        let result = store.persist(&event);
+        assert!(result.is_ok(), "persist should succeed, got {:?}", result);
     }
 }

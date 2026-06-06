@@ -84,6 +84,64 @@ macro_rules! define_store {
     };
 }
 
+/// Define a store struct with an optional CAS port for write-through.
+///
+/// Generates the same struct as `define_store!` plus a `cas_port` field
+/// and a `with_cas()` builder method for injecting a `GitCASPort`.
+///
+/// # Example
+/// ```ignore
+/// define_store_cas!(AgentRegistryStore);
+/// ```
+#[macro_export]
+macro_rules! define_store_cas {
+    ($name:ident) => {
+        /// SQLite-backed store sharing an encrypted connection, with optional CAS write-through.
+        #[derive(Clone)]
+        pub struct $name {
+            conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+            cas_port: Option<std::sync::Arc<dyn hkask_types::ports::git_cas::GitCASPort>>,
+        }
+
+        impl $name {
+            /// Create a new store backed by the given connection (no CAS port).
+            pub fn new(conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>) -> Self {
+                Self {
+                    conn,
+                    cas_port: None,
+                }
+            }
+
+            /// Attach a CAS port for write-through. Consumes and returns self.
+            #[must_use = "builder returns the configured store"]
+            pub fn with_cas(
+                mut self,
+                port: std::sync::Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
+            ) -> Self {
+                self.cas_port = Some(port);
+                self
+            }
+        }
+
+        impl $crate::Store for $name {
+            fn conn_arc(&self) -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {
+                std::sync::Arc::clone(&self.conn)
+            }
+
+            fn lock_conn(
+                &self,
+            ) -> Result<
+                std::sync::MutexGuard<'_, rusqlite::Connection>,
+                hkask_types::InfrastructureError,
+            > {
+                self.conn
+                    .lock()
+                    .map_err(|_| hkask_types::InfrastructureError::LockPoisoned)
+            }
+        }
+    };
+}
+
 /// Implement `From<rusqlite::Error>` for a store error type, mapping to
 /// `XxxError::Infra(InfrastructureError::Database(e.to_string()))`.
 ///

@@ -367,6 +367,28 @@ pub enum SnapshotTrigger {
     CnsTriggered,
 }
 
+// ── Triple Entry DTO ────────────────────────────────────────────────────────
+
+/// Serializable representation of a [`Triple`](hkask_storage::Triple).
+///
+/// `Triple` in `hkask-storage` does not derive `Serialize`, so this DTO
+/// captures the same fields in a serializable form for CAS write-through.
+/// The `value` field is already a `serde_json::Value`, which serializes natively.
+///
+/// Construct via `TripleEntry::from(&triple)` in `hkask-storage`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TripleEntry {
+    pub id: String,
+    pub entity: String,
+    pub attribute: String,
+    pub value: serde_json::Value,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub confidence: f64,
+    pub perspective: String,
+    pub visibility: String,
+}
+
 // ── Error Type ───────────────────────────────────────────────────────────────
 
 /// Errors from Git CAS port operations.

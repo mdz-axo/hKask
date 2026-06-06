@@ -6,6 +6,7 @@
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
+use hkask_types::ports::git_cas::{GitCASPort, RepoId, TripleEntry};
 use hkask_types::{AccessControl, Confidence, InfrastructureError, TemporalBounds, Visibility};
 use serde_json::Value;
 use thiserror::Error;
@@ -76,7 +77,7 @@ impl Triple {
     }
 }
 
-define_store!(TripleStore);
+define_store_cas!(TripleStore);
 
 const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
 
