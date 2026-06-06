@@ -57,7 +57,7 @@ pub fn run(
     // Resolve perspective WebID
     let perspective = match agent {
         Some(name) => WebID::from_persona(name.as_bytes()),
-        None => handle.curator_id().clone(),
+        None => *handle.curator_id(),
     };
 
     // Passphrase verification using the master-passphrase → capability_key derivation chain.

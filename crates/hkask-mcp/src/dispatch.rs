@@ -81,55 +81,48 @@ impl McpDispatcher {
 }
 
 impl McpPort for McpDispatcher {
-    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send {
-        async move { self.runtime.discover_tools().await }
+    async fn discover_tools(&self) -> Vec<String> {
+        self.runtime.discover_tools().await
     }
 
-    fn invoke(
+    async fn invoke(
         &self,
         tool_name: &str,
         input: Value,
         token: &DelegationToken,
-    ) -> impl std::future::Future<Output = Result<Value>> + Send {
+    ) -> Result<Value> {
         let governed = self.governed_tool.clone();
         let runtime = self.runtime.clone();
-        async move {
-            if let Some(governed) = governed {
-                // Route through GovernedTool membrane
-                let server_id = runtime
-                    .get_tool_info(tool_name)
-                    .await
-                    .map(|t| t.server_id)
-                    .unwrap_or_else(|| "unknown".to_string());
+        if let Some(governed) = governed {
+            // Route through GovernedTool membrane
+            let server_id = runtime
+                .get_tool_info(tool_name)
+                .await
+                .map(|t| t.server_id)
+                .unwrap_or_else(|| "unknown".to_string());
 
-                governed
-                    .invoke(&server_id, tool_name, input, token)
-                    .await
-                    .map_err(|e| match e {
-                        ToolPortError::CapabilityDenied(msg) => {
-                            TemplateError::CapabilityDenied(msg)
-                        }
-                        ToolPortError::GasBudgetExceeded(msg) => {
-                            TemplateError::Mcp(format!("Energy budget exceeded: {}", msg))
-                        }
-                        ToolPortError::NotFound(msg) => {
-                            TemplateError::Mcp(format!("Tool not found: {}", msg))
-                        }
-                        ToolPortError::InvocationFailed(msg) => TemplateError::Mcp(msg),
-                    })
-            } else {
-                Err(TemplateError::Mcp(
-                    "GovernedTool membrane not configured — all tool invocations require governance"
-                        .to_string(),
-                ))
-            }
+            governed
+                .invoke(&server_id, tool_name, input, token)
+                .await
+                .map_err(|e| match e {
+                    ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),
+                    ToolPortError::GasBudgetExceeded(msg) => {
+                        TemplateError::Mcp(format!("Energy budget exceeded: {}", msg))
+                    }
+                    ToolPortError::NotFound(msg) => {
+                        TemplateError::Mcp(format!("Tool not found: {}", msg))
+                    }
+                    ToolPortError::InvocationFailed(msg) => TemplateError::Mcp(msg),
+                })
+        } else {
+            Err(TemplateError::Mcp(
+                "GovernedTool membrane not configured — all tool invocations require governance"
+                    .to_string(),
+            ))
         }
     }
 
-    fn get_tool_info(
-        &self,
-        tool_name: &str,
-    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send {
-        async move { self.runtime.get_tool_info(tool_name).await }
+    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+        self.runtime.get_tool_info(tool_name).await
     }
 }

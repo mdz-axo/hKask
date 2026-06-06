@@ -9,7 +9,6 @@ use utoipa::ToSchema;
 use crate::middleware::AuthContext;
 use crate::{ApiState, ErrorResponse};
 
-
 /// Archive repository request
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ArchiveRequest {
@@ -42,14 +41,12 @@ pub struct ResolveShaResponse {
     pub sha: String,
 }
 
-
 /// Create git router
 pub fn git_router() -> Router<ApiState> {
     Router::new()
         .route("/api/v1/git/archive", axum::routing::post(archive))
         .route("/api/v1/git/resolve/:sha", axum::routing::get(resolve_sha))
 }
-
 
 /// Archive a repository template crate
 #[utoipa::path(

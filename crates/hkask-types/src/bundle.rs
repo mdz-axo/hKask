@@ -820,7 +820,6 @@ mod tests {
     use crate::lexicon::TemplateType;
     use crate::visibility::Visibility;
 
-
     fn make_skill(id: &str, polarity: SkillPolarity, terms: Vec<&str>) -> BundleSkill {
         BundleSkill {
             id: id.to_string(),
@@ -879,7 +878,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn skill_polarity_roundtrip() {
         let variants = [
@@ -927,7 +925,6 @@ mod tests {
         assert!(!SkillPolarity::Procedural.is_convergent());
     }
 
-
     #[test]
     fn conflict_type_roundtrip() {
         let variants = [
@@ -962,7 +959,6 @@ mod tests {
 
         assert_eq!(ConflictType::parse_str("nonsense"), None);
     }
-
 
     #[test]
     fn conflict_resolution_roundtrip() {
@@ -1002,7 +998,6 @@ mod tests {
         assert_eq!(ConflictResolution::parse_str("bogus"), None);
     }
 
-
     #[test]
     fn complementarity_type_roundtrip() {
         let variants = [
@@ -1031,7 +1026,6 @@ mod tests {
         assert_eq!(ComplementarityType::parse_str("nope"), None);
     }
 
-
     #[test]
     fn cascade_phase_roundtrip() {
         let variants = [CascadePhase::Pre, CascadePhase::Core, CascadePhase::Post];
@@ -1047,7 +1041,6 @@ mod tests {
 
         assert_eq!(CascadePhase::parse_str("invalid"), None);
     }
-
 
     #[test]
     fn bundle_manifest_validate_valid() {
@@ -1201,14 +1194,12 @@ mod tests {
         assert!(result.errors.iter().any(|e| e.contains("sequential")));
     }
 
-
     #[test]
     fn bundle_manifest_total_step_gas() {
         let manifest = valid_manifest();
         // Pre step gas_cap=100, Core step gas_cap=200 → total=300
         assert_eq!(manifest.total_step_gas(), 300);
     }
-
 
     #[test]
     fn bundle_manifest_skill_ids() {

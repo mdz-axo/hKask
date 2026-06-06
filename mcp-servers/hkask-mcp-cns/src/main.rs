@@ -331,7 +331,7 @@ impl CnsServer {
         // Resolve agent: use provided agent_id or fall back to calling agent
         let agent_str = agent_id.unwrap_or_else(|| self.webid.to_string());
         validate_field!(span, "agent_id", &agent_str, 128);
-        let agent: WebID = agent_str.parse().unwrap_or_else(|_| self.webid);
+        let agent: WebID = agent_str.parse().unwrap_or(self.webid);
 
         match self.runtime.agent_gas_status(&agent).await {
             Some(status) => span.ok_json(serde_json::json!({

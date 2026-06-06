@@ -379,7 +379,7 @@ mod tests {
         assert!(SpanNamespace::parse("").is_none());
 
         // Simulate the filtering logic from cns_subscribe handler
-        let spans = vec![
+        let spans = [
             "cns.tool".to_string(),
             "cns.inference".to_string(),
             "cns.nonexistent".to_string(),

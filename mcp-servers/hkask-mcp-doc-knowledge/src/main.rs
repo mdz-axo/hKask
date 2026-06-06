@@ -267,19 +267,22 @@ impl DocKnowledgeServer {
         let mut i = 0;
         let bytes = text.as_bytes();
         while i < bytes.len() {
-            if bytes[i] == b'!' && i + 1 < bytes.len() && bytes[i + 1] == b'[' {
-                if let Some(bracket_end) = text[i + 2..].find(']') {
-                    let paren_start = i + 2 + bracket_end + 1;
-                    if paren_start < bytes.len() && bytes[paren_start] == b'(' {
-                        if let Some(paren_end) = text[paren_start + 1..].find(')') {
-                            let url = &text[paren_start + 1..paren_start + 1 + paren_end];
-                            if !url.is_empty() {
-                                images.push(url.to_string());
-                            }
-                            i = paren_start + 1 + paren_end + 1;
-                            continue;
-                        }
+            if bytes[i] == b'!'
+                && i + 1 < bytes.len()
+                && bytes[i + 1] == b'['
+                && let Some(bracket_end) = text[i + 2..].find(']')
+            {
+                let paren_start = i + 2 + bracket_end + 1;
+                if paren_start < bytes.len()
+                    && bytes[paren_start] == b'('
+                    && let Some(paren_end) = text[paren_start + 1..].find(')')
+                {
+                    let url = &text[paren_start + 1..paren_start + 1 + paren_end];
+                    if !url.is_empty() {
+                        images.push(url.to_string());
                     }
+                    i = paren_start + 1 + paren_end + 1;
+                    continue;
                 }
             }
             i += 1;

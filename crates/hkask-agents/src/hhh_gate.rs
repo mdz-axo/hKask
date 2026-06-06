@@ -34,7 +34,6 @@ pub const GATE_PARAMS: LLMParameters = LLMParameters {
     seed: Some(42),
 };
 
-
 /// HHH mode toggle — whether the alignment gate is active.
 #[derive(Debug, Clone, PartialEq)]
 pub enum HhhMode {
@@ -103,7 +102,6 @@ impl HhhEvaluation {
         }
     }
 }
-
 
 /// Stage 1: Reframe user input to encourage honest, calibrated responses.
 ///
@@ -224,7 +222,6 @@ pub fn hhh_evaluation_prompt(original_input: &str, response: &str) -> String {
     )
 }
 
-
 /// Three-layer JSON parser for gate model output.
 ///
 /// LLMs are unreliable JSON producers. This parser uses three fallback layers:
@@ -290,7 +287,6 @@ fn strip_markdown_fences(s: &str) -> String {
     result
 }
 
-
 /// Evaluate a response against the HHH rubric using the gate model.
 ///
 /// Sends the evaluation prompt to the gate model, parses the JSON response,
@@ -324,7 +320,6 @@ pub async fn hhh_evaluate(
     }
 }
 
-
 /// Apply the Curator persona constraint filter to model output.
 ///
 /// This is Stage 4 of the alignment pipeline: after the HHH gate has validated
@@ -350,7 +345,6 @@ pub fn apply_persona_filter(response: &str, constraints: Option<&PersonaConstrai
     }
     cleaned
 }
-
 
 #[cfg(test)]
 mod tests {

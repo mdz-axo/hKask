@@ -56,7 +56,7 @@ impl MessageDispatch {
             .lock()
             .await
             .get_mut(&priority)
-            .unwrap()
+            .expect("dispatch queue initialized with all priorities")
             .push_back(message);
         trace_id
     }
@@ -72,10 +72,10 @@ impl MessageDispatch {
             MessagePriority::Warning,
             MessagePriority::Info,
         ] {
-            if let Some(queue) = queues.get_mut(&priority) {
-                if let Some(msg) = queue.pop_front() {
-                    return Some(msg);
-                }
+            if let Some(queue) = queues.get_mut(&priority)
+                && let Some(msg) = queue.pop_front()
+            {
+                return Some(msg);
             }
         }
         None

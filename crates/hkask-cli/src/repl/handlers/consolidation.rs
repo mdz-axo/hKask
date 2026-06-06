@@ -74,7 +74,7 @@ pub(crate) fn handle_consolidate(
             "--floor" | "-f" => {
                 let raw_value = inline_value
                     .as_deref()
-                    .or_else(|| parts.get(i + 1).map(|s| *s));
+                    .or_else(|| parts.get(i + 1).copied());
                 match raw_value {
                     Some(v) => match v.parse::<f64>() {
                         Ok(val) => confidence_floor = Some(val),
@@ -98,7 +98,7 @@ pub(crate) fn handle_consolidate(
             "--max" | "-m" => {
                 let raw_value = inline_value
                     .as_deref()
-                    .or_else(|| parts.get(i + 1).map(|s| *s));
+                    .or_else(|| parts.get(i + 1).copied());
                 match raw_value {
                     Some(v) => match v.parse::<usize>() {
                         Ok(val) => max_semantic_triples = Some(val),
@@ -122,7 +122,7 @@ pub(crate) fn handle_consolidate(
             "--limit" | "-l" => {
                 let raw_value = inline_value
                     .as_deref()
-                    .or_else(|| parts.get(i + 1).map(|s| *s));
+                    .or_else(|| parts.get(i + 1).copied());
                 match raw_value {
                     Some(v) => match v.parse::<usize>() {
                         Ok(val) => limit = val,

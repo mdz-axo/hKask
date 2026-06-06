@@ -45,7 +45,7 @@ for dir in "${hot_dirs[@]}"; do
             cfg_test_lines+=("$line")
         done < <(grep -n '#\[cfg(test)\]' "$file" 2>/dev/null || true)
 
-        for cfg_line in "${cfg_test_lines[@]:-}"; do
+        for cfg_line in "${cfg_test_lines[@]}"; do
             start_line="$(echo "$cfg_line" | cut -d: -f1)"
 
             # Find the opening brace of the mod block (could be same line or next line)
@@ -86,10 +86,10 @@ for dir in "${hot_dirs[@]}"; do
         # Now find all .unwrap() calls and check if they're outside test ranges
         while IFS= read -r match; do
             [ -z "$match" ] && continue
-            linenum="$(echo "$match" | cut -d: -f2)"
+            linenum="$(echo "$match" | cut -d: -f1)"
 
             # Skip comment lines
-            content="$(echo "$match" | cut -d: -f3-)"
+            content="$(echo "$match" | cut -d: -f2-)"
             if echo "$content" | grep -qE '^\s*//'; then
                 continue
             fi

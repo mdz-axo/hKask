@@ -190,7 +190,6 @@ impl Registry {
         self.templates.len()
     }
 
-
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
     }
@@ -227,7 +226,6 @@ impl Registry {
             .cloned()
             .collect()
     }
-
 
     /// Register a bundle manifest.
     pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {

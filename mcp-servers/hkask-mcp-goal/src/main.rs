@@ -186,6 +186,28 @@ impl GoalServer {
     }
 }
 
+// ── Entry point ──
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-goal",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| GoalServer::new(ctx),
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_GOAL_DB",
+                "Path to the goal SQLite database (in-memory if absent)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for the goal database (required if HKASK_GOAL_DB is set)",
+            ),
+        ],
+    )
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -264,24 +286,4 @@ mod tests {
             "invalid visibility must error: {out}"
         );
     }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    hkask_mcp::run_server(
-        "hkask-mcp-goal",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| GoalServer::new(ctx),
-        vec![
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_GOAL_DB",
-                "Path to the goal SQLite database (in-memory if absent)",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_DB_PASSPHRASE",
-                "Passphrase for the goal database (required if HKASK_GOAL_DB is set)",
-            ),
-        ],
-    )
-    .await
 }

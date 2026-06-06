@@ -63,7 +63,6 @@ impl<'de, T: IdKind> serde::Deserialize<'de> for Id<T> {
     }
 }
 
-
 impl<T: IdKind> Id<T> {
     pub fn new() -> Self {
         Self {
@@ -103,7 +102,6 @@ impl<T: IdKind> std::fmt::Display for Id<T> {
     }
 }
 
-
 pub enum TemplateKind {}
 impl private::Sealed for TemplateKind {}
 impl IdKind for TemplateKind {}
@@ -140,7 +138,6 @@ pub enum PodKind {}
 impl private::Sealed for PodKind {}
 impl IdKind for PodKind {}
 
-
 pub type TemplateID = Id<TemplateKind>;
 pub type BotID = Id<BotKind>;
 pub type TripleID = Id<TripleKind>;
@@ -150,7 +147,6 @@ pub type EmbeddingID = Id<EmbeddingKind>;
 pub type UserID = Id<UserKind>;
 pub(crate) type SovereigntyId = Id<SovereigntyKind>;
 pub type PodID = Id<PodKind>;
-
 
 use std::hash::Hash;
 use uuid::Uuid;

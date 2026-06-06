@@ -289,7 +289,7 @@ mod tests {
     /// that a keychain entry is present.
     #[test]
     fn build_github_client_returns_error_without_token() {
-        let result = without_github_token(|| build_github_client());
+        let result = without_github_token(build_github_client);
 
         match result {
             Err(msg) => {
@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn error_message_mentions_env_var() {
-        let result = without_github_token(|| build_github_client());
+        let result = without_github_token(build_github_client);
         match result {
             Err(msg) => {
                 // The error must mention HKASK_GITHUB_TOKEN so the user knows
@@ -381,7 +381,7 @@ mod tests {
     fn restore_registry_from_git_requires_valid_client() {
         // Verify that restore_registry_from_git also returns a clear error
         // when no GitHub token is available, consistent with archive_registry_to_git.
-        let result = without_github_token(|| build_github_client());
+        let result = without_github_token(build_github_client);
         match result {
             Err(msg) => {
                 assert!(

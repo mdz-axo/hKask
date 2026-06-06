@@ -18,6 +18,18 @@ use providers::{
 };
 use types::*;
 
+pub struct WebServerConfig {
+    pub webid: WebID,
+    pub brave_api_key: Option<String>,
+    pub firecrawl_api_key: Option<String>,
+    pub tavily_api_key: Option<String>,
+    pub serpapi_api_key: Option<String>,
+    pub exa_api_key: Option<String>,
+    pub browserbase_api_key: Option<String>,
+    pub cache_ttl_secs: Option<u64>,
+    pub cache_max_entries: Option<usize>,
+}
+
 pub struct WebServer {
     webid: WebID,
     pool: Arc<dyn WebSearchPort>,
@@ -28,17 +40,18 @@ pub struct WebServer {
 }
 
 impl WebServer {
-    fn new(
-        webid: WebID,
-        brave_api_key: Option<String>,
-        firecrawl_api_key: Option<String>,
-        tavily_api_key: Option<String>,
-        serpapi_api_key: Option<String>,
-        exa_api_key: Option<String>,
-        browserbase_api_key: Option<String>,
-        cache_ttl_secs: Option<u64>,
-        cache_max_entries: Option<usize>,
-    ) -> Result<Self, anyhow::Error> {
+    fn new(cfg: WebServerConfig) -> Result<Self, anyhow::Error> {
+        let WebServerConfig {
+            webid,
+            brave_api_key,
+            firecrawl_api_key,
+            tavily_api_key,
+            serpapi_api_key,
+            exa_api_key,
+            browserbase_api_key,
+            cache_ttl_secs,
+            cache_max_entries,
+        } = cfg;
         let cache_ttl = cache_ttl_secs
             .map(|s| s.min(MAX_CACHE_TTL_SECS))
             .unwrap_or_else(|| {
@@ -484,17 +497,17 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_WEB_CACHE_MAX_ENTRIES")
                 .and_then(|s| s.parse::<usize>().ok());
 
-            WebServer::new(
-                ctx.webid,
-                brave_key,
-                firecrawl_key,
-                tavily_key,
-                serpapi_key,
-                exa_key,
-                browserbase_key,
+            WebServer::new(WebServerConfig {
+                webid: ctx.webid,
+                brave_api_key: brave_key,
+                firecrawl_api_key: firecrawl_key,
+                tavily_api_key: tavily_key,
+                serpapi_api_key: serpapi_key,
+                exa_api_key: exa_key,
+                browserbase_api_key: browserbase_key,
                 cache_ttl_secs,
                 cache_max_entries,
-            )
+            })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

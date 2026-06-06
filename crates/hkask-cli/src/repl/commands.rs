@@ -569,7 +569,6 @@ pub(super) fn handle_slash_command(
     false
 }
 
-
 fn handle_hhh(arg: &str, state: &mut super::ReplState) {
     use hkask_agents::HhhMode;
 
@@ -649,7 +648,6 @@ fn handle_hhh(arg: &str, state: &mut super::ReplState) {
 }
 
 // handle_consolidate is provided by super::handlers::handle_consolidate
-
 
 pub(super) fn handle_filter(
     arg: &str,

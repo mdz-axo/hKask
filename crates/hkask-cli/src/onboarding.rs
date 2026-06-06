@@ -399,7 +399,6 @@ fn pick_or_default_replicant(replicants: &[RegisteredAgent]) -> Result<String, O
     }
 }
 
-
 /// Read a line of input from the user
 fn read_line() -> Result<String, std::io::Error> {
     let mut input = String::new();

@@ -58,7 +58,15 @@ impl InferenceLoop {
             dispatch_tx: None,
         }
     }
+}
 
+impl Default for InferenceLoop {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InferenceLoop {
     /// Set the gas budget for this loop.
     ///
     /// `cap` is the total gas allocation; `remaining` is the current balance.

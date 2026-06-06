@@ -662,14 +662,14 @@ impl HkaskLoop for CurationLoop {
         // Metacognitive evaluation via the internal CurationConfidenceGate.
         // When the gate is configured and confidence is in the transition zone
         // (0.3 < R̄ < 0.8), issue a SeekMoreEvidence directive through Cybernetics.
-        if let Some(directive) = self.evaluate_confidence_internal("curation_act") {
-            if let Some(trace_id) = self.context.issue_directive(directive).await {
-                tracing::info!(
-                    target: "curation.loop",
-                    trace_id = %trace_id,
-                    "Confidence gate directive issued through dispatch"
-                );
-            }
+        if let Some(directive) = self.evaluate_confidence_internal("curation_act")
+            && let Some(trace_id) = self.context.issue_directive(directive).await
+        {
+            tracing::info!(
+                target: "curation.loop",
+                trace_id = %trace_id,
+                "Confidence gate directive issued through dispatch"
+            );
         }
     }
 }

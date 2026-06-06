@@ -604,7 +604,6 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-
     struct MockGasGovernance {
         can_proceed_result: AtomicBool,
         acquire_calls: AtomicU64,
@@ -627,7 +626,6 @@ mod tests {
             self.acquire_calls.fetch_add(gas, Ordering::Relaxed);
         }
     }
-
 
     #[test]
     fn gas_budget_config_default() {
@@ -685,7 +683,6 @@ mod tests {
         assert_eq!(cfg.per_bot_allocation, 15000);
         assert_eq!(cfg.curator_allocation, 25000);
     }
-
 
     fn curator_id() -> WebID {
         WebID::from_persona(b"curator")
@@ -755,7 +752,6 @@ mod tests {
         chat.add_message(msg);
         assert_eq!(chat.get_history().len(), 0);
     }
-
 
     #[test]
     fn ensemble_chat_gas_budget_hard_limit_rejects() {
@@ -850,7 +846,6 @@ mod tests {
         chat.consume_gas(300);
         assert_eq!(chat.gas_used(), 800);
     }
-
 
     #[test]
     fn ensemble_chat_gas_governance_can_proceed_blocks() {
