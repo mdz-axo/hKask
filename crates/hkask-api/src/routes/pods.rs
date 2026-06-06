@@ -1,12 +1,11 @@
 //! Pod lifecycle management routes
 
-use axum::{
-    Json,
-    extract::{Extension, Path, State},
-    http::StatusCode,
-    routing::Router,
-};
+use axum::extract::{Extension, Path, State};
+use axum::http::StatusCode;
+use axum::{Json, routing::Router};
+use hkask_types::DelegationResource;
 
+use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
@@ -82,9 +81,8 @@ async fn create_pod(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
-) -> Result<Json<CreatePodResponse>, StatusCode> {
+) -> Result<Json<CreatePodResponse>, ApiError> {
     use hkask_agents::pod::AgentPersona;
-    use hkask_types::DelegationResource;
 
     let has_capability =
         state
@@ -92,19 +90,25 @@ async fn create_pod(
             .check_resource(&auth.token, &auth.webid, DelegationResource::Tool);
 
     if !has_capability {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(ApiError::Forbidden {
+            reason: "Insufficient capability to create pods".to_string(),
+        });
     }
 
     let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
         tracing::warn!("Invalid persona YAML: {}", e);
-        StatusCode::BAD_REQUEST
+        ApiError::BadRequest {
+            message: format!("Invalid persona YAML: {}", e),
+        }
     })?;
 
     let pod_id = state
         .pod_manager
         .create_pod(&req.template, &persona, req.name)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to create pod: {}", e),
+        })?;
 
     Ok(Json(CreatePodResponse {
         pod_id: pod_id.to_string(),
@@ -116,21 +120,25 @@ async fn activate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, StatusCode> {
-    let _ = _auth; // Auth verified by middleware; handler does not use token
+) -> Result<StatusCode, ApiError> {
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
-    let uuid = match Uuid::parse_str(&id) {
-        Ok(u) => u,
-        Err(_) => return Err(StatusCode::BAD_REQUEST),
-    };
+    let uuid = Uuid::parse_str(&id).map_err(|_| ApiError::BadRequest {
+        message: format!("Invalid pod ID: {}", id),
+    })?;
     let pod_id = PodID::from_uuid(uuid);
 
-    match state.pod_manager.activate_pod(&pod_id).await {
-        Ok(_) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::NOT_FOUND),
-    }
+    state
+        .pod_manager
+        .activate_pod(&pod_id)
+        .await
+        .map_err(|_| ApiError::NotFound {
+            resource: "pod".into(),
+            id: id.clone(),
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Deactivate a pod
@@ -138,21 +146,25 @@ async fn deactivate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, StatusCode> {
-    let _ = _auth; // Auth verified by middleware; handler does not use token
+) -> Result<StatusCode, ApiError> {
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
-    let uuid = match Uuid::parse_str(&id) {
-        Ok(u) => u,
-        Err(_) => return Err(StatusCode::BAD_REQUEST),
-    };
+    let uuid = Uuid::parse_str(&id).map_err(|_| ApiError::BadRequest {
+        message: format!("Invalid pod ID: {}", id),
+    })?;
     let pod_id = PodID::from_uuid(uuid);
 
-    match state.pod_manager.deactivate_pod(&pod_id).await {
-        Ok(_) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::NOT_FOUND),
-    }
+    state
+        .pod_manager
+        .deactivate_pod(&pod_id)
+        .await
+        .map_err(|_| ApiError::NotFound {
+            resource: "pod".into(),
+            id: id.clone(),
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Get pod status
@@ -160,19 +172,23 @@ async fn pod_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<Json<PodStatusResponse>, StatusCode> {
-    let _ = _auth; // Auth verified by middleware; handler does not use token
+) -> Result<Json<PodStatusResponse>, ApiError> {
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
-    let uuid = Uuid::parse_str(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let uuid = Uuid::parse_str(&id).map_err(|_| ApiError::BadRequest {
+        message: format!("Invalid pod ID: {}", id),
+    })?;
     let pod_id = PodID::from_uuid(uuid);
 
     let status = state
         .pod_manager
         .get_pod_status(&pod_id)
         .await
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+        .map_err(|_| ApiError::NotFound {
+            resource: "pod".into(),
+            id: id.clone(),
+        })?;
 
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,

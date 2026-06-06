@@ -1,10 +1,10 @@
 //! Template management routes
 
-use axum::{
-    Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router,
-};
+use axum::extract::{Path, State};
+use axum::{Json, routing::Router};
 use hkask_templates::RegistryIndex;
 
+use crate::ApiError;
 use crate::ApiState;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -81,32 +81,33 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn get_template(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+async fn get_template(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> Result<Json<TemplateResponse>, ApiError> {
     let registry = state.registry.lock().await;
 
-    match registry.get(&id) {
-        Ok(entry) => {
-            let response = TemplateResponse {
-                id: entry.id.clone(),
-                template_type: entry.template_type.as_str().to_string(),
-                name: entry.name.clone(),
-                description: entry.description.clone(),
-                source_path: entry.source_path.clone(),
-                lexicon_terms: entry.lexicon_terms.clone(),
-            };
-            (StatusCode::OK, Json(response)).into_response()
-        }
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
-    }
+    let entry = registry.get(&id)?;
+
+    Ok(Json(TemplateResponse {
+        id: entry.id.clone(),
+        template_type: entry.template_type.as_str().to_string(),
+        name: entry.name.clone(),
+        description: entry.description.clone(),
+        source_path: entry.source_path.clone(),
+        lexicon_terms: entry.lexicon_terms.clone(),
+    }))
 }
 
 /// Register template
 async fn register_template(
     State(state): State<ApiState>,
     Json(_req): Json<TemplateResponse>,
-) -> StatusCode {
+) -> Result<StatusCode, ApiError> {
+    use axum::http::StatusCode;
+
     let _registry = state.registry.lock().await;
-    StatusCode::CREATED
+    Ok(StatusCode::CREATED)
 }
 
 /// Search templates by lexicon term

@@ -5,12 +5,14 @@
 //! discoverable and invokable. If no servers are running, the listing
 //! endpoints return empty results and invocations will fail.
 
-use axum::{Extension, Json, extract::State, http::StatusCode, routing::Router};
+use axum::extract::Extension;
+use axum::{Json, extract::State, routing::Router};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::ApiError;
+use crate::ApiState;
 use crate::middleware::auth::AuthContext;
-use crate::{ApiState, ErrorResponse};
 
 /// Create MCP router
 pub fn mcp_router() -> Router<ApiState> {
@@ -96,7 +98,7 @@ async fn mcp_invoke(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<McpInvokeRequest>,
-) -> Result<Json<McpInvokeResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<McpInvokeResponse>, ApiError> {
     use hkask_templates::McpPort;
 
     let input = if req.input.is_null() {
@@ -110,20 +112,13 @@ async fn mcp_invoke(
         .mcp_dispatcher
         .invoke(&req.tool, input, &auth.token)
         .await
-        .map_err(|e| {
-            let code = match &e {
-                hkask_templates::TemplateError::Mcp(_) => StatusCode::INTERNAL_SERVER_ERROR,
-                hkask_templates::TemplateError::CapabilityDenied(_) => StatusCode::UNAUTHORIZED,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            };
-            (
-                code,
-                Json(ErrorResponse {
-                    error: e.to_string(),
-                    code: code.as_u16().to_string(),
-                    details: None,
-                }),
-            )
+        .map_err(|e| match &e {
+            hkask_templates::TemplateError::CapabilityDenied(_) => ApiError::Unauthorized {
+                reason: e.to_string(),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
+            },
         })?;
 
     // Resolve server_id from the runtime's tool registry

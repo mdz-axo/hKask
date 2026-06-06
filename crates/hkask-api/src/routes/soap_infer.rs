@@ -1,11 +1,13 @@
 //! SOAP inference routes for Russell integration
 
-use axum::{Json, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::State, routing::Router};
 
 use hkask_ensemble::ports::InferenceClient;
 
+use crate::ApiError;
+use crate::ApiState;
+use crate::resolve_soap_capability_secret;
 use crate::soap_config::SoapInferenceConfig;
-use crate::{ApiState, resolve_soap_capability_secret};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -90,7 +92,7 @@ pub fn soap_infer_router() -> Router<ApiState> {
         (status = 200, description = "LLM inference response", body = SoapInferResponse),
         (status = 400, description = "Validation failed"),
         (status = 403, description = "Capability verification failed"),
-        (status = 429, description = "Rate limit exceeded"),
+        (status = 429, description = "Rate limit exceeded — try again later"),
         (status = 500, description = "Internal server error"),
         (status = 504, description = "Inference timeout"),
     ),
@@ -98,49 +100,47 @@ pub fn soap_infer_router() -> Router<ApiState> {
 async fn soap_infer(
     State(state): State<ApiState>,
     Json(req): Json<SoapInferAuthRequest>,
-) -> Result<Json<SoapInferResponse>, StatusCode> {
+) -> Result<Json<SoapInferResponse>, ApiError> {
     use std::time::Instant;
     use tokio::time::{Duration, timeout};
 
     let capability_secret = resolve_soap_capability_secret().map_err(|e| {
         tracing::error!("SOAP inference config error: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        ApiError::Internal {
+            message: "Server inference configuration error".to_string(),
+        }
     })?;
     let config = SoapInferenceConfig::from_env(capability_secret).map_err(|e| {
         tracing::error!("SOAP inference config error: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        ApiError::Internal {
+            message: "Server inference configuration error".to_string(),
+        }
     })?;
     let start = Instant::now();
 
     // Validate request size (DoS prevention)
-    if let Err(_err) = validate_soap_request(&req.request, &config.inference) {
-        return Err(StatusCode::BAD_REQUEST);
+    if let Err(err) = validate_soap_request(&req.request, &config.inference) {
+        return Err(ApiError::BadRequest {
+            message: format!("Validation error: {:?}", err),
+        });
     }
 
     // Verify capability token (OCAP security boundary — hexagonal membrane)
-    // Parse token to extract holder WebID for proper authority tracking.
-    // This is boundary authentication (parse + signature check), not a
-    // Cybernetics-level decision. CNS governs capability *enforcement* at the
-    // loop level (throttling, energy budgets); the API membrane just verifies
-    // that a valid token was presented before letting the request through.
-    let token = match hkask_types::capability::DelegationToken::from_base64(&req.capability_token) {
-        Ok(t) => t,
-        Err(_) => {
-            return Err(StatusCode::FORBIDDEN);
-        }
-    };
+    let token = hkask_types::capability::DelegationToken::from_base64(&req.capability_token)
+        .map_err(|_| ApiError::Forbidden {
+            reason: "Invalid capability token".to_string(),
+        })?;
 
     if !token.verify(&config.capability_secret) {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(ApiError::Forbidden {
+            reason: "Capability verification failed".to_string(),
+        });
     }
 
     // Load Jack persona from file (runtime loading)
-    let jack_persona = match config.load_jack_persona() {
-        Ok(content) => content,
-        Err(_e) => {
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    let jack_persona = config.load_jack_persona().map_err(|e| ApiError::Internal {
+        message: format!("Failed to load Jack persona: {}", e),
+    })?;
 
     let system_prompt = format!(
         "You are Jack, Russell's nurse persona.\n\n{}\n\n\
@@ -175,10 +175,17 @@ async fn soap_infer(
         {
             Ok(Ok(resp)) => resp.response,
             Ok(Err(e)) => {
-                format!("Inference error: {}", e)
+                return Err(ApiError::Internal {
+                    message: format!("Inference error: {}", e),
+                });
             }
             Err(_) => {
-                return Err(StatusCode::GATEWAY_TIMEOUT);
+                return Err(ApiError::Internal {
+                    message: format!(
+                        "Inference timed out after {}s",
+                        config.inference.timeout_secs
+                    ),
+                });
             }
         }
     } else {
