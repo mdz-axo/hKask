@@ -44,10 +44,9 @@ pub use agent_def::{
 pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};
 pub use audit::{AuditEntry, AuditOutcome};
 pub use bundle::{
-    BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
-    BundleManifestStep, BundleSkill, BundleSkillChange, CascadePhase, ComplementarityType,
-    CompositionError, ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult,
-    VersionBump,
+    BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, BundleSkill,
+    CascadePhase, ComplementarityType, ConflictResolution, ConflictType, GasConfig, SkillPolarity,
+    ValidationResult,
 };
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{

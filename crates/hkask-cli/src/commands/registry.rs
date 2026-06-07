@@ -92,7 +92,7 @@ pub fn run(_rt: &tokio::runtime::Runtime, registry: &mut SqliteRegistry, action:
                             cascade_level: 0,
                             matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
                         };
-                        if let Err(e) = registry.register(entry, None) {
+                        if let Err(e) = registry.register(entry) {
                             eprintln!("Failed to register template {}: {}", asset.id, e);
                         } else if verbose {
                             println!("  Registered: {}", asset.id);

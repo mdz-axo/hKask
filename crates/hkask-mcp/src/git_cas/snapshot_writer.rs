@@ -24,18 +24,20 @@ use std::sync::Arc;
 ///
 /// Each method knows which [`RepoId`] to target. Callers don't need to
 /// know the repo mapping — they just call `put_registry_entry(agent)`.
-pub struct SnapshotWriter {
+#[allow(dead_code)]
+pub(crate) struct SnapshotWriter {
     port: Arc<dyn GitCASPort>,
 }
 
+#[allow(dead_code)]
 impl SnapshotWriter {
     /// Create a new SnapshotWriter wrapping the given port.
-    pub fn new(port: Arc<dyn GitCASPort>) -> Self {
+    pub(crate) fn new(port: Arc<dyn GitCASPort>) -> Self {
         Self { port }
     }
 
     /// Serialize and store a [`RegisteredAgent`] in the Registry repo.
-    pub async fn put_registry_entry(
+    pub(crate) async fn put_registry_entry(
         &self,
         agent: &RegisteredAgent,
     ) -> Result<ContentHash, GitCasError> {
@@ -45,21 +47,24 @@ impl SnapshotWriter {
     }
 
     /// Serialize and store a [`TripleEntry`] in the Memory repo.
-    pub async fn put_triple(&self, triple: &TripleEntry) -> Result<ContentHash, GitCasError> {
+    pub(crate) async fn put_triple(
+        &self,
+        triple: &TripleEntry,
+    ) -> Result<ContentHash, GitCasError> {
         let bytes = serde_json::to_vec(triple)
             .map_err(|e| GitCasError::Io(format!("Failed to serialize TripleEntry: {e}")))?;
         self.port.put_blob(&RepoId::Memory, &bytes).await
     }
 
     /// Serialize and store a [`NuEvent`] in the CnsAudit repo.
-    pub async fn put_nu_event(&self, event: &NuEvent) -> Result<ContentHash, GitCasError> {
+    pub(crate) async fn put_nu_event(&self, event: &NuEvent) -> Result<ContentHash, GitCasError> {
         let bytes = serde_json::to_vec(event)
             .map_err(|e| GitCasError::Io(format!("Failed to serialize NuEvent: {e}")))?;
         self.port.put_blob(&RepoId::CnsAudit, &bytes).await
     }
 
     /// Serialize and store a [`StoredConsentRecord`] in the Sovereignty repo.
-    pub async fn put_consent_record(
+    pub(crate) async fn put_consent_record(
         &self,
         record: &StoredConsentRecord,
     ) -> Result<ContentHash, GitCasError> {
@@ -70,14 +75,17 @@ impl SnapshotWriter {
     }
 
     /// Serialize and store a [`Goal`] in the GoalsSpecs repo.
-    pub async fn put_goal(&self, goal: &Goal) -> Result<ContentHash, GitCasError> {
+    pub(crate) async fn put_goal(&self, goal: &Goal) -> Result<ContentHash, GitCasError> {
         let bytes = serde_json::to_vec(goal)
             .map_err(|e| GitCasError::Io(format!("Failed to serialize Goal: {e}")))?;
         self.port.put_blob(&RepoId::GoalsSpecs, &bytes).await
     }
 
     /// Serialize and store a [`StoredSession`] in the Sessions repo.
-    pub async fn put_session(&self, session: &StoredSession) -> Result<ContentHash, GitCasError> {
+    pub(crate) async fn put_session(
+        &self,
+        session: &StoredSession,
+    ) -> Result<ContentHash, GitCasError> {
         let bytes = serde_json::to_vec(session)
             .map_err(|e| GitCasError::Io(format!("Failed to serialize StoredSession: {e}")))?;
         self.port.put_blob(&RepoId::Sessions, &bytes).await

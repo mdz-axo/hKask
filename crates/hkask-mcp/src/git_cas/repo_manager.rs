@@ -15,18 +15,20 @@ use std::sync::Arc;
 /// Does not inherit from the adapter — it *delegates* (P2). The adapter
 /// is injected via `Arc<dyn GitCASPort>`, so the RepoManager is testable
 /// with [`MockGitCas`].
-pub struct RepoManager {
+#[allow(dead_code)]
+pub(crate) struct RepoManager {
     adapter: Arc<dyn GitCASPort>,
 }
 
+#[allow(dead_code)]
 impl RepoManager {
     /// Create a new RepoManager wrapping the given adapter.
-    pub fn new(adapter: Arc<dyn GitCASPort>) -> Self {
+    pub(crate) fn new(adapter: Arc<dyn GitCASPort>) -> Self {
         Self { adapter }
     }
 
     /// Store a blob in the specified repo, returning its content hash.
-    pub async fn put_blob(
+    pub(crate) async fn put_blob(
         &self,
         repo: &RepoId,
         content: &[u8],
@@ -35,7 +37,7 @@ impl RepoManager {
     }
 
     /// Retrieve a blob by its content hash from the specified repo.
-    pub async fn get_blob(
+    pub(crate) async fn get_blob(
         &self,
         repo: &RepoId,
         hash: &ContentHash,
@@ -44,12 +46,16 @@ impl RepoManager {
     }
 
     /// Create a snapshot commit of all staged changes in the specified repo.
-    pub async fn snapshot(&self, repo: &RepoId, message: &str) -> Result<CommitHash, GitCasError> {
+    pub(crate) async fn snapshot(
+        &self,
+        repo: &RepoId,
+        message: &str,
+    ) -> Result<CommitHash, GitCasError> {
         self.adapter.snapshot(repo, message).await
     }
 
     /// Resolve a symbolic ref to a commit SHA in the specified repo.
-    pub async fn resolve_ref(
+    pub(crate) async fn resolve_ref(
         &self,
         repo: &RepoId,
         reference: &str,
@@ -58,7 +64,7 @@ impl RepoManager {
     }
 
     /// List tree entries at a given ref in the specified repo.
-    pub async fn list_tree(
+    pub(crate) async fn list_tree(
         &self,
         repo: &RepoId,
         reference: &str,
@@ -68,7 +74,7 @@ impl RepoManager {
     }
 
     /// Diff two commits in the specified repo.
-    pub async fn diff(
+    pub(crate) async fn diff(
         &self,
         repo: &RepoId,
         from: &str,
@@ -78,12 +84,16 @@ impl RepoManager {
     }
 
     /// Verify content integrity in the specified repo.
-    pub async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError> {
+    pub(crate) async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError> {
         self.adapter.verify(repo).await
     }
 
     /// List snapshot history for a repo, up to `max_count` entries.
-    pub async fn log(&self, repo: &RepoId, max_count: usize) -> Result<Vec<LogEntry>, GitCasError> {
+    pub(crate) async fn log(
+        &self,
+        repo: &RepoId,
+        max_count: usize,
+    ) -> Result<Vec<LogEntry>, GitCasError> {
         self.adapter.log(repo, max_count).await
     }
 
@@ -91,7 +101,7 @@ impl RepoManager {
     ///
     /// Each snapshot is taken sequentially. A failure in one repo does not
     /// prevent others from being snapshotted.
-    pub async fn snapshot_all(
+    pub(crate) async fn snapshot_all(
         &self,
         message: &str,
     ) -> Vec<(RepoId, Result<CommitHash, GitCasError>)> {
@@ -107,7 +117,9 @@ impl RepoManager {
     ///
     /// Each verification is independent. A failure in one repo does not
     /// prevent others from being verified.
-    pub async fn verify_all(&self) -> Vec<(RepoId, Result<VerificationReport, GitCasError>)> {
+    pub(crate) async fn verify_all(
+        &self,
+    ) -> Vec<(RepoId, Result<VerificationReport, GitCasError>)> {
         let mut results = Vec::with_capacity(RepoId::all().len());
         for repo in RepoId::all() {
             let result = self.adapter.verify(repo).await;

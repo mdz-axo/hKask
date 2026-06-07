@@ -30,7 +30,7 @@ pub struct GixCasAdapter {
 /// Resolution order:
 /// 1. `HKASK_CAS_HOME` env var (explicit path)
 /// 2. `~/.hkask/repos/` (default)
-pub fn resolve_cas_home() -> PathBuf {
+pub(crate) fn resolve_cas_home() -> PathBuf {
     std::env::var("HKASK_CAS_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
@@ -92,7 +92,8 @@ impl GixCasAdapter {
     /// Validate a path component to prevent directory traversal.
     ///
     /// Rejects paths containing `..`, null bytes, or absolute paths.
-    pub fn validate_path(path: &Path) -> Result<(), GitCasError> {
+    #[allow(dead_code)]
+    fn validate_path(path: &Path) -> Result<(), GitCasError> {
         let path_str = path.to_string_lossy();
 
         if path_str.contains('\0') {

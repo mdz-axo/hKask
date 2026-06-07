@@ -54,11 +54,13 @@ impl Visibility {
         }
     }
 
-    pub fn is_private(&self) -> bool {
+    #[allow(dead_code)] // reserved for future crate-internal use
+    pub(crate) fn is_private(&self) -> bool {
         matches!(self, Visibility::Private)
     }
 
-    pub fn is_public(&self) -> bool {
+    #[allow(dead_code)] // reserved for future crate-internal use
+    pub(crate) fn is_public(&self) -> bool {
         matches!(self, Visibility::Public)
     }
 
@@ -166,12 +168,14 @@ impl Confidence {
     }
 
     /// Zero confidence (0.0).
-    pub fn zero() -> Self {
+    #[allow(dead_code)] // reserved for future crate-internal use
+    pub(crate) fn zero() -> Self {
         Self(0.0)
     }
 
     /// Get the raw f64 value.
-    pub fn into_inner(self) -> f64 {
+    #[allow(dead_code)] // reserved for future crate-internal use
+    pub(crate) fn into_inner(self) -> f64 {
         self.0
     }
 

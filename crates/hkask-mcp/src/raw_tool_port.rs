@@ -117,7 +117,7 @@ fn extract_text_content(result: &rmcp::model::CallToolResult) -> String {
 /// (structured tool responses like web_extract return JSON strings).
 /// Falls back to a plain JSON string if parsing fails.
 /// For multiple items, wraps them in a JSON array.
-pub fn parse_call_result(result: &rmcp::model::CallToolResult) -> Value {
+fn parse_call_result(result: &rmcp::model::CallToolResult) -> Value {
     if result.content.is_empty() {
         return Value::Null;
     }

@@ -33,8 +33,8 @@ impl std::fmt::Display for CurationDecision {
 pub enum OcapTokenKind {
     /// Curation authority — ConsolidationToken
     Curation,
-    /// Cybernetics authority — CyberneticsToken (future)
-    Cybernetics,
+    /// Cybernetics authority — CyberneticsToken
+    Cybernetics, // (future — no production callers yet)
     /// Spec curation authority
     SpecCurate,
 }

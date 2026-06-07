@@ -17,9 +17,7 @@ pub mod server;
 
 pub(crate) use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
-pub use git_cas::{
-    GitCasAdapter, GixCasAdapter, RepoManager, SnapshotWriter, TripleEntry, resolve_cas_home,
-};
+pub use git_cas::{GitCasAdapter, GixCasAdapter};
 pub use hkask_types::ports::ToolInfo;
 pub use raw_tool_port::RawMcpToolPort;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};

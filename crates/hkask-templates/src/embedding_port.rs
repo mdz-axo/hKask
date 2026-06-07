@@ -16,8 +16,6 @@ pub struct OkapiEmbedding {
     config: OkapiConfig,
     retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
-    /// Embedding dimension for the current model (e.g., 384 for qwen3-embedding:0.6b)
-    dim: usize,
 }
 
 impl OkapiEmbedding {
@@ -33,14 +31,11 @@ impl OkapiEmbedding {
             .map(Arc::new)
             .map_err(|e| EmbeddingGenerationError::Connection(e.to_string()))?;
 
-        let dim = embedding_dim_for_model(model);
-
         Ok(Self {
             model: model.to_string(),
             retry_config: RetryConfig::default(),
             config,
             client,
-            dim,
         })
     }
 
@@ -181,27 +176,6 @@ impl OkapiEmbedding {
             .into_iter()
             .next()
             .ok_or(EmbeddingGenerationError::EmptyResponse)
-    }
-
-    pub(crate) fn embedding_dim(&self) -> usize {
-        self.dim
-    }
-}
-
-// Model dimension lookup
-
-/// Return the embedding dimension for a known model, or a sensible default.
-fn embedding_dim_for_model(model: &str) -> usize {
-    // Common Okapi embedding models and their dimensions
-    match model {
-        "qwen3-embedding:0.6b" => 384,
-        "nomic-embed-text" => 768,
-        "mxbai-embed-large" => 1024,
-        "all-minilm" => 384,
-        _ => {
-            // Default to 384 — will be validated on first API call
-            384
-        }
     }
 }
 

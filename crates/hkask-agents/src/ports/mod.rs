@@ -10,7 +10,6 @@ pub mod git_cas;
 pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod registry_source;
-pub mod sovereignty;
 pub mod standing_session;
 
 pub use acp::AcpPort;

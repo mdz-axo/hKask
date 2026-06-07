@@ -257,7 +257,7 @@ impl EscalationQueue {
     }
 }
 
-/// A batch of related escalations grouped by time window and domain.
+/// Aggregated stats over escalation queue
 ///
 /// The algedonic channel's value is inversely proportional to its traffic
 /// (VSM algedonic paradox). Batching reduces noise while preserving
@@ -302,11 +302,6 @@ impl EscalationBatch {
             domains.len(),
             self.domain
         )
-    }
-
-    /// Whether this batch exceeds the concurrent escalation threshold.
-    pub fn exceeds_threshold(&self) -> bool {
-        self.entries.len() > self.threshold
     }
 }
 

@@ -10,13 +10,10 @@
 //! crate directory.
 
 pub mod gix_adapter;
-pub mod repo_manager;
-pub mod snapshot_writer;
+pub(crate) mod repo_manager;
+pub(crate) mod snapshot_writer;
 
-pub use gix_adapter::{GixCasAdapter, resolve_cas_home};
-pub use hkask_types::TripleEntry;
-pub use repo_manager::RepoManager;
-pub use snapshot_writer::SnapshotWriter;
+pub use gix_adapter::GixCasAdapter;
 
 use hkask_types::{GitError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
@@ -28,6 +25,7 @@ pub struct GitCasAdapter {
 
 impl GitCasAdapter {
     /// Create new Git CAS adapter
+    #[allow(dead_code)]
     pub fn new(base_path: &Path) -> Result<Self, GitError> {
         if !base_path.exists() {
             return Err(GitError::CrateNotFound(format!(
@@ -47,7 +45,7 @@ impl GitCasAdapter {
     }
 
     /// Validate a path to prevent directory traversal attacks
-    pub fn validate_path(&self, path: &Path) -> Result<(), GitError> {
+    pub(crate) fn validate_path(&self, path: &Path) -> Result<(), GitError> {
         let path_str = path.to_string_lossy();
 
         if path_str.contains('\0') {
@@ -81,7 +79,8 @@ impl GitCasAdapter {
     /// the gap between the hkask-templates::Registry (which stores
     /// `.j2` template files by domain) and the GitCasAdapter (which
     /// expects filesystem crate directories).
-    pub fn load_template_crate_or_synthesize(
+    #[allow(dead_code)]
+    pub(crate) fn load_template_crate_or_synthesize(
         &self,
         crate_name: &str,
     ) -> Result<TemplateCrate, GitError> {
@@ -241,7 +240,7 @@ impl GitCasAdapter {
     }
 
     /// Resolve the current SHA for a crate
-    pub fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
+    pub(crate) fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
         use std::process::Command;
 
         let output = Command::new("git")

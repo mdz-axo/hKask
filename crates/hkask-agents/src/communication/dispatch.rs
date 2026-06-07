@@ -111,15 +111,6 @@ impl MessageDispatch {
 
         self.send(message).await
     }
-
-    /// Convenience method: enqueue an algedonic alert as a Critical-priority message.
-    ///
-    /// Creates a message with `MessagePriority::Critical` and `LoopId::Cybernetics`,
-    /// which is the standard pattern for algedonic alerts (variety deficit escalation).
-    pub async fn send_escalation(&self, alert: LoopPayload, sender: WebID) -> TraceId {
-        let message = LoopMessage::critical(LoopId::Cybernetics, alert).with_sender(sender);
-        self.send(message).await
-    }
 }
 
 impl Default for MessageDispatch {

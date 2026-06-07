@@ -43,7 +43,7 @@ pub fn register_template(
         matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
     };
 
-    registry.register(entry, None)
+    registry.register(entry)
 }
 
 /// Get template command

@@ -22,9 +22,6 @@ use hkask_types::{CapabilityChecker, DelegationToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
 
-/// Concrete governed tool type used by the MCP dispatcher.
-pub type DispatchGovernedTool = GovernedTool<RawMcpToolPort>;
-
 /// MCP dispatcher — Communication-layer tool routing.
 ///
 /// Wraps `McpRuntime` for tool discovery and invocation.
@@ -39,7 +36,7 @@ pub struct McpDispatcher {
     /// Governed tool membrane — the singular governance boundary.
     /// When present, all tool invocations route through this membrane
     /// which handles OCAP verification, energy budgets, and CNS observability.
-    governed_tool: Option<Arc<DispatchGovernedTool>>,
+    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
 }
 
 impl McpDispatcher {
@@ -51,7 +48,7 @@ impl McpDispatcher {
     pub fn with_governed_tool(
         runtime: McpRuntime,
         secret: &[u8],
-        governed_tool: Arc<DispatchGovernedTool>,
+        governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
     ) -> Self {
         Self {
             runtime,
@@ -63,11 +60,6 @@ impl McpDispatcher {
     /// Issue capability token to a bot.
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
         self.capability_checker.grant_tool(tool_name, from, to)
-    }
-
-    /// List all available tools
-    pub async fn list_tools(&self) -> Vec<String> {
-        self.runtime.discover_tools().await
     }
 
     /// Shut down all managed MCP server processes.

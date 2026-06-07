@@ -127,17 +127,6 @@ fn make_step(ordinal: u32, action: &str, description: &str) -> BundleManifestSte
         input_mapping: None,
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Core,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     }
 }
 
@@ -165,17 +154,6 @@ async fn manifest_executor_populate_then_execute() {
         input_mapping: None,
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Pre,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let execute_step = BundleManifestStep {
@@ -193,17 +171,6 @@ async fn manifest_executor_populate_then_execute() {
         })),
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Core,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let manifest = make_manifest("populate-execute", vec![populate_step, execute_step]);
@@ -267,17 +234,6 @@ async fn manifest_executor_select_step() {
         input_mapping: None,
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Pre,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let manifest = make_manifest("select-only", vec![select_step]);
@@ -328,17 +284,6 @@ async fn manifest_executor_multi_step_cascade() {
         input_mapping: None,
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Pre,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let populate_step = BundleManifestStep {
@@ -354,17 +299,6 @@ async fn manifest_executor_multi_step_cascade() {
         input_mapping: None,
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Core,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let execute_step = BundleManifestStep {
@@ -382,17 +316,6 @@ async fn manifest_executor_multi_step_cascade() {
         })),
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Core,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let manifest = make_manifest(
@@ -516,20 +439,6 @@ async fn manifest_executor_feedback_action_invokes_tool() {
         })),
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Post,
-        feedback: Some(json!({
-            "variety_delta": "integer",
-            "principle_compliance": "object"
-        })),
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let manifest = make_manifest("feedback-test", vec![feedback_step]);
@@ -576,17 +485,6 @@ async fn manifest_executor_validate_action_invokes_tool() {
         })),
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Post,
-        feedback: None,
-        validation_rules: Some(json!(["all_categories_tested"])),
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let manifest = make_manifest("validate-test", vec![validate_step]);
@@ -631,17 +529,6 @@ async fn manifest_executor_retrieve_action_invokes_tool() {
         })),
         output_schema: None,
         phase: hkask_types::bundle::CascadePhase::Pre,
-        feedback: None,
-        validation_rules: None,
-        tool: None,
-        target: None,
-        arguments: None,
-        bindings: None,
-        loop_over: None,
-        condition: None,
-        token_cap: None,
-        temperature: None,
-        extra: serde_json::Map::new(),
     };
 
     let manifest = make_manifest("retrieve-test", vec![retrieve_step]);

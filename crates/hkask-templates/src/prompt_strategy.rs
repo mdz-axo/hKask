@@ -31,6 +31,15 @@ impl PromptStrategy {
         }
     }
 
+    /// Apply the strategy to frame a prompt.
+    pub fn frame(&self, input: &str) -> String {
+        match self {
+            PromptStrategy::Answer => format!("Answer concisely: {}", input),
+            PromptStrategy::Instruct => format!("Provide step-by-step instructions: {}", input),
+            PromptStrategy::Assist => format!("Respond helpfully: {}", input),
+        }
+    }
+
     /// Strategy name for tagging/logging.
     pub fn name(&self) -> &'static str {
         match self {

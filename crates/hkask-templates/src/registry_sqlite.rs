@@ -210,11 +210,7 @@ impl SqliteRegistry {
     ///
     /// Validates the entry (cascade_level, matroshka_limit) and logs warnings
     /// for any issues before persisting.
-    pub fn register(
-        &mut self,
-        entry: RegistryEntry,
-        provenance: Option<TemplateProvenance>,
-    ) -> Result<()> {
+    pub fn register(&mut self, entry: RegistryEntry) -> Result<()> {
         // Validate entry consistency and log warnings
         let warnings = entry.validate();
         for warning in &warnings {
@@ -275,14 +271,6 @@ impl SqliteRegistry {
 
         tx.commit()
             .map_err(|e| TemplateError::Manifest(format!("Failed to commit: {}", e)))?;
-
-        // Release the lock before touching provenance (no DB access needed)
-        drop(conn);
-
-        // Record provenance
-        if let Some(p) = provenance {
-            self.provenance.record(p);
-        }
 
         Ok(())
     }
@@ -380,11 +368,6 @@ impl SqliteRegistry {
         }
 
         Ok(results)
-    }
-
-    /// Get provenance for a template
-    pub fn get_provenance(&self, template_id: &str) -> Option<&TemplateProvenance> {
-        self.provenance.get_latest(template_id)
     }
 
     /// Get template count

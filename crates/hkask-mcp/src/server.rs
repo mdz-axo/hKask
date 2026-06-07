@@ -185,21 +185,22 @@ impl Drop for ToolSpanGuard {
 
 /// Tool result with optional observability metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpToolOutput {
-    pub content: Value,
+pub(crate) struct McpToolOutput {
+    pub(crate) content: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<Value>,
+    pub(crate) metadata: Option<Value>,
 }
 
 impl McpToolOutput {
-    pub fn new(content: Value) -> Self {
+    pub(crate) fn new(content: Value) -> Self {
         Self {
             content,
             metadata: None,
         }
     }
 
-    pub fn with_metadata(content: Value, metadata: Value) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn with_metadata(content: Value, metadata: Value) -> Self {
         Self {
             content,
             metadata: Some(metadata),
@@ -207,7 +208,7 @@ impl McpToolOutput {
     }
 
     /// Serialize to JSON string for rmcp tool return value.
-    pub fn to_json_string(&self) -> String {
+    pub(crate) fn to_json_string(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|e| {
             serde_json::json!({
                 "content": format!("serialization error: {e}"),
@@ -238,7 +239,7 @@ pub struct McpToolError {
     pub message: String,
     /// Optional structured details (stack traces, validation failures, etc.).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub details: Option<Value>,
+    details: Option<Value>,
 }
 
 impl McpToolError {
@@ -543,7 +544,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
 ///
 /// For servers that don't yet store a `webid`, `emit_tool_span` still works
 /// and omits the caller field.
-pub fn emit_tool_span_with_caller(
+fn emit_tool_span_with_caller(
     tool_name: &str,
     outcome: &str,
     duration_ms: u64,

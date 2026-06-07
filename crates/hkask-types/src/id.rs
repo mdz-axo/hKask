@@ -210,7 +210,8 @@ impl WebID {
 
     /// Full display format — shows complete UUID.
     /// Use only at TRACE level with HKASK_TRACE_WEBIDS=1.
-    pub fn full_display(&self) -> String {
+    #[allow(dead_code)] // reserved for future trace-level diagnostics
+    pub(crate) fn full_display(&self) -> String {
         self.0.to_string()
     }
 }

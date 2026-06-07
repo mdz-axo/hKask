@@ -68,39 +68,18 @@ pub struct ManifestExecutor<M: McpPort> {
 
 impl<M: McpPort> ManifestExecutor<M> {
     /// Create a new executor with the given infrastructure ports.
-    ///
-    /// Uses the default template base path (`registry/templates/`).
     pub fn new(
         inference: Arc<dyn InferencePort>,
         mcp: Arc<M>,
         default_params: LLMParameters,
         acp_secret: Vec<u8>,
     ) -> Self {
-        Self::with_template_base_path(
-            inference,
-            mcp,
-            default_params,
-            acp_secret,
-            PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
-        )
-    }
-
-    /// Create a new executor with a custom template base path.
-    ///
-    /// Use this when templates live at a non-default location.
-    pub fn with_template_base_path(
-        inference: Arc<dyn InferencePort>,
-        mcp: Arc<M>,
-        default_params: LLMParameters,
-        acp_secret: Vec<u8>,
-        template_base_path: PathBuf,
-    ) -> Self {
         Self {
             inference,
             mcp,
             default_params,
             acp_secret,
-            template_base_path,
+            template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
         }
     }
 
@@ -648,17 +627,6 @@ mod tests {
             input_mapping: None,
             output_schema: None,
             phase: hkask_types::CascadePhase::Core,
-            feedback: None,
-            validation_rules: None,
-            tool: None,
-            target: None,
-            arguments: None,
-            bindings: None,
-            loop_over: None,
-            condition: None,
-            token_cap: None,
-            temperature: None,
-            extra: serde_json::Map::new(),
         }
     }
 

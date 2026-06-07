@@ -243,18 +243,4 @@ impl ConsentManager {
             .map(|r| r.granted_categories.iter().cloned().collect())
             .unwrap_or_default())
     }
-
-    /// Check if any consent is active for a WebID
-    pub fn has_any_consent(&self, webid: &str) -> Result<bool, ConsentError> {
-        let cache = self
-            .cache
-            .read()
-            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
-
-        Ok(cache
-            .iter()
-            .find(|r| r.webid == webid)
-            .map(|r| r.is_active())
-            .unwrap_or(false))
-    }
 }

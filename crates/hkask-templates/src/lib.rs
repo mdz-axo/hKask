@@ -28,7 +28,7 @@ pub use hkask_types::ports::Skill;
 pub use hkask_types::{BundleManifest, SkillPolarity};
 pub use inference_port::OkapiInference;
 
-pub use manifest_loader::{load_manifest_from_file, load_manifest_from_yaml, resolve_manifest};
+pub use manifest_loader::resolve_manifest;
 pub use okapi_config::OkapiConfig;
 
 pub use okapi_config::OkapiModelEntry;

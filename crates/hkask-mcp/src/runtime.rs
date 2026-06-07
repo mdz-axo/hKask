@@ -45,6 +45,7 @@ pub struct McpServer {
 
 /// Error type for MCP server startup.
 #[derive(Debug, Error)]
+#[allow(clippy::enum_variant_names)]
 pub enum ServerStartError {
     #[error("Failed to spawn MCP server process: {0}")]
     SpawnFailed(String),
@@ -106,6 +107,7 @@ impl McpRuntime {
     /// and registers the discovered tools in the runtime.
     ///
     /// If a server with the same ID is already connected, returns `Ok(())`.
+    #[allow(private_interfaces)]
     pub async fn start_server(
         &self,
         server_id: &str,
@@ -188,7 +190,7 @@ impl McpRuntime {
     }
 
     /// Get a live Peer connection for a server (if connected).
-    pub async fn get_peer(&self, server_id: &str) -> Option<Peer<RoleClient>> {
+    pub(crate) async fn get_peer(&self, server_id: &str) -> Option<Peer<RoleClient>> {
         self.connections.read().await.get(server_id).cloned()
     }
 
@@ -196,7 +198,7 @@ impl McpRuntime {
     ///
     /// Lower-level than `RawMcpToolPort::invoke` — no governance membrane.
     /// Used internally by `RawMcpToolPort`.
-    pub async fn call_tool(
+    pub(crate) async fn call_tool(
         &self,
         server_id: &str,
         tool: &str,
@@ -209,14 +211,6 @@ impl McpRuntime {
 
         let params = CallToolRequestParams::new(tool.to_string()).with_arguments(arguments);
         peer.call_tool(params).await
-    }
-
-    /// Shut down a specific managed server process.
-    pub async fn shutdown_server(&self, server_id: &str) {
-        if let Some(cancel) = self.cancellation_tokens.write().await.remove(server_id) {
-            cancel.cancel();
-        }
-        self.connections.write().await.remove(server_id);
     }
 
     /// Shut down all managed server processes.
@@ -268,7 +262,7 @@ impl McpRuntime {
     }
 
     /// Check if a tool exists
-    pub async fn tool_exists(&self, tool_name: &str) -> bool {
+    pub(crate) async fn tool_exists(&self, tool_name: &str) -> bool {
         let tool_registry = self.tool_registry.read().await;
         tool_registry.contains_key(tool_name)
     }

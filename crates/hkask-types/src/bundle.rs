@@ -12,46 +12,6 @@ use serde::{Deserialize, Serialize};
 use crate::lexicon::TemplateType;
 use crate::visibility::Visibility;
 
-// Composition Error Types
-
-/// Errors that can occur during bundle composition.
-///
-/// These cover the full composition pipeline: YAML parsing, validation,
-/// and conflict resolution failures.
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum CompositionError {
-    /// The LLM output could not be parsed as valid YAML.
-    #[error("YAML parse error: {message}")]
-    YamlParse { message: String },
-
-    /// The parsed YAML is valid but doesn't conform to the bundle schema.
-    #[error("Schema validation failed: {details}")]
-    SchemaValidation { details: String },
-
-    /// The manifest has validation errors (P1/P6/P7 violations).
-    #[error("Manifest validation failed with {error_count} errors: {errors:?}")]
-    ValidationFailed {
-        error_count: usize,
-        errors: Vec<String>,
-    },
-
-    /// No skills were found for the requested skill IDs.
-    #[error("Skills not found: {missing_ids:?}")]
-    SkillsNotFound { missing_ids: Vec<String> },
-
-    /// An existing bundle already contains these skills (smart match hit).
-    #[error("Existing bundle '{bundle_id}' already contains these skills")]
-    ExistingBundle { bundle_id: String },
-
-    /// The composition exceeded the gas budget.
-    #[error("Composition gas budget exceeded: needed {needed}, cap {cap}")]
-    GasBudgetExceeded { needed: u32, cap: u32 },
-
-    /// The LLM produced output that couldn't be recovered after retry.
-    #[error("Composition failed after {attempts} attempts: {message}")]
-    RetryExhausted { attempts: u32, message: String },
-}
-
 // Enums
 
 /// Skill polarity — the cybernetic role a skill plays in a bundle
@@ -274,43 +234,6 @@ pub struct BundleManifestStep {
     pub output_schema: Option<serde_json::Value>,
     #[serde(default)]
     pub phase: CascadePhase,
-    /// Feedback type annotations for `feedback` action steps.
-    ///
-    /// Maps feedback field names to their expected types (e.g. `{"variety_delta": "integer"}`).
-    #[serde(default)]
-    pub feedback: Option<serde_json::Value>,
-    /// Validation rules for `validate` action steps.
-    ///
-    /// A list of rule names or rule objects that constrain the step's output.
-    #[serde(default)]
-    pub validation_rules: Option<serde_json::Value>,
-    /// Alternative tool name (alias for `mcp` in some manifests).
-    #[serde(default)]
-    pub tool: Option<String>,
-    /// Target identifier for the step's output or next step routing.
-    #[serde(default)]
-    pub target: Option<String>,
-    /// Positional arguments for tool invocation.
-    #[serde(default)]
-    pub arguments: Option<serde_json::Value>,
-    /// Step-level bindings (variable mappings).
-    #[serde(default)]
-    pub bindings: Option<serde_json::Value>,
-    /// Iteration target for loop steps.
-    #[serde(default)]
-    pub loop_over: Option<String>,
-    /// Conditional expression — skip this step if false.
-    #[serde(default)]
-    pub condition: Option<String>,
-    /// Token cap for inference steps.
-    #[serde(default)]
-    pub token_cap: Option<u32>,
-    /// Model temperature override.
-    #[serde(default)]
-    pub temperature: Option<f64>,
-    /// Catch-all for step-level fields not yet explicitly modeled.
-    #[serde(default, flatten)]
-    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 // Config sub-structs — mirror existing manifest YAML fields
@@ -723,7 +646,8 @@ impl ValidationResult {
 
 /// CNS span namespaces for bundle composition operations.
 /// These follow the hKask CNS naming convention: `cns.prompt.<operation>`.
-pub mod cns_spans {
+#[allow(dead_code)] // reserved for CNS span wiring
+pub(crate) mod cns_spans {
     /// Span namespace for bundle composition operations.
     pub const COMPOSE: &str = "cns.prompt.skill-bundler.compose";
     /// Span namespace for bundle application.
@@ -734,143 +658,11 @@ pub mod cns_spans {
     pub const VALIDATE: &str = "cns.prompt.skill-bundler.validate";
 }
 
-// Bundle Versioning
-
-/// Bundle versioning strategy.
-///
-/// hKask uses semantic versioning for bundles:
-/// - **Major**: Structural changes to the cascade (reordering phases, adding/removing steps)
-/// - **Minor**: New skill added/removed, conflict/complementarity changes
-/// - **Patch**: Instruction-only changes within skills, gas budget adjustments
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum VersionBump {
-    /// Structural cascade change (phase reorder, step add/remove)
-    Major,
-    /// Skill composition change (skill add/remove, conflict/complementarity update)
-    Minor,
-    /// Instruction-only change (prompt text, gas budget)
-    Patch,
-}
-
-impl VersionBump {
-    /// Apply the version bump to a semver string ("major.minor.patch").
-    /// Returns the new version string.
-    pub fn apply(&self, version: &str) -> String {
-        let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
-
-        let (mut major, mut minor, mut patch) = match parts.as_slice() {
-            [ma, mi, pa] => (*ma, *mi, *pa),
-            [ma, mi] => (*ma, *mi, 0),
-            [ma] => (*ma, 0, 0),
-            _ => (0, 0, 0),
-        };
-
-        match self {
-            VersionBump::Major => {
-                major += 1;
-                minor = 0;
-                patch = 0;
-            }
-            VersionBump::Minor => {
-                minor += 1;
-                patch = 0;
-            }
-            VersionBump::Patch => {
-                patch += 1;
-            }
-        }
-
-        format!("{}.{}.{}", major, minor, patch)
-    }
-}
-
-// Bundle Dependency Tracking
-
-/// Tracks which bundles depend on which skills.
-/// Used for evolution: when a skill changes, we know which bundles need updating.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BundleDependencyIndex {
-    /// Map from skill ID to the set of bundle IDs that depend on it.
-    /// When a skill's content_hash changes, these bundles need evolution.
-    skill_to_bundles: std::collections::HashMap<String, std::collections::HashSet<String>>,
-}
-
-impl BundleDependencyIndex {
-    /// Create a new empty dependency index.
-    pub fn new() -> Self {
-        Self {
-            skill_to_bundles: std::collections::HashMap::new(),
-        }
-    }
-
-    /// Register a bundle, recording its skill dependencies.
-    pub fn register_bundle(&mut self, bundle: &BundleManifest) {
-        for skill in &bundle.skills {
-            self.skill_to_bundles
-                .entry(skill.id.clone())
-                .or_default()
-                .insert(bundle.id.clone());
-        }
-    }
-
-    /// Remove a bundle from the index.
-    pub fn remove_bundle(&mut self, bundle: &BundleManifest) {
-        for skill in &bundle.skills {
-            if let Some(dep_set) = self.skill_to_bundles.get_mut(&skill.id) {
-                dep_set.remove(&bundle.id);
-                if dep_set.is_empty() {
-                    self.skill_to_bundles.remove(&skill.id);
-                }
-            }
-        }
-    }
-
-    /// Find all bundles that depend on a given skill.
-    pub fn bundles_dependent_on(&self, skill_id: &str) -> Vec<&str> {
-        self.skill_to_bundles
-            .get(skill_id)
-            .map(|set| set.iter().map(|s| s.as_str()).collect())
-            .unwrap_or_default()
-    }
-
-    /// Find all skills that have changed (by content hash) and return the
-    /// bundles that need evolution.
-    pub fn bundles_needing_evolution(&self, changed_skills: &[BundleSkillChange]) -> Vec<String> {
-        let mut bundles: std::collections::HashSet<&str> = std::collections::HashSet::new();
-        for change in changed_skills {
-            if let Some(dep_set) = self.skill_to_bundles.get(&change.skill_id) {
-                bundles.extend(dep_set.iter().map(|s| s.as_str()));
-            }
-        }
-        bundles.iter().map(|s| s.to_string()).collect()
-    }
-}
-
-impl Default for BundleDependencyIndex {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Represents a change to a skill's content.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BundleSkillChange {
-    /// The skill ID that changed.
-    pub skill_id: String,
-    /// The previous content hash.
-    pub previous_hash: String,
-    /// The current content hash.
-    pub current_hash: String,
-    /// Whether the polarity changed.
-    pub polarity_changed: bool,
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexicon::TemplateType;
     use crate::visibility::Visibility;
 
+    #[allow(dead_code)]
     fn make_skill(id: &str, polarity: SkillPolarity, terms: Vec<&str>) -> BundleSkill {
         BundleSkill {
             id: id.to_string(),
@@ -881,6 +673,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     fn make_step(
         ordinal: u32,
         phase: CascadePhase,
@@ -900,20 +693,10 @@ mod tests {
             input_mapping: None,
             output_schema: None,
             phase,
-            feedback: None,
-            validation_rules: None,
-            tool: None,
-            target: None,
-            arguments: None,
-            bindings: None,
-            loop_over: None,
-            condition: None,
-            token_cap: None,
-            temperature: None,
-            extra: Default::default(),
         }
     }
 
+    #[allow(dead_code)]
     fn valid_manifest() -> BundleManifest {
         let skill_a = make_skill("skill-a", SkillPolarity::Generative, vec!["term1", "term2"]);
         let skill_b = make_skill("skill-b", SkillPolarity::Evaluative, vec!["term3", "term4"]);

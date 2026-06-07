@@ -4,7 +4,6 @@
 //! Prevents per-call adapter creation and enables runtime configuration.
 
 use hkask_types::ports::git_cas::GitCASPort;
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 /// Container for shared MCP adapter instances
@@ -15,7 +14,6 @@ use std::sync::{Arc, RwLock};
 pub struct AdapterContainer {
     /// Hexagonal GitCASPort for all CAS operations.
     git_cas_port: Arc<RwLock<Option<Arc<dyn GitCASPort>>>>,
-    base_path: Arc<RwLock<Option<PathBuf>>>,
 }
 
 impl AdapterContainer {
@@ -23,7 +21,6 @@ impl AdapterContainer {
     pub fn new() -> Self {
         Self {
             git_cas_port: Arc::new(RwLock::new(None)),
-            base_path: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -38,14 +35,6 @@ impl AdapterContainer {
         Ok(())
     }
 
-    /// Set the base path for future adapter configuration
-    pub fn set_base_path(&self, base_path: PathBuf) -> Result<(), String> {
-        let mut path_lock = self.base_path.write().map_err(|e| e.to_string())?;
-        *path_lock = Some(base_path);
-
-        Ok(())
-    }
-
     /// Get the hexagonal GitCASPort instance.
     ///
     /// Returns `None` if not yet configured. MCP servers should prefer
@@ -53,12 +42,6 @@ impl AdapterContainer {
     pub fn get_git_cas_port(&self) -> Result<Option<Arc<dyn GitCASPort>>, String> {
         let lock = self.git_cas_port.read().map_err(|e| e.to_string())?;
         Ok(lock.clone())
-    }
-
-    /// Get configured base path
-    pub fn get_base_path(&self) -> Result<Option<PathBuf>, String> {
-        let path_lock = self.base_path.read().map_err(|e| e.to_string())?;
-        Ok(path_lock.clone())
     }
 }
 

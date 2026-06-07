@@ -12,8 +12,6 @@ use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
 use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType};
 use std::collections::HashMap;
-use std::env;
-use std::path::PathBuf;
 
 /// Unified template + skill registry
 ///

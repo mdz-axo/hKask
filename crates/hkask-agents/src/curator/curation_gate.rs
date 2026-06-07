@@ -64,7 +64,7 @@ impl CurationPort {
         }
     }
 
-    /// Get the disambiguation label for this evidence channel.
+    /// Get the disambiguation label for this port.
     ///
     /// Returns the explicit label, which is unique per port instance.
     /// Use this (not the variant name) for sensitivity analysis indexing.
@@ -73,15 +73,6 @@ impl CurationPort {
             CurationPort::LlmConfidence { label, .. } => label,
             CurationPort::TemplateMatch { label, .. } => label,
             CurationPort::ValidationResult { label, .. } => label,
-        }
-    }
-
-    /// Get the variant name of this port (for display/logging).
-    pub fn variant_name(&self) -> &str {
-        match self {
-            CurationPort::LlmConfidence { .. } => "llm_confidence",
-            CurationPort::TemplateMatch { .. } => "template_match",
-            CurationPort::ValidationResult { .. } => "validation_result",
         }
     }
 }
