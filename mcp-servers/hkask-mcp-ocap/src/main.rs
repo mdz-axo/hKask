@@ -128,6 +128,26 @@ impl OcapServer {
         let sig_valid = token.verify(&self.secret);
 
         let mut tokens = self.tokens.write().await;
+        let revoked = self.revoked.read().await;
+
+        // F-SYN-006: refuse to (re-)mint a token whose id is already
+        // in the revocation set. Because the token id is a
+        // *deterministic hash* of (resource, resource_id, action,
+        // issuer, subject), re-minting with the same parameters
+        // would produce the same id; the revocation log must
+        // take precedence over the issuance path, otherwise an
+        // attacker can trivially bypass revocation by re-issuing
+        // identical tokens.
+        if revoked.contains(&token_id) {
+            return span.error(
+                McpErrorKind::FailedPrecondition,
+                McpToolError::failed_precondition(format!(
+                    "Token {token_id} has been revoked; re-issuance is not permitted"
+                ))
+                .to_json_string(),
+            );
+        }
+
         tokens.insert(token_id.clone(), token);
 
         span.ok_json(json!({
