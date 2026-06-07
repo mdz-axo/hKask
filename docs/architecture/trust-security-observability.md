@@ -1,7 +1,7 @@
 ---
 title: "hKask Trust, Security & Observability Specification"
 audience: [architects, security engineers, developers]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
@@ -231,7 +231,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TO-006-CM
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-agents/src/consent.rs; crates/hkask-agents/src/sovereignty.rs; crates/hkask-storage/src/consent_store.rs
 status: VERIFIED
 -->
@@ -262,8 +262,8 @@ graph TB
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TSO-001
-verified_date: 2026-05-30
-verified_against: crates/hkask-cns/src/runtime.rs:39-55; unified_tracker.rs
+verified_date: 2026-06-07
+verified_against: crates/hkask-cns/src/runtime.rs:39-55; crates/hkask-cns/src/unified_tracker.rs
 status: VERIFIED
 -->
 
@@ -271,7 +271,7 @@ status: VERIFIED
 
 ### 4.2 Span Namespaces
 
-Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-106`):
+Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-106`). There are **21 canonical namespaces** (authoritative source: PRINCIPLES.md §1.4):
 
 | Span | Variant | Covers |
 |------|---------|--------|
@@ -290,6 +290,12 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-10
 | `cns.sovereignty.*` | `Sovereignty` | User sovereignty enforcement |
 | `cns.goal.*` | `Goal` | Goal lifecycle operations |
 | `cns.spec.*` | `Spec` | DDMVSS specification operations |
+| `cns.test.*` | `Test` | Test harness and validation spans |
+| `cns.hhh.gate.*` | `HHHGate` | HHH gate constraint checks |
+| `cns.hhh.persona.*` | `HHHPersona` | Persona constraint enforcement |
+| `cns.cybernetics.backpressure` | `Backpressure` | Communication queue depth regulation |
+| `cns.memory.encode` | `MemoryEncode` | Memory encoding operations |
+| `cns.memory.budget` | `MemoryBudget` | Memory budget tracking |
 
 **Event structure:** `NuEvent` (`event.rs:27`) — id, timestamp, observer_webid, span, phase (Sense/Compute/Compare/Act; legacy aliases: Observe→Sense, Regulate→Compute, Outcome→Act), observation, regulation, outcome, recursion_depth, parent_event, visibility.
 
@@ -330,8 +336,8 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TSO-002
-verified_date: 2026-05-25
-verified_against: crates/hkask-cns/src/algedonic.rs:79; types/cns.rs:62
+verified_date: 2026-06-07
+verified_against: crates/hkask-cns/src/algedonic.rs:79; crates/hkask-types/src/cns.rs:62
 status: VERIFIED
 -->
 
@@ -387,7 +393,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TO-006
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-agents/src/curator_agent/spec_curator.rs; crates/hkask-cns/src/cybernetics_loop.rs; crates/hkask-cns/src/algedonic.rs
 status: VERIFIED
 -->

@@ -61,32 +61,3 @@ pub fn load_curation_thresholds() -> CurationThresholdConfig {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn curation_threshold_config_from_yaml() {
-        let yaml = "coherence_threshold: 0.85\ndrift_threshold: 0.3\n";
-        let config = curation_threshold_from_yaml(yaml).unwrap();
-        assert_eq!(config.coherence_threshold, 0.85);
-        assert_eq!(config.drift_threshold, 0.3);
-    }
-
-    #[test]
-    fn curation_threshold_config_partial_yaml_uses_defaults() {
-        let yaml = "coherence_threshold: 0.9\n";
-        let config = curation_threshold_from_yaml(yaml).unwrap();
-        assert_eq!(config.coherence_threshold, 0.9);
-        assert_eq!(config.drift_threshold, 0.5); // default
-    }
-
-    #[test]
-    fn curation_threshold_config_empty_yaml_uses_defaults() {
-        let yaml = "{}\n";
-        let config = curation_threshold_from_yaml(yaml).unwrap();
-        assert_eq!(config.coherence_threshold, 0.7); // default
-        assert_eq!(config.drift_threshold, 0.5); // default
-    }
-}

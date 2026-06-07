@@ -1,7 +1,7 @@
 ---
 title: "CI/CD and Installation Guide"
 audience: [DevOps engineers, contributors]
-last_updated: 2026-05-24
+last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Technology"
@@ -410,5 +410,5 @@ E2E chaos tests against live Okapi can be run manually with
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.0*
 *As simple as possible, but no simpler.*

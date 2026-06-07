@@ -1,7 +1,7 @@
 ---
 title: "hKask Persistence & Lifecycle Specification"
 audience: [architects, database developers, DevOps engineers]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
@@ -45,10 +45,10 @@ ddmvss_categories: [persistence, lifecycle]
 | **Database** | SQLite | 3.x | Embedded relational store |
 | **Encryption** | SQLCipher | vendored | AES-256-CBC at-rest |
 | **Vector search** | sqlite-vec | 0.1.x | Embedding similarity |
-| **Content store** | Git CAS | gix 0.81 | Content-addressed blobs (`hkask-agents/src/adapters/git_cas.rs`) |
+| **Content store** | Git CAS | gix 0.81 | Content-addressed blobs (`hkask-mcp/src/git_cas/`) |
 | **Key derivation** | Argon2id | 0.5.x | Passphrase → key |
 
-**Single storage crate:** `hkask-storage` (4,010 LOC) consolidates all persistence.
+**Single storage crate:** `hkask-storage` (~4,010 LOC, measured 2026-06-05) consolidates all persistence.
 
 ### 1.2 Database Architecture
 
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS triples (
 | **Episodic** | `agent_id` | Private | Triples with agent-scoped valid time |
 | **Semantic** | null (global) | Public | Triples without agent scoping |
 
-**Implementation:** `hkask-memory` (695 LOC) — semantic/episodic pipeline (memory consolidation: episodic → semantic)
+**Implementation:** `hkask-memory` (~695 LOC, measured 2026-06-05) — semantic/episodic pipeline (memory consolidation: episodic → semantic)
 
 ---
 
@@ -191,14 +191,14 @@ fn search(&self, query_vector: &[f32], limit: usize) -> Result<Vec<SimilarityRes
 
 ### 4.1 Git CAS
 
-`GitCasAdapter` (`hkask-agents/src/adapters/git_cas.rs`) provides content-addressed blob storage:
+`GitCasAdapter` (`hkask-mcp/src/git_cas/`) provides content-addressed blob storage:
 - **Git objects** for immutable storage
 - **Provenance tracking** via git history
 - **Tamper detection** via content hash verification
 
 **Use cases:** Template source archival, triple snapshots, spec manifests, audit log immutability.
 
-**Port:** `GitCASPort` trait (`hkask-agents/src/ports/git_cas.rs`)
+**Port:** `GitCASPort` trait (`hkask-types/src/ports/git_cas.rs`)
 
 ---
 
@@ -248,7 +248,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-002
-verified_date: 2026-05-28
+verified_date: 2026-06-07
 verified_against: crates/hkask-cli/src/main.rs; crates/hkask-storage/src/database.rs:59; crates/hkask-agents/src/pod/manager.rs:30
 status: VERIFIED
 -->
@@ -263,7 +263,7 @@ status: VERIFIED
 | 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
 | 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |
 | 6 | Start CNS runtime | `CnsRuntime` with `UnifiedVarietyTracker` |
-| 7 | Connect MCP servers | `McpRuntime` discovers 18 servers |
+| 7 | Connect MCP servers | `McpRuntime` discovers 21 MCP servers |
 
 ---
 
@@ -323,7 +323,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-003
-verified_date: 2026-05-25
+verified_date: 2026-06-07
 verified_against: Cargo.toml; crates/hkask-storage/src/database.rs
 status: VERIFIED
 -->

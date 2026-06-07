@@ -1,7 +1,7 @@
 ---
 title: "hKask Curator Replicant — Canonical Human-Facing Agent"
 audience: [persona designers, curators, agents]
-last_updated: 2026-05-18
+last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Business"
@@ -252,12 +252,12 @@ template_override:
 
 ## Migration from Existing Curator
 
-The Curator persona should be ported from the existing `stack-cli` Curator implementation, following established refactoring patterns:[^fowler-refactor]
+The Curator persona should be ported from the existing `kask` (formerly `stack-cli`) Curator implementation, following established refactoring patterns:[^fowler-refactor]
 
 **Source Files:**
-- `stack-cli/src/curator.rs` (if exists)
-- `stack-cli/src/personality.rs` (if exists)
-- `stack-prompts/src/prompt_registry/templates/curator_maintenance_advisory.md.j2`
+- `crates/hkask-cli/src/commands/chat.rs` (Curator REPL)
+- `crates/hkask-agents/src/curator_agent/mod.rs` (Curator agent)
+- `templates/curator_maintenance_advisory.md.j2` (Curator persona template)
 
 **Migration Steps:**
 1. Extract Curator personality traits from existing code
@@ -316,7 +316,7 @@ Open questions reflect the need for ongoing system diagnosis and adaptation:[^be
 [^reeves]: Reeves, B., & Nass, C. (1996). *The Media Equation: How People Treat Computers, Television, and New Media Like Real People and Places*. Cambridge University Press.
 [^short]: Short, J., Williams, E., & Christie, B. (1976). *The Social Psychology of Telecommunications*. Wiley. Social presence theory.
 [^hKask-AGENTS]: hKask Project. (2026). *AGENTS.md: Agent Operating Guide*. `/home/mdz-axolotl/Clones/hKask/AGENTS.md`.
-[^hKask-stack]: hKask Project. (2026). *stack-cli/src/curator.rs*. Curator implementation source.
+[^hKask-kask]: hKask Project. (2026). *crates/hkask-cli/src/commands/chat.rs*. Curator REPL implementation source.
 [^beer-s5]: Beer, S. (1985). *Diagnosing the System for Organizations*. Wiley. System 5 (policy/identity) of the Viable System Model.
 [^laurel-computers]: Laurel, B. (1991). *Computers as Theatre*. Addison-Wesley. Agent persona design as dramatic character.
 [^norman-design]: Norman, D. A. (2013). *The Design of Everyday Things* (Revised and expanded ed.). Basic Books. Affordances and constraints in design.

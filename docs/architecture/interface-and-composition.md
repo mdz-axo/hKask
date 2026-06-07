@@ -1,7 +1,7 @@
 ---
 title: "hKask Interface & Composition Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "2.2.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -45,7 +45,7 @@ graph LR
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-001
-verified_date: 2026-05-28
+verified_date: 2026-06-07
 verified_against: crates/hkask-cli/src/cli/mod.rs:33; crates/hkask-api/src/lib.rs:636; crates/hkask-mcp/src/runtime.rs:59
 status: VERIFIED
 -->
@@ -237,7 +237,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-006
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-mcp/src/runtime.rs; crates/hkask-mcp/src/security.rs; mcp-servers/hkask-mcp-inference/
 status: VERIFIED
 -->
@@ -325,7 +325,7 @@ graph LR
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-002
-verified_date: 2026-05-25
+verified_date: 2026-06-07
 verified_against: crates/hkask-templates/src/registry_sqlite.rs; crates/hkask-cns/src/governed_tool.rs; crates/hkask-types/src/audit.rs
 status: STALE (pipeline stages no longer map to dedicated structs)
 -->

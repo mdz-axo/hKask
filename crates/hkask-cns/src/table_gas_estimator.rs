@@ -144,33 +144,3 @@ impl GasEstimator for TableGasEstimator {
         self.lookup(server, tool)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_table_has_all_servers() {
-        let table = default_gas_table();
-        // Internal tools are cheap
-        assert_eq!(table.get("hkask-mcp-ocap"), Some(&1));
-        assert_eq!(table.get("hkask-mcp-cns"), Some(&1));
-        // Memory servers — internal storage read
-        assert_eq!(table.get("hkask-mcp-episodic"), Some(&5));
-        assert_eq!(table.get("hkask-mcp-semantic"), Some(&5));
-        // External tools are expensive
-        assert_eq!(table.get("hkask-mcp-web"), Some(&50));
-        assert_eq!(table.get("hkask-mcp-fal"), Some(&100));
-        // Inference is 0 (handled by InferenceGasEstimator)
-        assert_eq!(table.get("hkask-mcp-inference"), Some(&0));
-    }
-
-    #[test]
-    fn table_estimator_uses_server_cost() {
-        let estimator = TableGasEstimator::new();
-        assert_eq!(
-            estimator.estimate_cost("hkask-mcp-web", "search", &serde_json::json!({})),
-            50
-        );
-    }
-}

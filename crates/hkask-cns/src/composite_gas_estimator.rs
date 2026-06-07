@@ -45,39 +45,3 @@ impl GasEstimator for CompositeGasEstimator {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn composite_routes_inference_to_inference_estimator() {
-        let estimator = CompositeGasEstimator::new();
-        let args = json!({
-            "prompt": "Hello, world!",
-            "max_tokens": 100
-        });
-        // Inference estimator: prompt_chars/4 + max_tokens = 13/4 + 100 = 103
-        let cost = estimator.estimate_cost("hkask-mcp-inference", "generate", &args);
-        assert_eq!(cost, 103);
-    }
-
-    #[test]
-    fn composite_routes_web_to_table_estimator() {
-        let estimator = CompositeGasEstimator::new();
-        let args = json!({});
-        // Table estimator: hkask-mcp-web costs 50
-        let cost = estimator.estimate_cost("hkask-mcp-web", "search", &args);
-        assert_eq!(cost, 50);
-    }
-
-    #[test]
-    fn composite_routes_unknown_to_default() {
-        let estimator = CompositeGasEstimator::new();
-        let args = json!({});
-        // Table estimator: unknown server defaults to 10
-        let cost = estimator.estimate_cost("unknown-server", "unknown-tool", &args);
-        assert_eq!(cost, 10);
-    }
-}

@@ -48,13 +48,20 @@ docs/
 │   ├── persistence-and-lifecycle.md       # SPEC (Persistence + Lifecycle)
 │   ├── ADR-022-*.md                       # DECISION RECORD
 │   ├── ~~ADR-023-*.md~~                       # ARCHIVED (superseded by ADR-027)
+│   ├── ADR-024-*.md                       # DECISION RECORD
+│   ├── ADR-025-*.md                       # DECISION RECORD
+│   ├── ADR-026-*.md                       # DECISION RECORD
+│   ├── ADR-027-*.md                       # DECISION RECORD
+│   ├── ~~ADR-028-*.md~~                       # ARCHIVED (deferred, transport removed)
+│   ├── ~~ADR-029-*.md~~                       # ARCHIVED (superseded, GoalCapabilityToken removed)
+│   ├── ADR-030-*.md                       # DECISION RECORD (proposed)
+│   ├── ADR-031-*.md                       # DECISION RECORD
 │   ├── loop-architecture.md              # FRAMEWORK (6-loop authority model)
-│   ├── magna-carta.md                     # FRAMEWORK (user sovereignty)
 │   └── reference/
 │       ├── hKask-erd.md                   # Diagram artifact
 │       ├── registry-erd.md                # Diagram artifact
 │       ├── subsystem-erds.md              # Diagram artifact
-│       ├── ~~distillation-erd.md~~            # ARCHIVED (changes applied to codebase)
+│       ├── ~~distillation-erd.md~~            # ARCHIVED 2026-06-07 (changes applied to codebase)
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
 │       ├── ports-inventory.md             # Port reference
 │       ├── utoipa-implementation.md       # API guide
@@ -120,15 +127,13 @@ Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
 | Capability | `domain-and-capability.md` | ✅ | ✅ Merge |
 | Interface | `interface-and-composition.md` | ✅ | ✅ Merge |
 | Composition | `interface-and-composition.md` | ✅ | ✅ Merge |
-| Trust & Security | `trust-security-observability.md` | ⚠️ Spec signing (Ed25519) unimplemented | ✅ Merge |
-| Observability | `trust-security-observability.md` | ⚠️ Variety counter not wired to algedonic system | ✅ Merge |
+| Trust & Security | `trust-security-observability.md` | ⚠️ Spec signing (Ed25519) deferred | ✅ Merge |
+| Observability | `trust-security-observability.md` | ✅ | ✅ Merge |
 | Persistence | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; curation records not persisted | ✅ Merge |
 | Lifecycle | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; `Spec.version` added but no bitemporal semantics | ✅ Merge |
 | Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated; curation records not persisted | ✅ Merge |
 
-**Result:** 4/9 categories fully confirmed (Domain, Capability, Interface, Composition). 5/9 categories have partial or drifting alignment — marked ⚠️.
-
-**Audit remediation status (2026-06-06):** R1 (SpecCategory 4→9 variants), R2 (CurationDecision 3→4, Defer added), R7 (DomainAnchor 2→3, Russell added) are **resolved in code**. Remaining gaps: R9 (DIAG-PL-001 verified), R12 (Ed25519 spec signing), R13 (SpecDriftAlert → CNS loop), R14 (SpecStore bitemporal), R17 (curation record persistence). See `docs/status/DDMVSS-AUDIT-2026-06-06.md` for full remediation plan.
+**Result:** 5/9 categories fully confirmed (Domain, Capability, Interface, Composition, Observability). 4/9 categories have partial gaps — marked ⚠️. Varieties are now wired to the algedonic system (R13 resolved in code). Remaining gaps: Ed25519 spec signing (R12, deferred), SpecStore bitemporal (R14), curation record persistence (R17). See `docs/status/DDMVSS-AUDIT-2026-06-06.md` for full remediation plan.
 
 ---
 

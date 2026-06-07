@@ -1,8 +1,8 @@
 ---
 title: "Template Registry — Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
-last_updated: 2026-05-24
-version: "0.21.0"
+last_updated: 2026-06-07
+version: "0.23.0"
 status: "Active"
 domain: "Data"
 ddmvss_categories: [persistence]
@@ -29,9 +29,9 @@ erDiagram
         real temperature_min
         real temperature_max
         text prompt_template
-        jsonb input_schema
-        jsonb output_schema
-        jsonb constraints
+        text input_schema    -- JSON stored as TEXT (SQLite has no native JSONB type)
+        text output_schema   -- JSON stored as TEXT
+        text constraints     -- JSON stored as TEXT
         timestamp created_at
         timestamp updated_at
     }
@@ -41,9 +41,9 @@ erDiagram
         string template_id FK
         string bot_id
         real temperature
-        jsonb parameters
-        jsonb input
-        jsonb outputs
+        text parameters       -- JSON stored as TEXT
+        text input            -- JSON stored as TEXT
+        text outputs          -- JSON stored as TEXT
         integer selected_index
         string outcome
         timestamp timestamp
@@ -55,7 +55,7 @@ erDiagram
         string invocation_id FK
         string decision
         text rationale
-        jsonb ocap_boundaries
+        text ocap_boundaries -- JSON stored as TEXT
         timestamp timestamp
     }
     
@@ -80,7 +80,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REG-001
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-templates/src/registry.rs; crates/hkask-templates/src/registry_sqlite.rs
 status: VERIFIED
 -->
@@ -95,13 +95,13 @@ Stores high-temperature template definitions.
 |--------|------|-------------|
 | id | TEXT | Primary key (UUID string) |
 | name | TEXT | Human-readable template name |
-| type | TEXT | Template type (code_generation, decision, framing, communication, reflection) |
+| type | TEXT | Template type (WordAct, KnowAct, FlowDef) |
 | temperature_min | REAL | Minimum temperature for sampling |
 | temperature_max | REAL | Maximum temperature for sampling |
 | prompt_template | TEXT | Jinja2 template for prompt rendering |
-| input_schema | JSONB | JSON schema for input validation |
-| output_schema | JSONB | JSON schema for output validation |
-| constraints | JSONB | Template-specific constraints |
+| input_schema | TEXT | JSON schema for input validation (JSON stored as TEXT) |
+| output_schema | TEXT | JSON schema for output validation (JSON stored as TEXT) |
+| constraints | TEXT | Template-specific constraints (JSON stored as TEXT) |
 | created_at | TIMESTAMP | Creation timestamp |
 | updated_at | TIMESTAMP | Last update timestamp |
 
@@ -115,9 +115,9 @@ Audit trail of template executions.
 | template_id | TEXT | Foreign key to templates |
 | bot_id | TEXT | Bot that invoked the template |
 | temperature | REAL | Actual temperature used |
-| parameters | JSONB | Full LLM parameters (top_p, top_k, etc.) |
-| input | JSONB | Input provided to template |
-| outputs | JSONB[] | Array of generated outputs |
+| parameters | TEXT | Full LLM parameters (JSON stored as TEXT) |
+| input | TEXT | Input provided to template (JSON stored as TEXT) |
+| outputs | TEXT | Array of generated outputs (JSON stored as TEXT) |
 | selected_index | INTEGER | Index of selected output (if merged) |
 | outcome | TEXT | Success, Failure, Merged, Discarded |
 | timestamp | TIMESTAMP | Invocation timestamp |
@@ -133,7 +133,7 @@ Curator evaluation decisions.
 | invocation_id | TEXT | Foreign key to template_invocations |
 | decision | TEXT | Merge, Discard, Revise, Defer |
 | rationale | TEXT | Optional explanation |
-| ocap_boundaries | JSONB | OCAP boundaries checked |
+| ocap_boundaries | TEXT | OCAP boundaries checked (JSON stored as TEXT) |
 | timestamp | TIMESTAMP | Decision timestamp |
 
 ### cns_variety
@@ -237,4 +237,4 @@ Total: ~350 lines
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.0*

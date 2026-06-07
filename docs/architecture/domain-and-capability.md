@@ -1,7 +1,7 @@
 ---
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-03
+last_updated: 2026-06-07
 version: "2.2.3"
 status: "Active"
 domain: "Cross-cutting"
@@ -61,7 +61,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-001
-verified_date: 2026-05-29
+verified_date: 2026-06-07
 verified_against: crates/hkask-agents/src/pod/mod.rs:83; crates/hkask-types/src/capability/mod.rs:66; Cargo.toml workspace members
 status: VERIFIED
 -->
@@ -195,7 +195,7 @@ stateDiagram-v2
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-002
-verified_date: 2026-06-01
+verified_date: 2026-06-07
 verified_against: crates/hkask-agents/src/pod/types.rs (PodLifecycleState enum)
 status: VERIFIED
 -->
@@ -238,7 +238,7 @@ All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mo
 | **Scoping** | Resource + action pairs (`DelegationResource`, `DelegationAction`) |
 | **Caveats** | Expiration, operation, template, visibility (`Caveat` at `capability/mod.rs:240`) |
 | **Attenuation** | Chains with max depth (default: 7, compile-time const `SYSTEM_MAX_ATTENUATION`) |
-| **Revocation** | Persistent SQLite via `RevocationStore` (`hkask-agents/src/revocation_store.rs:16`) |
+| **Revocation** | Persistent set via `ocap:revoke` MCP tool (`mcp-servers/hkask-mcp-ocap/src/main.rs`) |
 | **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
 
 **Supporting types:**
@@ -250,7 +250,7 @@ All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mo
 | `DelegationResource` | `capability/mod.rs:175` | Resource enum (Tool, Template, Registry) |
 | `DelegationAction` | `capability/mod.rs:203` | Action enum (Read, Write, Execute) |
 | `Caveat` | `capability/mod.rs:240` | Expiration, operation, template, visibility restrictions |
-| `RevocationStore` | `hkask-agents/src/revocation_store.rs:16` | Persistent capability revocation |
+| `OcapServer` (revocation set) | `mcp-servers/hkask-mcp-ocap/src/main.rs` | Persistent capability revocation |
 
 [^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
 
@@ -284,7 +284,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-003
-verified_date: 2026-05-28
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/capability/mod.rs; crates/hkask-agents/src/pod/mod.rs
 status: VERIFIED
 -->
@@ -444,7 +444,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-007
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-cli/src/commands/chat.rs; mcp-servers/hkask-mcp-replicant/src/tools.rs
 status: VERIFIED
 -->
@@ -486,7 +486,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-008
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-cli/src/commands/chat.rs; crates/hkask-agents/src/pod/mod.rs
 status: VERIFIED
 -->
@@ -522,8 +522,8 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 | `hkask-storage` | 4,771 | SQLite + SQLCipher + sqlite-vec | `Database`, `TripleStore`, `EmbeddingStore`, `GitCas` |
 | `hkask-memory` | 2,005 | Semantic/episodic pipelines | Memory consolidation (episodic → semantic) |
 | `hkask-cns` | 5,432 | Cybernetic Nervous System | `CnsRuntime`, `AlgedonicManager`, `VarietyCounter` |
-| `hkask-templates` | 3,529 | Registry, rendering, cascade | `SqliteRegistry`, `TemplateRendererImpl`, `ContextAssembler` |
-| `hkask-agents` | 10,945 | Pods, ACP, bot/replicant | `AgentPod`, `PodManager`, `ConsentManager` |
+| `hkask-templates` | 3,529 | Registry, rendering, execution | `SqliteRegistry`, `ManifestExecutor`, `Registry` |
+| `hkask-agents` | 10,945 | Pods, ACP, bot metrics, curation | `AgentPod`, `PodManager`, `ConsentManager` |
 | `hkask-ensemble` | 3,246 | Multi-agent chat | Ensemble coordination |
 | `hkask-keystore` | 619 | OS keychain, AES-256-GCM | Key derivation, secret storage |
 | `hkask-mcp` | 1,801 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `GovernedTool` |
@@ -548,7 +548,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-004
-verified_date: 2026-05-28
+verified_date: 2026-06-07
 verified_against: Cargo.toml workspace members; crates/*/Cargo.toml; crates/hkask-cli/src/cli/mod.rs:33; crates/hkask-api/src/lib.rs:636
 status: VERIFIED
 -->

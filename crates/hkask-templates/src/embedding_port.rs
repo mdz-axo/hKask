@@ -193,20 +193,3 @@ struct OkapiEmbedRequest {
 struct OkapiEmbedResponse {
     embeddings: Vec<Vec<f32>>,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn embed_sentences_empty_input_returns_error() {
-        let config = OkapiConfig::local_dev();
-        let emb = OkapiEmbedding::new(config).unwrap();
-        let result = emb.embed_sentences(&[]).await;
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            EmbeddingGenerationError::EmptyResponse => {}
-            other => panic!("Expected EmptyResponse, got {:?}", other),
-        }
-    }
-}

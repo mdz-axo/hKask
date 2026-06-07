@@ -1,8 +1,8 @@
 ---
 title: "Template Header Standard — hLexicon Functional Roles"
 audience: [developers, template authors]
-last_updated: 2026-05-24
-version: "0.21.0"
+last_updated: 2026-06-07
+version: "0.23.0"
 status: "Active"
 domain: "Application"
 ddmvss_categories: [composition]
@@ -108,7 +108,7 @@ standard:
       - Update workspace hLexicon registry
     
     compliance_target: 100%
-    current_compliance: 43%  # After Kata templates updated: ~50%
+    current_compliance: 43%  # Measured at time of writing; re-run validation script for current figure
 
 ---
 

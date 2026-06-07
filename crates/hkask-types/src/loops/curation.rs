@@ -32,7 +32,6 @@ pub struct CuratorHandle {
 }
 
 impl CuratorHandle {
-    #[cfg(test)]
     pub fn new_test() -> Self {
         Self {
             curator_id: WebID::new(),

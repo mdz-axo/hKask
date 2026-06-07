@@ -138,7 +138,5 @@ on a `Vec<EscalationEntry>`) that the v6 sweep did not catch because
 its test command list excluded `hkask-cli`. Recorded as T7.10 in the
 refactor sweep report; out of scope for this audit's tracked items.
 
-*Refactor Sweep T1–T7 report: see
-[`refactor-sweep-2026-06-06.md`](refactor-sweep-2026-06-06.md) for the
-graph map, mermaid diagram, audit classification, and T7 future
-ledger.*
+*Refactor Sweep T1–T7 report: the original
+`refactor-sweep-2026-06-06.md` is archived (see `docs/archive/2026-06-07-documentation-refresh/`); its content is captured in this document and [`adversarial-simplification-inventory.md`](adversarial-simplification-inventory.md).

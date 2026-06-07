@@ -1,7 +1,7 @@
 ---
 title: "DDMVSS Semantic Alignment Audit"
 audience: [architects, developers, agents]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"

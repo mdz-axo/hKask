@@ -124,6 +124,14 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-38** | Update PROJECT_STATUS.md (v0.23.0, build regression, MCP server count 21) | 2026-06-06 | version, metrics, build status |
 | **R-39** | Update DDMVSS_SCAFFOLD.md with current directory structure | 2026-06-06 | Added 4 status docs to tree |
 | **R-40** | Update architecture-master ADR-029 description | 2026-06-06 | Clarified ADR-029 scope |
+| **R-41** | Archive 5 stale documents (ADR-023, ADR-028, ADR-029, distillation-erd, refactor-sweep) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/` |
+| **R-42** | Fix stale code paths in architecture docs (bot.rs, replicant.rs, dependency.rs) | 2026-06-07 | domain-and-capability, DIAGRAMS_INDEX, persistence-and-lifecycle |
+| **R-43** | Update stale version footers (0.21.0 → 0.23.0) | 2026-06-07 | template-header-standard, registry-erd, CI-CD-GUIDE, ADR_TEMPLATE |
+| **R-44** | Fix CNS span count 15→21 across all docs | 2026-06-07 | hKask-erd, trust-security-observability |
+| **R-45** | Update DIAGRAM_ALIGNMENT verified_dates to 2026-06-07 | 2026-06-07 | All architecture docs with diagrams |
+| **R-46** | Update DDMVSS_SCAFFOLD completeness (5/9→9/9 categories) | 2026-06-07 | Observability now ✅ (variety wired to algedonic) |
+| **R-47** | Fix registry-erd template types and JSONB columns | 2026-06-07 | WordAct/KnowAct/FlowDef types, TEXT not JSONB |
+| **R-48** | Fix DDMVSS_SCAFFOLD directory tree (add ADR-024–031 lines, archive markers) | 2026-06-07 | SCAFFOLD document structure tree |
 
 ---
 

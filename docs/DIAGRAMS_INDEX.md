@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-03.
+**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-07.
 
 ---
 
@@ -22,7 +22,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |-----------|-------------|----------|-----------------|--------|
 | DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`domain-and-capability.md`](architecture/domain-and-capability.md) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-types/src/capability/mod.rs:223`, `Cargo.toml` workspace members | ✅ VERIFIED |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [`domain-and-capability.md`](architecture/domain-and-capability.md) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
-| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §4 | `crates/hkask-agents/src/bot.rs:14`, `crates/hkask-agents/src/replicant.rs:14` | ✅ VERIFIED |
+| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
@@ -107,7 +107,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Reference | 3 | 3 | 0 |
 | **Total** | **33** | **33** | **5** |
 
-**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 33 diagrams verified against current code (2026-06-06). 5 undocumented patterns remain for v1.1+.
+**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 33 diagrams verified against current code (2026-06-07). 5 undocumented patterns remain for v1.1+.
 
 ---
 

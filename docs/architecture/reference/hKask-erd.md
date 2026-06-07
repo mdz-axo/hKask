@@ -1,7 +1,7 @@
 ---
 title: "hKask Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
-last_updated: 2026-06-05
+last_updated: 2026-06-07
 version: "0.23.0"
 status: "Active"
 domain: "Data"
@@ -105,7 +105,7 @@ erDiagram
     }
     
     CNS {
-        string span "cns.* (15 canonical namespaces)"
+        string span "cns.* (21 canonical namespaces)"
         object outcome
         float confidence
         timestamp emitted_at
@@ -114,7 +114,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-001
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/; crates/hkask-templates/src/; crates/hkask-agents/src/
 status: VERIFIED
 -->
@@ -375,8 +375,8 @@ CNS spans form a hierarchical observability structure grounded in cybernetic reg
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-005
-verified_date: 2026-05-24
-verified_against: crates/hkask-types/src/cns.rs:122-145; crates/hkask-types/src/event.rs:75-86
+verified_date: 2026-06-07
+verified_against: crates/hkask-types/src/event.rs; crates/hkask-cns/src/
 status: VERIFIED
 -->
 
@@ -457,8 +457,8 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-007
-verified_date: 2026-05-24
-verified_against: crates/hkask-types/src/event.rs:10-22,148-152; crates/hkask-cns/src/
+verified_date: 2026-06-07
+verified_against: crates/hkask-types/src/event.rs:87-104,148-152; crates/hkask-cns/src/
 status: VERIFIED
 -->
 

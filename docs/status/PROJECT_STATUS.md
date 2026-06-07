@@ -16,8 +16,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
-**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned); adversarial simplification and Fowler audit in progress  
-**Next Phase:** Resolve build regression in `hkask-agents`, complete Fowler audit P3.5/P4.4
+**Current Phase:** Phase 9 complete — DDMVSS-aligned documentation refresh; 5 stale documents archived (ADR-023, ADR-028, ADR-029, distillation-erd, refactor-sweep)
+**Next Phase:** Resolve build regression in `hkask-mcp-spec`, complete documentation quality gates
 
 ---
 
@@ -175,14 +175,14 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Gate | Status | Last Run |
 |------|--------|----------|
-| **Build** (`cargo check --workspace`) | ❌ 5 compile errors in `hkask-agents` | 2026-06-06 |
-| **Tests** | ⚠️ Blocked by build regression | 2026-06-06 |
+| **Build** (`cargo check --workspace`) | ❌ 2 compile errors in `hkask-mcp-spec` | 2026-06-07 |
+| **Tests** | ⚠️ Blocked by build regression | 2026-06-07 |
 | **Lint** | ✅ Pass | 2026-05-25 |
 | **Format** (`cargo fmt --check`) | ✅ Pass | 2026-05-29 |
-| **Metadata Headers** (`docs/ci/check-metadata.sh`) | ✅ 49/49 docs compliant, 0 missing | 2026-05-29 |
-| **Citation Compliance** | ✅ New docs have citations | 2026-05-28 |
-| **Diagram Alignment** | ✅ 28 diagrams verified in DIAGRAMS_INDEX.md | 2026-05-28 |
-| **Link Integrity** (`docs/ci/check-links.sh`) | ✅ 223 links checked, 0 broken, 0 placeholders | 2026-05-29 |
+| **Metadata Headers** (`docs/ci/check-metadata.sh`) | ✅ 44/44 docs compliant, 0 missing (5 archived 2026-06-07) | 2026-06-07 |
+| **Citation Compliance** | ✅ New docs have citations | 2026-06-07 |
+| **Diagram Alignment** | ✅ 33 diagrams verified in DIAGRAMS_INDEX.md | 2026-06-07 |
+| **Link Integrity** (`docs/ci/check-links.sh`) | ✅ 223 links checked, 0 broken, 0 placeholders | 2026-06-07 |
 
 ---
 
@@ -195,7 +195,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **P0-01** | ~~Fix hkask-storage trait mismatches (goals.rs compile errors)~~ — **superseded**: `goals.rs` compiles cleanly; the real defect was a capability-forgery / confused-deputy gap in the goal subsystem (see P0-03) | Storage bot | ✅ Closed (2026-05-29) |
 | **P0-02** | Integration tests for inference pipeline | Testing bot | Pending |
 | **P0-03** | Harden goal capability subsystem: bind all authority into the HMAC signature, constant-time verify, owner/visibility checks on every write, legal state-transition enforcement, fail-loud persistence read-back | Storage/Security bot | ✅ Complete (2026-05-29) |
-| **P0-04** | Wire goal subsystem into CLI (`kask goal create|list|set-state`) over the shared encrypted DB, with denials emitted to the `NuEventStore` CNS sink (ADR-029) | CLI bot | ✅ Complete (2026-05-29) |
+| **P0-04** | Wire goal subsystem into CLI (`kask goal create|list|set-state`) over the shared encrypted DB, with denials emitted to the `NuEventStore` CNS sink (originally ADR-029; ADR-029 archived) | CLI bot | ✅ Complete (2026-05-29) |
 | **P0-05** | Goal subsystem API/MCP parity: HTTP routes (`/api/goals`, `/api/goals/{id}/state`) + `hkask-mcp-goal` server (`goal_create`/`goal_list`/`goal_set_state`), satisfying MCP ≡ CLI ≡ API (REQ-IFC-001) | API/MCP bot | ✅ Complete (2026-05-29) |
 
 ### 5.2 P1 — Important
@@ -225,7 +225,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Issue | Severity | Status |
 |-------|----------|--------|
-| 5 compile errors in `hkask-agents` (SovereigntyChecker import, DenyAllConsent, Arc import, missing consent field) | High | ⬜ Open |
+| 5 compile errors in `hkask-agents` (SovereigntyChecker import, DenyAllConsent, Arc import, missing consent field) | High | ⬜ Open (shifted: now `hkask-mcp-spec` has 2 type errors in main.rs:727,796) |
 
 **Resolved 2026-05-29 (goal capability hardening, P0-03):**
 
