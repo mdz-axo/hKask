@@ -10,9 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, warn};
 
-/// Default embedding model for Okapi
-pub const DEFAULT_EMBEDDING_MODEL: &str = "qwen3-embedding:0.6b";
-
 /// Okapi-backed embedding generation implementation
 pub struct OkapiEmbedding {
     model: String,
@@ -24,9 +21,9 @@ pub struct OkapiEmbedding {
 }
 
 impl OkapiEmbedding {
-    /// Create a new OkapiEmbedding with the default model
+    /// Create a new OkapiEmbedding with the default model (qwen3-embedding:0.6b)
     pub fn new(config: OkapiConfig) -> Result<Self, EmbeddingGenerationError> {
-        Self::with_model(DEFAULT_EMBEDDING_MODEL, config)
+        Self::with_model("qwen3-embedding:0.6b", config)
     }
 
     /// Create OkapiEmbedding with a specific model
@@ -45,33 +42,6 @@ impl OkapiEmbedding {
             client,
             dim,
         })
-    }
-
-    /// Create OkapiEmbedding with a shared HTTP client
-    pub fn with_shared_client(
-        model: &str,
-        config: OkapiConfig,
-        client: Arc<reqwest::Client>,
-    ) -> Self {
-        Self {
-            model: model.to_string(),
-            retry_config: RetryConfig::default(),
-            config,
-            client,
-            dim: embedding_dim_for_model(model),
-        }
-    }
-
-    /// Default local Okapi endpoint (no auth)
-    pub fn local() -> Result<Self, EmbeddingGenerationError> {
-        Self::new(OkapiConfig::local_dev())
-    }
-
-    /// Builder method to override the model
-    pub fn model(mut self, model: &str) -> Self {
-        self.model = model.to_string();
-        self.dim = embedding_dim_for_model(model);
-        self
     }
 
     /// Execute HTTP request to Okapi embedding API
@@ -213,7 +183,7 @@ impl OkapiEmbedding {
             .ok_or(EmbeddingGenerationError::EmptyResponse)
     }
 
-    pub fn embedding_dim(&self) -> usize {
+    pub(crate) fn embedding_dim(&self) -> usize {
         self.dim
     }
 }

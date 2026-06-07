@@ -53,14 +53,8 @@ impl Registry {
         self.hlexicon = Some(lexicon);
     }
 
-    /// Builder-style method to set the hLexicon.
-    pub fn with_lexicon(mut self, lexicon: HLexicon) -> Self {
-        self.hlexicon = Some(lexicon);
-        self
-    }
-
     /// Invalidate the registry cache (for hot-reload)
-    pub fn invalidate_cache(&mut self) {
+    pub(crate) fn invalidate_cache(&mut self) {
         self.templates.clear();
     }
 
@@ -69,25 +63,6 @@ impl Registry {
         self.invalidate_cache();
         let fresh = Self::bootstrap();
         self.templates = fresh.templates;
-    }
-
-    /// Get the templates directory path
-    ///
-    /// Resolution order:
-    /// 1. HKASK_TEMPLATES_PATH environment variable (if set)
-    /// 2. <executable_dir>/registry/templates/ (default)
-    /// 3. Fallback to ./registry/templates/ (development mode)
-    pub fn get_templates_path() -> PathBuf {
-        env::var("HKASK_TEMPLATES_PATH")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                // Try executable-relative path
-                env::current_exe()
-                    .ok()
-                    .and_then(|p| p.parent().map(|p| p.join("registry/templates")))
-                    .filter(|p| p.exists())
-                    .unwrap_or_else(|| PathBuf::from("registry/templates"))
-            })
     }
 
     /// Validate that a template path is safe (no path traversal)

@@ -14,10 +14,7 @@ use serde_json::Value;
 pub enum TemplateError {
     #[error("Template not found: {0}")]
     NotFound(String),
-    #[error("Template exists but is not wired: {0}")]
-    Unwired(String),
-    #[error("Template entry is corrupt: {0}")]
-    CorruptEntry(String),
+
     #[error("Render error: {0}")]
     Render(String),
     #[error("Manifest error: {0}")]
@@ -28,8 +25,7 @@ pub enum TemplateError {
     Inference(String),
     #[error("MCP error: {0}")]
     Mcp(String),
-    #[error("Recursion limit exceeded (max depth: {max})")]
-    RecursionLimit { max: u8 },
+
     #[error("Validation error: {0}")]
     Validation(String),
     #[error("Path traversal attempt: {0}")]
@@ -38,8 +34,6 @@ pub enum TemplateError {
     SandboxViolation(String),
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
-    #[error("Timeout: {0}")]
-    Timeout(String),
 }
 
 pub type Result<T> = std::result::Result<T, TemplateError>;

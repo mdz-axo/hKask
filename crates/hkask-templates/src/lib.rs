@@ -7,8 +7,6 @@
 //! Template types: Prompt (WordAct), Process (FlowDef), Cognition (KnowAct).
 //! Registry adapters: `Registry` (in-memory), `SqliteRegistry` (SQLite).
 
-pub mod adapters;
-
 pub mod embedding_port;
 pub mod executor;
 pub mod inference_port;
@@ -18,7 +16,7 @@ pub mod okapi_config;
 pub mod ports;
 pub mod prompt_cache;
 pub mod prompt_strategy;
-pub mod provenance;
+
 pub mod registry;
 pub mod registry_sqlite;
 
@@ -29,16 +27,15 @@ pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
 pub use hkask_types::{BundleManifest, SkillPolarity};
 pub use inference_port::OkapiInference;
-pub use lexicon::{load_hlexicon_default, load_hlexicon_from_file, load_hlexicon_from_yaml};
-pub use manifest_loader::{
-    ManifestLoadError, load_manifest_from_file, load_manifest_from_yaml, resolve_manifest,
-};
+
+pub use manifest_loader::{load_manifest_from_file, load_manifest_from_yaml, resolve_manifest};
 pub use okapi_config::OkapiConfig;
-pub use okapi_config::OkapiModelDetails;
+
 pub use okapi_config::OkapiModelEntry;
 pub use okapi_config::{list_okapi_models, search_okapi_models};
 pub use ports::{McpPort, RegistryEntry, RegistryIndex, Result, TemplateError};
+// ManifestLoadError kept pub(crate) — only used within crate for YAML loading errors
 pub use prompt_strategy::PromptStrategy;
-pub use provenance::TemplateProvenance;
+
 pub use registry::Registry;
 pub use registry_sqlite::SqliteRegistry;

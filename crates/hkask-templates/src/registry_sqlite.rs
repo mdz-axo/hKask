@@ -9,7 +9,6 @@
 //! `hkask_storage::Database` (SQLCipher-encrypted).
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
-use crate::provenance::{ProvenanceManager, TemplateProvenance};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
 use hkask_types::{Skill, TemplateType};
 use rusqlite::{Connection, params};
@@ -57,7 +56,6 @@ fn parse_template_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TemplateRow> 
 /// SQLite-based registry index
 pub struct SqliteRegistry {
     conn: Arc<Mutex<Connection>>,
-    provenance: ProvenanceManager,
 }
 
 impl SqliteRegistry {
@@ -82,10 +80,7 @@ impl SqliteRegistry {
         };
 
         let conn = Arc::new(Mutex::new(conn));
-        let mut registry = Self {
-            conn,
-            provenance: ProvenanceManager::new(),
-        };
+        let mut registry = Self { conn };
 
         // Initialize schema
         registry.init_schema()?;
@@ -99,10 +94,7 @@ impl SqliteRegistry {
     /// `hkask_storage::Database` (SQLCipher-encrypted). The connection
     /// is obtained via `Database::conn_arc()`.
     pub fn new_with_conn(conn: Arc<Mutex<Connection>>) -> Result<Self> {
-        let mut registry = Self {
-            conn,
-            provenance: ProvenanceManager::new(),
-        };
+        let mut registry = Self { conn };
 
         // Initialize schema
         registry.init_schema()?;

@@ -31,15 +31,6 @@ impl PromptStrategy {
         }
     }
 
-    /// Apply the strategy to frame a prompt.
-    pub fn frame(&self, input: &str) -> String {
-        match self {
-            PromptStrategy::Answer => format!("Answer concisely: {}", input),
-            PromptStrategy::Instruct => format!("Provide step-by-step instructions: {}", input),
-            PromptStrategy::Assist => format!("Respond helpfully: {}", input),
-        }
-    }
-
     /// Strategy name for tagging/logging.
     pub fn name(&self) -> &'static str {
         match self {
@@ -116,30 +107,6 @@ mod tests {
         assert_eq!(
             PromptStrategy::from_input("how to create?"),
             PromptStrategy::Answer
-        );
-    }
-
-    #[test]
-    fn frame_answer() {
-        assert_eq!(
-            PromptStrategy::Answer.frame("What is Rust?"),
-            "Answer concisely: What is Rust?"
-        );
-    }
-
-    #[test]
-    fn frame_instruct() {
-        assert_eq!(
-            PromptStrategy::Instruct.frame("create a project"),
-            "Provide step-by-step instructions: create a project"
-        );
-    }
-
-    #[test]
-    fn frame_assist() {
-        assert_eq!(
-            PromptStrategy::Assist.frame("hello"),
-            "Respond helpfully: hello"
         );
     }
 

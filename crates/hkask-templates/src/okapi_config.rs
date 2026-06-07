@@ -78,8 +78,8 @@ impl OkapiConfig {
     }
 }
 
-/// Prompt validation
-pub fn validate_prompt(prompt: &str) -> Result<(), String> {
+/// Prompt validation (internal)
+pub(crate) fn validate_prompt(prompt: &str) -> Result<(), String> {
     if prompt.is_empty() {
         return Err("Prompt is empty".to_string());
     }
@@ -95,9 +95,6 @@ pub fn validate_prompt(prompt: &str) -> Result<(), String> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OkapiModelEntry {
     pub name: String,
-    pub model: String,
-    #[serde(default)]
-    pub modified_at: Option<String>,
     #[serde(default)]
     pub size: Option<u64>,
     #[serde(default)]
@@ -108,13 +105,7 @@ pub struct OkapiModelEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OkapiModelDetails {
     #[serde(default)]
-    pub parent_model: Option<String>,
-    #[serde(default)]
-    pub format: Option<String>,
-    #[serde(default)]
     pub family: Option<String>,
-    #[serde(default)]
-    pub families: Option<Vec<String>>,
     #[serde(default)]
     pub parameter_size: Option<String>,
     #[serde(default)]
