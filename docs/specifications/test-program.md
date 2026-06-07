@@ -1,7 +1,7 @@
 ---
 title: "Test Program Specification — DDMVSS Self-Applying Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "0.1.0"
 status: "Active"
 domain: "Cross-cutting"

@@ -2,13 +2,15 @@
 title: Hexagonal Port Inventory
 version: v0.23.0
 status: accurate
-last_updated: 2026-06-05
+last_updated: 2026-06-07
 audience: [architects, developers]
 domain: "Application"
 ddmvss_categories: [interface]
 ---
 
 # Hexagonal Port Inventory — hKask v0.23.0
+
+> **Note:** Active ports are authoritative in [`interface-and-composition.md`](../interface-and-composition.md) §2. This reference provides implementation detail, removal history, and phantom type corrections.
 
 ## Active Traits
 

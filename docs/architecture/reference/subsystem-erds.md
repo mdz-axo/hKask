@@ -1,7 +1,7 @@
 ---
 title: "hKask Subsystem Entity Relationship Diagrams"
 audience: [data architects, developers, agents]
-last_updated: 2026-06-05
+last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Data"
@@ -1286,6 +1286,12 @@ status: VERIFIED
 [^nist-sp800-132]: NIST. (2010). *Recommendation for Password-Based Key Derivation*. NIST Special Publication 800-132. <https://csrc.nist.gov/publications/detail/sp/800-132/final>. Argon2id parameters in hkask-keystore follow NIST guidance for memory-hard KDFs.
 
 [^bitemporal]: Johnston, R., & Weis, T. (2018). *Bitemporal Data: Theory and Practice*. Morgan Kaufmann. The bitemporal triple schema in hkask-storage uses valid-time and transaction-time dimensions for full auditability.
+
+---
+
+## Review Acknowledgment
+
+A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`, the shared-secret nature of `RussellAcpAdapter`, and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`domain-and-capability.md`](../domain-and-capability.md) §5.5) and the relevant ADRs. The full review ERDs remain in `docs/review/` as archival artifacts.
 
 ---
 

@@ -138,7 +138,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 42 (.md, excl. archive) + 2 CI scripts | — |
+| **Total** | 42 (.md, excl. archive and review) + 2 CI scripts | — |
 
 ### 4.2 Archived Documents
 
@@ -152,8 +152,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `2026-06-01-documentation-refresh` | 11 | Audit artifacts + speculative 10-loop feedback-loops-decomposition archived |
 | `2026-06-03-documentation-refresh` | 17 | 3 reference docs, 5 plan docs, 9 GML docs archived |
 | `2026-06-06-documentation-refresh` | 1 | IMPLEMENTATION-PLAN-simplification.md archived |
-| `2026-06-07-documentation-refresh` | 7 | ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (applied), refactor-sweep-2026-06-06.md (captured elsewhere), mcp-server-audit.md (merged into mcp-tools-inventory.md v1.1.0), DDMVSS-AUDIT-2026-06-06.md (absorbed into SCAFFOLD §4) |
-| **Total** | 139 | — |
+| `2026-06-07-documentation-refresh` | 7 + 26 review files | ADR-023/028/029, distillation-erd, refactor-sweep, mcp-server-audit (merged into tools-inventory), DDMVSS-AUDIT (absorbed into SCAFFOLD §4), review/ directory (session artifacts; structural insights incorporated into active docs) |
+| **Total** | 165 | — |
 
 ### 4.3 DDMVSS Completeness
 

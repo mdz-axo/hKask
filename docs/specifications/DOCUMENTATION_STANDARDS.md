@@ -232,9 +232,9 @@ This ensures:
 | Content | Location |
 |---------|----------|
 | Specifications, design docs | `docs/specifications/` |
-| Architecture Decision Records | `docs/architecture/adr/` |
+| Architecture Decision Records | `docs/architecture/` |
 | Plans, roadmaps | `docs/plans/` |
-| Standards, policies | `docs/standards/` |
+| Standards, policies | `docs/specifications/` |
 | Status reports, inventories | `docs/status/` |
 | Crate coding context (brief) | `<workspace>/crates/<crate>/README.md` |
 

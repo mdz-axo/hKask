@@ -326,6 +326,44 @@ The hierarchy is used in two places:
 
 **POLA enforcement:** Every operation requires presenting a `Capability` with matching `(resource, action)`. No ambient authority.
 
+### 5.5 Capability Model: Type × Primitive Matrix
+
+The six Mark Miller capability primitives and their application to every authority-bearing type in hKask:
+
+| # | Primitive | Definition | Question it answers |
+|---|-----------|------------|---------------------|
+| 1 | **Brand** | An unforgeable proof of origin, attached to a type. | Can it be forged? |
+| 2 | **Sealer/Unsealer** | A pair of references; the sealer produces sealed values, the unsealer recovers them. | Can it be smuggled past a boundary? |
+| 3 | **Membrane** | An object that wraps another and translates every capability into a possibly-attenuated one. | Can authority leak across a boundary? |
+| 4 | **Attenuation** | The only way to weaken a capability. Attenuation must be monotonic and capped. | Can it be amplified? |
+| 5 | **Revocation** | The only way to invalidate a capability. Revocation is centralized. | Can it be replayed / outlived? |
+| 6 | **Revocable Forwarder** | An object that holds a capability on behalf of another; revocation severs all forwarders. | Can it outlive its grantor? |
+
+Legend: **✓** implemented · **~** partially · **✗** missing · **n/a** not required.
+
+| Type | Brand | Sealer | Membrane | Attenuation | Revocation | Forwarder | Notes |
+|------|-------|--------|----------|-------------|------------|-----------|-------|
+| `OcapCapability::Token(OcapTokenKind)` | ✓ | n/a | n/a | n/a | n/a | n/a | The brand. |
+| `OCAPBoundary` | ~ | n/a | ~ | n/a | n/a | n/a | Brand is "enforced" — but the field is a `bool`. Membrane is implicit in the constructor. |
+| `DelegationToken` | ✓ | n/a | n/a | ✓ | ~ | n/a | Attenuation implemented (`attenuation()`); revocation is centralized but the *verify* path may not check the log. |
+| `DelegationToken::expires_at` | n/a | n/a | n/a | n/a | ~ | n/a | Revocation by time. The check is unverified by a negative test. |
+| `OcapTokenKind` (inner enum) | ✓ | n/a | n/a | n/a | n/a | n/a | The sealed vocabulary. |
+| `CapabilitySpec::parse` (in `hkask-types/src/capability/`) | n/a | ~ | n/a | n/a | n/a | n/a | A *sealer* in the sense that the parser produces a typed brand from a string. Correctly used as a membrane by both consumers. |
+| `parse_capability` (in `acp/mod.rs` and `mcp-ocap`) | n/a | n/a | ✓ | n/a | n/a | n/a | The thin adapter is a membrane. Correct shape. |
+| `OcapServer` (mcp-ocap) | n/a | n/a | ✓ | n/a | n/a | n/a | The MCP-OCAP server is the membrane over the canonical capability impl. |
+| `MemoryStoragePort` (in `AgentPod`) | n/a | n/a | ✗ | n/a | n/a | ✗ | A port passed by value, not a membrane. The pod's *persistence* is not capability-gated. |
+| `AgentPod` | ~ | n/a | n/a | n/a | ~ | ~ | The pod is a revocable forwarder: when the master is rotated, the pod is implicitly severed (because its OCAP secret is HKDF-derived from the master). But the *forwarding* is implicit; there is no explicit `RevocableForwarder` trait. |
+| `RussellAcpAdapter` | n/a | n/a | n/a | n/a | ✗ | ✗ | Shared secret via HKDF — not a capability. Revocation = master rotation. |
+| `Dampener` (CNS) | n/a | n/a | n/a | n/a | n/a | n/a | Not a capability primitive; a *regulation* primitive. Out of scope for this matrix. |
+| `Dampener::override_cooldown` | n/a | n/a | n/a | n/a | ~ | n/a | Cooldown is a form of "soft revocation" — the override is invalidated, not the token. Per-issuer granularity is an open question. |
+| `WebID` | ✓ | n/a | n/a | n/a | n/a | n/a | The unforgeable identity. |
+| `Bot`, `Replicant`, `Curator` | ~ | n/a | n/a | n/a | n/a | n/a | The brand is implicit (the WebID is the brand); the *type* is a role. |
+| `Visibility` (and `DataSovereigntyBoundary`) | n/a | n/a | n/a | n/a | n/a | n/a | Not a capability; an *access mode*. Adjacent to OCAP but not part of it. |
+
+**Using this matrix:** When adding a new authority-bearing type, add a row *before* writing the code. Every column must be ✓, ~, ✗, or n/a. An unjustified ✗ is a finding. When you implement a fix, update the matrix to ✓. When you remove a type (per P6), remove the row.
+
+**In hKask, every authority-bearing type reduces to a Brand + a Membrane over one of the six primitives, with Revocation centralized in the OCAP server and Forwarding implicit in the HKDF-derived OCAP secret per AgentPod.** If a type you are about to add does not fit this sentence, stop and ask whether the type is *actually* authority-bearing. If it is, the sentence is wrong, not the type. Fix the sentence first.
+
 ---
 
 ## 6. MCP Tool Surface
