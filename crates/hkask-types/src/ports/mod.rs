@@ -262,6 +262,12 @@ impl RegistryEntry {
 }
 
 /// Named composition of WordAct, KnowAct, and FlowDef templates.
+///
+/// Note: `cascade_order` was removed in 2026-06-06. The field was persisted
+/// to the `skill_cascade_order` SQLite table but no runtime cascade executor
+/// read it — `ManifestExecutor` orders steps by `BundleManifestStep.ordinal`.
+/// P6 ("Delete stubs, don't publish them") applies. Execution ordering is
+/// declared per-bundle in the YAML, not per-skill in the registry.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Skill {
     pub id: String,
@@ -269,7 +275,6 @@ pub struct Skill {
     pub word_act: Option<String>,
     pub flow_def: Option<String>,
     pub know_act: Option<String>,
-    pub cascade_order: Vec<String>,
     pub polarity: Option<crate::bundle::SkillPolarity>,
     pub content_hash: Option<String>,
 }
@@ -282,7 +287,6 @@ impl Skill {
             word_act: None,
             flow_def: None,
             know_act: None,
-            cascade_order: vec![],
             polarity: None,
             content_hash: None,
         }
@@ -300,11 +304,6 @@ impl Skill {
 
     pub fn with_know_act(mut self, template_id: &str) -> Self {
         self.know_act = Some(template_id.to_string());
-        self
-    }
-
-    pub fn with_cascade_order(mut self, order: Vec<String>) -> Self {
-        self.cascade_order = order;
         self
     }
 
@@ -332,9 +331,6 @@ impl Skill {
         }
         if let Some(ref ka) = self.know_act {
             hasher.update(ka.as_bytes());
-        }
-        for tmpl in &self.cascade_order {
-            hasher.update(tmpl.as_bytes());
         }
         let result = hasher.finalize();
         self.content_hash = Some(hex::encode(result));

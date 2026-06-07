@@ -89,7 +89,7 @@ shelf-life check (C3).
 
 | Item | Location | Why unwired | Deadline |
 |------|----------|-------------|----------|
-| `Skill::cascade_order: Vec<String>` | `crates/hkask-types/src/ports/mod.rs:265-274` | Field is **persisted** to `skill_cascade_order` table by `SqliteRegistry::register_skill` (write path) and read back by `cascade_order_for_skill` (read path), but **no runtime cascade executor iterates it** to drive skill execution. `ManifestExecutor` uses `BundleManifestStep.ordinal`, not `Skill.cascade_order`. | 2026-07-06 |
+| ~~`Skill::cascade_order: Vec<String>`~~ | `crates/hkask-types/src/ports/mod.rs:265-274` | ~~Field is **persisted** to `skill_cascade_order` table by `SqliteRegistry::register_skill` (write path) and read back by `cascade_order_for_skill` (read path), but **no runtime cascade executor iterates it** to drive skill execution. `ManifestExecutor` uses `BundleManifestStep.ordinal`, not `Skill.cascade_order`.~~ | **Deleted 2026-06-06.** P6 applied: removed field, builder, `skill_cascade_order` table + index, `cascade_order_for_skill` reader, write loop, cleanup, and 2 test cases. `ManifestExecutor` already orders steps via `BundleManifestStep.ordinal`, so the field was genuinely orphaned. |
 | `Skill::content_hash: Option<String>` | `crates/hkask-types/src/ports/mod.rs:273` | Field is stored in `skills.content_hash` and `bundle_skills.content_hash`, but no consumer **verifies** the hash against the skill body. The validator at `bundle.rs:599` only checks `is_empty()`. | 2026-07-06 |
 | `BundleManifestStep::model_tier: Option<String>` | `crates/hkask-types/src/bundle.rs:227` | The field is read by `ManifestExecutor::execute_select` (executor.rs:148) but the **resolution** of `"fast_local"` to an actual model name is not implemented. The field is passed through but does not change the `InferencePort` call. | 2026-07-06 (paired with manifest executor) |
 | `BundleManifestStep::input_mapping: Option<serde_json::Value>` | `crates/hkask-types/src/bundle.rs:232` | Field is parsed from YAML and stored, but `ManifestExecutor` does not currently apply the mapping when binding context variables. | 2026-07-06 (paired with manifest executor) |
@@ -116,7 +116,6 @@ ignores them.
 | Item | Location | Why unwired | Deadline |
 |------|----------|-------------|----------|
 | `ToolInfo::required_capability: Option<String>` | `crates/hkask-types/src/ports/mod.rs:519` | The field exists but is **never populated** by any MCP tool registration. The fallback in `GovernedTool::verify_capability_domain_fallback` (governed_tool.rs:151) only fires when the legacy exact-match path fails. | 2026-07-06 (paired with capability-to-tool namespace mapping — see open question 3) |
-| `McpDispatcher::dummy_sender()` | `crates/hkask-mcp/src/dispatch.rs` (referenced in `hkask-api/src/lib.rs:925`) | Used **only** in a now-broken test in `hkask-api` (the test was rewritten to use `mpsc::unbounded_channel` directly). The function may now be dead. | 2026-07-06 |
 
 ### `hkask-cns` crate
 
@@ -216,21 +215,32 @@ materialize; remove the `#[allow(dead_code)]` and add a real consumer if it did.
 
 ---
 
+## What's been resolved since the inventory
+
+- ✅ **`Skill.cascade_order`** (deleted 2026-06-06) — P6 applied. The field,
+  builder, DB table, index, and round-trip read/write paths were all removed.
+  Execution ordering is owned by `BundleManifestStep.ordinal` in the manifest
+  YAML, which is the right level of granularity.
+- ✅ **`P3.5 close-out` + `P3.6 escalation extraction`** — both closed in
+  commits `aaec5285` and `fbbb6265` respectively. The Fowler audit
+  (`docs/status/fowler-audit-status.md`) now shows P1 + P2 fully done and
+  2 of 6 P3 items done.
+
 ## Next steps (priority order)
 
-1. **P3.5 close-out** (small, immediate) — `MemoryError::CapabilityDenied(String)`
-   → `CapabilityDenied { webid, required_capability }`. 1 variant, ~5 call sites
-   to update. Closes the only remaining partial in the Fowler audit (P1.3).
-2. **`Skill.cascade_order` decision** (small, decision) — either wire a runtime
-   cascade executor that respects `cascade_order`, or delete the field and the
-   `skill_cascade_order` table. Currently stored-but-unread (C2 violation).
-3. **Manifest config sub-structs** (medium) — decide whether `BundleManifest::cns`,
+1. **Manifest config sub-structs** (medium) — decide whether `BundleManifest::cns`,
    `audit`, `gas`, `ocap`, `error_handling`, `convergence` are read by the
    executor. If not, delete (P6). If yes, implement the enforcement in
-   `ManifestExecutor`.
-4. **CLI error enums** (medium) — migrate `AgentError`, `EnsembleError`,
+   `ManifestExecutor`. The 8 items in `hkask-types` are clustered here.
+2. **CLI error enums** (medium) — migrate `AgentError`, `EnsembleError`,
    `CuratorError`, `UserError`, `RegistryError` from `String` payloads to typed
    variants. Same pattern as the P3.5 work.
+3. **`McpPort` folding** (medium) — fold the trait into `McpDispatcher`
+   concrete methods. The user's commit `73100319` started this in
+   `executor.rs` (made `ManifestExecutor` non-generic) but the test file
+   still uses `MockMcp: McpPort` and `McpPort` is still defined in
+   `ports.rs`. Pick one direction: either restore the generic fully, or
+   rewrite the integration test to use a real `McpDispatcher`.
 
 ---
 

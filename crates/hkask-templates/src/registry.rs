@@ -655,11 +655,7 @@ mod tests {
         let skill = Skill::new("research", TemplateType::KnowAct)
             .with_word_act("wordact/research/query")
             .with_flow_def("flowdef/research/pipeline")
-            .with_know_act("knowact/research/calibrate")
-            .with_cascade_order(vec![
-                "wordact/research/query".into(),
-                "knowact/research/calibrate".into(),
-            ]);
+            .with_know_act("knowact/research/calibrate");
 
         assert_eq!(skill.id, "research");
         assert_eq!(skill.domain, TemplateType::KnowAct);
@@ -669,7 +665,6 @@ mod tests {
             skill.know_act.as_deref(),
             Some("knowact/research/calibrate")
         );
-        assert_eq!(skill.cascade_order.len(), 2);
     }
 
     #[test]
@@ -678,7 +673,6 @@ mod tests {
         assert!(skill.word_act.is_none());
         assert!(skill.flow_def.is_none());
         assert!(skill.know_act.is_none());
-        assert!(skill.cascade_order.is_empty());
     }
 
     #[test]
@@ -745,9 +739,8 @@ mod tests {
 
     #[test]
     fn skill_serialization_roundtrip() {
-        let skill = Skill::new("research", TemplateType::KnowAct)
-            .with_word_act("wordact/research/query")
-            .with_cascade_order(vec!["wordact/research/query".into()]);
+        let skill =
+            Skill::new("research", TemplateType::KnowAct).with_word_act("wordact/research/query");
 
         let json = serde_json::to_string(&skill).unwrap();
         let deserialized: Skill = serde_json::from_str(&json).unwrap();
@@ -755,7 +748,6 @@ mod tests {
         assert_eq!(deserialized.id, skill.id);
         assert_eq!(deserialized.domain, skill.domain);
         assert_eq!(deserialized.word_act, skill.word_act);
-        assert_eq!(deserialized.cascade_order, skill.cascade_order);
     }
 
     #[test]

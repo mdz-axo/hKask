@@ -162,16 +162,7 @@ impl SqliteRegistry {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
-            CREATE TABLE IF NOT EXISTS skill_cascade_order (
-                skill_id TEXT NOT NULL,
-                position INTEGER NOT NULL,
-                template_id TEXT NOT NULL,
-                PRIMARY KEY (skill_id, position),
-                FOREIGN KEY (skill_id) REFERENCES skills(id)
-            );
-
             CREATE INDEX IF NOT EXISTS idx_skills_domain ON skills(domain);
-            CREATE INDEX IF NOT EXISTS idx_skill_cascade ON skill_cascade_order(skill_id);
 
             CREATE TABLE IF NOT EXISTS bundles (
                 id TEXT PRIMARY KEY,
@@ -479,36 +470,20 @@ impl SkillRegistryIndex for SqliteRegistry {
     fn register_skill(&mut self, skill: Skill) {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-                "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    skill.id,
-                    skill.domain.as_str(),
-                    skill.word_act,
-                    skill.flow_def,
-                    skill.know_act,
-                    skill.polarity.map(|p| p.as_str()),
-                    skill.content_hash,
-                ],
-            )
-            .map_err(|e| TemplateError::Manifest(format!("Failed to insert skill: {}", e)))
-            .ok();
-
-        // Delete existing cascade order entries
-        conn.execute(
-            "DELETE FROM skill_cascade_order WHERE skill_id = ?1",
-            params![skill.id],
+            "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                skill.id,
+                skill.domain.as_str(),
+                skill.word_act,
+                skill.flow_def,
+                skill.know_act,
+                skill.polarity.as_ref().map(|p| p.as_str()),
+                skill.content_hash,
+            ],
         )
+        .map_err(|e| TemplateError::Manifest(format!("Failed to insert skill: {}", e)))
         .ok();
-
-        // Insert cascade order
-        for (position, template_id) in skill.cascade_order.iter().enumerate() {
-            conn.execute(
-                    "INSERT INTO skill_cascade_order (skill_id, position, template_id) VALUES (?1, ?2, ?3)",
-                    params![skill.id, position as i64, template_id],
-                )
-                .ok();
-        }
     }
 
     fn get_skill(&self, id: &str) -> Option<Skill> {
@@ -531,11 +506,6 @@ impl SkillRegistryIndex for SqliteRegistry {
         // Retrieve skill before deletion to return it
         let skill = self.get_skill_owned(id);
         let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "DELETE FROM skill_cascade_order WHERE skill_id = ?1",
-            params![id],
-        )
-        .ok();
         conn.execute("DELETE FROM skills WHERE id = ?1", params![id])
             .ok();
         skill
@@ -653,7 +623,7 @@ impl BundleRegistryIndex for SqliteRegistry {
 impl SqliteRegistry {
     #[allow(clippy::too_many_arguments)]
     fn row_to_skill(
-        conn: &Connection,
+        _conn: &Connection,
         id: String,
         domain_str: String,
         word_act: Option<String>,
@@ -663,7 +633,6 @@ impl SqliteRegistry {
         content_hash: Option<String>,
     ) -> Option<Skill> {
         let domain = TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
-        let cascade_order = Self::cascade_order_for_skill(conn, &id).ok()?;
         let polarity = polarity_str.and_then(|s| hkask_types::SkillPolarity::parse_str(&s));
         Some(Skill {
             id,
@@ -671,7 +640,6 @@ impl SqliteRegistry {
             word_act,
             flow_def,
             know_act,
-            cascade_order,
             polarity,
             content_hash,
         })
@@ -840,40 +808,5 @@ impl SqliteRegistry {
             }
         }
         skills
-    }
-
-    fn cascade_order_for_skill(conn: &Connection, skill_id: &str) -> Result<Vec<String>> {
-        let mut stmt = conn
-            .prepare(
-                "SELECT template_id FROM skill_cascade_order WHERE skill_id = ?1 ORDER BY position",
-            )
-            .map_err(|e| {
-                TemplateError::Database(InfrastructureError::Database(format!(
-                    "Failed to prepare cascade query: {}",
-                    e
-                )))
-            })?;
-
-        let rows = stmt
-            .query_map(params![skill_id], |row| row.get(0))
-            .map_err(|e| {
-                TemplateError::Database(InfrastructureError::Database(format!(
-                    "Failed to query cascade: {}",
-                    e
-                )))
-            })?;
-
-        let mut result = Vec::new();
-        for row in rows {
-            match row {
-                Ok(template_id) => result.push(template_id),
-                Err(e) => {
-                    return Err(TemplateError::Database(InfrastructureError::Database(
-                        format!("Cascade row error: {}", e),
-                    )));
-                }
-            }
-        }
-        Ok(result)
     }
 }
