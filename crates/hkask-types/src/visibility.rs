@@ -73,7 +73,7 @@ impl Visibility {
 /// - `AccessControl::new(owner)` — default: private, no perspective
 /// - `AccessControl::episodic(perspective, owner)` — private, perspective-bound
 /// - `AccessControl::semantic(owner)` — shared, no perspective
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AccessControl {
     pub perspective: Option<WebID>,
     pub visibility: Visibility,
@@ -296,15 +296,19 @@ mod access_control_flip_tests {
     use super::*;
     use crate::id::WebID;
 
-    fn episodic_ac() -> AccessControl {
+    fn semantic_ac() -> AccessControl {
         AccessControl::new(WebID::new())
     }
 
-    /// A fresh access control can be flipped to any visibility.
+    fn episodic_ac() -> AccessControl {
+        AccessControl::episodic(WebID::new(), WebID::new())
+    }
+
+    /// A fresh (semantic) access control can be flipped to any visibility.
     #[test]
     fn fresh_ac_accepts_any_visibility() {
         for v in [Visibility::Private, Visibility::Public, Visibility::Shared] {
-            let ac = AccessControl::default().with_visibility(v);
+            let ac = semantic_ac().with_visibility(v);
             assert_eq!(ac.visibility, v);
         }
     }
