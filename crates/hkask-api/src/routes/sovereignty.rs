@@ -127,7 +127,7 @@ async fn sovereignty_status(
     let acquisition_resistance = boundary.prevents_passive_acquisition();
 
     // Enrich status with consent manager state
-    let granted_categories = state
+    let granted_categories: Vec<String> = state
         .consent_manager
         .get_granted_categories(&webid_str)
         .unwrap_or_default()
