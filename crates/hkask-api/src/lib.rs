@@ -225,7 +225,7 @@ pub struct ApiState {
     /// Goal repository for the goal coordination substrate. Mirrors the CLI
     /// `kask goal` surface for MCP ≡ CLI ≡ API parity.
     pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
-    /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation)
+    /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation, Snapshot)
     pub loop_system: Arc<LoopSystem>,
     /// Episodic memory storage — private, agent-scoped (via port trait)
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -235,10 +235,10 @@ pub struct ApiState {
     pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
 }
 
-/// Build the LoopSystem with all 6 loop.
+/// Build the LoopSystem with all loops.
 ///
 /// Creates CnsRuntime, MessageDispatch, LoopSystem, and registers:
-/// Cybernetics, Episodic, Semantic, and Curation loops.
+/// Cybernetics, Episodic, Semantic, Curation, and Snapshot loops.
 /// Communication Loop is managed internally by LoopSystem.
 /// Inference Loop is registered only if an inference port is provided.
 #[allow(clippy::type_complexity)]

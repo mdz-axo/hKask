@@ -119,24 +119,17 @@ mod tests {
         assert_eq!(strip_html("<p>Para1</p><p>Para2</p>"), "Para1\nPara2");
     }
 
-    // P8 invariant: heading tags produce markdown-style prefix
+    // P8 invariant: heading tags produce markdown-style prefix with exact output
     #[test]
     fn strip_html_headings_produce_markdown() {
-        let result = strip_html("<h1>Title</h1>");
-        assert!(
-            result.contains("## "),
-            "h1 must produce markdown prefix, got: {result}"
-        );
+        assert_eq!(strip_html("<h1>Title</h1>"), "## Title");
+        assert_eq!(strip_html("<h2>Subtitle</h2>"), "## Subtitle");
     }
 
-    // P8 invariant: li tags produce list markers
+    // P8 invariant: li tags produce list markers with exact output
     #[test]
     fn strip_html_li_produces_list_marker() {
-        let result = strip_html("<li>Item</li>");
-        assert!(
-            result.contains("- "),
-            "li must produce list marker, got: {result}"
-        );
+        assert_eq!(strip_html("<li>Item</li>"), "- Item");
     }
 
     // P8 invariant: attributes in tags don't break parsing

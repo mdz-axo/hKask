@@ -101,7 +101,7 @@ pub const AUTHORITY_ORDER: [LoopId; 6] = [
     LoopId::Semantic,
 ];
 
-/// Loop System — manages the lifecycle and wiring of all 6 loops.
+/// Loop System — manages the lifecycle and wiring of all loops (7 instances across the 6-loop model).
 ///
 /// Provides:
 /// - Channel creation and wiring for inter-loop communication

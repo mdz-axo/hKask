@@ -609,7 +609,7 @@ mod tests {
 
     // ── SearchResultOutput From<RankedResult> ───────────────────────────────
 
-    // P8 invariant: From<RankedResult> preserves fields
+    // P8 invariant: From\u003cRankedResult\u003e preserves all mapped fields
     #[test]
     fn search_result_output_from_ranked() {
         let ranked = RankedResult {
@@ -629,6 +629,9 @@ mod tests {
         let output = SearchResultOutput::from(&ranked);
         assert_eq!(output.title, "Test");
         assert_eq!(output.url, "https://example.com");
+        assert_eq!(output.description, Some("desc".to_string()));
+        assert_eq!(output.source, Some("brave".to_string()));
+        assert_eq!(output.published, Some("today".to_string()));
         assert_eq!(output.content_preview, Some("preview".to_string()));
     }
 }

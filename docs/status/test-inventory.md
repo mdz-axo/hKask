@@ -149,9 +149,17 @@ graph TD
 ### 4.3 Gas Budget — hkask-cns/src/gas_budget_management.rs
 
 | Seam | Depth | Test? | Invariant |
-|------|-------|-------|-----------|
+|------|-------|-------|------------|
 | Gas allocation/depletion | Deep | ✅ (existing) | Cannot exceed budget |
 | Gas estimation | Deep | ✅ (existing) | Estimation bounds |
+
+### 4.4 SnapshotLoop — hkask-agents/src/loop_system.rs
+
+| Seam | Depth | Test? | Invariant |
+|------|-------|-------|------------|
+| SnapshotLoop registered in AUTHORITY_ORDER | Deep | ✅ (existing) | LoopSystem registers Snapshot after Cybernetics |
+| SnapshotLoop tick interval (60s) | Deep | ✅ (existing) | Less frequent than Cybernetics (2s) |
+| SnapshotLoop uses GitCASPort | Deep | ✅ (existing) | Calls `snapshot()` via hexagonal port |
 
 **Assessment:** hkask-cns has good behavioral test coverage. Review for alignment with DDMVSS invariants needed.
 
@@ -243,12 +251,43 @@ graph TD
 | CultivateResponse above/below threshold | Deep | ✅ | Coherence vs threshold determines above_threshold | ✅
 | GraphValidateResponse valid/invalid | Deep | ✅ | Violations present → valid=false | ✅
 
+## 6. Deep Seam Inventory — hkask-types/ports (Git CAS)
+
+### 6.1 `GitCASPort` — hkask-types/src/ports/git_cas.rs
+
+| Seam | Depth | Test? | Invariant |
+|------|-------|-------|------------|
+| `GitCasError` 7 variants distinct prefixes | Deep | ✅ (existing) | C5: every variant = unique recovery path |
+| `MockGitCas` put/get roundtrip | Deep | ✅ (existing) | Port contract: write → read identity |
+| `MockGitCas` snapshot history | Deep | ✅ (existing) | Snapshot records commit history |
+| `MockGitCas` verify integrity | Deep | ✅ (existing) | Verify reports correct blob count |
+| `ContentHash` roundtrip | Deep | ✅ (existing) | Blake3 hash serializes/deserializes |
+| `CommitHash` roundtrip | Deep | ✅ (existing) | SHA-1 hash display/parse roundtrip |
+| `RepoId::all` returns 7 variants | Deep | ✅ (existing) | All repos enumerated |
+| `RetentionPolicy` defaults | Deep | ✅ (existing) | 4 tiers, ordered by age |
+| `RepoSnapshotPolicy` default/disabled | Deep | ✅ (existing) | Policy controls enablement |
+| `SnapshotTrigger` serialization | Deep | ✅ (existing) | Trigger enum roundtrips through serde |
+
+### 6.2 AdapterContainer — hkask-agents/src/adapter_container.rs
+
+| Seam | Depth | Test? | Invariant |
+|------|-------|-------|------------|
+| `AdapterContainer` stores `git_cas_port` | Deep | ✅ (existing) | Field accessible as `Arc<dyn GitCASPort>` |
+| `AdapterContainer::new` requires port | Deep | ✅ (existing) | Cannot construct without CAS port |
+
+### 6.3 Stores::init CAS wiring — hkask-api/src/lib.rs
+
+| Seam | Depth | Test? | Invariant |
+|------|-------|-------|------------|
+| `Stores::init` receives `GitCASPort` | Deep | ✅ (existing) | ConsentStore, GoalRepo, StandingSession wired with CAS |
+| `build_loop_system` receives `GitCASPort` | Deep | ✅ (existing) | SnapshotLoop created with CAS port |
+
 ## 7. Unverified Seams — Zero Test Modules
 
 | Crate/MCP | Public Seams | Test Modules | Gap |
 |-----------|--------------|--------------|-----|
 | `hkask-keystore` | `Keychain`, `MasterKey`, `Encryption`, `KeystoreError` | 4 | ✅ CRITICAL resolved — 31 behavioral tests covering encryption roundtrip, key derivation, HKDF domain separation, OS keychain error mapping |
-| `hkask-mcp` (runtime) | `McpServer`, tool dispatch | 0 | **CRITICAL** — all MCP servers depend on this |
+| `hkask-mcp` (runtime) | `McpServer`, tool dispatch, `GixCasAdapter` | 0 | **CRITICAL** — all MCP servers depend on this |
 | `hkask-mcp-spec` | 8 tool surfaces + 4 new tools + request/response types | 1 | ✅ Types tested (20 tests) — tool handler tests are P3 |
 | `hkask-mcp-web` | `WebSearchPort`, multiple providers | 0 | **HIGH** — external API integration |
 | `hkask-mcp-ocap` | `OcapPolicy`, capability verification | 0 | **HIGH** — security boundary |

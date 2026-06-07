@@ -775,6 +775,7 @@ mod tests {
                 actual: "def".into(),
             },
             GitCasError::NotFound("test".into()),
+            GitCasError::Configuration("test".into()),
         ];
         // All display differently
         let displays: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
@@ -787,7 +788,7 @@ mod tests {
         prefixes.dedup();
         assert_eq!(
             prefixes.len(),
-            6,
+            7,
             "each error variant should have a unique prefix"
         );
     }

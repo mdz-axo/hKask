@@ -138,14 +138,18 @@ mod tests {
         assert_eq!(resp.processing_time_ms, 0);
     }
 
-    // P8 invariant: builder methods set optional fields
+    // P8 invariant: builder methods set optional fields without clobbering base fields
     #[test]
     fn agent_response_builder_methods() {
         let resp = AgentResponse::new(WebID::new(), "test".to_string(), 0.5)
             .with_template("my_template".to_string())
             .with_processing_time(150);
+        // Builder fields
         assert_eq!(resp.template_used, Some("my_template".to_string()));
         assert_eq!(resp.processing_time_ms, 150);
+        // Base fields must survive chaining
+        assert_eq!(resp.content, "test");
+        assert!((resp.confidence - 0.5).abs() < f64::EPSILON);
     }
 
     // ── DeliberationSession ────────────────────────────────────────────────
@@ -215,13 +219,5 @@ mod tests {
         let result = session.synthesize();
         assert!(result.synthesized_response.is_empty());
         assert!(result.individual_responses.is_empty());
-    }
-
-    // P8 invariant: start changes session status
-    #[test]
-    fn deliberation_session_start() {
-        let mut session = DeliberationSession::new("s1".to_string(), WebID::new());
-        session.start();
-        // Status changed — verified indirectly by no panic
     }
 }

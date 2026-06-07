@@ -3,11 +3,25 @@
 //! Implements the CLI display logic for registry git archival operations
 //! and local CAS operations (verify, diff, log, snapshot).
 
+use std::sync::Arc;
+
 use crate::block_on;
 use crate::cli::GitAction;
 use crate::commands;
 use hkask_mcp::GixCasAdapter;
 use hkask_types::ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
+
+/// Resolve the hexagonal `GitCASPort` from the environment.
+///
+/// Returns `Arc<dyn GitCASPort>` so CLI commands share the same trait boundary
+/// as API and MCP servers (MCP ≡ CLI ≡ API parity).
+fn resolve_git_cas_port() -> Arc<dyn GitCASPort> {
+    let adapter = super::helpers::or_exit(
+        GixCasAdapter::from_env(),
+        "Failed to initialize CAS adapter",
+    );
+    Arc::new(adapter) as Arc<dyn GitCASPort>
+}
 
 /// Parse a RepoId from a string, returning Registry as default.
 fn parse_repo_id(repo: &str) -> RepoId {
@@ -138,12 +152,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
 
         // ── Local CAS operations (Phase 5) ──────────────────────────────
         GitAction::CasVerify { repo } => {
-            let adapter = super::helpers::or_exit(
-                GixCasAdapter::from_env(),
-                "Failed to initialize CAS adapter",
-            );
+            let port = resolve_git_cas_port();
             let repo_id = parse_repo_id(&repo);
-            let report = block_on!(rt, adapter.verify(&repo_id), "Verify failed");
+            let report = block_on!(rt, port.verify(&repo_id), "Verify failed");
 
             println!("Verification report for '{}':", report.repo.dir_name());
             println!("  Total blobs:   {}", report.total_blobs);
@@ -159,12 +170,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         }
 
         GitAction::CasDiff { repo, from, to } => {
-            let adapter = super::helpers::or_exit(
-                GixCasAdapter::from_env(),
-                "Failed to initialize CAS adapter",
-            );
+            let port = resolve_git_cas_port();
             let repo_id = parse_repo_id(&repo);
-            let diffs = block_on!(rt, adapter.diff(&repo_id, &from, &to), "Diff failed");
+            let diffs = block_on!(rt, port.diff(&repo_id, &from, &to), "Diff failed");
 
             println!("Diff for '{}' ({} → {}):", repo_id.dir_name(), from, to);
             if diffs.is_empty() {
@@ -177,12 +185,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         }
 
         GitAction::CasLog { repo, max_count } => {
-            let adapter = super::helpers::or_exit(
-                GixCasAdapter::from_env(),
-                "Failed to initialize CAS adapter",
-            );
+            let port = resolve_git_cas_port();
             let repo_id = parse_repo_id(&repo);
-            let entries = block_on!(rt, adapter.log(&repo_id, max_count), "Log failed");
+            let entries = block_on!(rt, port.log(&repo_id, max_count), "Log failed");
 
             if entries.is_empty() {
                 println!("No snapshots found for '{}'.", repo_id.dir_name());
@@ -195,12 +200,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         }
 
         GitAction::CasSnapshot { repo, message } => {
-            let adapter = super::helpers::or_exit(
-                GixCasAdapter::from_env(),
-                "Failed to initialize CAS adapter",
-            );
+            let port = resolve_git_cas_port();
             let repo_id = parse_repo_id(&repo);
-            let commit = block_on!(rt, adapter.snapshot(&repo_id, &message), "Snapshot failed");
+            let commit = block_on!(rt, port.snapshot(&repo_id, &message), "Snapshot failed");
 
             println!("Snapshot created for '{}': {}", repo_id.dir_name(), commit);
         }
@@ -210,17 +212,14 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             r#ref,
             prefix,
         } => {
-            let adapter = super::helpers::or_exit(
-                GixCasAdapter::from_env(),
-                "Failed to initialize CAS adapter",
-            );
+            let port = resolve_git_cas_port();
             let repo_id = parse_repo_id(&repo);
             let reference = r#ref.as_deref().unwrap_or("HEAD");
             let prefix_str = prefix.as_deref().unwrap_or("");
 
             let entries = block_on!(
                 rt,
-                adapter.list_tree(&repo_id, reference, prefix_str),
+                port.list_tree(&repo_id, reference, prefix_str),
                 "List tree failed"
             );
 
@@ -241,7 +240,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                     if entry.kind == TreeEntryKind::Blob {
                         let content = block_on!(
                             rt,
-                            adapter.get_blob(&repo_id, &entry.content_hash),
+                            port.get_blob(&repo_id, &entry.content_hash),
                             "Get blob failed"
                         );
                         println!(
