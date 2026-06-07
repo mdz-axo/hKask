@@ -99,8 +99,11 @@ for its category cluster.
 | Document | DDMVSS | Description |
 |----------|--------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | all | **Single source of truth** for metrics, build, test, DDMVSS completeness |
-| [`mcp-server-audit.md`](status/mcp-server-audit.md) | capability, observability | MCP server completeness audit |
+| [`mcp-server-audit.md`](status/mcp-server-audit.md) | capability, observability | MCP server completeness audit (21 servers, 123 tools) |
 | [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs and credentials |
+| [`test-inventory.md`](status/test-inventory.md) | observability, domain, capability | Test seam depth and behavioral coverage |
+| [`fowler-audit-status.md`](status/fowler-audit-status.md) | capability, interface, composition | Fowler pattern refactoring tracker |
+| [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | capability, interface, composition | Dead code and unwired seam inventory |
 
 ---
 
@@ -129,9 +132,18 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | Document | DDMVSS | Description |
 |----------|--------|-------------|
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | all | Mermaid diagram verification registry |
-| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, capability, observability, curation, lifecycle | Underspecified aspects awaiting decisions |
+| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, capability, observability, curation, lifecycle | Underspecified aspects (4 of 7 resolved) |
 
 | [`generated/cli-reference.md`](generated/cli-reference.md) | interface | Auto-generated CLI reference |
+
+---
+
+## Research (`research/`)
+
+| Document | DDMVSS | Description |
+|----------|--------|-------------|
+| [`hhh-alignment-research.md`](research/hhh-alignment-research.md) | domain, capability, observability, curation | HHH alignment mode for inference governance |
+| [`hhh-open-design-questions.md`](research/hhh-open-design-questions.md) | domain, capability | Open design questions for HHH mode |
 
 ---
 

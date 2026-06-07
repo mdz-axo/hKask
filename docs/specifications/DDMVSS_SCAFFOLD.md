@@ -76,7 +76,11 @@ docs/
 │   └── high-temp-templates.md             # Template design draft
 ├── status/
 │   ├── PROJECT_STATUS.md                  # Single source of truth
-│   └── mcp-server-audit.md                # MCP server completeness audit
+│   ├── mcp-server-audit.md                # MCP server completeness audit
+│   ├── mcp-tools-inventory.md             # Complete catalog of MCP tools by server
+│   ├── test-inventory.md                  # Test seam depth and behavioral coverage
+│   ├── fowler-audit-status.md              # Fowler pattern refactoring tracker
+│   └── adversarial-simplification-inventory.md  # Dead code and unwired seam inventory
 ├── user-guides/                           # User-facing guides
 ├── archive/                                # Archived documents (gitignored)
 ├── ci/                                     # CI verification scripts

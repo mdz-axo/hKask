@@ -57,7 +57,7 @@ impl SovereigntyConsent for AllowAllConsent {
 /// Reads explicit consent from the supplied `SovereigntyConsent` port.
 /// This is the live wiring of the Magna Carta's "explicit consent tracking"
 /// requirement.
-pub(crate) struct SovereigntyChecker {
+pub struct SovereigntyChecker {
     state: UserSovereigntyState,
     owner_webid: WebID,
     consent: Arc<dyn SovereigntyConsent>,

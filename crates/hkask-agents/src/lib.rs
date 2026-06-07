@@ -51,5 +51,4 @@ pub use ports::{
 };
 pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;
-pub(crate) use sovereignty::SovereigntyChecker;
-pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyConsent};
+pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyChecker, SovereigntyConsent};

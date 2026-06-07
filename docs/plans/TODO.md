@@ -1,8 +1,8 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-03
-version: "1.4.0"
+last_updated: 2026-06-06
+version: "1.5.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -32,7 +32,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
-| **P1-06** | Citation compliance audit | Curator | Medium | Pending | P1-06 — Spot check passed, full audit deferred |
+| **P1-06** | Citation compliance audit | Curator | Medium | ⬜ Open | P1-06 — Deferred pending build regression fix |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web: 3,389 LOC (verified 2026-05-28) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have ddmvss_categories (2026-05-28) |
 
@@ -47,6 +47,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-03** | GPU acceleration (CUDA) | Infrastructure | Low | Optional |
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
+| **P2-06** | Resolve hkask-agents build regression (SovereigntyChecker, ConsentManager) | Dev | High | ⬜ Open | 5 compile errors in hkask-agents |
 
 ---
 
@@ -58,7 +59,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **D-02** | Federation transport | Complexity exceeds budget | ADR pending |
 | **D-03** | Remote LLM providers | Local-first invariant | ADR pending |
 | **D-04** | Fine-tuning (axolotl) | Not MVP | N/A |
-| **D-05** | hkask-surface reactive protocol | Not implemented | OQ-1 |
+| **D-05** | hkask-surface reactive protocol | Not implemented | OQ-1 (resolved: removed from docs) |
 
 ---
 
@@ -115,7 +116,10 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-33** | Update MCP server count 15→18 across all docs | 2026-06-03 | PRINCIPLES, domain-and-capability, persistence-and-lifecycle, subsystem-erds, REQUIREMENTS, OPEN_QUESTIONS, mcp-server-audit |
 | **R-34** | Update DDMVSS_SCAFFOLD directory tree | 2026-06-03 | Removed archived plans, added loop-architecture.md, distillation-erd.md |
 | **R-35** | Fix docs/README.md portal (remove dead links) | 2026-06-03 | Removed archived plan links, fixed GML reference |
-| **R-36** | Fix hKask-architecture-master.md references | 2026-06-03 | Removed superseded reference/loop-architecture.md, added distillation-erd.md |
+| **R-37** | Archive IMPLEMENTATION-PLAN-simplification.md (Task 2) | 2026-06-06 | `docs/archive/2026-06-06-documentation-refresh/` |
+| **R-38** | Update PROJECT_STATUS.md (v0.23.0, build regression, MCP server count 21) | 2026-06-06 | version, metrics, build status |
+| **R-39** | Update DDMVSS_SCAFFOLD.md with current directory structure | 2026-06-06 | Added 4 status docs to tree |
+| **R-40** | Update architecture-master ADR-029 description | 2026-06-06 | Clarified ADR-029 scope |
 
 ---
 

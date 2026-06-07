@@ -88,7 +88,7 @@ impl PodManager {
             capability_checker: None,
             governed_tool: None,
             nu_event_sink: None,
-            consent: Arc::new(DenyAllConsent),
+            consent: Arc::new(crate::DenyAllConsent),
         }
     }
 

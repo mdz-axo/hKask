@@ -73,7 +73,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
 | [`ADR-027-argon2-hkdf-master-key.md`](ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
 | [`ADR-028-acp-protocol-design.md`](ADR-028-acp-protocol-design.md) | ACP protocol design — JSON-RPC 2.0 over stdio (retroactive) |
-| [`ADR-029-goal-capability-primitive.md`](ADR-029-goal-capability-primitive.md) | Goal capability primitive (retroactive) |
+| [`ADR-029-goal-capability-primitive.md`](ADR-029-goal-capability-primitive.md) | Goal capability primitive — distinct typed token (not collapsed into generic capability) |
 | [`ADR-030-skill-bundler.md`](ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
 | [`ADR-031-consolidation-authorization.md`](ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
 
@@ -135,7 +135,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 23 active architecture documents (4 specs + 4 framework + 1 index + 7 ADRs + 7 reference artifacts).
+**Total:** 22 active architecture documents (4 specs + 4 framework + 1 index + 10 ADRs + 7 reference artifacts). Archived: IMPLEMENTATION-PLAN-simplification.md (moved to docs/archive/2026-06-06-documentation-refresh/).
 
 ---
 

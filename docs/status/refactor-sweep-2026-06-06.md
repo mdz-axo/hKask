@@ -5,6 +5,7 @@ last_updated: 2026-06-06
 version: "1.0.0"
 status: "Active"
 domain: "Refactoring"
+ddmvss_categories: [capability, interface, composition]
 source: "Refactor Sweep prompt, 2026-06-06"
 ---
 

@@ -1,8 +1,8 @@
 ---
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
-last_updated: 2026-06-03
-version: "0.21.5"
+last_updated: 2026-06-06
+version: "0.23.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -16,8 +16,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
-**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned); documentation portal added and metadata gate fully green 2026-05-29  
-**Next Phase:** Operational hardening and stub MCP server completion
+**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned); adversarial simplification and Fowler audit in progress  
+**Next Phase:** Resolve build regression in `hkask-agents`, complete Fowler audit P3.5/P4.4
 
 ---
 
@@ -30,6 +30,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Core LOC (Rust)** | ~57,730 | Measured 2026-06-05 |
 | **MCP Server LOC (Rust)** | ~12,099 | Excluded from budget |
 | **Total Rust LOC** | ~69,829 | — |
+
+> **Note:** LOC counts are from the last clean measurement (2026-06-05). A build regression in `hkask-agents` (5 compile errors related to `SovereigntyChecker` / `ConsentManager` import) prevents a fresh count as of 2026-06-06.
 | **Excluded** | Jinja2 templates, YAML manifests | Not counted |
 
 ### 2.2 Test Metrics
@@ -54,8 +56,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | Component | Count | Description |
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
-| **MCP Servers** | 18 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`, `hkask-mcp-ensemble`, `hkask-mcp-episodic`, `hkask-mcp-semantic`) |
-| **Total** | 30 | All in workspace |
+| **MCP Servers** | 21 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`, `hkask-mcp-ensemble`, `hkask-mcp-episodic`, `hkask-mcp-semantic`, `hkask-mcp-doc-knowledge`, `hkask-mcp-markitdown`) |
+| **Total** | 32 | All in workspace |
 
 ---
 
@@ -90,7 +92,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `hkask-cli` | 12,151 | CLI commands (25 subcommand groups) | ✅ Complete |
 | `hkask-api` | 5,558 | HTTP API (18 route groups), utoipa | ✅ Complete |
 
-### 3.3 MCP Servers (18)
+### 3.3 MCP Servers (21)
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
@@ -126,12 +128,12 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Architecture Specs** | 4 | `docs/architecture/` (domain-and-capability, interface-and-composition, trust-security-observability, persistence-and-lifecycle) |
 | **Architecture Framework** | 4 | `docs/architecture/` (DDMVSS, PRINCIPLES, loop-architecture, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
-| **Architecture ADR** | 8 | `docs/architecture/` (ADR-022 through ADR-029; ADR-029 = goal capability primitive) |
+| **Architecture ADR** | 10 | `docs/architecture/` (ADR-022 through ADR-031) |
 | **Reference Artifacts** | 7 | `docs/architecture/reference/` (incl. distillation-erd) |
 | **Specifications** | 9 | `docs/specifications/` |
 | **Plans** | 2 | `docs/plans/` (TODO, high-temp-templates) |
 | **User Guides** | 2 | `docs/user-guides/` |
-| **Status** | 2 | `docs/status/` (PROJECT_STATUS, mcp-server-audit) |
+| **Status** | 6 | `docs/status/` (PROJECT_STATUS, mcp-server-audit, mcp-tools-inventory, test-inventory, fowler-audit-status, adversarial-simplification-inventory) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
@@ -171,8 +173,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Gate | Status | Last Run |
 |------|--------|----------|
-| **Build** (`cargo check --workspace`) | ✅ Pass | 2026-05-29 |
-| **Tests** | ✅ Pass | 2026-05-25 |
+| **Build** (`cargo check --workspace`) | ❌ 5 compile errors in `hkask-agents` | 2026-06-06 |
+| **Tests** | ⚠️ Blocked by build regression | 2026-06-06 |
 | **Lint** | ✅ Pass | 2026-05-25 |
 | **Format** (`cargo fmt --check`) | ✅ Pass | 2026-05-29 |
 | **Metadata Headers** (`docs/ci/check-metadata.sh`) | ✅ 49/49 docs compliant, 0 missing | 2026-05-29 |
@@ -221,7 +223,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Issue | Severity | Status |
 |-------|----------|--------|
-| None — all compilation errors resolved | — | ✅ Fixed |
+| 5 compile errors in `hkask-agents` (SovereigntyChecker import, DenyAllConsent, Arc import, missing consent field) | High | ⬜ Open |
 
 **Resolved 2026-05-29 (goal capability hardening, P0-03):**
 

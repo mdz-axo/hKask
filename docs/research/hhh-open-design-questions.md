@@ -1,9 +1,12 @@
 ---
 title: "HHH Mode — Open Design Questions"
 date: 2026-06-04
+last_updated: 2026-06-04
 version: "2.0.0"
 status: "Pre-Implementation"
+domain: "Architecture, Alignment, Inference Governance"
 audience: [architects, developers]
+ddmvss_categories: [domain, capability]
 related:
   - docs/research/hhh-alignment-research.md
 ---
