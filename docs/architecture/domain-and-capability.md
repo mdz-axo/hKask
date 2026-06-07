@@ -169,7 +169,6 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `Template` | `cns.template.*` | Template lifecycle |
 | `Curation` | `cns.curation.*` | Curation operations |
 | `Variety` | `cns.variety.*` | Variety counter tracking |
-| `KillZone` | `cns.killzone.*` | User sovereignty kill-zone events |
 | `Sovereignty` | `cns.sovereignty.*` | User sovereignty enforcement |
 | `Goal` | `cns.goal.*` | Goal lifecycle operations |
 | `Spec` | `cns.spec.*` | DDMVSS specification operations |

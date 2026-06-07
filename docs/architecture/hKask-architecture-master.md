@@ -38,7 +38,7 @@ The architecture is specified in four DDMVSS-aligned documents, each authoritati
 | [`DDMVSS.md`](DDMVSS.md) | Domain-Driven Minimum Viable Specification Set — 9-category taxonomy and MVSDD methodology |
 | [`PRINCIPLES.md`](PRINCIPLES.md) | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
 | [`loop-architecture.md`](loop-architecture.md) | 6-loop architecture — authority DAG, crate↔loop mapping, capability membranes |
-| [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, kill-zone detection |
+| [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, Magna Carta verification |
 
 ---
 

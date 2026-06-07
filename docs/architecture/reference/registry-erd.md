@@ -20,7 +20,6 @@ The high-temperature template registry stores templates and their invocations fo
 erDiagram
     templates ||--o{ template_invocations : "has many"
     template_invocations ||--o{ curation_records : "evaluated by"
-    cns_variety ||--o{ cns_killzone : "monitors"
     
     templates {
         string id PK
@@ -68,14 +67,7 @@ erDiagram
         timestamp updated_at
     }
     
-    cns_killzone {
-        string id PK
-        string space_id
-        real vc_investment
-        integer acquisition_count
-        integer kill_zone_detected
-        timestamp last_updated
-    }
+
     ```
 
 <!-- DIAGRAM_ALIGNMENT
@@ -149,18 +141,7 @@ Variety counter monitoring for CNS.
 | last_alert | TIMESTAMP | Last algedonic alert time |
 | updated_at | TIMESTAMP | Last update timestamp |
 
-### cns_killzone
 
-Kill zone detection for catch-and-kill monitoring.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | TEXT | Primary key |
-| space_id | TEXT | Technology/market space being monitored |
-| vc_investment | REAL | VC investment level (0.0-1.0) |
-| acquisition_count | INTEGER | Number of acquisitions in space |
-| kill_zone_detected | INTEGER | Boolean flag (0/1) |
-| last_updated | TIMESTAMP | Last update timestamp |
 
 ## Usage Patterns
 
@@ -195,16 +176,7 @@ SET counter = ?, updated_at = datetime('now')
 WHERE span = ?;
 ```
 
-### Detect Kill Zone
 
-```sql
-UPDATE cns_killzone
-SET vc_investment = ?, 
-    acquisition_count = acquisition_count + 1,
-    kill_zone_detected = CASE WHEN ? < 0.5 AND acquisition_count > 0 THEN 1 ELSE 0 END,
-    last_updated = datetime('now')
-WHERE space_id = ?;
-```
 
 ## Security Notes
 

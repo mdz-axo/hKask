@@ -342,10 +342,6 @@ CNS spans form a hierarchical observability structure grounded in cybernetic reg
             CALG[cns.variety.algedonic]
         end
         
-        subgraph "cns.killzone.*"
-            CKZ[cns.killzone.detect]
-        end
-        
         subgraph "cns.sovereignty.*"
             CSOV[cns.sovereignty.check]
         end

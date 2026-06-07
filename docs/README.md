@@ -47,7 +47,7 @@ for its category cluster.
 | [`trust-security-observability.md`](architecture/trust-security-observability.md) | trust, observability | OCAP enforcement, key derivation, encryption stack, CNS spans, algedonic alerts |
 | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) | persistence, lifecycle | SQLite + SQLCipher, bitemporal triples, embeddings, bootstrap, evolution rules |
 | [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, capability, curation | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
-| [`magna-carta.md`](architecture/magna-carta.md) | trust | User sovereignty charter — catch-and-release, kill-zone detection |
+| [`magna-carta.md`](architecture/magna-carta.md) | trust | User sovereignty charter — catch-and-release, affirmative consent, Magna Carta verification |
 
 ### Architecture Decision Records
 

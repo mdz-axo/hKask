@@ -189,8 +189,8 @@ The Magna Carta principle enforces user sovereignty:[^westin-data]
 | **Capability revocation** | User can revoke any granted capability |
 | **Visibility control** | Private/public gating per data category |
 | **Consent management** | `ConsentManager` tracks authorization |
-| **Acquisition resistance** | `AcquisitionResistance(pub bool)` — resistant or open |
-| **Kill-zone detection** | `KillZoneDetector` in `hkask-cns` monitors VC investment; CNS alert when triggered |
+| **Consent management** | `ConsentManager` tracks scoped, versioned, expiring authorization |
+| **Affirmative consent** | `requires_affirmative_consent: bool` — default deny, consent required |
 
 **SovereigntyChecker** (`crates/hkask-agents/src/sovereignty.rs`):
 

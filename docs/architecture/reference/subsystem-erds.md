@@ -90,7 +90,6 @@ erDiagram
         string Template
         string Curation
         string Variety
-        string KillZone
         string Sovereignty
         string Goal
         string Spec
@@ -781,8 +780,7 @@ erDiagram
         array sovereign_categories
         array shared_categories
         array public_categories
-        string resistance
-        float kill_zone_threshold
+        string requires_affirmative_consent
         i64 created_at
     }
 

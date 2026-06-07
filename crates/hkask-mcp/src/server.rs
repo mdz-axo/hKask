@@ -687,8 +687,12 @@ where
         version = version,
         "MCP server starting"
     );
-    let service = server.serve(rmcp::transport::stdio());
-    service.await?;
+    let running = server.serve(rmcp::transport::stdio()).await?;
+    // Keep the RunningService alive until the service loop exits
+    // (stdin closes or cancellation). Without .waiting().await, the
+    // RunningService is dropped immediately, cancelling its CancellationToken
+    // and killing the service loop before it can process any requests.
+    running.waiting().await?;
     Ok(())
 }
 
@@ -793,7 +797,11 @@ where
         version = version,
         "MCP server starting"
     );
-    let service = server.serve(rmcp::transport::stdio());
-    service.await?;
+    let running = server.serve(rmcp::transport::stdio()).await?;
+    // Keep the RunningService alive until the service loop exits
+    // (stdin closes or cancellation). Without .waiting().await, the
+    // RunningService is dropped immediately, cancelling its CancellationToken
+    // and killing the service loop before it can process any requests.
+    running.waiting().await?;
     Ok(())
 }

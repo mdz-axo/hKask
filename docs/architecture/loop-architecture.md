@@ -201,8 +201,7 @@ The existing `cns.*` span namespaces are not removed — they are **absorbed** i
 | `cns.pipeline.*` | Memory pipeline — energy cost of memory operations |
 | `cns.variety.*` | Variety counters — homeostatic variety sensing |
 | `cns.curation.*` | Curation operations — signal to Curation Loop |
-| `cns.killzone.*` | Sovereignty enforcement — signal to Curation Loop |
-| `cns.sovereignty.*` | Sovereignty tracking — signal to Curation Loop |
+| `cns.sovereignty.*` | Sovereignty enforcement — signal to Curation Loop |
 | `cns.goal.*` | Goal lifecycle — signal to Curation Loop |
 | `cns.spec.*` | Specification operations — signal to Curation Loop |
 

@@ -33,5 +33,3 @@ path = "src/main.rs"
 
 [dev-dependencies]
 proptest = "1"
-rmcp = { workspace = true, features = ["client", "transport-child-process"] }
-tracing-subscriber = { workspace = true }
