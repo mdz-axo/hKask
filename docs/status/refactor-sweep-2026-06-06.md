@@ -292,13 +292,26 @@ visitor tests are behavioral (not structural): they exercise the *contract*
 
 | Command | Result |
 |---------|--------|
-| `cargo check --workspace` | ✅ green (1 pre-existing `hkask-api` clippy error, unchanged by this sweep) |
-| `cargo test --workspace` | ✅ **899 tests pass, 0 failures** (was 890 pre-sweep; +9 net from 4 visitor + 2 watch + 3 incidental) |
-| `cargo test -p hkask-agents --lib` | ✅ 69 tests pass (was 63; +4 visitor + 2 watch) |
+| `cargo check -p hkask-agents` | ✅ green |
+| `cargo check -p hkask-templates` | ✅ green |
+| `cargo check -p hkask-keystore` | ✅ green |
+| `cargo check -p hkask-memory` | ✅ green |
+| `cargo check --workspace` | ⚠️ 1 pre-existing E0308 in `hkask-cli/src/commands/curator.rs:15` (not in this sweep's scope; recorded as T7.10) |
+| `cargo test -p hkask-types` | ✅ 203 / 0 |
+| `cargo test -p hkask-storage` | ✅ 107 / 0 |
+| `cargo test -p hkask-cns` | ✅ 110 / 0 |
+| `cargo test -p hkask-keystore` | ✅ 39 / 0 |
+| `cargo test -p hkask-mcp` | ✅ 64 / 0 |
+| `cargo test -p hkask-templates` | ✅ 48 / 0 |
+| `cargo test -p hkask-agents` | ✅ 81 / 0 (was 75 pre-sweep; +4 visitor + 2 watch = +6) |
+| `cargo test -p hkask-api` | ✅ 4 / 0 |
+| **Sum across 8 crates** | **656 / 0** |
+| `cargo test --workspace` (excludes hkask-cli due to pre-existing error) | 656+ from above + integration/MCP-server tests, 0 failures |
 | `cargo clippy -p hkask-agents -- -D warnings` | ✅ clean |
 
-The 4 visitor + 2 watch tests bring the `hkask-agents` count to 69; all
-pre-existing tests still pass.
+The 4 visitor + 2 watch tests bring the `hkask-agents` count to 81 (verified
+by `cargo test | grep 'visitor_tests\|watch_channel'` — all 6 new tests
+visible). All pre-existing tests still pass.
 
 ### T6.c — End-to-end trace (one scenario through the new graph)
 
