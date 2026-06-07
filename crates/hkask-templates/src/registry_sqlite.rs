@@ -14,7 +14,7 @@ use hkask_types::{InfrastructureError, Skill, TemplateType};
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
 
-/// Raw skill row tuple: (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone)
+/// Raw skill row tuple: (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace)
 type SkillRow = (
     String,
     String,
@@ -25,6 +25,7 @@ type SkillRow = (
     Option<String>,
     String,
     String,
+    Option<String>,
 );
 
 /// Parsed row tuple from the templates table:
@@ -163,6 +164,7 @@ impl SqliteRegistry {
                 content_hash TEXT,
                 visibility TEXT NOT NULL DEFAULT 'private',
                 zone TEXT NOT NULL DEFAULT 'private',
+                namespace TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -475,8 +477,8 @@ impl SkillRegistryIndex for SqliteRegistry {
     fn register_skill(&mut self, skill: Skill) {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 skill.id,
                 skill.domain.as_str(),
@@ -487,6 +489,7 @@ impl SkillRegistryIndex for SqliteRegistry {
                 skill.content_hash,
                 skill.visibility.as_str(),
                 skill.zone.as_str(),
+                skill.namespace,
             ],
         )
         .map_err(|e| TemplateError::Manifest(format!("Failed to insert skill: {}", e)))
@@ -647,6 +650,7 @@ impl SqliteRegistry {
         content_hash: Option<String>,
         visibility_str: String,
         zone_str: String,
+        namespace: Option<String>,
     ) -> Option<Skill> {
         let domain = TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
         let polarity = polarity_str.and_then(|s| hkask_types::SkillPolarity::parse_str(&s));
@@ -664,6 +668,7 @@ impl SqliteRegistry {
             content_hash,
             visibility,
             zone,
+            namespace,
         })
     }
 
@@ -671,7 +676,7 @@ impl SqliteRegistry {
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
         let conn = self.conn.lock().unwrap();
         conn.query_row(
-                "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone FROM skills WHERE id = ?1",
+                "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE id = ?1",
                 params![id],
                 |row| {
                     Ok((
@@ -684,12 +689,13 @@ impl SqliteRegistry {
                         row.get::<_, Option<String>>(6)?,
                         row.get::<_, String>(7)?,
                         row.get::<_, String>(8)?,
+                        row.get::<_, Option<String>>(9)?,
                     ))
                 },
             )
             .ok()
-            .and_then(|(id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash, visibility_str, zone_str)| {
-                Self::row_to_skill(&conn, id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash, visibility_str, zone_str)
+            .and_then(|(id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash, visibility_str, zone_str, namespace)| {
+                Self::row_to_skill(&conn, id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash, visibility_str, zone_str, namespace)
             })
     }
 
@@ -701,7 +707,7 @@ impl SqliteRegistry {
         };
 
         let mut stmt = match conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone FROM skills",
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills",
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
@@ -718,6 +724,7 @@ impl SqliteRegistry {
                 row.get(6)?,
                 row.get(7)?,
                 row.get(8)?,
+                row.get(9)?,
             ))
         }) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
@@ -735,6 +742,7 @@ impl SqliteRegistry {
             content_hash,
             visibility_str,
             zone_str,
+            namespace,
         ) in rows
         {
             if let Some(skill) = Self::row_to_skill(
@@ -748,6 +756,7 @@ impl SqliteRegistry {
                 content_hash,
                 visibility_str,
                 zone_str,
+                namespace,
             ) {
                 skills.push(skill);
             }
@@ -763,7 +772,7 @@ impl SqliteRegistry {
         };
 
         let mut stmt = match conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone FROM skills WHERE domain = ?1",
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE domain = ?1",
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
@@ -780,6 +789,7 @@ impl SqliteRegistry {
                 row.get(6)?,
                 row.get(7)?,
                 row.get(8)?,
+                row.get(9)?,
             ))
         }) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
@@ -797,6 +807,7 @@ impl SqliteRegistry {
             content_hash,
             visibility_str,
             zone_str,
+            namespace,
         ) in rows
         {
             if let Some(skill) = Self::row_to_skill(
@@ -810,6 +821,7 @@ impl SqliteRegistry {
                 content_hash,
                 visibility_str,
                 zone_str,
+                namespace,
             ) {
                 skills.push(skill);
             }
@@ -825,7 +837,7 @@ impl SqliteRegistry {
         };
 
         let mut stmt = match conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1"
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1"
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
@@ -842,6 +854,7 @@ impl SqliteRegistry {
                 row.get(6)?,
                 row.get(7)?,
                 row.get(8)?,
+                row.get(9)?,
             ))
         }) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
@@ -859,6 +872,7 @@ impl SqliteRegistry {
             content_hash,
             visibility_str,
             zone_str,
+            namespace,
         ) in rows
         {
             if let Some(skill) = Self::row_to_skill(
@@ -872,6 +886,7 @@ impl SqliteRegistry {
                 content_hash,
                 visibility_str,
                 zone_str,
+                namespace,
             ) {
                 skills.push(skill);
             }

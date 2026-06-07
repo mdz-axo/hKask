@@ -26,6 +26,7 @@ pub mod models;
 pub mod pod;
 pub mod registry;
 pub mod serve;
+pub mod skill;
 pub mod sovereignty;
 pub mod spec;
 pub mod template;

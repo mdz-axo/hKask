@@ -326,6 +326,15 @@ pub struct Skill {
     pub content_hash: Option<String>,
     pub visibility: crate::visibility::Visibility,
     pub zone: SkillZone,
+    /// Namespace (replicant handle) for collision-free public sharing.
+    ///
+    /// Always a user replicant name (e.g. "russell"), never a system agent.
+    /// System agents (bots) don't author or share skills — only human replicants do.
+    ///
+    /// In the public zone, skills are stored as `<namespace>--<id>/` directories.
+    /// In the private zone, namespace is typically `None` (user-local, no collision).
+    /// When set, `qualified_id()` returns `<namespace>--<id>`.
+    pub namespace: Option<String>,
 }
 
 impl Skill {
@@ -340,6 +349,7 @@ impl Skill {
             content_hash: None,
             visibility: crate::visibility::Visibility::Private,
             zone: SkillZone::Private,
+            namespace: None,
         }
     }
 
@@ -380,6 +390,37 @@ impl Skill {
         self
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
+        self.namespace = Some(namespace.into());
+        self
+    }
+
+    /// Qualified ID for collision-free public sharing.
+    ///
+    /// Returns `<namespace>--<id>` if namespace is set, otherwise just `id`.
+    /// Double-dash separator is intentional: it's unambiguous for filesystem
+    /// directory names and parseable by `parse_qualified_id`.
+    pub fn qualified_id(&self) -> String {
+        match &self.namespace {
+            Some(ns) => format!("{}--{}", ns, self.id),
+            None => self.id.clone(),
+        }
+    }
+
+    /// Parse a qualified ID (`<namespace>--<id>`) into its components.
+    ///
+    /// Returns `(namespace, id)` if the double-dash separator is found,
+    /// or `None` if the string is not a qualified ID.
+    pub fn parse_qualified_id(qualified: &str) -> Option<(String, String)> {
+        let parts: Vec<&str> = qualified.splitn(2, "--").collect();
+        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
+            Some((parts[0].to_string(), parts[1].to_string()))
+        } else {
+            None
+        }
+    }
+
     /// Compute and set SHA-256 content hash from key fields.
     pub fn compute_content_hash(&mut self) {
         use sha2::{Digest, Sha256};
@@ -388,6 +429,9 @@ impl Skill {
         hasher.update(self.domain.as_str().as_bytes());
         hasher.update(self.visibility.as_str().as_bytes());
         hasher.update(self.zone.as_str().as_bytes());
+        if let Some(ref ns) = self.namespace {
+            hasher.update(ns.as_bytes());
+        }
         if let Some(ref wa) = self.word_act {
             hasher.update(wa.as_bytes());
         }
@@ -419,6 +463,27 @@ pub trait SkillRegistryIndex {
     fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill>;
     fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill>;
     fn remove_skill(&mut self, id: &str) -> Option<Skill>;
+
+    /// List skills visible to a given caller visibility context.
+    ///
+    /// P2 (Affirmative Consent) enforcement: default-deny access.
+    /// - A private context (user's local session) sees all skills.
+    /// - A public/shared context (A2A, ensemble) sees only Public or Shared skills.
+    fn list_skills_visible_to(
+        &self,
+        caller_visibility: crate::visibility::Visibility,
+    ) -> Vec<Skill> {
+        match caller_visibility {
+            crate::visibility::Visibility::Private => self.list_skills(),
+            crate::visibility::Visibility::Public | crate::visibility::Visibility::Shared => {
+                let public = self.list_skills_by_visibility(crate::visibility::Visibility::Public);
+                let shared = self.list_skills_by_visibility(crate::visibility::Visibility::Shared);
+                let mut result = public;
+                result.extend(shared);
+                result
+            }
+        }
+    }
 }
 
 /// CRUD for bundle manifests. Read methods return owned values for HashMap/SQLite compat.

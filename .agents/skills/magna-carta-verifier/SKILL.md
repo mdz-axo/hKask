@@ -73,3 +73,19 @@ assertions:
 ## Resolution Process
 
 When an assertion fails, the verification report is escalated to the Curator. The Curator reviews the finding with the human user or the user's replicant in a chat session. The resolution process is defined by the user in collaboration with the Curator.
+
+## CLI Access
+
+```bash
+kask sovereignty verify              # Verify all principles
+kask sovereignty verify --principle p1  # Verify P1 only
+kask sovereignty verify --json       # JSON output (for MCP/API)
+```
+
+## MCP Access
+
+The CNS MCP server exposes `cns_verify_magna_carta` which invokes the CLI verifier and returns a JSON report.
+
+| Tool | Parameters | Returns |
+|------|-----------|--------|
+| `cns_verify_magna_carta` | `principle` (optional: p1, p2, p3, p4) | JSON verification report |

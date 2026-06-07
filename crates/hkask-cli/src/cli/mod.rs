@@ -152,6 +152,12 @@ pub enum Commands {
         action: BundleAction,
     },
 
+    /// Skill management (list, status, publish)
+    Skill {
+        #[command(subcommand)]
+        action: SkillAction,
+    },
+
     /// Style composition — generate prose with exemplar retrieval
     Compose {
         #[command(subcommand)]

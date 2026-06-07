@@ -23,6 +23,8 @@ pub struct SkillFrontMatter {
     #[serde(default)]
     pub visibility: Option<String>,
     #[serde(default)]
+    pub namespace: Option<String>,
+    #[serde(default)]
     pub description: Option<String>,
 }
 
@@ -31,6 +33,7 @@ impl Default for SkillFrontMatter {
         Self {
             name: String::new(),
             visibility: None,
+            namespace: None,
             description: None,
         }
     }
@@ -135,11 +138,32 @@ impl SkillLoader {
 
         let front_matter = Self::parse_front_matter(&content)?;
 
-        let id = skill_dir
+        // Derive ID and namespace from directory name + zone.
+        //
+        // In the public zone, directory names are `<namespace>--<id>` (e.g. "russell--diagnose").
+        // In the private zone, directory names are just `<id>` (no namespace).
+        let dir_name = skill_dir
             .file_name()
             .and_then(|n| n.to_str())
-            .unwrap_or(&front_matter.name)
-            .to_string();
+            .unwrap_or(&front_matter.name);
+
+        let (namespace_from_dir, id_from_dir) = match zone {
+            SkillZone::Public => Skill::parse_qualified_id(dir_name)
+                .unwrap_or_else(|| (String::new(), dir_name.to_string())),
+            SkillZone::Private => (String::new(), dir_name.to_string()),
+        };
+
+        // Front matter namespace wins over directory-inferred namespace.
+        // Directory structure is the fallback for skills published before
+        // namespace was added to SKILL.md.
+        let namespace = front_matter.namespace.or_else(|| {
+            if namespace_from_dir.is_empty() {
+                None
+            } else {
+                Some(namespace_from_dir)
+            }
+        });
+        let id = id_from_dir;
 
         let visibility = front_matter
             .visibility
@@ -150,6 +174,10 @@ impl SkillLoader {
         let mut skill = Skill::new(&id, TemplateType::FlowDef)
             .with_visibility(visibility)
             .with_zone(zone);
+
+        if let Some(ref ns) = namespace {
+            skill = skill.with_namespace(ns.clone());
+        }
 
         skill.compute_content_hash();
 
@@ -181,11 +209,13 @@ impl SkillLoader {
 
         let name = fm.get("name").cloned().unwrap_or_default();
         let visibility = fm.get("visibility").cloned();
+        let namespace = fm.get("namespace").cloned();
         let description = fm.get("description").cloned();
 
         Ok(SkillFrontMatter {
             name,
             visibility,
+            namespace,
             description,
         })
     }
@@ -339,5 +369,90 @@ mod tests {
         assert_ne!(skill_a.content_hash, skill_b.content_hash);
         // Different zone → different hash
         assert_ne!(skill_a.content_hash, skill_c.content_hash);
+    }
+
+    #[test]
+    fn list_skills_visible_to_private_sees_all() {
+        let mut reg = TestRegistry::new();
+        reg.register_skill(
+            Skill::new("s1", TemplateType::FlowDef).with_visibility(Visibility::Private),
+        );
+        reg.register_skill(
+            Skill::new("s2", TemplateType::FlowDef).with_visibility(Visibility::Public),
+        );
+        reg.register_skill(
+            Skill::new("s3", TemplateType::FlowDef).with_visibility(Visibility::Shared),
+        );
+
+        let visible = reg.list_skills_visible_to(Visibility::Private);
+        assert_eq!(visible.len(), 3);
+    }
+
+    #[test]
+    fn list_skills_visible_to_public_sees_only_public_and_shared() {
+        let mut reg = TestRegistry::new();
+        reg.register_skill(
+            Skill::new("s1", TemplateType::FlowDef).with_visibility(Visibility::Private),
+        );
+        reg.register_skill(
+            Skill::new("s2", TemplateType::FlowDef).with_visibility(Visibility::Public),
+        );
+        reg.register_skill(
+            Skill::new("s3", TemplateType::FlowDef).with_visibility(Visibility::Shared),
+        );
+
+        let visible = reg.list_skills_visible_to(Visibility::Public);
+        assert_eq!(visible.len(), 2);
+        let ids: Vec<&str> = visible.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains(&"s2"));
+        assert!(ids.contains(&"s3"));
+        assert!(!ids.contains(&"s1"));
+    }
+
+    #[test]
+    fn qualified_id_with_namespace() {
+        let skill = Skill::new("diagnose", TemplateType::FlowDef).with_namespace("russell");
+        assert_eq!(skill.qualified_id(), "russell--diagnose");
+    }
+
+    #[test]
+    fn qualified_id_without_namespace() {
+        let skill = Skill::new("diagnose", TemplateType::FlowDef);
+        assert_eq!(skill.qualified_id(), "diagnose");
+    }
+
+    #[test]
+    fn parse_qualified_id_valid() {
+        let result = Skill::parse_qualified_id("russell--diagnose");
+        assert_eq!(
+            result,
+            Some(("russell".to_string(), "diagnose".to_string()))
+        );
+    }
+
+    #[test]
+    fn parse_qualified_id_no_separator() {
+        assert!(Skill::parse_qualified_id("diagnose").is_none());
+    }
+
+    #[test]
+    fn parse_qualified_id_empty_parts() {
+        assert!(Skill::parse_qualified_id("--diagnose").is_none());
+        assert!(Skill::parse_qualified_id("russell--").is_none());
+    }
+
+    #[test]
+    fn namespace_collision_prevention() {
+        // Two users publish the same skill name — no collision
+        let skill_a = Skill::new("diagnose", TemplateType::FlowDef)
+            .with_namespace("russell")
+            .with_zone(SkillZone::Public);
+        let skill_b = Skill::new("diagnose", TemplateType::FlowDef)
+            .with_namespace("curator")
+            .with_zone(SkillZone::Public);
+
+        assert_eq!(skill_a.qualified_id(), "russell--diagnose");
+        assert_eq!(skill_b.qualified_id(), "curator--diagnose");
+        assert_ne!(skill_a.qualified_id(), skill_b.qualified_id());
     }
 }

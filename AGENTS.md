@@ -91,6 +91,8 @@ kask chat                            # Interactive (Curator, default model)
 kask chat -m qwen3:8b                 # Specific model
 kask chat Russell -m llama3.1:70b     # Named agent + model
 echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
+kask sovereignty verify              # Magna Carta compliance audit
+kask sovereignty verify --json --principle p1  # JSON output, P1 only
 ```
 
 **Slash commands** (`kask chat`): `/model` show/switch, `/model <query>` fuzzy search, `/agent [NAME]` show/switch, `/status` CNS+agent+model+pods

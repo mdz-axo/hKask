@@ -321,25 +321,25 @@ assertions:
 
 | ID | Principle | Assertion | Method |
 |----|-----------|-----------|--------|
-| 1a | User Sovereignty | Every code path to sovereign data is gated by `SovereigntyChecker` | Structural audit |
-| 1b | User Sovereignty | Non-owner access to sovereign data is denied | Behavioral probes |
-| 1c | User Sovereignty | Every resource is correctly categorized before platform entry | Resource verification |
-| 1d | User Sovereignty | Sovereign data is portable and not locked into proprietary format | Structural audit |
-| 1e | User Sovereignty | Consent terms are atomic — unbundled, specific, ≤5 sentences per term | Structural audit |
-| 2a | Affirmative Consent | Default is deny — no access without explicit consent grant | Structural + behavioral |
-| 2b | Affirmative Consent | Consent grants are scoped to specific categories and resource versions | Structural |
-| 2c | Affirmative Consent | Consent grants expire by date or resource version upgrade | Structural + behavioral |
-| 2d | Affirmative Consent | Consent structures are hierarchical (master → per-agent → per-agent-type) | Structural |
-| 2e | Affirmative Consent | Fail-closed: misconfiguration or missing wiring defaults to deny | Behavioral |
-| 3a | Generative Space | Inference and tooling expose all probabilistic/generative settings to users | Structural |
-| 3b | Generative Space | Internal engineers and users have equal access to generative settings | Absence check |
-| 3c | Generative Space | Generative resources are open-source with exposed weights and settings | Structural + behavioral |
-| 3d | Generative Space | Constraints are user-curated, not system-imposed (HHH is user-selectable) | Structural + behavioral |
-| 3e | Generative Space | User preference overrides take precedence over LLM aggregate defaults | Absence check |
-| 4a | Clear Boundaries | Every access path goes through `require_capability` + `require_sovereignty` | Structural + behavioral |
-| 4b | Clear Boundaries | Capability tokens are unforgeable and attenuating — no bypass exists | Structural |
-| 4c | Clear Boundaries | Generative settings tokens obtainable through P2's affirmative consent | Structural |
-| 4d | Clear Boundaries | Connected inference providers expose settings (open-source requirement) | Structural |
+| p1a | User Sovereignty | Every code path to sovereign data is gated by `SovereigntyChecker` | Structural audit |
+| p1b | User Sovereignty | Non-owner access to sovereign data is denied | Behavioral probes |
+| p1c | User Sovereignty | Every resource is correctly categorized before platform entry | Resource verification |
+| p1d | User Sovereignty | Sovereign data is portable and not locked into proprietary format | Structural audit |
+| p1e | User Sovereignty | Consent terms are atomic — unbundled, specific, ≤5 sentences per term | Structural audit |
+| p2a | Affirmative Consent | Default is deny — no access without explicit consent grant | Structural + behavioral |
+| p2b | Affirmative Consent | Consent grants are scoped to specific categories and resource versions | Structural |
+| p2c | Affirmative Consent | Consent grants expire by date or resource version upgrade | Structural + behavioral |
+| p2d | Affirmative Consent | Consent structures are hierarchical (master → per-agent → per-agent-type) | Structural |
+| p2e | Affirmative Consent | Fail-closed: misconfiguration or missing wiring defaults to deny | Behavioral |
+| p3a | Generative Space | Inference and tooling expose all probabilistic/generative settings to users | Structural |
+| p3b | Generative Space | Internal engineers and users have equal access to generative settings | Absence check |
+| p3c | Generative Space | Generative resources are open-source with exposed weights and settings | Structural + behavioral |
+| p3d | Generative Space | Constraints are user-curated, not system-imposed (HHH is user-selectable) | Structural + behavioral |
+| p3e | Generative Space | User preference overrides take precedence over LLM aggregate defaults | Absence check |
+| p4a | Clear Boundaries | Every access path goes through `require_capability` + `require_sovereignty` | Structural + behavioral |
+| p4b | Clear Boundaries | Capability tokens are unforgeable and attenuating — no bypass exists | Structural |
+| p4c | Clear Boundaries | Generative settings tokens obtainable through P2's affirmative consent | Structural |
+| p4d | Clear Boundaries | Connected inference providers expose settings (open-source requirement) | Structural |
 
 ### Triggers
 
@@ -419,7 +419,7 @@ The Magna Carta is not aspirational. It is enforced:
 2. **Sovereignty Checks** — Every invocation checked
 3. **Consent Verification** — Scoped, versioned, expiring consent
 4. **CNS Alerts** — Violations trigger immediate alerts
-5. **Magna Carta Verifier** — YAML manifests and Jinja2 templates verify each principle
+5. **Magna Carta Verifier** — YAML manifests and Jinja2 templates verify each principle. Invoked via `kask sovereignty verify` (CLI) or `cns_verify_magna_carta` (MCP tool)
 6. **Audit Trail** — All decisions recorded
 
 ---
