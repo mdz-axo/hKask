@@ -461,7 +461,7 @@ mod tests {
     /// Tracer bullet: insert_with_cas writes to SQLite and CAS Memory repo.
     #[tokio::test]
     async fn insert_with_cas_writes_to_memory_repo() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         db.conn_arc()
             .lock()
             .expect("lock")
@@ -490,7 +490,7 @@ mod tests {
     /// Tracer bullet: insert_with_cas with no CAS port still persists to SQLite.
     #[tokio::test]
     async fn insert_with_cas_without_cas_port_persists_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         db.conn_arc()
             .lock()
             .expect("lock")

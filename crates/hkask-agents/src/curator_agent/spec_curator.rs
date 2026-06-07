@@ -105,10 +105,24 @@ impl SpecCurator for DefaultSpecCurator {
         registered_verbs: &[String],
     ) -> Result<SpecCurationRecord, SpecError> {
         let complete = spec.is_complete();
+        let coherence = spec.coherence();
+        let drift_report = spec.drift(registered_verbs);
+        let drift_within_tolerance = drift_report.drift_magnitude <= self.drift_threshold;
+
+        // Four-way curation decision gradient (DDMVSS §5.9):
+        //   Merge:   spec is complete (all criteria satisfied)
+        //   Discard: spec has no goals
+        //   Defer:   partial progress but insufficient for Merge — coherence > 0.5
+        //            (exclusive, to exclude the sub_coherence=1.0 artifact) but < threshold,
+        //            and drift within tolerance
+        //   Revise:  unsatisfied criteria remain, needs immediate revision
         let decision = if complete {
             CurationDecision::Merge
         } else if spec.goals.is_empty() {
             CurationDecision::Discard
+        } else if coherence > 0.5 && coherence < self.coherence_threshold && drift_within_tolerance
+        {
+            CurationDecision::Defer
         } else {
             CurationDecision::Revise
         };
@@ -117,14 +131,13 @@ impl SpecCurator for DefaultSpecCurator {
             "All criteria satisfied".to_string()
         } else if spec.goals.is_empty() {
             "No goals defined".to_string()
+        } else if matches!(decision, CurationDecision::Defer) {
+            "Insufficient information — revisit later".to_string()
         } else {
             "Unsatisfied criteria remain".to_string()
         };
 
-        let coherence = spec.coherence();
-
-        // Compute drift between declared verbs and registered tools
-        let drift_report = spec.drift(registered_verbs);
+        let ocap_boundary = OCAPBoundary::token(OcapTokenKind::SpecCurate);
 
         // Emit cns.spec.drift NuEvent span with configured thresholds
         tracing::info!(
@@ -195,8 +208,6 @@ impl SpecCurator for DefaultSpecCurator {
                 }
             }
         }
-
-        let ocap_boundary = OCAPBoundary::token(OcapTokenKind::SpecCurate);
 
         Ok(SpecCurationRecord::new(
             spec.id,
@@ -335,6 +346,58 @@ mod tests {
             "partial spec must produce Revise decision"
         );
         assert_eq!(record.rationale, "Unsatisfied criteria remain");
+    }
+
+    // P8 invariant: spec with 0.5 <= coherence < threshold and drift within
+    // tolerance yields Defer decision (DDMVSS §5.9 four-way gradient)
+    #[test]
+    fn evaluate_deferred_spec_yields_defer() {
+        // Create a spec with coherence exactly 0.5: one criterion satisfied out of two.
+        // With threshold 0.7 and drift within tolerance, this should Defer.
+        let mut goal = GoalSpec::new("defer goal")
+            .with_criterion("satisfied criterion")
+            .with_criterion("unsatisfied criterion");
+        goal.criteria[0].mark_satisfied();
+        // coherence = 0.5 (1 of 2 satisfied)
+        let spec =
+            Spec::new("defer spec", SpecCategory::Trust, DomainAnchor::Hkask).with_goal(goal);
+        let curator = DefaultSpecCurator::new(0.7);
+        let record = curator
+            .evaluate(&spec, &[])
+            .expect("evaluate should succeed");
+        assert_eq!(
+            record.decision,
+            CurationDecision::Defer,
+            "spec with coherence 0.5 < threshold 0.7 and drift within tolerance must produce Defer"
+        );
+        assert_eq!(record.rationale, "Insufficient information — revisit later");
+    }
+
+    // P8 invariant: spec with coherence >= 0.5 but drift exceeding threshold → Revise (not Defer)
+    #[test]
+    fn evaluate_high_drift_yields_revise_not_defer() {
+        let mut goal = GoalSpec::new("drifty goal")
+            .with_criterion("satisfied criterion")
+            .with_criterion("unsatisfied criterion");
+        goal.criteria[0].mark_satisfied();
+        let spec = Spec::new(
+            "drifty spec",
+            SpecCategory::Observability,
+            DomainAnchor::Hkask,
+        )
+        .with_goal(goal)
+        .with_declared_verb("nonexistent_verb");
+        // drift = 1.0 (all declared verbs missing) > default drift_threshold (0.5)
+        // coherence = 0.5, but drift exceeds threshold → Revise, not Defer
+        let curator = DefaultSpecCurator::new(0.7);
+        let record = curator
+            .evaluate(&spec, &["some_tool".to_string()])
+            .expect("evaluate should succeed");
+        assert_eq!(
+            record.decision,
+            CurationDecision::Revise,
+            "spec with high drift must produce Revise, not Defer"
+        );
     }
 
     // P8 invariant: coherence score in record matches spec.coherence()

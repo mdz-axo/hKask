@@ -257,7 +257,7 @@ mod tests {
     /// Tracer bullet: insert_with_cas writes to SQLite and CAS Registry repo.
     #[tokio::test]
     async fn insert_with_cas_writes_to_registry_repo() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let mock = Arc::new(MockGitCas::new());
         let store = AgentRegistryStore::new(db.conn_arc()).with_cas(mock.clone());
         store.initialize_schema().expect("schema");
@@ -276,7 +276,7 @@ mod tests {
     /// Tracer bullet: insert_with_cas with no CAS port still persists to SQLite.
     #[tokio::test]
     async fn insert_with_cas_without_cas_port_persists_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = AgentRegistryStore::new(db.conn_arc());
         store.initialize_schema().expect("schema");
 

@@ -41,12 +41,24 @@ impl std::fmt::Display for SpecId {
     }
 }
 
+/// DDMVSS 9-category spec taxonomy.
+///
+/// Each variant corresponds to a DDMVSS goal-group category.
+/// The first 4 (Domain, Capability, Interface, Composition) were present from
+/// the initial implementation. The remaining 5 (Trust, Observability, Persistence,
+/// Lifecycle, Curation) were added to close the SpecCategory gap identified in
+/// the DDMVSS Semantic Alignment Audit (2026-06-06).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SpecCategory {
     Domain,
     Capability,
     Interface,
     Composition,
+    Trust,
+    Observability,
+    Persistence,
+    Lifecycle,
+    Curation,
 }
 
 impl SpecCategory {
@@ -56,6 +68,11 @@ impl SpecCategory {
             SpecCategory::Capability => "capability",
             SpecCategory::Interface => "interface",
             SpecCategory::Composition => "composition",
+            SpecCategory::Trust => "trust",
+            SpecCategory::Observability => "observability",
+            SpecCategory::Persistence => "persistence",
+            SpecCategory::Lifecycle => "lifecycle",
+            SpecCategory::Curation => "curation",
         }
     }
 
@@ -65,6 +82,11 @@ impl SpecCategory {
             "capability" => Some(SpecCategory::Capability),
             "interface" => Some(SpecCategory::Interface),
             "composition" => Some(SpecCategory::Composition),
+            "trust" => Some(SpecCategory::Trust),
+            "observability" => Some(SpecCategory::Observability),
+            "persistence" => Some(SpecCategory::Persistence),
+            "lifecycle" => Some(SpecCategory::Lifecycle),
+            "curation" => Some(SpecCategory::Curation),
             _ => None,
         }
     }
@@ -75,6 +97,11 @@ impl SpecCategory {
             SpecCategory::Capability,
             SpecCategory::Interface,
             SpecCategory::Composition,
+            SpecCategory::Trust,
+            SpecCategory::Observability,
+            SpecCategory::Persistence,
+            SpecCategory::Lifecycle,
+            SpecCategory::Curation,
         ]
     }
 }
@@ -82,6 +109,7 @@ impl SpecCategory {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DomainAnchor {
     Okapi,
+    Russell,
     Hkask,
 }
 
@@ -89,6 +117,7 @@ impl DomainAnchor {
     pub fn as_str(&self) -> &'static str {
         match self {
             DomainAnchor::Okapi => "okapi",
+            DomainAnchor::Russell => "russell",
             DomainAnchor::Hkask => "hkask",
         }
     }
@@ -96,6 +125,7 @@ impl DomainAnchor {
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "okapi" => Some(DomainAnchor::Okapi),
+            "russell" => Some(DomainAnchor::Russell),
             "hkask" => Some(DomainAnchor::Hkask),
             _ => None,
         }
@@ -411,14 +441,18 @@ mod tests {
     fn spec_category_rejects_invalid_strings() {
         assert_eq!(SpecCategory::parse_str("invalid"), None);
         assert_eq!(SpecCategory::parse_str(""), None);
-        assert_eq!(SpecCategory::parse_str("TRUST"), None);
+        assert_eq!(SpecCategory::parse_str("NOTACATEGORY"), None);
     }
 
     // ── Domain: DomainAnchor roundtrip ───────────────────────────
 
     #[test]
     fn domain_anchor_roundtrip_all_variants() {
-        for anchor in [DomainAnchor::Okapi, DomainAnchor::Hkask] {
+        for anchor in [
+            DomainAnchor::Okapi,
+            DomainAnchor::Russell,
+            DomainAnchor::Hkask,
+        ] {
             let s = anchor.as_str();
             let parsed = DomainAnchor::parse_str(s);
             assert!(
@@ -432,7 +466,7 @@ mod tests {
     #[test]
     fn domain_anchor_rejects_invalid_strings() {
         assert_eq!(DomainAnchor::parse_str("invalid"), None);
-        assert_eq!(DomainAnchor::parse_str("russell"), None);
+        assert_eq!(DomainAnchor::parse_str(""), None);
     }
 
     // ── Domain: SpecId roundtrip ─────────────────────────────────
@@ -733,10 +767,11 @@ mod tests {
 
     #[test]
     fn curation_decision_display_roundtrip() {
-        // Invariant: ∀ variant, Display produces a known string
+        // Invariant: ∀ variant, Display produces a valid display string
         assert_eq!(CurationDecision::Merge.to_string(), "merge");
         assert_eq!(CurationDecision::Discard.to_string(), "discard");
         assert_eq!(CurationDecision::Revise.to_string(), "revise");
+        assert_eq!(CurationDecision::Defer.to_string(), "defer");
     }
 
     // ── Curation: SpecCurationRecord ─────────────────────────────

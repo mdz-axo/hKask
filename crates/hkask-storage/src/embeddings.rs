@@ -29,14 +29,24 @@ pub struct SimilarityResult {
     pub distance: f64,
 }
 
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum EmbeddingError {
     #[error("Embedding not found: {0}")]
     NotFound(String),
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
     #[error("Storage error: {0}")]
-    Storage(String),
+    Storage(#[source] rusqlite::Error),
+    #[error(transparent)]
+    Infrastructure(#[from] hkask_types::InfrastructureError),
+    #[error("Corrupt vector data: {0}")]
+    Decode(String),
+}
+
+impl From<rusqlite::Error> for EmbeddingError {
+    fn from(e: rusqlite::Error) -> Self {
+        EmbeddingError::Storage(e)
+    }
 }
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -107,7 +117,7 @@ impl EmbeddingStore {
         let mut vector = Vec::with_capacity(expected_dim);
         for chunk in blob.chunks_exact(4) {
             let f = f32::from_le_bytes(chunk.try_into().map_err(|_| {
-                EmbeddingError::Storage("corrupt vector blob: chunk not 4 bytes".into())
+                EmbeddingError::Decode("corrupt vector blob: chunk not 4 bytes".into())
             })?);
             vector.push(f);
         }
@@ -144,10 +154,9 @@ impl EmbeddingStore {
         let blob = Self::encode_vector(vector);
         let dim = vector.len() as i32;
 
-        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let conn = lock_mutex(&self.conn)?;
 
-        conn.execute_batch("BEGIN TRANSACTION;")
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        conn.execute_batch("BEGIN TRANSACTION;")?;
 
         // Insert metadata into embeddings table
         let result = conn.execute(
@@ -157,7 +166,7 @@ impl EmbeddingStore {
 
         if let Err(e) = result {
             let _ = conn.execute_batch("ROLLBACK;");
-            return Err(EmbeddingError::Storage(e.to_string()));
+            return Err(EmbeddingError::Storage(e));
         }
 
         // Insert into vec_embeddings virtual table for KNN search.
@@ -169,13 +178,10 @@ impl EmbeddingStore {
 
         if let Err(e) = vec_result {
             let _ = conn.execute_batch("ROLLBACK;");
-            return Err(EmbeddingError::Storage(format!(
-                "vec_embeddings insert failed: {e}"
-            )));
+            return Err(EmbeddingError::Storage(e));
         }
 
-        conn.execute_batch("COMMIT;")
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        conn.execute_batch("COMMIT;")?;
 
         tracing::debug!(
             target: "storage.embedding",
@@ -191,11 +197,10 @@ impl EmbeddingStore {
 
     /// Retrieve an embedding by entity reference.
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
-        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let conn = lock_mutex(&self.conn)?;
 
         let mut stmt = conn
-            .prepare("SELECT id, entity_ref, vector, dimensions, model FROM embeddings WHERE entity_ref = ?1")
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+            .prepare("SELECT id, entity_ref, vector, dimensions, model FROM embeddings WHERE entity_ref = ?1")?;
 
         let result = stmt.query_row(rusqlite::params![entity_ref], |row| {
             let id: String = row.get(0)?;
@@ -219,7 +224,7 @@ impl EmbeddingStore {
             Err(rusqlite::Error::QueryReturnedNoRows) => {
                 Err(EmbeddingError::NotFound(entity_ref.to_string()))
             }
-            Err(e) => Err(EmbeddingError::Storage(e.to_string())),
+            Err(e) => Err(EmbeddingError::Storage(e)),
         }
     }
 
@@ -236,33 +241,28 @@ impl EmbeddingStore {
         self.validate_dim(query_vector)?;
 
         let query_blob = Self::encode_vector(query_vector);
-        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let conn = lock_mutex(&self.conn)?;
 
-        let mut stmt = conn
-            .prepare(
-                "SELECT v.id, v.distance, e.entity_ref, e.vector, e.model
+        let mut stmt = conn.prepare(
+            "SELECT v.id, v.distance, e.entity_ref, e.vector, e.model
                  FROM vec_embeddings v
                  JOIN embeddings e ON v.id = e.id
                  WHERE v.embedding MATCH ?1 AND v.k = ?2
                  ORDER BY v.distance",
-            )
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        )?;
 
-        let rows = stmt
-            .query_map(rusqlite::params![&query_blob, limit as i64], |row| {
-                let id: String = row.get(0)?;
-                let distance: f64 = row.get(1)?;
-                let entity_ref: String = row.get(2)?;
-                let vector_blob: Vec<u8> = row.get(3)?;
-                let model: String = row.get(4)?;
-                Ok((id, distance, entity_ref, vector_blob, model))
-            })
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let rows = stmt.query_map(rusqlite::params![&query_blob, limit as i64], |row| {
+            let id: String = row.get(0)?;
+            let distance: f64 = row.get(1)?;
+            let entity_ref: String = row.get(2)?;
+            let vector_blob: Vec<u8> = row.get(3)?;
+            let model: String = row.get(4)?;
+            Ok((id, distance, entity_ref, vector_blob, model))
+        })?;
 
         let mut results = Vec::new();
         for row in rows {
-            let (id, distance, entity_ref, blob, model) =
-                row.map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+            let (id, distance, entity_ref, blob, model) = row.map_err(EmbeddingError::Storage)?;
             let vector = Self::decode_vector(&blob, self.dim)?;
             results.push(SimilarityResult {
                 embedding: StoredEmbedding {
@@ -283,7 +283,7 @@ impl EmbeddingStore {
     /// Removes from both the `embeddings` metadata table and the
     /// `vec_embeddings` virtual table in a single transaction.
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
-        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let conn = lock_mutex(&self.conn)?;
 
         // Look up the embedding ID first
         let id_result: Result<String, _> = conn.query_row(
@@ -297,18 +297,17 @@ impl EmbeddingStore {
             Err(rusqlite::Error::QueryReturnedNoRows) => {
                 return Err(EmbeddingError::NotFound(entity_ref.to_string()));
             }
-            Err(e) => return Err(EmbeddingError::Storage(e.to_string())),
+            Err(e) => return Err(EmbeddingError::Storage(e)),
         };
 
-        conn.execute_batch("BEGIN TRANSACTION;")
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        conn.execute_batch("BEGIN TRANSACTION;")?;
 
         if let Err(e) = conn.execute(
             "DELETE FROM vec_embeddings WHERE id = ?1",
             rusqlite::params![id],
         ) {
             let _ = conn.execute_batch("ROLLBACK;");
-            return Err(EmbeddingError::Storage(e.to_string()));
+            return Err(EmbeddingError::Storage(e));
         }
 
         if let Err(e) = conn.execute(
@@ -316,11 +315,10 @@ impl EmbeddingStore {
             rusqlite::params![id],
         ) {
             let _ = conn.execute_batch("ROLLBACK;");
-            return Err(EmbeddingError::Storage(e.to_string()));
+            return Err(EmbeddingError::Storage(e));
         }
 
-        conn.execute_batch("COMMIT;")
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        conn.execute_batch("COMMIT;")?;
 
         tracing::debug!(
             target: "storage.embedding",
@@ -334,11 +332,9 @@ impl EmbeddingStore {
 
     /// Count total embeddings stored.
     pub fn count(&self) -> Result<usize, EmbeddingError> {
-        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let conn = lock_mutex(&self.conn)?;
 
-        let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
 
         Ok(count as usize)
     }
@@ -348,20 +344,17 @@ impl EmbeddingStore {
     /// Uses SQL LIKE with the prefix + '%' pattern.
     /// Efficient when the `idx_embeddings_entity_ref` index exists.
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
-        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let conn = lock_mutex(&self.conn)?;
 
         let pattern = format!("{}%", prefix);
-        let mut stmt = conn
-            .prepare("SELECT entity_ref FROM embeddings WHERE entity_ref LIKE ?1")
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let mut stmt =
+            conn.prepare("SELECT entity_ref FROM embeddings WHERE entity_ref LIKE ?1")?;
 
-        let rows = stmt
-            .query_map(rusqlite::params![pattern], |row| row.get(0))
-            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+        let rows = stmt.query_map(rusqlite::params![pattern], |row| row.get(0))?;
 
         let mut refs = Vec::new();
         for row in rows {
-            let entity_ref: String = row.map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+            let entity_ref: String = row.map_err(EmbeddingError::Storage)?;
             refs.push(entity_ref);
         }
 
@@ -375,7 +368,7 @@ mod tests {
     use crate::database::Database;
 
     fn test_store() -> EmbeddingStore {
-        let db = Database::in_memory().expect("in-memory db");
+        let db = in_memory_db();
         let conn = db.conn_arc();
         EmbeddingStore::new(conn)
     }

@@ -18,6 +18,24 @@ ddmvss_categories: [persistence, lifecycle]
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Storage Engine](#1-storage-engine) | Technology stack, database architecture, encryption |
+| [§2 Bitemporal Triple Schema](#2-bitemporal-triple-schema) | Triple store, temporal semantics, memory perspectives |
+| [§3 Embedding Vector Storage](#3-embedding-vector-storage) | Embedding store, similarity search, configuration |
+| [§4 Content-Addressed Storage](#4-content-addressed-storage) | Git CAS, content-addressed blobs |
+| [§5 Specification Storage](#5-specification-storage) | Spec store, categories, persistence |
+| [§6 Additional Storage Components](#6-additional-storage-components) | Session store, consent store, goal repository |
+| [§7 Bootstrap Sequence](#7-bootstrap-sequence) | Database initialization, migration, seed data |
+| [§8 Evolution Rules](#8-evolution-rules) | Versioning, migration, deprecation policy |
+| [§9 Deployment Topology](#9-deployment-topology) | Single-process, file layout, build commands |
+| [Loop Assignment](#loop-assignment) | Per-server loop assignments |
+| [References](#references) | Citations |
+
+---
+
 ## 1. Storage Engine
 
 ### 1.1 Technology Stack
@@ -52,15 +70,15 @@ graph TD
     DB --> EMBEDS
     DB --> SPECS
     DB --> SESSIONS
-    DB --> GITCAS
-    DB --> GOAL
+    DB --> GITCAS_ADAPTER
+    DB --> GOAL_REPO
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-001
-verified_date: 2026-05-28
-verified_against: crates/hkask-storage/src/database.rs:74; triples.rs:79; nu_event_store.rs:21; embeddings.rs:49; spec_store.rs:10
-status: STALE (BlobStore, MetacognitionStore, GoalJudgeAdapter removed; GitCas→GitCasAdapter, GoalStore→SqliteGoalRepository)
+verified_date: 2026-06-06
+verified_against: crates/hkask-storage/src/database.rs; triples.rs; nu_event_store.rs; embeddings.rs; spec_store.rs; goals.rs
+status: VERIFIED
 -->
 
 **ERD diagrams:** [`reference/hKask-erd.md`](reference/hKask-erd.md), [`reference/registry-erd.md`](reference/registry-erd.md), [`reference/subsystem-erds.md`](reference/subsystem-erds.md)

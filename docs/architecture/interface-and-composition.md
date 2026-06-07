@@ -54,7 +54,7 @@ status: VERIFIED
 
 ### 1.1 MCP Server Surface
 
-**Protocol:** rmcp (Rust MCP) — JSON-RPC 2.0 over **stdio transport** (only transport currently implemented)
+**Protocol:** rmcp (Rust MCP protocol library) — JSON-RPC 2.0 over **stdio transport**. Only stdio transport is currently implemented; future transports (HTTP, WebSocket) are not specified. Filesystem change notification uses platform-native APIs (fswatch/notify).
 
 **Runtime:** `McpRuntime` (`crates/hkask-mcp/src/runtime.rs`) — manages server lifecycle, tool discovery, and live `Peer<RoleClient>` connections.
 

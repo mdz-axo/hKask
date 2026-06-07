@@ -318,7 +318,7 @@ mod cas_tests {
     /// Tracer bullet: save_stored_session_with_cas writes to SQLite and CAS Sessions repo.
     #[tokio::test]
     async fn save_stored_session_with_cas_writes_to_sessions_repo() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let mock = Arc::new(MockGitCas::new());
         let store = StandingSessionStore::new(db.conn_arc()).with_cas(mock.clone());
         store.initialize_schema().expect("schema");
@@ -343,7 +343,7 @@ mod cas_tests {
     /// Tracer bullet: save_stored_session_with_cas without CAS port still persists to SQLite.
     #[tokio::test]
     async fn save_stored_session_with_cas_without_cas_port_persists_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = StandingSessionStore::new(db.conn_arc());
         store.initialize_schema().expect("schema");
 

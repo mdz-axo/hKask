@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn replay_weighted_filters_below_threshold() {
         // Create an in-memory database and store
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         // Insert an old event (60 min ago) with variety category (cybernetics λ ≈ 0.00231)
@@ -368,7 +368,7 @@ mod tests {
 
     #[test]
     fn replay_weighted_applies_decay() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         // Insert an event with timestamp 5 minutes ago
@@ -409,7 +409,7 @@ mod tests {
     // P8 invariant: persist_cursor / load_cursor round-trip
     #[test]
     fn cursor_roundtrip_persists_and_retrieves() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         store
@@ -424,7 +424,7 @@ mod tests {
     // P8 invariant: load_cursor returns None for absent key
     #[test]
     fn cursor_load_returns_none_for_absent_key() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let value = store.load_cursor("nonexistent").expect("load cursor");
@@ -434,7 +434,7 @@ mod tests {
     // P8 invariant: persist_cursor overwrites previous value
     #[test]
     fn cursor_overwrite_replaces_value() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         store.persist_cursor("key", 100).expect("persist 100");
@@ -446,7 +446,7 @@ mod tests {
     // P8 invariant: cursor keys are isolated
     #[test]
     fn cursor_keys_are_isolated() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         store.persist_cursor("key_a", 1).expect("persist a");
@@ -459,7 +459,7 @@ mod tests {
     // P8 invariant: insert + query_algedonic returns only algedonic Act events after since
     #[test]
     fn query_algedonic_returns_only_algedonic_act_events() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         // Algedonic category (variety) + Act phase → should be returned
@@ -510,7 +510,7 @@ mod tests {
     // P8 invariant: query_algedonic returns empty for no matching events
     #[test]
     fn query_algedonic_returns_empty_for_no_events() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let since = chrono::Utc::now() - chrono::Duration::hours(1);
@@ -521,7 +521,7 @@ mod tests {
     // P8 invariant: insert + query_algedonic round-trips event fields
     #[test]
     fn nu_event_round_trips_through_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let event = NuEvent::new(
@@ -614,7 +614,7 @@ mod tests {
     // P8 invariant: NuEventSink::persist maps Infra errors correctly
     #[test]
     fn nu_event_sink_persist_maps_infra_errors() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let event = NuEvent::new(
@@ -633,7 +633,7 @@ mod tests {
     /// Tracer bullet: insert_with_cas writes to SQLite and CAS CnsAudit repo.
     #[tokio::test]
     async fn insert_with_cas_writes_to_cns_audit_repo() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let mock = Arc::new(MockGitCas::new());
         let store = NuEventStore::new(db.conn_arc()).with_cas(mock.clone());
 
@@ -658,7 +658,7 @@ mod tests {
     /// Tracer bullet: insert_with_cas without CAS port still persists to SQLite.
     #[tokio::test]
     async fn insert_with_cas_without_cas_port_persists_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let event = NuEvent::new(
@@ -791,7 +791,7 @@ mod tests {
     // P8 invariant: Visibility::Public round-trips through SQLite
     #[test]
     fn visibility_public_round_trips_through_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let event = NuEvent::new(
@@ -817,7 +817,7 @@ mod tests {
     // P8 invariant: Visibility::Shared round-trips through SQLite
     #[test]
     fn visibility_shared_round_trips_through_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let event = NuEvent::new(
@@ -843,7 +843,7 @@ mod tests {
     // P8 invariant: Visibility::Private (default) round-trips through SQLite
     #[test]
     fn visibility_private_round_trips_through_sqlite() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         let event = NuEvent::new(
@@ -870,7 +870,7 @@ mod tests {
     // P8 invariant: non-canonical span_category falls back to cns.gas namespace
     #[test]
     fn row_to_nu_event_falls_back_for_unknown_category() {
-        let db = crate::Database::in_memory().expect("in-memory db");
+        let db = crate::in_memory_db();
         let store = NuEventStore::new(db.conn_arc());
 
         // Directly insert a row with a non-canonical span_category

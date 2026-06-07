@@ -34,7 +34,7 @@ use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_storage::{Database, EmbeddingStore, TripleStore, in_memory_db};
 use hkask_templates::{
     BundleManifest, ManifestExecutor, OkapiConfig, OkapiInference, SqliteRegistry,
 };
@@ -281,14 +281,14 @@ pub fn run(
                         "Warning: Persistent memory init failed ({}), falling back to in-memory",
                         e
                     );
-                    let db = Database::in_memory().expect("In-memory DB should never fail");
+                    let db = in_memory_db();
                     let (epi, sem, svc) = build_memory_infra(db);
                     (epi, sem, Some(svc))
                 }
             }
         }
         None => {
-            let db = Database::in_memory().expect("In-memory DB should never fail");
+            let db = in_memory_db();
             let (epi, sem, svc) = build_memory_infra(db);
             (epi, sem, Some(svc))
         }
@@ -359,9 +359,7 @@ pub fn run(
     // interior mutability via Arc<RwLock<HashMap>> for their data.
     let cybernetics_loop = Arc::new(RwLock::new(
         CyberneticsLoop::new(cns.clone(), dispatch_sender.clone()).with_event_sink(Arc::new(
-            hkask_storage::NuEventStore::new(
-                Database::in_memory().expect("cns event db").conn_arc(),
-            ),
+            hkask_storage::NuEventStore::new(in_memory_db().conn_arc()),
         )),
     ));
 
@@ -413,9 +411,8 @@ pub fn run(
     }
 
     let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
-    let cns_event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-        Database::in_memory().expect("cns event db").conn_arc(),
-    ));
+    let cns_event_sink: Arc<dyn NuEventSink> =
+        Arc::new(hkask_storage::NuEventStore::new(in_memory_db().conn_arc()));
     let gas_estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
 
     let governed_tool = Arc::new(GovernedTool::new(

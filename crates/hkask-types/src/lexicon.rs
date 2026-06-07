@@ -68,6 +68,29 @@ impl TemplateType {
         }
     }
 
+    /// Return the DDMVSS specification vocabulary name for this template type.
+    ///
+    /// The code uses operational names (WordAct, KnowAct, FlowDef) while
+    /// the DDMVSS specification uses (Prompt, Process, Cognition, Specification).
+    /// This mapping bridges the vocabulary fracture identified in the
+    /// DDMVSS Semantic Alignment Audit (2026-06-06).
+    ///
+    /// | Code Name | Spec Name |
+    /// |-----------|-----------|
+    /// | WordAct   | Prompt    |
+    /// | KnowAct   | Cognition |
+    /// | FlowDef   | Process   |
+    ///
+    /// Note: The DDMVSS `Specification` template type has no code counterpart
+    /// yet — specs are authored as YAML manifests within FlowDef templates.
+    pub fn as_spec_name(&self) -> &'static str {
+        match self {
+            TemplateType::WordAct => "Prompt",
+            TemplateType::KnowAct => "Cognition",
+            TemplateType::FlowDef => "Process",
+        }
+    }
+
     /// Infer template type from a file extension.
     ///
     /// - `.j2` → KnowAct (Jinja2 cognition is the more general Jinja2 type;

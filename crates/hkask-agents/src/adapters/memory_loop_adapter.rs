@@ -88,6 +88,15 @@ impl MemoryLoopAdapter {
         Self::from_database(db)
     }
 
+    /// Create with in-memory storage, panicking on failure.
+    ///
+    /// Use this in builder patterns and test fixtures where an in-memory DB
+    /// failure is always a bug, never a recoverable condition. For recoverable
+    /// contexts, use `in_memory()` and propagate the error with `?`.
+    pub fn in_memory_unchecked() -> Self {
+        Self::in_memory().expect("In-memory storage initialization should never fail")
+    }
+
     /// Create from database path and passphrase (encrypted).
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
         let db = Database::open(path, passphrase)?;

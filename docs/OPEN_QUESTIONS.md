@@ -399,6 +399,25 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ---
 
+## DDMVSS Round 3 Deferred Items
+
+*Tracked per DDMVSS Semantic Alignment Audit (2026-06-06) remediation R11. These items were deferred in DDMVSS §11 Round 3 but not previously tracked in OPEN_QUESTIONS.md.*
+
+| # | Item | Category | Status | Audit Ref |
+|---|------|----------|--------|-----------|
+| R3.1 | Span::Spec variant gap | Observability | **Resolved** (added in audit) | Audit R1 |
+| R3.2 | SpecStore bitemporal semantics | Persistence | ⚠️ Deferred | Audit R14 |
+| R3.3 | Spec signing (Ed25519) | Trust | ⚠️ Deferred | Audit R12 |
+| R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | ⚠️ Deferred | Audit R16 |
+| R3.5 | hLexicon spec-curation terms bootstrapping | Domain | **Resolved** (partially bootstrapped) | Audit §2.3 |
+| R3.6 | MCP≡CLI≡API cross-surface equivalence test | Interface | ⚠️ Deferred | — |
+| R3.7 | Curation authority OCAP boundary integration | Trust | ⚠️ Deferred | — |
+| R3.8 | Curation records persistence | Persistence | ⚠️ Deferred | Audit R17 |
+| R3.9 | Coherence threshold calibration (0.7) | Curation | ⚠️ Deferred (uncalibrated) | — |
+| R3.10 | Spec version replacement (post version_sha removal) | Lifecycle | ⚠️ Deferred | Audit R15 |
+
+---
+
 ## References
 
 [^ddmvss]: hKask Team. (2026). *DDMVSS — Domain-Driven Minimum Viable Specification Set*. `docs/architecture/DDMVSS.md`.

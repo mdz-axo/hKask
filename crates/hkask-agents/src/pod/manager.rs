@@ -137,10 +137,7 @@ impl PodManager {
 
     /// Create a new pod manager with mock adapters for testing
     pub fn new_mock() -> Self {
-        let adapter = Arc::new(
-            MemoryLoopAdapter::in_memory()
-                .expect("In-memory storage initialization should never fail"),
-        );
+        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let episodic_storage: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let semantic_storage: Arc<dyn SemanticStoragePort> = adapter.clone();
 
@@ -267,10 +264,7 @@ impl PodManagerBuilder {
 
     /// Configure with in-memory storage (episodic and semantic)
     pub fn with_in_memory_storage(self) -> Self {
-        let adapter = Arc::new(
-            MemoryLoopAdapter::in_memory()
-                .expect("In-memory storage initialization should never fail"),
-        );
+        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
         self.episodic_storage(episodic).semantic_storage(semantic)
@@ -303,10 +297,7 @@ impl PodManagerBuilder {
                  Use .with_encrypted_storage(path, passphrase) for sovereign persistence."
             );
         }
-        let adapter = Arc::new(
-            MemoryLoopAdapter::in_memory()
-                .expect("In-memory storage initialization should never fail"),
-        );
+        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let default_episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let default_semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
         let episodic_storage = self.episodic_storage.unwrap_or(default_episodic);

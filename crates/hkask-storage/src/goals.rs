@@ -628,7 +628,7 @@ mod tests {
 
     /// Helper: create an in-memory repository for testing.
     fn test_repo() -> SqliteGoalRepository {
-        let db = Database::in_memory().expect("in-memory db");
+        let db = in_memory_db();
         SqliteGoalRepository::new(db.conn_arc())
     }
 
@@ -1116,7 +1116,7 @@ mod tests {
     /// Tracer bullet: create_goal_with_cas writes to SQLite and CAS GoalsSpecs repo.
     #[tokio::test]
     async fn create_goal_with_cas_writes_to_goals_specs_repo() {
-        let db = Database::in_memory().expect("in-memory db");
+        let db = in_memory_db();
         let mock = Arc::new(MockGitCas::new());
         let repo = SqliteGoalRepository::new(db.conn_arc()).with_cas(mock.clone());
 
@@ -1131,7 +1131,7 @@ mod tests {
     /// Tracer bullet: create_goal_with_cas without CAS port still persists to SQLite.
     #[tokio::test]
     async fn create_goal_with_cas_without_cas_port_persists_sqlite() {
-        let db = Database::in_memory().expect("in-memory db");
+        let db = in_memory_db();
         let repo = SqliteGoalRepository::new(db.conn_arc());
 
         let webid = WebID::new();

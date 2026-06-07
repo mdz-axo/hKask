@@ -1367,10 +1367,10 @@ impl SpecStore for SqliteSpecStore {
 | Interface | MCP: `hkask-mcp-spec` (8 tools). CLI: `kask spec <subcommand>`. API: `POST /api/v1/specs/*`. All equivalent via `SpecStore` port. | **Pass** — three surfaces, one core |
 | Composition | Specs compose via `Spec.goals` aggregation. Registry stores spec templates with `template_type: FlowDef`. | **Pass** — unified registry |
 | Trust | OCAP tokens govern all spec ops. Manifests signed via `hkask-keystore`. Curation authority bounded via `OCAPBoundary`. Threat model in §7.1. | **Pass** |
-| Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **Gap** — `Span::Spec` not in existing enum |
-| Persistence | Specs stored as bitemporal triples in `hkask-storage`. Embeddings for semantic recall of prior specs. | **Pass** |
-| Lifecycle | Bootstrap: register spec templates + initialize Curator. Evolution: Git SHA versioning. Deprecation: delete per P7. | **Pass** |
-| Curation | `CurationDecision` gradient (Merge/Revise/Defer/Discard) from `curation.rs`. Spec-curator bot as Replicant. Coherence metric defined. | **Pass** — leverages existing types |
+| Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **:partial** — Span::Spec exists in code. Variety counter on spec diversity not wired to algedonic system. SpecDriftAlert defined but not in CNS loop. |
+| Persistence | Specs stored as bitemporal triples in `hkask-storage`. Embeddings for semantic recall of prior specs. | **:partial** — TripleStore has bitemporal columns, but SpecStore uses `created_at` only (valid_from/valid_to absent). Curation records not persisted (§11 R3.8). |
+| Lifecycle | Bootstrap: register spec templates + initialize Curator. Evolution: Git SHA versioning. Deprecation: delete per P7. | **:drift** — `version_sha` removed as dead field; no replacement exists. Spec versioning absent. Bootstrap and deprecation are operational. |
+| Curation | `CurationDecision` gradient (Merge/Revise/Defer/Discard) from `curation.rs`. Spec-curator bot as Replicant. Coherence metric defined. | **:drift** — CurationDecision has 4 variants (Defer added per audit remediation R2). Coherence threshold 0.7 uncalibrated (§10.3). Curation records not persisted (§11 R3.8). |
 
 ### 9.2 Gaps Discovered & Corrections
 

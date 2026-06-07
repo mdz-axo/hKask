@@ -104,7 +104,6 @@ pub fn create_disconnected_governed_dispatcher(
 ) {
     use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
     use hkask_mcp::raw_tool_port::RawMcpToolPort;
-    use hkask_storage::Database;
     use hkask_types::event::NuEventSink;
     use std::sync::Arc;
 
@@ -114,14 +113,14 @@ pub fn create_disconnected_governed_dispatcher(
         tokio::sync::mpsc::unbounded_channel::<hkask_types::loops::LoopMessage>();
     let cybernetics = Arc::new(tokio::sync::RwLock::new({
         let event_sink_for_loop: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-            Database::in_memory().expect("event db").conn_arc(),
+            hkask_storage::in_memory_db().conn_arc(),
         ));
         CyberneticsLoop::new(cns_rwlock, dispatch_tx.clone()).with_event_sink(event_sink_for_loop)
     }));
 
     let raw_port = Arc::new(RawMcpToolPort::new(runtime.clone()));
     let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-        Database::in_memory().expect("event db").conn_arc(),
+        hkask_storage::in_memory_db().conn_arc(),
     ));
     let estimator = Arc::new(CompositeGasEstimator::new());
     let agent = hkask_types::WebID::from_persona(b"curator");

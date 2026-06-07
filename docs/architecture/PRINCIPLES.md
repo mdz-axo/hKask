@@ -66,11 +66,11 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Nineteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Twenty-one MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (19 Total):**
+**Implementation (21 Total):**
 
-**Enabled (19):**
+**Enabled (21):**
 - `hkask-mcp-inference` — Okapi LLM inference
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Search, scrape, extract
@@ -90,10 +90,8 @@ status: VERIFIED
 - `hkask-mcp-episodic` — Episodic memory (private, perspective-bound)
 - `hkask-mcp-semantic` — Semantic memory (public, shared)
 - `hkask-mcp-replicant` — Replicant chat (MCP bridge for external integrations)
-
-**Converted to Templates (per AGENTS.md):**
-- `hkask-mcp-spandrel` → Graph analysis templates
-- `hkask-mcp-doc-knowledge` → Document extraction templates
+- `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
+- `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
 
 **Constraint:** All MCP servers are `hkask-*` crates — no external MCP dependencies.
 
@@ -114,7 +112,8 @@ status: VERIFIED
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
-- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.killzone.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`
+- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.killzone.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.hhh.gate.*`, `cns.hhh.persona.*`, `cns.cybernetics.backpressure`, `cns.memory.encode`, `cns.memory.budget`
+- **This is the authoritative CNS span registry.** See `hkask-types::event::CANONICAL_NAMESPACES` for the code-level source of truth.
 - Algedonic Alert: Variety deficit > threshold/2 (50 default) → escalate to Curator; deficit > threshold (100 default) → escalate to human
 
 **Constraint:** CNS monitors production system health. Tests verify correctness. Separate concerns.

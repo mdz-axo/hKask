@@ -116,13 +116,13 @@ Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
 | Capability | `domain-and-capability.md` | ✅ | ✅ Merge |
 | Interface | `interface-and-composition.md` | ✅ | ✅ Merge |
 | Composition | `interface-and-composition.md` | ✅ | ✅ Merge |
-| Trust & Security | `trust-security-observability.md` | ✅ | ✅ Merge |
-| Observability | `trust-security-observability.md` | ✅ | ✅ Merge |
-| Persistence | `persistence-and-lifecycle.md` | ✅ | ✅ Merge |
-| Lifecycle | `persistence-and-lifecycle.md` | ✅ | ✅ Merge |
-| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ✅ | ✅ Merge |
+| Trust & Security | `trust-security-observability.md` | ⚠️ Spec signing (Ed25519) unimplemented | ✅ Merge |
+| Observability | `trust-security-observability.md` | ⚠️ SpecDriftAlert not in CNS loop; variety counter not wired to algedonic | ✅ Merge |
+| Persistence | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; curation records not persisted | ✅ Merge |
+| Lifecycle | `persistence-and-lifecycle.md` | ⚠️ Spec versioning absent (version_sha removed, no replacement) | ✅ Merge |
+| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated; curation records not persisted | ✅ Merge |
 
-**Result:** 9/9 categories satisfied. Corpus is DDMVSS-complete.
+**Result:** 4/9 categories fully confirmed (Domain, Capability, Interface, Composition). 5/9 categories have partial or drifting alignment — marked ⚠️. Audit remediation in progress (see `docs/status/DDMVSS-AUDIT-2026-06-06.md`).
 
 ---
 

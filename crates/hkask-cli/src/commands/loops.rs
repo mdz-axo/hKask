@@ -12,7 +12,7 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     use hkask_memory::{
         ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
     };
-    use hkask_storage::{Database, EmbeddingStore, TripleStore};
+    use hkask_storage::{EmbeddingStore, TripleStore, in_memory_db};
     use hkask_types::WebID;
     use hkask_types::event::NuEventSink;
     use hkask_types::loops::HkaskLoop;
@@ -31,9 +31,8 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     ));
     let cybernetics_dispatch_tx = loop_system.dispatch_sender();
     let set_points = load_set_points();
-    let cns_event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-        Database::in_memory().expect("cns event db").conn_arc(),
-    ));
+    let cns_event_sink: Arc<dyn NuEventSink> =
+        Arc::new(hkask_storage::NuEventStore::new(in_memory_db().conn_arc()));
     let cybernetics_loop = CyberneticsLoop::with_set_points(
         Arc::clone(&cns_rwlock),
         set_points,
@@ -45,7 +44,7 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     // 4. Inference Loop skipped — requires Okapi connection (not available at CLI bootstrap)
 
     // 5. Register Episodic Loop
-    let db = Database::in_memory().expect("in-memory db");
+    let db = in_memory_db();
     let conn = db.conn_arc();
     let triple_store = TripleStore::new(Arc::clone(&conn));
     let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));

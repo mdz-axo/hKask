@@ -44,6 +44,8 @@ The CNS is the homeostatic self-regulation loop combining observability + govern
 
 **CNS spans** (look for these in traces/logs):
 
+> **Canonical source:** [`docs/architecture/PRINCIPLES.md`](docs/architecture/PRINCIPLES.md) §1.4 — that document lists all 21 CNS span namespaces. The table below shows only the spans most relevant to CNS loop wiring.
+
 | Span | What It Covers |
 |------|---------------|
 | `cns.tool.*` | Tool governance, invocation |

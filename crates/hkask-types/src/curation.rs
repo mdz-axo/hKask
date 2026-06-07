@@ -12,6 +12,12 @@ pub enum CurationDecision {
     Discard,
     /// Request revision from bot
     Revise,
+    /// Insufficient information — revisit later
+    ///
+    /// Operational criterion: `coherence >= 0.5 && coherence < threshold && drift <= drift_threshold`.
+    /// Distinguished from Revise by having non-empty goals (unlike Discard) and
+    /// drift within tolerance (unlike Revise which needs immediate changes).
+    Defer,
 }
 
 impl std::fmt::Display for CurationDecision {
@@ -20,6 +26,7 @@ impl std::fmt::Display for CurationDecision {
             CurationDecision::Merge => write!(f, "merge"),
             CurationDecision::Discard => write!(f, "discard"),
             CurationDecision::Revise => write!(f, "revise"),
+            CurationDecision::Defer => write!(f, "defer"),
         }
     }
 }
