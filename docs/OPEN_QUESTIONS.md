@@ -48,7 +48,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-server-audit.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
+**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-tools-inventory.md` (formerly `mcp-server-audit.md`, archived 2026-06-07). Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
 **Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface.
 
@@ -127,7 +127,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
-**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (761 LOC), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP server audit `docs/status/mcp-server-audit.md` confirms completeness.
+**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (761 LOC), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `docs/status/mcp-tools-inventory.md`).
 
 ---
 

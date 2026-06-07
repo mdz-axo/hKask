@@ -83,7 +83,8 @@ docs/
 │   └── high-temp-templates.md             # Template design draft
 ├── status/
 │   ├── PROJECT_STATUS.md                  # Single source of truth
-│   ├── mcp-server-audit.md                # MCP server completeness audit
+│   ├── ~~mcp-server-audit.md~~            # ARCHIVED 2026-06-07 (merged into mcp-tools-inventory.md)
+│   ├── ~~DDMVSS-AUDIT-2026-06-06.md~~      # ARCHIVED 2026-06-07 (findings absorbed into DDMVSS_SCAFFOLD §4)
 │   ├── mcp-tools-inventory.md             # Complete catalog of MCP tools by server
 │   ├── test-inventory.md                  # Test seam depth and behavioral coverage
 │   ├── fowler-audit-status.md              # Fowler pattern refactoring tracker
@@ -133,7 +134,7 @@ Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
 | Lifecycle | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; `Spec.version` added but no bitemporal semantics | ✅ Merge |
 | Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated; curation records not persisted | ✅ Merge |
 
-**Result:** 6/9 categories fully confirmed (Domain, Capability, Trust, Composition, Persistence, Observability). 3/9 have partial gaps — marked ⚠️. Remaining gaps: MCP≡CLI≡API equivalence test (R3.6, OQ-3.6), SpecStore bitemporal query methods (R14), curation record persistence wiring (R17), coherence threshold calibration (R3.9, OQ-3.9). See `docs/OPEN_QUESTIONS.md` for tracking.
+**Result:** 5/9 categories fully confirmed (Domain, Capability, Trust, Composition, Observability). 4/9 have partial gaps — marked ⚠️. Remaining gaps: MCP≡CLI≡API equivalence test (R3.6, OQ-3.6), SpecStore bitemporal query methods (R14), curation record persistence wiring (R17), coherence threshold calibration (R3.9, OQ-3.9). See `docs/OPEN_QUESTIONS.md` for tracking.
 
 ---
 

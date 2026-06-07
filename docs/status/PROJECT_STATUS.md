@@ -138,7 +138,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 46 (.md, excl. archive) + 2 CI scripts | — |
+| **Total** | 42 (.md, excl. archive) + 2 CI scripts | — |
 
 ### 4.2 Archived Documents
 
@@ -152,8 +152,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `2026-06-01-documentation-refresh` | 11 | Audit artifacts + speculative 10-loop feedback-loops-decomposition archived |
 | `2026-06-03-documentation-refresh` | 17 | 3 reference docs, 5 plan docs, 9 GML docs archived |
 | `2026-06-06-documentation-refresh` | 1 | IMPLEMENTATION-PLAN-simplification.md archived |
-| `2026-06-07-documentation-refresh` | 5 | ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (changes applied to codebase), refactor-sweep-2026-06-06.md (content captured in fowler-audit-status.md and adversarial-simplification-inventory.md) |
-| **Total** | 137 | — |
+| `2026-06-07-documentation-refresh` | 7 | ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (applied), refactor-sweep-2026-06-06.md (captured elsewhere), mcp-server-audit.md (merged into mcp-tools-inventory.md v1.1.0), DDMVSS-AUDIT-2026-06-06.md (absorbed into SCAFFOLD §4) |
+| **Total** | 139 | — |
 
 ### 4.3 DDMVSS Completeness
 
@@ -161,15 +161,15 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 |----------|----------------------|-----------|----------|
 | Domain | `domain-and-capability.md` | ✅ | ✅ |
 | Capability | `domain-and-capability.md` | ✅ | ✅ |
-| Interface | `interface-and-composition.md` | ✅ | ✅ |
+| Interface | `interface-and-composition.md` | ⚠️ MCP≡CLI≡API equivalence axiom unverified (OQ R3.6) | ✅ Merge |
 | Composition | `interface-and-composition.md` | ✅ | ✅ |
 | Trust & Security | `trust-security-observability.md` | ✅ | ✅ |
 | Observability | `trust-security-observability.md` | ✅ | ✅ |
-| Persistence | `persistence-and-lifecycle.md` | ✅ | ✅ |
-| Lifecycle | `persistence-and-lifecycle.md` | ✅ | ✅ |
-| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ✅ | ✅ |
+| Persistence | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal | ✅ Merge |
+| Lifecycle | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal | ✅ Merge |
+| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated | ✅ Merge |
 
-**Result:** 9/9 categories satisfied. Corpus is DDMVSS-complete.
+**Result:** 5/9 categories fully confirmed (Domain, Capability, Trust, Composition, Observability). 4/9 have partial gaps. Remaining gaps tracked in `OPEN_QUESTIONS.md`.
 
 ### 4.4 Quality Gates
 

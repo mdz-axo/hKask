@@ -132,6 +132,13 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-46** | Update DDMVSS_SCAFFOLD completeness (5/9→9/9 categories) | 2026-06-07 | Observability now ✅ (variety wired to algedonic) |
 | **R-47** | Fix registry-erd template types and JSONB columns | 2026-06-07 | WordAct/KnowAct/FlowDef types, TEXT not JSONB |
 | **R-48** | Fix DDMVSS_SCAFFOLD directory tree (add ADR-024–031 lines, archive markers) | 2026-06-07 | SCAFFOLD document structure tree |
+| **R-49** | Archive mcp-server-audit.md (merged into mcp-tools-inventory.md v1.1.0) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/mcp-server-audit.md` |
+| **R-50** | Archive DDMVSS-AUDIT-2026-06-06.md (findings absorbed into SCAFFOLD §4) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/DDMVSS-AUDIT-2026-06-06.md` |
+| **R-51** | Fix SCAFFOLD §4 completeness (Trust ✅, Interface ⚠️, result 6/9) | 2026-06-07 | SCAFFOLD completeness predicate |
+| **R-52** | Add Q11 (DelegationResource extensibility) to OPEN_QUESTIONS.md | 2026-06-07 | OPEN_QUESTIONS §Open Crossroads |
+| **R-53** | Reconcile Curator hLexicon term lists (6→11) in domain-and-capability.md | 2026-06-07 | Canonical spec now matches persona doc |
+| **R-54** | Remove duplicate Verification section from architecture-master.md | 2026-06-07 | Points to DDMVSS_SCAFFOLD §6 instead |
+| **R-55** | Fix architecture-master version (2.2.2→2.2.3) | 2026-06-07 | Align with max spec version |
 
 ---
 

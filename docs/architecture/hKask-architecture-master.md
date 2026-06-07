@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "2.2.2"
+version: "2.2.3"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]

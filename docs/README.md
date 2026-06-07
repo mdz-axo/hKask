@@ -103,6 +103,8 @@ for its category cluster.
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | all | **Single source of truth** for metrics, build, test, DDMVSS completeness |
 | [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs, credentials, and per-tool detail (includes replicant architecture spotlight) |
 | [`test-inventory.md`](status/test-inventory.md) | observability, domain, capability | Test seam depth and behavioral coverage |
+| ~~`mcp-server-audit.md`~~ | capability, observability | ~~MCP server audit~~ — **Archived 2026-06-07**; unique content merged into [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) |
+| ~~`DDMVSS-AUDIT-2026-06-06.md`~~ | all | ~~DDMVSS semantic alignment audit~~ — **Archived 2026-06-07**; findings absorbed into [`DDMVSS_SCAFFOLD.md`](specifications/DDMVSS_SCAFFOLD.md) §4 and [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) |
 | ~~`refactor-sweep-2026-06-06.md`~~ | capability, interface, composition | ~~Refactor sweep T1–T7 report~~ — **Archived**; content captured in [`fowler-audit-status.md`](status/fowler-audit-status.md) and [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) |
 | [`fowler-audit-status.md`](status/fowler-audit-status.md) | capability, interface, composition | Fowler pattern refactoring tracker |
 | [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | capability, interface, composition | Dead code and unwired seam inventory |

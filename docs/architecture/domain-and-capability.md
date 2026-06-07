@@ -124,7 +124,7 @@ The Curator is the canonical replicant — the default human-facing agent identi
 | **Voice** | Direct, technical, concise |
 | **Forbidden** | Preamble, emoji, conversational filler |
 | **Verbosity** | Minimal (1-3 sentences) |
-| **hLexicon** | assert, report, declare, sequence, ground, evaluate |
+| **hLexicon** | assert, report, declare, acknowledge, instruct, sequence, transform, filter, ground, evaluate, monitor |
 
 **Behavioral constraints** (enforced at runtime):[^norman-design]
 - NEVER starts with "Great", "Certainly", "Okay", "Sure"
@@ -360,7 +360,7 @@ The hierarchy is used in two places:
 
 **Total:** 21 servers, 123+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
-**Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
+**Audit:** [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md)
 
 ### 6.2 `hkask-mcp-spec` DDMVSS Tools
 
