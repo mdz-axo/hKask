@@ -1,0 +1,43 @@
+# Template crate manifest for skill-maintenance skill
+# ℏKask v0.24.0
+
+crate:
+  name: skill-maintenance
+  version: "0.24.0"
+  description: >
+    Audit skill corpus for staleness, coverage gaps, and quality degradation. Detect
+    skills with broken references, outdated architecture, or contradictory instructions.
+    Score skills and recommend retirement. Full lifecycle management from active to retired.
+
+templates:
+  - id: skill-maintenance/skill-maintenance-audit
+    path: skill-maintenance-audit.j2
+    type: KnowAct
+    lexicon_terms: [audit, detect, score, classify, recommend]
+    description: >
+      Audit skills for staleness signals: broken references, outdated architecture,
+      vague descriptions, Magna Carta violations, missing supporting files.
+      Produce health scores and deprecation recommendations.
+
+  - id: skill-maintenance/skill-maintenance-coverage
+    path: skill-maintenance-coverage.j2
+    type: Cognition
+    lexicon_terms: [map, trace, gap, classify, prioritize]
+    description: >
+      Analyze coverage gaps across the skill corpus. Map common task patterns
+      to existing skills, identify uncovered patterns, and produce recommendations
+      for skill creation or discovery.
+
+hlexicon_terms:
+  - audit
+  - detect
+  - score
+  - classify
+  - recommend
+  - map
+  - trace
+  - gap
+  - prioritize
+  - deprecate
+  - retire
+  - verify

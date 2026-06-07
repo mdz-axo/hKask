@@ -36,9 +36,9 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Status:** **Resolved — Option 1**  
 **Resolution Date:** 2026-05-29
 
-Document federation as a deferred architectural direction (no dedicated ADR yet). The Russell ACP bridge has been removed (v0.24); federation as a first-class concept is deferred until essential.
+Document federation as a deferred architectural direction (no dedicated ADR yet); federation as a first-class concept is deferred until essential.
 
-**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design was recorded in ADR-028 (now archived — ACP transport layer removed; see [`ADR-028`](archive/2026-06-07-documentation-refresh/ADR-028-acp-protocol-design.md)).
+**Rationale:** Inter-system agent communication was explored (see ADR-028 in the archive) but is not currently in the codebase. True federation (discovery, resource negotiation, capability composition across independent hKask instances) exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential.
 
 ---
 
@@ -148,20 +148,6 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 - No keystore dependency per pod — only the master key needs storage
 
 **See:** `crates/hkask-agents/src/pod/mod.rs::derive_ocap_secret()`, ADR-027
-
-### F2: Russell ACP Bridge Provenance ✅ RESOLVED
-
-**DDMVSS Category:** Trust  
-**Status:** **Resolved**  
-**Resolution Date:** 2026-05-29
-
-**Decision:** HKDF-SHA256 derivation with context `"hkask:russell-bridge-secret"`.
-
-`RussellAcpAdapter::new()` now derives the bridge secret from the master key via `SecretRef::derived()`. The constructor no longer takes a raw `bridge_secret` parameter — it resolves the key from HKDF-SHA256(master_key, "hkask:russell-bridge-secret"). Both hKask and Russell must share the same master passphrase and derivation context. Callers updated to remove bridge secret resolution boilerplate.
-
-**See:** `crates/hkask-types/src/secret.rs::RUSSELL_BRIDGE_SECRET`, `crates/hkask-agents/src/adapters/russell_acp.rs::new()`
-
-> **Update (v0.24):** The Russell ACP bridge (`RussellAcpAdapter`) and `RUSSELL_BRIDGE_SECRET` have been removed. This question is now moot.
 
 ### F3: Memory Pipeline Completeness ✅ RESOLVED
 
@@ -444,18 +430,6 @@ Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The
 **Opened:** 2026-06-07
 
 Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question asks: what is the per-issuer cooldown semantics? Should it scale with trust tier? Should it have a ceiling and floor? Blocked by FUT-003's resolution.
-
----
-
-### FUT-008: Russell bridge revocation granularity — global vs independent
-
-**DDMVSS Category:** Interface  
-**Status:** Open  
-**Opened:** 2026-06-07
-
-When a Russell bridge is revoked, is revocation global (all bridges for that agent) or independent (per-bridge)? Currently, revocation appears to be all-or-nothing. Independent revocation for multiple bridges is not supported, limiting multi-bridge agent configurations.
-
-> **Closed (v0.24):** The Russell ACP bridge has been removed. This question is moot.
 
 ---
 

@@ -407,7 +407,7 @@ impl PodContext {
 
 **To Builders:** Within these boundaries, build freely. All settings are exposed. All tools are available. User-curated, not system-imposed.
 
-**To Acquirers:** Affirmative consent is required. No passive acquisition. No speculative judgment. Consent is scoped, versioned, and expiring.
+**To Acquirers:** Affirmative consent is required. Consent must be explicit, scoped, versioned, and expiring. No speculative judgment.
 
 ---
 

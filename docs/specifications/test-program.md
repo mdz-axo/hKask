@@ -235,6 +235,14 @@ A test invariant that fails Curation is **documented**, not silently dropped. Th
 | **caveman** | Token-efficient communication | Composition (token-efficient encoding), Interface (minimal message surface) | `select` (FlowDef) |
 | **handoff** | Session continuity across agents | Lifecycle (session transfer), Curation (knowledge preservation) | `handoff` (FlowDef), `cultivate` (KnowAct) |
 | **skill-bundler** | Compose multiple skills coherently | Composition (practice composition), Curation (coherence across skills) | `compose` (FlowDef), `reconcile` (FlowDef) |
+| **magna-carta-verifier** | Sovereignty compliance audit via YAML assertion manifests and Jinja2 verification templates | Trust (P1–P4 enforcement verification), Curation (assertion lifecycle) | `verify` (KnowAct), `audit` (KnowAct) |
+| **constraint-forces** | Classify constraints by enforcement level (Prohibition→Hypothesis); map to Magna Carta P1–P4 | Trust (constraint enforcement), Curation (conflict resolution) | `classify` (Cognition), `resolve` (KnowAct) |
+| **pragmatic-cybernetics** | CNS feedback loop analysis, VSM mapping, variety engineering, Good Regulator check | Observability (CNS span analysis), Domain (VSM component mapping), Curation (variety deficit remediation) | `detect` (Cognition), `regulate` (KnowAct) |
+| **pragmatic-semantics** | Epistemic discipline: IS/OUGHT classification, provenance tracing, constraint force hierarchy | Domain (semantic architecture), Trust (constraint enforcement), Curation (fact classification) | `classify` (Cognition), `trace` (KnowAct) |
+| **skill-translator** | Translate skills between format systems (cognitive→instructions, deterministic→procedures) | Composition (cross-format composition), Curation (methodology preservation) | `translate` (KnowAct), `adapt` (KnowAct) |
+| **skill-discovery** | Find, evaluate, install skills from external sources; gap detection | Capability (skill lifecycle), Curation (quality evaluation) | `detect` (KnowAct), `evaluate` (KnowAct) |
+| **skill-maintenance** | Audit skill corpus for staleness, coverage gaps, quality degradation | Lifecycle (skill lifecycle states), Curation (health scoring, deprecation) | `audit` (KnowAct), `classify` (Cognition) |
+| **skill-manager** | CRUD meta-skill: list, validate, build, install, prune skills | Capability (skill operations), Curation (corpus management) | `validate` (KnowAct), `create` (KnowAct) |
 
 ---
 

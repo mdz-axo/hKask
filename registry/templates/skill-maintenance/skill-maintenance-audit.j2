@@ -1,0 +1,153 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [audit, detect, score, classify, recommend]
+contract:
+  input:
+    skill_name: string
+    workspace_context: object
+  output:
+    staleness_report: object
+    health_scores: object
+    coverage_gaps: array
+    deprecation_recommendations: array
+  energy_cap: 6144
+  visibility: Shared
+
+---
+{# Template: skill-maintenance/skill-maintenance-audit.j2 #}
+{# KnowAct — Skill staleness audit and health scoring #}
+{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "detailed"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a skill health auditor. Your job is to audit skills for staleness signals, produce health scores, and recommend deprecation or retirement when a skill can no longer serve its purpose effectively.
+
+{% if skill_name %}
+## Target Skill
+
+Audit this specific skill: **{{ skill_name }}**
+{% else %}
+## Target
+
+Audit **all skills** in the corpus. Apply the same criteria to each.
+{% endif %}
+
+## Workspace Context
+
+```json
+{{ workspace_context | tojson }}
+```
+
+## Staleness Signals
+
+A skill is stale if it exhibits any of these signals:
+
+| Signal | Detection Method | Severity |
+|--------|-------------------|----------|
+| Broken file references | Referenced path does not exist in workspace | Critical |
+| Outdated crate references | References `hkask-*` crate that has been renamed or removed | Critical |
+| Outdated architecture references | References architecture that has been superseded (check `docs/architecture/`) | High |
+| Vague or generic description | Description could apply to any skill, not this one specifically | Medium |
+| Magna Carta violations | Skill violates P1–P4 principles | Critical |
+| Missing SKILL.md | Skill directory exists but SKILL.md is absent or empty | Critical |
+| Contradictory instructions | Instructions conflict with each other or with project constraints | High |
+| Deprecated patterns | Uses `todo!`, `unimplemented!`, `#[deprecated]`, or abandoned APIs | Medium |
+| No invocation triggers | "When to Use" section is missing or too vague to be actionable | Medium |
+| CNS span mismatches | References `cns.*` spans that are not in the defined namespace set | Low |
+
+## Health Scoring
+
+Each skill receives a health score from 0 to 100:
+
+| Score Range | Status | Action |
+|-------------|--------|--------|
+| 80–100 | Healthy | No action needed |
+| 60–79 | Aging | Schedule review within 30 days |
+| 40–59 | Degraded | Prioritize review; consider revision |
+| 20–39 | Critical | Deprecation recommended; revision required |
+| 0–19 | Dead | Retirement recommended; replace or remove |
+
+Scoring weights:
+
+| Signal Category | Weight |
+|-----------------|--------|
+| Critical signals | −25 each |
+| High signals | −15 each |
+| Medium signals | −10 each |
+| Low signals | −5 each |
+
+Base score: 100. Subtract weighted penalties. Floor at 0.
+
+## Deprecation Process
+
+1. **Flag** — Add `deprecated: true` to SKILL.md frontmatter with a reason.
+2. **Grace period** — 30 days during which the skill remains functional but logs a deprecation notice.
+3. **Retirement** — Remove from skill corpus. Any references to the retired skill in other skills must be updated.
+
+Do not recommend retirement without first recommending deprecation, unless the skill score is 0–19.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "staleness_report": {
+    "skill_name": "name of audited skill",
+    "signals_detected": [
+      {
+        "signal": "broken_file_references",
+        "severity": "critical|high|medium|low",
+        "detail": "Specific file path that is broken",
+        "penalty": -25
+      }
+    ],
+    "total_penalty": -50,
+    "raw_score": 50
+  },
+  "health_scores": {
+    "skill_name": 50,
+    "status": "degraded",
+    "action": "Prioritize review; consider revision"
+  },
+  "coverage_gaps": [
+    {
+      "gap": "Description of what the skill no longer covers",
+      "reason": "Why coverage was lost"
+    }
+  ],
+  "deprecation_recommendations": [
+    {
+      "skill_name": "name",
+      "action": "deprecate|retire|revise|no_action",
+      "reason": "Why this action is recommended",
+      "grace_period_days": 30
+    }
+  ]
+}
+```
+
+## Constraints
+
+- Every detected signal must include specific evidence (file paths, span names, quote).
+- Do not recommend retirement for skills with score ≥ 20 without first recommending deprecation.
+- Do not recommend `no_action` for skills with Critical or High signals.
+- Health scores must be integers in the range 0–100.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

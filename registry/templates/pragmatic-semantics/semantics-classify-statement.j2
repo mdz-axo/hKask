@@ -1,0 +1,116 @@
+[inference]
+template_type: Cognition
+lexicon_terms: [classify, discriminate, evaluate, orient, specify]
+contract:
+  input:
+    statement: string
+    system_context: string
+  output:
+    ontological_mode: string
+    epistemic_mode: string
+    constraint_force: string
+    provenance: string
+    confidence: float
+    reasoning: string
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: pragmatic-semantics/semantics-classify-statement.j2 #}
+{# Cognition — Classify a statement on ontological and epistemic axes #}
+{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a pragmatic semantics classifier. Classify a statement on two axes — ontological (IS/OUGHT) and epistemic (certainty level) — and determine its constraint force and provenance. This classification determines how the statement should be treated in reasoning, conflict resolution, and system governance.
+
+## Ontological Axis
+
+| Mode | Description | Example |
+|------|------------|---------|
+| **IS** | Descriptive claim about how things are | "SQLCipher encrypts data at rest" |
+| **OUGHT** | Prescriptive claim about how things should be | "All PII must be encrypted at rest" |
+
+## Epistemic Axis
+
+| Mode | Certainty | Description | Example |
+|------|-----------|-------------|---------|
+| **Declarative** | High | Asserted as fact, verifiable | "The keystore uses AES-256-GCM" |
+| **Probabilistic** | Medium | Asserted with uncertainty qualifier | "This approach likely reduces latency" |
+| **Subjunctive** | Low | Conditional, hypothetical, counterfactual | "If we migrated to X, then Y would follow" |
+
+## Constraint Force Mapping
+
+After classifying on both axes, determine the constraint force (from the constraint-forces skill):
+
+| Force | When It Applies |
+|-------|---------------|
+| Prohibition | OUGHT + Declarative + inviolable |
+| Guardrail | OUGHT + Declarative + consent-gated |
+| Guideline | OUGHT + Probabilistic |
+| Evidence | IS + Declarative |
+| Hypothesis | IS + Subjunctive |
+
+## Provenance Classification
+
+| Source | Description |
+|--------|------------|
+| **Specification** | From hKask architecture docs, PRINCIPLES.md, DDMVSS.md |
+| **Implementation** | From code — crates, structs, functions, tests |
+| **Observation** | From runtime — CNS spans, logs, metrics |
+| **Inference** | Derived by reasoning from other sources |
+| **External** | From outside hKask (papers, standards, external docs) |
+| **Unknown** | Source cannot be determined |
+
+## Statement to Classify
+
+{{ statement }}
+
+{% if system_context %}
+## System Context
+
+{{ system_context }}
+{% endif %}
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "ontological_mode": "IS|OUGHT",
+  "epistemic_mode": "declarative|probabilistic|subjunctive",
+  "constraint_force": "Prohibition|Guardrail|Guideline|Evidence|Hypothesis",
+  "provenance": "specification|implementation|observation|inference|external|unknown",
+  "confidence": 0.0,
+  "reasoning": "Step-by-step reasoning for each classification axis, referencing the statement's content and context"
+}
+```
+
+`confidence` ranges from 0.0 to 1.0. Higher = more certain the classification is correct.
+
+## Constraints
+
+- IS-statements are never Prohibitions — only OUGHT-statements can be Prohibitions.
+- Declarative OUGHT-statements map to Prohibition or Guardrail (never Hypothesis).
+- Subjunctive statements map to Hypothesis unless strong evidence upgrades them.
+- If provenance is Unknown, confidence must be ≤ 0.3.
+- If provenance is Specification, confidence must be ≥ 0.8 (spec is authoritative within hKask).
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # pragmatic-semantics — Semantic perspective knowledge base
 #
-# Migrated from Russell skill manifest
-# Origin: russell/skills/pragmatic-semantics/manifest.yaml
+# Migrated from legacy skill manifest (origin: russell/skills/pragmatic-semantics/manifest.yaml)
 # Migration timestamp: 2026-05-20
 
 manifest:
@@ -24,8 +23,8 @@ steps:
       knowledge_block: string
     risk_level: none
 
-# Russell skill metadata (preserved for provenance)
-russell_origin:
+# Migration provenance
+migration_origin:
   id: pragmatic-semantics
   version: 1.0.0
   authored: 2026-05-10

@@ -1,0 +1,41 @@
+# Template crate manifest for constraint-forces skill
+# ℏKask v0.23.0
+
+crate:
+  name: constraint-forces
+  version: "0.23.0"
+  description: >
+    Classify constraints by force type (Prohibition, Guardrail, Guideline,
+    Evidence, Hypothesis) to decide which can be relaxed and which are
+    inviolable. Maps directly to Magna Carta P1–P4 enforcement levels.
+
+templates:
+  - id: constraint-forces/constraint-forces-classify
+    path: constraint-forces-classify.j2
+    type: Cognition
+    lexicon_terms: [classify, discriminate, evaluate, constrain, specify]
+    description: >
+      Classify a statement or constraint into its force type and map to
+      Magna Carta enforcement levels. Determines whether the constraint
+      is relaxable and at what cost.
+
+  - id: constraint-forces/constraint-forces-resolve
+    path: constraint-forces-resolve.j2
+    type: KnowAct
+    lexicon_terms: [discriminate, rank, resolve, regulate, orient]
+    description: >
+      Resolve a conflict between two constraints by ranking their force
+      types against each other. Higher force types dominate lower ones.
+      Produces a winner, resolution strategy, and rationale.
+
+hlexicon_terms:
+  - classify
+  - discriminate
+  - evaluate
+  - constrain
+  - specify
+  - rank
+  - resolve
+  - regulate
+  - orient
+  - enforce

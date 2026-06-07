@@ -9,7 +9,7 @@
 //! - Template types (high-temperature templates, LLM parameters)
 //! - Curation types (Curator, OCAP boundaries, curation decisions)
 //! - CNS types (variety counters, algedonic alerts)
-//! - Sovereignty types (user sovereignty, acquisition resistance)
+//! - Sovereignty types (user sovereignty, affirmative consent)
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
 
 pub mod agent_def;

@@ -1,0 +1,56 @@
+# Template crate manifest for pragmatic-semantics skill
+# ℏKask v0.23.0
+
+crate:
+  name: pragmatic-semantics
+  version: "0.23.0"
+  description: >
+    Epistemic discipline for classifying statements by certainty level
+    and constraint force. Distinguish IS from OUGHT, declarative from
+    probabilistic from subjunctive. Classify provenance of facts.
+    Resolve conflicts using OT ranking.
+
+templates:
+  - id: pragmatic-semantics/semantics-classify-statement
+    path: semantics-classify-statement.j2
+    type: Cognition
+    lexicon_terms: [classify, discriminate, evaluate, orient, specify]
+    description: >
+      Classify a statement on both ontological (IS/OUGHT) and epistemic
+      (declarative/probabilistic/subjunctive) axes. Determine its
+      constraint force and provenance.
+
+  - id: pragmatic-semantics/semantics-provenance-trace
+    path: semantics-provenance-trace.j2
+    type: KnowAct
+    lexicon_terms: [trace, detect, assess, verify, evaluate]
+    description: >
+      Trace the provenance of a claim through hKask's data layers.
+      Identify evidence sources, confidence level, and verification
+      recommendations.
+
+  - id: pragmatic-semantics/semantics-conflict-resolve
+    path: semantics-conflict-resolve.j2
+    type: KnowAct
+    lexicon_terms: [discriminate, rank, resolve, regulate, orient]
+    description: >
+      Resolve a conflict between statements using OT ranking.
+      Rank by ontological type, epistemic mode, constraint force,
+      and evidence provenance.
+
+hlexicon_terms:
+  - classify
+  - discriminate
+  - evaluate
+  - orient
+  - specify
+  - trace
+  - detect
+  - assess
+  - verify
+  - rank
+  - resolve
+  - regulate
+  - enforce
+  - verify
+  - contextualise

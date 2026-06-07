@@ -75,9 +75,9 @@ impl SovereigntyBoundaryStore {
 
     /// Migrate the `resistance` column to `requires_affirmative_consent`.
     ///
-    /// The Magna Carta renamed "Acquisition Resistance" to "Affirmative Consent",
-    /// and the storage column was renamed accordingly. If the old column is
-    /// present, this rebuilds the table with the new schema.
+    /// The Magna Carta renamed the `resistance` column (legacy "Acquisition
+    /// Resistance" naming) to `requires_affirmative_consent`. If the old column
+    /// is present, this rebuilds the table with the new schema.
     fn migrate_resistance_column(
         &self,
         conn: &rusqlite::Connection,

@@ -1,0 +1,156 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [translate, adapt, extract, compose, verify]
+contract:
+  input:
+    source_skill: string
+    format_analysis: object
+    step_classifications: array
+  output:
+    translated_skill: string
+    translation_summary: object
+  energy_cap: 8192
+  visibility: Shared
+
+---
+{# Template: skill-translator/skill-translator-translate.j2 #}
+{# KnowAct — Translate classified skill to hKask format #}
+{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "detailed"
+max_tokens = 8192
+thinking_budget = "full"
+
+You are a skill translator. Your job is to convert a classified source skill into valid hKask SKILL.md format. Cognitive steps become instruction blocks; deterministic steps become tool-callable procedures. Drop concepts with no hKask equivalent and document every adaptation.
+
+## Source Skill
+
+```
+{{ source_skill }}
+```
+
+## Format Analysis
+
+```json
+{{ format_analysis | tojson }}
+```
+
+## Step Classifications
+
+```json
+{{ step_classifications | tojson }}
+```
+
+## Translation Rules
+
+1. **Manifest** — Map the source manifest to hKask YAML frontmatter: `name`, `description`, `version`. If the source has no manifest, derive name and description from content.
+2. **Cognitive steps** — Become imperative instruction blocks under `## Instructions` or numbered steps. Preserve the reasoning logic exactly.
+3. **Deterministic steps** — Become tool-callable procedures. Reference the correct hKask MCP server or CLI command. If no hKask tool exists, mark the step as `[unresolved: <reason>]`.
+4. **State model** — hKask skills are stateless by default. If the source skill uses explicit state, encode it as Jinja2 template variables. If it uses implicit conversational state, add a `## Context Variables` section. If it uses external persistence, add a `## External State` section noting the dependency.
+5. **Consent model** — hKask uses OCAP (object capabilities). Map user-confirmation gates to explicit `> Confirm before proceeding:` markers. Map guardrails to `## Constraints` entries. Drop capability-token schemes with a note in translation_summary.
+6. **Observability** — Map structured logging to CNS span references (`cns.skill.*`). Map debug flags to `## Debug` section. Drop custom observability with a note.
+7. **Domain references** — Substitute source-specific references using the domain substitution table below.
+
+## Domain Substitution Table
+
+| Source Pattern | hKask Equivalent |
+|----------------|-------------------|
+| REST API calls | `web` MCP server |
+| File system operations | `read_file`, `write_file`, `edit_file` tools |
+| LLM inference | `inference` MCP server (Okapi) |
+| Database queries | `hkask-storage` (SQLite/SQLCipher) |
+| Key/value store | `hkask-keystore` (AES-256-GCM) |
+| Event bus / pubsub | `hkask-cns` algedonic alerts |
+| User interaction | CLI (`kask chat`) or API (`hkask-api`) |
+| Container / sandbox | Pod execution (`hkask-agents`) |
+| Git operations | `git` MCP server |
+| Web search | `web` MCP server |
+| Custom tool dispatch | `hkask-mcp` dynamic tool discovery |
+
+If a source reference has no hKask equivalent, keep the original reference and mark it `[unresolved: no hKask equivalent for <source_ref>]`.
+
+## hKask SKILL.md Format
+
+The output must follow this structure:
+
+```markdown
+---
+name: <skill-name>
+description: <one-line description>
+version: "<version>"
+---
+
+# <Skill Name>
+
+<Description paragraph>
+
+## When to Use
+
+<Trigger conditions — when should an agent invoke this skill>
+
+## Instructions
+
+<Numbered or bulleted instruction blocks. Cognitive steps are prose instructions.
+Deterministic steps reference specific tools/servers.>
+
+## Context Variables
+
+<Any state variables the skill expects or produces>
+
+## Constraints
+
+<Guardrails, safety rules, limits>
+
+## Debug
+
+<Optional: CNS spans, debug flags>
+```
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "translated_skill": "---\nname: ...\ndescription: ...\n---\n\n# ...",
+  "translation_summary": {
+    "preserved": ["list of concepts/steps preserved with full fidelity"],
+    "adapted": [
+      {
+        "original": "source concept or step",
+        "hKask_equivalent": "how it was mapped",
+        "adaptation_notes": "what changed and why"
+      }
+    ],
+    "dropped": [
+      {
+        "original": "source concept or step",
+        "reason": "why it was dropped"
+      }
+    ],
+    "unresolved": ["list of references with no hKask equivalent"]
+  }
+}
+```
+
+## Constraints
+
+- The `translated_skill` field must be valid hKask SKILL.md format with YAML frontmatter.
+- Every step from `step_classifications` must appear in the output (preserved, adapted, or dropped with reason).
+- Do not invent hKask tools or MCP servers that do not exist. Use the domain substitution table.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

@@ -1162,7 +1162,7 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 | **Curation** | `AuditLogPort` dual-write (in-memory cache + SQLite storage), CNS span emission for audit trail | ⚠️ Partial | Curation decisions not yet gradient-evaluated (Merge/Revise/Defer/Discard) |
 | **Domain** | Bounded context: "Agentic AI tooling". ν-events: `cns.agent_pod.*`, `cns.cap.*`. Entities: `AgentPod`, `CapabilityToken`, `WebID` | ✅ Complete | [`hKask-architecture-master.md`](hKask-architecture-master.md) |
 | **Interface** | Hexagonal ports: `AcpPort`, `GitCASPort`, `MCPRuntimePort`, `MemoryStoragePort`, `CnsEmit`, `KeystorePort`, `SovereigntyPort`. All async (`#[async_trait]`) | ✅ Complete | [`reference/ports-inventory.md`](reference/ports-inventory.md) |
-| **Composition** | ~~Russell ACP bridge~~ (removed v0.24) | — | ~~Removed~~ |
+| **Composition** | Unified registry with `template_type` discriminator, cascade phase ordering | ✅ Complete | §2–§6 above |
 | **Persistence** | `MemoryStoragePort` wired into pod lifecycle, episodic/semantic memory for lifecycle events | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §7 |
 
 **Gaps Identified (updated 2026-05-25):**
@@ -1500,6 +1500,14 @@ This section codifies testing practices as normative DDMVSS requirements. Full d
 | `zoom-out` | Module map, caller graph, data flow | `.agents/skills/zoom-out/SKILL.md` |
 | `grill-me` | Socratic interrogation of design decisions | `.agents/skills/grill-me/SKILL.md` |
 | `skill-bundler` | Compose multiple skills into coordinated sessions | `.agents/skills/skill-bundler/SKILL.md` |
+| `magna-carta-verifier` | Sovereignty compliance audit with YAML assertions | `.agents/skills/magna-carta-verifier/SKILL.md` |
+| `constraint-forces` | Classify constraints by enforcement level (Prohibition→Hypothesis) | `.agents/skills/constraint-forces/SKILL.md` |
+| `pragmatic-cybernetics` | CNS feedback loop analysis, VSM mapping, variety engineering | `.agents/skills/pragmatic-cybernetics/SKILL.md` |
+| `pragmatic-semantics` | Epistemic discipline: IS/OUGHT, constraint forces, provenance | `.agents/skills/pragmatic-semantics/SKILL.md` |
+| `skill-translator` | Translate skills between format systems | `.agents/skills/skill-translator/SKILL.md` |
+| `skill-discovery` | Find, evaluate, and install skills from external sources | `.agents/skills/skill-discovery/SKILL.md` |
+| `skill-maintenance` | Audit skill corpus for staleness, coverage gaps, quality | `.agents/skills/skill-maintenance/SKILL.md` |
+| `skill-manager` | CRUD meta-skill for skill corpus management | `.agents/skills/skill-manager/SKILL.md` |
 
 ### 12.3 Category → Test Strategy Summary
 

@@ -103,13 +103,6 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 **Solution:** Emit spans on mint, attenuate, revoke, verify  
 **Impact:** Complete audit trail
 
-> **⚠️ Removed (v0.24):** The Russell ACP bridge (`RussellAcpAdapter`) has been removed. The code references below are historical. See ADR-028 for the archived transport design.
-
-#### T14: Russell ACP Bridge
-**Problem:** No federation with Russell  
-**Solution:** Bidirectional ACP bridge with session lifecycle  
-**Impact:** Cross-system agent communication
-
 #### T15: Typed Errors
 **Problem:** `unwrap()` on hot paths  
 **Solution:** `Result<T, Error>` with typed error variants  
@@ -160,8 +153,6 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 - Comprehensive observability
 
 **Federation:**
-- Bidirectional Russell ACP bridge
-- Session lifecycle management
 - CNS spans for cross-system translation
 
 **Performance:**
@@ -173,18 +164,15 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 
 **Complexity:**
 - Caveats add conceptual overhead
-- Session lifecycle management for Russell bridge
 - Arc<Zeroizing<Vec<u8>>> requires understanding of memory management
 
 **Breaking Changes:**
 - No wildcard capabilities (previously allowed)
 - Async ports (previously sync)
-- RussellAcpAdapter constructor now requires `bridge_secret`
 
 **Migration Effort:**
 - Existing code using wildcards must be updated
 - Sync port implementations must be converted to async
-- Russell bridge integration requires secret coordination
 
 ## Compliance
 

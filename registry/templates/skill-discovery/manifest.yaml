@@ -1,0 +1,42 @@
+# Template crate manifest for skill-discovery skill
+# ℏKask v0.24.0
+
+crate:
+  name: skill-discovery
+  version: "0.24.0"
+  description: >
+    Find, evaluate, and install agent skills from external sources. Detect capability
+    gaps in the skill corpus, search for candidate skills, validate format and quality,
+    and guide installation. Full lifecycle from gap to verified skill.
+
+templates:
+  - id: skill-discovery/skill-discovery-detect-gap
+    path: skill-discovery-detect-gap.j2
+    type: KnowAct
+    lexicon_terms: [detect, classify, assess, prioritize, recommend]
+    description: >
+      Detect capability gaps in the skill corpus. Analyze task patterns against
+      existing skill descriptions. Classify gaps (coverage, feature, automation,
+      knowledge, governance, quality) and prioritize by impact.
+
+  - id: skill-discovery/skill-discovery-evaluate
+    path: skill-discovery-evaluate.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, validate, verify, classify, discriminate]
+    description: >
+      Evaluate a candidate skill against format, quality, and safety criteria.
+      Check frontmatter, description specificity, instruction concreteness,
+      Magna Carta compliance, and CNS span validity. Produce scored recommendation.
+
+hlexicon_terms:
+  - detect
+  - classify
+  - assess
+  - prioritize
+  - recommend
+  - evaluate
+  - validate
+  - verify
+  - discriminate
+  - search
+  - install
