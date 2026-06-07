@@ -151,6 +151,20 @@ impl PodManager {
         self.inference_port.clone()
     }
 
+    /// Get an `Arc` to the `SovereigntyChecker` for a given pod, if it exists.
+    ///
+    /// Returns `None` if the pod is not found. Each pod's checker is built
+    /// at `AgentPod::new` time, so the same `Arc<dyn SovereigntyConsent>`
+    /// is consulted for every pod in the manager.
+    pub async fn sovereignty_checker_for(
+        &self,
+        pod_id: &PodID,
+    ) -> Option<Arc<crate::SovereigntyChecker>> {
+        let pods = self.pods.read().await;
+        pods.get(pod_id)
+            .map(|pod| Arc::new(pod.sovereignty_checker.clone()))
+    }
+
     /// Create a new pod manager with mock adapters for testing
     ///
     /// Uses a `CapabilityOnlyAdapter` (no live MCP runtime) so that

@@ -14,14 +14,15 @@ use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_types::ports::ToolPort;
 use hkask_types::{
-    CapabilityChecker, Confidence, DelegationAction, DelegationResource, DelegationToken,
-    ExperienceClassification, InferencePort, WebID,
+    CapabilityChecker, Confidence, DataCategory, DelegationAction, DelegationResource,
+    DelegationToken, ExperienceClassification, InferencePort, WebID,
 };
 use std::sync::Arc;
 
 use super::AgentPodError;
 use super::manager::PodManager;
 use super::types::PodID;
+use crate::SovereigntyChecker;
 use crate::ports::{
     EpisodicStoragePort, MCPRuntimePort, RecallRequest, SemanticStoragePort, StorageRequest,
 };
@@ -50,6 +51,11 @@ pub struct PodContext {
     /// When set, `require_capability()` verifies HMAC signatures.
     /// When absent, falls back to structural `is_valid_for()` check (insecure).
     capability_checker: Option<Arc<CapabilityChecker>>,
+    /// Sovereignty checker for this pod — wired to a live `SovereigntyConsent`
+    /// port so grants via the API or CLI are observed. `None` means the
+    /// manager was constructed without sovereignty wiring; in that case
+    /// `require_sovereignty` denies by default.
+    sovereignty_checker: Option<Arc<SovereigntyChecker>>,
 }
 
 impl PodContext {
@@ -73,6 +79,7 @@ impl PodContext {
             mcp_runtime: Arc::clone(&manager.mcp_runtime),
             governed_tool: manager.governed_tool.clone(),
             capability_checker: manager.capability_checker.clone(),
+            sovereignty_checker: manager.sovereignty_checker_for(pod_id).await,
         })
     }
 
@@ -101,6 +108,41 @@ impl PodContext {
                 "No capability checker configured — capability check denied"
             );
             return Err(AgentPodError::CapabilityDenied { resource, action });
+        }
+        Ok(())
+    }
+
+    /// Require that the pod may access the given data category for the
+    /// requesting WebID. Complements `require_capability` by enforcing the
+    /// Magna Carta's data-sovereignty policy (sovereign / shared / public
+    /// classification with explicit-consent lookup).
+    ///
+    /// When no sovereignty checker is configured (a misconfiguration),
+    /// the call denies by default — sovereignty must fail closed.
+    pub fn require_sovereignty(
+        &self,
+        data_category: &DataCategory,
+        requester: &WebID,
+    ) -> Result<(), AgentPodError> {
+        let checker = match self.sovereignty_checker {
+            Some(ref c) => c,
+            None => {
+                tracing::error!(
+                    target: "hkask.sovereignty",
+                    webid = ?self.webid,
+                    "No sovereignty checker configured — sovereignty check denied"
+                );
+                return Err(AgentPodError::SovereigntyDenied {
+                    category: data_category.clone(),
+                    requester: *requester,
+                });
+            }
+        };
+        if !checker.can_access(data_category, requester) {
+            return Err(AgentPodError::SovereigntyDenied {
+                category: data_category.clone(),
+                requester: *requester,
+            });
         }
         Ok(())
     }

@@ -132,6 +132,14 @@ pub enum AgentPodError {
         action: DelegationAction,
     },
 
+    #[error(
+        "Sovereignty denied: data category {category:?} requires explicit consent for WebID {requester}"
+    )]
+    SovereigntyDenied {
+        category: DataCategory,
+        requester: WebID,
+    },
+
     #[error("Inference port unavailable: {0}")]
     InferenceUnavailable(String),
 
