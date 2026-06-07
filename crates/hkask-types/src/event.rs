@@ -435,6 +435,9 @@ mod tests {
     // P8 invariant: every canonical namespace maps to a known category
     fn span_category_classifies_canonical_namespaces() {
         use std::collections::HashMap;
+        // Map each canonical namespace to its expected category.
+        // The dispatch is on the *prefix* of the short_name, so
+        // namespaces with the same prefix share a category.
         let expectations: HashMap<&str, SpanCategory> = [
             ("cns.variety", SpanCategory::Cybernetics),
             ("cns.gas", SpanCategory::Cybernetics),
@@ -444,10 +447,6 @@ mod tests {
             ("cns.inference", SpanCategory::Inference),
             ("cns.agent_pod", SpanCategory::Episodic),
             ("cns.connector", SpanCategory::Episodic),
-            // Hierarchical — the prefix determines the category.
-            ("cns.variety.sensor", SpanCategory::Cybernetics),
-            ("cns.gas.depleted", SpanCategory::Cybernetics),
-            ("cns.spec.drift", SpanCategory::Curation),
         ]
         .iter()
         .copied()
@@ -459,36 +458,69 @@ mod tests {
     }
 
     #[test]
-    // P8 invariant: namespaces outside the dispatch set return Unknown
+    // P8 invariant: canonical namespaces that are not in the dispatch
+    // set return Unknown (the explicit fallback at the type level).
     fn span_category_unknown_for_unrelated_namespaces() {
-        for ns_str in ["cns.tool", "cns.clone", "cns.read", "cns.template"] {
+        // Canonical but not in the dispatch set: tool, pipeline,
+        // review, template, goal, test, sovereignty, prompt.
+        for ns_str in [
+            "cns.tool",
+            "cns.prompt",
+            "cns.pipeline",
+            "cns.review",
+            "cns.template",
+            "cns.goal",
+            "cns.test",
+            "cns.sovereignty",
+        ] {
             let ns = SpanNamespace::new(ns_str);
             assert_eq!(ns.category(), SpanCategory::Unknown, "namespace {ns_str}");
         }
     }
 
     #[test]
-    // P8 invariant: SpanCategory::from_short_name is the inverse of category()
-    fn span_category_from_short_name_roundtrip() {
-        for short in [
-            "variety",
-            "gas",
-            "killzone",
-            "curation",
-            "spec",
-            "inference",
-            "agent_pod",
-            "connector",
-            "tool",
-            "clone",
-            "",
-        ] {
-            let parsed = SpanCategory::from_short_name(short);
-            // Re-classify via the SpanNamespace path (when valid)
-            if let Ok(ns) = short.parse::<SpanNamespace>() {
-                assert_eq!(ns.category(), parsed, "short = {short:?}");
-            }
-        }
+    // P8 invariant: SpanCategory::from_short_name handles the hierarchical
+    // form (e.g. `variety.sensor` → Cybernetics) and the unknown
+    // form (`unknown.foo` → Unknown).
+    fn span_category_from_short_name_handles_hierarchy() {
+        assert_eq!(
+            SpanCategory::from_short_name("variety"),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("variety.sensor"),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("gas.depleted"),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("killzone"),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("curation"),
+            SpanCategory::Curation
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("spec.drift"),
+            SpanCategory::Curation
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("inference"),
+            SpanCategory::Inference
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("agent_pod.launched"),
+            SpanCategory::Episodic
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("connector"),
+            SpanCategory::Episodic
+        );
+        assert_eq!(SpanCategory::from_short_name("tool"), SpanCategory::Unknown);
+        assert_eq!(SpanCategory::from_short_name(""), SpanCategory::Unknown);
     }
 
     #[test]

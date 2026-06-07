@@ -9,6 +9,69 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 /// Capability-domain alias for SYSTEM_MAX_RECURSION.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
+/// F-SYN-010: typed attenuation level (newtype wrapper around `u8`).
+///
+/// The inner `u8` is a *system constant* — the absolute maximum is
+/// `SYSTEM_MAX_RECURSION = 7` (see FUT-001 for the open question of
+/// whether this is a hard constant or a configurable cap). The
+/// `new()` constructor enforces the cap; `get()` and `as_u8()` are
+/// the only ways to read the inner value.
+///
+/// New code should use this type instead of raw `u8` for attenuation
+/// levels. Existing fields (`DelegationToken.attenuation_level`,
+/// `DelegationToken.max_attenuation`) still use `u8` for
+/// serde-stability and cross-crate compatibility; migrating them
+/// is a separate PR (one finding per PR).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AttenuationLevel(u8);
+
+impl AttenuationLevel {
+    /// Construct an `AttenuationLevel` from a raw `u8`, enforcing the
+    /// system cap. Returns `Err` for any value `> SYSTEM_MAX_RECURSION`.
+    pub fn new(level: u8) -> Result<Self, AttenuationError> {
+        if level > SYSTEM_MAX_RECURSION {
+            Err(AttenuationError::ExceedsSystemMax {
+                level,
+                max: SYSTEM_MAX_RECURSION,
+            })
+        } else {
+            Ok(Self(level))
+        }
+    }
+
+    /// Construct without checking the cap. **For internal use only**
+    /// (e.g. deserialisation paths that trust the wire format).
+    /// Prefer `new()` for new code.
+    pub fn unchecked(level: u8) -> Self {
+        Self(level)
+    }
+
+    /// The inner value, as a `u8`.
+    pub fn as_u8(&self) -> u8 {
+        self.0
+    }
+
+    /// The system-wide maximum attenuation level.
+    pub const fn max() -> u8 {
+        SYSTEM_MAX_RECURSION
+    }
+}
+
+impl std::fmt::Display for AttenuationLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Errors from [`AttenuationLevel::new`].
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum AttenuationError {
+    /// The supplied level exceeds the system cap (`SYSTEM_MAX_RECURSION = 7`).
+    #[error("attenuation level {level} exceeds system maximum {max}")]
+    ExceedsSystemMax { level: u8, max: u8 },
+}
+
 pub(crate) mod hmac_ops;
 pub mod verification;
 

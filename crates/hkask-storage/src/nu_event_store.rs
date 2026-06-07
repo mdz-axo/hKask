@@ -802,6 +802,64 @@ mod tests {
         );
     }
 
+    // ── F-SYN-009: typed dispatch via SpanCategory ─────────────────────
+
+    // P8 invariant: lambda_for dispatches each SpanCategory to its lambda
+    #[test]
+    fn lambda_for_typed_dispatch_matches_string_dispatch() {
+        use hkask_types::event::SpanCategory;
+        let config = DecayConfig::default();
+
+        // The typed dispatch is the *same* table as the string dispatch
+        // (which the previous tests assert). Asserting the equality
+        // here is the F-SYN-009 red→green: the typed and string paths
+        // agree.
+        let pairs: &[(&str, SpanCategory, f64)] = &[
+            (
+                "variety",
+                SpanCategory::Cybernetics,
+                config.cybernetics_lambda,
+            ),
+            ("curation", SpanCategory::Curation, config.curation_lambda),
+            (
+                "inference",
+                SpanCategory::Inference,
+                config.inference_lambda,
+            ),
+            ("agent_pod", SpanCategory::Episodic, config.episodic_lambda),
+            ("unknown", SpanCategory::Unknown, config.cybernetics_lambda),
+        ];
+        for (s, cat, expected) in pairs {
+            assert_eq!(
+                NuEventStore::lambda_for(*cat, &config),
+                *expected,
+                "typed dispatch mismatch for {s}"
+            );
+            assert_eq!(
+                NuEventStore::lambda_for_category(s, &config),
+                *expected,
+                "string dispatch mismatch for {s}"
+            );
+            assert_eq!(
+                NuEventStore::lambda_for(*cat, &config),
+                NuEventStore::lambda_for_category(s, &config),
+                "typed and string paths diverge for {s}"
+            );
+        }
+    }
+
+    // P8 invariant: SpanCategory::Unknown falls back to cybernetics_lambda
+    #[test]
+    fn lambda_for_unknown_falls_back_to_cybernetics() {
+        use hkask_types::event::SpanCategory;
+        let config = DecayConfig::default();
+        assert_eq!(
+            NuEventStore::lambda_for(SpanCategory::Unknown, &config),
+            config.cybernetics_lambda,
+            "F-SYN-009: SpanCategory::Unknown must fall back to cybernetics_lambda"
+        );
+    }
+
     // ── P2: Visibility round-trip and span_category fallback tests ─────────
 
     // P8 invariant: Visibility::Public round-trips through SQLite
