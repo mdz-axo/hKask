@@ -7,7 +7,7 @@
       "name": "MIT",
       "identifier": "MIT"
     },
-    "version": "0.1.0"
+    "version": "0.23.0"
   },
   "servers": [
     {
@@ -18,6 +18,106 @@
   "paths": {},
   "components": {
     "schemas": {
+      "ArchiveEntry": {
+        "type": "object",
+        "description": "Archive entry response",
+        "required": [
+          "name",
+          "path",
+          "content",
+          "template_type"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "template_type": {
+            "type": "string"
+          }
+        }
+      },
+      "ArchiveRequest": {
+        "type": "object",
+        "description": "Archive repository request",
+        "required": [
+          "owner",
+          "repo",
+          "branch",
+          "path"
+        ],
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          }
+        }
+      },
+      "ArchiveResponse": {
+        "type": "object",
+        "description": "Archive response",
+        "required": [
+          "crate_name",
+          "git_sha",
+          "templates"
+        ],
+        "properties": {
+          "crate_name": {
+            "type": "string"
+          },
+          "git_sha": {
+            "type": "string"
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveEntry"
+            }
+          }
+        }
+      },
+      "BotStatusReportResponse": {
+        "type": "object",
+        "description": "Bot status report response",
+        "required": [
+          "bot_name",
+          "status",
+          "issues"
+        ],
+        "properties": {
+          "bot_name": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "last_report": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
       "ChatRequest": {
         "type": "object",
         "description": "Chat request sent to the Curator or a specified agent.\n\nThe `model` field allows switching the LLM at request time. When omitted,\nthe server default (qwen3:8b) is used. Use `GET /api/models` to discover\navailable models, and `GET /api/models/search?q=...` for fuzzy matching.",
@@ -127,6 +227,26 @@
           }
         }
       },
+      "CreateGoalRequest": {
+        "type": "object",
+        "description": "Request to create a goal.",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Goal text."
+          },
+          "visibility": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Visibility: private | shared | public. Defaults to private."
+          }
+        }
+      },
       "CreatePodRequest": {
         "type": "object",
         "description": "Create pod request",
@@ -161,19 +281,156 @@
           }
         }
       },
-      "ErrorResponse": {
+      "DismissEscalationRequest": {
         "type": "object",
-        "description": "Error response",
+        "description": "Dismiss escalation request",
         "required": [
-          "error",
-          "code"
+          "dismissed_by"
         ],
         "properties": {
-          "code": {
+          "dismissed_by": {
+            "type": "string"
+          }
+        }
+      },
+      "DismissEscalationResponse": {
+        "type": "object",
+        "description": "Dismiss escalation response",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
             "type": "string"
           },
-          "details": {},
-          "error": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "EscalationEntryResponse": {
+        "type": "object",
+        "description": "Escalation entry response",
+        "required": [
+          "id",
+          "template_id",
+          "bot_id",
+          "output",
+          "confidence",
+          "retry_count",
+          "error_context",
+          "created_at",
+          "status"
+        ],
+        "properties": {
+          "bot_id": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "error_context": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resolved_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string"
+          }
+        }
+      },
+      "EscalationStatsResponse": {
+        "type": "object",
+        "description": "Escalation stats response",
+        "required": [
+          "total",
+          "pending",
+          "resolved",
+          "dismissed"
+        ],
+        "properties": {
+          "dismissed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pending": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GoalListResponse": {
+        "type": "object",
+        "description": "A list of goals.",
+        "required": [
+          "goals"
+        ],
+        "properties": {
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalResponse"
+            }
+          }
+        }
+      },
+      "GoalResponse": {
+        "type": "object",
+        "description": "A goal as returned over the API.",
+        "required": [
+          "id",
+          "text",
+          "state",
+          "visibility"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "visibility": {
             "type": "string"
           }
         }
@@ -190,6 +447,21 @@
           }
         }
       },
+      "ListEscalationsResponse": {
+        "type": "object",
+        "description": "List escalations response",
+        "required": [
+          "escalations"
+        ],
+        "properties": {
+          "escalations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EscalationEntryResponse"
+            }
+          }
+        }
+      },
       "ListPodsResponse": {
         "type": "object",
         "description": "List pods response",
@@ -202,6 +474,25 @@
             "items": {
               "$ref": "#/components/schemas/PodStatusResponse"
             }
+          }
+        }
+      },
+      "MetacognitionStatusResponse": {
+        "type": "object",
+        "description": "Metacognition status response",
+        "required": [
+          "escalation_stats",
+          "bot_reports"
+        ],
+        "properties": {
+          "bot_reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BotStatusReportResponse"
+            }
+          },
+          "escalation_stats": {
+            "$ref": "#/components/schemas/EscalationStatsResponse"
           }
         }
       },
@@ -282,6 +573,61 @@
           }
         }
       },
+      "ParticipantEntryRequest": {
+        "type": "object",
+        "description": "Participant entry for standing session start",
+        "required": [
+          "agent",
+          "type",
+          "role",
+          "description"
+        ],
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Template domains this participant owns (e.g., `[\"cns\", \"storage\"]`).\nConverted to capability specs (`\"tool:<domain>:execute\"`) internally."
+          },
+          "role": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "ParticipantStatusResponse": {
+        "type": "object",
+        "description": "Participant status in standing session response",
+        "required": [
+          "name",
+          "webid",
+          "role",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "webid": {
+            "type": "string"
+          }
+        }
+      },
       "PodStatusResponse": {
         "type": "object",
         "description": "Pod status response",
@@ -321,12 +667,155 @@
           }
         }
       },
+      "ResolveEscalationRequest": {
+        "type": "object",
+        "description": "Resolve escalation request",
+        "required": [
+          "resolved_by"
+        ],
+        "properties": {
+          "resolved_by": {
+            "type": "string"
+          }
+        }
+      },
+      "ResolveEscalationResponse": {
+        "type": "object",
+        "description": "Resolve escalation response",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ResolveShaResponse": {
+        "type": "object",
+        "description": "SHA resolve response",
+        "required": [
+          "sha"
+        ],
+        "properties": {
+          "sha": {
+            "type": "string"
+          }
+        }
+      },
+      "SetGoalStateRequest": {
+        "type": "object",
+        "description": "Request to transition a goal's state.",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "description": "Target state: pending | active | completed | blocked | abandoned."
+          }
+        }
+      },
+      "StandingStartRequest": {
+        "type": "object",
+        "description": "Standing session start request",
+        "required": [
+          "session_id",
+          "name",
+          "description",
+          "initial_context",
+          "participants"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "initial_context": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantEntryRequest"
+            }
+          },
+          "session_id": {
+            "type": "string"
+          }
+        }
+      },
+      "StandingStartResponse": {
+        "type": "object",
+        "description": "Standing session start response",
+        "required": [
+          "session_id",
+          "description",
+          "participant_count",
+          "message"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "participant_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "session_id": {
+            "type": "string"
+          }
+        }
+      },
+      "StandingStatusResponse": {
+        "type": "object",
+        "description": "Standing session status response",
+        "required": [
+          "session_id",
+          "description",
+          "participant_count",
+          "message_count",
+          "participants"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "message_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "participant_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantStatusResponse"
+            }
+          },
+          "session_id": {
+            "type": "string"
+          }
+        }
+      },
       "TemplateResponse": {
         "type": "object",
         "description": "Template response",
         "required": [
           "id",
           "template_type",
+          "name",
           "description",
           "source_path",
           "lexicon_terms"
@@ -344,32 +833,13 @@
               "type": "string"
             }
           },
+          "name": {
+            "type": "string"
+          },
           "source_path": {
             "type": "string"
           },
           "template_type": {
-            "type": "string"
-          }
-        }
-      },
-      "ToolResponse": {
-        "type": "object",
-        "description": "Tool response",
-        "required": [
-          "name",
-          "description",
-          "input_schema",
-          "server_id"
-        ],
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "input_schema": {},
-          "name": {
-            "type": "string"
-          },
-          "server_id": {
             "type": "string"
           }
         }
@@ -429,6 +899,26 @@
     {
       "name": "models",
       "description": "Okapi model catalog"
+    },
+    {
+      "name": "curator",
+      "description": "Curator escalation and metacognition"
+    },
+    {
+      "name": "ensemble",
+      "description": "Ensemble multi-agent coordination"
+    },
+    {
+      "name": "git",
+      "description": "Git archival and resolution"
+    },
+    {
+      "name": "acp",
+      "description": "ACP agent registration and management"
+    },
+    {
+      "name": "goals",
+      "description": "Goal coordination substrate (OCAP-gated)"
     }
   ]
 }

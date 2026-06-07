@@ -501,4 +501,94 @@ mod tests {
         assert_eq!(backpressures.len(), 1);
         assert_eq!(backpressures[0].reason, "test backpressure");
     }
+
+    /// Property: when the kill zone is active (acquisition_attempt && vc < 0.5),
+    /// `check_kill_zone` MUST fire an algedonic alert in the `cns.killzone`
+    /// domain and emit a `cns.killzone.threshold_exceeded` NuEvent to
+    /// subscribers whose interest mask includes that namespace. The
+    /// Magna Carta (Kill-Zone Detection §4) requires this; before the fix,
+    /// the runtime returned the bool and stopped.
+    #[tokio::test]
+    async fn kill_zone_triggers_algedonic_alert_and_event() {
+        use crate::algedonic::AlertSeverity;
+
+        let runtime = CnsRuntime::default();
+        let observer = Arc::new(TestObserver::new(vec![SpanNamespace::new("cns.killzone")]));
+        runtime
+            .subscribe_async(observer.clone() as Arc<dyn CnsObserver>)
+            .await;
+
+        // Trigger the kill zone: acquisition attempt + VC investment below
+        // the default threshold of 0.5.
+        let triggered = runtime.check_kill_zone(0.3, true).await;
+        assert!(triggered, "kill zone must be active at vc=0.3");
+
+        // 1. Algedonic alert fires in the `cns.killzone` domain.
+        let alerts = runtime.alerts().await;
+        let killzone_alerts: Vec<_> = alerts
+            .iter()
+            .filter(|a| a.domain == "cns.killzone")
+            .collect();
+        assert!(
+            !killzone_alerts.is_empty(),
+            "kill-zone algedonic alert must be recorded in the `cns.killzone` domain"
+        );
+        // The allosteric gate maps a synthetic zero-variety counter to
+        // an Info/Warning severity at the standard threshold (100). The
+        // invariant is that *some* alert is recorded — the specific
+        // severity depends on the gate calibration.
+        let severities: Vec<AlertSeverity> = killzone_alerts.iter().map(|a| a.severity).collect();
+        assert!(
+            severities.iter().all(|s| matches!(
+                s,
+                AlertSeverity::Info | AlertSeverity::Warning | AlertSeverity::Critical
+            )),
+            "all kill-zone alerts must have a valid severity, got {severities:?}"
+        );
+
+        // 2. NuEvent with the canonical `cns.killzone.threshold_exceeded`
+        // span path is delivered to subscribers.
+        let events = observer.events.lock().unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|p| p == "cns.killzone.threshold_exceeded"),
+            "expected cns.killzone.threshold_exceeded event, got {events:?}"
+        );
+    }
+
+    /// Property: when the kill zone is *not* active (no acquisition
+    /// attempt), `check_kill_zone` MUST NOT fire an algedonic alert or
+    /// emit a NuEvent. Symmetric to the previous test.
+    #[tokio::test]
+    async fn no_kill_zone_no_alert_when_no_acquisition() {
+        let runtime = CnsRuntime::default();
+        let observer = Arc::new(TestObserver::new(vec![SpanNamespace::new("cns.killzone")]));
+        runtime
+            .subscribe_async(observer.clone() as Arc<dyn CnsObserver>)
+            .await;
+
+        // No acquisition attempt. Even with low VC, kill zone must not fire.
+        let triggered = runtime.check_kill_zone(0.1, false).await;
+        assert!(
+            !triggered,
+            "kill zone must not be active without acquisition"
+        );
+
+        let alerts = runtime.alerts().await;
+        let killzone_alerts: Vec<_> = alerts
+            .iter()
+            .filter(|a| a.domain == "cns.killzone")
+            .collect();
+        assert!(
+            killzone_alerts.is_empty(),
+            "no algedonic alert must be raised when there is no acquisition attempt, got {killzone_alerts:?}"
+        );
+
+        let events = observer.events.lock().unwrap();
+        assert!(
+            events.is_empty(),
+            "no cns.killzone event must be emitted, got {events:?}"
+        );
+    }
 }

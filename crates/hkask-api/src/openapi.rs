@@ -73,7 +73,7 @@ use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusR
     ),
     info(
         title = "hKask API",
-        version = "0.1.0",
+        version = "0.23.0",
         description = "A Minimal Viable Container for Agents - HTTP API"
     ),
     servers(
