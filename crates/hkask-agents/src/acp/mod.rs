@@ -125,6 +125,42 @@ pub enum A2AMessage {
     },
 }
 
+impl A2AMessage {
+    /// Get the sender's WebID regardless of message type.
+    ///
+    /// Returns `Some` for `TemplateDispatch` (from) and `MemoryArtifact` (producer),
+    /// `None` for `TemplateResponse` (no sender).
+    pub fn from_webid(&self) -> Option<&WebID> {
+        match self {
+            A2AMessage::TemplateDispatch { from, .. } => Some(from),
+            A2AMessage::TemplateResponse { .. } => None,
+            A2AMessage::MemoryArtifact { producer, .. } => Some(producer),
+        }
+    }
+
+    /// Get the correlation/artifact ID for this message.
+    ///
+    /// All variants carry an identifier that serves as a correlation key:
+    /// `TemplateDispatch` and `TemplateResponse` use `correlation_id`,
+    /// `MemoryArtifact` uses `artifact_id`.
+    pub fn correlation_id(&self) -> &str {
+        match self {
+            A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id,
+            A2AMessage::TemplateResponse { correlation_id, .. } => correlation_id,
+            A2AMessage::MemoryArtifact { artifact_id, .. } => artifact_id,
+        }
+    }
+
+    /// Get a human-readable message type name.
+    pub fn message_type(&self) -> &'static str {
+        match self {
+            A2AMessage::TemplateDispatch { .. } => "template_dispatch",
+            A2AMessage::TemplateResponse { .. } => "template_response",
+            A2AMessage::MemoryArtifact { .. } => "memory_artifact",
+        }
+    }
+}
+
 /// Consolidated mutable ACP state behind a single lock (P2.1).
 ///
 /// Replaces 5 independent `Arc<RwLock<....>` fields with one
@@ -309,35 +345,16 @@ impl AcpRuntime {
     }
 
     pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
-        let (correlation_id, from, to, message_type) = match &message {
-            A2AMessage::TemplateDispatch {
-                correlation_id,
-                from,
-                to,
-                ..
-            } => (
-                correlation_id.clone(),
-                Some(*from),
-                *to,
-                "template_dispatch".to_string(),
-            ),
-            A2AMessage::TemplateResponse { correlation_id, .. } => (
-                correlation_id.clone(),
-                None,
-                None,
-                "template_response".to_string(),
-            ),
-            A2AMessage::MemoryArtifact {
-                artifact_id,
-                producer,
-                ..
-            } => (
-                format!("artifact:{}", artifact_id),
-                Some(*producer),
-                None,
-                "memory_artifact".to_string(),
-            ),
+        let from = message.from_webid().copied();
+        let to = match &message {
+            A2AMessage::TemplateDispatch { to, .. } => *to,
+            _ => None,
         };
+        let correlation_id = match &message {
+            A2AMessage::MemoryArtifact { .. } => format!("artifact:{}", message.correlation_id()),
+            _ => message.correlation_id().to_string(),
+        };
+        let message_type = message.message_type().to_string();
 
         let mut state = self.state.write().await;
         state

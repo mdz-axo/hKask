@@ -473,12 +473,8 @@ impl AcpPort for RussellAcpAdapter {
             )));
         }
 
-        // Return the correlation ID from the original message, or generate one
-        let correlation_id = match &msg {
-            A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id.clone(),
-            A2AMessage::TemplateResponse { correlation_id, .. } => correlation_id.clone(),
-            A2AMessage::MemoryArtifact { artifact_id, .. } => artifact_id.clone(),
-        };
+        // Return the correlation ID from the original message
+        let correlation_id = msg.correlation_id().to_string();
 
         Ok(correlation_id)
     }
