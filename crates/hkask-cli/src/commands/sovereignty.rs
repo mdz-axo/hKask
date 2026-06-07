@@ -19,6 +19,17 @@ use std::sync::{LazyLock, Mutex};
 static SOVEREIGNTY_STATE: LazyLock<Mutex<UserSovereigntyState>> =
     LazyLock::new(|| Mutex::new(UserSovereigntyState::new()));
 
+/// Return a clone of the process-local sovereignty state.
+///
+/// Used by the REPL `/sovereignty` slash command and any other in-process
+/// observer that needs a consistent snapshot without holding the mutex.
+pub fn process_local_state_snapshot() -> UserSovereigntyState {
+    SOVEREIGNTY_STATE
+        .lock()
+        .expect("sovereignty state mutex poisoned")
+        .clone()
+}
+
 pub fn run(action: SovereigntyAction) {
     use hkask_types::DataCategory;
 

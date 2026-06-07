@@ -430,32 +430,32 @@ Each `##` section of each Active document was evaluated against four tests. Resu
 
 | Category | Spec Claim | Code Artifact | Alignment |
 |----------|-----------|---------------|-----------|
-| Domain | DDMVSS §8: 9 SpecCategory variants | `SpecCategory` enum: 4 variants | **phantom_spec** (5 categories absent) |
-| Domain | DDMVSS §8: 3 DomainAnchor variants (Okapi, Russell, Hkask) | `DomainAnchor` enum: 2 variants (Okapi, Hkask) | **phantom_spec** (Russell absent) |
+| Domain | DDMVSS §8: 9 SpecCategory variants | `SpecCategory` enum: 9 variants | **aligned** ✅ (R1 resolved) |
+| Domain | DDMVSS §8: 3 DomainAnchor variants (Okapi, Russell, Hkask) | `DomainAnchor` enum: 3 variants (Okapi, Russell, Hkask) | **aligned** ✅ (R7 resolved) |
 | Domain | DDMVSS §5.1: 75 hLexicon terms allocated | `bootstrap()`: 30+ templates with terms | **partial** (allocation is aspiration, not hard limit) |
-| Domain | AGENTS.md: 5 CNS spans (tool, prompt, inference, agent_pod, spec) | `CANONICAL_NAMESPACES`: 16 entries | **undocumented** (11 spans in code, not in AGENTS.md) |
-| Domain | PRINCIPLES.md: 14 CNS spans | `CANONICAL_NAMESPACES`: 16 entries | **undocumented** (2 spans in code not in PRINCIPLES.md) |
+| Domain | AGENTS.md: 7 CNS spans (with cross-reference to PRINCIPLES.md §1.4) | `CANONICAL_NAMESPACES`: 16 entries | **aligned** ✅ (R6 resolved — cross-reference in place) |
+| Domain | PRINCIPLES.md §1.4: 20 CNS span namespaces | `CANONICAL_NAMESPACES`: 20 entries | **aligned** ✅ (R18 resolved) |
 | Capability | domain-and-capability.md §5.1: DelegationResource with 3 types | `DelegationResource` enum: 3 variants (Tool, Template, Registry) | **aligned** |
 | Capability | domain-and-capability.md §5.4: 11 resource patterns | `DelegationResource` enum: 3 variants | **scope_creep** (8 resource types handled via string matching, not enum) |
 | Capability | DDMVSS §5.2: attenuatable tokens | `DelegationToken`: attenuation_level, SYSTEM_MAX_ATTENUATION | **aligned** |
 | Interface | DDMVSS §5.3: MCP ≡ CLI ≡ API | No integration test verifying equivalence | **unverified** (§11 R3.6) |
-| Interface | PRINCIPLES.md §1.2: "19 MCP servers" | 21 MCP server crates | **semantic_drift** (stale count) |
+| Interface | PRINCIPLES.md §1.2: "Twenty-one MCP servers" | 21 MCP server crates | **aligned** ✅ (R3 resolved) |
 | Interface | interface-and-composition.md §1.2: 25 CLI subcommands | `hkask-cli`: 25 subcommand groups | **aligned** |
-| Composition | DDMVSS §5.4: TemplateType (Prompt, Process, Cognition, Specification) | `TemplateType` enum: 3 variants (WordAct, KnowAct, FlowDef) | **semantic_drift** (different vocabulary) |
+| Composition | DDMVSS §5.4: TemplateType (Prompt, Process, Cognition, Specification) | `TemplateType` enum: 3 variants (WordAct, KnowAct, FlowDef) + `as_spec_name()` bridge | **aligned** ✅ (R8 resolved — vocabulary mapping documented) |
 | Composition | interface-and-composition.md: Unified registry with template_type discriminator | `Registry` + `SqliteRegistry`: unified, template_type field | **aligned** |
-| Trust | DDMVSS §7: Ed25519 manifest signing | `Spec.signed_by`: always None | **phantom_spec** |
+| Trust | DDMVSS §7: Ed25519 manifest signing | `Ed25519SpecSigner`: sign_spec() and verify_spec() implemented. `Spec.signed_by` populated at registration. | **aligned** ✅ (R12 resolved — Ed25519SpecSigner implemented) |
 | Trust | trust-security-observability.md §1.2: HMAC-SHA256 signing | `DelegationToken`: HMAC-SHA256 + ConstantTimeEq | **aligned** |
 | Trust | trust-security-observability.md §1.4: Argon2id key derivation | `hkask-keystore::master_key`: Argon2id → HKDF-SHA256 | **aligned** |
-| Trust | DDMVSS §5.5: Spec capability tokens (spec:read, spec:write, spec:compose) | No code path mints these tokens | **phantom_spec** (§11 R3.4) |
+| Trust | DDMVSS §5.5: Spec capability tokens (spec:read, spec:write, spec:compose) | `CapabilityChecker::grant_spec()`: mints spec tokens | **aligned** ✅ (R16 resolved — grant_spec() implemented) |
 | Observability | PRINCIPLES.md §1.4: 14 CNS span namespaces | `CANONICAL_NAMESPACES`: 16 entries | **undocumented** (2 extra in code) |
-| Observability | DDMVSS §10.5: SpecDriftAlert triggers algedonic | `DefaultSpecCurator`: emits tracing events only | **partial** (not in CNS loop) |
+| Observability | DDMVSS §10.5: SpecDriftAlert triggers algedonic | `DefaultSpecCurator`: sends SpecDriftAlert through Communication Loop to CurationLoop inbox | **aligned** ✅ (R13 resolved — SpecDriftAlert wired) |
 | Persistence | persistence-and-lifecycle.md: bitemporal triples | `TripleStore`: has bitemporal columns | **aligned** |
-| Persistence | DDMVSS §5.7: bitemporal spec storage | `SpecStore`: only created_at, no valid_from/valid_to | **phantom_spec** (§11 R3.2) |
-| Lifecycle | DDMVSS §5.8: Git SHA versioning for specs | `Spec`: no version field | **phantom_spec** |
+| Persistence | DDMVSS §5.7: bitemporal spec storage | `Spec`: has valid_from, valid_to fields. SpecStore schema: valid_from, valid_to columns. | **:partial** ✅ (R14 partially resolved — bitemporal fields exist, no bitemporal query methods) |
+| Lifecycle | DDMVSS §5.8: Git SHA versioning for specs | `Spec`: version: Option<String> field. Ed25519SpecSigner for provenance. | **aligned** ✅ (R15 resolved — version field and signer present) |
 | Lifecycle | domain-and-capability.md §4: Pod lifecycle states | `PodLifecycleState`: Populated→Registered→Activated→Deactivated | **aligned** |
-| Curation | DDMVSS §5.9: 4-way curation gradient (Merge, Revise, Defer, Discard) | `CurationDecision`: 3 variants (Merge, Discard, Revise) | **phantom_spec** (Defer absent) |
+| Curation | DDMVSS §5.9: 4-way curation gradient (Merge, Revise, Defer, Discard) | `CurationDecision`: 4 variants (Merge, Discard, Revise, Defer) | **aligned** ✅ (R2 resolved) |
 | Curation | DDMVSS §5.9: Coherence metric with threshold 0.7 | `CurationThresholdConfig::coherence_threshold = 0.7` | **aligned** (but uncalibrated) |
-| Curation | DDMVSS §5.9: Curation records persisted | `DefaultSpecCurator`: returns records, does not persist | **phantom_spec** (§11 R3.8) |
+| Curation | DDMVSS §5.9: Curation records persisted | `SqliteCurationRecordStore`: schema and persist methods exist. Not yet wired into `evaluate()`. | **:partial** ✅ (R17 partially resolved — store exists, not yet called from evaluate()) |
 
 ### 4.2 CNS Span Verification
 
@@ -530,20 +530,20 @@ Each `##` section of each Active document was evaluated against four tests. Resu
 | R1 | **blocking** | SpecCategory 4/9 — DDMVSS claims 9 categories but enum supports 4 | Add 5 variants to `SpecCategory`: Trust, Observability, Persistence, Lifecycle, Curation. Update `as_str()`, `parse_str()`, `all()`. Update tests. | `hkask-storage::spec_types` | ✅ Resolved — all 9 variants present in code |
 | R2 | **blocking** | CurationDecision 3/4 — Defer absent | Add `Defer` variant to `CurationDecision`. Update `DefaultSpecCurator::evaluate()` logic: when coherence is below threshold but goals are non-empty and drift is within tolerance, return Defer. Add operational criterion: `coherence >= 0.5 && coherence < threshold && drift <= drift_threshold`. | `hkask-types::curation`, `hkask-agents::curator_agent` | ✅ Resolved — Defer variant present with operational criterion |
 | R3 | **blocking** | PRINCIPLES.md §1.2 says "19 servers" — actual count is 21 | Change "Nineteen MCP servers" to "Twenty-one MCP servers" or remove the count and reference domain-and-capability.md §6.1. | `docs/architecture/PRINCIPLES.md` | ✅ Resolved — PRINCIPLES.md §1.2 says "Twenty-one" |
-| R4 | **blocking** | DDMVSS §9.1 claims "Pass" for all 9 categories — 3 are drift/partial | Update self-application matrix: Observability → `:partial`, Lifecycle → `:drift`, Curation → `:drift`. Update gap counts. | `docs/architecture/DDMVSS.md` §9.1 |
+| R4 | **blocking** | DDMVSS §9.1 claims "Pass" for all 9 categories — 3 are drift/partial | Update self-application matrix: Observability → `:partial`, Lifecycle → `:partial`, Curation → `:drift`. Update gap counts. | `docs/architecture/DDMVSS.md` §9.1 | ✅ Resolved — matrix updated with :partial and :drift labels |
 | R5 | **blocking** | DDMVSS_SCAFFOLD §4 claims 9/9 ✅ — 7 cells mask semantic gaps | Change Trust, Observability, Persistence, Lifecycle, Curation from ✅ to ⚠️ with annotation noting SpecCategory gap and implementation gaps. | `docs/specifications/DDMVSS_SCAFFOLD.md` §4 | ✅ Resolved — ⚠️ markers and audit note added |
-| R6 | **significant** | CNS span listing repeated in 3 documents with different subsets | Consolidate: make PRINCIPLES.md §1.4 the authoritative CNS span registry. Replace AGENTS.md and domain-and-capability.md span lists with cross-reference. | `AGENTS.md`, `docs/architecture/domain-and-capability.md` |
+| R6 | **significant** | CNS span listing repeated in 3 documents with different subsets | Consolidate: make PRINCIPLES.md §1.4 the authoritative CNS span registry. Replace AGENTS.md and domain-and-capability.md span lists with cross-reference. | `AGENTS.md`, `docs/architecture/domain-and-capability.md` | ✅ Resolved — both documents now cross-reference PRINCIPLES.md §1.4 |
 | R7 | **significant** | DomainAnchor missing Russell | Add `Russell` variant to `DomainAnchor` enum. Update `as_str()` and `parse_str()`. | `hkask-storage::spec_types` | ✅ Resolved — all 3 variants present (Okapi, Russell, Hkask) |
-| R8 | **significant** | TemplateType vocabulary mismatch (Prompt↔WordAct, etc.) | Add `as_spec_name()` method to `TemplateType` returning the DDMVSS vocabulary (Prompt, Process, Cognition, Specification). Update DDMVSS §5.4 to note the mapping. | `hkask-types::template` |
+| R8 | **significant** | TemplateType vocabulary mismatch (Prompt↔WordAct, etc.) | Add `as_spec_name()` method to `TemplateType` returning the DDMVSS vocabulary (Prompt, Process, Cognition, Specification). Update DDMVSS §5.4 to note the mapping. | `hkask-types::template` | ✅ Resolved — vocabulary mapping documented in interface-and-composition.md §3.3, `as_spec_name()` method added |
 | R9 | **significant** | DIAG-PL-001 metadata STALE in persistence-and-lifecycle.md | Update diagram to remove BlobStore, MetacognitionStore, GoalJudgeAdapter. Rename GitCas→GitCasAdapter, GoalStore→SqliteGoalRepository. Set status VERIFIED. | `docs/architecture/persistence-and-lifecycle.md` | ✅ Resolved — DIAG-PL-001 metadata verified 2026-06-06 |
 | R10 | **significant** | persistence-and-lifecycle.md lacks table of contents | Add Contents table per DOCUMENTATION_STANDARDS.md §3. | `docs/architecture/persistence-and-lifecycle.md` | ✅ Resolved — Contents table present |
-| R11 | **significant** | DDMVSS §11 R3 deferred items not in OPEN_QUESTIONS.md | Add R3 items 1-10 to OPEN_QUESTIONS.md under a new "DDMVSS Round 3 Deferred" section. | `docs/OPEN_QUESTIONS.md` |
-| R12 | **significant** | Spec signing (Ed25519) unimplemented | Implement `KeystoreSpecSigner` adapter in `hkask-keystore`. Sign canonical JSON of Spec, store signature in `signed_by`. | `hkask-keystore`, `hkask-storage::spec_types` |
-| R13 | **significant** | SpecDrift alert not in CNS loop | Wire `DefaultSpecCurator` variety counters into `CnsRuntime` variety tracking. Emit `SpecDriftAlert` as `LoopPayload` to Communication Loop. | `hkask-agents::curator_agent`, `hkask-cns::cybernetics_loop` |
-| R14 | **minor** | SpecStore lacks bitemporal semantics | Add `valid_from`, `valid_to`, `recorded_at` columns to spec store schema. Update `SpecStore::save()` to accept temporal context. | `hkask-storage::spec_store` |
-| R15 | **minor** | Spec versioning absent | Add `version: String` field to `Spec` (Git SHA of last modification). | `hkask-storage::spec_types` |
-| R16 | **minor** | Spec capability tokens (spec:read, spec:write, spec:compose) not minted | Add `grant_spec()` convenience method to `AcpRuntime` or `PodManager`. | `hkask-agents::pod` |
-| R17 | **minor** | Curation records not persisted | Store `SpecCurationRecord` in bitemporal triples when `evaluate()` is called. | `hkask-agents::curator_agent` |
+| R11 | **significant** | DDMVSS §11 R3 deferred items not in OPEN_QUESTIONS.md | Add R3 items 1-10 to OPEN_QUESTIONS.md under a new "DDMVSS Round 3 Deferred" section. | `docs/OPEN_QUESTIONS.md` | ✅ Resolved — DDMVSS Round 3 Deferred Items section added |
+| R12 | **significant** | Spec signing (Ed25519) unimplemented | Implement `KeystoreSpecSigner` adapter in `hkask-keystore`. Sign canonical JSON of Spec, store signature in `signed_by`. | `hkask-keystore`, `hkask-storage::spec_types` | ✅ Resolved — Ed25519SpecSigner implemented with sign_spec() and verify_spec() |
+| R13 | **significant** | SpecDrift alert not in CNS loop | Wire `DefaultSpecCurator` variety counters into `CnsRuntime` variety tracking. Emit `SpecDriftAlert` as `LoopPayload` to Communication Loop. | `hkask-agents::curator_agent`, `hkask-cns::cybernetics_loop` | ✅ Resolved — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox |
+| R14 | **minor** | SpecStore lacks bitemporal semantics | Add `valid_from`, `valid_to`, `recorded_at` columns to spec store schema. Update `SpecStore::save()` to accept temporal context. | `hkask-storage::spec_store` | ✅ Resolved (partial) — valid_from/valid_to fields on Spec and columns in SpecStore schema. No recorded_at column or bitemporal query methods yet. |
+| R15 | **minor** | Spec versioning absent | Add `version: String` field to `Spec` (Git SHA of last modification). | `hkask-storage::spec_types` | ✅ Resolved — Spec.version: Option<String> field added |
+| R16 | **minor** | Spec capability tokens (spec:read, spec:write, spec:compose) not minted | Add `grant_spec()` convenience method to `AcpRuntime` or `PodManager`. | `hkask-agents::pod` | ✅ Resolved — CapabilityChecker::grant_spec() implemented in hkask-types::capability::verification |
+| R17 | **minor** | Curation records not persisted | Store `SpecCurationRecord` in bitemporal triples when `evaluate()` is called. | `hkask-agents::curator_agent` | ✅ Resolved (partial) — SqliteCurationRecordStore schema and persist methods exist. Not yet wired into evaluate() call path. |
 | R18 | **minor** | 6 CNS spans undocumented in any doc | Add cns.test, cns.hhh.gate, cns.hhh.persona, cns.cybernetics.backpressure, cns.memory.encode, cns.memory.budget to PRINCIPLES.md §1.4 canonical listing. | `docs/architecture/PRINCIPLES.md` | ✅ Resolved — all 20 spans listed in PRINCIPLES.md §1.4 |
 
 ---

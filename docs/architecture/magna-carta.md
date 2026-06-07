@@ -89,13 +89,24 @@ pub struct DataSovereigntyBoundary {
 
 ### Acquisition Resistance
 
+The runtime type is a `bool` (`acquisition_resistance: bool`); the
+`DataSovereigntyBoundary::hkask_default()` sets it to `true`, satisfying the
+"default `Maximum`" charter. The five-level enum shown in earlier revisions
+of this document was simplified to a boolean per the
+`docs/architecture/IMPLEMENTATION-PLAN-simplification.md` pass; the spirit
+of the charter (resistance is the default, consent is required for
+acquisition) is preserved.
+
 ```rust
-pub enum AcquisitionResistance {
-    None,       // Open to acquisition
-    Low,        // Some user controls
-    Medium,     // Significant sovereignty
-    High,       // Strong anti-acquisition (default for pods)
-    Maximum,    // Requires user consent (default system)
+pub struct DataSovereigntyBoundary {
+    // ...sovereign_data, shared_data, public_data...
+    pub(crate) acquisition_resistance: bool,
+}
+
+impl DataSovereigntyBoundary {
+    pub fn prevents_passive_acquisition(&self) -> bool {
+        self.acquisition_resistance
+    }
 }
 ```
 
@@ -165,7 +176,8 @@ Sovereignty state tracking implements privacy-by-design principles:[^solove-taxo
 ```rust
 pub struct UserSovereigntyState {
     pub boundary: DataSovereigntyBoundary,
-    pub detector: KillZoneDetector,
+    pub kill_zone_state: KillZoneState,
+    pub kill_zone_threshold: f32,    // set by Curation; immutable at runtime
     pub explicit_consent: bool,
     pub last_check: chrono::DateTime<chrono::Utc>,
 }
@@ -173,26 +185,41 @@ pub struct UserSovereigntyState {
 
 ### Curator Pipeline Integration
 
+The `DefaultSpecCurator` is the curator that enforces the Magna Carta. It
+records sovereignty checks as `cns.sovereignty.checked` `NuEvent`s when an
+event sink is wired. The agent-pod `SovereigntyChecker` enforces the
+sovereignty policy on every memory access; the CNS runtime fires algedonic
+alerts on kill-zone detection.
+
 ```rust
-pub struct CuratorPipeline {
-    curator_id: CuratorId,
-    sovereignty: Arc<Mutex<UserSovereigntyState>>,
-    // ... variety, ocap_boundaries, records
+// In hkask-agents::curator_agent::DefaultSpecCurator
+impl DefaultSpecCurator {
+    /// Record a sovereignty check for a spec evaluation.
+    /// Emits a `cns.sovereignty.checked` NuEvent (Phase::Compare).
+    pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) { /* ... */ }
 }
 
-impl CuratorPipeline {
-    pub async fn evaluate_invocation(&self, invocation: &TemplateInvocation) -> EvaluationResult {
-        let ocap_ok = self.check_ocap(invocation).await;
-        let sovereignty_ok = self.check_sovereignty(invocation).await;
-        
-        // ... evaluate quality, update variety
-        
-        if !sovereignty_ok {
-            // Trigger CNS alert
-        }
-        
-        result
-    }
+// In hkask-agents::pod::PodContext
+impl PodContext {
+    /// Enforce the Magna Carta's data-sovereignty policy on access.
+    /// Complements `require_capability` (OCAP) with the data-class policy.
+    pub fn require_sovereignty(
+        &self,
+        category: &DataCategory,
+        requester: &WebID,
+    ) -> Result<(), AgentPodError> { /* ... */ }
+}
+
+// In hkask-cns::CnsRuntime
+impl CnsRuntime {
+    /// Update VC investment and check if kill zone is triggered.
+    /// When triggered: fires an algedonic alert (domain `cns.killzone`)
+    /// and emits a `cns.killzone.threshold_exceeded` NuEvent.
+    pub async fn check_kill_zone(
+        &self,
+        vc_investment: f32,
+        acquisition_attempt: bool,
+    ) -> bool { /* ... */ }
 }
 ```
 

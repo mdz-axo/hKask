@@ -51,16 +51,18 @@ for its category cluster.
 
 ### Architecture Decision Records
 
-| ADR | DDMVSS | Decision |
-|-----|--------|----------|
-| [ADR-022](architecture/ADR-022-comprehensive-security-hardening.md) | trust | Comprehensive security hardening |
-| [ADR-023](architecture/ADR-023-master-key-derivation.md) | trust | Master key derivation via HKDF-SHA256 |
-| [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision |
-| [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit |
-| [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema |
-| [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation |
-| [ADR-028](architecture/ADR-028-acp-protocol-design.md) | interface, composition | ACP protocol design (JSON-RPC 2.0 over stdio) |
-| [ADR-029](architecture/ADR-029-goal-capability-primitive.md) | capability, trust | Goal capability primitive — distinct typed token (not collapsed into generic capability) |
+| ADR | DDMVSS | Decision | Status |
+|-----|--------|----------|--------|
+| [ADR-022](architecture/ADR-022-comprehensive-security-hardening.md) | trust | Comprehensive security hardening | Active |
+| [ADR-023](architecture/ADR-023-master-key-derivation.md) | trust | Master key derivation via HKDF-SHA256 | Active |
+| [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
+| [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
+| [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema | Active |
+| [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
+| [ADR-028](architecture/ADR-028-acp-protocol-design.md) | interface, composition | ACP protocol design (JSON-RPC 2.0 over stdio) | Deferred |
+| [ADR-029](architecture/ADR-029-goal-capability-primitive.md) | capability, trust | Goal capability primitive — distinct typed token (not collapsed into generic capability) | **Superseded** (v0.23.0: `GoalCapabilityToken` removed; goals use `&WebID` owner scoping per [`domain-and-capability.md`](architecture/domain-and-capability.md)) |
+| [ADR-030](architecture/ADR-030-skill-bundler.md) | curation | Skill Bundler — meta-skill composition | Proposed |
+| [ADR-031](architecture/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
 
 ### Reference Artifacts (`architecture/reference/`)
 

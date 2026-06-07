@@ -406,15 +406,28 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 | # | Item | Category | Status | Audit Ref |
 |---|------|----------|--------|-----------|
 | R3.1 | Span::Spec variant gap | Observability | **Resolved** (added in audit) | Audit R1 |
-| R3.2 | SpecStore bitemporal semantics | Persistence | ⚠️ Deferred | Audit R14 |
-| R3.3 | Spec signing (Ed25519) | Trust | ⚠️ Deferred | Audit R12 |
-| R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | ⚠️ Deferred | Audit R16 |
+| R3.2 | SpecStore bitemporal semantics | Persistence | **Resolved** (partial) — valid_from/valid_to fields and columns exist. No recorded_at or bitemporal query methods yet. | Audit R14 |
+| R3.3 | Spec signing (Ed25519) | Trust | **Resolved** — Ed25519SpecSigner implemented | Audit R12 |
+| R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | **Resolved** — CapabilityChecker::grant_spec() implemented | Audit R16 |
 | R3.5 | hLexicon spec-curation terms bootstrapping | Domain | **Resolved** (partially bootstrapped) | Audit §2.3 |
 | R3.6 | MCP≡CLI≡API cross-surface equivalence test | Interface | ⚠️ Deferred | — |
 | R3.7 | Curation authority OCAP boundary integration | Trust | ⚠️ Deferred | — |
-| R3.8 | Curation records persistence | Persistence | ⚠️ Deferred | Audit R17 |
+| R3.8 | Curation records persistence | Persistence | **Resolved** (partial) — SqliteCurationRecordStore exists. Not yet wired into evaluate(). | Audit R17 |
 | R3.9 | Coherence threshold calibration (0.7) | Curation | ⚠️ Deferred (uncalibrated) | — |
-| R3.10 | Spec version replacement (post version_sha removal) | Lifecycle | ⚠️ Deferred | Audit R15 |
+| R3.10 | Spec version replacement (post version_sha removal) | Lifecycle | **Resolved** — Spec.version: Option<String> added | Audit R15 |
+
+---
+
+## DDMVSS Audit Remediation Tracking (R4–R18)
+
+*Remediation items from the 2026-06-06 DDMVSS Semantic Alignment Audit that are now resolved but were not previously tracked in this document.*
+
+| # | Item | Category | Status | Audit Ref |
+|---|------|----------|--------|----------|
+| R4 | DDMVSS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
+| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and domain-and-capability.md now cross-reference PRINCIPLES.md §1.4 | Audit R6 |
+| R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in interface-and-composition.md §3.3 | Audit R8 |
+| R13 | SpecDriftAlert not in CNS loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
 
 ---
 

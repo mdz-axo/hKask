@@ -246,6 +246,17 @@ All ports use `#[async_trait]`. No `block_in_place` or `block_on` in library cod
 | **FlowDef** | FlowDef | Workflow & specification templates — "Do / Define" | Sequence, composition, spec-curation terms |
 | **KnowAct** | KnowAct | Reasoning templates — "Think" | Analysis, evaluation terms |
 
+**DDMVSS Vocabulary Mapping.** The DDMVSS specification (§5.4) uses a different vocabulary for template types. The mapping between DDMVSS terms and code terms is:
+
+| DDMVSS Term | Code Term (`TemplateType`) | Domain |
+|-------------|---------------------------|--------|
+| Prompt | `WordAct` | WordAct |
+| Process | `FlowDef` | FlowDef |
+| Cognition | `KnowAct` | KnowAct |
+| Specification | `FlowDef` | FlowDef |
+
+The `TemplateType::as_spec_name()` method bridges this vocabulary gap, returning the DDMVSS canonical name for each variant.
+
 ### 3.4 Cascade Rules
 
 Template cascade follows the matroshka (nesting doll) pattern:

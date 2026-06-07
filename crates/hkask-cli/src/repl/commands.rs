@@ -421,7 +421,10 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "sovereignty" | "sov" => {
-            let sov_state = hkask_types::UserSovereigntyState::new();
+            // Read the process-local state, consistent with the `kask sovereignty`
+            // CLI commands. Previously this built a throwaway state and always
+            // reported `Consent: false, Compromised: false, Kill zone: false`.
+            let sov_state = crate::commands::sovereignty::process_local_state_snapshot();
             println!("  Sovereignty Status:");
             println!("    Consent:    {}", sov_state.explicit_consent);
             println!("    Compromised: {}", sov_state.is_compromised());

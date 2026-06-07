@@ -215,7 +215,7 @@ pub struct UserSovereigntyState {
 }
 
 impl UserSovereigntyState {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
             kill_zone_state: KillZoneState::default(),
