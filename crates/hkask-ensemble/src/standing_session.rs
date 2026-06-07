@@ -88,8 +88,9 @@ pub struct ParticipantEntry {
     pub agent_type: String,
     pub role: String,
     pub description: String,
-    /// Template domains this participant owns. Used to populate capabilities
-    /// for R4 capability intersection checks. Curator has no domains.
+    /// Template domains this participant owns. Converted to capability specs
+    /// ("tool:<domain>:execute") on load for R4 capability intersection checks.
+    /// Curator has no domains.
     #[serde(default)]
     pub domains: Vec<String>,
 }
@@ -158,15 +159,25 @@ impl StandingSession {
             };
 
             // Load capabilities from domains declared in YAML.
-            // If the agent is a known R7.x bot, also include its R7 bot capabilities.
-            let mut capabilities: Vec<String> = entry.domains.clone();
+            // Domains are bare strings (e.g., "cns", "storage") — convert them
+            // to proper capability specs ("tool:<domain>:execute") so that
+            // intersection_tools() can parse them via CapabilitySpec::parse().
+            let mut capabilities: Vec<String> = entry
+                .domains
+                .iter()
+                .map(|d| format!("tool:{}:execute", d))
+                .collect();
 
             // If this entry matches an R7 bot identity, use its domains
             // (the YAML domains take precedence, then fall back to R7 bot defaults)
             if capabilities.is_empty()
                 && let Some(r7_bot) = r7_bots.get(&entry.agent)
             {
-                capabilities = r7_bot.domains.clone();
+                capabilities = r7_bot
+                    .domains
+                    .iter()
+                    .map(|d| format!("tool:{}:execute", d))
+                    .collect();
             }
 
             let participant = ChatParticipant {
@@ -222,6 +233,17 @@ impl StandingSession {
     /// is also notified so the CNS can sense ensemble gas usage.
     pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
         self.chat = self.chat.with_gas_governance(port);
+        self
+    }
+
+    /// Set available tools for intersection-based tool scoping (R4).
+    ///
+    /// When set, `intersection_tools()` returns only the tools whose
+    /// required_capability domains intersect across all participants.
+    /// Without this, `intersection_tools()` returns `None` and tool
+    /// scoping falls back to showing all tools.
+    pub fn with_available_tools(mut self, tools: Vec<hkask_types::ports::ToolInfo>) -> Self {
+        self.chat = self.chat.with_available_tools(tools);
         self
     }
 
@@ -535,5 +557,201 @@ bootstrap:
         assert_eq!(config.participants[0].agent, "Curator");
         assert_eq!(config.bootstrap.initial_message.from, "Curator");
         assert_eq!(config.bootstrap.initial_message.content, "Hello");
+    }
+
+    /// Verify that bare domain strings (e.g. "cns", "storage") are converted
+    /// to proper capability specs ("tool:cns:execute") when building a session.
+    /// Without this conversion, intersection_tools() would silently discard
+    /// unparseable bare strings, making the intersection a no-op.
+    #[test]
+    fn from_config_converts_bare_domains_to_capability_specs() {
+        let config = StandingSessionConfig {
+            session: SessionMetadata {
+                id: "test-session".to_string(),
+                name: "Test".to_string(),
+                description: "Test session".to_string(),
+            },
+            participants: vec![
+                ParticipantEntry {
+                    agent: "Curator".to_string(),
+                    agent_type: "replicant".to_string(),
+                    role: "orchestrator".to_string(),
+                    description: "The curator".to_string(),
+                    domains: vec![],
+                },
+                ParticipantEntry {
+                    agent: "R7.3".to_string(),
+                    agent_type: "bot".to_string(),
+                    role: "participant".to_string(),
+                    description: "CNS bot".to_string(),
+                    domains: vec!["cns".to_string()],
+                },
+            ],
+            bootstrap: BootstrapConfig {
+                initial_message: InitialMessage {
+                    from: "Curator".to_string(),
+                    message_type: "greeting".to_string(),
+                    content: "Hello".to_string(),
+                },
+                initial_reports: vec![],
+            },
+            gas: None,
+        };
+
+        let session = StandingSession::from_config(config);
+
+        // Find the R7.3 participant in the chat
+        let r7_3_webid = WebID::from_persona(b"R7.3");
+        let participant = session
+            .chat
+            .get_participants()
+            .get(&r7_3_webid)
+            .expect("R7.3 should be a participant");
+
+        // Bare domain "cns" must be converted to "tool:cns:execute"
+        // (not left as bare "cns" which fails CapabilitySpec::parse)
+        assert_eq!(
+            participant.capabilities,
+            vec!["tool:cns:execute".to_string()],
+            "Bare domain strings must be converted to capability specs"
+        );
+    }
+
+    /// Verify that when no domains are specified in YAML but the agent matches
+    /// an R7 bot, the R7 bot's domains are used (also converted to capability specs).
+    #[test]
+    fn from_config_falls_back_to_r7_bot_domains_converted() {
+        let config = StandingSessionConfig {
+            session: SessionMetadata {
+                id: "test-session-2".to_string(),
+                name: "Test 2".to_string(),
+                description: "Test session 2".to_string(),
+            },
+            participants: vec![
+                ParticipantEntry {
+                    agent: "Curator".to_string(),
+                    agent_type: "replicant".to_string(),
+                    role: "orchestrator".to_string(),
+                    description: "The curator".to_string(),
+                    domains: vec![],
+                },
+                ParticipantEntry {
+                    agent: "R7.1".to_string(),
+                    agent_type: "bot".to_string(),
+                    role: "participant".to_string(),
+                    description: "Storage bot".to_string(),
+                    domains: vec![], // Empty — should fall back to R7.1's domains
+                },
+            ],
+            bootstrap: BootstrapConfig {
+                initial_message: InitialMessage {
+                    from: "Curator".to_string(),
+                    message_type: "greeting".to_string(),
+                    content: "Hello".to_string(),
+                },
+                initial_reports: vec![],
+            },
+            gas: None,
+        };
+
+        let session = StandingSession::from_config(config);
+
+        let r7_1_webid = WebID::from_persona(b"R7.1");
+        let participant = session
+            .chat
+            .get_participants()
+            .get(&r7_1_webid)
+            .expect("R7.1 should be a participant");
+
+        // R7.1 has domains: ["storage"] — should be converted to ["tool:storage:execute"]
+        assert_eq!(
+            participant.capabilities,
+            vec!["tool:storage:execute".to_string()],
+            "R7 bot domains must be converted to capability specs"
+        );
+    }
+
+    /// Verify that with_available_tools() wires tools through to intersection_tools().
+    /// Without available tools, intersection_tools() returns None.
+    /// With available tools, intersection_tools() filters by capability intersection.
+    #[test]
+    fn with_available_tools_wires_intersection_into_session() {
+        use hkask_types::ports::ToolInfo;
+
+        let config = StandingSessionConfig {
+            session: SessionMetadata {
+                id: "test-session-3".to_string(),
+                name: "Test 3".to_string(),
+                description: "Test session 3".to_string(),
+            },
+            participants: vec![
+                ParticipantEntry {
+                    agent: "Curator".to_string(),
+                    agent_type: "replicant".to_string(),
+                    role: "orchestrator".to_string(),
+                    description: "The curator".to_string(),
+                    domains: vec![],
+                },
+                ParticipantEntry {
+                    agent: "R7.3".to_string(),
+                    agent_type: "bot".to_string(),
+                    role: "participant".to_string(),
+                    description: "CNS bot".to_string(),
+                    domains: vec!["cns".to_string()],
+                },
+            ],
+            bootstrap: BootstrapConfig {
+                initial_message: InitialMessage {
+                    from: "Curator".to_string(),
+                    message_type: "greeting".to_string(),
+                    content: "Hello".to_string(),
+                },
+                initial_reports: vec![],
+            },
+            gas: None,
+        };
+
+        let tools = vec![
+            ToolInfo {
+                name: "cns_health".to_string(),
+                description: "CNS health check".to_string(),
+                input_schema: serde_json::json!({}),
+                server_id: "hkask-mcp-cns".to_string(),
+                required_capability: Some("tool:cns:execute".to_string()),
+            },
+            ToolInfo {
+                name: "semantic_search".to_string(),
+                description: "Semantic search".to_string(),
+                input_schema: serde_json::json!({}),
+                server_id: "hkask-mcp-semantic".to_string(),
+                required_capability: Some("tool:semantic:execute".to_string()),
+            },
+        ];
+
+        let session = StandingSession::from_config(config);
+
+        // Without available tools, intersection_tools() returns None
+        assert!(
+            session.chat.intersection_tools().is_none(),
+            "intersection_tools() should return None when no tools are set"
+        );
+
+        // With available tools, intersection_tools() filters by capability intersection
+        let session = session.with_available_tools(tools);
+        let visible = session.chat.intersection_tools();
+        assert!(
+            visible.is_some(),
+            "intersection_tools() should return Some when tools are set"
+        );
+
+        // R7.3 has domain "cns" → capability "tool:cns:execute".
+        // Only the CNS tool should be visible to all non-curator participants.
+        let visible_tools = visible.unwrap();
+        assert_eq!(
+            visible_tools.len(),
+            1,
+            "Only CNS tool should be in the intersection (R7.3 has cns, not semantic)"
+        );
+        assert_eq!(visible_tools[0].name, "cns_health");
     }
 }

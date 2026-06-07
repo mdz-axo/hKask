@@ -261,6 +261,22 @@ impl EnsembleChat {
     /// - The participant has a capability whose domain matches the tool's `required_capability`
     /// - Or the tool has no `required_capability` (always visible)
     ///
+    /// ## Design note: visibility vs. authority
+    ///
+    /// The intersection uses **domain matching only**, not `capabilities_match()`
+    /// with its action hierarchy. A participant with `tool:cns:read` will cause
+    /// CNS tools to appear in the intersection (domain "cns" matches), even
+    /// though that participant cannot *invoke* those tools (read ≱ execute).
+    ///
+    /// This is intentional: the intersection determines **visibility** (which tools
+    /// appear in the shared context), while the `GovernedTool` membrane enforces
+    /// **authority** (whether invocation is permitted). Showing tools you can see
+    /// but not invoke is acceptable; hiding tools you can't invoke is also valid
+    /// but produces a more conservative (smaller) intersection.
+    ///
+    /// If a stricter model is desired, replace the domain-string comparison
+    /// with `capabilities_match()` and check action levels.
+    ///
     /// Returns `None` if no available tools have been set.
     /// Returns an empty Vec if the intersection is empty (no common tools).
     pub fn intersection_tools(&self) -> Option<Vec<ToolInfo>> {

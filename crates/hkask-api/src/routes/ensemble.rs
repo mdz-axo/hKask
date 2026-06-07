@@ -424,6 +424,10 @@ pub struct ParticipantEntryRequest {
     pub agent_type: String,
     pub role: String,
     pub description: String,
+    /// Template domains this participant owns (e.g., `["cns", "storage"]`).
+    /// Converted to capability specs (`"tool:<domain>:execute"`) internally.
+    #[serde(default)]
+    pub domains: Vec<String>,
 }
 
 /// Standing session start response
@@ -488,7 +492,7 @@ async fn standing_start(
                 agent_type: p.agent_type,
                 role: p.role,
                 description: p.description,
-                domains: vec![],
+                domains: p.domains,
             })
             .collect(),
         bootstrap: hkask_ensemble::standing_session::BootstrapConfig {
@@ -503,6 +507,22 @@ async fn standing_start(
     };
 
     let mut session = StandingSession::from_config(config.clone());
+
+    // Discover available MCP tools and wire intersection-based tool scoping.
+    // This enables `intersection_tools()` to filter the tool section
+    // to only tools visible across all participants.
+    {
+        let tool_names = state.mcp_runtime.discover_tools().await;
+        let mut tools: Vec<hkask_types::ports::ToolInfo> = Vec::new();
+        for name in &tool_names {
+            if let Some(info) = state.mcp_runtime.get_tool_info(name).await {
+                tools.push(info);
+            }
+        }
+        if !tools.is_empty() {
+            session = session.with_available_tools(tools);
+        }
+    }
 
     // Wire storage — persist config and enable message archival
     session = session.with_store(state.standing_session_store.clone());

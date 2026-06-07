@@ -289,7 +289,25 @@ verified_against: crates/hkask-types/src/capability/mod.rs; crates/hkask-agents/
 status: VERIFIED
 -->
 
-### 5.3 Capability Grant Table
+### 5.3 Capability Matching: Two-Path Verification
+
+The OCAP capability system has two matching paths for verifying tool invocation authority:
+
+1. **Exact-match (legacy):** `DelegationToken.is_valid_for(Resource, resource_id, Action)` — the `resource_id` is the exact tool name (e.g., `cns_health`). Used by ad-hoc invocation tokens.
+
+2. **Domain-match:** `capabilities_match(token_cap, required_cap)` — the `resource_id` is the domain namespace (e.g., `cns`). Used by agent capability tokens which declare domain-level authority.
+
+**Action hierarchy:** `Execute ≥ Write ≥ Read`. This is enforced by `DelegationAction::permits_write()` and `permits_read()`.
+
+The hierarchy is used in two places:
+- `GovernedTool::verify_capability_domain()` — determines whether a token authorizes tool invocation (authority)
+- `EnsembleChat::intersection_tools()` — uses domain matching only, not action hierarchy (visibility)
+
+**Visibility vs. authority distinction:** The intersection determines **visibility** (which tools appear in the shared context), while `GovernedTool` enforces **authority** (whether invocation is permitted). A participant with `tool:cns:read` will see CNS tools in the intersection but cannot invoke them (read ≱ execute).
+
+**Domain-to-capability conversion:** When loading standing session participants, bare domain strings (e.g., `"cns"`) from YAML are converted to proper capability specs (`"tool:cns:execute"`) so that `CapabilitySpec::parse()` can process them correctly.
+
+### 5.4 Capability Grant Table
 
 | Operation | Resource | Action | Interface | Attenuatable? |
 |-----------|----------|--------|-----------|---------------|

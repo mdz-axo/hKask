@@ -506,7 +506,7 @@ pub trait ToolPort: Send + Sync {
     ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send;
 }
 
-/// Canonical definition. Re-exported from hkask-templates for backward compat.
+/// Canonical tool metadata for OCAP capability matching and ensemble tool scoping.
 #[derive(Debug, Clone)]
 pub struct ToolInfo {
     pub name: String,

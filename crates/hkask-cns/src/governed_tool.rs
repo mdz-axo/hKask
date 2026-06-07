@@ -2,7 +2,10 @@
 //!
 //! Wraps a `ToolPort` and implements `ToolPort` itself. Before delegating
 //! to the inner tool, it checks:
-//! 1. Authority (OCAP) — DelegationToken verification
+//! 1. Authority (OCAP) — two-path DelegationToken verification:
+//!    - Path 1 (legacy): exact-match on tool name (ad-hoc invocation tokens)
+//!    - Path 2 (domain): capability-domain matching via `capabilities_match()`
+//!      (agent capability tokens use domain shorthand like "cns" not "cns_health")
 //! 2. Budget (Cybernetics) — reserve gas
 //! 3. Emits span (CNS) — cns.tool.invoked
 //! 4. Delegates to inner tool
@@ -133,6 +136,11 @@ impl<P: ToolPort> GovernedTool<P> {
     ///
     /// Called only when the legacy exact-match path fails. Returns `true` if the
     /// tool has a `required_capability` and the token covers it.
+    ///
+    /// Performance note: this calls get_tool_info() on every legacy-check failure.
+    /// For agent-driven invocations (domain-scoped tokens), this is every call.
+    /// If profiling shows this is a bottleneck, cache ToolInfo in GovernedTool
+    /// or pass &ToolInfo through the invoke() call chain.
     async fn verify_capability_domain_fallback(
         &self,
         token: &DelegationToken,

@@ -195,11 +195,14 @@ pub fn capability_from_server_id(server_id: &str) -> Option<String> {
 /// and the token's action level is sufficient for the required action:
 ///
 /// - `tool:cns:execute` covers `tool:cns:execute` (exact match)
-/// - `tool:cns:execute` covers `tool:cns:emit` (same domain, execute ≥ any action)
+/// - `tool:cns:execute` covers `tool:cns:write` (same domain, execute ≥ write)
 /// - `tool:cns:execute` covers `tool:cns:read` (execute ≥ read)
 /// - `tool:cns:read` does **not** cover `tool:cns:execute` (read ≱ execute)
 /// - `tool:cns:write` covers `tool:cns:read` (write ≥ read) but not `tool:cns:execute`
 /// - `tool:cns:execute` does **not** cover `tool:semantic:execute` (different domain)
+///
+/// Note: Unknown action strings in capability specs default to `Execute`.
+/// For example, `"tool:cns:emit"` parses as `{resource: Tool, resource_id: "cns", action: Execute}`.
 ///
 /// If either string cannot be parsed as a capability spec, falls back to exact
 /// string comparison.

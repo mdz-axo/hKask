@@ -1,6 +1,7 @@
 //! Unified session manager for both chat and deliberation sessions.
 
 use hkask_types::WebID;
+use hkask_types::ports::ToolInfo;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -22,6 +23,7 @@ pub struct SessionManager {
     deliberations: Arc<RwLock<HashMap<String, Arc<RwLock<DeliberationSession>>>>>,
     curator_webid: WebID,
     gas_governance: Option<Arc<dyn GasGovernancePort>>,
+    available_tools: Option<Vec<ToolInfo>>,
 }
 
 impl SessionManager {
@@ -32,6 +34,7 @@ impl SessionManager {
             deliberations: Arc::new(RwLock::new(HashMap::new())),
             curator_webid,
             gas_governance: None,
+            available_tools: None,
         }
     }
 
@@ -42,6 +45,16 @@ impl SessionManager {
     /// gas usage via the CyberneticsLoop.
     pub fn with_gas_governance(mut self, port: Arc<dyn GasGovernancePort>) -> Self {
         self.gas_governance = Some(port);
+        self
+    }
+
+    /// Set available tools for intersection-based tool scoping (R4).
+    ///
+    /// When set, every `EnsembleChat` created by this manager will be
+    /// wired with the available tools so that `intersection_tools()`
+    /// can filter tools to only those visible across all participants.
+    pub fn with_available_tools(mut self, tools: Vec<ToolInfo>) -> Self {
+        self.available_tools = Some(tools);
         self
     }
 
@@ -60,6 +73,9 @@ impl SessionManager {
         let mut chat = EnsembleChat::new(self.curator_webid);
         if let Some(ref governance) = self.gas_governance {
             chat = chat.with_gas_governance(Arc::clone(governance));
+        }
+        if let Some(ref tools) = self.available_tools {
+            chat = chat.with_available_tools(tools.clone());
         }
         let chat = Arc::new(RwLock::new(chat));
 
@@ -206,5 +222,34 @@ mod tests {
             .await
             .add_message(ChatMessage::new(curator_id(), "blocked".into()));
         assert_eq!(chat.read().await.get_history().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn session_manager_available_tools_wired_into_chat() {
+        use hkask_types::ports::ToolInfo;
+
+        let tools = vec![ToolInfo {
+            name: "cns_health".to_string(),
+            description: "CNS health check".to_string(),
+            input_schema: serde_json::json!({}),
+            server_id: "hkask-mcp-cns".to_string(),
+            required_capability: Some("tool:cns:execute".to_string()),
+        }];
+        let mgr = SessionManager::new(curator_id()).with_available_tools(tools.clone());
+        let chat = mgr.create_chat("tools").await;
+
+        // The chat should have the available tools set
+        let visible = chat.read().await.intersection_tools();
+        // With no participants (except curator, which is excluded from
+        // intersection), all tools are visible (backward compat)
+        assert!(
+            visible.is_some(),
+            "intersection_tools should return Some when tools are set"
+        );
+        assert_eq!(
+            visible.unwrap().len(),
+            1,
+            "All tools visible when no non-curator participants have capabilities"
+        );
     }
 }
