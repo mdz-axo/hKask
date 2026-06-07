@@ -513,7 +513,10 @@ pub struct ToolInfo {
     pub description: String,
     pub input_schema: serde_json::Value,
     pub server_id: String,
-    pub required_capability: Option<String>, // TODO: Populate from AgentDefinition.capabilities or server config
+    /// The capability required to invoke this tool, derived from the server ID.
+    /// Maps `hkask-mcp-<domain>` → `tool:<domain>:execute`.
+    /// `None` for servers that don't follow the `hkask-mcp-` naming convention.
+    pub required_capability: Option<String>,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

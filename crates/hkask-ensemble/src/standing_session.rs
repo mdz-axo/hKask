@@ -216,6 +216,15 @@ impl StandingSession {
         self
     }
 
+    /// Set CNS gas governance port for CyberneticsLoop observability.
+    ///
+    /// After `add_message()` consumes gas internally, the governance port
+    /// is also notified so the CNS can sense ensemble gas usage.
+    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
+        self.chat = self.chat.with_gas_governance(port);
+        self
+    }
+
     pub fn persist_session(&self, config_yaml: &str) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
             let now = chrono::Utc::now().to_rfc3339();

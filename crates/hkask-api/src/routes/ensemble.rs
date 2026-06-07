@@ -506,6 +506,8 @@ async fn standing_start(
 
     // Wire storage — persist config and enable message archival
     session = session.with_store(state.standing_session_store.clone());
+    // Wire gas governance — CNS observability for standing session gas usage
+    session = session.with_gas_governance(state.gas_governance.clone());
     let config_yaml = serde_yaml::to_string(&config).unwrap_or_default();
     session.persist_session(&config_yaml).ok();
 

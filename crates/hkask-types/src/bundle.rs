@@ -238,7 +238,10 @@ pub struct BundleManifestStep {
 
 // Config sub-structs — mirror existing manifest YAML fields
 
-/// Convergence configuration — controls when iterative steps stop improving
+/// Convergence configuration — controls when iterative steps stop improving.
+///
+/// Loaded from manifest YAML but not yet enforced by ManifestExecutor.
+/// The executor currently only processes `steps`; convergence gating is a future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ConvergenceConfig {
@@ -285,7 +288,8 @@ impl Default for GasConfig {
     }
 }
 
-/// Error handling configuration
+/// Error handling configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
+/// The executor currently only processes `steps`; error handling policies are a future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ErrorHandlingConfig {
@@ -313,7 +317,8 @@ impl Default for ErrorHandlingConfig {
     }
 }
 
-/// OCAP (Object Capability) configuration
+/// OCAP (Object Capability) configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
+/// The executor currently only processes `steps`; OCAP enforcement is a future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct OcapConfig {
@@ -338,7 +343,8 @@ impl Default for OcapConfig {
     }
 }
 
-/// CNS (Cybernetic Nervous System) monitoring configuration
+/// CNS (Cybernetic Nervous System) monitoring configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
+/// The executor currently only processes `steps`; CNS span emission is handled by GovernedTool at runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CnsConfig {
@@ -366,7 +372,8 @@ impl Default for CnsConfig {
     }
 }
 
-/// Audit trail configuration
+/// Audit trail configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
+/// The executor currently only processes `steps`; audit logging is a future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AuditConfig {

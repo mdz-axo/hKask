@@ -56,7 +56,57 @@ use hkask_types::{CapabilityChecker, WebID};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use utoipa::OpenApi;
+
+/// Default gas cap for API ensemble sessions (150k = same as CLI default).
+const API_ENSEMBLE_GAS_CAP: u64 = 150_000;
+
+/// Adapter bridging `CyberneticsLoop` to the ensemble's `GasGovernancePort`.
+///
+/// Provides synchronous access to the CyberneticsLoop's gas governance by
+/// using an atomic counter for `can_proceed` (approximate) and a fire-and-forget
+/// task spawn for `acquire` (actual budget consumption via async call).
+///
+/// This is the API-mode equivalent of the CLI's `CyberneticsLoopGasAdapter`.
+struct ApiGasGovernanceAdapter {
+    loop_ref: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+    agent: WebID,
+    gas_used: AtomicU64,
+    gas_cap: AtomicU64,
+}
+
+impl ApiGasGovernanceAdapter {
+    fn new(loop_ref: Arc<tokio::sync::RwLock<CyberneticsLoop>>, agent: WebID, cap: u64) -> Self {
+        Self {
+            loop_ref,
+            agent,
+            gas_used: AtomicU64::new(0),
+            gas_cap: AtomicU64::new(cap),
+        }
+    }
+}
+
+impl hkask_ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
+    fn can_proceed(&self, gas: u64) -> bool {
+        let used = self.gas_used.load(Ordering::Relaxed);
+        let cap = self.gas_cap.load(Ordering::Relaxed);
+        used.saturating_add(gas) <= cap
+    }
+
+    fn acquire(&self, gas: u64) {
+        self.gas_used.fetch_add(gas, Ordering::Relaxed);
+        // Fire-and-forget: report to CyberneticsLoop asynchronously
+        let loop_ref = self.loop_ref.clone();
+        let agent = self.agent;
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                let loop_read = loop_ref.read().await;
+                let _ = loop_read.acquire_budget(&agent, gas).await;
+            });
+        }
+    }
+}
 
 use utoipa_axum::router::OpenApiRouter;
 
@@ -232,6 +282,9 @@ pub struct ApiState {
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
     pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
+    /// CNS gas governance port for ensemble sessions.
+    /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
+    pub gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
 }
 
 /// Build the LoopSystem with all loops.
@@ -421,6 +474,9 @@ impl ApiState {
         )?;
 
         // Create GovernedTool membrane with CompositeGasEstimator
+        // Clone the CyberneticsLoop Arc before moving into GovernedTool —
+        // the gas governance adapter also needs a reference.
+        let cybernetics_loop_for_gas = Arc::clone(&cybernetics_loop_rwlock);
         let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
             dispatcher_runtime.clone(),
         ));
@@ -441,9 +497,17 @@ impl ApiState {
             governed_tool,
         ));
 
-        // Ensemble session manager
+        // Ensemble session manager — wired with CNS gas governance
+        // so ensemble sessions in API mode respect gas budgets.
+        let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> =
+            Arc::new(ApiGasGovernanceAdapter::new(
+                cybernetics_loop_for_gas,
+                system_webid,
+                API_ENSEMBLE_GAS_CAP,
+            ));
         let session_manager = Arc::new(tokio::sync::RwLock::new(
-            hkask_ensemble::SessionManager::new(system_webid),
+            hkask_ensemble::SessionManager::new(system_webid)
+                .with_gas_governance(gas_governance.clone()),
         ));
 
         // Extract inference port before moving ensemble_inferencer into struct
@@ -471,6 +535,7 @@ impl ApiState {
             episodic_storage,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
             inference_port,
+            gas_governance,
         })
     }
 

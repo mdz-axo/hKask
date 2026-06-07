@@ -257,7 +257,7 @@ impl McpRuntime {
                 description: t.description.clone(),
                 input_schema: t.input_schema.clone(),
                 server_id: server_id.clone(),
-                required_capability: None, // TODO: Populate from AgentDefinition.capabilities or server config
+                required_capability: hkask_types::capability_from_server_id(server_id),
             })
     }
 

@@ -173,6 +173,22 @@ impl DelegationAction {
     }
 }
 
+/// Derive the capability shorthand for an MCP server ID.
+///
+/// Maps `hkask-mcp-<domain>` to `tool:<domain>:execute`.
+/// For example, `hkask-mcp-cns` → `tool:cns:execute`.
+///
+/// This bridges the MCP namespace (server IDs) and the OCAP capability namespace.
+/// Agent definitions declare capabilities like `tool:cns:emit`, and this function
+/// derives what capability is required to use tools from a given server.
+///
+/// Returns `None` if the server ID doesn't follow the `hkask-mcp-` convention.
+pub fn capability_from_server_id(server_id: &str) -> Option<String> {
+    server_id
+        .strip_prefix("hkask-mcp-")
+        .map(|domain| format!("tool:{}:execute", domain))
+}
+
 /// Additive restrictions on a capability token.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct Caveat {
@@ -645,8 +661,31 @@ mod capability_spec_tests {
         let err = CapabilitySpec::parse("unknown:foo:read").unwrap_err();
         assert!(matches!(err, CapabilityParseError::UnknownResource(_)));
     }
-}
 
+    #[test]
+    fn capability_from_server_id_derives_domain() {
+        use super::capability_from_server_id;
+        assert_eq!(
+            capability_from_server_id("hkask-mcp-cns"),
+            Some("tool:cns:execute".to_string())
+        );
+        assert_eq!(
+            capability_from_server_id("hkask-mcp-semantic"),
+            Some("tool:semantic:execute".to_string())
+        );
+        assert_eq!(
+            capability_from_server_id("hkask-mcp-inference"),
+            Some("tool:inference:execute".to_string())
+        );
+    }
+
+    #[test]
+    fn capability_from_server_id_returns_none_for_unknown_prefix() {
+        use super::capability_from_server_id;
+        assert_eq!(capability_from_server_id("custom-server"), None);
+        assert_eq!(capability_from_server_id(""), None);
+    }
+}
 
 #[cfg(test)]
 mod delegation_token_tests {
