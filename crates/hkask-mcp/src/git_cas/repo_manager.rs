@@ -25,13 +25,6 @@ impl RepoManager {
         Self { adapter }
     }
 
-    /// Create a RepoManager using the default `GixCasAdapter` resolved from
-    /// the environment (`HKASK_CAS_HOME` or `~/.hkask/repos/`).
-    pub fn from_env() -> Result<Self, GitCasError> {
-        let adapter = Arc::new(super::GixCasAdapter::from_env()?);
-        Ok(Self { adapter })
-    }
-
     /// Store a blob in the specified repo, returning its content hash.
     pub async fn put_blob(
         &self,

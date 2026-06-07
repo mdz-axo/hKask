@@ -299,13 +299,15 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!(e))?
                 .is_none()
             {
-                let port: Arc<dyn GitCASPort> =
-                    Arc::new(hkask_mcp::GixCasAdapter::from_env().unwrap_or_else(|_| {
-                        hkask_mcp::GixCasAdapter::new(std::path::PathBuf::from(
-                            "/tmp/hkask-templates",
-                        ))
-                        .expect("Failed to create GixCasAdapter")
-                    }));
+                let port: Arc<dyn GitCASPort> = Arc::new(
+                    hkask_mcp::GixCasAdapter::from_env()
+                        .or_else(|_| {
+                            hkask_mcp::GixCasAdapter::new(std::path::PathBuf::from(
+                                "/tmp/hkask-templates",
+                            ))
+                        })
+                        .map_err(|e| anyhow::anyhow!("Failed to create GixCasAdapter: {e}"))?,
+                );
                 ctx.adapters
                     .configure_git_cas_port(port)
                     .map_err(|e| anyhow::anyhow!(e))?;
