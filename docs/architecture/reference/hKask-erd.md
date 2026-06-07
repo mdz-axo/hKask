@@ -2,7 +2,7 @@
 title: "hKask Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
 last_updated: 2026-06-05
-version: "0.22.0"
+version: "0.23.00"
 status: "Active"
 domain: "Data"
 ddmvss_categories: [persistence]
@@ -11,7 +11,7 @@ ddmvss_categories: [persistence]
 
 # hKask Entity Relationship Diagram
 
-**Version:** v0.22.0
+**Version:** v0.23.00
 **Status:** Pre-alpha — MVP in progress
 
 ---
@@ -484,6 +484,6 @@ status: VERIFIED
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.00*
 *The Rust is the loom. The YAML/Jinja2 is the thread.*
 *MVP in progress.*

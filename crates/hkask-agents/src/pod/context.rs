@@ -22,7 +22,9 @@ use std::sync::Arc;
 use super::AgentPodError;
 use super::manager::PodManager;
 use super::types::PodID;
-use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use crate::ports::{
+    EpisodicStoragePort, MCPRuntimePort, RecallRequest, SemanticStoragePort, StorageRequest,
+};
 
 /// PodContext — Runtime context for an active pod
 ///
@@ -134,15 +136,10 @@ impl PodContext {
             "episodic_memory",
             DelegationAction::Write,
         )?;
+        let request =
+            StorageRequest::episodic(entity, attribute, value, confidence.into(), self.webid);
         self.episodic_storage
-            .store_episodic(
-                self.webid,
-                entity,
-                attribute,
-                value,
-                confidence.into(),
-                &self.capability_token,
-            )
+            .store_episodic(request, &self.capability_token)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
@@ -156,8 +153,9 @@ impl PodContext {
             "episodic_memory",
             DelegationAction::Read,
         )?;
+        let request = RecallRequest::episodic(query, self.webid, self.capability_token.clone());
         self.episodic_storage
-            .recall_episodic(query, &self.webid, &self.capability_token)
+            .recall_episodic(&request)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
@@ -204,15 +202,19 @@ impl PodContext {
             DelegationAction::Write,
         )?;
 
-        // Confidence resolution happens in MemoryLoopAdapter::store_episodic_classified:
-        //   confidence_override.unwrap_or_else(|| classification.default_confidence())
+        let request = StorageRequest::episodic(
+            entity,
+            attribute,
+            value,
+            // Confidence will be resolved from classification in the adapter
+            confidence_override
+                .unwrap_or_else(|| Confidence::new(classification.default_confidence())),
+            self.webid,
+        );
 
         self.episodic_storage
             .store_episodic_classified(
-                self.webid,
-                entity,
-                attribute,
-                value,
+                request,
                 classification,
                 confidence_override,
                 &self.capability_token,
@@ -238,15 +240,10 @@ impl PodContext {
             "semantic_memory",
             DelegationAction::Write,
         )?;
+        let request =
+            StorageRequest::semantic(entity, attribute, value, confidence.into(), self.webid);
         self.semantic_storage
-            .store_semantic(
-                self.webid,
-                entity,
-                attribute,
-                value,
-                confidence.into(),
-                &self.capability_token,
-            )
+            .store_semantic(request, &self.capability_token)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
@@ -259,8 +256,9 @@ impl PodContext {
             "semantic_memory",
             DelegationAction::Read,
         )?;
+        let request = RecallRequest::semantic(query, self.capability_token.clone());
         self.semantic_storage
-            .recall_semantic(query, &self.capability_token)
+            .recall_semantic(&request)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 

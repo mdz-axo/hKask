@@ -11,7 +11,7 @@ ddmvss_categories: [capability, interface, composition]
 
 # Idiomatic Rust Simplification — Implementation Plan
 
-**Source:** Adversarial review of hKask v0.22.0, applying Graydon Hoare's design
+**Source:** Adversarial review of hKask v0.23.00, applying Graydon Hoare's design
 principles (zero-cost abstraction, deletion over deprecation, minimal surface area,
 every abstraction must earn its keep as a semantic transformation).
 
@@ -120,7 +120,7 @@ with `Arc<ConcreteType>` (or just the concrete type), then delete the trait.
 6. `cargo check --workspace`.
 
 **Note:** If a second implementation is expected soon (next 30 days per C3), keep
-the trait. But the project has been at v0.22.0 with single impls — the prophecy
+the trait. But the project has been at v0.23.00 with single impls — the prophecy
 has not arrived. Delete and re-extract when the second consumer appears.
 
 ### 1.4 Delete gratuitous newtype wrappers

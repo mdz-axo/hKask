@@ -1,9 +1,9 @@
 # Template crate manifest for tdd skill
-# ℏKask v0.22.0
+# ℏKask v0.23.00
 
 crate:
   name: tdd
-  version: "0.22.0"
+  version: "0.23.00"
   description: >
     Test-driven development with red-green-refactor loop. Builds features or
     fixes bugs one vertical slice at a time. Enforces behavior testing through

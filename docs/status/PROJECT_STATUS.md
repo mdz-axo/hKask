@@ -227,8 +227,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 
 | Finding | Lens | Resolution |
 |---------|------|-----------|
-| `GoalCapabilityToken` HMAC omitted `operations` and `expires` → forgeable authority | Security | `GoalCapabilityToken` removed in v0.22.0 — goal operations now use WebID-based owner scoping |
-| Goal write paths verified the token but not the holder's ownership → confused deputy | Capability | `GoalCapabilityToken` removed in v0.22.0; every write enforces `GoalAccess::can_write`/`can_admin` against the holder WebID |
+| `GoalCapabilityToken` HMAC omitted `operations` and `expires` → forgeable authority | Security | `GoalCapabilityToken` removed in v0.23.00 — goal operations now use WebID-based owner scoping |
+| Goal write paths verified the token but not the holder's ownership → confused deputy | Capability | `GoalCapabilityToken` removed in v0.23.00; every write enforces `GoalAccess::can_write`/`can_admin` against the holder WebID |
 | `update_goal_state` accepted any transition despite an unused `InvalidTransition` variant | Correctness | `GoalState::can_transition_to` total function enforced at the repository boundary |
 | `goal_from_row` silently coerced corrupt state/visibility/timestamps to defaults | Persistence | Corruption now surfaces as an error; INSERTs persist RFC3339 `created_at` so timestamps round-trip |
 | `delete_goal` panicked via `.expect("mutex lock")` while siblings mapped `LockPoisoned` | Robustness | Unified on the `LockPoisoned` mapping; no panic path remains |

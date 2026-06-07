@@ -5,12 +5,12 @@
 //! temporal attention weighting) through the loop membrane.
 
 use crate::error::MemoryError;
-use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, RecallRequest, SemanticStoragePort, StorageRequest};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{
-    AccessControl, Confidence, DelegationToken, ExperienceClassification, WebID,
-    require_read_access, require_write_access,
+    Confidence, DelegationToken, ExperienceClassification, require_read_access,
+    require_write_access,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -34,36 +34,24 @@ fn triple_to_json(t: Triple) -> Value {
     })
 }
 
-/// Capture-common-parameters struct for memory storage operations (P2.4/P1.5).
+/// Build a `Triple` from a `StorageRequest`.
 ///
-/// Groups the fields that every store call shares (entity, attribute, value,
-/// producer, confidence, visibility) so that `store_episodic`,
-/// `store_episodic_classified`, and `store_semantic` can delegate to a
-/// single private method rather than each building a `Triple` inline.
-pub struct StorageRequest {
-    pub entity: String,
-    pub attribute: String,
-    pub value: Value,
-    pub confidence: Confidence,
-    pub access: AccessControl,
-}
-
-impl StorageRequest {
-    /// Build a `Triple` from this request.
-    fn to_triple(&self) -> Triple {
-        let mut triple = Triple::new(
-            &self.entity,
-            &self.attribute,
-            self.value.clone(),
-            self.access.owner_webid,
-        )
-        .with_visibility(self.access.visibility)
-        .with_confidence(self.confidence);
-        if let Some(p) = self.access.perspective {
-            triple = triple.with_perspective(p);
-        }
-        triple
+/// The `StorageRequest` captures-common-parameters (P2.4/P1.5), and this
+/// helper converts it into the `Triple` value object that the storage layer
+/// expects — eliminating per-method inline construction.
+fn request_to_triple(req: &StorageRequest) -> Triple {
+    let mut triple = Triple::new(
+        &req.entity,
+        &req.attribute,
+        req.value.clone(),
+        req.access.owner_webid,
+    )
+    .with_visibility(req.access.visibility)
+    .with_confidence(req.confidence);
+    if let Some(p) = req.access.perspective {
+        triple = triple.with_perspective(p);
     }
+    triple
 }
 
 /// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
@@ -119,43 +107,32 @@ impl MemoryLoopAdapter {
 impl EpisodicStoragePort for MemoryLoopAdapter {
     fn store_episodic(
         &self,
-        producer_webid: WebID,
-        entity: &str,
-        attribute: &str,
-        value: Value,
-        confidence: Confidence,
+        request: StorageRequest,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
         require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
-        let req = StorageRequest {
-            entity: entity.to_string(),
-            attribute: attribute.to_string(),
-            value,
-            confidence,
-            access: AccessControl::episodic(producer_webid, producer_webid),
-        };
-        self.episodic.store(req.to_triple())?;
+        let entity = request.entity.clone();
+        self.episodic.store(request_to_triple(&request))?;
 
-        Ok(entity.to_string())
+        Ok(entity)
     }
 
-    fn recall_episodic(
-        &self,
-        query: &str,
-        owner: &WebID,
-        token: &DelegationToken,
-    ) -> Result<Vec<Value>, MemoryError> {
-        require_read_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
+    fn recall_episodic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
+        require_read_access(&request.token, "episodic").map_err(MemoryError::CapabilityDenied)?;
+
+        let owner = request
+            .perspective
+            .expect("Episodic recall requires a perspective (owner WebID)");
 
         // Route through EpisodicMemory's deduped+decayed query
-        let triples = self.episodic.query_for_deduped(query, *owner)?;
+        let triples = self.episodic.query_for_deduped(&request.query, owner)?;
 
         let results: Vec<Value> = triples.into_iter().map(triple_to_json).collect();
 
         tracing::debug!(
             target: "hkask.memory.episodic",
-            query = %query,
+            query = %request.query,
             owner = %owner,
             results = results.len(),
             "Episodic recall (via loop membrane)"
@@ -164,7 +141,10 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         Ok(results)
     }
 
-    fn episodic_storage_usage(&self, perspective: &WebID) -> Result<usize, MemoryError> {
+    fn episodic_storage_usage(
+        &self,
+        perspective: &hkask_types::WebID,
+    ) -> Result<usize, MemoryError> {
         let count = self.episodic.storage_usage(perspective)?;
 
         tracing::debug!(
@@ -183,16 +163,14 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
 
     fn store_episodic_classified(
         &self,
-        producer_webid: WebID,
-        entity: &str,
-        attribute: &str,
-        value: Value,
+        request: StorageRequest,
         classification: ExperienceClassification,
         confidence_override: Option<Confidence>,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
         require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
 
+        // Resolve confidence: override takes precedence, otherwise classification default
         let confidence = confidence_override
             .unwrap_or_else(|| Confidence::new(classification.default_confidence()));
 
@@ -200,21 +178,17 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
             target: "cns.memory.encode",
             classification = %classification,
             confidence = %confidence,
-            entity = entity,
-            attribute = attribute,
+            entity = %request.entity,
+            attribute = %request.attribute,
             "Episodic experience encoded (via loop membrane)"
         );
 
-        let req = StorageRequest {
-            entity: entity.to_string(),
-            attribute: attribute.to_string(),
-            value,
-            confidence,
-            access: AccessControl::episodic(producer_webid, producer_webid),
-        };
-        self.episodic.store(req.to_triple())?;
+        let mut req = request;
+        req.confidence = confidence;
+        let entity = req.entity.clone();
+        self.episodic.store(request_to_triple(&req))?;
 
-        Ok(entity.to_string())
+        Ok(entity)
     }
 }
 
@@ -223,42 +197,28 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
 impl SemanticStoragePort for MemoryLoopAdapter {
     fn store_semantic(
         &self,
-        producer_webid: WebID,
-        entity: &str,
-        attribute: &str,
-        value: Value,
-        confidence: Confidence,
+        request: StorageRequest,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
         require_write_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
 
-        let req = StorageRequest {
-            entity: entity.to_string(),
-            attribute: attribute.to_string(),
-            value,
-            confidence,
-            access: AccessControl::semantic(producer_webid),
-        };
-        self.semantic.store(req.to_triple())?;
+        let entity = request.entity.clone();
+        self.semantic.store(request_to_triple(&request))?;
 
-        Ok(entity.to_string())
+        Ok(entity)
     }
 
-    fn recall_semantic(
-        &self,
-        query: &str,
-        token: &DelegationToken,
-    ) -> Result<Vec<Value>, MemoryError> {
-        require_read_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
+    fn recall_semantic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
+        require_read_access(&request.token, "semantic").map_err(MemoryError::CapabilityDenied)?;
 
         // Route through SemanticMemory's deduped query
-        let triples = self.semantic.query_deduped(query)?;
+        let triples = self.semantic.query_deduped(&request.query)?;
 
         let results: Vec<Value> = triples.into_iter().map(triple_to_json).collect();
 
         tracing::debug!(
             target: "hkask.memory.semantic",
-            query = %query,
+            query = %request.query,
             results = results.len(),
             "Semantic recall (via loop membrane)"
         );

@@ -1254,7 +1254,7 @@ status: VERIFIED
 
 ## 13. Goal Capability Subsystem (hardened)
 
-> **Removed in v0.22.0.** `GoalCapabilityToken` and its source file
+> **Removed in v0.23.00.** `GoalCapabilityToken` and its source file
 > `crates/hkask-types/src/goal_capability.rs` have been deleted. Goal
 > operations now use `&WebID` for owner scoping instead of HMAC-signed
 > capability tokens. Authority over a goal is determined by WebID ownership,
@@ -1289,5 +1289,5 @@ status: VERIFIED
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.00*
 *Every ERD grounded in Rust source. Every relationship verified against code.*

@@ -10,7 +10,143 @@
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
 
-use hkask_types::{Confidence, DelegationToken, ExperienceClassification, WebID};
+use hkask_types::{AccessControl, Confidence, DelegationToken, ExperienceClassification, WebID};
+use serde_json::Value;
+
+// ── Request value objects (P2.4/P1.5: eliminate data clumps) ───────────────
+
+/// Capture-common-parameters struct for memory store operations (P2.4/P1.5).
+///
+/// Groups the fields that every store call shares (entity, attribute, value,
+/// access, confidence) so that `store_episodic`, `store_episodic_classified`,
+/// and `store_semantic` accept a single request object instead of a flat
+/// parameter list.
+///
+/// For classified episodic stores, use [`StorageRequest::with_classification`]
+/// to attach an experience classification and optional confidence override.
+#[derive(Debug, Clone)]
+pub struct StorageRequest {
+    /// The entity (subject) of the triple.
+    pub entity: String,
+    /// The attribute (predicate/property) of the triple.
+    pub attribute: String,
+    /// The value (object) of the triple.
+    pub value: Value,
+    /// Confidence score (0.0–1.0).
+    pub confidence: Confidence,
+    /// Access control: visibility, perspective, owner.
+    pub access: AccessControl,
+}
+
+impl StorageRequest {
+    /// Create a new `StorageRequest` with all fields specified.
+    pub fn new(
+        entity: impl Into<String>,
+        attribute: impl Into<String>,
+        value: Value,
+        confidence: Confidence,
+        access: AccessControl,
+    ) -> Self {
+        Self {
+            entity: entity.into(),
+            attribute: attribute.into(),
+            value,
+            confidence,
+            access,
+        }
+    }
+
+    /// Create an episodic (private, perspective-bound) store request.
+    ///
+    /// Convenience constructor that sets `access` to `AccessControl::episodic`.
+    pub fn episodic(
+        entity: impl Into<String>,
+        attribute: impl Into<String>,
+        value: Value,
+        confidence: Confidence,
+        producer_webid: WebID,
+    ) -> Self {
+        Self::new(
+            entity,
+            attribute,
+            value,
+            confidence,
+            AccessControl::episodic(producer_webid, producer_webid),
+        )
+    }
+
+    /// Create a semantic (shared, perspective-free) store request.
+    ///
+    /// Convenience constructor that sets `access` to `AccessControl::semantic`.
+    pub fn semantic(
+        entity: impl Into<String>,
+        attribute: impl Into<String>,
+        value: Value,
+        confidence: Confidence,
+        producer_webid: WebID,
+    ) -> Self {
+        Self::new(
+            entity,
+            attribute,
+            value,
+            confidence,
+            AccessControl::semantic(producer_webid),
+        )
+    }
+
+    /// Create a classified episodic store request (Loop 2a.1).
+    ///
+    /// Resolves confidence from the classification if no override is provided:
+    /// - `Success` → 0.9
+    /// - `Failure` → 0.3
+    pub fn classified_episodic(
+        entity: impl Into<String>,
+        attribute: impl Into<String>,
+        value: Value,
+        classification: ExperienceClassification,
+        confidence_override: Option<Confidence>,
+        producer_webid: WebID,
+    ) -> Self {
+        let confidence = confidence_override
+            .unwrap_or_else(|| Confidence::new(classification.default_confidence()));
+        Self::episodic(entity, attribute, value, confidence, producer_webid)
+    }
+}
+
+/// Capture-common-parameters struct for memory recall operations (P2.4/P1.5).
+///
+/// Groups the query string with the access-control token so that recall
+/// signatures don't pass flat parameters.
+#[derive(Debug, Clone)]
+pub struct RecallRequest {
+    /// The query string (entity name or search term).
+    pub query: String,
+    /// The perspective (owner WebID) for episodic recall.
+    /// `None` for semantic recall (perspective-free).
+    pub perspective: Option<WebID>,
+    /// OCAP capability token.
+    pub token: DelegationToken,
+}
+
+impl RecallRequest {
+    /// Create an episodic recall request (perspective-bound).
+    pub fn episodic(query: impl Into<String>, owner: WebID, token: DelegationToken) -> Self {
+        Self {
+            query: query.into(),
+            perspective: Some(owner),
+            token,
+        }
+    }
+
+    /// Create a semantic recall request (perspective-free).
+    pub fn semantic(query: impl Into<String>, token: DelegationToken) -> Self {
+        Self {
+            query: query.into(),
+            perspective: None,
+            token,
+        }
+    }
+}
 
 // Episodic Storage Port — Private, agent-scoped memory
 
@@ -24,30 +160,25 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// Store an episodic triple (private, agent-scoped).
     ///
     /// # Requires
-    /// - `producer_webid` must match the agent storing the triple
+    /// - `request.access` must carry an episodic access control (perspective-bound)
+    /// - `request.access.owner_webid` must match the agent storing the triple
     /// - `token` must grant Write action on the Manifest resource
     /// - The triple is stored with the agent's perspective (WebID)
     fn store_episodic(
         &self,
-        producer_webid: WebID,
-        entity: &str,
-        attribute: &str,
-        value: serde_json::Value,
-        confidence: Confidence,
+        request: StorageRequest,
         token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 
     /// Recall episodic triples for the agent's own perspective.
     ///
     /// # Requires
-    /// - `token` must grant Read action on the Manifest resource
+    /// - `request.token` must grant Read action on the Manifest resource
     /// - Returns only triples matching the agent's perspective
     fn recall_episodic(
         &self,
-        query: &str,
-        owner: &WebID,
-        token: &DelegationToken,
-    ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
+        request: &RecallRequest,
+    ) -> Result<Vec<Value>, crate::error::MemoryError>;
 
     /// Check episodic storage budget for an agent.
     ///
@@ -67,21 +198,18 @@ pub trait EpisodicStoragePort: Send + Sync {
     ///
     /// This is the enhanced store method that accepts an experience
     /// classification. The classification determines the default confidence
-    /// if `confidence_override` is `None`:
+    /// if no override is provided:
     ///
     /// - `Success` → 0.9
     /// - `Failure` → 0.3
     ///
     /// # Requires
-    /// - `producer_webid` must match the agent storing the triple
+    /// - `request.access` must carry an episodic access control (perspective-bound)
+    /// - `request.access.owner_webid` must match the agent storing the triple
     /// - `token` must grant Write action on the Manifest resource
-    #[allow(clippy::too_many_arguments)]
     fn store_episodic_classified(
         &self,
-        producer_webid: WebID,
-        entity: &str,
-        attribute: &str,
-        value: serde_json::Value,
+        request: StorageRequest,
         classification: ExperienceClassification,
         confidence_override: Option<Confidence>,
         token: &DelegationToken,
@@ -100,28 +228,24 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Store a semantic triple (shared, public knowledge).
     ///
     /// # Requires
+    /// - `request.access` must carry semantic access control (shared, no perspective)
     /// - `token` must grant Write action on the Manifest resource
     /// - The triple is stored without perspective (consolidated from episodic)
     fn store_semantic(
         &self,
-        producer_webid: WebID,
-        entity: &str,
-        attribute: &str,
-        value: serde_json::Value,
-        confidence: Confidence,
+        request: StorageRequest,
         token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 
     /// Recall semantic triples (shared, deduplicated knowledge).
     ///
     /// # Requires
-    /// - `token` must grant Read action on the Manifest resource
+    /// - `request.token` must grant Read action on the Manifest resource
     /// - Returns all triples matching the query (no perspective filter)
     fn recall_semantic(
         &self,
-        query: &str,
-        token: &DelegationToken,
-    ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
+        request: &RecallRequest,
+    ) -> Result<Vec<Value>, crate::error::MemoryError>;
 
     /// Check semantic storage usage for an entity.
     ///

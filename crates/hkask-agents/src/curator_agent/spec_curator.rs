@@ -348,17 +348,19 @@ mod tests {
         assert_eq!(record.rationale, "Unsatisfied criteria remain");
     }
 
-    // P8 invariant: spec with 0.5 <= coherence < threshold and drift within
+    // P8 invariant: spec with coherence in (0.5, threshold) and drift within
     // tolerance yields Defer decision (DDMVSS §5.9 four-way gradient)
     #[test]
     fn evaluate_deferred_spec_yields_defer() {
-        // Create a spec with coherence exactly 0.5: one criterion satisfied out of two.
-        // With threshold 0.7 and drift within tolerance, this should Defer.
+        // Create a spec with 2/3 criteria satisfied → ratio = 2/3 ≈ 0.667
+        // No sub-goals → coherence = ratio ≈ 0.667
+        // With threshold 0.7 and drift within tolerance: 0.5 < 0.667 < 0.7 → Defer
         let mut goal = GoalSpec::new("defer goal")
-            .with_criterion("satisfied criterion")
+            .with_criterion("satisfied criterion A")
+            .with_criterion("satisfied criterion B")
             .with_criterion("unsatisfied criterion");
         goal.criteria[0].mark_satisfied();
-        // coherence = 0.5 (1 of 2 satisfied)
+        goal.criteria[1].mark_satisfied();
         let spec =
             Spec::new("defer spec", SpecCategory::Trust, DomainAnchor::Hkask).with_goal(goal);
         let curator = DefaultSpecCurator::new(0.7);
@@ -368,18 +370,23 @@ mod tests {
         assert_eq!(
             record.decision,
             CurationDecision::Defer,
-            "spec with coherence 0.5 < threshold 0.7 and drift within tolerance must produce Defer"
+            "spec with coherence 0.667 (2/3 satisfied) < threshold 0.7 and drift within tolerance must produce Defer"
         );
         assert_eq!(record.rationale, "Insufficient information — revisit later");
     }
 
-    // P8 invariant: spec with coherence >= 0.5 but drift exceeding threshold → Revise (not Defer)
+    // P8 invariant: spec with coherence in (0.5, threshold) but drift exceeding threshold → Revise (not Defer)
     #[test]
     fn evaluate_high_drift_yields_revise_not_defer() {
+        // 2/3 criteria satisfied → coherence ≈ 0.667 (in Defer zone)
+        // But declared verb nonexistent → drift = 1.0 > default drift_threshold (0.5)
+        // High drift overrides Defer → Revise
         let mut goal = GoalSpec::new("drifty goal")
-            .with_criterion("satisfied criterion")
+            .with_criterion("satisfied criterion A")
+            .with_criterion("satisfied criterion B")
             .with_criterion("unsatisfied criterion");
         goal.criteria[0].mark_satisfied();
+        goal.criteria[1].mark_satisfied();
         let spec = Spec::new(
             "drifty spec",
             SpecCategory::Observability,
@@ -387,8 +394,6 @@ mod tests {
         )
         .with_goal(goal)
         .with_declared_verb("nonexistent_verb");
-        // drift = 1.0 (all declared verbs missing) > default drift_threshold (0.5)
-        // coherence = 0.5, but drift exceeds threshold → Revise, not Defer
         let curator = DefaultSpecCurator::new(0.7);
         let record = curator
             .evaluate(&spec, &["some_tool".to_string()])
@@ -546,18 +551,19 @@ mod tests {
     #[test]
     fn default_spec_curator_has_threshold_0_7() {
         let _curator = DefaultSpecCurator::default();
-        // Threshold is private; verify behaviorally: a spec with coherence
-        // exactly at 0.7 should pass cultivation when all goals are complete.
+        // Threshold is private; verify behaviorally: a spec with 0% criteria
+        // satisfied (coherence = 0.0) should produce Revise (not Defer or Merge).
         let goal = GoalSpec::new("g").with_criterion("c");
         // coherence of a single spec with 1 unsatisfied criterion = 0.0
-        // This is below 0.7, so default curator should not merge it.
+        // (no sub-goals → coherence = ratio = 0/1 = 0.0)
+        // This is below 0.5, so default curator should produce Revise.
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
         let curator = DefaultSpecCurator::default();
         let record = curator.evaluate(&spec, &[]).expect("evaluate");
         assert_eq!(
             record.decision,
             CurationDecision::Revise,
-            "partial spec must produce Revise with default threshold"
+            "spec with coherence 0.0 must produce Revise with default threshold"
         );
     }
 }

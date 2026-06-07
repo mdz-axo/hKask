@@ -201,12 +201,17 @@ impl GoalSpec {
         }
         let satisfied = self.criteria.iter().filter(|c| c.satisfied).count();
         let ratio = satisfied as f64 / self.criteria.len() as f64;
-        let sub_coherence = if self.sub_goals.is_empty() {
-            1.0
+        // When there are sub_goals, coherence averages criteria satisfaction
+        // with sub_goal coherence (both must be met). When there are no
+        // sub_goals, coherence is just the criteria satisfaction ratio —
+        // defaulting to 1.0 would inflate scores for incomplete specs.
+        if self.sub_goals.is_empty() {
+            ratio
         } else {
-            self.sub_goals.iter().map(|g| g.coherence()).sum::<f64>() / self.sub_goals.len() as f64
-        };
-        ((ratio + sub_coherence) / 2.0).clamp(0.0, 1.0)
+            let sub_coherence = self.sub_goals.iter().map(|g| g.coherence()).sum::<f64>()
+                / self.sub_goals.len() as f64;
+            ((ratio + sub_coherence) / 2.0).clamp(0.0, 1.0)
+        }
     }
 }
 
@@ -235,6 +240,10 @@ pub struct Spec {
     /// Compared against registered tool verbs by `drift()` to detect spec drift.
     pub declared_verbs: Vec<String>,
     pub goals: Vec<GoalSpec>,
+    /// Git SHA of the last modification to this spec's manifest.
+    /// Enables version tracking per DDMVSS §5.8 (Lifecycle category).
+    /// Set to `None` for specs created programmatically without a manifest.
+    pub version: Option<String>,
     pub signed_by: Option<WebID>,
     pub created_at: DateTime<Utc>,
 }
@@ -248,6 +257,7 @@ impl Spec {
             domain_anchor,
             declared_verbs: Vec::new(),
             goals: Vec::new(),
+            version: None,
             signed_by: None,
             created_at: Utc::now(),
         }
@@ -256,6 +266,12 @@ impl Spec {
     /// Add a declared verb to this spec.
     pub fn with_declared_verb(mut self, verb: &str) -> Self {
         self.declared_verbs.push(verb.to_string());
+        self
+    }
+
+    /// Set the version (Git SHA) for this spec.
+    pub fn with_version(mut self, sha: &str) -> Self {
+        self.version = Some(sha.to_string());
         self
     }
 
@@ -592,12 +608,38 @@ mod tests {
             .with_criterion("Not done");
         let mut goal = goal;
         goal.criteria[0].mark_satisfied();
-        // 1 of 2 criteria satisfied → ratio = 0.5, no sub-goals → sub_coherence = 1.0
-        // coherence = (0.5 + 1.0) / 2.0 = 0.75
+        // 1 of 2 criteria satisfied → ratio = 0.5, no sub-goals
+        // coherence = ratio = 0.5 (sub_coherence not factored when no sub-goals)
         let coherence = goal.coherence();
         assert!(
-            (coherence - 0.75).abs() < f64::EPSILON,
-            "GoalSpec with 1/2 satisfied criteria should have coherence 0.75, got {coherence}"
+            (coherence - 0.5).abs() < f64::EPSILON,
+            "GoalSpec with 1/2 satisfied criteria should have coherence 0.5, got {coherence}"
+        );
+    }
+
+    // P8 invariant: when sub_goals are present, coherence averages criteria ratio
+    // with sub_goal coherence.
+    #[test]
+    fn goal_spec_coherence_with_sub_goals_averages_both() {
+        let mut parent = GoalSpec::new("Parent").with_criterion("Parent criterion");
+        parent.criteria[0].mark_satisfied();
+        // parent ratio = 1.0, sub_goal coherence = 0.5 → (1.0 + 0.5) / 2 = 0.75
+        let mut child = GoalSpec::new("Child")
+            .with_criterion("Done")
+            .with_criterion("Not done");
+        child.criteria[0].mark_satisfied();
+        // child coherence = 0.5 (1/2 satisfied, no sub-goals)
+        let child_coherence = child.coherence();
+        assert!(
+            (child_coherence - 0.5).abs() < f64::EPSILON,
+            "Child should have coherence 0.5, got {child_coherence}"
+        );
+        parent.sub_goals.push(child);
+        // parent: ratio = 1.0, sub_coherence = 0.5 → (1.0 + 0.5) / 2 = 0.75
+        let parent_coherence = parent.coherence();
+        assert!(
+            (parent_coherence - 0.75).abs() < f64::EPSILON,
+            "Parent with 1/1 satisfied criteria and sub_goal coherence 0.5 should have coherence 0.75, got {parent_coherence}"
         );
     }
 
@@ -640,6 +682,26 @@ mod tests {
     // ── Composition: Spec coherence ──────────────────────────────
     // Invariant: empty goals → 0.0; all complete → 1.0
 
+    // ── Lifecycle: Spec version tracking ──────────────────────
+    // Invariant: version defaults to None; with_version sets it
+
+    #[test]
+    fn spec_version_defaults_to_none() {
+        let spec = Spec::new("Unversioned", SpecCategory::Domain, DomainAnchor::Hkask);
+        assert_eq!(spec.version, None, "New spec should have version = None");
+    }
+
+    #[test]
+    fn spec_with_version_sets_sha() {
+        let spec = Spec::new("Versioned", SpecCategory::Capability, DomainAnchor::Okapi)
+            .with_version("abc123def456");
+        assert_eq!(
+            spec.version.as_deref(),
+            Some("abc123def456"),
+            "with_version should set the Git SHA"
+        );
+    }
+
     #[test]
     fn spec_coherence_empty_goals_is_zero() {
         let spec = Spec::new("Empty", SpecCategory::Domain, DomainAnchor::Hkask);
@@ -662,7 +724,7 @@ mod tests {
 
     #[test]
     fn spec_collection_coherence_all_categories_covered() {
-        // Invariant: when all 4 categories are covered and all specs are complete,
+        // Invariant: when all 9 categories are covered and all specs are complete,
         // collection_coherence should be high (>= threshold)
         let goal = GoalSpec::new("Done").with_criterion("Satisfied");
         let mut goal = goal;

@@ -1,7 +1,7 @@
 ---
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-06-03
+last_updated: 2026-06-06
 version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"

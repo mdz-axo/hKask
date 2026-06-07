@@ -1,9 +1,9 @@
 # Template crate manifest for handoff skill
-# ℏKask v0.22.0
+# ℏKask v0.23.00
 
 crate:
   name: handoff
-  version: "0.22.0"
+  version: "0.23.00"
   description: >
     Session context transfer skill. Compacts the current conversation into a
     structured handoff document that a fresh agent can use to pick up work

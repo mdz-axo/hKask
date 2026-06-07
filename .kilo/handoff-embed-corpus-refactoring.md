@@ -35,8 +35,8 @@
 | 23 | Create `kask compose run` CLI command | ✅ Done |
 | 24 | Wire `kask compose` into CLI dispatch | ✅ Done |
 | 25 | Update `hemingway-style-synthesizer.j2` with `system_prompt` macro | ✅ Done |
-| 26 | Update `hemingway-style-synthesizer.yaml` manifest (v0.22.0, inputs, fixed steps) | ✅ Done |
-| 27 | Fix `mcp_doc_extract.yaml` (`hkask-cns` → `hkask-mcp-cns`, v0.22.0) | ✅ Done |
+| 26 | Update `hemingway-style-synthesizer.yaml` manifest (v0.23.00, inputs, fixed steps) | ✅ Done |
+| 27 | Fix `mcp_doc_extract.yaml` (`hkask-cns` → `hkask-mcp-cns`, v0.23.00) | ✅ Done |
 | 28 | Align `doc-knowledge/manifest.yaml` with actual 8-tool implementation | ✅ Done |
 | 29 | End-to-end build validation | ✅ Done (`cargo build --release` passes) |
 | 30 | Gap audit (stale refs, dead code, version mismatches) | ✅ Done |
@@ -93,8 +93,8 @@ No `#[allow(dead_code)]` needed in compose.rs. All imports are used.
 | source | `crates/hkask-storage/src/embeddings.rs` | `EmbeddingStore` with `query_by_prefix` |
 | source | `crates/hkask-templates/src/inference_port.rs` | `OkapiInference::new`, `InferencePort::generate` |
 | template | `registry/templates/composition/hemingway-style-synthesizer.j2` | Jinja2 template with `system_prompt` macro |
-| manifest | `registry/manifests/hemingway-style-synthesizer.yaml` | Process manifest v0.22.0 |
-| manifest | `registry/manifests/mcp_doc_extract.yaml` | Fixed server name + v0.22.0 |
+| manifest | `registry/manifests/hemingway-style-synthesizer.yaml` | Process manifest v0.23.00 |
+| manifest | `registry/manifests/mcp_doc_extract.yaml` | Fixed server name + v0.23.00 |
 | config | `registry/templates/templates/doc-knowledge/manifest.yaml` | Aligned with 8-tool implementation |
 | cognition | `registry/registries/cognition/hemingway-style-synthesizer.yaml` | Cognition config (no changes needed) |
 

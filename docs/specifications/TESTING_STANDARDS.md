@@ -297,7 +297,7 @@ When making changes:
 
 Every DDMVSS requirement in `TRACEABILITY_MATRIX.md` must map to at least one test. If no test exists, the "Tests" column must say `— GAP` (not `—`).
 
-Current state (as of v0.22.0):
+Current state (as of v0.23.00):
 
 | Category | Tested | Gaps | Total |
 |----------|--------|------|-------|

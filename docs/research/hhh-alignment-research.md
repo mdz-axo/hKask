@@ -575,4 +575,4 @@ The `/hhh` mode is a toggle on hKask's existing inference flow, not a new pipeli
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.22.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.23.00*

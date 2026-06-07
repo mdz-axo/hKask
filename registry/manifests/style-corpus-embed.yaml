@@ -1,5 +1,5 @@
 # Style Corpus Embed Pipeline Manifest
-# ℏKask v0.22.0 — A Minimal Viable Container for Agents
+# ℏKask v0.23.00 — A Minimal Viable Container for Agents
 #
 # Declarative pipeline for constructing a style embedding corpus:
 # download texts → clean → chunk → embed → store → centroid → validate → CNS
@@ -23,7 +23,7 @@ manifest:
     chunks them into passages, embeds via Okapi, stores in sqlite-vec,
     computes a style centroid, and emits CNS feedback.
     Idempotent: purges existing author embeddings before re-ingest.
-  version: 0.22.0
+  version: 0.23.00
   editor: curator
   visibility: Shared
 

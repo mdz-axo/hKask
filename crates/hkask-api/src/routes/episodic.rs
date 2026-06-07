@@ -12,6 +12,7 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
+use hkask_agents::{RecallRequest, StorageRequest};
 use hkask_types::Confidence;
 
 /// Create episodic memory router
@@ -107,16 +108,16 @@ async fn store_episode(
     }
 
     let confidence = Confidence::new(req.confidence.unwrap_or(1.0));
+    let request = StorageRequest::episodic(
+        &req.entity,
+        &req.attribute,
+        req.value,
+        confidence,
+        auth.webid,
+    );
     state
         .episodic_storage
-        .store_episodic(
-            auth.webid,
-            &req.entity,
-            &req.attribute,
-            req.value,
-            confidence,
-            &auth.token,
-        )
+        .store_episodic(request, &auth.token)
         .map_err(|e| {
             // Map OCAP denial to 403, storage errors to 500
             if e.to_string().contains("denied") || e.to_string().contains("read-only") {
@@ -174,9 +175,10 @@ async fn query_episodes(
         });
     }
 
+    let request = RecallRequest::episodic(&params.entity, auth.webid, auth.token);
     let results = state
         .episodic_storage
-        .recall_episodic(&params.entity, &auth.webid, &auth.token)
+        .recall_episodic(&request)
         .map_err(|e| {
             if e.to_string().contains("denied") {
                 ApiError::Forbidden {

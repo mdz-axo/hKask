@@ -145,7 +145,7 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `id` | `EventID` | Unique event identifier |
 | `timestamp` | `DateTime<Utc>` | Timestamp of event |
 | `observer_webid` | `WebID` | Emitting agent identity |
-| `span` | `SpanCategory` enum | Typed namespace (15 variants) |
+| `span` | `SpanCategory` enum | Typed namespace (16 canonical + 5 hierarchical) |
 | `phase` | `Phase` enum | Sense / Compute / Compare / Act |
 | `observation` | `Value` | Observed state |
 | `regulation` | `Option<Value>` | Regulatory action taken |
@@ -154,7 +154,7 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `parent_event` | `Option<EventID>` | Parent event for chaining |
 | `visibility` | `String` | Data visibility classification ("private" by default) |
 
-**Span namespaces** (`crates/hkask-types/src/event.rs:87-103`):
+**Span namespaces** — the 21 canonical `cns.*` namespaces are defined in [`PRINCIPLES.md` §1.4](PRINCIPLES.md#14-cybernetic-nervous-system-cns) (authoritative source) and in `hkask-types::event::CANONICAL_NAMESPACES`. The table below shows only the spans most relevant to ν-event construction; see the authoritative registry for the full list.
 
 | Variant | Namespace | Covers |
 |---------|-----------|--------|

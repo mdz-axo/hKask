@@ -2,7 +2,7 @@
 title: "hKask Distillation ERD — Post-Distillation Entity Relationships"
 audience: [architects, developers, agents]
 last_updated: 2026-06-02
-version: "0.22.0"
+version: "0.23.00"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, curation]
@@ -10,7 +10,7 @@ ddmvss_categories: [domain, capability, curation]
 
 # hKask Distillation ERD
 
-**Version:** v0.22.0 (post-distillation)
+**Version:** v0.23.00 (post-distillation)
 **Status:** Active — reflects the codebase after semantic distillation
 
 ## Authority DAG

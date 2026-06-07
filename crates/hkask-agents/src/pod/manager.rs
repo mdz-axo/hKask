@@ -518,8 +518,13 @@ impl PodManager {
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
+        let request = crate::ports::RecallRequest::episodic(
+            "lifecycle",
+            pod.webid,
+            pod.capability_token.clone(),
+        );
         self.episodic_storage
-            .recall_episodic("lifecycle", &pod.webid, &pod.capability_token)
+            .recall_episodic(&request)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 

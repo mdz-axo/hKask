@@ -535,4 +535,4 @@ routes inference calls to `InferenceGasEstimator` and all other calls to
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.00*

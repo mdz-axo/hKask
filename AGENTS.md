@@ -143,7 +143,7 @@ if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATIO
 
 | Topic | Location |
 |------|----------|
-| Architecture master | `docs/architecture/hKask-architecture-master.md` (v0.22.0) |
+| Architecture master | `docs/architecture/hKask-architecture-master.md` (v0.23.00) |
 | ERDs | `docs/architecture/reference/hKask-erd.md`, `subsystem-erds.md` |
 | Registry & templating | `docs/architecture/interface-and-composition.md` (§2-§6) |
 | DDMVSS Specification | `docs/architecture/DDMVSS.md` (v0.2.2) |
@@ -158,4 +158,4 @@ if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATIO
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.00*

@@ -45,7 +45,9 @@ pub use hhh_gate::{HhhConfig, HhhMode};
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
 pub use pod::{AgentPersona, PodID, PodManager, PodStatus};
-pub use ports::{AcpPort, EpisodicStoragePort, GitCasAdapter, SemanticStoragePort};
+pub use ports::{
+    AcpPort, EpisodicStoragePort, GitCasAdapter, RecallRequest, SemanticStoragePort, StorageRequest,
+};
 pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;
 pub(crate) use sovereignty::SovereigntyChecker;

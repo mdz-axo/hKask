@@ -1,5 +1,5 @@
 # Coding Guidelines Process Manifest
-# ℏKask v0.22.0 — Behavioral guardrails for LLM coding (Karpathy principles)
+# ℏKask v0.23.00 — Behavioral guardrails for LLM coding (Karpathy principles)
 # Template type: Process (FlowDef) — enforce think-first, simplicity, surgical changes, goal-driven execution
 
 manifest:
@@ -14,7 +14,7 @@ manifest:
     An Encoded Preference skill: the agent already knows how to code;
     this constrains HOW it codes.
   functional_role: knowact
-  version: 0.22.0
+  version: 0.23.00
   editor: curator-or-human-admin
   visibility: Shared
 

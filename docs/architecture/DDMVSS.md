@@ -1,7 +1,7 @@
 ---
 title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
 audience: [architects, developers, agents]
-last_updated: 2026-05-25
+last_updated: 2026-06-06
 version: "0.2.2"
 status: "Active"
 domain: "Cross-cutting"
@@ -1302,7 +1302,7 @@ pub trait SpecStore {
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
 }
 
-// SpecObserver trait removed in v0.22.0 — CNS span emission replaces it
+// SpecObserver trait removed in v0.23.00 — CNS span emission replaces it
 
 // ── Error ────────────────────────────────────────────────────
 
@@ -1347,7 +1347,7 @@ impl SpecStore for SqliteSpecStore {
 - Traits define ports; `SqliteSpecStore` demonstrates the adapter pattern.
 - Zero `async` in domain core — async only at adapter boundary (via `async-trait` in adapters).
 - Newtypes `SpecId`, `CapabilityId` follow existing `hkask-types/src/id.rs` conventions.
-- `SpecCurationRecord` integrates with existing `CurationDecision` (3 variants: Merge, Discard, Revise) from `curation.rs`. The `Defer` variant was removed in v0.22.0.
+- `SpecCurationRecord` integrates with existing `CurationDecision` (3 variants: Merge, Discard, Revise) from `curation.rs`. The `Defer` variant was removed in v0.23.00.
 - `SpecCurator` trait has ≥2 potential consumers (spec-curator bot, human-via-CLI) — P1 compliant.
 - `SpecCategory` reduced to 4 live variants (Domain, Capability, Interface, Composition).
 - `SpecError::CurationDenied` and `SpecError::CoherenceInsufficient` — distinct recovery paths per C5.
@@ -1467,7 +1467,7 @@ impl SpecStore for SqliteSpecStore {
 
 8. **Persistent curation audit trail.** `CurationRecord` from `curation.rs` should be stored as bitemporal triples when `SpecCurator::evaluate` is called. Currently decisions are returned but not persisted.
 
-9. **Manifest step grammar extension.** ~~`mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended.~~ **Done (v0.22.0):** The manifest executor now supports `select`, `populate`, `execute`, `feedback`, `validate`, and `retrieve` actions. See `executor.rs` and `bundle.rs`.
+9. **Manifest step grammar extension.** ~~`mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended.~~ **Done (v0.23.00):** The manifest executor now supports `select`, `populate`, `execute`, `feedback`, `validate`, and `retrieve` actions. See `executor.rs` and `bundle.rs`.
 
 10. **Spec drift detection.** `cns.spec.drift` span with drift-magnitude metric is specified in §10.5 but not implemented. Requires comparing `Spec` goals against actual implementation state — a non-trivial feedback loop.
 

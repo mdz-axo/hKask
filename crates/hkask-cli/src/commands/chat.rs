@@ -10,7 +10,9 @@
 //! - Both operations use the memory loop adapter with OCAP discipline
 
 use hkask_agents::adapters::MemoryLoopAdapter;
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_agents::ports::{
+    EpisodicStoragePort, RecallRequest, SemanticStoragePort, StorageRequest,
+};
 use hkask_templates::{OkapiConfig, OkapiInference};
 use hkask_types::ports::InferencePort;
 
@@ -284,58 +286,64 @@ pub async fn chat_with_agent(
 
     // Recall relevant knowledge from semantic memory to enrich the prompt.
     let semantic_context = match (&semantic_storage, &memory_adapter) {
-        (Some(sem_port), _) => match sem_port.recall_semantic(input, &capability_token) {
-            Ok(triples) if !triples.is_empty() => {
-                let context: Vec<String> = triples
-                    .iter()
-                    .filter_map(|t| {
-                        t.get("value")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string())
-                    })
-                    .collect();
-                if context.is_empty() {
+        (Some(sem_port), _) => {
+            let request = RecallRequest::semantic(input, capability_token.clone());
+            match sem_port.recall_semantic(&request) {
+                Ok(triples) if !triples.is_empty() => {
+                    let context: Vec<String> = triples
+                        .iter()
+                        .filter_map(|t| {
+                            t.get("value")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                        })
+                        .collect();
+                    if context.is_empty() {
+                        None
+                    } else {
+                        Some(context.join("\n"))
+                    }
+                }
+                Ok(_) => None,
+                Err(e) => {
+                    tracing::debug!(
+                        target: "hkask.chat.memory",
+                        error = %e,
+                        "Semantic recall failed — proceeding without context"
+                    );
                     None
-                } else {
-                    Some(context.join("\n"))
                 }
             }
-            Ok(_) => None,
-            Err(e) => {
-                tracing::debug!(
-                    target: "hkask.chat.memory",
-                    error = %e,
-                    "Semantic recall failed — proceeding without context"
-                );
-                None
-            }
-        },
-        (None, Some(adapter)) => match adapter.recall_semantic(input, &capability_token) {
-            Ok(triples) if !triples.is_empty() => {
-                let context: Vec<String> = triples
-                    .iter()
-                    .filter_map(|t| {
-                        t.get("value")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string())
-                    })
-                    .collect();
-                if context.is_empty() {
+        }
+        (None, Some(adapter)) => {
+            let request = RecallRequest::semantic(input, capability_token.clone());
+            match adapter.recall_semantic(&request) {
+                Ok(triples) if !triples.is_empty() => {
+                    let context: Vec<String> = triples
+                        .iter()
+                        .filter_map(|t| {
+                            t.get("value")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                        })
+                        .collect();
+                    if context.is_empty() {
+                        None
+                    } else {
+                        Some(context.join("\n"))
+                    }
+                }
+                Ok(_) => None,
+                Err(e) => {
+                    tracing::debug!(
+                        target: "hkask.chat.memory",
+                        error = %e,
+                        "Semantic recall failed — proceeding without context"
+                    );
                     None
-                } else {
-                    Some(context.join("\n"))
                 }
             }
-            Ok(_) => None,
-            Err(e) => {
-                tracing::debug!(
-                    target: "hkask.chat.memory",
-                    error = %e,
-                    "Semantic recall failed — proceeding without context"
-                );
-                None
-            }
-        },
+        }
         (None, None) => None,
     };
 
@@ -396,28 +404,32 @@ pub async fn chat_with_agent(
     // Store the exchange as an episodic triple: (agent, "chatted", response_text)
     // This is private, agent-scoped memory — episodic_override: private.
     let store_result = match (&episodic_storage, &memory_adapter) {
-        (Some(epi_port), _) => epi_port.store_episodic(
-            agent_webid,
-            "chatted",
-            "chat_turn",
-            serde_json::json!({
-                "user_input": input,
-                "agent_response": response_text,
-            }),
-            Confidence::new(0.7),
-            &capability_token,
-        ),
-        (None, Some(adapter)) => adapter.store_episodic(
-            agent_webid,
-            "chatted",
-            "chat_turn",
-            serde_json::json!({
-                "user_input": input,
-                "agent_response": response_text,
-            }),
-            Confidence::new(0.7),
-            &capability_token,
-        ),
+        (Some(epi_port), _) => {
+            let request = StorageRequest::episodic(
+                "chatted",
+                "chat_turn",
+                serde_json::json!({
+                    "user_input": input,
+                    "agent_response": response_text,
+                }),
+                Confidence::new(0.7),
+                agent_webid,
+            );
+            epi_port.store_episodic(request, &capability_token)
+        }
+        (None, Some(adapter)) => {
+            let request = StorageRequest::episodic(
+                "chatted",
+                "chat_turn",
+                serde_json::json!({
+                    "user_input": input,
+                    "agent_response": response_text,
+                }),
+                Confidence::new(0.7),
+                agent_webid,
+            );
+            adapter.store_episodic(request, &capability_token)
+        }
         (None, None) => Err(hkask_agents::error::MemoryError::Storage(
             "No memory adapter available".to_string(),
         )),
