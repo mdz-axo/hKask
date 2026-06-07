@@ -1,9 +1,14 @@
-//! MCP Runtime Adapter
+//! MCP Runtime Adapters — Concrete implementations of MCPRuntimePort
 //
-//! Concrete implementation of MCPRuntimePort.
-//! Routes tool invocations through `McpRuntime`'s live MCP server
-//! connections when available. Falls back to capability-only verification
-//! when no runtime is wired (e.g., in tests).
+//! Two adapter types enforce the "make impossible states unrepresentable" principle:
+//!
+//! - `CapabilityOnlyAdapter` — can verify and grant capabilities but cannot invoke tools.
+//!   Requires a `CapabilityChecker` at construction; tool invocation always returns
+//!   `McpError::NoRuntime`.
+//!
+//! - `FullMcpAdapter` — can verify capabilities *and* dispatch tool invocations through
+//!   a live `McpRuntime`. Requires `CapabilityChecker`, `McpRuntime`, *and* a tokio
+//!   `Handle` at construction.
 
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
@@ -11,62 +16,39 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
     TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
-    token_err_tool_access_denied, verify_delegation_token_now,
+    verify_delegation_token_now,
 };
 use std::sync::Arc;
 
-/// MCP Runtime Adapter — Concrete implementation for tool access
+// ---------------------------------------------------------------------------
+// Capability-only adapter
+// ---------------------------------------------------------------------------
+
+/// Capability-only adapter for ACP token verification.
 ///
-/// When wired with an `McpRuntime`, routes tool invocations through
-/// live MCP server connections (spawned via `McpRuntime::start_server()`).
-/// When no runtime is provided (e.g., in tests), returns an error on
-/// invocation.
-#[derive(Default, Clone)]
-pub struct McpRuntimeAdapter {
-    /// Optional capability checker for HMAC verification
-    capability_checker: Option<Arc<CapabilityChecker>>,
-    /// MCP runtime for live tool dispatch
-    mcp_runtime: Option<Arc<McpRuntime>>,
-    /// Tokio runtime handle for bridging sync→async
-    handle: Option<tokio::runtime::Handle>,
+/// Can verify and grant capabilities but cannot invoke tools —
+/// `invoke_tool` and `resolve_tool_server` always return errors.
+///
+/// Use this when you need token verification gate logic but no live
+/// MCP server connections (e.g., in tests or lightweight embeds).
+pub struct CapabilityOnlyAdapter {
+    capability_checker: Arc<CapabilityChecker>,
 }
 
-impl McpRuntimeAdapter {
-    /// Create new MCP runtime adapter (no runtime, capability-only).
+impl CapabilityOnlyAdapter {
+    /// Create a capability-only adapter with the given checker.
     ///
-    /// Tool invocations will fail with `McpError::NoRuntime`. Use
-    /// `with_runtime()` for a working adapter.
-    pub fn new() -> Self {
+    /// Token verification (`grant_tool_access`, verification gate in
+    /// `invoke_tool`) will use this checker. Tool invocation always
+    /// fails with `McpError::NoRuntime`.
+    pub fn new(checker: Arc<CapabilityChecker>) -> Self {
         Self {
-            capability_checker: None,
-            mcp_runtime: None,
-            handle: None,
+            capability_checker: checker,
         }
     }
-
-    /// Set the capability checker for cryptographic OCAP verification
-    pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
-        self.capability_checker = Some(Arc::new(checker));
-        self
-    }
-
-    /// Wire the adapter through a live `McpRuntime` for actual MCP dispatch.
-    ///
-    /// The `handle` is used to bridge synchronous trait methods to the
-    /// async `McpRuntime` calls. Obtain it from `tokio::runtime::Handle::current()`
-    /// or from a `Runtime::handle()`.
-    pub fn with_runtime(
-        mut self,
-        runtime: Arc<McpRuntime>,
-        handle: tokio::runtime::Handle,
-    ) -> Self {
-        self.mcp_runtime = Some(runtime);
-        self.handle = Some(handle);
-        self
-    }
 }
 
-impl MCPRuntimePort for McpRuntimeAdapter {
+impl MCPRuntimePort for CapabilityOnlyAdapter {
     fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
         let token_id = token.id.clone();
 
@@ -74,9 +56,8 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             return Err(McpError::InvalidToken("Token ID is empty".to_string()));
         }
 
-        // P1.1: Use unified verification instead of inline HMAC check
         match verify_delegation_token_now(
-            self.capability_checker.as_ref().map(|a| a.as_ref()),
+            Some(self.capability_checker.as_ref()),
             &token,
             &token.delegated_to,
             DelegationResource::Tool,
@@ -87,15 +68,107 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
                 TOKEN_ERR_INVALID_SIGNATURE.to_string(),
             )),
-            VerificationOutcome::Expired => {
-                Err(McpError::CapabilityDenied(TOKEN_ERR_EXPIRED.to_string()))
-            }
-            VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied(
-                token_err_tool_access_denied(&token.resource_id),
+            VerificationOutcome::Expired => Err(McpError::CapabilityDenied {
+                resource: "token".to_string(),
+                action: TOKEN_ERR_EXPIRED.to_string(),
+            }),
+            VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied {
+                resource: token.resource_id.clone(),
+                action: "execute".to_string(),
+            }),
+            // CapabilityOnlyAdapter always carries a checker; NoChecker
+            // should never fire, but we handle it defensively.
+            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied {
+                resource: "token".to_string(),
+                action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
+            }),
+        }
+    }
+
+    fn invoke_tool(
+        &self,
+        _tool_name: &str,
+        _input: serde_json::Value,
+        _token: &DelegationToken,
+    ) -> Result<serde_json::Value, McpError> {
+        Err(McpError::NoRuntime(
+            "CapabilityOnlyAdapter has no runtime — use FullMcpAdapter for tool invocation"
+                .to_string(),
+        ))
+    }
+
+    fn resolve_tool_server(&self, _tool_name: &str) -> Option<String> {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Full MCP adapter
+// ---------------------------------------------------------------------------
+
+/// Full MCP adapter with both capability checking and tool dispatch.
+///
+/// Routes tool invocations through `McpRuntime`'s live MCP server
+/// connections. Requires a `CapabilityChecker`, `McpRuntime`, and
+/// tokio `Handle` at construction — all three are mandatory so that
+/// every method can succeed.
+pub struct FullMcpAdapter {
+    capability_checker: Arc<CapabilityChecker>,
+    mcp_runtime: Arc<McpRuntime>,
+    handle: tokio::runtime::Handle,
+}
+
+impl FullMcpAdapter {
+    /// Create a full MCP adapter.
+    ///
+    /// All three arguments are required: the checker for token
+    /// verification, the runtime for MCP dispatch, and a tokio
+    /// handle for bridging sync→async calls.
+    pub fn new(
+        checker: Arc<CapabilityChecker>,
+        runtime: Arc<McpRuntime>,
+        handle: tokio::runtime::Handle,
+    ) -> Self {
+        Self {
+            capability_checker: checker,
+            mcp_runtime: runtime,
+            handle,
+        }
+    }
+}
+
+impl MCPRuntimePort for FullMcpAdapter {
+    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
+        let token_id = token.id.clone();
+
+        if token_id.is_empty() {
+            return Err(McpError::InvalidToken("Token ID is empty".to_string()));
+        }
+
+        match verify_delegation_token_now(
+            Some(self.capability_checker.as_ref()),
+            &token,
+            &token.delegated_to,
+            DelegationResource::Tool,
+            &token.resource_id,
+            DelegationAction::Execute,
+        ) {
+            VerificationOutcome::Valid => Ok(()),
+            VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
+                TOKEN_ERR_INVALID_SIGNATURE.to_string(),
             )),
-            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied(format!(
-                "{TOKEN_ERR_NO_CHECKER} — tool access denied"
-            ))),
+            VerificationOutcome::Expired => Err(McpError::CapabilityDenied {
+                resource: "token".to_string(),
+                action: TOKEN_ERR_EXPIRED.to_string(),
+            }),
+            VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied {
+                resource: token.resource_id.clone(),
+                action: "execute".to_string(),
+            }),
+            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied {
+                resource: "token".to_string(),
+                action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
+            }),
         }
     }
 
@@ -107,7 +180,7 @@ impl MCPRuntimePort for McpRuntimeAdapter {
     ) -> Result<serde_json::Value, McpError> {
         // P1.1: Use unified verification instead of duplicated inline HMAC check
         match verify_delegation_token_now(
-            self.capability_checker.as_ref().map(|a| a.as_ref()),
+            Some(self.capability_checker.as_ref()),
             token,
             &token.delegated_to,
             DelegationResource::Tool,
@@ -116,44 +189,40 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         ) {
             VerificationOutcome::Valid => {}
             VerificationOutcome::InvalidSignature => {
-                return Err(McpError::CapabilityDenied(
-                    TOKEN_ERR_INVALID_SIGNATURE.to_string(),
-                ));
+                return Err(McpError::CapabilityDenied {
+                    resource: "token".to_string(),
+                    action: TOKEN_ERR_INVALID_SIGNATURE.to_string(),
+                });
             }
             VerificationOutcome::Expired => {
-                return Err(McpError::CapabilityDenied(TOKEN_ERR_EXPIRED.to_string()));
+                return Err(McpError::CapabilityDenied {
+                    resource: "token".to_string(),
+                    action: TOKEN_ERR_EXPIRED.to_string(),
+                });
             }
             VerificationOutcome::InsufficientAccess { resource_id, .. } => {
-                return Err(McpError::CapabilityDenied(token_err_tool_access_denied(
-                    &resource_id,
-                )));
+                return Err(McpError::CapabilityDenied {
+                    resource: resource_id,
+                    action: "execute".to_string(),
+                });
             }
             VerificationOutcome::NoChecker => {
-                return Err(McpError::CapabilityDenied(format!(
-                    "{TOKEN_ERR_NO_CHECKER} — tool invocation denied"
-                )));
+                return Err(McpError::CapabilityDenied {
+                    resource: "token".to_string(),
+                    action: format!("{TOKEN_ERR_NO_CHECKER} — tool invocation denied"),
+                });
             }
         }
 
-        // Route through McpRuntime if available
-        let (runtime, handle) = match (&self.mcp_runtime, &self.handle) {
-            (Some(r), Some(h)) => (r, h),
-            _ => {
-                return Err(McpError::NoRuntime(
-                    "No McpRuntime wired — call McpRuntimeAdapter::with_runtime() first"
-                        .to_string(),
-                ));
-            }
-        };
-
         // Resolve server_id for the tool, then invoke through RawMcpToolPort
-        let server_id = handle
-            .block_on(runtime.get_tool_info(tool_name))
+        let server_id = self
+            .handle
+            .block_on(self.mcp_runtime.get_tool_info(tool_name))
             .map(|info| info.server_id)
             .unwrap_or_else(|| "unknown".to_string());
 
-        let raw_port = hkask_mcp::RawMcpToolPort::new(runtime.as_ref().clone());
-        match handle.block_on(hkask_types::ports::ToolPort::invoke(
+        let raw_port = hkask_mcp::RawMcpToolPort::new(self.mcp_runtime.as_ref().clone());
+        match self.handle.block_on(hkask_types::ports::ToolPort::invoke(
             &raw_port, &server_id, tool_name, input, token,
         )) {
             Ok(value) => Ok(value),
@@ -161,24 +230,41 @@ impl MCPRuntimePort for McpRuntimeAdapter {
                 Err(McpError::ToolNotFound(msg))
             }
             Err(hkask_types::ports::ToolPortError::InvocationFailed(msg)) => {
-                Err(McpError::InvocationFailed(msg))
+                Err(McpError::InvocationFailed(Box::new(
+                    hkask_types::ports::ToolPortError::InvocationFailed(msg),
+                )))
             }
             Err(hkask_types::ports::ToolPortError::CapabilityDenied(msg)) => {
-                Err(McpError::CapabilityDenied(msg))
+                Err(McpError::CapabilityDenied {
+                    resource: "tool".to_string(),
+                    action: msg,
+                })
             }
-            Err(hkask_types::ports::ToolPortError::GasBudgetExceeded(msg)) => Err(
-                McpError::InvocationFailed(format!("Energy budget exceeded: {}", msg)),
-            ),
+            Err(hkask_types::ports::ToolPortError::GasBudgetExceeded(msg)) => {
+                Err(McpError::InvocationFailed(Box::new(
+                    hkask_types::ports::ToolPortError::GasBudgetExceeded(msg),
+                )))
+            }
         }
     }
 
     fn resolve_tool_server(&self, tool_name: &str) -> Option<String> {
-        let (runtime, handle) = (&self.mcp_runtime, &self.handle);
-        match (runtime, handle) {
-            (Some(r), Some(h)) => h
-                .block_on(r.get_tool_info(tool_name))
-                .map(|info| info.server_id),
-            _ => None,
-        }
+        self.handle
+            .block_on(self.mcp_runtime.get_tool_info(tool_name))
+            .map(|info| info.server_id)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Backward-compatible type alias (deprecated)
+// ---------------------------------------------------------------------------
+
+/// Deprecated: use [`FullMcpAdapter`] or [`CapabilityOnlyAdapter`] instead.
+///
+/// `McpRuntimeAdapter` is preserved as a type alias for `FullMcpAdapter`
+/// to ease migration. New code should use the concrete type directly.
+#[deprecated(
+    since = "0.24.0",
+    note = "Use FullMcpAdapter or CapabilityOnlyAdapter instead"
+)]
+pub type McpRuntimeAdapter = FullMcpAdapter;

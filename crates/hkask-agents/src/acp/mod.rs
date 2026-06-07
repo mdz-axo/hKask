@@ -82,7 +82,7 @@ pub enum AcpError {
     ClockError(String),
 
     #[error("Key derivation failed: {0}")]
-    KeyDerivation(String),
+    KeyDerivation(#[from] hkask_keystore::KeystoreError),
 
     #[error(transparent)]
     Infra(#[from] hkask_types::InfrastructureError),

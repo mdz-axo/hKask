@@ -5,7 +5,8 @@ use hkask_types::DelegationToken;
 /// Port trait for MCP runtime operations
 ///
 /// Implementations:
-/// - `McpRuntimeAdapter` — Production adapter via rmcp
+/// - `FullMcpAdapter` — Full MCP adapter with capability checking + tool dispatch
+/// - `CapabilityOnlyAdapter` — Capability verification only (no tool invocation)
 /// - Mock implementations for testing
 pub trait MCPRuntimePort: Send + Sync {
     fn grant_tool_access(&self, token: DelegationToken) -> Result<(), crate::error::McpError>;

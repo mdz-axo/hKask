@@ -98,18 +98,20 @@ impl McpPort for McpDispatcher {
                 .map_err(|e| match e {
                     ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),
                     ToolPortError::GasBudgetExceeded(msg) => {
-                        TemplateError::Mcp(format!("Energy budget exceeded: {}", msg))
+                        TemplateError::Mcp(Box::new(ToolPortError::GasBudgetExceeded(msg)))
                     }
                     ToolPortError::NotFound(msg) => {
-                        TemplateError::Mcp(format!("Tool not found: {}", msg))
+                        TemplateError::Mcp(Box::new(ToolPortError::NotFound(msg)))
                     }
-                    ToolPortError::InvocationFailed(msg) => TemplateError::Mcp(msg),
+                    ToolPortError::InvocationFailed(msg) => {
+                        TemplateError::Mcp(Box::new(ToolPortError::InvocationFailed(msg)))
+                    }
                 })
         } else {
-            Err(TemplateError::Mcp(
-                "GovernedTool membrane not configured — all tool invocations require governance"
-                    .to_string(),
-            ))
+            Err(TemplateError::Mcp(Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                "GovernedTool membrane not configured — all tool invocations require governance",
+            ))))
         }
     }
 

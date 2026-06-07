@@ -7,6 +7,7 @@
 pub mod git_cas;
 
 use crate::cns::CircuitState;
+use crate::error::InfrastructureError;
 use crate::id::WebID;
 use crate::lexicon::TemplateType;
 use crate::template::LLMParameters;
@@ -395,7 +396,7 @@ pub enum SessionStoreError {
     #[error("Session is sealed: {0}")]
     Sealed(String),
     #[error("Storage error: {0}")]
-    Storage(String),
+    Storage(#[from] InfrastructureError),
 }
 
 #[derive(Debug, Clone)]

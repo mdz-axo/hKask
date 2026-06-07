@@ -13,7 +13,7 @@ use tracing::{info, warn};
 #[derive(Error, Debug)]
 pub enum RegistryLoaderError {
     #[error("IO error: {0}")]
-    Io(String),
+    Io(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("YAML parse error in {path}: {source}")]
     YamlParse {
         path: String,
@@ -289,7 +289,7 @@ impl AgentRegistryLoader {
         let content = self
             .source
             .load_yaml(path)
-            .map_err(|e| RegistryLoaderError::Io(e.to_string()))?;
+            .map_err(|e| RegistryLoaderError::Io(Box::new(e)))?;
         let raw: RawYamlAgent =
             serde_yaml::from_str(&content).map_err(|e| RegistryLoaderError::YamlParse {
                 path: path.to_string(),
@@ -336,10 +336,10 @@ impl AgentRegistryLoader {
 
     fn discover_yaml_files(&self) -> Result<Vec<String>, RegistryLoaderError> {
         let registry_dir = self.registry_path.to_str().ok_or_else(|| {
-            RegistryLoaderError::Io(format!(
-                "Invalid registry path: {}",
-                self.registry_path.display()
-            ))
+            RegistryLoaderError::Io(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("Invalid registry path: {}", self.registry_path.display()),
+            )))
         })?;
 
         // If the path doesn't exist, the source adapter will return an empty list
@@ -347,7 +347,7 @@ impl AgentRegistryLoader {
         let files = self
             .source
             .list_yaml_files(registry_dir)
-            .map_err(|e| RegistryLoaderError::Io(e.to_string()))?;
+            .map_err(|e| RegistryLoaderError::Io(Box::new(e)))?;
         let mut files = files;
         files.sort();
         Ok(files)

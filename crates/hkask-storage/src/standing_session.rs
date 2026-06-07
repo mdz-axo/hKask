@@ -246,7 +246,7 @@ impl StandingSessionStore {
         self.save_stored_session(&stored).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie),
         })
     }
 
@@ -254,7 +254,7 @@ impl StandingSessionStore {
         let stored = self.get_stored_session(session_id).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie),
         })?;
         Ok(SessionRecord {
             session_id: stored.session_id,
@@ -276,7 +276,7 @@ impl StandingSessionStore {
         self.save_stored_message(&stored).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie),
         })
     }
 
@@ -284,7 +284,7 @@ impl StandingSessionStore {
         let stored = self.get_stored_messages(session_id).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie),
         })?;
         Ok(stored
             .into_iter()
@@ -304,7 +304,7 @@ impl StandingSessionStore {
             .map_err(|e| match e {
                 StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
                 StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-                StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+                StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie),
             })
     }
 }

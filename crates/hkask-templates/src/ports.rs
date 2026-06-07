@@ -10,7 +10,7 @@ use hkask_types::DelegationToken;
 use serde_json::Value;
 
 /// Error type for template operations
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum TemplateError {
     #[error("Template not found: {0}")]
     NotFound(String),
@@ -20,11 +20,11 @@ pub enum TemplateError {
     #[error("Manifest error: {0}")]
     Manifest(String),
     #[error("Database error: {0}")]
-    Database(String),
+    Database(#[from] hkask_types::InfrastructureError),
     #[error("Inference error: {0}")]
-    Inference(String),
+    Inference(#[from] hkask_types::InferenceError),
     #[error("MCP error: {0}")]
-    Mcp(String),
+    Mcp(#[source] Box<dyn std::error::Error + Send + Sync>),
 
     #[error("Validation error: {0}")]
     Validation(String),

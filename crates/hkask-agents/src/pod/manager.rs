@@ -12,7 +12,7 @@ use tracing::info;
 
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
-use crate::adapters::mcp_runtime::McpRuntimeAdapter;
+use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
 use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_mcp::GitCasAdapter;
@@ -136,6 +136,10 @@ impl PodManager {
     }
 
     /// Create a new pod manager with mock adapters for testing
+    ///
+    /// Uses a `CapabilityOnlyAdapter` (no live MCP runtime) so that
+    /// capability verification works but tool invocation returns
+    /// `McpError::NoRuntime`.
     pub fn new_mock() -> Self {
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let episodic_storage: Arc<dyn EpisodicStoragePort> = adapter.clone();
@@ -145,11 +149,26 @@ impl PodManager {
         // so the CapabilityChecker can verify tokens signed by the ACP runtime.
         let capability_checker = resolve_acp_secret_for_checker().map(Arc::new);
 
+        // Use CapabilityOnlyAdapter (no live MCP runtime) for the MCP port.
+        // If we have a capability checker, wire it into the adapter so
+        // grant_tool_access works; otherwise fall back to a minimal checker
+        // that will always deny (the PodManager-level checker is set below).
+        let mcp_runtime: Arc<dyn MCPRuntimePort> = match &capability_checker {
+            Some(checker) => Arc::new(CapabilityOnlyAdapter::new(Arc::clone(checker))),
+            None => {
+                // No ACP secret available — use a placeholder checker that
+                // will always return NoChecker. This matches the old
+                // McpRuntimeAdapter::new() behaviour.
+                let checker = Arc::new(CapabilityChecker::new(&[]));
+                Arc::new(CapabilityOnlyAdapter::new(checker))
+            }
+        };
+
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
+            mcp_runtime,
             episodic_storage,
             semantic_storage,
             inference_port: None,
@@ -311,8 +330,15 @@ impl PodManagerBuilder {
             }),
             self.acp_runtime
                 .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
-            self.mcp_runtime
-                .unwrap_or_else(|| Arc::new(McpRuntimeAdapter::new())),
+            // Default: CapabilityOnlyAdapter with a minimal (empty-secret) checker.
+            // Tool invocation will return NoRuntime (no live MCP servers).
+            // Token verification will fail with NoChecker, which matches
+            // the old McpRuntimeAdapter::new() behaviour.
+            self.mcp_runtime.unwrap_or_else(|| {
+                Arc::new(CapabilityOnlyAdapter::new(Arc::new(
+                    CapabilityChecker::new(&[]),
+                )))
+            }),
             episodic_storage,
             semantic_storage,
         );

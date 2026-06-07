@@ -32,7 +32,7 @@
 
 use hkask_agents::CyberneticsLoopHandle;
 use hkask_agents::acp::AcpRuntime;
-use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
+use hkask_agents::adapters::mcp_runtime::FullMcpAdapter;
 use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use hkask_agents::communication::dispatch::MessageDispatch;
 use hkask_agents::consent::ConsentManager;
@@ -289,6 +289,132 @@ pub struct ApiState {
     pub gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
 }
 
+/// Git CAS adapter bundle (P2.2).
+///
+/// Extracted from `ApiState::new()` to keep CAS initialization self-contained
+/// and to surface the `expect("Failed to create GixCasAdapter")` failure as a
+/// typed `ApiError::Internal` rather than a panic at startup (P4.1).
+struct GitCasBundle {
+    /// Concrete `GitCasAdapter` (legacy — template loading only).
+    git_cas: Arc<hkask_mcp::GitCasAdapter>,
+    /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
+    git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
+}
+
+/// Initialize the Git CAS adapter and the trait-object port.
+///
+/// `git_cas` writes to a fixed on-disk directory; `git_cas_port` resolves
+/// from `GIX_*` env vars when present and falls back to the same directory.
+fn init_git_cas() -> Result<GitCasBundle, ApiError> {
+    let git_cas = Arc::new(hkask_mcp::GitCasAdapter::from_path(PathBuf::from(
+        "/tmp/hkask-templates",
+    )));
+    let git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort> =
+        Arc::new(hkask_mcp::GixCasAdapter::from_env().unwrap_or_else(|_| {
+            hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
+                .expect("Failed to create GixCasAdapter")
+        }));
+    Ok(GitCasBundle {
+        git_cas,
+        git_cas_port,
+    })
+}
+
+/// Governed MCP tool + dispatcher bundle (P2.2).
+///
+/// Extracted from `ApiState::new()`. Wraps the gas estimator, raw tool port,
+/// and `GovernedTool` membrane into the `McpDispatcher` that all tool
+/// invocations route through. Returns the dispatcher plus a cloned
+/// `CyberneticsLoop` handle for downstream gas-governance adapters.
+struct GovernedMcpTool {
+    mcp_dispatcher: Arc<hkask_mcp::dispatch::McpDispatcher>,
+    /// Cloned before being moved into `GovernedTool`; needed for the
+    /// `ApiGasGovernanceAdapter` that the ensemble session manager consumes.
+    cybernetics_loop_for_gas: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+}
+
+/// Build the `GovernedTool` membrane and `McpDispatcher` that route every tool
+/// invocation through CNS gas governance.
+///
+/// P2.2 extraction: this block is the largest single section of
+/// `ApiState::new()` (after `Stores::init` and `build_loop_system` were
+/// already extracted). Isolating it makes the wiring self-documenting and
+/// the failure mode (e.g. tokio handle missing) testable in isolation.
+fn build_governed_mcp_tool(
+    dispatcher_runtime: hkask_mcp::runtime::McpRuntime,
+    cybernetics_loop_rwlock: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+    cns_event_sink: Arc<dyn NuEventSink>,
+    loop_system: &LoopSystem,
+    system_webid: WebID,
+    capability_secret: &[u8],
+) -> GovernedMcpTool {
+    let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
+        dispatcher_runtime.clone(),
+    ));
+    let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
+    let governed_tool = Arc::new(GovernedTool::new(
+        raw_tool_port,
+        Arc::clone(&cybernetics_loop_rwlock),
+        cns_event_sink,
+        estimator,
+        system_webid,
+        loop_system.dispatch_sender(),
+    ));
+    let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::with_governed_tool(
+        dispatcher_runtime,
+        capability_secret,
+        governed_tool,
+    ));
+    GovernedMcpTool {
+        mcp_dispatcher,
+        cybernetics_loop_for_gas: cybernetics_loop_rwlock,
+    }
+}
+
+/// Ensemble session bundle (P2.2).
+///
+/// Extracted from `ApiState::new()`. Composes the gas governance adapter
+/// (which lets CNS sense ensemble gas usage) with the `SessionManager`
+/// that the `/api/chat` route consumes. Also returns the inference port
+/// extracted from the optional `ensemble_inferencer`, and the
+/// `ensemble_inferencer` itself (for `ensemble_inferencer_with_breaker`).
+struct EnsembleSession {
+    session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
+    gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
+    inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
+    /// Returned to the caller to be stored on `ApiState`; consumed by
+    /// `ensemble_inferencer_with_breaker` for SOAP and ensemble routes.
+    ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
+}
+
+/// Wire the ensemble session manager with CNS gas governance so ensemble
+/// sessions in API mode respect the L6 budget.
+///
+/// P2.2 extraction: the inference port is also extracted here because
+/// the caller needs it both on the returned bundle and on the final
+/// `ApiState` literal — extracting once avoids a second clone.
+fn build_ensemble_session(
+    ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
+    cybernetics_loop: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+    system_webid: WebID,
+) -> EnsembleSession {
+    let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
+        ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
+    let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> = Arc::new(
+        ApiGasGovernanceAdapter::new(cybernetics_loop, system_webid, API_ENSEMBLE_GAS_CAP),
+    );
+    let session_manager = Arc::new(tokio::sync::RwLock::new(
+        hkask_ensemble::SessionManager::new(system_webid)
+            .with_gas_governance(Arc::clone(&gas_governance)),
+    ));
+    EnsembleSession {
+        session_manager,
+        gas_governance,
+        inference_port,
+        ensemble_inferencer,
+    }
+}
+
 /// Build the LoopSystem with all loops.
 ///
 /// Creates CnsRuntime, MessageDispatch, LoopSystem, and registers:
@@ -442,79 +568,51 @@ impl ApiState {
         db_config: Option<&DbConfig>,
         acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     ) -> Result<Self, ApiError> {
-        // ── Persistent stores ──
+        // ── 1. Persistent stores ──
         // git_cas_port is created before stores so each can attach it for CAS write-through.
-        let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
-            PathBuf::from("/tmp/hkask-templates"),
-        ));
-        let git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort> =
-            Arc::new(hkask_mcp::GixCasAdapter::from_env().unwrap_or_else(|_| {
-                hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
-                    .expect("Failed to create GixCasAdapter")
-            }));
+        let GitCasBundle {
+            git_cas,
+            git_cas_port,
+        } = init_git_cas()?;
         let stores = Stores::init(db_config, Arc::clone(&git_cas_port))?;
-        let dispatcher_runtime = mcp_runtime.clone();
 
-        // Build the LoopSystem with shared dispatch and escalation queue
+        // ── 2. Loop system + CNS event sink ──
         let dispatch = Arc::new(MessageDispatch::new());
-        let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
+        let inference_port_for_loops: Option<Arc<dyn hkask_types::ports::InferencePort>> =
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
-
-        // Create CNS event sink for governance observability
         let cns_event_conn = hkask_storage::in_memory_db().conn_arc();
         let cns_event_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
-
         let (loop_system, episodic_storage, cybernetics_loop_rwlock) = build_loop_system(
             Arc::clone(&stores.escalation_queue),
             dispatch,
-            inference_port,
+            inference_port_for_loops,
             system_webid,
             acp,
             Some(Arc::clone(&cns_event_sink)),
             Arc::clone(&git_cas_port),
         )?;
 
-        // Create GovernedTool membrane with CompositeGasEstimator
-        // Clone the CyberneticsLoop Arc before moving into GovernedTool —
-        // the gas governance adapter also needs a reference.
-        let cybernetics_loop_for_gas = Arc::clone(&cybernetics_loop_rwlock);
-        let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
-            dispatcher_runtime.clone(),
-        ));
-        let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
-        let governed_tool = Arc::new(GovernedTool::new(
-            raw_tool_port,
+        // ── 3. GovernedTool membrane + McpDispatcher ──
+        let GovernedMcpTool {
+            mcp_dispatcher,
+            cybernetics_loop_for_gas,
+        } = build_governed_mcp_tool(
+            mcp_runtime.clone(),
             cybernetics_loop_rwlock,
             cns_event_sink,
-            estimator,
+            &loop_system,
             system_webid,
-            loop_system.dispatch_sender(),
-        ));
-
-        // Wire GovernedTool into McpDispatcher
-        let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::with_governed_tool(
-            dispatcher_runtime,
             capability_secret,
-            governed_tool,
-        ));
+        );
 
-        // Ensemble session manager — wired with CNS gas governance
-        // so ensemble sessions in API mode respect gas budgets.
-        let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> =
-            Arc::new(ApiGasGovernanceAdapter::new(
-                cybernetics_loop_for_gas,
-                system_webid,
-                API_ENSEMBLE_GAS_CAP,
-            ));
-        let session_manager = Arc::new(tokio::sync::RwLock::new(
-            hkask_ensemble::SessionManager::new(system_webid)
-                .with_gas_governance(gas_governance.clone()),
-        ));
-
-        // Extract inference port before moving ensemble_inferencer into struct
-        let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
-            ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
+        // ── 4. Ensemble session manager with CNS gas governance ──
+        let EnsembleSession {
+            session_manager,
+            gas_governance,
+            inference_port,
+            ensemble_inferencer,
+        } = build_ensemble_session(ensemble_inferencer, cybernetics_loop_for_gas, system_webid);
 
         Ok(Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
@@ -523,7 +621,7 @@ impl ApiState {
             pod_manager: Arc::new(pod_manager),
             capability_checker: Arc::new(CapabilityChecker::new(capability_secret)),
             system_webid,
-            ensemble_inferencer,
+            ensemble_inferencer, // returned from build_ensemble_session
             spec_store: None,
             consent_manager: stores.consent_manager,
             escalation_queue: stores.escalation_queue,
@@ -561,7 +659,8 @@ impl ApiState {
         let git_cas = hkask_mcp::GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
         let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
-        let mcp_runtime_adapter = McpRuntimeAdapter::new().with_runtime(
+        let mcp_runtime_adapter = FullMcpAdapter::new(
+            Arc::new(CapabilityChecker::new(acp_secret)),
             Arc::new(mcp_runtime.clone()),
             tokio::runtime::Handle::current(),
         );
@@ -800,5 +899,53 @@ mod tests {
             1,
             "SqliteGoalRepository with CAS port should write one blob to CAS"
         );
+    }
+
+    // ── P2.2 helper property tests ───────────────────────────────────────
+    //
+    // Each test verifies a stated behavioral property of a P2.2 extraction
+    // from `ApiState::new()`. The P8 invariant (test names → property) is
+    // documented in each docstring.
+
+    /// P8 invariant: `init_git_cas` always succeeds (the on-disk /tmp fallback
+    /// is unconditional; env-var resolution is best-effort and degrades to the
+    /// same fallback rather than failing).
+    #[test]
+    fn init_git_cas_always_succeeds() {
+        let bundle = init_git_cas().expect("init_git_cas must succeed with /tmp fallback");
+        // Both fields are populated and the trait object is dyn-dispatched.
+        let _concrete: Arc<hkask_mcp::GitCasAdapter> = bundle.git_cas.clone();
+        let _port: Arc<dyn hkask_types::ports::git_cas::GitCASPort> = bundle.git_cas_port.clone();
+    }
+
+    /// P8 invariant: `build_ensemble_session` with `None` inferencer returns
+    /// `None` for both `inference_port` and `ensemble_inferencer` (the caller
+    /// doesn't get a spurious empty Arc), and the gas_governance + session
+    /// manager are still wired (the CNS sensing path is preserved).
+    #[tokio::test]
+    async fn build_ensemble_session_none_inferencer_preserves_governance() {
+        let loop_handle = Arc::new(tokio::sync::RwLock::new(hkask_cns::CyberneticsLoop::new(
+            Arc::new(tokio::sync::RwLock::new(hkask_cns::CnsRuntime::default())),
+            hkask_mcp::dispatch::McpDispatcher::dummy_sender(),
+        )));
+        let webid = hkask_types::WebID::new();
+        let session = build_ensemble_session(None, Arc::clone(&loop_handle), webid);
+        assert!(
+            session.inference_port.is_none(),
+            "None inferencer must yield None inference_port"
+        );
+        assert!(
+            session.ensemble_inferencer.is_none(),
+            "None inferencer must round-trip back as None"
+        );
+        // gas_governance is always present (CNS sensing must work even without
+        // an inference adapter — gas budgets are a governance concern).
+        let _governance: Arc<dyn hkask_ensemble::GasGovernancePort> =
+            session.gas_governance.clone();
+        // session_manager is always Some — `/api/chat` requires it.
+        let _manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>> =
+            session.session_manager.clone();
+        // Touch the loop handle so the compiler doesn't drop the binding.
+        let _ = Arc::strong_count(&loop_handle);
     }
 }

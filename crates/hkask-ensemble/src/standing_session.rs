@@ -305,7 +305,9 @@ impl StandingSession {
             for stored in messages {
                 let webid: WebID = stored.from_webid.parse().map_err(|e| {
                     StandingSessionError::Storage(hkask_types::ports::SessionStoreError::Storage(
-                        format!("Invalid WebID in stored message: {e}"),
+                        hkask_types::InfrastructureError::Database(format!(
+                            "Invalid WebID in stored message: {e}"
+                        )),
                     ))
                 })?;
                 let mut msg = ChatMessage::new(webid, stored.content);

@@ -47,7 +47,6 @@ use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::LoopPayload;
 use hkask_types::ports::InferencePort;
-use hkask_types::ports::ToolInfo;
 use hkask_types::ports::ToolPort;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
@@ -118,15 +117,6 @@ pub(crate) struct ReplState {
     /// Persona constraints for the current agent — loaded from agent definition.
     /// When set, the persona filter strips forbidden patterns from model output.
     pub(crate) persona_constraints: Option<PersonaConstraints>,
-    /// Dynamically generated tool section for the system prompt.
-    /// Lists available MCP tools grouped by server, derived from runtime discovery.
-    /// Set once at REPL init; GovernedTool enforces authorization at invocation time.
-    ///
-    /// This is cached rather than re-derived per turn because MCP servers are
-    /// started at init and do not change during a session. If dynamic server
-    /// start/stop is added later, this should become a method that re-derives
-    /// from the MCP runtime on each turn.
-    pub(crate) tool_prompt_section: String,
     /// Manifest executor — runs the process_manifest cascade for agents that
     /// have one defined. Created at REPL init from the agent's process_manifest
     /// reference. None if the agent has no process manifest or if loading failed.
@@ -448,24 +438,14 @@ pub fn run(
         gate_inference_port,
         consolidation_service,
         persona_constraints: None,
-        tool_prompt_section: String::new(), // populated below
-        manifest_executor: None,            // populated below
-        process_manifest: None,             // populated below
+        manifest_executor: None, // populated below
+        process_manifest: None,  // populated below
     };
 
-    // Discover available MCP tools and format the system prompt section.
-    // This replaces the hardcoded tool format string — the LLM sees only
-    // tools that are actually running. GovernedTool enforces authorization.
-    {
-        let tool_names = rt_handle.block_on(state.governed_tool.discover_tools());
-        let mut tools: Vec<ToolInfo> = Vec::new();
-        for name in &tool_names {
-            if let Some(info) = rt_handle.block_on(state.governed_tool.get_tool_info(name)) {
-                tools.push(info);
-            }
-        }
-        state.tool_prompt_section = tool_augmented::format_tool_prompt_section(&tools);
-    }
+    // The tool prompt section is no longer cached in ReplState — chat_with_agent
+    // asks the MCP runtime for the live tool list on each call (via the
+    // `tool_port: Option<Arc<dyn ToolPort>>` parameter). This keeps dynamic
+    // server start/stop correct and removes a piece of stored state.
 
     // Load persona constraints for the initial agent
     state.persona_constraints = rt_handle
@@ -783,7 +763,7 @@ pub fn run(
                         Some(state.semantic_storage.clone()),
                         Some(state.agent_webid),
                         hhh_suffix.as_deref(),
-                        Some(state.tool_prompt_section.as_str()),
+                        Some(state.governed_tool.clone() as Arc<dyn ToolPort>),
                     ));
 
                     // Settle gas with actual token cost (7g)
@@ -887,7 +867,7 @@ pub fn run(
                                 Some(state.semantic_storage.clone()),
                                 Some(state.agent_webid),
                                 None, // No HHH suffix for followup
-                                Some(state.tool_prompt_section.as_str()),
+                                Some(state.governed_tool.clone() as Arc<dyn ToolPort>),
                             ));
 
                             // Settle followup gas
@@ -1136,7 +1116,7 @@ pub fn run(
                                             Some(state.semantic_storage.clone()),
                                             Some(state.agent_webid),
                                             Some(&correction_suffix),
-                                            Some(state.tool_prompt_section.as_str()),
+                                            Some(state.governed_tool.clone() as Arc<dyn ToolPort>),
                                         ));
 
                                     // Settle correction gas

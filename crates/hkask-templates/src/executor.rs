@@ -152,11 +152,7 @@ impl<M: McpPort> ManifestExecutor<M> {
 
         let params = self.default_params.clone();
 
-        let result: InferenceResult = self
-            .inference
-            .generate(&prompt, &params)
-            .await
-            .map_err(|e| TemplateError::Inference(e.to_string()))?;
+        let result: InferenceResult = self.inference.generate(&prompt, &params).await?;
 
         let parsed: Value = parse_json_response(&result.text, step.ordinal)?;
         context.insert(format!("step_{}_result", step.ordinal), parsed);
@@ -225,7 +221,7 @@ impl<M: McpPort> ManifestExecutor<M> {
             .mcp
             .invoke(mcp_ref, input, &token)
             .await
-            .map_err(|e| TemplateError::Mcp(e.to_string()))?;
+            .map_err(|e| TemplateError::Mcp(Box::new(e)))?;
 
         context.insert(format!("step_{}_result", step.ordinal), result);
 

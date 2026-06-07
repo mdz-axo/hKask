@@ -10,7 +10,7 @@
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
-use hkask_types::{Skill, TemplateType};
+use hkask_types::{InfrastructureError, Skill, TemplateType};
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
 
@@ -290,20 +290,36 @@ impl SqliteRegistry {
         let lexicon_terms: Vec<String> = conn
             .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
             .map_err(|e| {
-                TemplateError::Database(format!("Failed to prepare lexicon query: {}", e))
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to prepare lexicon query: {}",
+                    e
+                )))
             })?
             .query_map(params![id], |row| row.get(0))
-            .map_err(|e| TemplateError::Database(format!("Failed to query lexicon: {}", e)))?
+            .map_err(|e| {
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to query lexicon: {}",
+                    e
+                )))
+            })?
             .filter_map(|r| r.ok())
             .collect();
 
         let required_capabilities: Vec<String> = conn
             .prepare("SELECT capability FROM template_capabilities WHERE template_id = ?1")
             .map_err(|e| {
-                TemplateError::Database(format!("Failed to prepare capabilities query: {}", e))
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to prepare capabilities query: {}",
+                    e
+                )))
             })?
             .query_map(params![id], |row| row.get(0))
-            .map_err(|e| TemplateError::Database(format!("Failed to query capabilities: {}", e)))?
+            .map_err(|e| {
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to query capabilities: {}",
+                    e
+                )))
+            })?
             .filter_map(|r| r.ok())
             .collect();
 
@@ -325,7 +341,7 @@ impl SqliteRegistry {
         let conn = self.conn.lock().unwrap();
         let row = conn
             .prepare("SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE id = ?1")
-            .map_err(|e| TemplateError::Database(format!("Failed to prepare query: {}", e)))?
+            .map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Failed to prepare query: {}", e))))?
             .query_row(params![id], parse_template_row)
             .map_err(|e| TemplateError::NotFound(format!("Template '{}' not found: {}", id, e)))?;
 
@@ -342,11 +358,16 @@ impl SqliteRegistry {
              JOIN lexicon_terms l ON t.id = l.template_id
              WHERE l.term = ?1",
             )
-            .map_err(|e| TemplateError::Database(format!("Failed to prepare statement: {}", e)))?;
+            .map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Failed to prepare statement: {}", e))))?;
 
         let rows: Vec<TemplateRow> = stmt
             .query_map(params![term], parse_template_row)
-            .map_err(|e| TemplateError::Database(format!("Failed to query templates: {}", e)))?
+            .map_err(|e| {
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to query templates: {}",
+                    e
+                )))
+            })?
             .filter_map(|r| r.ok())
             .collect();
 
@@ -827,19 +848,29 @@ impl SqliteRegistry {
                 "SELECT template_id FROM skill_cascade_order WHERE skill_id = ?1 ORDER BY position",
             )
             .map_err(|e| {
-                TemplateError::Database(format!("Failed to prepare cascade query: {}", e))
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to prepare cascade query: {}",
+                    e
+                )))
             })?;
 
         let rows = stmt
             .query_map(params![skill_id], |row| row.get(0))
-            .map_err(|e| TemplateError::Database(format!("Failed to query cascade: {}", e)))?;
+            .map_err(|e| {
+                TemplateError::Database(InfrastructureError::Database(format!(
+                    "Failed to query cascade: {}",
+                    e
+                )))
+            })?;
 
         let mut result = Vec::new();
         for row in rows {
             match row {
                 Ok(template_id) => result.push(template_id),
                 Err(e) => {
-                    return Err(TemplateError::Database(format!("Cascade row error: {}", e)));
+                    return Err(TemplateError::Database(InfrastructureError::Database(
+                        format!("Cascade row error: {}", e),
+                    )));
                 }
             }
         }

@@ -95,74 +95,47 @@ struct ProbeInfo {
     id: String,
 }
 
-/// Russell ACP adapter — spawns Russell as child process
+/// Manages the lifecycle of a Russell subprocess.
 ///
-/// Manages session lifecycle and translates between hKask's AcpPort
-/// and Russell's JSON-RPC protocol.
-pub struct RussellAcpAdapter {
-    child: Mutex<Option<Child>>,
-    russell_binary: String,
-    macaroon_token: Option<String>,
-    /// WebID → Russell session_id mapping
-    sessions: Arc<RwLock<HashMap<WebID, String>>>,
-    /// Bridge secret derived from master key via HKDF-SHA256 (ADR-027)
-    bridge_secret: Arc<Zeroizing<Vec<u8>>>,
+/// Owns the child process and provides methods to start, communicate with,
+/// and shut down the Russell ACP server.
+pub struct RussellProcessManager {
+    child: Option<Child>,
+    binary_path: String,
 }
 
-impl RussellAcpAdapter {
-    /// Create new Russell ACP adapter.
-    ///
-    /// The bridge secret is derived from the master key via
-    /// HKDF-SHA256 with context `"hkask:russell-bridge-secret"`.
-    /// Both hKask and Russell must share the same master passphrase
-    /// and derivation context to produce matching HMAC signing keys.
-    ///
-    /// # Arguments
-    /// * `russell_binary` — Path to the Russell ACP server binary
-    pub fn new(russell_binary: String) -> Result<Self, AcpError> {
-        let bridge_secret = hkask_keystore::resolve(&SecretRef::derived(
-            derivation_contexts::MASTER_KEY_ENV,
-            derivation_contexts::RUSSELL_BRIDGE_SECRET,
-        ))
-        .map_err(|e| AcpError::KeyDerivation(e.to_string()))?;
-
-        Ok(Self {
-            child: Mutex::new(None),
-            russell_binary,
-            macaroon_token: None,
-            sessions: Arc::new(RwLock::new(HashMap::new())),
-            bridge_secret: Arc::new(bridge_secret),
-        })
+impl RussellProcessManager {
+    /// Create a new process manager for the given Russell binary.
+    pub fn new(binary_path: String) -> Self {
+        Self {
+            child: None,
+            binary_path,
+        }
     }
 
-    /// Set macaroon token for authentication
-    pub fn with_auth(mut self, token: String) -> Self {
-        self.macaroon_token = Some(token);
-        self
-    }
-
-    async fn ensure_started(&self) -> Result<(), AcpError> {
-        let mut child_opt = self.child.lock().await;
-        if child_opt.is_none() {
-            let child = Command::new(&self.russell_binary)
+    /// Ensure the Russell process is running, spawning it if needed.
+    async fn ensure_started(&mut self) -> Result<(), AcpError> {
+        if self.child.is_none() {
+            let child = Command::new(&self.binary_path)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
                 .spawn()
                 .map_err(|e| AcpError::TransportError(format!("Failed to spawn Russell: {}", e)))?;
-            *child_opt = Some(child);
+            self.child = Some(child);
             info!("Russell ACP adapter started");
         }
         Ok(())
     }
 
-    async fn send_request(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse, AcpError> {
+    /// Send a JSON-RPC request and receive the response.
+    async fn send_request(&mut self, request: JsonRpcRequest) -> Result<JsonRpcResponse, AcpError> {
         self.ensure_started().await?;
 
         let request_id = request.id.clone();
 
-        let mut child_opt = self.child.lock().await;
-        let child = child_opt
+        let child = self
+            .child
             .as_mut()
             .ok_or_else(|| AcpError::TransportError("Russell not started".to_string()))?;
 
@@ -211,6 +184,71 @@ impl RussellAcpAdapter {
         }
 
         Ok(response)
+    }
+
+    /// Shut down the Russell process gracefully.
+    #[allow(dead_code)]
+    async fn shutdown(&mut self) -> Result<(), AcpError> {
+        if let Some(mut child) = self.child.take() {
+            child.kill().await.map_err(|e| {
+                AcpError::TransportError(format!("Failed to shut down Russell: {}", e))
+            })?;
+            info!("Russell process shut down");
+        }
+        Ok(())
+    }
+}
+
+/// Russell ACP adapter — bridges hKask's AcpPort to Russell over stdio JSON-RPC
+///
+/// Delegates process lifecycle to `RussellProcessManager` and translates
+/// between hKask's AcpPort trait and Russell's JSON-RPC protocol.
+pub struct RussellAcpAdapter {
+    process: Mutex<RussellProcessManager>,
+    macaroon_token: Option<String>,
+    /// WebID → Russell session_id mapping
+    sessions: Arc<RwLock<HashMap<WebID, String>>>,
+    /// Bridge secret derived from master key via HKDF-SHA256 (ADR-027)
+    bridge_secret: Arc<Zeroizing<Vec<u8>>>,
+}
+
+impl RussellAcpAdapter {
+    /// Create new Russell ACP adapter.
+    ///
+    /// The bridge secret is derived from the master key via
+    /// HKDF-SHA256 with context `"hkask:russell-bridge-secret"`.
+    /// Both hKask and Russell must share the same master passphrase
+    /// and derivation context to produce matching HMAC signing keys.
+    ///
+    /// # Arguments
+    /// * `russell_binary` — Path to the Russell ACP server binary
+    pub fn new(russell_binary: String) -> Result<Self, AcpError> {
+        let bridge_secret = hkask_keystore::resolve(&SecretRef::derived(
+            derivation_contexts::MASTER_KEY_ENV,
+            derivation_contexts::RUSSELL_BRIDGE_SECRET,
+        ))
+        .map_err(|e| AcpError::KeyDerivation(e.into()))?;
+
+        let process = RussellProcessManager::new(russell_binary);
+
+        Ok(Self {
+            process: Mutex::new(process),
+            macaroon_token: None,
+            sessions: Arc::new(RwLock::new(HashMap::new())),
+            bridge_secret: Arc::new(bridge_secret),
+        })
+    }
+
+    /// Set macaroon token for authentication
+    pub fn with_auth(mut self, token: String) -> Self {
+        self.macaroon_token = Some(token);
+        self
+    }
+
+    /// Delegate request sending to `RussellProcessManager`.
+    async fn send_request(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse, AcpError> {
+        let mut process = self.process.lock().await;
+        process.send_request(request).await
     }
 
     /// Look up the Russell session_id for a given WebID

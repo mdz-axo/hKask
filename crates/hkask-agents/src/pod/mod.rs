@@ -28,14 +28,15 @@
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_mcp::GitCasAdapter;
 //! use hkask_agents::acp::AcpRuntime;
-//! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
-//! use hkask_types::WebID;
+//! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
+//! use hkask_types::{CapabilityChecker, WebID};
 //! use std::sync::Arc;
 //!
 //! // Create adapters
 //! let git_adapter = GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
 //! let acp_runtime = Arc::new(AcpRuntime::default());
-//! let mcp_runtime = McpRuntimeAdapter::new();
+//! let checker = Arc::new(CapabilityChecker::new(&[]));
+//! let mcp_runtime = CapabilityOnlyAdapter::new(checker);
 //!
 //! // Create a simple persona YAML
 //! let yaml_str = r#"
