@@ -49,6 +49,11 @@ pub struct PodManager {
     /// NuEvent sink for pod lifecycle observability.
     /// When set, pod lifecycle transitions emit NuEvents through CNS.
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
+    /// Sovereignty consent port — read by every pod's SovereigntyChecker to
+    /// resolve explicit user consent. Defaults to a deny-all implementation
+    /// (sovereignty must fail closed). Production wiring passes a
+    /// `ConsentManager`-backed implementation.
+    consent: Arc<dyn crate::SovereigntyConsent>,
 }
 
 /// Pod status information
@@ -83,7 +88,16 @@ impl PodManager {
             capability_checker: None,
             governed_tool: None,
             nu_event_sink: None,
+            consent: Arc::new(DenyAllConsent),
         }
+    }
+
+    /// Wire a live `SovereigntyConsent` port into the manager. New pods will
+    /// use this port to resolve consent for sovereignty checks. In tests,
+    /// pass a `DenyAllConsent` or `AllowAllConsent` to control behavior.
+    pub fn with_consent_port(mut self, consent: Arc<dyn crate::SovereigntyConsent>) -> Self {
+        self.consent = consent;
+        self
     }
 
     /// Set the capability checker for cryptographic OCAP verification
@@ -397,7 +411,13 @@ impl PodManager {
             &persona.capabilities,
         )?;
 
-        let pod = AgentPod::new(template_name, persona, self.git_cas.as_ref())?;
+        let pod = AgentPod::new(
+            template_name,
+            persona,
+            self.git_cas.as_ref(),
+            // Shared Arc: all pods in the manager consult the same port.
+            Arc::clone(&self.consent),
+        )?;
         let pod_id = pod.id;
 
         let mut pods = self.pods.write().await;

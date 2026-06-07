@@ -164,6 +164,7 @@ impl AgentPod {
         crate_name: &str,
         persona: &AgentPersona,
         git: &GitCasAdapter,
+        consent: Arc<dyn crate::SovereigntyConsent>,
     ) -> AgentPodResult<Self> {
         let template_crate = git.load_template_crate(crate_name)?;
 
@@ -190,8 +191,9 @@ impl AgentPod {
             ocap_secret.as_bytes(),
         );
 
-        // Initialize sovereignty checker for this pod
-        let sovereignty_checker = SovereigntyChecker::new(persona.webid());
+        // Initialize sovereignty checker for this pod, wired to the live
+        // consent port. Grants via the API or CLI are observed here.
+        let sovereignty_checker = SovereigntyChecker::new(persona.webid(), consent);
 
         Ok(Self {
             id: PodID::new(),

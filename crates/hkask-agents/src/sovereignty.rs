@@ -1,29 +1,90 @@
 //! Sovereignty checking for agent pods
 //!
-//! Ensures agent operations respect user sovereignty boundaries.
+//! Ensures agent operations respect user sovereignty boundaries. Per the
+//! Magna Carta, episodic memory / personal context / capability tokens /
+//! OCAP boundaries are sovereign and require explicit consent; semantic
+//! memory and template invocations are shared and require consent; the
+//! hLexicon and template registry are public.
+//!
+//! Consent is resolved through a `SovereigntyConsent` port, decoupling the
+//! checker from the concrete `ConsentManager`. Production wiring uses a
+//! `ConsentManager`-backed port so that grants via `kask sovereignty grant`
+//! or `POST /consent/grant` are observed on the next sovereignty check.
 
 use hkask_types::{DataCategory, SovereigntyPort, UserSovereigntyState, WebID};
+use std::sync::Arc;
 
-/// Sovereignty checker for agent pods
+/// Port for resolving explicit user consent for a (webid, category) pair.
+///
+/// Implementations are responsible for whatever backing store is appropriate
+/// (a SQLite-backed `ConsentManager` in production, an in-memory map in
+/// tests, an `AllowAll` policy in scaffolding).
+pub trait SovereigntyConsent: Send + Sync {
+    /// Returns `true` iff the given WebID has active, non-revoked consent
+    /// for the given data category.
+    fn has_consent(&self, webid: &str, category: &DataCategory) -> bool;
+}
+
+/// Default `SovereigntyConsent` implementation: deny everything.
+///
+/// Sovereignty must fail closed. New `PodManager`s use this until
+/// `with_consent_port` is called with a real backend. This guarantees
+/// that a misconfigured or partially-initialized agent cannot access
+/// sovereign data without an explicit grant.
+pub struct DenyAllConsent;
+
+impl SovereigntyConsent for DenyAllConsent {
+    fn has_consent(&self, _webid: &str, _category: &DataCategory) -> bool {
+        false
+    }
+}
+
+/// Test/scaffolding `SovereigntyConsent` implementation: grant everything.
+///
+/// Used in unit tests that don't care about the consent semantics, only
+/// about the access path. Production must never use this — it bypasses
+/// the Magna Carta's explicit-consent requirement.
+pub struct AllowAllConsent;
+
+impl SovereigntyConsent for AllowAllConsent {
+    fn has_consent(&self, _webid: &str, _category: &DataCategory) -> bool {
+        true
+    }
+}
+
+/// Sovereignty checker for agent pods.
+///
+/// Reads explicit consent from the supplied `SovereigntyConsent` port.
+/// This is the live wiring of the Magna Carta's "explicit consent tracking"
+/// requirement.
 pub(crate) struct SovereigntyChecker {
     state: UserSovereigntyState,
     owner_webid: WebID,
+    consent: Arc<dyn SovereigntyConsent>,
 }
 
 impl SovereigntyChecker {
-    pub fn new(owner_webid: WebID) -> Self {
+    pub fn new(owner_webid: WebID, consent: Arc<dyn SovereigntyConsent>) -> Self {
         Self {
             state: UserSovereigntyState::new(),
             owner_webid,
+            consent,
         }
+    }
+
+    /// Live per-category consent lookup.
+    fn has_consent(&self, webid: &WebID, category: &DataCategory) -> bool {
+        self.consent.has_consent(&webid.to_string(), category)
     }
 
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
         if self.state.boundary.is_sovereign(data_category) {
-            return self.state.explicit_consent && requester == &self.owner_webid;
+            // Sovereign data: requires explicit consent AND requester == owner.
+            return self.has_consent(requester, data_category) && requester == &self.owner_webid;
         }
         if self.state.boundary.is_shared(data_category) {
-            return self.state.explicit_consent;
+            // Shared data: requires explicit consent for the requesting WebID.
+            return self.has_consent(requester, data_category);
         }
         self.state.boundary.is_public(data_category)
     }

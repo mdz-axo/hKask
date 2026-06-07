@@ -17,6 +17,8 @@ use thiserror::Error;
 use tracing::debug;
 use uuid::Uuid;
 
+use crate::sovereignty::SovereigntyConsent;
+
 /// Consent manager errors
 #[derive(Debug, Error)]
 pub enum ConsentError {
@@ -230,5 +232,14 @@ impl ConsentManager {
             .find(|r| r.webid == webid && r.is_active())
             .map(|r| r.granted_categories.iter().cloned().collect())
             .unwrap_or_default())
+    }
+}
+
+impl SovereigntyConsent for ConsentManager {
+    fn has_consent(&self, webid: &str, category: &DataCategory) -> bool {
+        // Translate storage errors into "deny by default" — sovereignty must
+        // fail closed, never open. The Magna Carta's "Maximum" default
+        // resistance is enforced by this conservative translation.
+        ConsentManager::has_consent(self, webid, category).unwrap_or(false)
     }
 }

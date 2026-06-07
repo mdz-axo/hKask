@@ -57,11 +57,11 @@ against the working tree on 2026-06-06.
 | ID | Item | Status | Evidence / Notes |
 |----|------|--------|------------------|
 | **P3.1** | Unified error hierarchy across 6+ error enums | 🟡 Partial | `InfrastructureError` defined in `crates/hkask-types/src/error.rs` (`Database`, `Serialization`, `LockPoisoned`, `NotFound`); 11 files now `use hkask_types::InfrastructureError` across `hkask-storage` (store_macros, lock_helpers, spec_store, standing_session, consent_store, embeddings, goals, sovereignty, triples, nu_event_store), `hkask-keystore/spec_signer`, and `hkask-api/error`. Crate-local enums (`AcpError`, `McpError`, `MemoryError`, `EscalationError`, `ConsentError`, `MetacognitionError`, `PodError`) still exist; migration to `InfrastructureError` + crate-specific variants is incomplete. |
-| **P3.2** | Split `McpRuntimeAdapter` into `CapabilityOnlyAdapter` + `FullMcpAdapter` | ⬜ Open | `crates/hkask-agents/src/adapters/mcp_runtime.rs` still has a single type with optional `capability_checker`. |
+| **P3.2** | Split `McpRuntimeAdapter` into `CapabilityOnlyAdapter` + `FullMcpAdapter` | ✅ Done | `crates/hkask-agents/src/adapters/mcp_runtime.rs:34-256` defines both adapters. `CapabilityOnlyAdapter` carries a `CapabilityChecker` and rejects `invoke_tool` with `McpError::NoRuntime`; `FullMcpAdapter` carries checker + `McpRuntime` + tokio `Handle` and dispatches through `RawMcpToolPort`. `McpRuntimeAdapter` is preserved as a `#[deprecated]` type alias for `FullMcpAdapter`. |
 | **P3.3** | Extract `RussellProcessManager` from `RussellAcpAdapter` | ✅ Done | `RussellProcessManager` extracted into `crates/hkask-agents/src/adapters/russell_acp.rs` with `child`, `binary_path`, `ensure_started()`, `send_request()`, `shutdown()`. `RussellAcpAdapter` now holds `process: Mutex<RussellProcessManager>`. A5 also resolved. |
-| **P3.4** | A2AMessage visitor pattern | ⬜ Open | `crates/hkask-agents/src/acp/mod.rs` still uses match-on-variant for `A2AMessage` dispatch. |
-| **P3.5** | Structured storage errors (replace `String` payloads) | ⬜ Open | `MemoryError::Storage(String)`, `MemoryError::Query(String)`, `MemoryError::CapabilityDenied(String)` still primitive in `crates/hkask-agents/src/error.rs:5–11`. Pre-requisite for P1.3 completion. |
-| **P3.6** | Extract escalation logic from `metacognition::sense()` | ⬜ Open | `crates/hkask-agents/src/curator_agent/metacognition.rs:sense()` body is still ~80 lines; algedonic review, cursor advance, and goal-stale counting are inlined. |
+| **P3.4** | A2AMessage visitor pattern | ✅ Done | `crates/hkask-agents/src/acp/mod.rs:128-203` defines `A2AMessageVisitor` with `on_template_dispatch`/`on_template_response`/`on_memory_artifact` methods, payload structs (`TemplateDispatch<'_>`, `TemplateResponse<'_>`, `MemoryArtifact<'_>`), and a single `A2AMessage::visit` dispatch. The internal `RouteFields` visitor in `send_message` (was 4 separate match-on-variant blocks at L347-357) now extracts `from`/`to`/`correlation_id`/`message_type` in one pass. The three trivial getters (`from_webid`, `correlation_id`, `message_type`) remain as inline `match` because they return `&'self`-bound references that the visitor cannot own. 4 new tests in `mod visitor_tests` pin the dispatch invariant and per-variant routing. |
+| **P3.5** | Structured storage errors (replace `String` payloads) | 🟡 Partial | `MemoryError::Infra(#[from] hkask_types::InfrastructureError)`, `From<DatabaseError>`, `From<EpisodicMemoryError>`, `From<SemanticMemoryError>`, `From<TripleError>`, `From<EmbeddingError>` all present in `crates/hkask-agents/src/error.rs`. The only `String` variant left in `MemoryError` is `CapabilityDenied(String)` (line 47). The P3.5 task in the original audit also named `Storage(String)` and `Query(String)` — neither exists in the current `MemoryError` (they were never on this enum). The remaining work is the one `CapabilityDenied(String)` variant plus the cluster of CLI error enums (see T7 future ledger). |
+| **P3.6** | Extract escalation logic from `metacognition::sense()` | ✅ Done | `EscalationPolicy::check_conditions` extracted into `crates/hkask-agents/src/curator_agent/metacognition.rs:147-192`. The `sense()` body now delegates variety-deficit/critical-alerts/bot-failures threshold checks to the policy (L675-679). 11 unit tests in `mod tests` cover the dispatch table (warning at threshold/2, critical at threshold, multiple simultaneous conditions). The v6 audit text referring to "80-line sense()" is stale; the current `sense()` is shorter. |
 
 ## Priority 4 — Polish
 
@@ -71,7 +71,7 @@ against the working tree on 2026-06-06.
 | **P4.2** | Use `AgentKind` methods instead of string literals | ✅ Done | `crates/hkask-types/src/agent_def.rs:88` defines `AgentKind::as_russell_persona() -> &'static str`; consumed at `crates/hkask-agents/src/adapters/russell_acp.rs:285`. |
 | **P4.3** | Add `now_rfc3339()` helper | ✅ Done | `crates/hkask-storage/src/store_macros.rs:15` defines `pub fn now_rfc3339() -> String`; consumed in `nu_event_store.rs:174`, `triples.rs:176,348`, `standing_session.rs:211`. |
 | **P4.4** | Audit all `.to_string()` error conversions for `From` impls | ⬜ Open | 25 `.map_err(|e| ...to_string())` sites remain in `crates/hkask-agents/src/` (down from the original count, but not zero). The recent work added `From<DatabaseError>`, `From<EpisodicMemoryError>`, `From<SemanticMemoryError>`, plus `From<SpecSignatureError>` for `InfrastructureError` — many of the high-frequency call sites already route through these. The remaining 25 are mostly thin per-crate conversions. |
-| **P4.5** | Consider `tokio::sync::watch` for `MetacognitionLoop::last_snapshot` | ⬜ Open | `metacognition.rs` still uses `Arc<RwLock<Option<...>>>`. |
+| **P4.5** | Use `tokio::sync::watch` for `MetacognitionLoop::last_snapshot` | ✅ Done | `crates/hkask-agents/src/curator_agent/metacognition.rs:265-288` defines `last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>`. The producer (`sense()` at L717) calls `send_replace`; consumers (`run_cycle()` at L306, `compute()` at L800) call `borrow()`. The `None` initial value preserves the previous `Option<HealthSnapshot>` semantics — `run_cycle()` still returns `MetacognitionError::NoSnapshot` until the first sense completes. A3 closed as a side-effect. 2 new tests (`watch_channel_starts_with_none_for_no_snapshot_yet`, `watch_channel_send_replace_stores_latest_value`) pin the channel contract. |
 
 ## Auxiliary (Rust-specific smells)
 
@@ -89,24 +89,24 @@ against the working tree on 2026-06-06.
 
 | Category | Count |
 |----------|-------|
-| ✅ Done | **21** |
+| ✅ Done | **24** |
 | 🟡 Partial | **3** (P1.3, P3.1, P4.1) |
-| ⬜ Open | **6** (P3.2, P3.4, P3.5, P3.6, P4.4, P4.5, A2, A3) |
+| ⬜ Open | **2** (P3.5, P4.4) |
 | **Total** | **30** items tracked |
 
 | Priority | Done | Partial | Open | Items |
 |----------|------|---------|------|-------|
 | P1 | 6 | 1 | 0 | 7 |
 | P2 | 8 | 0 | 0 | 8 |
-| P3 | 1 | 1 | 4 | 6 |
-| P4 | 2 | 1 | 2 | 5 |
-| Aux | 3 | 0 | 2 | 5 |
+| P3 | 4 | 1 | 1 | 6 |
+| P4 | 3 | 1 | 1 | 5 |
+| Aux | 4 | 0 | 1 | 5 |
 
-**Net result:** of the 26 P1–P4 items, **17 are done**, **3 are partial**, and **6 remain
-open**. **P1 and P2 are now fully complete; P3.3 closed** the process-manager
-extraction (along with A5). The remaining work is in P3 (4 significant refactors —
-structured errors, escalation extraction, visitor pattern, MCP adapter split) plus
-2 P4 polish items.
+**Net result:** of the 30 P1–P4 + Aux items, **24 are done**, **3 are partial**, and
+**2 remain open**. P3 has the only structurally significant remaining item (P3.5:
+`MemoryError::CapabilityDenied(String)` is the last stringly-typed variant; CLI
+error enums are a related but separate cluster — see the T7 future ledger in the
+Refactor Sweep report).
 
 ---
 
@@ -114,27 +114,26 @@ structured errors, escalation extraction, visitor pattern, MCP adapter split) pl
 
 Ordered by **leverage ÷ effort**:
 
-1. **P3.5 — Structured storage errors** (small) — replace `String` payload in
-   `MemoryError::CapabilityDenied` (others are already `Box<dyn Error>`).
-   Pre-requisite for closing P1.3 fully.
-2. **P3.6 — Extract escalation logic from `metacognition::sense()`** (medium) —
-   ~80-line method; algedonic review + cursor advance + goal-stale counting
-   are independent concerns.
-3. **P3.4 — A2AMessage visitor pattern** (medium) — replaces match-on-variant
-   with a visitor trait; makes adding new message types less error-prone.
-4. **P3.2 — Split `McpRuntimeAdapter`** (medium) — make impossible states
-   unrepresentable: `CapabilityOnlyAdapter` vs `FullMcpAdapter`.
-5. **P3.1 (continuation) — finish unified error hierarchy** (large) — extend
-   `InfrastructureError` to cover the remaining crate-local enums.
-6. **P4.5 + A3 — `tokio::sync::watch` for `last_snapshot`** (small) — more
-   idiomatic for single-producer/single-consumer broadcast.
+1. **P3.5 — `MemoryError::CapabilityDenied(String)`** (small) — the last
+   stringly-typed variant in `MemoryError`. Pairs with the CLI error-enum
+   cluster (12+ `String` payloads across `AgentError`, `EnsembleError`,
+   `CuratorError`, `UserError`, `RegistryError`); the CLI cluster is bigger
+   but follows the same `From<...>` pattern.
+2. **P4.4 — `.map_err(|e| e.to_string())` audit** (medium) — ~129 sites
+   remain across the workspace (down from the original count), concentrated
+   in `hkask-keystore` (28), `hkask-cli` (40+), and `hkask-storage` (8 each in
+   `user_store.rs`, `goals.rs`). The high-frequency call sites already route
+   through typed `From` impls; the remainder are mostly per-crate
+   conversions that a single `From<hkask_storage::X>` impl would clean up.
 
 ---
 
 ## Validation
 
-`cargo check --workspace` is **green** (2026-06-06, HEAD `91f5b053`).
-`cargo test -p hkask-types -p hkask-cns -p hkask-cli -p hkask-agents -p hkask-api --lib`:
-`196 + 107 + 15 + 63 + 4 = 385` tests pass, **0 failures** (after the P2.2 refactor
-added 2 property tests for `init_git_cas` / `build_ensemble_session`, and the P3.3
-work added 3 property tests for `RussellProcessManager`).
+`cargo check --workspace` is **green** (2026-06-06, HEAD post-`P3.4`+`P4.5`).
+`cargo test --workspace` runs **899 tests** (0 failures). The P3.4 work added
+4 visitor tests; the P4.5 work added 2 `watch`-channel tests. `cargo clippy
+-p hkask-agents -- -D warnings` is clean.
+
+*Refactor Sweep T1–T7 report: see the next entry in `docs/status/` for the
+graph map, mermaid diagram, audit classification, and T7 future ledger.*
