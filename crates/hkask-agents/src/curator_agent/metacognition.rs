@@ -80,7 +80,7 @@ impl Default for EscalationThresholds {
 }
 
 /// The trigger that caused an escalation alert.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EscalationTrigger {
     /// Variety deficit exceeded a threshold.
     VarietyDeficit,
@@ -132,7 +132,7 @@ pub struct EscalationPolicy {
 
 impl EscalationPolicy {
     /// Create a new escalation policy with the given thresholds.
-    pub fn new(thresholds: EscalationThresholds) -> Self {
+    pub(crate) fn new(thresholds: EscalationThresholds) -> Self {
         Self { thresholds }
     }
 
@@ -669,6 +669,33 @@ impl HkaskLoop for MetacognitionLoop {
             .filter(|r| r.status == BotHealthStatus::Critical)
             .count();
 
+        // Delegate escalation condition checking to the policy.
+        // The policy returns structured alerts that can be logged, surfaced
+        // through the algedonic channel, or used for downstream decisions.
+        let alerts = self.escalation_policy.check_conditions(
+            total_variety_deficit as f64,
+            critical_alerts.len() as u64,
+            failed_bot_count as u64,
+        );
+        for alert in &alerts {
+            match alert.severity {
+                EscalationSeverity::Warning => warn!(
+                    target: "curator.metacognition",
+                    trigger = ?alert.trigger,
+                    value = alert.value,
+                    threshold = alert.threshold,
+                    "Escalation policy: warning condition detected"
+                ),
+                EscalationSeverity::Critical => warn!(
+                    target: "curator.metacognition",
+                    trigger = ?alert.trigger,
+                    value = alert.value,
+                    threshold = alert.threshold,
+                    "Escalation policy: critical condition detected"
+                ),
+            }
+        }
+
         // Build and store snapshot for compute/act phases
         let snapshot = HealthSnapshot {
             timestamp: chrono::Utc::now(),
@@ -885,5 +912,162 @@ fn format_health_status(h: &CnsHealth) -> String {
             "Degraded (deficit={}, critical={}, warnings={})",
             h.overall_deficit, h.critical_count, h.warning_count
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_thresholds() -> EscalationThresholds {
+        EscalationThresholds {
+            variety_deficit: 100,
+            critical_alerts: 3,
+            bot_failures: 2,
+        }
+    }
+
+    #[test]
+    fn escalation_policy_below_all_thresholds_produces_no_alerts() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        let alerts = policy.check_conditions(40.0, 1, 0);
+        assert!(
+            alerts.is_empty(),
+            "expected no alerts when all metrics are below thresholds"
+        );
+    }
+
+    #[test]
+    fn escalation_policy_variety_deficit_warning_at_half_threshold() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 60 > 100/2 = 50, but 60 < 100 → warning
+        let alerts = policy.check_conditions(60.0, 0, 0);
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].trigger, EscalationTrigger::VarietyDeficit);
+        assert_eq!(alerts[0].severity, EscalationSeverity::Warning);
+        assert!((alerts[0].value - 60.0).abs() < f64::EPSILON);
+        assert!((alerts[0].threshold - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn escalation_policy_variety_deficit_critical_at_threshold() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 101 > 100 → critical
+        let alerts = policy.check_conditions(101.0, 0, 0);
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].trigger, EscalationTrigger::VarietyDeficit);
+        assert_eq!(alerts[0].severity, EscalationSeverity::Critical);
+    }
+
+    #[test]
+    fn escalation_policy_variety_deficit_exact_half_threshold_is_not_warning() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 50 is NOT > 50, so no alert
+        let alerts = policy.check_conditions(50.0, 0, 0);
+        assert!(
+            alerts.is_empty(),
+            "deficit == threshold/2 should not trigger warning (strict >)"
+        );
+    }
+
+    #[test]
+    fn escalation_policy_critical_alerts_at_threshold() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 3 >= 3 → critical
+        let alerts = policy.check_conditions(0.0, 3, 0);
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].trigger, EscalationTrigger::CriticalAlerts);
+        assert_eq!(alerts[0].severity, EscalationSeverity::Critical);
+        assert!((alerts[0].value - 3.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn escalation_policy_critical_alerts_below_threshold() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 2 < 3 → no alert
+        let alerts = policy.check_conditions(0.0, 2, 0);
+        assert!(
+            alerts
+                .iter()
+                .all(|a| a.trigger != EscalationTrigger::CriticalAlerts),
+            "critical alerts below threshold should not trigger alert"
+        );
+    }
+
+    #[test]
+    fn escalation_policy_bot_failures_at_threshold() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 2 >= 2 → critical
+        let alerts = policy.check_conditions(0.0, 0, 2);
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].trigger, EscalationTrigger::BotFailures);
+        assert_eq!(alerts[0].severity, EscalationSeverity::Critical);
+        assert!((alerts[0].value - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn escalation_policy_bot_failures_below_threshold() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // 1 < 2 → no alert
+        let alerts = policy.check_conditions(0.0, 0, 1);
+        assert!(
+            alerts
+                .iter()
+                .all(|a| a.trigger != EscalationTrigger::BotFailures),
+            "bot failures below threshold should not trigger alert"
+        );
+    }
+
+    #[test]
+    fn escalation_policy_multiple_conditions_active_simultaneously() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // variety deficit 120 > 100 → critical
+        // critical alerts 5 >= 3 → critical
+        // bot failures 3 >= 2 → critical
+        let alerts = policy.check_conditions(120.0, 5, 3);
+        assert_eq!(alerts.len(), 3);
+
+        let triggers: std::collections::HashSet<_> =
+            alerts.iter().map(|a| a.trigger.clone()).collect();
+        assert!(triggers.contains(&EscalationTrigger::VarietyDeficit));
+        assert!(triggers.contains(&EscalationTrigger::CriticalAlerts));
+        assert!(triggers.contains(&EscalationTrigger::BotFailures));
+
+        // All should be critical when deficit > full threshold
+        assert!(
+            alerts
+                .iter()
+                .all(|a| a.severity == EscalationSeverity::Critical)
+        );
+    }
+
+    #[test]
+    fn escalation_policy_warning_and_critical_can_coexist() {
+        let policy = EscalationPolicy::new(default_thresholds());
+        // variety deficit 60 > 50 (warning) but < 100
+        // critical alerts 4 >= 3 (critical)
+        let alerts = policy.check_conditions(60.0, 4, 0);
+        assert_eq!(alerts.len(), 2);
+
+        let variety_alert = alerts
+            .iter()
+            .find(|a| a.trigger == EscalationTrigger::VarietyDeficit)
+            .expect("should have variety alert");
+        assert_eq!(variety_alert.severity, EscalationSeverity::Warning);
+
+        let critical_alert = alerts
+            .iter()
+            .find(|a| a.trigger == EscalationTrigger::CriticalAlerts)
+            .expect("should have critical alerts trigger");
+        assert_eq!(critical_alert.severity, EscalationSeverity::Critical);
+    }
+
+    #[test]
+    fn escalation_policy_default_matches_thresholds_default() {
+        let policy = EscalationPolicy::default();
+        // Using default thresholds: variety=100, critical_alerts=3, bot_failures=2
+        // Below all thresholds → no alerts
+        let alerts = policy.check_conditions(10.0, 1, 0);
+        assert!(alerts.is_empty());
     }
 }

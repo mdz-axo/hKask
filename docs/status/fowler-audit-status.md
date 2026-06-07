@@ -44,7 +44,7 @@ against the working tree on 2026-06-06.
 | ID | Item | Status | Evidence / Notes |
 |----|------|--------|------------------|
 | **P2.1** | Consolidate `AcpState` behind single lock | ✅ Done | `crates/hkask-agents/src/acp/mod.rs:133` — `struct AcpState` consolidates 5 fields; one `Arc<RwLock<AcpState>>` on `AcpRuntime` (was 6 independent locks). |
-| **P2.2** | Extract `ApiState::init_stores()` and `init_subsystems()` | ⬜ Open | `ApiState::new` is 277 lines (`crates/hkask-api/src/lib.rs:435`) — the long-constructor B1.1 finding is still live. |
+| **P2.2** | Extract `ApiState::init_stores()` and `init_subsystems()` | ✅ Done | `crates/hkask-api/src/lib.rs:435` — `pub fn new` reduced from ~108 to 80 lines (the body proper is ~23 lines of method calls + a 47-line struct literal; signature is 10 lines). Three new helpers extracted: `init_git_cas() -> GitCasBundle` (replaces the `.expect("Failed to create GixCasAdapter")` panic with a `Result<_, ApiError>`), `build_governed_mcp_tool() -> GovernedMcpTool` (24 lines of GovernedTool + McpDispatcher wiring), `build_ensemble_session() -> EnsembleSession` (14 lines of gas-governance + session-manager wiring). 2 new property tests added (`init_git_cas_always_succeeds`, `build_ensemble_session_none_inferencer_preserves_governance`). Public signature of `ApiState::new` is preserved; CLI caller at `crates/hkask-cli/src/commands/serve.rs:63` is unchanged. |
 | **P2.3** | Introduce domain newtypes (`GasCost`, `RBarThreshold`, `QueueDepth`) | ✅ Done | `crates/hkask-cns/src/energy.rs:21–68` (`GasCost`), L77+ (`RBarThreshold`); `crates/hkask-types/src/cns.rs:54` (`QueueDepth`). CLI integration in `crates/hkask-cli/src/repl/mod.rs` uses `GasCost(...)` wrappers at L686, 706, 804–805, 906–907, 980, 1003, 1023–1024, 1095, 1122, 1155–1156. `cargo check --workspace` and `cargo test -p hkask-types -p hkask-cns -p hkask-cli` pass. |
 | **P2.4** | Template Method for `MemoryLoopAdapter` storage ops | ✅ Done | `crates/hkask-agents/src/adapters/memory_loop_adapter.rs:18–96` defines `store_via` (the shared template), `triple_to_json`, `request_to_triple`, `check_write_access`, `check_read_access`. The four `store_*`/`recall_*` methods (L149, L159, L202, L237, L247) are now 5–7 line thin wrappers. Source comment at L18 tags this as `P2.4`. |
 | **P2.5** | Extract `github_api_url()` builder | ✅ Done | `mcp-servers/hkask-mcp-github/src/main.rs:26` defines `fn github_api_url(owner, repo, path) -> String`; consumed at L193, L210 (and more). |
@@ -89,23 +89,23 @@ against the working tree on 2026-06-06.
 
 | Category | Count |
 |----------|-------|
-| ✅ Done | **21** |
+| ✅ Done | **20** |
 | 🟡 Partial | **3** (P1.3, P3.1, P4.1) |
-| ⬜ Open | **6** (P2.2, P3.2, P3.4–P3.6, P4.4, P4.5, A2, A3) |
+| ⬜ Open | **7** (P3.2–P3.6, P4.4, P4.5, A2, A3, A5) |
 | **Total** | **30** items tracked |
 
 | Priority | Done | Partial | Open | Items |
 |----------|------|---------|------|-------|
 | P1 | 6 | 1 | 0 | 7 |
-| P2 | 7 | 0 | 1 | 8 |
-| P3 | 1 | 1 | 4 | 6 |
+| P2 | 8 | 0 | 0 | 8 |
+| P3 | 0 | 1 | 5 | 6 |
 | P4 | 2 | 1 | 2 | 5 |
-| Aux | 3 | 0 | 2 | 5 |
+| Aux | 2 | 0 | 3 | 5 |
 
 **Net result:** of the 26 P1–P4 items, **16 are done**, **3 are partial**, and **7 remain
-open**. Of the 7 open items, 4 are in P3 (significant refactors — visitor pattern,
-MCP adapter split, error hierarchy completion, structured errors, escalation
-extraction), 1 is P2.2 (the long `ApiState::new`), and 2 are P4 polish.
+open**. **P1 and P2 are now fully complete** (P1.3 is the only partial — waiting on
+P3.5 to finish structured storage errors). The bulk of remaining work is in P3
+(significant refactors).
 
 ---
 
@@ -114,22 +114,22 @@ extraction), 1 is P2.2 (the long `ApiState::new`), and 2 are P4 polish.
 Ordered by **leverage ÷ effort**:
 
 1. **P3.5 — Structured storage errors** (small) — replace `String` payloads in
-   `MemoryError`, `EscalationError`, `ConsentError`, `MetacognitionError` with
-   structured variants. Pre-requisite for closing P1.3 fully.
-2. **P2.2 — Split `ApiState::new` into `init_stores()` + `init_subsystems()`**
-   (medium) — 277-line constructor. Direct, mechanical extraction.
-3. **P3.6 — Extract escalation logic from `metacognition::sense()`** (medium) —
+   `MemoryError::CapabilityDenied` (others are already `Box<dyn Error>`).
+   Pre-requisite for closing P1.3 fully.
+2. **P3.6 — Extract escalation logic from `metacognition::sense()`** (medium) —
    ~80-line method; algedonic review + cursor advance + goal-stale counting
    are independent concerns.
-4. **P3.4 — A2AMessage visitor pattern** (medium) — replaces match-on-variant
+3. **P3.4 — A2AMessage visitor pattern** (medium) — replaces match-on-variant
    with a visitor trait; makes adding new message types less error-prone.
-5. **P3.2 — Split `McpRuntimeAdapter`** (medium) — make impossible states
+4. **P3.2 — Split `McpRuntimeAdapter`** (medium) — make impossible states
    unrepresentable: `CapabilityOnlyAdapter` vs `FullMcpAdapter`.
-6. **P3.3 — `RussellProcessManager`** (medium) — separate process lifecycle
-   from ACP protocol concerns.
-7. **P3.1 (continuation) — finish unified error hierarchy** (large) — extend
+5. **P3.3 — `RussellProcessManager`** (medium) — the working tree has partial
+   work in `russell_acp.rs` that already defines `RussellProcessManager`; needs
+   one fix to `child.kill()` (`.take()` returns `Option` without `mut`) and
+   tests for the new boundary.
+6. **P3.1 (continuation) — finish unified error hierarchy** (large) — extend
    `InfrastructureError` to cover the remaining crate-local enums.
-8. **P4.5 + A3 — `tokio::sync::watch` for `last_snapshot`** (small) — more
+7. **P4.5 + A3 — `tokio::sync::watch` for `last_snapshot`** (small) — more
    idiomatic for single-producer/single-consumer broadcast.
 
 ---
@@ -137,5 +137,6 @@ Ordered by **leverage ÷ effort**:
 ## Validation
 
 `cargo check --workspace` is **green** (2026-06-06, HEAD `91f5b053`).
-`cargo test -p hkask-types -p hkask-cns -p hkask-cli -p hkask-agents --lib`:
-`15 + 107 + 196 + 49 = 367` tests pass, **0 failures**.
+`cargo test -p hkask-types -p hkask-cns -p hkask-cli -p hkask-agents -p hkask-api --lib`:
+`15 + 107 + 196 + 49 + 4 = 371` tests pass, **0 failures** (after the P2.2 refactor added
+2 new property tests for `init_git_cas` and `build_ensemble_session`).
