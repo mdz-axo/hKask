@@ -2,7 +2,7 @@
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
 last_updated: 2026-06-07
-version: "1.5.0"
+version: "1.6.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -149,6 +149,15 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-63** | Add forward-references from canonical specs to reference docs (okapi, ports-inventory, utoipa, template-header, hLexicon, Curator persona) | 2026-06-07 | interface-and-composition.md, domain-and-capability.md |
 | **R-64** | Incorporate review findings: type×primitive matrix into domain-and-capability.md, ERD structural notes into subsystem-erds.md | 2026-06-07 | Review artifact absorption |
 | **R-65** | Add 7 untracked future questions from FUTURE.md to OPEN_QUESTIONS.md | 2026-06-07 | FUT-002, FUT-003, FUT-004, FUT-005, FUT-007, FUT-008, FUT-009 |
+| **R-66** | Add 7 untracked future questions to OPEN_QUESTIONS.md (review FUTURE.md synthesis) | 2026-06-07 | OPEN_QUESTIONS §Review Findings, FUT-002 through FUT-009 |
+| **R-67** | Update cli-reference.md last_updated to 2026-06-07 | 2026-06-07 | docs/generated/cli-reference.md |
+| **R-68** | Fix broken links: 17→0 broken links, add 5 status file placeholders, fix 3 archived ADR paths | 2026-06-07 | docs/README.md, docs/ci/check-links.sh |
+| **R-68b** | Fix missing metadata in hlexicon-validation-report.md | 2026-06-07 | All 48 docs pass check-metadata.sh |
+| **R-69** | Verify no references to docs/review/ remain in active docs | 2026-06-07 | Fixed subsystem-erds.md reference to archive path |
+| **R-70** | Create ADR-032 (MCP gateway membrane) and ADR-033 (Dampener override cooldown); update ADR-027 footer | 2026-06-07 | docs/architecture/ADR-032, ADR-033, ADR-027 |
+| **R-71** | Verify hkask-mcp-spec build regression — no type errors found, workspace builds clean | 2026-06-07 | cargo check --workspace passes, 5 MCP protocol tests fail (TransportClosed, infra issue) |
+| **R-72** | Writing Excellence spot-check: domain-and-capability ✅ 4/4, trust-security-observability ✅ 4/4, DDMVSS ❌ 1/4 | 2026-06-07 | DDMVSS fails Hopper/Lovelace/Gentle (known gap, tracked in OPEN_QUESTIONS) |
+| **R-73** | Update all stale verified_date in architecture docs to 2026-06-07 | 2026-06-07 | 21 DIAGRAM_ALIGNMENT entries updated |
 
 ---
 

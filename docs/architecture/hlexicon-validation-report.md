@@ -1,3 +1,13 @@
+---
+title: "hLexicon Alignment Validation Report"
+audience: [architects, developers, agents]
+last_updated: 2026-06-07
+version: "1.0.0"
+status: "Active"
+domain: "Cross-cutting"
+ddmvss_categories: [domain, composition]
+---
+
 # hLexicon Alignment Validation Report
 
 **Date:** 2026-06-07

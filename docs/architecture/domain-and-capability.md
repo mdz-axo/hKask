@@ -398,7 +398,7 @@ Legend: **✓** implemented · **~** partially · **✗** missing · **n/a** not
 
 **Total:** 21 servers, 123+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
-**Audit:** [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md)
+**Audit:** `docs/status/mcp-tools-inventory.md` (planned)
 
 ### 6.2 `hkask-mcp-spec` DDMVSS Tools
 

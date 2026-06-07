@@ -1,7 +1,7 @@
 ---
 title: "hKask CLI Reference (auto-generated)"
 audience: [CLI operators, developers, agents]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "0.23.0"
 status: "Active"
 domain: "Cross-cutting"

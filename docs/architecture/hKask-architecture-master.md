@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "2.2.3"
+version: "2.2.4"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -67,15 +67,17 @@ Detailed lookup tables and diagrams in `reference/`:
 | ADR | Topic |
 |-----|-------|
 | [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) | ADV-REVIEW-F2 security hardening (T01-T22) |
-| ~~[`ADR-023-master-key-derivation.md`](ADR-023-master-key-derivation.md)~~ | ~~Master key derivation via HKDF-SHA256~~ — **Archived**; superseded by [ADR-027](ADR-027-argon2-hkdf-master-key.md) |
+| ~~[`ADR-023-master-key-derivation.md`](../archive/2026-06-07-documentation-refresh/ADR-023-master-key-derivation.md)~~ | ~~Master key derivation via HKDF-SHA256~~ — **Archived**; superseded by [ADR-027](ADR-027-argon2-hkdf-master-key.md) |
 | [`ADR-024-unified-registry.md`](ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
 | [`ADR-025-attenuation-depth-limit.md`](ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
 | [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
 | [`ADR-027-argon2-hkdf-master-key.md`](ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
-| ~~[`ADR-028-acp-protocol-design.md`](ADR-028-acp-protocol-design.md)~~ | ~~ACP protocol design — JSON-RPC 2.0 over stdio~~ — **Archived**; deferred (ACP transport layer removed) |
-| ~~[`ADR-029-goal-capability-primitive.md`](ADR-029-goal-capability-primitive.md)~~ | ~~Goal capability primitive — distinct typed token~~ — **Archived**; superseded (`GoalCapabilityToken` removed; goals use `&WebID` owner scoping) |
+| ~~[`ADR-028-acp-protocol-design.md`](../archive/2026-06-07-documentation-refresh/ADR-028-acp-protocol-design.md)~~ | ~~ACP protocol design — JSON-RPC 2.0 over stdio~~ — **Archived**; deferred (ACP transport layer removed) |
+| ~~[`ADR-029-goal-capability-primitive.md`](../archive/2026-06-07-documentation-refresh/ADR-029-goal-capability-primitive.md)~~ | ~~Goal capability primitive — distinct typed token~~ — **Archived**; superseded (`GoalCapabilityToken` removed; goals use `&WebID` owner scoping) |
 | [`ADR-030-skill-bundler.md`](ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
 | [`ADR-031-consolidation-authorization.md`](ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
+| [`ADR-032-mcp-gateway-membrane.md`](ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
+| [`ADR-033-dampener-override-cooldown.md`](ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
 
 ---
 
@@ -116,6 +118,8 @@ docs/architecture/
 ├── ~~ADR-029-goal-capability-primitive.md~~   # ARCHIVED (superseded)
 ├── ADR-030-skill-bundler.md                # Decision record
 ├── ADR-031-consolidation-authorization.md  # Decision record
+├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
+├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
 └── reference/
     ├── hKask-erd.md                       # Diagram artifact
     ├── registry-erd.md                    # Diagram artifact
@@ -128,7 +132,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 22 active architecture documents (4 specs + 4 framework + 1 index + 7 active ADRs + 6 active reference artifacts). Archived: ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (changes applied to codebase), IMPLEMENTATION-PLAN-simplification.md.
+**Total:** 24 active architecture documents (4 specs + 4 framework + 1 index + 9 active ADRs + 6 active reference artifacts). Archived: ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (changes applied to codebase), IMPLEMENTATION-PLAN-simplification.md.
 
 ---
 

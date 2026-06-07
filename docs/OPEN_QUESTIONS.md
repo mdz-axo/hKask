@@ -2,7 +2,7 @@
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
 last_updated: 2026-06-07
-version: "1.3.0"
+version: "1.4.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition, capability, observability, curation, lifecycle]
@@ -38,7 +38,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Document federation as a deferred architectural direction (no dedicated ADR yet). The bidirectional ACP bridge via `RussellAcpAdapter` (606 LOC) provides practical cross-system agent communication without requiring dedicated federation crates. Federation as a first-class concept (separate crates, discovery protocol, resource negotiation) is deferred until essential, at which point a forward ADR will record the decision.
 
-**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design was recorded in ADR-028 (now archived — ACP transport layer removed; see [`ADR-028`](architecture/ADR-028-acp-protocol-design.md)).
+**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design was recorded in ADR-028 (now archived — ACP transport layer removed; see [`ADR-028`](archive/2026-06-07-documentation-refresh/ADR-028-acp-protocol-design.md)).
 
 ---
 

@@ -608,8 +608,11 @@ where
     S: rmcp::Service<rmcp::RoleServer>,
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
-    // 1. Tracing initialization
+    // 1. Tracing initialization — write to stderr so stdout is reserved
+    // for MCP JSON-RPC messages. If tracing output goes to stdout,
+    // it corrupts the protocol stream.
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
@@ -706,8 +709,10 @@ where
     S: rmcp::Service<rmcp::RoleServer>,
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
-    // 1. Tracing initialization
+    // 1. Tracing initialization — write to stderr so stdout is reserved
+    // for MCP JSON-RPC messages.
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
