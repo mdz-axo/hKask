@@ -5,8 +5,9 @@
 
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
+use hkask_types::capability::{CapabilitySpec, DelegationResource};
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::ports::RegistryIndex;
+use hkask_types::ports::{RegistryIndex, ToolInfo};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -176,6 +177,9 @@ pub struct EnsembleChat {
     gas_used: u64,
     dedup: crate::chat_dedup::ChatDedup,
     gas_governance: Option<Arc<dyn crate::ports::GasGovernancePort>>,
+    /// Available tools for intersection-based tool scoping (R4).
+    /// When set, `intersection_tools()` filters this list by participant capabilities.
+    available_tools: Option<Vec<ToolInfo>>,
 }
 
 impl EnsembleChat {
@@ -203,6 +207,7 @@ impl EnsembleChat {
             gas_used: 0,
             dedup: crate::chat_dedup::ChatDedup::new(),
             gas_governance: None,
+            available_tools: None,
         }
     }
 
@@ -236,6 +241,88 @@ impl EnsembleChat {
     pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
         self.gas_governance = Some(port);
         self
+    }
+
+    /// Set available tools for intersection-based tool scoping (R4).
+    ///
+    /// When set, `intersection_tools()` returns only the tools whose
+    /// required_capability domains intersect across all participants.
+    pub fn with_available_tools(mut self, tools: Vec<ToolInfo>) -> Self {
+        self.available_tools = Some(tools);
+        self
+    }
+
+    /// Compute the tools visible to all participants (intersection).
+    ///
+    /// Each participant can only use tools matching their capabilities.
+    /// The shared tool section lists only tools that ALL participants can see.
+    ///
+    /// A tool is visible to a participant if:
+    /// - The participant has a capability whose domain matches the tool's `required_capability`
+    /// - Or the tool has no `required_capability` (always visible)
+    ///
+    /// Returns `None` if no available tools have been set.
+    /// Returns an empty Vec if the intersection is empty (no common tools).
+    pub fn intersection_tools(&self) -> Option<Vec<ToolInfo>> {
+        let all_tools = self.available_tools.as_ref()?;
+
+        // Parse each participant's capabilities into (resource, domain) pairs.
+        // Only Tool-type capabilities contribute to tool visibility.
+        let participant_domains: Vec<Vec<String>> = self
+            .participants
+            .values()
+            .filter(|p| !matches!(p.role, ParticipantRole::Curator))
+            .map(|p| {
+                p.capabilities
+                    .iter()
+                    .filter_map(|c| CapabilitySpec::parse(c).ok())
+                    .filter(|s| s.resource == DelegationResource::Tool)
+                    .map(|s| s.resource_id.clone())
+                    .collect()
+            })
+            .collect();
+
+        // If no non-Curator participants have declared capabilities,
+        // all tools are visible (backward compat).
+        let all_empty = participant_domains.iter().all(|d| d.is_empty());
+        if all_empty {
+            return Some(all_tools.clone());
+        }
+
+        // A tool is visible to ALL if every participant has at least one
+        // capability domain that covers the tool's required_capability domain.
+        // Tools with no required_capability are always visible.
+        let visible_tools: Vec<ToolInfo> = all_tools
+            .iter()
+            .filter(|t| {
+                // Tools with no required_capability are always visible
+                if t.required_capability.is_none() {
+                    return true;
+                }
+
+                let tool_domain = t
+                    .required_capability
+                    .as_ref()
+                    .and_then(|c| CapabilitySpec::parse(c).ok())
+                    .map(|s| s.resource_id.clone())
+                    .unwrap_or_else(|| {
+                        // Fallback: derive domain from server_id
+                        t.server_id
+                            .strip_prefix("hkask-mcp-")
+                            .unwrap_or(&t.server_id)
+                            .to_string()
+                    });
+
+                // Tool is visible to ALL participants if every participant
+                // has at least one capability domain that matches the tool's domain.
+                participant_domains
+                    .iter()
+                    .all(|domains| domains.iter().any(|d| d == &tool_domain))
+            })
+            .cloned()
+            .collect();
+
+        Some(visible_tools)
     }
 
     /// Check whether a gas-consuming operation of the given cost may proceed.
@@ -892,5 +979,187 @@ mod tests {
         let mut chat = EnsembleChat::new(curator_id()).with_gas_governance(mock);
         chat.add_message(ChatMessage::new(curator_id(), "blocked".into()));
         assert_eq!(chat.get_history().len(), 0);
+    }
+
+    // --- Intersection-based tool scoping tests (R4) ---
+
+    fn cns_tool_info() -> ToolInfo {
+        ToolInfo {
+            name: "cns_health".to_string(),
+            description: "CNS health check".to_string(),
+            input_schema: serde_json::json!({}),
+            server_id: "hkask-mcp-cns".to_string(),
+            required_capability: Some("tool:cns:execute".to_string()),
+        }
+    }
+
+    fn semantic_tool_info() -> ToolInfo {
+        ToolInfo {
+            name: "semantic_search".to_string(),
+            description: "Semantic search".to_string(),
+            input_schema: serde_json::json!({}),
+            server_id: "hkask-mcp-semantic".to_string(),
+            required_capability: Some("tool:semantic:execute".to_string()),
+        }
+    }
+
+    fn inference_tool_info() -> ToolInfo {
+        ToolInfo {
+            name: "generate".to_string(),
+            description: "Generate text".to_string(),
+            input_schema: serde_json::json!({}),
+            server_id: "hkask-mcp-inference".to_string(),
+            required_capability: Some("tool:inference:execute".to_string()),
+        }
+    }
+
+    fn unscoped_tool_info() -> ToolInfo {
+        ToolInfo {
+            name: "custom_tool".to_string(),
+            description: "Custom tool with no capability requirement".to_string(),
+            input_schema: serde_json::json!({}),
+            server_id: "custom-server".to_string(),
+            required_capability: None,
+        }
+    }
+
+    #[test]
+    fn intersection_tools_overlapping_capabilities() {
+        // Two participants with overlapping CNS capability → CNS tool is visible
+        let mut chat = EnsembleChat::new(curator_id());
+        let bot1 = WebID::new();
+        let bot2 = WebID::new();
+        chat.register_participant(ChatParticipant {
+            webid: bot1,
+            role: ParticipantRole::Custom("analyst".to_string()),
+            pod_id: None,
+            capabilities: vec!["tool:cns:execute".to_string()],
+        });
+        chat.register_participant(ChatParticipant {
+            webid: bot2,
+            role: ParticipantRole::Custom("researcher".to_string()),
+            pod_id: None,
+            capabilities: vec![
+                "tool:cns:execute".to_string(),
+                "tool:semantic:execute".to_string(),
+            ],
+        });
+
+        let chat = chat.with_available_tools(vec![cns_tool_info(), semantic_tool_info()]);
+        let visible = chat.intersection_tools().unwrap();
+        assert_eq!(visible.len(), 1, "Only CNS tool should be visible to both");
+        assert_eq!(visible[0].name, "cns_health");
+    }
+
+    #[test]
+    fn intersection_tools_non_overlapping_capabilities() {
+        // Two participants with non-overlapping capabilities → empty intersection
+        let mut chat = EnsembleChat::new(curator_id());
+        let bot1 = WebID::new();
+        let bot2 = WebID::new();
+        chat.register_participant(ChatParticipant {
+            webid: bot1,
+            role: ParticipantRole::Custom("analyst".to_string()),
+            pod_id: None,
+            capabilities: vec!["tool:cns:execute".to_string()],
+        });
+        chat.register_participant(ChatParticipant {
+            webid: bot2,
+            role: ParticipantRole::Custom("researcher".to_string()),
+            pod_id: None,
+            capabilities: vec!["tool:semantic:execute".to_string()],
+        });
+
+        let chat = chat.with_available_tools(vec![cns_tool_info(), semantic_tool_info()]);
+        let visible = chat.intersection_tools().unwrap();
+        assert!(visible.is_empty(), "No tools in common");
+    }
+
+    #[test]
+    fn intersection_tools_no_capabilities_shows_all() {
+        // One participant with no capabilities → all tools visible (backward compat)
+        let mut chat = EnsembleChat::new(curator_id());
+        let bot1 = WebID::new();
+        chat.register_participant(ChatParticipant {
+            webid: bot1,
+            role: ParticipantRole::Custom("assistant".to_string()),
+            pod_id: None,
+            capabilities: vec![],
+        });
+
+        let chat = chat.with_available_tools(vec![cns_tool_info(), semantic_tool_info()]);
+        let visible = chat.intersection_tools().unwrap();
+        assert_eq!(
+            visible.len(),
+            2,
+            "All tools visible when no capabilities declared"
+        );
+    }
+
+    #[test]
+    fn intersection_tools_three_participants_smallest_common() {
+        // Three participants: A has cns, B has cns+semantic, C has cns+inference
+        // Intersection = {cns} only
+        let mut chat = EnsembleChat::new(curator_id());
+        let bot1 = WebID::new();
+        let bot2 = WebID::new();
+        let bot3 = WebID::new();
+        chat.register_participant(ChatParticipant {
+            webid: bot1,
+            role: ParticipantRole::Custom("a".to_string()),
+            pod_id: None,
+            capabilities: vec!["tool:cns:execute".to_string()],
+        });
+        chat.register_participant(ChatParticipant {
+            webid: bot2,
+            role: ParticipantRole::Custom("b".to_string()),
+            pod_id: None,
+            capabilities: vec![
+                "tool:cns:execute".to_string(),
+                "tool:semantic:execute".to_string(),
+            ],
+        });
+        chat.register_participant(ChatParticipant {
+            webid: bot3,
+            role: ParticipantRole::Custom("c".to_string()),
+            pod_id: None,
+            capabilities: vec![
+                "tool:cns:execute".to_string(),
+                "tool:inference:execute".to_string(),
+            ],
+        });
+
+        let chat = chat.with_available_tools(vec![
+            cns_tool_info(),
+            semantic_tool_info(),
+            inference_tool_info(),
+        ]);
+        let visible = chat.intersection_tools().unwrap();
+        assert_eq!(visible.len(), 1, "Only CNS tool is in the intersection");
+        assert_eq!(visible[0].name, "cns_health");
+    }
+
+    #[test]
+    fn intersection_tools_unscoped_tools_always_visible() {
+        // Tools with no required_capability are always visible to everyone
+        let mut chat = EnsembleChat::new(curator_id());
+        let bot1 = WebID::new();
+        chat.register_participant(ChatParticipant {
+            webid: bot1,
+            role: ParticipantRole::Custom("analyst".to_string()),
+            pod_id: None,
+            capabilities: vec!["tool:cns:execute".to_string()],
+        });
+
+        let chat = chat.with_available_tools(vec![cns_tool_info(), unscoped_tool_info()]);
+        let visible = chat.intersection_tools().unwrap();
+        assert_eq!(visible.len(), 2, "Unscoped tool always visible");
+    }
+
+    #[test]
+    fn intersection_tools_none_when_no_tools_set() {
+        // Without setting available_tools, intersection_tools returns None
+        let chat = EnsembleChat::new(curator_id());
+        assert!(chat.intersection_tools().is_none());
     }
 }

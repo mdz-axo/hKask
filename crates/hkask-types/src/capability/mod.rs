@@ -189,6 +189,47 @@ pub fn capability_from_server_id(server_id: &str) -> Option<String> {
         .map(|domain| format!("tool:{}:execute", domain))
 }
 
+/// Check whether a token's capability covers a required capability.
+///
+/// Two capabilities match if they share the same resource type and domain,
+/// and the token's action level is sufficient for the required action:
+///
+/// - `tool:cns:execute` covers `tool:cns:execute` (exact match)
+/// - `tool:cns:execute` covers `tool:cns:emit` (same domain, execute ≥ any action)
+/// - `tool:cns:execute` covers `tool:cns:read` (execute ≥ read)
+/// - `tool:cns:read` does **not** cover `tool:cns:execute` (read ≱ execute)
+/// - `tool:cns:write` covers `tool:cns:read` (write ≥ read) but not `tool:cns:execute`
+/// - `tool:cns:execute` does **not** cover `tool:semantic:execute` (different domain)
+///
+/// If either string cannot be parsed as a capability spec, falls back to exact
+/// string comparison.
+pub fn capabilities_match(token_capability: &str, required_capability: &str) -> bool {
+    let token_spec = match CapabilitySpec::parse(token_capability) {
+        Ok(s) => s,
+        Err(_) => return token_capability == required_capability,
+    };
+    let required_spec = match CapabilitySpec::parse(required_capability) {
+        Ok(s) => s,
+        Err(_) => return token_capability == required_capability,
+    };
+
+    // Different resource types never match (tool ≠ registry)
+    if token_spec.resource != required_spec.resource {
+        return false;
+    }
+    // Different domains never match (cns ≠ semantic)
+    if token_spec.resource_id != required_spec.resource_id {
+        return false;
+    }
+    // Action hierarchy: Execute ≥ Write ≥ Read
+    // Token's action must cover the required action
+    match required_spec.action {
+        DelegationAction::Read => token_spec.action.permits_read(),
+        DelegationAction::Write => token_spec.action.permits_write(),
+        DelegationAction::Execute => token_spec.action == DelegationAction::Execute,
+    }
+}
+
 /// Additive restrictions on a capability token.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct Caveat {
@@ -684,6 +725,86 @@ mod capability_spec_tests {
         use super::capability_from_server_id;
         assert_eq!(capability_from_server_id("custom-server"), None);
         assert_eq!(capability_from_server_id(""), None);
+    }
+}
+
+#[cfg(test)]
+mod capabilities_match_tests {
+    use super::capabilities_match;
+
+    #[test]
+    fn exact_match_same_domain_same_action() {
+        // token:cns:execute covers tool:cns:execute — exact match
+        assert!(capabilities_match("tool:cns:execute", "tool:cns:execute"));
+    }
+
+    #[test]
+    fn execute_covers_any_action_in_same_domain() {
+        // Execute authority on domain "cns" covers any action in that domain
+        assert!(capabilities_match("tool:cns:execute", "tool:cns:emit"));
+        assert!(capabilities_match("tool:cns:execute", "tool:cns:read"));
+        assert!(capabilities_match("tool:cns:execute", "tool:cns:write"));
+    }
+
+    #[test]
+    fn read_does_not_cover_execute_or_write() {
+        // Read authority does not cover execute or write
+        assert!(!capabilities_match("tool:cns:read", "tool:cns:execute"));
+        assert!(!capabilities_match("tool:cns:read", "tool:cns:write"));
+    }
+
+    #[test]
+    fn read_covers_read() {
+        assert!(capabilities_match("tool:cns:read", "tool:cns:read"));
+    }
+
+    #[test]
+    fn write_covers_read_and_write_but_not_execute() {
+        assert!(capabilities_match("tool:cns:write", "tool:cns:read"));
+        assert!(capabilities_match("tool:cns:write", "tool:cns:write"));
+        assert!(!capabilities_match("tool:cns:write", "tool:cns:execute"));
+    }
+
+    #[test]
+    fn different_domain_does_not_match() {
+        // tool:cns:execute does NOT cover tool:semantic:execute
+        assert!(!capabilities_match(
+            "tool:cns:execute",
+            "tool:semantic:execute"
+        ));
+    }
+
+    #[test]
+    fn different_resource_type_does_not_match() {
+        // tool:cns:execute does NOT cover registry:cns:execute
+        assert!(!capabilities_match(
+            "tool:cns:execute",
+            "registry:cns:execute"
+        ));
+    }
+
+    #[test]
+    fn unparseable_falls_back_to_exact_match() {
+        // If either side can't be parsed, fall back to exact string comparison
+        assert!(capabilities_match("exact-match-token", "exact-match-token"));
+        assert!(!capabilities_match("exact-match-token", "different-token"));
+    }
+
+    #[test]
+    fn execute_covers_all_in_domain() {
+        // A single execute capability covers read, write, and execute in that domain
+        assert!(capabilities_match(
+            "tool:inference:execute",
+            "tool:inference:read"
+        ));
+        assert!(capabilities_match(
+            "tool:inference:execute",
+            "tool:inference:write"
+        ));
+        assert!(capabilities_match(
+            "tool:inference:execute",
+            "tool:inference:execute"
+        ));
     }
 }
 

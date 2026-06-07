@@ -22,7 +22,9 @@
 use crate::cybernetics_loop::CyberneticsLoop;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
-use hkask_types::capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_types::capability::{
+    DelegationAction, DelegationResource, DelegationToken, capabilities_match,
+};
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::loops::{LoopId, LoopMessage, LoopPayload, MessagePriority};
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
@@ -105,20 +107,44 @@ impl<P: ToolPort> GovernedTool<P> {
         self
     }
 
-    /// Verify OCAP authority: check that the token authorizes the tool invocation.
-    fn verify_capability(token: &DelegationToken, tool_name: &str) -> Result<(), ToolPortError> {
-        // Check that the token is valid for Tool:Execute on this resource
-        if !token.is_valid_for(
+    /// Verify OCAP authority via legacy exact-match (Path 1).
+    ///
+    /// Ad-hoc invocation tokens are minted with the exact tool name as `resource_id`
+    /// (e.g., token for `cns_health`). This path preserves backward compatibility.
+    fn verify_capability_legacy(token: &DelegationToken, tool_name: &str) -> bool {
+        token.is_valid_for(
             DelegationResource::Tool,
             tool_name,
             DelegationAction::Execute,
-        ) {
-            return Err(ToolPortError::CapabilityDenied(format!(
-                "Token does not authorize tool: {}",
-                tool_name
-            )));
+        )
+    }
+
+    /// Verify OCAP authority via domain-based capability matching (Path 2).
+    ///
+    /// Agent capability tokens use domain shorthand (e.g., `cns` not `cns_health`).
+    /// The tool's `required_capability` declares its domain (e.g., `tool:cns:execute`).
+    /// If the token's capability covers the tool's required domain, access is granted.
+    fn verify_capability_domain(token: &DelegationToken, required_capability: &str) -> bool {
+        let token_capability = format!("tool:{}:{}", token.resource_id, token.action.as_str());
+        capabilities_match(&token_capability, required_capability)
+    }
+
+    /// Async fallback: look up tool metadata and try domain-based matching.
+    ///
+    /// Called only when the legacy exact-match path fails. Returns `true` if the
+    /// tool has a `required_capability` and the token covers it.
+    async fn verify_capability_domain_fallback(
+        &self,
+        token: &DelegationToken,
+        tool_name: &str,
+    ) -> bool {
+        match self.inner.get_tool_info(tool_name).await {
+            Some(ref info) => match info.required_capability {
+                Some(ref required) => Self::verify_capability_domain(token, required),
+                None => false,
+            },
+            None => false,
         }
-        Ok(())
     }
 }
 
@@ -133,15 +159,21 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         let estimated_cost = self.estimator.estimate_cost(server, tool, &args);
 
         // Step 1: Verify OCAP authority
-        if let Err(e) = Self::verify_capability(token, tool) {
+        // Path 1: Legacy exact-match — ad-hoc invocation tokens minted with tool name
+        // Path 2: Domain-based — agent capability tokens use domain shorthand
+        let authorized = Self::verify_capability_legacy(token, tool)
+            || self.verify_capability_domain_fallback(token, tool).await;
+        if !authorized {
             warn!(
                 target: "cns.tool",
                 agent = ?self.agent,
                 tool = %tool,
-                error = %e,
                 "Tool invocation rejected — capability denied"
             );
-            return Err(e);
+            return Err(ToolPortError::CapabilityDenied(format!(
+                "Token does not authorize tool: {}",
+                tool
+            )));
         }
 
         // Step 2: Reserve gas budget (hold-settle pattern)
@@ -724,5 +756,229 @@ mod tests {
         // can_proceed(100) → gas=100 > 90 → should fail.
         let loop6_guard = loop6.read().await;
         assert!(!loop6_guard.can_proceed(&agent, 100).await);
+    }
+
+    // --- Domain-based capability matching tests ---
+
+    /// Mock ToolPort that returns CNS tools with required_capability.
+    /// Simulates hkask-mcp-cns server tools.
+    struct CnsMockToolPort;
+
+    impl ToolPort for CnsMockToolPort {
+        async fn invoke(
+            &self,
+            _server: &str,
+            _tool: &str,
+            _args: Value,
+            _token: &DelegationToken,
+        ) -> Result<Value, ToolPortError> {
+            Ok(serde_json::json!({"result": "ok"}))
+        }
+
+        async fn discover_tools(&self) -> Vec<String> {
+            vec!["cns_health".to_string(), "cns_emit".to_string()]
+        }
+
+        async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+            match tool_name {
+                "cns_health" => Some(ToolInfo {
+                    name: "cns_health".to_string(),
+                    description: "CNS health check".to_string(),
+                    input_schema: serde_json::json!({}),
+                    server_id: "hkask-mcp-cns".to_string(),
+                    required_capability: Some("tool:cns:execute".to_string()),
+                }),
+                "cns_emit" => Some(ToolInfo {
+                    name: "cns_emit".to_string(),
+                    description: "Emit a CNS event".to_string(),
+                    input_schema: serde_json::json!({}),
+                    server_id: "hkask-mcp-cns".to_string(),
+                    required_capability: Some("tool:cns:execute".to_string()),
+                }),
+                _ => None,
+            }
+        }
+    }
+
+    /// Helper: create a domain-scoped token with resource_id = domain (e.g., "cns").
+    /// This simulates an agent capability token like "tool:cns:execute".
+    fn domain_token(domain: &str, action: DelegationAction) -> DelegationToken {
+        let secret = b"test-secret-key-for-governed-tool-tests";
+        DelegationToken::new(
+            DelegationResource::Tool,
+            domain.to_string(),
+            action,
+            WebID::new(),
+            WebID::new(),
+            secret,
+        )
+    }
+
+    #[tokio::test]
+    async fn governed_tool_domain_match_allows_cns_tool_with_domain_token() {
+        // A token with resource_id="cns" (domain scope) should authorize
+        // cns_health which has required_capability="tool:cns:execute".
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
+        let agent = WebID::new();
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(100_000))
+            .await;
+
+        let inner = Arc::new(CnsMockToolPort);
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let governed = GovernedTool::new(
+            inner,
+            loop6,
+            event_sink,
+            Arc::new(TableGasEstimator::new()),
+            agent,
+            dispatch_tx,
+        );
+
+        // Token with domain scope: resource_id="cns", action=Execute
+        let token = domain_token("cns", DelegationAction::Execute);
+        let result = governed
+            .invoke("hkask-mcp-cns", "cns_health", serde_json::json!({}), &token)
+            .await;
+        assert!(
+            result.is_ok(),
+            "Domain-scoped token should authorize cns_health"
+        );
+    }
+
+    #[tokio::test]
+    async fn governed_tool_domain_match_allows_cns_emit_with_domain_token() {
+        // Same domain token should also authorize cns_emit.
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
+        let agent = WebID::new();
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(100_000))
+            .await;
+
+        let inner = Arc::new(CnsMockToolPort);
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let governed = GovernedTool::new(
+            inner,
+            loop6,
+            event_sink,
+            Arc::new(TableGasEstimator::new()),
+            agent,
+            dispatch_tx,
+        );
+
+        let token = domain_token("cns", DelegationAction::Execute);
+        let result = governed
+            .invoke("hkask-mcp-cns", "cns_emit", serde_json::json!({}), &token)
+            .await;
+        assert!(
+            result.is_ok(),
+            "Domain-scoped token should authorize cns_emit"
+        );
+    }
+
+    #[tokio::test]
+    async fn governed_tool_domain_match_rejects_wrong_domain() {
+        // A token with resource_id="semantic" should NOT authorize cns tools.
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
+        let agent = WebID::new();
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(100_000))
+            .await;
+
+        let inner = Arc::new(CnsMockToolPort);
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let governed = GovernedTool::new(
+            inner,
+            loop6,
+            event_sink,
+            Arc::new(TableGasEstimator::new()),
+            agent,
+            dispatch_tx,
+        );
+
+        let token = domain_token("semantic", DelegationAction::Execute);
+        let result = governed
+            .invoke("hkask-mcp-cns", "cns_health", serde_json::json!({}), &token)
+            .await;
+        assert!(result.is_err(), "Wrong domain token should be rejected");
+        match result.unwrap_err() {
+            ToolPortError::CapabilityDenied(msg) => {
+                assert!(
+                    msg.contains("cns_health"),
+                    "Expected tool name in error, got: {msg}"
+                );
+            }
+            other => panic!("Expected CapabilityDenied, got: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn governed_tool_legacy_exact_match_still_works() {
+        // A token minted with the exact tool name (legacy path) should still work.
+        // This verifies backward compatibility.
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
+        let agent = WebID::new();
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(100_000))
+            .await;
+
+        let inner = Arc::new(CnsMockToolPort);
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let governed = GovernedTool::new(
+            inner,
+            loop6,
+            event_sink,
+            Arc::new(TableGasEstimator::new()),
+            agent,
+            dispatch_tx,
+        );
+
+        // Legacy token: resource_id = exact tool name "cns_health"
+        let token = token_for_tool("cns_health");
+        let result = governed
+            .invoke("hkask-mcp-cns", "cns_health", serde_json::json!({}), &token)
+            .await;
+        assert!(result.is_ok(), "Legacy exact-match token should still work");
+    }
+
+    #[tokio::test]
+    async fn governed_tool_read_domain_token_rejects_execute_requirement() {
+        // A token with action=Read on domain "cns" should NOT satisfy
+        // required_capability="tool:cns:execute" (read ≱ execute).
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
+        let agent = WebID::new();
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(100_000))
+            .await;
+
+        let inner = Arc::new(CnsMockToolPort);
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let governed = GovernedTool::new(
+            inner,
+            loop6,
+            event_sink,
+            Arc::new(TableGasEstimator::new()),
+            agent,
+            dispatch_tx,
+        );
+
+        let token = domain_token("cns", DelegationAction::Read);
+        let result = governed
+            .invoke("hkask-mcp-cns", "cns_health", serde_json::json!({}), &token)
+            .await;
+        assert!(
+            result.is_err(),
+            "Read-only domain token should be rejected for execute-required tool"
+        );
     }
 }
