@@ -6,9 +6,17 @@ use crate::cli::{self, SovereigntyAction};
 use crate::commands;
 
 pub fn run(action: SovereigntyAction) {
+    match action {
+        SovereigntyAction::Verify { .. } => commands::magna_carta::run(action),
+        _ => run_sovereignty_ops(action),
+    }
+}
+
+fn run_sovereignty_ops(action: SovereigntyAction) {
     use hkask_types::DataCategory;
 
     match action {
+        SovereigntyAction::Verify { .. } => unreachable!("Verify handled by magna_carta module"),
         SovereigntyAction::Status => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
             let store = super::helpers::or_exit(

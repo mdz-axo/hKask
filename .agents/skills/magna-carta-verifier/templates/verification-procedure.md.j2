@@ -1,0 +1,58 @@
+# Verification Procedure — {{ principle_display_name }}
+
+> Principle: **{{ principle_display_name }}** ({{ principle }})
+> Version: {{ version }}
+> Generated: {{ generated_at }}
+
+## Overview
+
+{{ description }}
+
+---
+
+{% for assertion in assertions %}
+## {{ assertion.id }} — {{ assertion.name }}
+
+**Claim:** {{ assertion.claim | trim }}
+
+**Method:** `{{ assertion.method }}`
+
+### Targets
+
+| Crate | Module | Methods | Gate |
+|-------|--------|---------|------|
+{% for target in assertion.targets -%}
+| `{{ target.crate }}` | `{{ target.module }}` | {% if target.methods is defined and target.methods %}`{{ target.methods | join(', ') }}`{% else %}—{% endif %} | {% if target.gate is defined and target.gate %}`{{ target.gate }}`{% elif target.gates is defined and target.gates %}`{{ target.gates | join(' + ') }}`{% else %}—{% endif %} |
+{% endfor -%}
+
+### Verification Steps
+
+{% if assertion.method == 'structural_audit' %}
+1. **Enumerate access paths.** For each target method, trace the call graph from entry point to storage/action.
+2. **Verify gate presence.** Confirm that the named gate (`require_capability`, `require_sovereignty`, `SovereigntyChecker`, etc.) is called before any data access or side effect.
+3. **Verify gate enforcement.** Confirm that the gate returns an error or denies access when the check fails — not merely logs a warning.
+4. **Verify no bypasses.** Search for direct access paths that skip the gate (e.g., field access on struct without going through the gated method).
+{% elif assertion.method == 'behavioral_probe' %}
+1. **Identify access scenarios.** For each target method, list the access scenarios: owner access, non-owner access, no-consent access, expired-consent access.
+2. **Generate test cases.** For each scenario, construct a test that exercises the method under the specified condition.
+3. **Assert denial.** Verify that non-owner, no-consent, and expired-consent scenarios produce denial (error, `false`, or `Err`).
+4. **Assert grant.** Verify that owner-with-consent scenarios produce grant (success, `true`, or `Ok`).
+{% elif assertion.method == 'resource_verification' %}
+1. **Enumerate resources.** List all `DataCategory` variants.
+2. **Verify categorization.** For each resource, confirm it is assigned to exactly one tier (sovereign, shared, public) in `DataSovereigntyBoundary::hkask_default`.
+3. **Verify no overlaps.** Confirm no `DataCategory` appears in more than one tier.
+4. **Verify completeness.** Confirm every `DataCategory` variant is assigned to a tier.
+{% elif assertion.method == 'absence_check' %}
+1. **Define prohibited constructs.** From the manifest's `prohibited` list, define the patterns that must not exist.
+2. **Search codebase.** Use `grep` to search for each prohibited pattern across the target crates.
+3. **Verify absence.** Confirm zero matches for each prohibited pattern.
+4. **Report findings.** Any match is a violation requiring resolution.
+{% endif %}
+
+{% if assertion.note is defined and assertion.note %}
+> **Note:** {{ assertion.note | trim }}
+{% endif %}
+
+---
+
+{% endfor %}

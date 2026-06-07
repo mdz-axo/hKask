@@ -1,5 +1,6 @@
 ---
 name: coding-guidelines
+visibility: public
 description: Enforce Andrej Karpathy's four coding behavioral principles before, during, and after implementation. Think Before Coding (surface assumptions, present alternatives), Simplicity First (minimum code, no speculative features), Surgical Changes (touch only what you must, match existing style), Goal-Driven Execution (define verifiable success criteria, loop until verified). Use when writing or reviewing code, before implementing a feature, or when auditing a diff for over-engineering.
 ---
 

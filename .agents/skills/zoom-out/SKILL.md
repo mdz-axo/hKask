@@ -1,5 +1,6 @@
 ---
 name: zoom-out
+visibility: public
 description: Zoom out to give broader context or a higher-level perspective on unfamiliar code. Use when you're unfamiliar with a section of code, need to understand how it fits into the bigger picture, or when you're lost in the weeds.
 ---
 

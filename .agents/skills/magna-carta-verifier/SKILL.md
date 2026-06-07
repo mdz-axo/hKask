@@ -1,5 +1,6 @@
 ---
 name: magna-carta-verifier
+visibility: public
 description: "Verifies that hKask's four Magna Carta principles (User Sovereignty, Affirmative Consent, Generative Space, Clear Boundaries) are correctly implemented and enforced. Uses YAML manifests to declare assertions per principle and Jinja2 templates to render verification procedures, reports, and test cases. Use when auditing sovereignty compliance, onboarding new resources, or verifying consent structures."
 ---
 

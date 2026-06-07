@@ -1,5 +1,6 @@
 ---
 name: diagnose
+visibility: public
 description: "Disciplined diagnosis loop for hard bugs and performance regressions. Spec-anchored: every diagnosis maps to functional requirements. Reproduce, anchor, hypothesise, instrument, fix, regression-test, verify. Use when user says 'diagnose this' or 'debug this', reports a bug, says something is broken/throwing/failing, or describes a performance regression."
 ---
 

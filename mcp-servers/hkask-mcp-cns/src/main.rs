@@ -11,6 +11,7 @@
 //! - `cns_replenish_budget` — Replenish an agent's gas budget
 //! - `cns_energy` — Get an agent's gas budget status
 //! - `cns_backpressure` — Emit a backpressure signal
+//! - `cns_verify_magna_carta` — Verify Magna Carta compliance (sovereignty audit)
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, GasCost};
 use hkask_mcp::server::ToolSpanGuard;
@@ -72,6 +73,12 @@ pub struct BackpressureRequest {
     pub severity: f64,
     /// Reason for the backpressure signal
     pub reason: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VerifyMagnaCartaRequest {
+    /// Principle to verify (p1, p2, p3, p4). Omit to verify all.
+    pub principle: Option<String>,
 }
 
 pub struct CnsServer {
@@ -335,6 +342,48 @@ impl CnsServer {
             "reason": reason,
             "emitted": true,
         }))
+    }
+
+    #[tool(description = "Verify Magna Carta compliance (sovereignty audit)")]
+    async fn cns_verify_magna_carta(
+        &self,
+        Parameters(VerifyMagnaCartaRequest { principle }): Parameters<VerifyMagnaCartaRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("cns_verify_magna_carta", &self.webid);
+
+        // Invoke `kask sovereignty verify --json` as a subprocess
+        let mut cmd = tokio::process::Command::new("kask");
+        cmd.arg("sovereignty").arg("verify").arg("--json");
+
+        if let Some(ref p) = principle {
+            cmd.arg("--principle").arg(p);
+        }
+
+        cmd.stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        match cmd.output().await {
+            Ok(output) => {
+                if output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    // The CLI outputs JSON to stdout
+                    span.ok_json(serde_json::json!({
+                        "success": true,
+                        "report": serde_json::from_str::<serde_json::Value>(&stdout).unwrap_or_else(|_| serde_json::json!({"raw": stdout})),
+                    }))
+                } else {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    span.ok_json(serde_json::json!({
+                        "success": false,
+                        "error": stderr.trim(),
+                    }))
+                }
+            }
+            Err(e) => span.ok_json(serde_json::json!({
+                "success": false,
+                "error": format!("Failed to invoke kask: {e}"),
+            })),
+        }
     }
 }
 

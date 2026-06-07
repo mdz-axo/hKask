@@ -43,6 +43,10 @@ define_store!(SovereigntyBoundaryStore);
 
 impl SovereigntyBoundaryStore {
     /// Initialize the database schema
+    ///
+    /// Creates the `sovereignty_boundaries` table if it doesn't exist and
+    /// applies any pending migrations (column renames, column drops from
+    /// Magna Carta refactoring).
     pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -61,6 +65,109 @@ impl SovereigntyBoundaryStore {
             CREATE INDEX IF NOT EXISTS idx_sovereignty_updated ON sovereignty_boundaries(updated_at);
             ",
         )?;
+
+        // Migrations for Magna Carta refactoring
+        self.migrate_resistance_column(&conn)?;
+        self.migrate_drop_kill_zone(&conn)?;
+
+        Ok(())
+    }
+
+    /// Migrate the `resistance` column to `requires_affirmative_consent`.
+    ///
+    /// The Magna Carta renamed "Acquisition Resistance" to "Affirmative Consent",
+    /// and the storage column was renamed accordingly. If the old column is
+    /// present, this rebuilds the table with the new schema.
+    fn migrate_resistance_column(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> Result<(), SovereigntyStoreError> {
+        let has_old_column = conn
+            .prepare("SELECT resistance FROM sovereignty_boundaries LIMIT 0")
+            .is_ok();
+
+        if !has_old_column {
+            return Ok(());
+        }
+
+        tracing::info!(
+            target: "hkask.storage.migration",
+            "Migrating sovereignty_boundaries: resistance → requires_affirmative_consent"
+        );
+
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS sovereignty_boundaries_new (
+                id TEXT PRIMARY KEY,
+                webid TEXT NOT NULL UNIQUE,
+                sovereign_categories TEXT NOT NULL,
+                shared_categories TEXT NOT NULL,
+                public_categories TEXT NOT NULL,
+                requires_affirmative_consent TEXT NOT NULL DEFAULT 'true',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            INSERT OR IGNORE INTO sovereignty_boundaries_new
+                (id, webid, sovereign_categories, shared_categories, public_categories,
+                 requires_affirmative_consent, created_at, updated_at)
+            SELECT id, webid, sovereign_categories, shared_categories, public_categories,
+                   'true', created_at, updated_at
+            FROM sovereignty_boundaries;
+            DROP TABLE sovereignty_boundaries;
+            ALTER TABLE sovereignty_boundaries_new RENAME TO sovereignty_boundaries;
+            CREATE INDEX IF NOT EXISTS idx_sovereignty_webid ON sovereignty_boundaries(webid);
+            CREATE INDEX IF NOT EXISTS idx_sovereignty_updated ON sovereignty_boundaries(updated_at);
+            ",
+        )?;
+
+        Ok(())
+    }
+
+    /// Drop the `kill_zone_threshold` column (kill-zone was removed from Magna Carta).
+    ///
+    /// If the column is present, this rebuilds the table without it.
+    fn migrate_drop_kill_zone(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> Result<(), SovereigntyStoreError> {
+        let has_column = conn
+            .prepare("SELECT kill_zone_threshold FROM sovereignty_boundaries LIMIT 0")
+            .is_ok();
+
+        if !has_column {
+            return Ok(());
+        }
+
+        tracing::info!(
+            target: "hkask.storage.migration",
+            "Migrating sovereignty_boundaries: dropping kill_zone_threshold column"
+        );
+
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS sovereignty_boundaries_new (
+                id TEXT PRIMARY KEY,
+                webid TEXT NOT NULL UNIQUE,
+                sovereign_categories TEXT NOT NULL,
+                shared_categories TEXT NOT NULL,
+                public_categories TEXT NOT NULL,
+                requires_affirmative_consent TEXT NOT NULL DEFAULT 'true',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            INSERT OR IGNORE INTO sovereignty_boundaries_new
+                (id, webid, sovereign_categories, shared_categories, public_categories,
+                 requires_affirmative_consent, created_at, updated_at)
+            SELECT id, webid, sovereign_categories, shared_categories, public_categories,
+                   requires_affirmative_consent, created_at, updated_at
+            FROM sovereignty_boundaries;
+            DROP TABLE sovereignty_boundaries;
+            ALTER TABLE sovereignty_boundaries_new RENAME TO sovereignty_boundaries;
+            CREATE INDEX IF NOT EXISTS idx_sovereignty_webid ON sovereignty_boundaries(webid);
+            CREATE INDEX IF NOT EXISTS idx_sovereignty_updated ON sovereignty_boundaries(updated_at);
+            ",
+        )?;
+
         Ok(())
     }
 

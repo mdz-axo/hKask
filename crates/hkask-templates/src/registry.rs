@@ -10,7 +10,7 @@
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
-use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType};
+use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType, Visibility};
 use std::collections::HashMap;
 
 /// Unified template + skill registry
@@ -165,6 +165,15 @@ impl Registry {
 
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
+    }
+
+    /// List skills filtered by visibility.
+    pub fn list_skills_by_visibility(&self, visibility: Visibility) -> Vec<Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.visibility == visibility)
+            .cloned()
+            .collect()
     }
 
     pub fn remove_skill(&mut self, id: &str) -> Option<Skill> {
@@ -588,6 +597,14 @@ impl SkillRegistryIndex for Registry {
 
     fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
+    }
+
+    fn list_skills_by_visibility(&self, visibility: hkask_types::Visibility) -> Vec<Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.visibility == visibility)
+            .cloned()
+            .collect()
     }
 
     fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {

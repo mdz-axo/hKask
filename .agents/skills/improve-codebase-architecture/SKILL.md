@@ -1,5 +1,6 @@
 ---
 name: improve-codebase-architecture
+visibility: public
 description: "Find deepening opportunities in a codebase. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, make a codebase more testable, or says 'this is a ball of mud'."
 ---
 

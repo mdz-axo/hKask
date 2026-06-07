@@ -1,5 +1,6 @@
 ---
 name: tdd
+visibility: public
 description: "Test-driven development with red-green-refactor loop. Use when building features or fixing bugs with TDD, mentions 'red-green-refactor', wants integration tests, or asks for test-first development."
 ---
 

@@ -206,6 +206,17 @@ pub enum SovereigntyAction {
         #[arg(long)]
         category: String,
     },
+
+    /// Verify Magna Carta compliance (run sovereignty audit)
+    Verify {
+        /// Verify only this principle (p1, p2, p3, p4). Omit to verify all.
+        #[arg(long)]
+        principle: Option<String>,
+
+        /// Output as JSON (for MCP/API consumption)
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]

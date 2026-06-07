@@ -19,6 +19,7 @@ pub mod goal;
 pub mod helpers;
 pub mod keystore;
 pub mod loops;
+pub mod magna_carta;
 pub mod mcp;
 
 pub mod models;

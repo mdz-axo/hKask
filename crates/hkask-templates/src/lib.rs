@@ -19,12 +19,14 @@ pub mod prompt_strategy;
 
 pub mod registry;
 pub mod registry_sqlite;
+pub mod skill_loader;
 
 pub use embedding_port::OkapiEmbedding;
 pub use executor::ManifestExecutor;
 pub use hkask_types::ports::BundleRegistryIndex;
 pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
+pub use hkask_types::ports::SkillZone;
 pub use hkask_types::{BundleManifest, SkillPolarity};
 pub use inference_port::OkapiInference;
 
@@ -39,3 +41,4 @@ pub use prompt_strategy::PromptStrategy;
 
 pub use registry::Registry;
 pub use registry_sqlite::SqliteRegistry;
+pub use skill_loader::{SkillFrontMatter, SkillLoadResult, SkillLoader};
