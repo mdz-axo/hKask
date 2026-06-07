@@ -116,7 +116,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-UTOIPA-001
-verified_date: 2026-05-20
+verified_date: 2026-06-07
 verified_against: crates/hkask-api/src/openapi.rs:11; crates/hkask-cli/src/main.rs:385
 status: VERIFIED
 -->

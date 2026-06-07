@@ -48,7 +48,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PRIN-001
-verified_date: 2026-05-20
+verified_date: 2026-06-07
 verified_against: AGENTS.md; crates/hkask-agents/src/pod.rs; crates/hkask-agents/src/bot.rs; crates/hkask-agents/src/replicant.rs
 status: VERIFIED
 -->
@@ -274,7 +274,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PRIN-002
-verified_date: 2026-05-20
+verified_date: 2026-06-07
 verified_against: crates/hkask-agents/src/adapters/mod.rs; crates/hkask-mcp/src/runtime.rs; crates/hkask-templates/src/ports.rs
 status: VERIFIED
 -->

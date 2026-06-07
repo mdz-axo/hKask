@@ -185,7 +185,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-001
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/id.rs; crates/hkask-types/src/event.rs; crates/hkask-types/src/goal.rs; crates/hkask-types/src/capability.rs; crates/hkask-types/src/spec.rs; crates/hkask-types/src/template.rs; crates/hkask-types/src/lexicon.rs; crates/hkask-types/src/sovereignty.rs
 status: VERIFIED
 -->
@@ -303,7 +303,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-002
-verified_date: 2026-06-05
+verified_date: 2026-06-07
 verified_against: crates/hkask-agents/src/pod/mod.rs; crates/hkask-agents/src/acp/mod.rs; crates/hkask-agents/src/sovereignty.rs; crates/hkask-agents/src/consent.rs; crates/hkask-agents/src/curator/escalation.rs
 status: CORRECTED — Bot/Replicant are AgentKind variants (not separate structs); OCAP/AttenuationHistory/AttenuationEntry removed (never existed); bot.rs/replicant.rs/pod.rs do not exist (actual: pod/mod.rs)
 -->
@@ -393,7 +393,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-003
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-ensemble/src/chat.rs; crates/hkask-ensemble/src/deliberation.rs; crates/hkask-ensemble/src/macaroon.rs; crates/hkask-ensemble/src/capability.rs; crates/hkask-ensemble/src/webid_registry.rs; crates/hkask-ensemble/src/adapters.rs; crates/hkask-ensemble/src/ports.rs
 status: NEEDS_REVERIFY
 -->
@@ -459,7 +459,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-004
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-memory/src/episodic.rs; crates/hkask-memory/src/semantic.rs; crates/hkask-memory/src/goal_memory.rs; crates/hkask-memory/src/bayesian.rs; crates/hkask-memory/src/recall_dedup.rs
 status: VERIFIED
 -->
@@ -541,7 +541,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-005
-verified_date: 2026-06-05
+verified_date: 2026-06-07
 verified_against: crates/hkask-mcp/src/runtime.rs; crates/hkask-mcp/src/dispatch.rs; crates/hkask-mcp/src/security.rs; crates/hkask-mcp/src/server.rs
 status: CORRECTED — SecurityGateway/SecurityPolicy/AuditEntry/ArchivalService/SpanEmitter removed (never existed); adapter_container.rs/archival_service.rs do not exist
 -->
@@ -641,7 +641,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-006
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-api/src/lib.rs; crates/hkask-api/src/routes.rs; crates/hkask-api/src/openapi.rs
 status: VERIFIED
 -->
@@ -696,7 +696,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-007
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-keystore/src/keychain.rs; crates/hkask-keystore/src/encryption.rs
 status: VERIFIED
 -->
@@ -800,7 +800,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-009
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-storage/src/triples.rs; crates/hkask-storage/src/embeddings.rs; crates/hkask-storage/src/blobs.rs; crates/hkask-storage/src/nu_event_store.rs; crates/hkask-storage/src/audit_log.rs; crates/hkask-storage/src/goals.rs; crates/hkask-storage/src/sovereignty.rs; crates/hkask-storage/src/spec_store.rs
 status: VERIFIED
 -->
@@ -902,7 +902,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-010
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-cns/src/spans.rs; crates/hkask-cns/src/algedonic.rs; crates/hkask-cns/src/variety.rs; crates/hkask-cns/src/energy.rs; crates/hkask-cns/src/runtime.rs; crates/hkask-cns/src/review_queue.rs; crates/hkask-cns/src/observers/composition.rs; crates/hkask-cns/src/observers/sovereignty.rs; crates/hkask-cns/src/goal_variety.rs
 status: VERIFIED
 -->
@@ -1039,7 +1039,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-011
-verified_date: 2026-06-05
+verified_date: 2026-06-07
 verified_against: crates/hkask-templates/src/registry.rs; crates/hkask-templates/src/ports.rs; crates/hkask-templates/src/provenance.rs
 status: CORRECTED — DependencyGraph/AuditTrail/engine.rs/manifest.rs/cascade.rs/curator_pipeline.rs/context_assembly/resilience/contract_validator/capability_validator/dependency/audit files do not exist
 -->
@@ -1169,7 +1169,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-012
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: mcp-servers/hkask-mcp-inference/src/main.rs; mcp-servers/hkask-mcp-web/src/main.rs; mcp-servers/hkask-mcp-ocap/src/main.rs; Cargo.toml workspace members
 status: VERIFIED
 -->
@@ -1245,7 +1245,7 @@ graph TB
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-008
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: Cargo.toml workspace dependencies; crates/*/src/lib.rs import analysis
 status: VERIFIED
 -->
@@ -1262,7 +1262,7 @@ status: VERIFIED
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-009
-verified_date: 2026-05-29
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/goal.rs; crates/hkask-storage/src/goals.rs
 status: VERIFIED
 -->
@@ -1291,7 +1291,7 @@ status: VERIFIED
 
 ## Review Acknowledgment
 
-A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`, the shared-secret nature of `RussellAcpAdapter`, and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`domain-and-capability.md`](../domain-and-capability.md) §5.5) and the relevant ADRs. The full review ERDs remain in `docs/review/` as archival artifacts.
+A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`, the shared-secret nature of `RussellAcpAdapter`, and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`domain-and-capability.md`](../domain-and-capability.md) §5.5) and the relevant ADRs. The review ERDs have been archived to `docs/archive/2026-06-07-documentation-refresh/review/`.
 
 ---
 

@@ -144,6 +144,11 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-58** | Remove duplicate Verification section from architecture-master; add self-application precedent note to SCAFFOLD §6.1 | 2026-06-07 | Points to DDMVSS_SCAFFOLD §6 |
 | **R-59** | Fix OQ-3 to note 'arsenal' is not a hKask term | 2026-06-07 | OPEN_QUESTIONS.md OQ-3 rationale |
 | **R-60** | Add ddmvss_categories to ADR template body frontmatter | 2026-06-07 | ADR_TEMPLATE.md |
+| **R-61** | Archive docs/review/ directory (26 files — session artifacts; structural insights incorporated into domain-and-capability.md and subsystem-erds.md) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/review/` |
+| **R-62** | Fix DOCUMENTATION_STANDARDS §6.2 location paths (standards/→specifications/, adr/→architecture/) | 2026-06-07 | DOCUMENTATION_STANDARDS.md §6.2 |
+| **R-63** | Add forward-references from canonical specs to reference docs (okapi, ports-inventory, utoipa, template-header, hLexicon, Curator persona) | 2026-06-07 | interface-and-composition.md, domain-and-capability.md |
+| **R-64** | Incorporate review findings: type×primitive matrix into domain-and-capability.md, ERD structural notes into subsystem-erds.md | 2026-06-07 | Review artifact absorption |
+| **R-65** | Add 7 untracked future questions from FUTURE.md to OPEN_QUESTIONS.md | 2026-06-07 | FUT-002, FUT-003, FUT-004, FUT-005, FUT-007, FUT-008, FUT-009 |
 
 ---
 

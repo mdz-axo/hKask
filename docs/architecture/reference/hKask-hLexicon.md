@@ -79,7 +79,7 @@ flowchart LR
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LEX-001
-verified_date: 2026-05-29
+verified_date: 2026-06-07
 verified_against: crates/hkask-templates/src/hlexicon_source.rs (parse_markdown_catalog, render_workspace_yaml, load_workspace_lexicon, hlexicon_yaml_matches_markdown, regenerate_workspace_yaml); registry/registries/hlexicon-workspace.yaml
 status: VERIFIED
 -->

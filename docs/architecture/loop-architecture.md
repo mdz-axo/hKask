@@ -70,7 +70,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-001
-verified_date: 2026-05-31
+verified_date: 2026-06-07
 verified_against: crates/hkask-cns/src/energy.rs:55; trust-security-observability.md §4.6-4.7
 status: VERIFIED
 -->
@@ -181,7 +181,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-002
-verified_date: 2026-06-03
+verified_date: 2026-06-07
 verified_against: crates/hkask-cns/src/runtime.rs; crates/hkask-agents/src/pod/mod.rs; crates/hkask-mcp/src/runtime.rs; crates/hkask-memory/src; crates/hkask-templates/src
 status: CORRECTED
 -->
@@ -413,7 +413,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-003
-verified_date: 2026-06-03
+verified_date: 2026-06-07
 verified_against: PRINCIPLES.md §1.4; trust-security-observability.md §4.4; domain-and-capability.md §5; loop-architecture.md §4.4
 status: REMEDIATED
 -->

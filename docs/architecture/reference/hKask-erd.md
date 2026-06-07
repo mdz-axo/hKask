@@ -172,7 +172,7 @@ graph TB
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-002
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: Cargo.toml workspace members; crates/*/src/lib.rs
 status: VERIFIED
 -->
@@ -225,7 +225,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-003
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-mcp/src/dispatch.rs; crates/hkask-templates/src/manifest.rs
 status: VERIFIED
 -->
@@ -276,7 +276,7 @@ stateDiagram-v2
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ERD-004
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-templates/src/executor.rs, crates/hkask-types/src/bundle.rs
 status: VERIFIED
 -->

@@ -5,6 +5,9 @@
 //! credential resolution, #[tool] macro dispatch, handler invocation,
 //! and response serialization.
 //!
+//! Uses the rmcp client library to spawn the spec server as a child
+//! process and call tools through the MCP protocol.
+//!
 //! Run with: cargo test -p hkask-mcp-spec --test mcp_protocol
 
 use rmcp::model::CallToolRequestParams;
@@ -13,9 +16,25 @@ use rmcp::transport::TokioChildProcess;
 use serde_json::Value;
 use tokio::process::Command;
 
+fn init_tracing() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .try_init();
+}
+
 /// Spawn the spec server as a child process with the required environment,
-/// returning the rmcp client peer.
-async fn spawn_spec_server() -> rmcp::service::Peer<RoleClient> {
+/// returning the rmcp client peer and the RunningService handle.
+///
+/// The RunningService must be kept alive for the duration of the test
+/// because dropping it cancels the CancellationToken which closes the
+/// transport. We return it so the caller can keep it alive.
+async fn spawn_spec_server() -> (
+    rmcp::service::Peer<RoleClient>,
+    rmcp::service::RunningService<RoleClient, Box<dyn rmcp::service::DynService<RoleClient>>>,
+) {
     let binary = std::env::var("CARGO_BIN_EXE_hkask_mcp_spec").unwrap_or_else(|_| {
         eprintln!("[mcp_protocol] CARGO_BIN_EXE_hkask_mcp_spec not set, using fallback");
         // Try common locations relative to workspace root
@@ -43,17 +62,10 @@ async fn spawn_spec_server() -> rmcp::service::Peer<RoleClient> {
         .serve(transport)
         .await
         .expect("Failed to connect to spec server");
+    eprintln!("[mcp_protocol] Connected to spec server successfully");
     let peer = running.peer().clone();
 
-    // Keep the RunningService alive in a background task so it doesn't get dropped.
-    // The peer holds a reference to the service loop, but the RunningService
-    // must stay alive to drive the message pump.
-    tokio::spawn(async move { running.waiting().await.ok() });
-
-    // Brief pause to let the message pump stabilize after initialization.
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-    peer
+    (peer, running)
 }
 
 /// Helper to extract text content from a CallToolResult.
@@ -80,7 +92,8 @@ fn args(json_str: &str) -> serde_json::Map<String, Value> {
 // REQ: INVAR-001 — spec/test/invariant is listed as an available tool
 #[tokio::test]
 async fn test_invariant_tool_is_listed() {
-    let peer = spawn_spec_server().await;
+    init_tracing();
+    let (peer, _running) = spawn_spec_server().await;
     let tools = peer.list_all_tools().await.expect("Failed to list tools");
     let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone().into_owned()).collect();
 
@@ -93,7 +106,7 @@ async fn test_invariant_tool_is_listed() {
 // REQ: VERIFY-001 — spec/test/verify is listed as an available tool
 #[tokio::test]
 async fn test_verify_tool_is_listed() {
-    let peer = spawn_spec_server().await;
+    let (peer, _running) = spawn_spec_server().await;
     let tools = peer.list_all_tools().await.expect("Failed to list tools");
     let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone().into_owned()).collect();
 
@@ -106,7 +119,7 @@ async fn test_verify_tool_is_listed() {
 // REQ: INVAR-002 — spec/test/invariant rejects requests without capability token
 #[tokio::test]
 async fn test_invariant_rejects_missing_capability_token() {
-    let peer = spawn_spec_server().await;
+    let (peer, _running) = spawn_spec_server().await;
 
     let params = CallToolRequestParams::new("spec_test_invariant")
         .with_arguments(args(r#"{ "spec_id": "00000000-0000-0000-0000-000000000001", "seam": "spec-test-invariant", "invariant": "rejects-missing-token", "category": "PublicInterface" }"#));
@@ -123,7 +136,7 @@ async fn test_invariant_rejects_missing_capability_token() {
 // REQ: VERIFY-002 — spec/test/verify rejects requests without capability token
 #[tokio::test]
 async fn test_verify_rejects_missing_capability_token() {
-    let peer = spawn_spec_server().await;
+    let (peer, _running) = spawn_spec_server().await;
 
     let params = CallToolRequestParams::new("spec_test_verify")
         .with_arguments(args(r#"{ "category": "domain" }"#));
@@ -140,7 +153,7 @@ async fn test_verify_rejects_missing_capability_token() {
 // REQ: INVAR-004 + VERIFY-003 — full round-trip: capture, invariant, verify
 #[tokio::test]
 async fn test_capture_then_invariant_then_verify() {
-    let peer = spawn_spec_server().await;
+    let (peer, _running) = spawn_spec_server().await;
 
     // Step 1: Capture a spec (no capability token → will fail with permission_denied,
     // but proves the tool is callable through MCP protocol)

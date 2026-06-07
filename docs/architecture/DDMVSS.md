@@ -231,7 +231,7 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DDMVSS-001
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/spec.rs; crates/hkask-templates/src/manifest.rs
 status: VERIFIED
 -->
@@ -392,7 +392,7 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DDMVSS-002
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/spec.rs; crates/hkask-templates/src/manifest.rs
 status: VERIFIED
 -->
@@ -1043,7 +1043,7 @@ graph TB
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DDMVSS-003
-verified_date: 2026-05-24
+verified_date: 2026-06-07
 verified_against: crates/hkask-types/src/spec.rs; crates/hkask-templates/src/manifest.rs
 status: VERIFIED
 -->

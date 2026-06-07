@@ -77,4 +77,4 @@ Resolution priority: `SecretRef::Derived` (preferred) → `SecretRef::Env` → `
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-027 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-027 — v0.23.0*

@@ -391,6 +391,80 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ---
 
+## Open Questions from Review Findings (2026-06-07)
+
+*Questions surfaced during the v0.23 documentation review that were not previously tracked in OPEN_QUESTIONS.md.*
+
+### FUT-002: Should `lambda_for_category` be public?
+
+**DDMVSS Category:** Capability  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+`lambda_for_category` is a private `fn` with a fixed 5-category dispatch table. If the DDMVSS category set expands (as it did from 5 to 9), the dispatch table silently diverges from `SpecCategory::all()`. Recommendation: either make it `pub` with a documented contract, or replace it with `SpecCategory::all()` iteration.
+
+---
+
+### FUT-003: Is `Dampener.override_cooldown` per-issuer or global?
+
+**DDMVSS Category:** Trust  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+Currently, `Dampener.override_cooldown` is global — any issuer's metacognitive override suppresses all subsequent overrides for 120s. This means a low-trust issuer can starve a high-trust issuer. Should cooldown be per-issuer (per-`WebID`)? Per-issuer would be more principled but requires a `HashMap<WebID, Instant>` and introduces memory growth proportional to active issuers.
+
+---
+
+### FUT-004: Is the MCP gateway a membrane for all servers, or a passthrough for some?
+
+**DDMVSS Category:** Capability, Trust  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The remaining 19 pass tool calls through without OCAP checks. This means the "capability membrane" described in `domain-and-capability.md` §5.5 is selectively permeable. Should all servers gate? Should servers without side effects (e.g., `hkask-mcp-spec` read-only queries) be exempted by design?
+
+---
+
+### FUT-005: Is `SpecId` a brand or a plain `String`?
+
+**DDMVSS Category:** Domain  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+`SpecId` is currently a type alias, not a newtype. If it is a plain `String`, anyone can construct a `Spec` referencing any other `Spec` without provenance. If it is a brand type (newtype with private constructor), only the spec creation tools can mint valid `SpecId`s. This affects spec composition and curation authority.
+
+---
+
+### FUT-007: Per-issuer override cooldown (sibling of FUT-003)
+
+**DDMVSS Category:** Trust  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question asks: what is the per-issuer cooldown semantics? Should it scale with trust tier? Should it have a ceiling and floor? Blocked by FUT-003's resolution.
+
+---
+
+### FUT-008: Russell bridge revocation granularity — global vs independent
+
+**DDMVSS Category:** Interface  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+When a Russell bridge is revoked, is revocation global (all bridges for that agent) or independent (per-bridge)? Currently, revocation appears to be all-or-nothing. Independent revocation for multiple bridges is not supported, limiting multi-bridge agent configurations.
+
+---
+
+### FUT-009: Span namespace `cns.cli.*` vs `cns.cybernetics.*` — ADR needed
+
+**DDMVSS Category:** Observability  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+The canonical CNS span listing in `PRINCIPLES.md` §1.4 uses `cns.cybernetics.*` for some spans, while `AGENTS.md` and code use `cns.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
+
+---
+
 ## Resolution Summary
 
 | OQ | Status | Decision | Date |

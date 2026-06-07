@@ -76,7 +76,7 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-001
-verified_date: 2026-06-06
+verified_date: 2026-06-07
 verified_against: crates/hkask-storage/src/database.rs; triples.rs; nu_event_store.rs; embeddings.rs; spec_store.rs; goals.rs
 status: VERIFIED
 -->
