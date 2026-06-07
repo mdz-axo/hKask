@@ -131,7 +131,6 @@ ignores them.
 | `process_manifest: Option<BundleManifest>` field on `ReplState` | `crates/hkask-cli/src/repl/mod.rs:137` | Set only when the agent YAML declares `process_manifest`. Curator.yaml does, so it's populated for the default agent. Other agents (R7.x) have no manifest, and `process_manifest` stays `None` for them. The field is intentional. | n/a |
 | `manifest_executor: Option<ManifestExecutor<McpDispatcher>>` field on `ReplState` | `crates/hkask-cli/src/repl/mod.rs:133` | Same as `process_manifest` — populated when the agent has a manifest. | n/a |
 | `OnboardingError::Database(String)` | `crates/hkask-cli/src/onboarding.rs:33` | Primitive String payload. Pre-requisite for P3.5 (structured storage errors). | 2026-07-06 |
-| `AgentError::CapabilityError(String)` and 4 other `String` variants | `crates/hkask-cli/src/errors.rs:11-30` | Primitive String payloads. Same pre-requisite. | 2026-07-06 |
 | `EnsembleError::SessionNotFound(String)` and 3 others | `crates/hkask-cli/src/errors.rs:30-50` | Same. | 2026-07-06 |
 | `CuratorError::*` 4 variants | `crates/hkask-cli/src/errors.rs:49-65` | Same. | 2026-07-06 |
 | `UserError::*` 4 variants | `crates/hkask-cli/src/errors.rs:81-95` | Same. | 2026-07-06 |
@@ -221,6 +220,12 @@ materialize; remove the `#[allow(dead_code)]` and add a real consumer if it did.
   builder, DB table, index, and round-trip read/write paths were all removed.
   Execution ordering is owned by `BundleManifestStep.ordinal` in the manifest
   YAML, which is the right level of granularity.
+- ✅ **`AgentError` P3.5 partial** (commits `79cd9cfe` + pending) — added
+  `From<AcpError>`, `From<AgentRegistryError>`, `From<uuid::Error>`,
+  `From<RegistryError>`, `From<RegistryLoaderError>` to `AgentError`. Removed
+  the dead `CapabilityError` and `UnregistrationFailed` variants. Added 3 P8
+  property tests verifying Display includes the upstream cause. `RegistryError`
+  also gained `Infra(#[from] InfrastructureError)`.
 - ✅ **`P3.5 close-out` + `P3.6 escalation extraction`** — both closed in
   commits `aaec5285` and `fbbb6265` respectively. The Fowler audit
   (`docs/status/fowler-audit-status.md`) now shows P1 + P2 fully done and
@@ -228,13 +233,11 @@ materialize; remove the `#[allow(dead_code)]` and add a real consumer if it did.
 
 ## Next steps (priority order)
 
-1. **Manifest config sub-structs** (medium) — decide whether `BundleManifest::cns`,
+1. **CLI error enums — `EnsembleError`, `CuratorError`, `UserError`** (medium) — same pattern as the `AgentError` work. Migrate from `String` payloads to typed `From<...>` wrappers.
+2. **Manifest config sub-structs** (medium) — decide whether `BundleManifest::cns`,
    `audit`, `gas`, `ocap`, `error_handling`, `convergence` are read by the
    executor. If not, delete (P6). If yes, implement the enforcement in
    `ManifestExecutor`. The 8 items in `hkask-types` are clustered here.
-2. **CLI error enums** (medium) — migrate `AgentError`, `EnsembleError`,
-   `CuratorError`, `UserError`, `RegistryError` from `String` payloads to typed
-   variants. Same pattern as the P3.5 work.
 3. **`McpPort` folding** (medium) — fold the trait into `McpDispatcher`
    concrete methods. The user's commit `73100319` started this in
    `executor.rs` (made `ManifestExecutor` non-generic) but the test file
