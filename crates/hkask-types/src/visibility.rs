@@ -133,9 +133,49 @@ impl AccessControl {
         self
     }
 
-    #[must_use = "builder methods must be chained or assigned"]
+    /// Set the visibility mode.
+    ///
+    /// F-SYN-004: this method refuses the visibility *flip* from a
+    /// private/perspective-bound (episodic) value to a shared/public
+    /// value. Flipping would expose the perspective to a wider
+    /// audience without removing the perspective, which is the
+    /// privacy-laundering pattern. To legitimately share an
+    /// episodic triple, call `without_perspective()` first.
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
-        self.visibility = visibility;
+        // F-SYN-004: refuse perspective-locked flips.
+        if self.is_episodic() {
+            match visibility {
+                Visibility::Shared | Visibility::Public => {
+                    // The flip would expose the perspective to a wider
+                    // audience. The caller must clear the perspective
+                    // explicitly. We panic rather than silently
+                    // laundering because silent data laundering is
+                    // a security incident; loud failure is correct.
+                    panic!(
+                        "AccessControl::with_visibility: refusing perspective-locked \
+                         flip from episodic to {visibility:?}. Call \
+                         `without_perspective()` first to make the triple semantic."
+                    );
+                }
+                Visibility::Private => {
+                    // Private is the *default* for episodic; staying
+                    // private while keeping the perspective is fine.
+                    self.visibility = visibility;
+                }
+            }
+        } else {
+            self.visibility = visibility;
+        }
+        self
+    }
+
+    /// Remove the perspective from this access control.
+    ///
+    /// F-SYN-004: this is the explicit operation to take a triple
+    /// from *episodic* (perspective-bound) to *semantic* (shared,
+    /// perspective-free). It does not change the visibility mode.
+    pub fn without_perspective(mut self) -> Self {
+        self.perspective = None;
         self
     }
 }
@@ -243,5 +283,67 @@ impl TemporalBounds {
             valid_from: self.valid_from,
             valid_to: Some(Utc::now()),
         }
+    }
+}
+
+#[cfg(test)]
+mod access_control_flip_tests {
+    //! F-SYN-004: the perspective-locked visibility flip is
+    //! refused at the type level. Episodic (perspective-bound)
+    //! access controls cannot be flipped to Shared/Public without
+    //! first clearing the perspective.
+
+    use super::*;
+    use crate::id::WebID;
+
+    fn episodic_ac() -> AccessControl {
+        AccessControl::new(WebID::new())
+    }
+
+    /// A fresh access control can be flipped to any visibility.
+    #[test]
+    fn fresh_ac_accepts_any_visibility() {
+        for v in [Visibility::Private, Visibility::Public, Visibility::Shared] {
+            let ac = AccessControl::default().with_visibility(v);
+            assert_eq!(ac.visibility, v);
+        }
+    }
+
+    /// A perspective-bound (episodic) access control refuses the
+    /// flip to Shared.
+    #[test]
+    #[should_panic(expected = "refusing perspective-locked flip")]
+    fn episodic_ac_refuses_flip_to_shared() {
+        let ac = episodic_ac().with_visibility(Visibility::Shared);
+        // Should not reach here.
+    }
+
+    /// A perspective-bound access control refuses the flip to Public.
+    #[test]
+    #[should_panic(expected = "refusing perspective-locked flip")]
+    fn episodic_ac_refuses_flip_to_public() {
+        let ac = episodic_ac().with_visibility(Visibility::Public);
+        // Should not reach here.
+    }
+
+    /// A perspective-bound access control *accepts* staying private.
+    #[test]
+    fn episodic_ac_accepts_private_visibility() {
+        let ac = episodic_ac().with_visibility(Visibility::Private);
+        assert_eq!(ac.visibility, Visibility::Private);
+        assert!(ac.is_episodic());
+    }
+
+    /// The escape hatch: clear the perspective first, *then* flip.
+    /// This is the F-SYN-004 documented path for legitimately
+    /// sharing an episodic triple.
+    #[test]
+    fn episodic_to_semantic_via_without_perspective() {
+        let ac = episodic_ac()
+            .without_perspective()
+            .with_visibility(Visibility::Shared);
+        assert_eq!(ac.visibility, Visibility::Shared);
+        assert!(ac.is_semantic());
+        assert!(!ac.is_episodic());
     }
 }

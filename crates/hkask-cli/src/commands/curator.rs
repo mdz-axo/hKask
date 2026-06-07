@@ -12,6 +12,9 @@ use crate::errors::CuratorError;
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
     let conn = open_registry_db()?;
     let queue = hkask_agents::EscalationQueue::new(conn)?;
+    // Explicit type annotation required: `?` on a bare expression
+    // doesn't infer the Result type without it (compiler can't pick the
+    // conversion target).
     let escalations: Vec<EscalationEntry> = queue.list_pending()?;
     Ok(escalations)
 }
