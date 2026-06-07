@@ -14,7 +14,6 @@ mod goal;
 mod mcp;
 mod models;
 mod pods;
-mod soap_infer;
 mod sovereignty;
 mod spec;
 mod templates;
@@ -34,7 +33,6 @@ pub use goal::goal_router;
 pub use mcp::mcp_router;
 pub use models::models_router;
 pub use pods::pods_router;
-pub use soap_infer::soap_infer_router;
 pub use sovereignty::sovereignty_router;
 pub use spec::spec_router;
 pub use templates::templates_router;
@@ -60,10 +58,7 @@ pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
 pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
-pub use soap_infer::{
-    EventRecord, ObjectiveData, SeverityCounts, SoapInferAuthRequest, SoapInferRequest,
-    SoapInferResponse, ValidationErrorType,
-};
+
 pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use spec::{
     SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,

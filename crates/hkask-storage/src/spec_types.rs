@@ -109,7 +109,6 @@ impl SpecCategory {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DomainAnchor {
     Okapi,
-    Russell,
     Hkask,
 }
 
@@ -117,7 +116,6 @@ impl DomainAnchor {
     pub fn as_str(&self) -> &'static str {
         match self {
             DomainAnchor::Okapi => "okapi",
-            DomainAnchor::Russell => "russell",
             DomainAnchor::Hkask => "hkask",
         }
     }
@@ -125,7 +123,6 @@ impl DomainAnchor {
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "okapi" => Some(DomainAnchor::Okapi),
-            "russell" => Some(DomainAnchor::Russell),
             "hkask" => Some(DomainAnchor::Hkask),
             _ => None,
         }

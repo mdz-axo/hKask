@@ -243,43 +243,6 @@ pub enum DocsAction {
     },
 }
 
-#[derive(Subcommand)]
-pub enum RegistryAction {
-    /// Import Russell skill manifests and prompt templates
-    ImportRussell {
-        /// Source path (Russell skills directory or manifest file)
-        #[arg(short, long)]
-        source: PathBuf,
-
-        /// Dry run - analyze without writing
-        #[arg(long)]
-        dry_run: bool,
-
-        /// Validate only - run hLexicon validation only
-        #[arg(long)]
-        validate_only: bool,
-
-        /// Output format (yaml, json, mermaid)
-        #[arg(short, long, default_value = "yaml")]
-        output_format: String,
-
-        /// Custom transformation rules (YAML file)
-        #[arg(short, long)]
-        transform_rules: Option<PathBuf>,
-
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-
-    /// List migrated assets with provenance
-    ListMigrated {
-        /// Filter by origin (e.g., "russell/web-search")
-        #[arg(short, long)]
-        origin: Option<String>,
-    },
-}
-
 /// Git archival and CAS actions
 #[derive(Subcommand)]
 pub enum GitAction {
@@ -660,7 +623,7 @@ pub enum SpecAction {
         #[arg(short, long, default_value = "domain")]
         category: String,
 
-        /// Domain anchor (okapi, russell, hkask)
+        /// Domain anchor (okapi, hkask)
         #[arg(short, long, default_value = "hkask")]
         domain: String,
 

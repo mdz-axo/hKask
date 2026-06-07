@@ -33,9 +33,6 @@ pub mod template;
 pub mod user;
 pub mod web_search;
 
-// Russell module (directory module with mapper)
-pub mod russell;
-
 // Git archival commands (Phase 9)
 pub use super::git_archival::{
     archive_registry_to_git, create_registry_snapshot, list_registry_archives,
@@ -51,9 +48,6 @@ pub use template::{
 // Re-exports from pod
 pub use hkask_agents::pod::PodStatus;
 pub use pod::{activate_pod, create_pod, deactivate_pod, get_pod_status, list_pods};
-
-// Re-exports from russell
-pub use russell::{import_russell, import_russell_with_mapper};
 
 // Re-exports from ensemble (chat, deliberation, improv, standing sessions)
 pub use ensemble::{

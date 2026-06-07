@@ -57,8 +57,6 @@ fn main() {
 
         Commands::Docs { action } => commands::docs::run(action),
 
-        Commands::Registry { action } => commands::registry::run(&rt, &mut registry, action),
-
         Commands::Git { action } => commands::git_cmd::run(&rt, action),
 
         Commands::Spec { action } => commands::spec::run(action),

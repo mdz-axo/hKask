@@ -82,10 +82,10 @@ impl AgentKind {
         }
     }
 
-    /// Return the Russell ACP persona string for this agent kind.
+    /// Return the persona kind string for this agent kind.
     ///
     /// Maps `Bot` → `"bot"`, `Replicant` → `"replicant"`.
-    pub fn as_russell_persona(&self) -> &'static str {
+    pub fn as_persona_kind(&self) -> &'static str {
         match self {
             AgentKind::Bot => "bot",
             AgentKind::Replicant => "replicant",

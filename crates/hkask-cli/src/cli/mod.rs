@@ -92,13 +92,7 @@ pub enum Commands {
         action: GoalAction,
     },
 
-    /// Registry management
-    Registry {
-        #[command(subcommand)]
-        action: RegistryAction,
-    },
-
-    /// Git archival management (Phase 9)
+    /// Git archival and CAS actions
     Git {
         #[command(subcommand)]
         action: GitAction,

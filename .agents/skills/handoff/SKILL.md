@@ -45,11 +45,20 @@ Which skills the next agent should invoke and why. Include specific commands (e.
 
 Numbered list of architectural or design decisions made during this session, with rationale. These are decisions that a future agent must not silently reverse without understanding why they were made.
 
+## Output Destination
+
+Write the handoff document to the **project root** as `HANDOFF.md`.
+
+If the user specifies a different path, use that instead.
+
+Do NOT write the handoff document inside any skill directory (`.agents/skills/*/`). Skill directories contain only skill definitions — they are not output targets.
+
 ## Rules
 
-1. **Reference, don't duplicate.** Files, PRDs, ADRs, specs — point to them by path. The next agent can read them.
-2. **Progress, not process.** "Removed KillZoneDetector from runtime.rs" not "First I opened runtime.rs, then I deleted lines 45-60, then I..."
-3. **Decisions carry rationale.** Every decision must include *why* and what alternatives were considered.
-4. **No sensitive data.** No API keys, tokens, passwords, or PII. Redact if present.
-5. **Current state is precise.** Exactly where things left off, including what's unfinished, what compiles, what doesn't.
-6. **Max 8000 tokens.** If the handoff exceeds this, the session was too broad — narrow the scope.
+1. **Never write files inside this skill's directory.** The `.agents/skills/handoff/` directory contains only the skill definition (SKILL.md). Handoff documents are session artifacts — write them to the project root as `HANDOFF.md` or to a user-specified path. Writing inside the skill directory clutters it and risks overwriting SKILL.md, which destroys the skill for future agents.
+2. **Reference, don't duplicate.** Files, PRDs, ADRs, specs — point to them by path. The next agent can read them.
+3. **Progress, not process.** "Removed KillZoneDetector from runtime.rs" not "First I opened runtime.rs, then I deleted lines 45-60, then I..."
+4. **Decisions carry rationale.** Every decision must include *why* and what alternatives were considered.
+5. **No sensitive data.** No API keys, tokens, passwords, or PII. Redact if present.
+6. **Current state is precise.** Exactly where things left off, including what's unfinished, what compiles, what doesn't.
+7. **Max 8000 tokens.** If the handoff exceeds this, the session was too broad — narrow the scope.

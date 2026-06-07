@@ -24,12 +24,12 @@ pub mod event;
 pub mod goal;
 pub mod id;
 pub mod identity;
+pub mod inference_config;
 pub mod lexicon;
 pub mod loops;
 pub mod ports;
 pub mod r7;
 pub mod secret;
-pub mod soap_config;
 pub mod sovereignty;
 pub mod template;
 pub mod text;
@@ -69,6 +69,7 @@ pub use id::{
 pub use identity::{
     HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserSession,
 };
+pub use inference_config::InferenceConfig;
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, DispatchTarget,
@@ -89,7 +90,6 @@ pub use ports::{
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
-pub use soap_config::InferenceConfig;
 pub use sovereignty::{DataCategory, SovereigntyPort, UserSovereigntyState};
 pub use template::{LLMParameters, TemplateCrate, TemplateFile};
 pub use text::blake3_hash;

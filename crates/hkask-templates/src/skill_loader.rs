@@ -140,7 +140,7 @@ impl SkillLoader {
 
         // Derive ID and namespace from directory name + zone.
         //
-        // In the public zone, directory names are `<namespace>--<id>` (e.g. "russell--diagnose").
+        // In the public zone, directory names are `<namespace>--<id>` (e.g. "alice--diagnose").
         // In the private zone, directory names are just `<id>` (no namespace).
         let dir_name = skill_dir
             .file_name()
@@ -411,8 +411,8 @@ mod tests {
 
     #[test]
     fn qualified_id_with_namespace() {
-        let skill = Skill::new("diagnose", TemplateType::FlowDef).with_namespace("russell");
-        assert_eq!(skill.qualified_id(), "russell--diagnose");
+        let skill = Skill::new("diagnose", TemplateType::FlowDef).with_namespace("alice");
+        assert_eq!(skill.qualified_id(), "alice--diagnose");
     }
 
     #[test]
@@ -423,11 +423,8 @@ mod tests {
 
     #[test]
     fn parse_qualified_id_valid() {
-        let result = Skill::parse_qualified_id("russell--diagnose");
-        assert_eq!(
-            result,
-            Some(("russell".to_string(), "diagnose".to_string()))
-        );
+        let result = Skill::parse_qualified_id("alice--diagnose");
+        assert_eq!(result, Some(("alice".to_string(), "diagnose".to_string())));
     }
 
     #[test]
@@ -438,21 +435,21 @@ mod tests {
     #[test]
     fn parse_qualified_id_empty_parts() {
         assert!(Skill::parse_qualified_id("--diagnose").is_none());
-        assert!(Skill::parse_qualified_id("russell--").is_none());
+        assert!(Skill::parse_qualified_id("alice--").is_none());
     }
 
     #[test]
     fn namespace_collision_prevention() {
         // Two users publish the same skill name — no collision
         let skill_a = Skill::new("diagnose", TemplateType::FlowDef)
-            .with_namespace("russell")
+            .with_namespace("alice")
             .with_zone(SkillZone::Public);
         let skill_b = Skill::new("diagnose", TemplateType::FlowDef)
-            .with_namespace("curator")
+            .with_namespace("bob")
             .with_zone(SkillZone::Public);
 
-        assert_eq!(skill_a.qualified_id(), "russell--diagnose");
-        assert_eq!(skill_b.qualified_id(), "curator--diagnose");
+        assert_eq!(skill_a.qualified_id(), "alice--diagnose");
+        assert_eq!(skill_b.qualified_id(), "bob--diagnose");
         assert_ne!(skill_a.qualified_id(), skill_b.qualified_id());
     }
 }

@@ -1,4 +1,4 @@
-//! Chat command handlers — inference, memory, and Russell bridge
+//! Chat command handlers — inference and memory
 //!
 //! The chat path uses direct inference via the shared `InferencePort`.
 //! Pod creation is not needed for standard chat — pods are reserved for
@@ -64,8 +64,7 @@ impl TokenUsage {
 
 /// Send a chat message to an agent and return the response.
 ///
-/// Routes through Russell adapter for Russell requests, otherwise uses
-/// direct inference via the shared `InferencePort`.
+/// Uses direct inference via the shared `InferencePort`.
 ///
 /// The chat path uses the `InferencePort` directly — pod creation is not
 /// needed for standard chat. Pods are reserved for multi-agent sessions
@@ -154,17 +153,7 @@ pub async fn chat_with_agent(
 
     let agent = agents.iter().find(|a| a.definition.name == name);
 
-    // R11: Wire Russell Direct Chat
-    if name == "russell" || name == "Russell" {
-        return ChatResponse {
-            text: chat_via_russell(input, agent).await,
-            usage: None,
-            finish_reason: "stop".to_string(),
-            tool_calls: vec![],
-        };
-    }
-
-    // Standard chat flow for non-Russell agents
+    // Standard chat flow
     let mut system_prompt = match agent {
         Some(registered) => registered.definition.compose_system_prompt(),
         None => format!("You are {}, an assistant in the hKask system.\n\n", name),
@@ -462,50 +451,6 @@ pub async fn chat_with_agent(
         usage,
         finish_reason,
         tool_calls,
-    }
-}
-
-/// Chat via Russell ACP bridge (R11: Russell Direct Chat)
-async fn chat_via_russell(input: &str, agent: Option<&hkask_types::RegisteredAgent>) -> String {
-    use hkask_agents::acp::A2AMessage;
-    use hkask_agents::adapters::RussellAcpAdapter;
-    use hkask_agents::ports::AcpPort;
-
-    if agent.is_none() {
-        return "Russell is not registered. Use `kask agent register` to register Russell first."
-            .to_string();
-    }
-
-    let russell_binary =
-        std::env::var("HKASK_RUSSELL_BINARY").unwrap_or_else(|_| "russell-acp-server".to_string());
-
-    let russell_adapter = match RussellAcpAdapter::new(russell_binary) {
-        Ok(adapter) => adapter,
-        Err(e) => return format!("Failed to initialize Russell bridge: {}", e),
-    };
-
-    let webid = WebID::from_persona_with_namespace(b"russell-chat-session", "russell");
-
-    if let Err(e) = russell_adapter
-        .register_agent(webid, hkask_types::AgentKind::Replicant, vec![])
-        .await
-    {
-        return format!("Failed to create Russell session: {}", e);
-    }
-
-    let message = A2AMessage::TemplateDispatch {
-        from: webid,
-        to: Some(webid),
-        template_id: "russell:direct-chat".to_string(),
-        input: serde_json::json!({
-            "message": input,
-        }),
-        correlation_id: uuid::Uuid::new_v4().to_string(),
-    };
-
-    match russell_adapter.send_message(message).await {
-        Ok(response) => response,
-        Err(e) => format!("Russell error: {}", e),
     }
 }
 

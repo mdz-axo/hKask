@@ -25,7 +25,6 @@
 //! - `POST /api/sovereignty/consent/revoke` — Revoke explicit consent
 
 //! - `GET /api/sovereignty/access/check` — Check data access status
-//! - `POST /api/llm/infer` — SOAP inference endpoint for Russell
 //! - `POST /api/episodic/store` — Store episodic triple
 //! - `GET /api/episodic/query` — Query episodic memories
 //! - `GET /api/episodic/usage` — Episodic storage usage
@@ -116,7 +115,6 @@ pub mod error;
 pub mod middleware;
 pub mod openapi;
 pub mod routes;
-pub mod soap_config;
 
 pub use error::ApiError;
 
@@ -124,11 +122,10 @@ pub use error::ApiError;
 pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
-    CreatePodResponse, EventRecord, GrantCapabilityRequest, ListPodsResponse, ModelEntry,
-    ModelListResponse, ModelSearchQuery, ObjectiveData, PodStatusResponse, SeverityCounts,
-    SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SpecCaptureRequest,
-    SpecCaptureResponse, SpecCultivateResponse, SpecListResponse, SpecValidateRequest,
-    SpecValidateResponse, TemplateResponse, ValidationErrorType, VarietyCounterResponse,
+    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
+    ModelSearchQuery, PodStatusResponse, SpecCaptureRequest, SpecCaptureResponse,
+    SpecCultivateResponse, SpecListResponse, SpecValidateRequest, SpecValidateResponse,
+    TemplateResponse, VarietyCounterResponse,
 };
 
 use openapi::ApiDoc;
@@ -251,7 +248,7 @@ pub struct ApiState {
     /// System WebID for signing capabilities
     pub system_webid: WebID,
     /// CNS span emitter for audit trail
-    /// Ensemble inferencer (optional - for Russell SOAP inference)
+    /// Ensemble inferencer (optional — for ensemble inference)
     pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
     /// Spec store for DDMVSS specifications
     pub spec_store: Option<Arc<dyn hkask_storage::SpecStore + Send + Sync>>,
@@ -816,26 +813,6 @@ impl ApiState {
     }
 }
 
-/// Resolve the SOAP capability secret through the keystore's domain-specific
-/// resolution chain.
-pub fn resolve_soap_capability_secret() -> Result<[u8; 32], String> {
-    hkask_keystore::resolve_capability_key()
-        .map(|s| {
-            let mut arr = [0u8; 32];
-            let bytes: &[u8] = &s;
-            let len = bytes.len().min(32);
-            arr[..len].copy_from_slice(&bytes[..len]);
-            arr
-        })
-        .map_err(|e| {
-            format!(
-                "Capability key not available: {}. Run `kask chat` to complete onboarding, \
-                 or set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY.",
-                e
-            )
-        })
-}
-
 /// Create API router with OpenAPI documentation and authentication
 pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(
@@ -853,7 +830,6 @@ pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
         .merge(routes::chat_router().into())
         .merge(routes::models_router().into())
         .merge(routes::ensemble_router().into())
-        .merge(routes::soap_infer_router().into())
         .merge(routes::acp_router().into())
         .merge(routes::bundles_router().into())
         .merge(routes::spec_router().into())

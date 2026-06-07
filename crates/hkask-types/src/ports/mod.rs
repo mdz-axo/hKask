@@ -328,7 +328,7 @@ pub struct Skill {
     pub zone: SkillZone,
     /// Namespace (replicant handle) for collision-free public sharing.
     ///
-    /// Always a user replicant name (e.g. "russell"), never a system agent.
+    /// Always a user replicant name (e.g. "alice"), never a system agent.
     /// System agents (bots) don't author or share skills — only human replicants do.
     ///
     /// In the public zone, skills are stored as `<namespace>--<id>/` directories.

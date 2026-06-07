@@ -3,7 +3,7 @@
 //! Design principles:
 //! - Every capability is reachable from `/help`
 //! - Tab completion for slash commands and agent names
-//! - Fuzzy matching on slash commands (like russell's `/model`)
+//! - Fuzzy matching on slash commands (e.g. `/model`)
 //! - Welcome banner with the Kask amphora logo
 //! - Categorized help so the menu is scannable
 

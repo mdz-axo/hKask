@@ -37,8 +37,6 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("```bash\n");
     md.push_str("kask chat [AGENT]             # Default: Curator\n");
     md.push_str("kask chat -m qwen3:8b        # Start with specific model\n");
-    md.push_str("kask chat russell             # Chat with Russell\n");
-    md.push_str("kask chat Russell -m llama3.1:70b  # Chat with Russell using 70B\n");
     md.push_str("kask chat -f input.txt        # Non-interactive (file input)\n");
     md.push_str("echo \"hello\" | kask chat -f - -m qwen3:8b  # Pipe with model\n");
     md.push_str("```\n\n");
@@ -142,11 +140,8 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("```bash\n");
     md.push_str("# Start chat session\n");
     md.push_str("kask chat\n\n");
-    md.push_str("# Chat with a specific agent\n");
-    md.push_str("kask chat Russell\n\n");
     md.push_str("# Chat with model selection\n");
-    md.push_str("kask chat -m qwen3:8b\n");
-    md.push_str("kask chat Russell -m llama3.1:70b\n\n");
+    md.push_str("kask chat -m qwen3:8b\n\n");
     md.push_str("# Non-interactive with model\n");
     md.push_str("echo \"Summarize this\" | kask chat -f - -m qwen3:8b\n\n");
     md.push_str("# Inside chat: switch models\n");

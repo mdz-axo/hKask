@@ -183,7 +183,7 @@ impl WebID {
     ///
     /// Uses SHA-1 name-based UUID with a fixed namespace.
     /// Combines namespace and persona bytes to prevent collisions across
-    /// different agent registries (e.g., "hkask" vs "russell").
+    /// different agent registries.
     ///
     /// Same namespace + persona bytes → same WebID.
     pub fn from_persona_with_namespace(persona_bytes: &[u8], namespace: &str) -> Self {

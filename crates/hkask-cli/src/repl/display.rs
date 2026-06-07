@@ -193,7 +193,6 @@ pub(super) fn print_command_help(cmd_name: &str) {
             "agent" => {
                 println!();
                 println!("  \x1b[2m/agent\x1b[0m          — Show current agent");
-                println!("  \x1b[2m/agent Russell\x1b[0m  — Switch to Russell");
                 println!("  \x1b[2m/agents\x1b[0m         — List all available agents");
             }
             "model" => {
