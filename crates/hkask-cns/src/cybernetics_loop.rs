@@ -28,7 +28,7 @@
 //! in `SetPoints` + regulation actions via `InferenceRegulation`.
 
 use crate::dampener::Dampener;
-use crate::energy::{AgentGasStatus, GasBudget, GasError};
+use crate::energy::{AgentGasStatus, GasBudget, GasCost, GasError};
 use crate::gas_budget_management::GasBudgetManager;
 use crate::runtime::CnsRuntime;
 use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
@@ -147,7 +147,7 @@ impl CyberneticsLoop {
             .await;
     }
 
-    pub async fn can_proceed(&self, agent: &WebID, gas: u64) -> bool {
+    pub async fn can_proceed(&self, agent: &WebID, gas: GasCost) -> bool {
         self.gas_budget_manager.can_proceed(agent, gas).await
     }
 
@@ -157,7 +157,7 @@ impl CyberneticsLoop {
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call settle_gas() after.
-    pub async fn reserve_gas(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
+    pub async fn reserve_gas(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
         self.gas_budget_manager.reserve_gas(agent, gas).await
     }
 
@@ -165,16 +165,16 @@ impl CyberneticsLoop {
     pub async fn settle_gas(
         &self,
         agent: &WebID,
-        reserved_gas: u64,
-        actual_gas: u64,
-    ) -> Result<u64, GasError> {
+        reserved_gas: GasCost,
+        actual_gas: GasCost,
+    ) -> Result<GasCost, GasError> {
         self.gas_budget_manager
             .settle_gas(agent, reserved_gas, actual_gas)
             .await
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
-    pub async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
+    pub async fn acquire_budget(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
         self.gas_budget_manager.acquire_budget(agent, gas).await
     }
 
@@ -183,7 +183,7 @@ impl CyberneticsLoop {
     }
 
     /// Used by CuratorDirective::ReplenishBudget.
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) {
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) {
         self.gas_budget_manager
             .replenish_agent_budget(agent, amount)
             .await;
@@ -317,7 +317,7 @@ impl CyberneticsLoop {
     /// Metacognitive override — recorded in active_overrides so replenish skips it.
     async fn apply_override_gas_budget(&self, agent: WebID, new_budget: u64) {
         self.gas_budget_manager
-            .apply_override_gas_budget(agent, new_budget)
+            .apply_override_gas_budget(agent, GasCost(new_budget))
             .await;
     }
 
@@ -329,7 +329,7 @@ impl CyberneticsLoop {
     /// Priority-scaled: when priority is provided, replenishment is weighted.
     async fn apply_replenish_budget(&self, agent: WebID, amount: u64, priority: Option<f64>) {
         self.gas_budget_manager
-            .apply_replenish_budget(agent, amount, priority)
+            .apply_replenish_budget(agent, GasCost(amount), priority)
             .await;
     }
 
@@ -382,7 +382,7 @@ impl HkaskLoop for CyberneticsLoop {
         // Energy signals: per-agent remaining ratio
         let budget_ratios = self.gas_budget_manager.energy_ratios().await;
         for (remaining, cap) in budget_ratios {
-            let ratio = remaining as f64 / cap.max(1) as f64;
+            let ratio = remaining.0 as f64 / cap.0.max(1) as f64;
             signals.push(Signal::new(
                 LoopId::Cybernetics,
                 SignalMetric::EnergyRemaining,
@@ -745,10 +745,10 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
-        let budget = GasBudget::new(10_000);
+        let budget = GasBudget::new(GasCost(10_000));
         loop6.register_gas_budget(agent, budget).await;
 
-        assert!(loop6.can_proceed(&agent, 100).await);
+        assert!(loop6.can_proceed(&agent, GasCost(100)).await);
     }
 
     #[tokio::test]
@@ -757,11 +757,11 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
-        let budget = GasBudget::new(10_000);
+        let budget = GasBudget::new(GasCost(10_000));
         loop6.register_gas_budget(agent, budget).await;
 
-        let cost = loop6.acquire_budget(&agent, 100).await.unwrap();
-        assert!(cost > 0);
+        let cost = loop6.acquire_budget(&agent, GasCost(100)).await.unwrap();
+        assert!(cost.0 > 0);
     }
 
     #[tokio::test]
@@ -907,19 +907,19 @@ mod tests {
         let agent = WebID::new();
 
         // Register a very small budget
-        let budget = GasBudget::new(100);
+        let budget = GasBudget::new(GasCost(100));
         loop6.register_gas_budget(agent, budget).await;
 
         // Initially can proceed
-        assert!(loop6.can_proceed(&agent, 10).await);
+        assert!(loop6.can_proceed(&agent, GasCost(10)).await);
 
         // Exhaust the budget
-        while loop6.acquire_budget(&agent, 10).await.is_ok() {
+        while loop6.acquire_budget(&agent, GasCost(10)).await.is_ok() {
             // Keep consuming until budget exhausted
         }
 
         // Now cannot proceed
-        assert!(!loop6.can_proceed(&agent, 10).await);
+        assert!(!loop6.can_proceed(&agent, GasCost(10)).await);
     }
 
     /// Test: Gas replenishment restores capacity
@@ -929,18 +929,18 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
-        let budget = GasBudget::new(100).with_replenish_rate(10);
+        let budget = GasBudget::new(GasCost(100)).with_replenish_rate(GasCost(10));
         loop6.register_gas_budget(agent, budget).await;
 
         // Exhaust the budget
-        while loop6.acquire_budget(&agent, 10).await.is_ok() {}
-        assert!(!loop6.can_proceed(&agent, 10).await);
+        while loop6.acquire_budget(&agent, GasCost(10)).await.is_ok() {}
+        assert!(!loop6.can_proceed(&agent, GasCost(10)).await);
 
         // Replenish all budgets
         loop6.replenish_all_budgets().await;
 
         // Can proceed again — replenished by 10 units
-        assert!(loop6.can_proceed(&agent, 10).await);
+        assert!(loop6.can_proceed(&agent, GasCost(10)).await);
     }
 
     /// Test: Directive replenishment restores specific agent
@@ -950,18 +950,18 @@ mod tests {
         let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
-        let budget = GasBudget::new(100);
+        let budget = GasBudget::new(GasCost(100));
         loop6.register_gas_budget(agent, budget).await;
 
         // Exhaust the budget
-        while loop6.acquire_budget(&agent, 10).await.is_ok() {}
-        assert!(!loop6.can_proceed(&agent, 10).await);
+        while loop6.acquire_budget(&agent, GasCost(10)).await.is_ok() {}
+        assert!(!loop6.can_proceed(&agent, GasCost(10)).await);
 
         // Replenish by directive
-        loop6.replenish_agent_budget(&agent, 50).await;
+        loop6.replenish_agent_budget(&agent, GasCost(50)).await;
 
         // Can proceed — replenished by 50 units
-        assert!(loop6.can_proceed(&agent, 10).await);
+        assert!(loop6.can_proceed(&agent, GasCost(10)).await);
     }
 
     /// Test: Connector latency deviation produces throttle on Communication
@@ -1023,7 +1023,7 @@ mod tests {
 
         // Register initial budget
         loop6
-            .register_gas_budget(agent, GasBudget::new(10_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10_000)))
             .await;
 
         // Send OverrideGasBudget directive
@@ -1043,8 +1043,8 @@ mod tests {
 
         // Verify: the agent's budget should now be 5000
         // After adjustment, remaining=5000, cap=5000
-        assert!(!loop6.can_proceed(&agent, 40_000).await);
-        assert!(loop6.can_proceed(&agent, 100).await);
+        assert!(!loop6.can_proceed(&agent, GasCost(40_000)).await);
+        assert!(loop6.can_proceed(&agent, GasCost(100)).await);
     }
 
     #[tokio::test]
@@ -1053,7 +1053,7 @@ mod tests {
         let agent = WebID::new();
         let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
         loop6
-            .register_gas_budget(agent, GasBudget::new(10_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10_000)))
             .await;
 
         // Send override gas budget directive before tick
@@ -1078,7 +1078,7 @@ mod tests {
         let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
 
         // No budget registered for agent yet
-        assert!(loop6.can_proceed(&agent, 1_000_000).await); // soft limit: allowed
+        assert!(loop6.can_proceed(&agent, GasCost(1_000_000)).await); // soft limit: allowed
 
         // Send OverrideGasBudget for an unregistered agent
         let msg = LoopMessage::warning(
@@ -1094,8 +1094,8 @@ mod tests {
         loop6.process_inbox().await;
 
         // Now the agent has a budget of 500
-        assert!(loop6.can_proceed(&agent, 100).await);
-        assert!(!loop6.can_proceed(&agent, 1_000_000).await);
+        assert!(loop6.can_proceed(&agent, GasCost(100)).await);
+        assert!(!loop6.can_proceed(&agent, GasCost(1_000_000)).await);
     }
 
     #[tokio::test]
@@ -1174,13 +1174,13 @@ mod tests {
         // Step 1: Register a gas budget for the agent
         let initial_cap = 100u64;
         loop6
-            .register_gas_budget(agent, GasBudget::new(initial_cap))
+            .register_gas_budget(agent, GasBudget::new(GasCost(initial_cap)))
             .await;
 
         // Step 2: Exhaust the budget so remaining == 0
-        while loop6.acquire_budget(&agent, 10).await.is_ok() {}
+        while loop6.acquire_budget(&agent, GasCost(10)).await.is_ok() {}
         assert!(
-            !loop6.can_proceed(&agent, 1).await,
+            !loop6.can_proceed(&agent, GasCost(1)).await,
             "Budget should be exhausted before replenishment"
         );
 
@@ -1206,17 +1206,17 @@ mod tests {
 
         // Step 6: Verify the gas budget was increased
         assert!(
-            loop6.can_proceed(&agent, 1).await,
+            loop6.can_proceed(&agent, GasCost(1)).await,
             "Agent should be able to proceed after replenishment"
         );
         // Verify exact replenishment amount (replenish_by caps at cap)
         // With cap=100 and replenish_by(50), remaining should be min(0+50, 100) = 50
         assert!(
-            loop6.can_proceed(&agent, 50).await,
+            loop6.can_proceed(&agent, GasCost(50)).await,
             "Agent should have 50 units available after replenishment"
         );
         assert!(
-            !loop6.can_proceed(&agent, 51).await,
+            !loop6.can_proceed(&agent, GasCost(51)).await,
             "Agent should NOT have more than 50 units available after replenishment from zero"
         );
     }
@@ -1234,7 +1234,9 @@ mod tests {
         let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
 
         // Register a budget with cap=1000
-        loop6.register_gas_budget(agent, GasBudget::new(1000)).await;
+        loop6
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
 
         // Override to a much lower budget (500) via Curation directive
         let msg = LoopMessage::warning(
@@ -1250,11 +1252,11 @@ mod tests {
 
         // Verify: budget is now 500 (cap and remaining)
         assert!(
-            loop6.can_proceed(&agent, 500).await,
+            loop6.can_proceed(&agent, GasCost(500)).await,
             "Agent should have 500 units after override"
         );
         assert!(
-            !loop6.can_proceed(&agent, 501).await,
+            !loop6.can_proceed(&agent, GasCost(501)).await,
             "Agent should NOT exceed overridden budget of 500"
         );
 
@@ -1263,11 +1265,11 @@ mod tests {
 
         // The override must survive: budget should still be capped at 500
         assert!(
-            loop6.can_proceed(&agent, 500).await,
+            loop6.can_proceed(&agent, GasCost(500)).await,
             "Overridden budget must survive replenishment"
         );
         assert!(
-            !loop6.can_proceed(&agent, 501).await,
+            !loop6.can_proceed(&agent, GasCost(501)).await,
             "Replenishment must not restore budget beyond Curation override"
         );
     }
@@ -1281,7 +1283,9 @@ mod tests {
         let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
 
         // Register a budget with cap=1000
-        loop6.register_gas_budget(agent, GasBudget::new(1000)).await;
+        loop6
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
 
         // Override to 200 via Curation
         let override_msg = LoopMessage::warning(
@@ -1296,7 +1300,7 @@ mod tests {
         loop6.process_inbox().await;
 
         // Confirm override is active
-        assert!(!loop6.can_proceed(&agent, 201).await);
+        assert!(!loop6.can_proceed(&agent, GasCost(201)).await);
 
         // Send ClearOverride directive
         let clear_msg = LoopMessage::warning(
@@ -1314,15 +1318,15 @@ mod tests {
         // longer blocked.
         //
         // Exhaust budget first to see replenishment effect
-        while loop6.acquire_budget(&agent, 10).await.is_ok() {}
-        assert!(!loop6.can_proceed(&agent, 1).await);
+        while loop6.acquire_budget(&agent, GasCost(10)).await.is_ok() {}
+        assert!(!loop6.can_proceed(&agent, GasCost(1)).await);
 
         // Replenish should now work (no override blocking it)
         loop6.replenish_all_budgets().await;
 
         // After replenishment, agent should have gas again
         assert!(
-            loop6.can_proceed(&agent, 1).await,
+            loop6.can_proceed(&agent, GasCost(1)).await,
             "After clearing override, normal replenishment should resume"
         );
     }

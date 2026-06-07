@@ -12,7 +12,7 @@
 //! - `cns_energy` — Get an agent's gas budget status
 //! - `cns_backpressure` — Emit a backpressure signal
 
-use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
+use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, GasCost};
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;
 use hkask_types::WebID;
@@ -312,7 +312,10 @@ impl CnsServer {
         // callers can invoke this tool.
         let agent: WebID = agent_id.parse().unwrap_or_else(|_| WebID::new());
 
-        let remaining = self.runtime.replenish_agent_budget(&agent, amount).await;
+        let remaining = self
+            .runtime
+            .replenish_agent_budget(&agent, GasCost(amount))
+            .await;
 
         span.ok_json(serde_json::json!({
             "agent_id": agent_id,

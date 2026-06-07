@@ -244,8 +244,22 @@ pub struct Spec {
     /// Enables version tracking per DDMVSS §5.8 (Lifecycle category).
     /// Set to `None` for specs created programmatically without a manifest.
     pub version: Option<String>,
+    /// Ed25519 signature over the canonical JSON of this spec.
+    /// Produced by `Ed25519SpecSigner::sign_spec()` during spec registration.
+    /// Verified by `Ed25519SpecSigner::verify_spec()` before spec consumption.
+    /// DDMVSS §7 (Trust): specs are curated, not governed — the signature
+    /// authenticates the spec's provenance, not its authority.
+    pub signature: Option<String>,
     pub signed_by: Option<WebID>,
     pub created_at: DateTime<Utc>,
+    /// Valid-from time for bitemporal semantics (DDMVSS §5.7 Persistence).
+    /// When the fact described by this spec became true in the domain.
+    /// `None` means valid since creation (`created_at`).
+    pub valid_from: Option<DateTime<Utc>>,
+    /// Valid-to time for bitemporal semantics (DDMVSS §5.7 Persistence).
+    /// When the fact described by this spec ceased to be true in the domain.
+    /// `None` means still currently valid.
+    pub valid_to: Option<DateTime<Utc>>,
 }
 
 impl Spec {
@@ -258,8 +272,11 @@ impl Spec {
             declared_verbs: Vec::new(),
             goals: Vec::new(),
             version: None,
+            signature: None,
             signed_by: None,
             created_at: Utc::now(),
+            valid_from: None,
+            valid_to: None,
         }
     }
 
@@ -272,6 +289,24 @@ impl Spec {
     /// Set the version (Git SHA) for this spec.
     pub fn with_version(mut self, sha: &str) -> Self {
         self.version = Some(sha.to_string());
+        self
+    }
+
+    /// Set the Ed25519 signature for this spec.
+    pub fn with_signature(mut self, sig: &str) -> Self {
+        self.signature = Some(sig.to_string());
+        self
+    }
+
+    /// Set the valid-from time for bitemporal semantics.
+    pub fn with_valid_from(mut self, dt: DateTime<Utc>) -> Self {
+        self.valid_from = Some(dt);
+        self
+    }
+
+    /// Set the valid-to time for bitemporal semantics.
+    pub fn with_valid_to(mut self, dt: DateTime<Utc>) -> Self {
+        self.valid_to = Some(dt);
         self
     }
 

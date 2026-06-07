@@ -23,6 +23,7 @@
 //! gas leaks from over-estimation.
 
 use crate::cybernetics_loop::CyberneticsLoop;
+use crate::energy::GasCost;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::capability::{
@@ -185,18 +186,19 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         }
 
         // Step 2: Reserve gas budget (hold-settle pattern)
+        let estimated_cost = GasCost(estimated_cost);
         let loop6 = self.cybernetics.read().await;
         if !loop6.can_proceed(&self.agent, estimated_cost).await {
             debug!(
                 target: "cns.tool",
                 agent = ?self.agent,
                 tool = %tool,
-                estimated_cost = estimated_cost,
+                estimated_cost = estimated_cost.0,
                 "Tool invocation rejected — gas budget exceeded"
             );
             return Err(ToolPortError::GasBudgetExceeded(format!(
                 "Gas budget exceeded for agent {:?}, tool {}, estimated cost {}",
-                self.agent, tool, estimated_cost
+                self.agent, tool, estimated_cost.0
             )));
         }
         // Reserve the gas
@@ -206,12 +208,12 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 agent = ?self.agent,
                 tool = %tool,
                 error = %e,
-                estimated_cost = estimated_cost,
+                estimated_cost = estimated_cost.0,
                 "Failed to reserve gas for tool invocation"
             );
             return Err(ToolPortError::GasBudgetExceeded(format!(
                 "Gas reservation failed for agent {:?}, tool {}, estimated cost {}",
-                self.agent, tool, estimated_cost
+                self.agent, tool, estimated_cost.0
             )));
         }
         drop(loop6);
@@ -225,7 +227,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             serde_json::json!({
                 "server": server,
                 "tool": tool,
-                "estimated_cost": estimated_cost,
+                "estimated_cost": estimated_cost.0,
                 "settled": false,
             }),
             0,
@@ -243,19 +245,19 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             target: "cns.tool",
             agent = ?self.agent,
             tool = %tool,
-            estimated_cost = estimated_cost,
+            estimated_cost = estimated_cost.0,
             "Delegating tool invocation (gas reserved)"
         );
         let result = self.inner.invoke(server, tool, args, token).await;
 
         // Step 5: Settle gas cost (hold-settle)
         let actual_cost = match &result {
-            Ok(_) => estimated_cost,      // Full cost on success
-            Err(_) => estimated_cost / 2, // Half cost on failure
+            Ok(_) => estimated_cost.0,      // Full cost on success
+            Err(_) => estimated_cost.0 / 2, // Half cost on failure
         };
         let loop6 = self.cybernetics.read().await;
         if let Err(e) = loop6
-            .settle_gas(&self.agent, estimated_cost, actual_cost)
+            .settle_gas(&self.agent, estimated_cost, GasCost(actual_cost))
             .await
         {
             warn!(
@@ -263,7 +265,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 agent = ?self.agent,
                 tool = %tool,
                 error = %e,
-                reserved = estimated_cost,
+                reserved = estimated_cost.0,
                 actual = actual_cost,
                 "Failed to settle gas after tool invocation"
             );
@@ -272,9 +274,9 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 target: "cns.tool",
                 agent = ?self.agent,
                 tool = %tool,
-                reserved = estimated_cost,
+                reserved = estimated_cost.0,
                 actual = actual_cost,
-                refunded = estimated_cost.saturating_sub(actual_cost),
+                refunded = estimated_cost.0.saturating_sub(actual_cost),
                 "Gas settled after tool invocation"
             );
         }
@@ -310,7 +312,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 serde_json::json!({
                     "server": server,
                     "tool": tool,
-                    "estimated_cost": estimated_cost,
+                    "estimated_cost": estimated_cost.0,
                     "actual_cost": actual_cost,
                     "status": "success",
                     "settled": true,
@@ -321,7 +323,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 serde_json::json!({
                     "server": server,
                     "tool": tool,
-                    "estimated_cost": estimated_cost,
+                    "estimated_cost": estimated_cost.0,
                     "actual_cost": actual_cost,
                     "status": "failure",
                     "error": e.to_string(),
@@ -356,7 +358,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::energy::GasBudget;
+    use crate::energy::{GasBudget, GasCost};
     use crate::runtime::CnsRuntime;
     use crate::table_gas_estimator::TableGasEstimator;
     use hkask_types::event::{NuEvent, NuEventSink};
@@ -480,7 +482,7 @@ mod tests {
         let agent = WebID::new();
 
         // Register a large budget so budget checks pass
-        let budget = GasBudget::new(100_000);
+        let budget = GasBudget::new(GasCost(100_000));
         loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inner = Arc::new(MockToolPort::new());
@@ -523,7 +525,7 @@ mod tests {
         let agent = WebID::new();
 
         // GasBudget with cap=0 means remaining=0, so can_proceed(1) → gas=1 > 0 → false.
-        let budget = GasBudget::new(0);
+        let budget = GasBudget::new(GasCost(0));
         loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inner = Arc::new(MockToolPort::new());
@@ -559,7 +561,7 @@ mod tests {
         let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
-        let budget = GasBudget::new(100_000);
+        let budget = GasBudget::new(GasCost(100_000));
         loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inner = Arc::new(MockToolPort::new());
@@ -588,7 +590,7 @@ mod tests {
         let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
-        let budget = GasBudget::new(100_000);
+        let budget = GasBudget::new(GasCost(100_000));
         loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inner = Arc::new(MockToolPort::new());
@@ -624,7 +626,7 @@ mod tests {
         let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
-        let budget = GasBudget::new(100_000);
+        let budget = GasBudget::new(GasCost(100_000));
         loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inner = Arc::new(MockToolPort::failing());
@@ -671,7 +673,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(10_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10_000)))
             .await;
 
         // Create GovernedTool with CompositeGasEstimator
@@ -705,7 +707,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(10))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10)))
             .await;
 
         let inner = Arc::new(MockToolPort::new());
@@ -740,7 +742,7 @@ mod tests {
         // After one call with TableGasEstimator (cost=10 for unknown server):
         // Reserve 10, then settle with actual 10 \u2192 remaining=90
         // can_proceed(100) \u2192 gas=100 > 90 \u2192 should fail.
-        let budget = GasBudget::new(100);
+        let budget = GasBudget::new(GasCost(100));
         loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inner = Arc::new(MockToolPort::new());
@@ -763,7 +765,7 @@ mod tests {
         // After a successful call, the gas should have been settled.
         // can_proceed(100) → gas=100 > 90 → should fail.
         let loop6_guard = loop6.read().await;
-        assert!(!loop6_guard.can_proceed(&agent, 100).await);
+        assert!(!loop6_guard.can_proceed(&agent, GasCost(100)).await);
     }
 
     // --- Domain-based capability matching tests ---
@@ -831,7 +833,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(100_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(100_000)))
             .await;
 
         let inner = Arc::new(CnsMockToolPort);
@@ -864,7 +866,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(100_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(100_000)))
             .await;
 
         let inner = Arc::new(CnsMockToolPort);
@@ -896,7 +898,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(100_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(100_000)))
             .await;
 
         let inner = Arc::new(CnsMockToolPort);
@@ -935,7 +937,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(100_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(100_000)))
             .await;
 
         let inner = Arc::new(CnsMockToolPort);
@@ -966,7 +968,7 @@ mod tests {
         loop6
             .read()
             .await
-            .register_gas_budget(agent, GasBudget::new(100_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(100_000)))
             .await;
 
         let inner = Arc::new(CnsMockToolPort);

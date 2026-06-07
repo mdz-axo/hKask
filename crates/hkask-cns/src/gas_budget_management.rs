@@ -18,7 +18,7 @@
 //! Overridden agents are skipped during `replenish_all_budgets()` to preserve
 //! the Curation directive. `apply_clear_override()` resumes normal replenishment.
 
-use crate::energy::{AgentGasStatus, GasBudget, GasError};
+use crate::energy::{AgentGasStatus, GasBudget, GasCost, GasError};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -73,7 +73,7 @@ impl GasBudgetManager {
     ///
     /// Returns `true` if the agent has no registered budget (soft limit)
     /// or if the budget has sufficient remaining capacity.
-    pub async fn can_proceed(&self, agent: &WebID, gas: u64) -> bool {
+    pub async fn can_proceed(&self, agent: &WebID, gas: GasCost) -> bool {
         let budgets = self.gas_budgets.read().await;
         if let Some(budget) = budgets.get(agent) {
             budget.can_proceed(gas)
@@ -90,13 +90,13 @@ impl GasBudgetManager {
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call `settle_gas()` after.
-    pub async fn reserve_gas(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
+    pub async fn reserve_gas(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.reserve(gas)
         } else {
             // No budget registered — allow by default (soft limit)
-            Ok(0)
+            Ok(GasCost::ZERO)
         }
     }
 
@@ -104,26 +104,26 @@ impl GasBudgetManager {
     pub async fn settle_gas(
         &self,
         agent: &WebID,
-        reserved_gas: u64,
-        actual_gas: u64,
-    ) -> Result<u64, GasError> {
+        reserved_gas: GasCost,
+        actual_gas: GasCost,
+    ) -> Result<GasCost, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.settle(reserved_gas, actual_gas)
         } else {
             // No budget registered — cost is 0 (soft limit)
-            Ok(0)
+            Ok(GasCost::ZERO)
         }
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
-    pub async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
+    pub async fn acquire_budget(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.consume(gas)
         } else {
             // No budget registered — cost is 0 (soft limit)
-            Ok(0)
+            Ok(GasCost::ZERO)
         }
     }
 
@@ -146,14 +146,14 @@ impl GasBudgetManager {
                     budget.replenish();
                     rate
                 } else {
-                    0
+                    GasCost::ZERO
                 }
             };
-            if replenished > 0 {
+            if replenished.0 > 0 {
                 tracing::debug!(
                     target: "cns.cybernetics",
                     agent = %agent,
-                    replenish_rate = replenished,
+                    replenish_rate = replenished.0,
                     "Replenished gas budget"
                 );
             }
@@ -161,22 +161,22 @@ impl GasBudgetManager {
     }
 
     /// Used by `CuratorDirective::ReplenishBudget`.
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) {
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
             tracing::info!(
                 target: "cns.cybernetics",
                 agent = %agent,
-                amount = amount,
-                remaining = budget.remaining,
+                amount = %amount,
+                remaining = %budget.remaining,
                 "Replenished agent gas budget by directive"
             );
         }
     }
 
     /// Metacognitive override — recorded in active_overrides so replenish skips this agent.
-    pub async fn apply_override_gas_budget(&self, agent: WebID, new_budget: u64) {
+    pub async fn apply_override_gas_budget(&self, agent: WebID, new_budget: GasCost) {
         // Default TTL of 0 means override persists until explicitly cleared
         let ttl_secs: u64 = 0;
         let mut budgets = self.gas_budgets.write().await;
@@ -187,7 +187,7 @@ impl GasBudgetManager {
             tracing::warn!(
                 target: "cns.cybernetics",
                 agent = %agent,
-                new_budget = new_budget,
+                new_budget = %new_budget,
                 "Applied OverrideGasBudget directive from Curation (set-point override)"
             );
         } else {
@@ -195,7 +195,7 @@ impl GasBudgetManager {
             tracing::warn!(
                 target: "cns.cybernetics",
                 agent = %agent,
-                new_budget = new_budget,
+                new_budget = %new_budget,
                 "Registered new gas budget from OverrideGasBudget directive"
             );
         }
@@ -230,22 +230,27 @@ impl GasBudgetManager {
     }
 
     /// Priority-scaled: when priority is provided, replenishment is weighted.
-    pub async fn apply_replenish_budget(&self, agent: WebID, amount: u64, priority: Option<f64>) {
+    pub async fn apply_replenish_budget(
+        &self,
+        agent: WebID,
+        amount: GasCost,
+        priority: Option<f64>,
+    ) {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(&agent) {
             let replenished = if let Some(p) = priority {
                 budget.replenish_by_weighted(amount, p)
             } else {
                 budget.replenish_by(amount);
-                amount.min(budget.cap - budget.remaining)
+                GasCost(amount.0.min(budget.cap.0 - budget.remaining.0))
             };
             drop(budgets);
             tracing::info!(
                 target: "cns.cybernetics",
                 agent = %agent,
-                amount = amount,
+                amount = %amount,
                 priority = priority,
-                replenished = replenished,
+                replenished = %replenished,
                 "Replenished agent gas budget by directive"
             );
         }
@@ -275,7 +280,7 @@ impl GasBudgetManager {
 
     /// Iterate over gas budgets to produce energy signals.
     /// Returns `(remaining, cap)` for each registered agent.
-    pub async fn energy_ratios(&self) -> Vec<(u64, u64)> {
+    pub async fn energy_ratios(&self) -> Vec<(GasCost, GasCost)> {
         let budgets = self.gas_budgets.read().await;
         budgets
             .values()
@@ -287,7 +292,7 @@ impl GasBudgetManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::energy::GasBudget;
+    use crate::energy::{GasBudget, GasCost};
 
     #[tokio::test]
     async fn register_and_check_gas_budget() {
@@ -295,18 +300,18 @@ mod tests {
         let agent = WebID::new();
 
         // No budget registered — should allow by default
-        assert!(manager.can_proceed(&agent, 100).await);
+        assert!(manager.can_proceed(&agent, GasCost(100)).await);
 
         // Register budget
         manager
-            .register_gas_budget(agent, GasBudget::new(10_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10_000)))
             .await;
 
         // Should allow within budget
-        assert!(manager.can_proceed(&agent, 100).await);
+        assert!(manager.can_proceed(&agent, GasCost(100)).await);
 
         // Should deny over budget
-        assert!(!manager.can_proceed(&agent, 20_000).await);
+        assert!(!manager.can_proceed(&agent, GasCost(20_000)).await);
     }
 
     #[tokio::test]
@@ -315,21 +320,24 @@ mod tests {
         let agent = WebID::new();
 
         manager
-            .register_gas_budget(agent, GasBudget::new(10_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10_000)))
             .await;
 
         // Reserve gas
-        let reserved = manager.reserve_gas(&agent, 500).await.unwrap();
-        assert!(reserved > 0);
+        let reserved = manager.reserve_gas(&agent, GasCost(500)).await.unwrap();
+        assert!(reserved.0 > 0);
 
         // Settle with actual cost
-        let settled = manager.settle_gas(&agent, 500, 300).await.unwrap();
-        assert!(settled > 0);
+        let settled = manager
+            .settle_gas(&agent, GasCost(500), GasCost(300))
+            .await
+            .unwrap();
+        assert!(settled.0 > 0);
 
         // Budget should reflect the actual cost (300), not the estimate (500)
         // remaining = 10000 - 300 = 9700
-        assert!(manager.can_proceed(&agent, 9700).await);
-        assert!(!manager.can_proceed(&agent, 9701).await);
+        assert!(manager.can_proceed(&agent, GasCost(9700)).await);
+        assert!(!manager.can_proceed(&agent, GasCost(9701)).await);
     }
 
     #[tokio::test]
@@ -338,15 +346,15 @@ mod tests {
         let agent = WebID::new();
 
         manager
-            .register_gas_budget(agent, GasBudget::new(10_000))
+            .register_gas_budget(agent, GasBudget::new(GasCost(10_000)))
             .await;
 
-        let cost = manager.acquire_budget(&agent, 1000).await.unwrap();
-        assert!(cost > 0);
+        let cost = manager.acquire_budget(&agent, GasCost(1000)).await.unwrap();
+        assert!(cost.0 > 0);
 
         // Budget should reflect direct consumption
-        assert!(manager.can_proceed(&agent, 9000).await);
-        assert!(!manager.can_proceed(&agent, 9001).await);
+        assert!(manager.can_proceed(&agent, GasCost(9000)).await);
+        assert!(!manager.can_proceed(&agent, GasCost(9001)).await);
     }
 
     #[tokio::test]
@@ -357,34 +365,43 @@ mod tests {
 
         // Register two agents with same budget
         manager
-            .register_gas_budget(agent1, GasBudget::new(10_000).with_replenish_rate(1_000))
+            .register_gas_budget(
+                agent1,
+                GasBudget::new(GasCost(10_000)).with_replenish_rate(GasCost(1_000)),
+            )
             .await;
         manager
             .register_gas_budget(
                 agent2,
-                GasBudget::new(10_000)
-                    .with_replenish_rate(1_000)
+                GasBudget::new(GasCost(10_000))
+                    .with_replenish_rate(GasCost(1_000))
                     .with_hard_limit(true),
             )
             .await;
 
         // Consume some gas from both
-        let _ = manager.acquire_budget(&agent1, 5000).await;
-        let _ = manager.acquire_budget(&agent2, 5000).await;
+        let _ = manager.acquire_budget(&agent1, GasCost(5000)).await;
+        let _ = manager.acquire_budget(&agent2, GasCost(5000)).await;
 
         // Override agent1's budget — replenish should skip it
-        manager.apply_override_gas_budget(agent1, 20_000).await;
+        manager
+            .apply_override_gas_budget(agent1, GasCost(20_000))
+            .await;
 
         // Replenish all
         manager.replenish_all_budgets().await;
 
         // agent2 should be replenished (remaining went up)
         let status2 = manager.agent_gas_status(&agent2).await.unwrap();
-        assert!(status2.remaining > 5000, "agent2 should be replenished");
+        assert!(status2.remaining.0 > 5000, "agent2 should be replenished");
 
         // agent1's override should be preserved (cap = 20_000)
         let status1 = manager.agent_gas_status(&agent1).await.unwrap();
-        assert_eq!(status1.cap, 20_000, "agent1 override should be preserved");
+        assert_eq!(
+            status1.cap,
+            GasCost(20_000),
+            "agent1 override should be preserved"
+        );
     }
 
     #[tokio::test]
@@ -393,17 +410,22 @@ mod tests {
         let agent = WebID::new();
 
         manager
-            .register_gas_budget(agent, GasBudget::new(10_000).with_replenish_rate(1_000))
+            .register_gas_budget(
+                agent,
+                GasBudget::new(GasCost(10_000)).with_replenish_rate(GasCost(1_000)),
+            )
             .await;
 
         // Override
-        manager.apply_override_gas_budget(agent, 5_000).await;
+        manager
+            .apply_override_gas_budget(agent, GasCost(5_000))
+            .await;
 
         // Clear override
         manager.apply_clear_override(agent).await;
 
         // Consume some gas
-        let _ = manager.acquire_budget(&agent, 4_000).await;
+        let _ = manager.acquire_budget(&agent, GasCost(4_000)).await;
 
         // Replenish — should restore up to cap
         manager.replenish_all_budgets().await;
@@ -412,7 +434,8 @@ mod tests {
         // remaining was 1000, replenish_rate is 1000, cap is 10000
         // After replenishment: remaining = min(1000 + 1000, 10000) = 2000
         assert_eq!(
-            status.remaining, 2_000,
+            status.remaining,
+            GasCost(2_000),
             "remaining should reflect replenishment after clearing override"
         );
     }
@@ -423,9 +446,21 @@ mod tests {
         let agent = WebID::new();
 
         // No budget registered — all operations should succeed with 0 cost
-        assert!(manager.can_proceed(&agent, 100).await);
-        assert_eq!(manager.reserve_gas(&agent, 100).await.unwrap(), 0);
-        assert_eq!(manager.settle_gas(&agent, 100, 50).await.unwrap(), 0);
-        assert_eq!(manager.acquire_budget(&agent, 100).await.unwrap(), 0);
+        assert!(manager.can_proceed(&agent, GasCost(100)).await);
+        assert_eq!(
+            manager.reserve_gas(&agent, GasCost(100)).await.unwrap(),
+            GasCost::ZERO
+        );
+        assert_eq!(
+            manager
+                .settle_gas(&agent, GasCost(100), GasCost(50))
+                .await
+                .unwrap(),
+            GasCost::ZERO
+        );
+        assert_eq!(
+            manager.acquire_budget(&agent, GasCost(100)).await.unwrap(),
+            GasCost::ZERO
+        );
     }
 }

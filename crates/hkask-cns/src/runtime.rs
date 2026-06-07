@@ -7,7 +7,7 @@
 use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
-use crate::energy::{AgentGasStatus, GasBudget};
+use crate::energy::{AgentGasStatus, GasBudget, GasCost};
 use crate::kill_zone::KillZoneDetector;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
@@ -283,7 +283,7 @@ impl CnsRuntime {
     ///
     /// Returns the new remaining gas after replenishment, or 0 if the agent
     /// has no registered budget.
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) -> u64 {
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) -> GasCost {
         let state = self.state.read().await;
         let mut budgets = state.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
@@ -292,13 +292,13 @@ impl CnsRuntime {
             tracing::info!(
                 target: "cns.runtime",
                 agent = %agent,
-                amount = amount,
-                remaining = remaining,
+                amount = amount.0,
+                remaining = remaining.0,
                 "Replenished agent gas budget via CNS runtime"
             );
             remaining
         } else {
-            0
+            GasCost::ZERO
         }
     }
 

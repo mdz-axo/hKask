@@ -42,7 +42,9 @@ use hkask_agents::escalation::EscalationQueue;
 use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool, SnapshotLoop};
+use hkask_cns::{
+    CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasCost, GovernedTool, SnapshotLoop,
+};
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
@@ -102,7 +104,7 @@ impl hkask_ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             handle.spawn(async move {
                 let loop_read = loop_ref.read().await;
-                let _ = loop_read.acquire_budget(&agent, gas).await;
+                let _ = loop_read.acquire_budget(&agent, GasCost(gas)).await;
             });
         }
     }

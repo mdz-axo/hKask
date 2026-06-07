@@ -31,6 +31,20 @@ impl std::fmt::Display for CurationDecision {
     }
 }
 
+impl TryFrom<&str> for CurationDecision {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "merge" => Ok(CurationDecision::Merge),
+            "discard" => Ok(CurationDecision::Discard),
+            "revise" => Ok(CurationDecision::Revise),
+            "defer" => Ok(CurationDecision::Defer),
+            _ => Err(format!("invalid curation decision: {s}")),
+        }
+    }
+}
+
 /// Token-based capability kinds for OCAP boundaries.
 ///
 /// Replaces stringly-typed capability identifiers with typed enum variants.
