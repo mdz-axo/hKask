@@ -243,3 +243,60 @@ impl SovereigntyConsent for ConsentManager {
         ConsentManager::has_consent(self, webid, category).unwrap_or(false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_storage::Database;
+    use hkask_types::DataCategory;
+    use std::sync::Arc;
+
+    fn test_manager() -> ConsentManager {
+        // The `Database` type's `in_memory` constructor avoids the
+        // SQLCipher passphrase path used in production.
+        let db = Arc::new(Database::in_memory().expect("in-memory db"));
+        let store = ConsentStore::new(db);
+        ConsentManager::new(store)
+    }
+
+    /// Property: a freshly-constructed `ConsentManager` reports no consent
+    /// for any (webid, category). This is the fail-closed default.
+    #[test]
+    fn fresh_consent_manager_denies_everything() {
+        let mgr = test_manager();
+        let webid = "hkask:test:user";
+        assert!(!mgr.has_consent(webid, &DataCategory::EpisodicMemory));
+        assert!(!mgr.has_consent(webid, &DataCategory::SemanticMemory));
+    }
+
+    /// Property: after `grant_consent`, the `SovereigntyConsent::has_consent`
+    /// lookup reflects the grant. This is the wired-up Magna Carta consent
+    /// tracking.
+    #[test]
+    fn grant_consent_is_observed_by_sovereignty_lookup() {
+        let mgr = test_manager();
+        let webid = "hkask:test:user";
+
+        // Before grant: no consent.
+        assert!(!mgr.has_consent(webid, &DataCategory::EpisodicMemory));
+
+        // After grant: consent is observed.
+        mgr.grant_consent(webid, &DataCategory::EpisodicMemory)
+            .expect("grant");
+        assert!(mgr.has_consent(webid, &DataCategory::EpisodicMemory));
+        // Other categories remain unconsented.
+        assert!(!mgr.has_consent(webid, &DataCategory::SemanticMemory));
+    }
+
+    /// Property: after `revoke_consent`, the lookup reverts to denied.
+    #[test]
+    fn revoke_consent_revokes_lookup() {
+        let mgr = test_manager();
+        let webid = "hkask:test:user";
+        mgr.grant_consent(webid, &DataCategory::SemanticMemory)
+            .expect("grant");
+        assert!(mgr.has_consent(webid, &DataCategory::SemanticMemory));
+        mgr.revoke_consent(webid).expect("revoke");
+        assert!(!mgr.has_consent(webid, &DataCategory::SemanticMemory));
+    }
+}

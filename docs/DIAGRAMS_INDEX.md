@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-03
+last_updated: 2026-06-06
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -38,6 +38,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [`interface-and-composition.md`](architecture/interface-and-composition.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [`interface-and-composition.md`](architecture/interface-and-composition.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [`interface-and-composition.md`](architecture/interface-and-composition.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
+| DIAG-IC-006 | LLM Routing and Failover (Okapi Integration) | [`interface-and-composition.md`](architecture/interface-and-composition.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 
 ## 3. Trust & Observability Diagrams
 
@@ -47,7 +48,9 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | DIAG-TO-002 | OCAP Boundary Enforcement Flow | [`trust-security-observability.md`](architecture/trust-security-observability.md) §2 | `crates/hkask-mcp/src/security.rs` (SecurityGateway) | ✅ VERIFIED |
 | DIAG-TO-003 | Encryption Stack — Argon2id → AES-256-GCM → SQLCipher | [`trust-security-observability.md`](architecture/trust-security-observability.md) §3 | `crates/hkask-keystore/src/`, `crates/hkask-storage/src/database.rs` | ✅ VERIFIED |
 | DIAG-TO-004 | CNS Span Emission Flow (4 namespaces → Sink) | [`trust-security-observability.md`](architecture/trust-security-observability.md) §4 | `crates/hkask-cns/src/runtime.rs`, `crates/hkask-types/src/event.rs` | ✅ VERIFIED |
-| DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > 100 → Curator/Human) | [`trust-security-observability.md`](architecture/trust-security-observability.md) §5 | `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED |
+| DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > 100 → Curator/Human) | [`trust-security-observability.md`](architecture/trust-security-observability.md) §4.4 | `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED |
+| DIAG-TO-006 | CNS Span Emission and Algedonic Alert End-to-End Flow | [`trust-security-observability.md`](architecture/trust-security-observability.md) §4.4.1 | `crates/hkask-agents/src/curator_agent/spec_curator.rs`, `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED |
+| DIAG-TO-006-CM | ConsentManager Authorization Flow | [`trust-security-observability.md`](architecture/trust-security-observability.md) §3.0.1 | `crates/hkask-agents/src/consent.rs`, `crates/hkask-agents/src/sovereignty.rs`, `crates/hkask-storage/src/consent_store.rs` | ✅ VERIFIED |
 
 ## 4. Persistence & Lifecycle Diagrams
 
@@ -82,13 +85,11 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 
 | Pattern | DDMVSS Category | Crates Involved | Priority |
 |---------|----------------|----------------|----------|
-| LLM Routing and Failover (Okapi integration) | Interface | `hkask-ensemble`, `hkask-mcp-inference`, `hkask-templates` | P1 |
 | Federation Message Flow (deferred) | Composition | `hkask-*` (deferred to v1.1+) | P2 |
-| Standing Session Chat Lifecycle | Domain | `hkask-ensemble`, `hkask-agents` | P1 |
 | Competition Socket Protocol (ACP) | Interface | `hkask-agents` (ACP) | P2 |
 | Git CAS Content-Addressed Blob Flow | Persistence | `hkask-storage (git_cas)`, `gix 0.81` | P2 |
-| ConsentManager Authorization Flow | Trust | `hkask-agents (consent)` | P1 |
 | Template Manifest Validation Flow (ContractValidator) | Composition | `hkask-templates` | P2 |
+| MVSDD Cycle (Specify → Grant → Compose → Curate → Reflect) | Curation | `hkask-templates`, `hkask-agents` | P2 |
 
 > **Note (2026-06-03):** `hkask-mcp-episodic` and `hkask-mcp-semantic` are newly added MCP servers (split from the monolithic `hkask-mcp` runtime). Their interaction patterns with the memory subsystem are not yet diagrammed and should be considered candidates for v1.1+ coverage.
 
@@ -98,15 +99,15 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 
 | Category | Diagrams | Verified | V1.1+ Candidates |
 |----------|----------|----------|-----------------|
-| Domain & Capability | 6 | 6 | 0 |
-| Interface & Composition | 5 | 5 | 0 |
-| Trust & Observability | 5 | 5 | 0 |
+| Domain & Capability | 8 | 8 | 0 |
+| Interface & Composition | 6 | 6 | 0 |
+| Trust & Observability | 7 | 7 | 0 |
 | Persistence & Lifecycle | 5 | 5 | 0 |
 | Framework | 4 | 4 | 0 |
 | Reference | 3 | 3 | 0 |
-| **Total** | **28** | **28** | **7** |
+| **Total** | **33** | **33** | **5** |
 
-**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 28 diagrams verified against current code (2026-06-03). 7 undocumented patterns identified for v1.1+.
+**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 33 diagrams verified against current code (2026-06-06). 5 undocumented patterns remain for v1.1+.
 
 ---
 
