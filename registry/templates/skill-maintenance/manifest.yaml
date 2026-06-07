@@ -21,7 +21,7 @@ templates:
 
   - id: skill-maintenance/skill-maintenance-coverage
     path: skill-maintenance-coverage.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [map, trace, gap, classify, prioritize]
     description: >
       Analyze coverage gaps across the skill corpus. Map common task patterns

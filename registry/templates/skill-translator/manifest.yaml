@@ -5,27 +5,29 @@ crate:
   name: skill-translator
   version: "0.24.0"
   description: >
-    Translate agent skills between format systems. Analyze source format conventions
-    (manifest type, execution model, state model, consent model) and produce
-    hKask SKILL.md output. Cognitive steps become instructions; deterministic steps
-    become tool-callable procedures.
+    Translate agent skills into hKask's dual-layer architecture: registry crate
+    (manifest.yaml + .j2 templates) as primary runtime artifact, plus SKILL.md
+    companion guide. Analyze source format, classify steps by type, map to
+    both layers.
 
 templates:
   - id: skill-translator/skill-translator-analyze
     path: skill-translator-analyze.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [detect, classify, analyze, discriminate, orient]
     description: >
       Analyze a source skill's format on six dimensions (manifest type, execution model,
       state model, consent model, observability, domain references). Classify each step
-      as cognitive or deterministic. Assess translation feasibility.
+      as cognitive, workflow, or guardrail. Determine template_type per step.
+      Assess dual-layer translation feasibility.
 
   - id: skill-translator/skill-translator-translate
     path: skill-translator-translate.j2
     type: KnowAct
     lexicon_terms: [translate, adapt, extract, compose, verify]
     description: >
-      Translate a classified skill from source format to hKask SKILL.md format.
+      Translate a classified skill from source format to hKask dual-layer format
+        (registry crate + SKILL.md companion).
       Map source elements to hKask equivalents, drop concepts with no equivalent,
       produce validated output with translation summary.
 

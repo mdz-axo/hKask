@@ -1,185 +1,280 @@
 ---
 name: skill-discovery
 visibility: public
-description: "Find, evaluate, and install agent skills from external sources. Detect capability gaps, search for candidate skills, validate quality, and guide installation. Use when the user says 'find a skill for X', 'I need a skill that does Y', or when a task pattern has no matching skill."
+description: "Find, evaluate, and install dual-layer skills (SKILL.md + registry templates). Detect capability gaps across both layers, search for candidates, validate format and quality for each layer, and guide installation. Use when the user says 'find a skill for X', 'I need a skill that does Y', or when a task pattern has no matching skill."
 ---
 
 # Skill Discovery
 
-Manage the full lifecycle of finding, evaluating, and installing skills for the hKask agent. When no existing skill covers a task pattern, detect the gap, search for candidates, evaluate them, and guide installation.
+Manage the full lifecycle of finding, evaluating, and installing **dual-layer** skills. A complete skill has two layers; both must be accounted for at every stage.
 
-## The Skill Lifecycle
+## Dual-Layer Architecture
 
-```
-Gap detected → Search for skill → Evaluate candidate → Validate quality
-  → Guide installation → Verify loaded → Ready
-```
+| Layer | Path | Audience | Purpose |
+|-------|------|----------|---------|
+| **Zed Agent Skill** | `.agents/skills/<name>/SKILL.md` | Zed coding agent | Description-based activation, imperative instructions |
+| **Registry Template** | `registry/templates/<name>/manifest.yaml` + `*.j2` | hKask inference engine | Runtime template selection, cascade dispatch |
 
-Most failures happen at validation. Know the rules and enforce them before installing.
+The registry crate is the primary runtime artifact. The SKILL.md is the companion guide. A skill with only one layer is **incomplete** — flag it.
 
 ## Detecting Capability Gaps
 
-When should you suggest finding or building a new skill?
+Check BOTH layers for gaps.
 
-| Trigger | Gap Type | What to Look For |
-|---------|----------|-----------------|
-| Task pattern has no matching skill description | Coverage gap | Search `.agents/skills/` for matching descriptions |
-| User says "I wish the agent could do X" | Feature gap | Is X within hKask's scope? (No visual UI, no external monitoring stacks) |
-| Repeated manual steps across sessions | Automation gap | Can those steps be codified into a skill? |
-| User asks about a domain outside current skills | Knowledge gap | A knowledge-only skill may help |
-| A constraint is repeatedly violated with no skill to guide resolution | Governance gap | A skill enforcing that constraint may help |
-| Current skill instructions are vague or incomplete | Quality gap | Improve the existing skill rather than find a new one |
+| Trigger | Layer | Gap Type | Detection Method |
+|---------|-------|----------|-------------------|
+| Task pattern has no matching skill description | Zed | Coverage gap | Search `.agents/skills/` descriptions |
+| No WordAct/KnowAct/FlowDef template for a task pattern | Registry | Template coverage gap | Scan `registry/templates/` manifest `type` fields |
+| Template uses hLexicon terms not in workspace registry | Registry | hLexicon gap | Cross-reference `lexicon_terms` in manifests against `registry/registries/hlexicon-workspace.yaml` |
+| Skill has SKILL.md but no registry templates (or vice versa) | Both | Layer completeness gap | Pair-check: `.agents/skills/<name>/` exists ↔ `registry/templates/<name>/` exists |
+| Too few .j2 templates for cascade to select from | Registry | Cascade gap | Count `.j2` files per skill; flag skills with <2 templates or missing a key template_type |
+| User says "I wish the agent could do X" | Either | Feature gap | Is X within hKask scope? (No visual UI, no external monitoring stacks) |
+| Repeated manual steps across sessions | Either | Automation gap | Can steps be codified into both layers? |
+| A constraint is repeatedly violated with no skill to guide it | Either | Governance gap | A skill enforcing that constraint may help |
+| Current skill instructions are vague or incomplete | Zed | Quality gap | Improve the existing SKILL.md rather than find a new one |
 
-When you spot a gap, say so explicitly: "No skill currently covers X. Want me to search for one, or should I help build one?"
+When you spot a gap, say so explicitly: "No skill covers X [Zed layer / registry layer / both]. Want me to search for one, or should I help build one?"
+
+### Template-Type Coverage Audit
+
+Across the entire corpus, the three valid `template_type` values should all be represented:
+
+| Type | Purpose | Typical Count |
+|------|---------|---------------|
+| WordAct | Produce output text | ≥1 per skill |
+| KnowAct | Analyze, classify, evaluate | ≥1 per skill |
+| FlowDef | Orchestrate multi-step process | If skill has procedural flow |
+
+Flag if a skill's manifest declares zero templates of a type that its SKILL.md instructions imply.
 
 ## Searching for Skills
 
 ### Where skills live
 
-- GitHub repositories (`skills/` or `.agents/skills/` directories)
-- Direct URLs to SKILL.md files
-- The user's local filesystem
-- hKask registry (if skills are registered in the template registry)
+| Source | What to Look For |
+|--------|-----------------|
+| GitHub repos | `skills/` or `.agents/skills/` dirs, `registry/templates/` dirs |
+| Direct URLs | SKILL.md files, manifest.yaml files |
+| Local filesystem | Both layer paths in the workspace |
+| hKask registry | Already-registered templates |
 
 ### Search strategies
 
-Use web search to find skills:
-
 ```
-# General pattern
-search query: "hKask skill [domain] site:github.com"
-search query: "zed agent skill [domain] .agents/skills"
-search query: "SKILL.md [domain] agent instructions"
-
-# Specific examples
-"hKask skill cybernetics site:github.com"
-"SKILL.md agent skill debugging methodology"
-"zed .agents/skills code review"
+"hKask skill [domain] site:github.com"
+"SKILL.md agent skill [domain] .agents/skills"
+"manifest.yaml template_type [domain] registry/templates"
 ```
 
-### What to search when results are thin
-
-If no hKask-specific skill exists:
-1. Search for the underlying capability: "[topic] agent instructions methodology"
-2. Search for general-purpose skill patterns that could be adapted
-3. Search for the domain knowledge itself, then consider building a skill from scratch
-
-A general-purpose methodology can be adapted into a hKask skill using `skill-translator`.
+If no hKask-specific skill exists, search for the underlying capability, then adapt using `skill-translator`.
 
 ## Evaluating a Candidate Skill
 
-When you find a candidate skill, evaluate it against these criteria before suggesting installation:
+Evaluate BOTH layers. A candidate may provide one or both.
 
-### Format Validation
+### Zed Layer (SKILL.md) Validation
 
 ```
 ☐ File exists: .agents/skills/<name>/SKILL.md
 ☐ Frontmatter has `name` field matching directory name
 ☐ `name` is lowercase-hyphenated (^[a-z0-9]+(-[a-z0-9]+)*$)
-☐ `description` field is present, 1–1024 chars, specific and actionable
-☐ Body is non-empty and contains concrete instructions
+☐ `description` field present, 1–1024 chars, specific and actionable
+☐ Body is non-empty, contains concrete imperative instructions
 ☐ No references to files or paths that don't exist within the skill directory
 ```
 
-If any check fails, report specifically which one and how to fix it.
-
-### Quality Evaluation
+### Registry Layer Validation
 
 ```
-☐ Instructions are concrete — "Do X" not "Consider doing X"
+☐ manifest.yaml exists: registry/templates/<name>/manifest.yaml
+☐ crate.name matches skill name, lowercase-hyphenated
+☐ crate.version is semver string
+☐ templates list is non-empty
+☐ Each template entry has: id, path, type, lexicon_terms, description
+☐ template_type ∈ {WordAct, KnowAct, FlowDef} — reject anything else
+☐ Each referenced .j2 file exists in the directory
+☐ .j2 frontmatter: template_type ∈ {WordAct, KnowAct, FlowDef}
+☐ .j2 frontmatter: contract has structured input and output
+☐ .j2 frontmatter: energy_cap ∈ [2048, 8192]
+☐ .j2 frontmatter: visibility ∈ {Private, Public, Shared}
+☐ hlexicon_terms in manifest all exist in registry/registries/hlexicon-workspace.yaml
+☐ lexicon_terms in each .j2 frontmatter exist in workspace registry
+```
+
+### Quality Evaluation (Both Layers)
+
+```
+☐ Instructions are imperative — "Do X" not "Consider doing X"
 ☐ Instructions are self-contained — no assumed context not provided
 ☐ No placeholder content ("TODO", "Fill in later")
-☐ No contradictions between instructions
-☐ Skill scope is clear — it does one thing well, not many things poorly
-☐ No unnecessary complexity — instructions match the problem's difficulty
+☐ No contradictions between layers or within a layer
+☐ Skill scope is clear — one thing well
+☐ No unnecessary complexity
 ```
 
-### Safety Evaluation
+### Safety Evaluation (Both Layers)
 
 ```
-☐ No Magna Carta violations (episodic memory exposure without consent, bypass OCAP)
+☐ No Magna Carta violations (P1–P4)
 ☐ No headless constraint violations (no visual UI, no Grafana, no Prometheus)
-☐ No `todo!` / `unimplemented!` / `#[deprecated]` references (P6/P7 compliance)
+☐ No `todo!` / `unimplemented!` / `#[deprecated]` references (P6/P7)
 ☐ If skill references CNS spans, they exist in the canonical namespace list
 ☐ If skill references crate paths, they exist in the workspace
+☐ No secrets or API keys embedded
 ```
 
 ### Red Flags
 
-- Vague descriptions ("Helps with code") — reject, request specificity
-- External dependencies not in workspace — flag for review
-- Network calls without documentation — flag
-- Instructions that assume a specific model or persona — needs adaptation
-- Skills that embed secrets or API keys — reject immediately
+| Flag | Action |
+|------|--------|
+| Vague descriptions ("Helps with code") | Reject, request specificity |
+| Invalid template_type | Reject, require WordAct/KnowAct/FlowDef |
+| hLexicon terms not in workspace | Reject until terms are registered or replaced |
+| External dependencies not in workspace | Flag for review |
+| Network calls without documentation | Flag |
+| Instructions that assume a specific model or persona | Needs adaptation |
+| Secrets or API keys | Reject immediately |
+| SKILL.md with no registry templates (or vice versa) | Flag as incomplete |
 
 ## Installation Guide
 
-When the user asks to install a skill:
+Install BOTH layers when the candidate provides them.
 
-### Quick install (existing hKask-format skill)
+### Full install (both layers)
 
-1. Copy the skill directory to `.agents/skills/<name>/`
-2. Verify: read `SKILL.md` frontmatter — `name` matches directory, description is present
-3. The skill is auto-discovered by the Zed agent on the next conversation
+1. Copy SKILL.md to `.agents/skills/<name>/`
+2. Copy manifest.yaml + *.j2 to `registry/templates/<name>/`
+3. Verify Zed layer: frontmatter validates, instructions are concrete
+4. Verify registry layer: manifest structure, .j2 frontmatter, hLexicon terms exist in workspace
+5. Verify cross-layer: SKILL.md name matches manifest crate.name
+
+### Zed-only install (no registry templates)
+
+1. Copy SKILL.md to `.agents/skills/<name>/`
+2. Validate Zed layer checks
+3. Flag as incomplete — note that no registry templates exist
+
+### Registry-only install (no SKILL.md)
+
+1. Copy manifest.yaml + *.j2 to `registry/templates/<name>/`
+2. Validate registry layer checks
+3. Flag as incomplete — note that no companion SKILL.md exists
 
 ### Install with translation (non-hKask format)
 
-Use `skill-translator` to convert the source skill to hKask format, then install as above.
+Use `skill-translator` to convert, then install both layers.
 
 ### Verify after installation
 
-1. **Format check**: Read the SKILL.md — frontmatter validates
-2. **Content check**: Instructions are concrete and actionable
-3. **Safety check**: No Magna Carta violations, no headless constraint violations
-4. **CNS check**: If the skill references `cns.*` spans, they exist
-5. **Integration check**: The skill's description is specific enough to be matched when relevant
+1. **Zed format check**: SKILL.md frontmatter validates
+2. **Registry format check**: manifest.yaml structure, .j2 frontmatter, template_type validity
+3. **hLexicon check**: All declared terms exist in workspace registry
+4. **Content check**: Instructions concrete and actionable
+5. **Safety check**: No Magna Carta violations, no headless constraint violations
+6. **CNS check**: Any `cns.*` span references are valid
+7. **Cross-layer check**: Names match, scope is consistent between layers
+8. **Integration check**: Description specific enough to be matched when relevant
 
-If any step fails, identify the failure mode:
-- Format fails → fix frontmatter (name, description)
-- Content fails → rewrite vague instructions
-- Safety fails → report the violation and refuse installation
-- CNS fails → update span references
-- Integration fails → improve description specificity
+Failure modes:
+
+| Failure | Fix |
+|---------|-----|
+| Zed format fails | Fix frontmatter (name, description) |
+| Registry format fails | Fix manifest structure or .j2 frontmatter |
+| hLexicon fails | Register missing terms or replace with existing terms |
+| Content fails | Rewrite vague instructions |
+| Safety fails | Report violation, refuse installation |
+| CNS fails | Update span references |
+| Cross-layer fails | Align names and scope |
+| Integration fails | Improve description specificity |
 
 ## Building a Skill from Scratch
 
-When no skill exists and the user wants you to help create one, use `create-skill` conventions:
+Scaffold BOTH layers. Use `create-skill` conventions for the Zed layer.
 
-1. **Decide scope**: Project-local (`.agents/skills/`) vs global (`~/.agents/skills/`)
-2. **Choose name**: Descriptive, lowercase-hyphenated
-3. **Write SKILL.md**: Frontmatter (name, description) + imperative instructions
-4. **Validate**: Run the quality and safety evaluations above
-5. **Optionally add supporting files**: Templates, examples, reference docs
+### Step 1: Decide scope
 
-### Knowledge skill template
+Project-local (`.agents/skills/` + `registry/templates/`) vs global (`~/.agents/skills/` — registry layer has no global equivalent).
 
-A knowledge skill teaches the agent something without prescribing actions:
+### Step 2: Choose name
 
-```markdown
----
-name: topic-name
-description: "Specific description of what the agent learns and when to use it."
----
+Descriptive, lowercase-hyphenated. Must be valid as both directory name and crate name.
 
-# Topic Name
-
-[Imperative instructions for what the agent should know and do with this knowledge]
-```
-
-### Procedural skill template
-
-A procedural skill gives the agent a step-by-step process:
+### Step 3: Write SKILL.md (Zed layer)
 
 ```markdown
 ---
-name: procedure-name
-description: "Specific description of the procedure and when to use it."
+name: skill-name
+visibility: public
+description: "Specific, actionable description of what the skill does and when to activate."
 ---
 
-# Procedure Name
+# Skill Name
 
-[Step-by-step instructions with concrete actions, tools, and expected outcomes]
+[Imperative instructions for the Zed agent]
 ```
+
+### Step 4: Write manifest.yaml (Registry layer)
+
+```yaml
+crate:
+  name: skill-name
+  version: "0.24.0"
+  description: >
+    [Same scope as SKILL.md description, runtime-oriented]
+
+templates:
+  - id: skill-name/template-name
+    path: template-name.j2
+    type: KnowAct          # WordAct | KnowAct | FlowDef
+    lexicon_terms: [term1, term2, term3]
+    description: >
+      [What this template produces at inference time]
+
+hlexicon_terms:
+  - term1
+  - term2
+  - term3
+```
+
+### Step 5: Write at least one .j2 template
+
+```jinja2
+[inference]
+template_type: KnowAct
+lexicon_terms: [term1, term2, term3]
+contract:
+  input:
+    key_name: type
+  output:
+    result_name: type
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: skill-name/template-name.j2 #}
+{# KnowAct — [concise purpose] #}
+
+[inference]
+temperature = 0.3
+reasoning_effort = "high"
+verbosity = "detailed"
+max_tokens = 4096
+thinking_budget = "full"
+
+[Template body with Jinja2 expressions]
+{{ input_variable }}
+```
+
+### Step 6: Validate hLexicon terms
+
+Cross-reference every `lexicon_terms` and `hlexicon_terms` entry against `registry/registries/hlexicon-workspace.yaml`. If a term is missing, either:
+- Register it in the workspace hLexicon (update markdown source, regenerate YAML)
+- Replace with an existing term that covers the same semantic space
+
+### Step 7: Validate both layers
+
+Run the evaluation checks from the "Evaluating a Candidate Skill" section against both layers of the new skill.
 
 ## Skill Hygiene
 
@@ -187,28 +282,33 @@ description: "Specific description of the procedure and when to use it."
 
 - Architecture changes make references stale (moved crates, renamed spans)
 - New Magna Carta principles or constraints added
-- Instructions are too vague or too rigid for real use
-- The skill's description no longer matches its instructions
+- Instructions too vague or too rigid
+- Description no longer matches instructions
+- .j2 contract no longer matches actual inputs/outputs
+- hLexicon terms deprecated or renamed
 
 ### When to retire a skill
 
-- The domain it covers is no longer relevant
-- A better skill supersedes it
-- The skill's instructions are consistently ignored (wrong abstraction level)
-- The user says they don't need it
+- Domain no longer relevant
+- Better skill supersedes it
+- Instructions consistently ignored (wrong abstraction level)
+- User says they don't need it
 
-Retirement: set `disable-model-invocation: true` in frontmatter (soft deprecation) or delete the skill directory (hard retirement).
+Retirement: delete both `.agents/skills/<name>/` AND `registry/templates/<name>/`. Partial retirement (one layer) leaves an incomplete skill — avoid unless replacing that layer.
 
 ### Sharing skills
 
-Skills are self-contained directories. Share by:
-1. Push the `.agents/skills/<name>/` directory to a git repo
-2. The recipient copies it into their own `.agents/skills/` directory
+Share both layers together:
+1. Push `.agents/skills/<name>/` and `registry/templates/<name>/` to a git repo
+2. Recipient copies both directories into their workspace
 
 ## When to Use This Skill
 
-- **"Find a skill for X":** Detect gap → search → evaluate → install
-- **"I need the agent to do Y":** Check if a skill exists; if not, search or build
-- **"Can I use this skill from [other project]?":** Evaluate format compatibility, translate if needed
-- **Recurring manual patterns:** Suggest codifying into a skill
-- **After installing a skill:** Verify it loaded correctly
+| Trigger | Action |
+|---------|--------|
+| "Find a skill for X" | Detect gap (both layers) → search → evaluate → install |
+| "I need the agent to do Y" | Check both layers; if absent, search or build |
+| "Can I use this skill from [other project]?" | Evaluate format compatibility, translate if needed |
+| Recurring manual patterns | Suggest codifying into both layers |
+| After installing a skill | Verify both layers loaded and valid |
+| "Audit skill coverage" | Run template-type and hLexicon coverage audit |

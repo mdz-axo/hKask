@@ -12,7 +12,7 @@ crate:
 templates:
   - id: grill-me/grill-me-round
     path: grill-me-round.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms:
       [probe, challenge, discriminate, classify, evaluate, infer, detect]
     description: >
@@ -21,7 +21,7 @@ templates:
 
   - id: grill-me/grill-me-assess
     path: grill-me-assess.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [evaluate, classify, integrate, crystallize, contextualise]
     description: >
       Synthesize final assessment with per-area ratings (Solid/Partial/Gap)
@@ -29,7 +29,7 @@ templates:
 
   - id: grill-me/grill-me-escalate
     path: grill-me-escalate.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [detect, evaluate, regulate, orient]
     description: >
       Decide whether to escalate difficulty, hold, or re-probe based on

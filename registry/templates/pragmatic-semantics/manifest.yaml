@@ -13,7 +13,7 @@ crate:
 templates:
   - id: pragmatic-semantics/semantics-classify-statement
     path: semantics-classify-statement.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [classify, discriminate, evaluate, orient, specify]
     description: >
       Classify a statement on both ontological (IS/OUGHT) and epistemic
@@ -52,5 +52,4 @@ hlexicon_terms:
   - resolve
   - regulate
   - enforce
-  - verify
   - contextualise

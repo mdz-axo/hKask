@@ -12,7 +12,7 @@ crate:
 templates:
   - id: constraint-forces/constraint-forces-classify
     path: constraint-forces-classify.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [classify, discriminate, evaluate, constrain, specify]
     description: >
       Classify a statement or constraint into its force type and map to

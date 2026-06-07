@@ -1,159 +1,200 @@
 ---
 name: skill-maintenance
 visibility: public
-description: "Audit skill corpus for staleness, coverage gaps, and quality degradation. Detect skills that reference moved files, outdated architecture, or contradictory instructions. Score skills and recommend retirement. Use when the user says 'audit skills', 'check skills', or periodically to maintain skill hygiene."
+description: "Audit hKask's dual-layer skill architecture for staleness, coverage gaps, and quality degradation. Detect broken references, contract drift, invalid template types, and cross-layer inconsistencies across Zed agent skills and registry templates. Score health, recommend deprecation. Use when the user says 'audit skills', 'check skills', or periodically to maintain skill hygiene."
 ---
 
-# Skill Maintenance
+# Skill Maintenance — Dual-Layer Audit
 
-Audit the skill corpus for health. Skills rot — descriptions become inaccurate, instructions reference moved files, patterns contradict updated architecture. This skill teaches you to detect, score, and remediate skill degradation.
+hKask skills live in TWO layers. Audit both. A skill with only one layer is incomplete.
+
+| Layer | Artifact | Audience |
+|-------|----------|----------|
+| **Zed Agent** | `.agents/skills/<name>/SKILL.md` | Zed coding agent |
+| **Registry** | `registry/templates/<name>/manifest.yaml` + `*.j2` | Runtime (Okapi, cascade) |
 
 ## Skill Lifecycle
-
-Every skill moves through four states:
 
 ```
 active → stale_warning → deprecated → retired
 ```
 
-| State | Meaning | How It Got There |
-|-------|---------|-----------------|
-| **active** | Loaded by agent, descriptions match reality | Skill validates after installation |
+| State | Meaning | Entry |
+|-------|---------|-------|
+| **active** | Both layers valid, descriptions match reality | Validated after install |
 | **stale_warning** | One or more staleness signals detected | Audit found issues |
-| **deprecated** | Marked for removal, no longer activated | User decided or skill superseded |
-| **retired** | Removed from skill directory | Deleted or archived |
+| **deprecated** | Marked for removal, no longer activated | User or supersession |
+| **retired** | Removed from both layers | Deleted |
 
 ## Staleness Detection
 
-### Signals that a skill is stale
+### Zed Agent Layer Signals (SKILL.md)
 
-| Signal | Detection Method | Severity |
-|--------|-----------------|----------|
-| Description references non-existent files or paths | Read SKILL.md, check referenced paths exist | High — skill instructions are broken |
-| Instructions reference renamed or moved crates | Compare against workspace `Cargo.toml` crate map | High — instructions are misleading |
-| CNS span names referenced that don't exist in canonical list | Check against `hkask-types::event::CANONICAL_NAMESPACES` or PRINCIPLES.md §1.4 | Medium — observability is wrong |
-| Magna Carta principle references outdated | Compare against current P1–P4 in `docs/architecture/magna-carta.md` | High — governance is wrong |
-| Description is too vague to match relevant requests | Description < 20 chars or uses generic phrases like "helps with code" | Medium — skill is invisible |
-| Instructions contradict current architecture | Read code referenced by instructions, check consistency | High — skill teaches wrong things |
-| Supporting files referenced in body don't exist | Check all referenced file paths in skill directory | High — incomplete skill |
-| Skill never activated in recent sessions | No user request matched its description (heuristic) | Low — may be unused |
+| Signal | Detection | Severity |
+|--------|-----------|----------|
+| Referenced file/crate path does not exist | Read body, check paths | High |
+| CNS span name not in canonical set | Compare `PRINCIPLES.md` §1.4 | Medium |
+| Magna Carta P1–P4 reference outdated | Compare `docs/architecture/magna-carta.md` | High |
+| Description vague or generic | < 20 chars, no specific triggers | Medium |
+| Body contradicts current architecture | Read referenced code, check consistency | High |
+| Supporting files in body missing | Check paths in skill directory | High |
 
-### Staleness Report Format
+### Registry Layer Signals (manifest.yaml + .j2)
 
-When auditing, produce a report:
+| Signal | Detection | Severity |
+|--------|-----------|----------|
+| manifest.yaml version stale | Version doesn't match workspace version | Medium |
+| .j2 contract drift — input/output fields no longer match runtime types | Compare contract against actual struct fields in crate code | High |
+| `template_type: Cognition` — invalid (Cognition is DDMVSS name, not runtime-valid) | Must be `WordAct`, `KnowAct`, or `FlowDef` | High |
+| hLexicon terms not in workspace registry | Compare against `hkask-types::hlexicon` or workspace lexicon source | Medium |
+| `energy_cap` out of range | Must be 2048–8192 | Medium |
+| `visibility` value invalid | Must be `Private`, `Public`, or `Shared` | High |
+| manifest `templates` entry references .j2 that doesn't exist | Check `path` against filesystem | High |
+| .j2 frontmatter `template_type` disagrees with manifest entry | Cross-check manifest type vs .j2 `[inference]` type | High |
 
-```
-Skill Staleness Audit — [date]:
-  ✓ skill-name        active — description matches, instructions valid
-  ⚠ skill-name        stale_warning — [specific issue]
-  ✗ skill-name        stale_warning (critical) — [specific issue]
-  ◌ skill-name        deprecated — [reason]
-```
+### Cross-Layer Signals
 
-### How to Audit a Single Skill
+| Signal | Detection | Severity |
+|--------|-----------|----------|
+| SKILL.md exists but no `registry/templates/<name>/` | Compare directory listings | High |
+| Registry templates exist but no `.agents/skills/<name>/SKILL.md` | Compare directory listings | High |
+| SKILL.md methodology doesn't match .j2 template logic | Read both, compare intent | Medium |
 
-1. **Read** the SKILL.md frontmatter and body
-2. **Check format**: `name` matches directory, `description` is 1–1024 chars
-3. **Check references**: Every file path, crate name, span name, and doc path referenced in the body exists
-4. **Check consistency**: Instructions don't contradict current architecture or Magna Carta
-5. **Check description quality**: Description is specific enough to be matched by relevant requests
-6. **Score**: Assign a health score (0–1.0)
+## Audit Procedure
 
-### Health Score Calculation
+For each skill name present in EITHER layer:
+
+1. **Enumerate** both layers: check `.agents/skills/<name>/SKILL.md` AND `registry/templates/<name>/`
+2. **Check Zed layer**: frontmatter format, references, consistency (current procedure)
+3. **Check Registry layer**: manifest structure, each .j2 frontmatter vs manifest, contract validity, template_type validity, hLexicon coverage, energy_cap range, visibility values
+4. **Check cross-layer**: both layers exist, methodology aligns
+5. **Score**: compute health score across both layers
+
+## Health Score
 
 ```
 score = 1.0
-- 0.3 per broken reference (file, crate, span, or doc path)
-- 0.2 per contradiction with current architecture
-- 0.2 per Magna Carta violation or outdated reference
-- 0.1 per vague description
-- 0.1 per missing supporting file
 
-thresholds:
-  ≥ 0.8 → active (healthy)
-  0.5–0.79 → stale_warning (review needed)
-  0.2–0.49 → stale_warning (critical, prioritize)
-  < 0.2 → recommend deprecation
+Zed layer deductions:
+  -0.15 per broken reference (file, crate, span, doc path)
+  -0.10 per contradiction with architecture or Magna Carta
+  -0.05 per vague description
+  -0.10 per missing supporting file
+
+Registry layer deductions:
+  -0.15 per invalid template_type (e.g. Cognition → must be KnowAct)
+  -0.10 per contract drift (input/output mismatch)
+  -0.10 per manifest/.j2 path reference broken
+  -0.05 per hLexicon term not in workspace
+  -0.05 per energy_cap out of 2048–8192 range
+  -0.10 per invalid visibility value
+
+Cross-layer deductions:
+  -0.25 per missing layer (SKILL.md without registry, or vice versa)
+  -0.10 per methodology/logic mismatch between layers
+
+Floor at 0.0.
+```
+
+| Score | Status | Action |
+|-------|--------|--------|
+| ≥ 0.8 | active | No action |
+| 0.5–0.79 | stale_warning | Review within 30 days |
+| 0.2–0.49 | stale_warning (critical) | Prioritize revision |
+| < 0.2 | recommend deprecation | Deprecate or retire |
+
+### Report Format
+
+```
+Dual-Layer Skill Audit — [date]:
+  ✓ skill-name   active (0.92) — both layers valid
+  ⚠ skill-name   stale (0.61) — [layer]: [issue]
+  ✗ skill-name   critical (0.31) — [layer]: [issue]
+  ◌ skill-name   deprecated — [reason]
 ```
 
 ## Coverage Gap Analysis
 
-### How to check for gaps
+Check BOTH layers for gaps:
 
-1. List all skills: read `.agents/skills/` directory
-2. For each common task pattern in hKask, check if a skill matches:
-   - Coding and implementation → `coding-guidelines`, `tdd`
-   - Debugging → `diagnose`
-   - Architecture → `improve-codebase-architecture`, `zoom-out`
-   - Knowledge testing → `grill-me`
-   - Sovereignty → `magna-carta-verifier`, `constraint-forces`
-   - System reasoning → `pragmatic-cybernetics`, `pragmatic-semantics`
-   - Session continuity → `handoff`
-   - Skill management → `skill-discovery`, `skill-maintenance`, `skill-manager`, `skill-bundler`, `skill-translator`
-3. For any uncovered pattern, report the gap and suggest creating or finding a skill
+| Dimension | What to Check |
+|----------|---------------|
+| **Task pattern → SKILL.md** | Does a skill description cover each common hKask task pattern? |
+| **template_type distribution** | Are `WordAct`, `KnowAct`, `FlowDef` all represented? Over-concentration in one type signals gap. |
+| **hLexicon term coverage** | Do template `lexicon_terms` and `hlexicon_terms` cover the workspace lexicon? Missing terms = blind spots. |
+| **Cascade depth** | Do FlowDef templates exist for multi-step workflows, or are all skills single-act? Missing FlowDef = no cascade wiring. |
 
 ### Gap Report Format
 
 ```
 Coverage Gaps:
-  [pattern] — no skill matches this task pattern
-  [pattern] — partially covered by [skill-name] but [what's missing]
+  Zed layer:
+    [pattern] — no SKILL.md matches
+    [pattern] — partially covered by [name], missing [aspect]
+  Registry layer:
+    [template_type] — [N]% concentration, [missing_type] absent
+    hLexicon: [term] not covered by any template
+    Cascade: no FlowDef for [workflow]
+  Cross-layer:
+    [name] — SKILL.md present, registry absent (or vice versa)
 ```
 
-## Deprecation Process
+## Deprecation
 
 ### When to deprecate
 
-A skill should be deprecated when:
-1. It's superseded by a better skill
-2. Its domain is no longer relevant
-3. Its health score is consistently below 0.2
-4. The user says they don't need it
-5. It violates current Magna Carta principles and fixing it would require a rewrite
+- Superseded by a better skill
+- Domain no longer relevant
+- Health score consistently < 0.2
+- User decides
+- Violates Magna Carta and fix requires rewrite
 
 ### Soft deprecation
 
-Add `disable-model-invocation: true` to the SKILL.md frontmatter. The skill still exists on disk but is not auto-loaded. The user can still invoke it manually via slash command.
+| Layer | Action |
+|-------|--------|
+| Zed Agent | Add `disable-model-invocation: true` to SKILL.md frontmatter |
+| Registry | Set `visibility: Private` on all .j2 templates and manifest |
+
+Skill still exists on disk. User can invoke manually.
 
 ### Hard retirement
 
-Delete the skill directory from `.agents/skills/`. No uninstall ceremony — but consider archiving first if the skill has useful content that might be adapted later.
+Delete from BOTH:
+- `.agents/skills/<name>/` (entire directory)
+- `registry/templates/<name>/` (entire directory)
+
+Consider archiving first if content may be adapted later.
 
 ### Merge/Replace
 
-When a new skill supersedes an old one:
+When skill A supersedes skill B:
 
-1. Document the supersession in the new skill's body
-2. Deprecate the old skill (soft or hard)
-3. Transfer any unique content from the old skill that the new one doesn't cover
-4. Verify the new skill covers all task patterns the old one covered
+1. Document supersession in A's SKILL.md body and manifest description
+2. Transfer unique content from B that A doesn't cover
+3. Verify A covers all task patterns B covered
+4. Deprecate B (soft or hard)
 
-## Maintenance Schedule
+## Maintenance Triggers
 
-| Frequency | What to Check |
-|-----------|--------------|
-| **After architecture changes** | All skills — check crate names, span references, doc paths |
-| **After Magna Carta updates** | All skills — check P1–P4 references |
-| **After adding new skills** | Coverage gaps — does the new skill overlap or complement existing ones? |
-| **Monthly** | Full audit: staleness, coverage, quality |
-| **When a skill seems broken** | Targeted audit of that specific skill |
+| Trigger | Check |
+|---------|-------|
+| Architecture changes | All skills — crate names, spans, doc paths, contracts |
+| Magna Carta updates | All skills — P1–P4 references |
+| Workspace version bump | All manifests — version freshness |
+| New skill installed | Coverage gaps, cross-layer consistency |
+| Monthly | Full dual-layer audit |
+| Skill seems broken | Targeted audit of that skill |
 
 ## Self-Maintenance
 
-During normal sessions, flag skill issues when you notice them:
+During normal sessions, flag issues when noticed:
 
-- A skill's instructions didn't work as expected → the skill may be stale
-- You reached for a skill that doesn't exist → coverage gap
-- A skill's description didn't match the task → description quality issue
-- Two skills gave contradictory instructions → flag for `skill-bundler` conflict resolution
+- Instructions didn't work → skill may be stale
+- Reached for a skill that doesn't exist → coverage gap
+- Description didn't match task → description quality issue
+- Two skills contradicted → flag for `skill-bundler` conflict resolution
+- `template_type: Cognition` seen → flag for correction to `KnowAct`
+- Only one layer present → flag cross-layer gap
 
-Don't do a full audit in every conversation (token budget). Mention issues when they are relevant.
-
-## When to Use This Skill
-
-- **"Audit skills" / "Check skills":** Run a full staleness + coverage audit
-- **"Is this skill still good?":** Audit a single skill, produce health score
-- **"Clean up skills":** Identify candidates for deprecation or retirement
-- **"What skills am I missing?":** Coverage gap analysis
-- **After architecture changes:** Re-validate all skills that reference changed components
-- **Periodically:** Monthly hygiene check to catch gradual degradation
+Don't full-audit every session. Mention issues when relevant.

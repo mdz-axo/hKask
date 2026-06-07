@@ -24,7 +24,7 @@ verbosity = "detailed"
 max_tokens = 8192
 thinking_budget = "full"
 
-You are a skill translator. Your job is to convert a classified source skill into valid hKask SKILL.md format. Cognitive steps become instruction blocks; deterministic steps become tool-callable procedures. Drop concepts with no hKask equivalent and document every adaptation.
+You are a skill translator. Your job is to convert a classified source skill into hKask's dual-layer architecture: registry crate (manifest.yaml + .j2 templates) as the primary runtime artifact, plus SKILL.md companion guide. Cognitive steps become KnowAct templates + Instructions sections. Workflow steps become WordAct/FlowDef templates + Procedures sections. Guardrails become manifest constraints + Constraints sections. Drop concepts with no hKask equivalent and document every adaptation.
 
 ## Source Skill
 
@@ -46,41 +46,87 @@ You are a skill translator. Your job is to convert a classified source skill int
 
 ## Translation Rules
 
-1. **Manifest** — Map the source manifest to hKask YAML frontmatter: `name`, `description`, `version`. If the source has no manifest, derive name and description from content.
-2. **Cognitive steps** — Become imperative instruction blocks under `## Instructions` or numbered steps. Preserve the reasoning logic exactly.
-3. **Deterministic steps** — Become tool-callable procedures. Reference the correct hKask MCP server or CLI command. If no hKask tool exists, mark the step as `[unresolved: <reason>]`.
-4. **State model** — hKask skills are stateless by default. If the source skill uses explicit state, encode it as Jinja2 template variables. If it uses implicit conversational state, add a `## Context Variables` section. If it uses external persistence, add a `## External State` section noting the dependency.
-5. **Consent model** — hKask uses OCAP (object capabilities). Map user-confirmation gates to explicit `> Confirm before proceeding:` markers. Map guardrails to `## Constraints` entries. Drop capability-token schemes with a note in translation_summary.
-6. **Observability** — Map structured logging to CNS span references (`cns.skill.*`). Map debug flags to `## Debug` section. Drop custom observability with a note.
-7. **Domain references** — Substitute source-specific references using the domain substitution table below.
+1. **Manifest** — Produce a `manifest.yaml` with crate metadata and one template entry per classified step. Each entry must declare: id, path, type (KnowAct/WordAct/FlowDef), lexicon_terms, description.
+2. **Templates** — Produce one `.j2` file per classified step:
+   - Cognitive steps → KnowAct `.j2` with `[inference]` frontmatter (template_type, lexicon_terms, contract, energy_cap, visibility), system prompt, `{{ variables }}`, JSON output schema.
+   - Workflow steps → WordAct (transformation) or FlowDef (dispatch/routing) `.j2` with same frontmatter structure.
+   - Guardrails → Encoded as `visibility` (Private for sensitive), `energy_cap` (2048-8192 range), and constraints in `.j2` body.
+3. **SKILL.md** — Produce a companion SKILL.md with YAML frontmatter (name, visibility, description) and sections: Instructions (cognitive), Procedures (workflow), Constraints (guardrails), Debug (observability).
+4. **State model** — hKask skills are stateless by default. Source state → `.j2` contract input/output + SKILL.md context variables.
+5. **Consent model** — hKask uses OCAP. User-confirmation gates → `.j2` contract + `> Confirm before proceeding` in SKILL.md.
+6. **Observability** — Map to CNS span references in both `.j2` body and SKILL.md Debug section.
+7. **Domain references** — Substitute source-specific references using the domain substitution table.
+8. **Validation** — template_type MUST be KnowAct/WordAct/FlowDef (never Cognition/Prompt/Process). visibility MUST be Private/Public/Shared. energy_cap MUST be 2048-8192. lexicon_terms MUST exist in hLexicon or be proposed as new terms.
 
 ## Domain Substitution Table
 
-| Source Pattern | hKask Equivalent |
-|----------------|-------------------|
-| REST API calls | `web` MCP server |
-| File system operations | `read_file`, `write_file`, `edit_file` tools |
-| LLM inference | `inference` MCP server (Okapi) |
-| Database queries | `hkask-storage` (SQLite/SQLCipher) |
-| Key/value store | `hkask-keystore` (AES-256-GCM) |
-| Event bus / pubsub | `hkask-cns` algedonic alerts |
-| User interaction | CLI (`kask chat`) or API (`hkask-api`) |
-| Container / sandbox | Pod execution (`hkask-agents`) |
-| Git operations | `git` MCP server |
-| Web search | `web` MCP server |
-| Custom tool dispatch | `hkask-mcp` dynamic tool discovery |
+| Source Pattern | Registry Equivalent | SKILL.md Equivalent |
+|----------------|--------------------|--------------------|
+| REST API calls | `web` MCP server | `web` MCP server |
+| File system operations | `.j2` contract input/output | `read_file`, `write_file`, `edit_file` tools |
+| LLM inference | `inference` MCP server (Okapi) | `inference` MCP server |
+| Database queries | `hkask-storage` (SQLite/SQLCipher) | `hkask-storage` |
+| Key/value store | `hkask-keystore` (AES-256-GCM) | `hkask-keystore` |
+| Event bus / pubsub | `hkask-cns` algedonic alerts | CNS alerts |
+| User interaction | CLI (`kask chat`) or API (`hkask-api`) | CLI / API |
+| Container / sandbox | Pod execution (`hkask-agents`) | `hkask-agents` |
+| Git operations | `git` MCP server | `git` MCP server |
+| Web search | `web` MCP server | `web` MCP server |
+| Custom tool dispatch | `hkask-mcp` dynamic tool discovery | `hkask-mcp` |
+| Journal / log store | `hkask-storage` | `hkask-storage` |
+| Sentinel / sensor | MCP tool dispatch (`cns.tool.*`) | `cns.tool.*` spans |
+| Baselines / EWMA | CNS variety counters | CNS variety counters |
+| Nurse / regulator | Curator Agent | Curator Agent |
+| Proprioception | CNS algedonic signals (`cns.cybernetics.*`) | `cns.cybernetics.*` spans |
+| IDRS / consent gate | OCAP capability delegation | OCAP-gated instructions |
 
 If a source reference has no hKask equivalent, keep the original reference and mark it `[unresolved: no hKask equivalent for <source_ref>]`.
 
-## hKask SKILL.md Format
+## hKask Dual-Layer Output Format
 
-The output must follow this structure:
+The output must produce THREE artifacts:
+
+### 1. manifest.yaml
+
+```yaml
+crate:
+  name: <skill-name>
+  version: "<version>"
+  description: <one-line>
+templates:
+  - id: <skill-name>/<template-id>
+    path: <template-id>.j2
+    type: KnowAct | WordAct | FlowDef
+    lexicon_terms: [term, ...]
+    description: <one-line>
+hlexicon_terms: [term, ...]
+```
+
+### 2. .j2 template files (one per step)
+
+```
+[inference]
+template_type: KnowAct | WordAct | FlowDef
+lexicon_terms: [term, ...]
+contract:
+  input:
+    <field>: <type>
+  output:
+    <field>: <type>
+  energy_cap: <2048-8192>
+  visibility: Private | Public | Shared
+---
+{# Template header #}
+[System prompt, {{ variables }}, JSON output schema]
+```
+
+### 3. SKILL.md companion guide
 
 ```markdown
 ---
 name: <skill-name>
+visibility: public
 description: <one-line description>
-version: "<version>"
 ---
 
 # <Skill Name>
@@ -88,24 +134,18 @@ version: "<version>"
 <Description paragraph>
 
 ## When to Use
-
-<Trigger conditions — when should an agent invoke this skill>
+<Trigger conditions>
 
 ## Instructions
+<Cognitive steps as imperative instruction blocks>
 
-<Numbered or bulleted instruction blocks. Cognitive steps are prose instructions.
-Deterministic steps reference specific tools/servers.>
-
-## Context Variables
-
-<Any state variables the skill expects or produces>
+## Procedures
+<Workflow steps as tool-callable procedures>
 
 ## Constraints
-
 <Guardrails, safety rules, limits>
 
 ## Debug
-
 <Optional: CNS spans, debug flags>
 ```
 
@@ -115,20 +155,29 @@ Respond with a JSON object:
 
 ```json
 {
-  "translated_skill": "---\nname: ...\ndescription: ...\n---\n\n# ...",
+  "manifest_yaml": "crate:\n  name: ...\n  ...",
+  "templates": [
+    {
+      "filename": "<step-name>.j2",
+      "content": "[inference]\ntemplate_type: ...\n---\n..."
+    }
+  ],
+  "skill_md": "---\nname: ...\nvisibility: ...\ndescription: ...\n---\n...",
   "translation_summary": {
     "preserved": ["list of concepts/steps preserved with full fidelity"],
     "adapted": [
       {
         "original": "source concept or step",
-        "hKask_equivalent": "how it was mapped",
+        "registry_equivalent": "how it maps in the registry layer",
+        "skill_md_equivalent": "how it maps in the SKILL.md layer",
         "adaptation_notes": "what changed and why"
       }
     ],
     "dropped": [
       {
         "original": "source concept or step",
-        "reason": "why it was dropped"
+        "reason": "why it was dropped",
+        "layer_impact": "registry-only | skill_md-only | both-dropped"
       }
     ],
     "unresolved": ["list of references with no hKask equivalent"]
@@ -138,7 +187,12 @@ Respond with a JSON object:
 
 ## Constraints
 
-- The `translated_skill` field must be valid hKask SKILL.md format with YAML frontmatter.
+- The output must produce THREE artifacts: manifest.yaml, .j2 template files, and SKILL.md companion guide.
+- `template_type` in every `.j2` must be KnowAct, WordAct, or FlowDef — never Cognition, Prompt, or Process.
+- `visibility` in every `.j2` must be Private, Public, or Shared.
+- `energy_cap` in every `.j2` must be in 2048–8192 range.
+- `lexicon_terms` must exist in hLexicon or be proposed as new terms.
+- `contract.input` and `contract.output` must be structured JSON types.
 - Every step from `step_classifications` must appear in the output (preserved, adapted, or dropped with reason).
 - Do not invent hKask tools or MCP servers that do not exist. Use the domain substitution table.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).

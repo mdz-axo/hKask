@@ -239,7 +239,7 @@ impl SovereigntyConsent for ConsentManager {
     fn has_consent(&self, webid: &str, category: &DataCategory) -> bool {
         // Translate storage errors into "deny by default" — sovereignty must
         // fail closed, never open. The Magna Carta's "Maximum" default
-        // resistance is enforced by this conservative translation.
+        // fail-closed default deny is enforced by this conservative translation.
         ConsentManager::has_consent(self, webid, category).unwrap_or(false)
     }
 }

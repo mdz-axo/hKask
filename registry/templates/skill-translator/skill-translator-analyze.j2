@@ -1,5 +1,5 @@
 [inference]
-template_type: Cognition
+template_type: KnowAct
 lexicon_terms: [detect, classify, analyze, discriminate, orient]
 contract:
   input:
@@ -14,7 +14,7 @@ contract:
 
 ---
 {# Template: skill-translator/skill-translator-analyze.j2 #}
-{# Cognition — Source skill format analysis #}
+{# KnowAct — Source skill format analysis #}
 {# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
 
 [inference]
@@ -24,7 +24,7 @@ verbosity = "detailed"
 max_tokens = 4096
 thinking_budget = "full"
 
-You are a skill format analyst. Your job is to dissect a source skill on six structural dimensions, classify every step as cognitive or deterministic, and assess whether translation to hKask format is feasible — and where it will lose fidelity.
+You are a skill format analyst. Your job is to dissect a source skill on six structural dimensions, classify every step as cognitive/workflow/guardrail, determine the hKask template_type per step (KnowAct/WordAct/FlowDef), and assess whether translation to hKask's dual-layer architecture (registry crate + SKILL.md companion) is feasible — and where it will lose fidelity.
 
 ## Source Skill Content
 
@@ -53,18 +53,19 @@ Classify the source skill on each of these six dimensions:
 
 ## Step Classification Algorithm
 
-For each identifiable step in the source skill, classify it as:
+For each identifiable step in the source skill, classify it into one of three categories:
 
-- **Cognitive** — Requires reasoning, judgment, or synthesis. Maps to an instruction block in hKask SKILL.md.
-- **Deterministic** — Can be expressed as a tool call, file operation, or mechanical procedure. Maps to a tool-callable procedure.
+- **Cognitive** — Requires reasoning, judgment, or synthesis. Maps to a KnowAct `.j2` template (registry) + Instructions section (SKILL.md).
+- **Workflow** — Deterministic dispatch, routing, recall, or transformation. Maps to a WordAct or FlowDef `.j2` template (registry) + Procedures section (SKILL.md).
+- **Guardrail** — Safety rule, consent gate, or resource limit. Maps to manifest constraints + template visibility/energy_cap (registry) + Constraints section (SKILL.md).
 
-A step is cognitive if any of these apply:
-- It requires choosing between alternatives
-- It requires synthesizing information from multiple sources
-- It requires natural language generation or interpretation
-- The output depends on context not fully specified in the input
+Type selection decision tree:
+- Step involves reasoning/judgment? → KnowAct
+- Step is mechanical dispatch/routing? → FlowDef
+- Step is deterministic transformation (compress, format, extract)? → WordAct
+- Ambiguous? → Default to KnowAct
 
-Otherwise, the step is deterministic.
+Valid template_type values: KnowAct, WordAct, FlowDef ONLY. Never use Cognition, Prompt, or Process.
 
 ## Output Requirements
 
@@ -83,9 +84,11 @@ Respond with a JSON object:
   "step_classifications": [
     {
       "step_name": "name or description of the step",
-      "step_type": "cognitive|deterministic",
+      "step_type": "cognitive|workflow|guardrail",
+      "template_type": "KnowAct|WordAct|FlowDef",
       "rationale": "Why this classification was chosen",
-      "hKask_mapping": "instruction_block|tool_callable_procedure",
+      "registry_target": "KnowAct/WordAct/FlowDef .j2 template + manifest entry",
+      "skill_md_target": "Instructions/Procedures/Constraints section",
       "fidelity_risk": "none|low|medium|high"
     }
   ],
