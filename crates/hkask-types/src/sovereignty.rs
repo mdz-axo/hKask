@@ -156,12 +156,19 @@ impl DataSovereigntyBoundary {
     }
 
     /// Check if data category is in shared set
-    pub fn is_shared(&self, category: &DataCategory) -> bool {
+    ///
+    /// F-SYN-003: renamed from `is_shared` to `is_category_shared` to
+    /// resolve the name collision with the (now-removed)
+    /// `Visibility::is_shared` predicate. The new name is
+    /// self-documenting about what the predicate operates on.
+    pub fn is_category_shared(&self, category: &DataCategory) -> bool {
         self.shared_data.contains(category)
     }
 
     /// Check if data category is public
-    pub fn is_public(&self, category: &DataCategory) -> bool {
+    ///
+    /// F-SYN-003: same rationale as `is_category_shared`.
+    pub fn is_category_public(&self, category: &DataCategory) -> bool {
         self.public_data.contains(category)
     }
 

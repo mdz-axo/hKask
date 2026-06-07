@@ -95,11 +95,11 @@ impl SovereigntyChecker {
             // Sovereign data: requires explicit consent AND requester == owner.
             return self.has_consent(requester, data_category) && requester == &self.owner_webid;
         }
-        if self.state.boundary.is_shared(data_category) {
+        if self.state.boundary.is_category_shared(data_category) {
             // Shared data: requires explicit consent for the requesting WebID.
             return self.has_consent(requester, data_category);
         }
-        self.state.boundary.is_public(data_category)
+        self.state.boundary.is_category_public(data_category)
     }
 
     pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {

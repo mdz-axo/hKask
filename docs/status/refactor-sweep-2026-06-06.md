@@ -307,7 +307,7 @@ visitor tests are behavioral (not structural): they exercise the *contract*
 | `cargo test -p hkask-api` | ✅ 4 / 0 |
 | **Sum across 8 crates** | **656 / 0** |
 | `cargo test --workspace` (excludes hkask-cli due to pre-existing error) | 656+ from above + integration/MCP-server tests, 0 failures |
-| `cargo clippy -p hkask-agents -- -D warnings` | ✅ clean |
+| `cargo clippy -p hkask-agents --no-deps -- -D warnings` | ✅ clean |
 
 The 4 visitor + 2 watch tests bring the `hkask-agents` count to 81 (verified
 by `cargo test | grep 'visitor_tests\|watch_channel'` — all 6 new tests
@@ -350,17 +350,18 @@ explicit (`Sender` type signature, not `Arc<RwLock<...>>`).
 
 | Metric | Pre-sweep | Post-sweep | Direction |
 |--------|-----------|------------|-----------|
-| Match-on-variant sites for `A2AMessage` | 4 | 1 (visitor dispatch) + 3 (trivial getters) | **concept count down**; total match sites roughly preserved (visitor has 1 match + 3 inline getters; the 4 separate match blocks were 4 match sites too) |
+| Match-on-variant sites for `A2AMessage` | 4 (1×send_message + 3×getters) | 1 (visitor dispatch in send_message) + 3 (trivial getters stay inline) | **match sites roughly preserved**; the 4-place update burden for new variants drops to 1 place + 1 visitor method (default no-op) |
 | `A2AMessageVisitor::on_*` methods | n/a | 3 | **new concept**, justified by the bijection invariant test |
 | `Arc<RwLock<...>>` for `last_snapshot` | 1 | 0 | **concept count down** (the lock primitive is replaced by `watch`) |
 | `tokio::sync::watch::Sender` | 0 | 1 | **new** but it's the standard library seam, not a new hKask concept |
+| `MetacognitionLoop` test count | 75 | 81 | +6 (4 visitor + 2 watch) |
 
 **Net:** the number of distinct *concepts* in the touched code went down
-(one generic `A2AMessage` access pattern; one `tokio` primitive replacing
-`RwLock<Option<...>>` hand-rolling). The number of *connections* (visitor
-methods, payload structs) went up by 3 — but the connections are
-*bijection-tested*, so they carry the invariant the previous code carried
-only by convention.
+(one `A2AMessage` access pattern that is now polymorphism-driven; one
+`tokio` primitive replacing `RwLock<Option<...>>` hand-rolling). The
+number of *connections* (visitor methods, payload structs) went up by 3
+— but the connections are *bijection-tested*, so they carry the
+invariant the previous code carried only by convention.
 
 ### T6.e — P8 / C8 compliance
 
@@ -543,18 +544,21 @@ product call).
 
 ### T7.8 — Tests that prove nothing (P8 audit, scoped)
 
-`cargo test --workspace` shows **899 passing, 0 failing**. Of these:
+Per-crate `cargo test -p <crate> --lib` results (post-sweep):
 
-- 196 in `hkask-types` (deep seam coverage — see `test-inventory.md`)
-- 107 in `hkask-cns` (algorithmic, well-tested)
-- 104 in `hkask-mcp` (round-trip tests)
-- 69 in `hkask-agents` (post-sweep, +6 from this pass)
-- 64 in `hkask-templates` (manifest executor + cascade)
-- 48 in `hkask-ensemble`
-- 39 in `mcp-spec` (tool handler)
-- 18 in `mcp-ocap`
-- 4 in `hkask-api` (shallow — only 4 tests for the entire 5589-LOC
-  HTTP API)
+| Crate | Tests | Notes |
+|-------|-------|-------|
+| `hkask-types` | 203 | Deep seam coverage — see `test-inventory.md` |
+| `hkask-cns` | 110 | Algorithmic, well-tested |
+| `hkask-storage` | 107 | (includes the P2 round-trip tests from v6) |
+| `hkask-mcp` | 64 | (plus a lib test count discrepancy I couldn't fully reconcile; the v6 file claims 62, my count is 64 — possibly some tests are conditionally compiled) |
+| `hkask-agents` | 81 | Post-sweep: +6 from this pass (4 visitor + 2 watch) |
+| `hkask-templates` | 48 | Manifest executor + cascade |
+| `hkask-ensemble` | (n/a — not in this sweep's build path) | |
+| `mcp-spec` | (n/a — not in this sweep's build path) | |
+| `hkask-keystore` | 39 | |
+| `hkask-api` | 4 | Shallow — only 4 tests for the entire 5589-LOC HTTP API |
+| **Total (8 crates)** | **656** | All passing, 0 failures |
 
 The `hkask-api` shallow coverage is a known gap. The `test-inventory.md`
 already lists integration tests as a future Phase 3. **No action in this
@@ -641,14 +645,17 @@ named seam — not now, with only one consumer.
 
 ### Test count
 
-- `hkask-agents`: 63 → 69 (+6)
-- Workspace total: 890 → 899 (+9)
+- `hkask-agents`: 75 → 81 (+6: 4 visitor + 2 watch)
+- 8-crate sum: 650 → 656 (+6; same source)
 
 ### Build / test status
 
-- `cargo check --workspace`: ✅ green
-- `cargo test --workspace`: ✅ 899 / 0
-- `cargo clippy -p hkask-agents -- -D warnings`: ✅ clean
+- `cargo check -p hkask-agents`: ✅ green
+- `cargo check -p hkask-templates`: ✅ green
+- `cargo check --workspace`: ⚠️ 1 pre-existing E0308 in `hkask-cli` (T7.10)
+- `cargo test -p hkask-agents --lib`: ✅ 81 / 0
+- 8-crate test sum: ✅ 656 / 0
+- `cargo clippy -p hkask-agents --no-deps -- -D warnings`: ✅ clean
 
 ---
 

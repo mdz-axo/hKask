@@ -2,11 +2,11 @@
 title: "Fowler Pattern Audit — Status Tracker"
 audience: [architects, developers, agents]
 last_updated: 2026-06-06
-version: "1.0.0"
+version: "1.1.0"
 status: "Active"
 domain: "Refactoring"
 ddmvss_categories: [capability, interface, composition]
-source: "Fowler Pattern Audit, 2026-06-05"
+source: "Fowler Pattern Audit, 2026-06-05; Refactor Sweep 2026-06-06"
 ---
 
 # Fowler Pattern Audit — Status Tracker (2026-06-06)
@@ -124,10 +124,21 @@ Ordered by **leverage ÷ effort**:
 
 ## Validation
 
-`cargo check --workspace` is **green** (2026-06-06, HEAD post-`P3.4`+`P4.5`).
-`cargo test --workspace` runs **899 tests** (0 failures). The P3.4 work added
-4 visitor tests; the P4.5 work added 2 `watch`-channel tests. `cargo clippy
--p hkask-agents -- -D warnings` is clean.
+`cargo check -p hkask-agents` is **green** (2026-06-06, HEAD post-`P3.4`+`P4.5`).
+The 8-crate test command (`cargo test -p hkask-types -p hkask-storage -p
+hkask-cns -p hkask-keystore -p hkask-mcp -p hkask-templates -p
+hkask-agents -p hkask-api --lib`) reports **656 tests** (0 failures).
+The P3.4 work added 4 visitor tests; the P4.5 work added 2
+`watch`-channel tests. `cargo clippy -p hkask-agents --no-deps -- -D
+warnings` is clean.
 
-*Refactor Sweep T1–T7 report: see the next entry in `docs/status/` for the
-graph map, mermaid diagram, audit classification, and T7 future ledger.*
+Note: `cargo check --workspace` is not green — there is a pre-existing
+E0308 in `crates/hkask-cli/src/commands/curator.rs:15` (`?
+on a `Vec<EscalationEntry>`) that the v6 sweep did not catch because
+its test command list excluded `hkask-cli`. Recorded as T7.10 in the
+refactor sweep report; out of scope for this audit's tracked items.
+
+*Refactor Sweep T1–T7 report: see
+[`refactor-sweep-2026-06-06.md`](refactor-sweep-2026-06-06.md) for the
+graph map, mermaid diagram, audit classification, and T7 future
+ledger.*

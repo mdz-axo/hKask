@@ -302,12 +302,12 @@ async fn sovereignty_check_access(
             "SOVEREIGN".to_string(),
             "Requires explicit consent AND owner".to_string(),
         )
-    } else if boundary.is_shared(&category) {
+    } else if boundary.is_category_shared(&category) {
         (
             "SHARED".to_string(),
             "Requires explicit consent".to_string(),
         )
-    } else if boundary.is_public(&category) {
+    } else if boundary.is_category_public(&category) {
         ("PUBLIC".to_string(), "Always accessible".to_string())
     } else {
         ("UNKNOWN".to_string(), "Denied by default".to_string())

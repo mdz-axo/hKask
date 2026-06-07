@@ -54,19 +54,12 @@ impl Visibility {
         }
     }
 
-    #[allow(dead_code)] // reserved for future crate-internal use
-    pub(crate) fn is_private(&self) -> bool {
-        matches!(self, Visibility::Private)
-    }
-
-    #[allow(dead_code)] // reserved for future crate-internal use
-    pub(crate) fn is_public(&self) -> bool {
-        matches!(self, Visibility::Public)
-    }
-
-    pub fn is_shared(&self) -> bool {
-        matches!(self, Visibility::Shared)
-    }
+    // F-SYN-003: the three `is_*` predicates were dead code
+    // (F-L1-005) and collided with the same-named predicates on
+    // `DataSovereigntyBoundary` (F-L4-001). Removed entirely. Use
+    // `match self { Visibility::Private => ..., ... }` at the
+    // call site, or import `DataSovereigntyBoundary::is_category_shared`
+    // when the predicate is category-scoped.
 }
 
 /// Access control grouping for triples and other stored artifacts.

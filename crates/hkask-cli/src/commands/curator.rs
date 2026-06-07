@@ -12,7 +12,8 @@ use crate::errors::CuratorError;
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
     let conn = open_registry_db()?;
     let queue = hkask_agents::EscalationQueue::new(conn)?;
-    queue.list_pending()?
+    let escalations: Vec<EscalationEntry> = queue.list_pending()?;
+    Ok(escalations)
 }
 
 /// Resolve an escalation by ID
