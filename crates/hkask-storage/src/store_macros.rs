@@ -5,7 +5,6 @@
 //! `define_store!` generates the struct + `Store` impl for each store.
 //! `impl_from_rusqlite!` generates the canonical `From<rusqlite::Error>` impl.
 
-use crate::lock_helpers::lock_mutex;
 use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -79,7 +78,7 @@ macro_rules! define_store {
             > {
                 $crate::lock_helpers::lock_mutex(&self.conn)
             }
-        };
+        }
     };
 }
 

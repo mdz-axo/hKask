@@ -49,13 +49,13 @@ pub fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_
 
     let store = hkask_storage::user_store::UserStore::new(db.conn_arc());
     let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-    or_exit(
-        lock_mutex(&store).and_then(|mut g| {
-            g.initialize_schema()
-                .map_err(|e| hkask_types::InfrastructureError::Database(e.to_string()))
-        }),
-        "Failed to initialize user store schema",
-    );
+    {
+        let guard = or_exit(lock_mutex(&store), "Failed to acquire lock on user store");
+        or_exit(
+            guard.initialize_schema(),
+            "Failed to initialize user store schema",
+        );
+    }
     store
 }
 
