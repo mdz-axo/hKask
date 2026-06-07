@@ -12,6 +12,7 @@ use tracing::info;
 
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
+use crate::MemoryError;
 use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
 use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
@@ -290,22 +291,27 @@ impl PodManagerBuilder {
     }
 
     /// Configure with encrypted storage (episodic and semantic)
+    ///
+    /// P4.1: Returns `Result<Self, MemoryError>` so the caller can handle
+    /// recoverable storage initialization failures (invalid passphrase,
+    /// permission denied, disk full) instead of panicking. The path must
+    /// be valid UTF-8; non-UTF-8 paths return `MemoryError::Infra` with a
+    /// descriptive message rather than panicking with `.expect()`.
     pub fn with_encrypted_storage<P: AsRef<std::path::Path>>(
         self,
         path: P,
         passphrase: &str,
-    ) -> Self {
-        let path_str = path
-            .as_ref()
-            .to_str()
-            .expect("Storage path must be valid UTF-8");
-        let adapter = Arc::new(
-            MemoryLoopAdapter::from_path(path_str, passphrase)
-                .expect("Encrypted storage initialization should succeed"),
-        );
-        let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
-        let semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
-        self.episodic_storage(episodic).semantic_storage(semantic)
+    ) -> Result<Self, MemoryError> {
+        let path_str = path.as_ref().to_str().ok_or_else(|| {
+            hkask_types::InfrastructureError::Database(format!(
+                "Storage path is not valid UTF-8: {:?}",
+                path.as_ref()
+            ))
+        })?;
+        let adapter = Arc::new(MemoryLoopAdapter::from_path(path_str, passphrase)?);
+        let episodic: Arc<dyn EpisodicStoragePort> = Arc::clone(&adapter) as _;
+        let semantic: Arc<dyn SemanticStoragePort> = Arc::clone(&adapter) as _;
+        Ok(self.episodic_storage(episodic).semantic_storage(semantic))
     }
 
     pub fn build(self) -> PodManager {

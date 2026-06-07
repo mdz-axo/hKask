@@ -23,6 +23,37 @@ pub enum AgentError {
 
     #[error("Capability error: {0}")]
     CapabilityError(String),
+
+    /// Upstream registry init/load failure (from `commands::config::init_registry`).
+    /// P3.5: replaces the `.map_err(|e| CapabilityError(e.to_string()))` calls.
+    #[error(transparent)]
+    Registry(#[from] RegistryError),
+
+    /// Upstream agent-registry loader failure (boot, load_and_register).
+    /// P3.5: replaces the `.map_err(|e| CapabilityError(e.to_string()))` calls.
+    #[error(transparent)]
+    RegistryLoader(#[from] hkask_agents::registry_loader::RegistryLoaderError),
+}
+
+// P3.5: `From<...>` impls for the upstream error sources that `commands::agent.rs`
+// propagates with `?`. These were previously stringified via
+// `.map_err(|e| AgentError::CapabilityError(e.to_string()))`.
+impl From<hkask_agents::acp::AcpError> for AgentError {
+    fn from(e: hkask_agents::acp::AcpError) -> Self {
+        AgentError::RegistrationFailed(e.to_string())
+    }
+}
+
+impl From<hkask_storage::AgentRegistryError> for AgentError {
+    fn from(e: hkask_storage::AgentRegistryError) -> Self {
+        AgentError::RegistrationFailed(e.to_string())
+    }
+}
+
+impl From<uuid::Error> for AgentError {
+    fn from(e: uuid::Error) -> Self {
+        AgentError::RegistrationFailed(format!("Invalid WebID: {e}"))
+    }
 }
 
 /// Errors that can occur during ensemble operations

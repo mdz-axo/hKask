@@ -1,7 +1,7 @@
 ---
 title: "Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition"
 audience: [architects, developers, agents]
-last_updated: 2026-06-03
+last_updated: 2026-06-06
 version: "2.3.0"
 status: "Active"
 domain: "Architecture"
@@ -261,7 +261,16 @@ Each loop exposes a **minimal interface** — a set of operations that other loo
 
 ### 3.4 MCP Server-to-Loop Mapping
 
-MCP servers are operational units that reside within the loop architecture. Each server is assigned to its semantically correct loop based on the authority it enforces:
+MCP servers are operational units that reside within the loop architecture. Each server is assigned to its semantically correct loop based on the authority it enforces.
+
+**Assignment criteria.** A server shall be assigned to the loop whose membrane (§4) encloses the authority the server's tools exercise. Specifically:
+
+1. **Domain authority** — the loop whose primary state the server reads or writes. A server that reads/writes the prompt queue, the fact store, or the message queue belongs to the loop that owns that state, not to a loop that merely observes it.
+2. **Authoritative transform** — the loop whose core transform the server performs. Inference servers (LLM calls), condensation servers (context windowing), and curation servers (DDMVSS spec capture) belong to the loop whose function they embody.
+3. **Membrane containment** — a server shall not span two loops whose capability membranes (§4) forbid the cross-loop authority. Servers that legitimately touch multiple loops (e.g. `hkask-mcp-registry` for template discovery + skill composition) shall be marked as a *bridge* with the loops it connects explicitly named.
+4. **No anchoring by call site** — the assignment is determined by what the server *governs*, not by which loop happens to invoke it. A web I/O server invoked from the Inference loop is still a Communication-loop server, because the authority is routing, not inference.
+
+**Per-server assignments:**
 
 | MCP Server | Loop | Rationale |
 |-----------|------|----------|
@@ -284,6 +293,10 @@ MCP servers are operational units that reside within the loop architecture. Each
 | `hkask-mcp-ocap` | L6 (Cybernetics) | OCAP enforcement is authority governance — Cybernetics regulates capability membranes |
 | `hkask-mcp-keystore` | L6 (Cybernetics) | Key management and encryption are sovereignty/authority concerns — Cybernetics regulates |
 | `hkask-mcp-cns` | L6 (Cybernetics) | CNS operations — Cybernetics IS the self-regulation loop |
+| `hkask-mcp-doc-knowledge` | L2 (Episodic) | Document parsing and chunking — feeds parsed documents into the episodic boundary |
+| `hkask-mcp-markitdown` | L2 (Episodic) | Document format conversion and OCR — ingests converted content into the episodic boundary |
+
+These assignments are normative. A server that does not satisfy one of criteria 1–4 for its assigned loop shall be reclassified or, if no loop fits, marked as substrate rather than loop-resident.
 
 ---
 

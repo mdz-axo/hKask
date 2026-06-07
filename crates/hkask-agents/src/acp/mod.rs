@@ -420,6 +420,15 @@ fn current_timestamp() -> Result<i64, AcpError> {
 }
 
 impl Default for AcpRuntime {
+    /// Construct a default ACP runtime using the resolved ACP secret.
+    ///
+    /// P4.1: The `Default` trait cannot return `Result`, so this is a
+    /// documented panic if the secret is unavailable. The panic message
+    /// is the actionable onboarding instruction ("run `kask chat` to
+    /// complete onboarding, or set HKASK_MASTER_KEY or HKASK_ACP_SECRET").
+    /// Callers that need graceful failure should call
+    /// `hkask_keystore::resolve_acp_secret()` directly and handle the
+    /// `Result` instead of using `Default::default()`.
     fn default() -> Self {
         let secret = hkask_keystore::resolve_acp_secret().expect(
             "ACP secret not available. Run `kask chat` to complete onboarding, \

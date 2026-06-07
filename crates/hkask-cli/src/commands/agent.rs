@@ -17,9 +17,7 @@ pub struct AgentReceipt {
 pub async fn bot_list(
     kind_filter: Option<&str>,
 ) -> Result<Vec<hkask_types::RegisteredAgent>, AgentError> {
-    let (_acp, store) = init_registry()
-        .await
-        .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
+    let (_acp, store) = init_registry().await?;
 
     let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
@@ -28,10 +26,7 @@ pub async fn bot_list(
         Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
     );
 
-    let agents = loader
-        .boot()
-        .await
-        .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
+    let agents = loader.boot().await?;
 
     let filtered = if let Some(kind_str) = kind_filter {
         let kind = hkask_types::AgentKind::parse(kind_str)
@@ -49,9 +44,7 @@ pub async fn bot_list(
 
 /// Get status/details for a specific agent by name
 pub async fn bot_status(name: &str) -> Result<hkask_types::RegisteredAgent, AgentError> {
-    let (_acp, store) = init_registry()
-        .await
-        .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
+    let (_acp, store) = init_registry().await?;
 
     let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
@@ -60,10 +53,7 @@ pub async fn bot_status(name: &str) -> Result<hkask_types::RegisteredAgent, Agen
         Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
     );
 
-    let agents = loader
-        .boot()
-        .await
-        .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
+    let agents = loader.boot().await?;
 
     agents
         .into_iter()
@@ -77,12 +67,9 @@ pub async fn agent_register(
     agent_type: &str,
     capabilities: Vec<String>,
 ) -> Result<AgentReceipt, AgentError> {
-    let (acp, store) = init_registry()
-        .await
-        .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
+    let (acp, store) = init_registry().await?;
 
-    let webid = hkask_types::WebID::from_str(webid_str)
-        .map_err(|e| AgentError::RegistrationFailed(format!("Invalid WebID: {e}")))?;
+    let webid = hkask_types::WebID::from_str(webid_str)?;
 
     let agent_kind = hkask_types::AgentKind::parse(agent_type).ok_or_else(|| {
         AgentError::RegistrationFailed(format!(
@@ -91,10 +78,7 @@ pub async fn agent_register(
         ))
     })?;
 
-    let token = acp
-        .register_agent(webid, agent_kind, capabilities)
-        .await
-        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
+    let token = acp.register_agent(webid, agent_kind, capabilities).await?;
 
     let definition = hkask_types::AgentDefinition {
         name: webid_str.to_string(),
@@ -115,9 +99,7 @@ pub async fn agent_register(
         source_yaml: "cli-register".to_string(),
     };
 
-    store
-        .insert(&registered)
-        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
+    store.insert(&registered)?;
 
     Ok(AgentReceipt {
         webid: webid_str.to_string(),
@@ -261,13 +243,7 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
 
 /// Unregister an agent by name
 pub async fn agent_unregister(name: &str) -> Result<(), AgentError> {
-    let (_acp, store) = init_registry()
-        .await
-        .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
-
-    store
-        .remove(name)
-        .map_err(|e| AgentError::UnregistrationFailed(e.to_string()))?;
-
+    let (_acp, store) = init_registry().await?;
+    store.remove(name)?;
     Ok(())
 }
