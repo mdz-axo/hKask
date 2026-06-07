@@ -4,6 +4,8 @@
 //! signals are compared. When a signal deviates beyond its set-point,
 //! the loop produces an efferent action.
 
+use hkask_types::cns::QueueDepth;
+
 /// Default minimum energy budget remaining ratio (20%).
 ///
 /// When gas remaining drops below this ratio, the Cybernetics Loop produces
@@ -31,7 +33,8 @@ pub const DEFAULT_CONNECTOR_LATENCY_MAX_SECS: f64 = 30.0;
 ///
 /// When the Communication Loop's queue depth exceeds this value,
 /// the Cybernetics Loop produces a Throttle(Communication) action.
-pub const DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD: f64 = 100.0;
+pub const DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD: QueueDepth =
+    QueueDepth::DEFAULT_BACKPRESSURE;
 
 /// Default maximum number of regulation iterations per cycle.
 ///
@@ -57,7 +60,7 @@ pub struct SetPoints {
     /// When the Communication Loop's queue depth exceeds this value,
     /// CyberneticsLoop produces a Throttle(Communication) action.
     /// Default: 100 messages
-    pub communication_backpressure_threshold: f64,
+    pub communication_backpressure_threshold: QueueDepth,
 }
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
@@ -75,7 +78,7 @@ pub struct SetPointsConfig {
     pub variety_max_deficit: Option<f64>,
     pub error_rate_max: Option<f64>,
     pub connector_latency_max_secs: Option<f64>,
-    pub communication_backpressure_threshold: Option<f64>,
+    pub communication_backpressure_threshold: Option<QueueDepth>,
 }
 
 impl SetPointsConfig {

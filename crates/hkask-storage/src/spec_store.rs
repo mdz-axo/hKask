@@ -93,7 +93,7 @@ impl SqliteCurationRecordStore {
             stmt,
             rusqlite::params![spec_id.to_string()],
             |row: &rusqlite::Row<'_>| -> rusqlite::Result<SpecCurationRecord> {
-                let spec_id = spec_id;
+                let spec_id: SpecId = spec_id;
                 let decision_str: String = row.get(0)?;
                 let rationale: String = row.get(1)?;
                 let coherence_score: f64 = row.get(2)?;

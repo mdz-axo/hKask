@@ -130,6 +130,7 @@ pub enum A2AMessage {
 /// Replaces 5 independent `Arc<RwLock<....>` fields with one
 /// lock, eliminating dead-lock potential from multi-lock acquisitions
 /// and guaranteeing consistent snapshots across read-modify-write ops.
+#[derive(Default)]
 struct AcpState {
     agents: HashMap<WebID, AcpAgent>,
     pending_messages: HashMap<String, A2AMessage>,
@@ -155,13 +156,7 @@ impl AcpRuntime {
         let secret_arc = Arc::new(Zeroizing::new(secret.to_vec()));
 
         Self {
-            state: Arc::new(RwLock::new(AcpState {
-                agents: HashMap::new(),
-                pending_messages: HashMap::new(),
-                capability_tokens: HashMap::new(),
-                agent_secrets: HashMap::new(),
-                revoked_tokens: std::collections::HashSet::new(),
-            })),
+            state: Arc::new(RwLock::new(AcpState::default())),
             secret: secret_arc,
             audit_log: Arc::new(AuditLog::new()),
             root_authority,

@@ -38,7 +38,7 @@ pub use curator::context::CuratorContext;
 pub use curator::curation_gate::CurationConfidenceGate;
 pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
-pub use hkask_cns::RBarThreshold;
+pub use hkask_types::RBarThreshold;
 
 pub use error::{GitError, MemoryError};
 pub use escalation::{EscalationEntry, EscalationError, EscalationQueue};

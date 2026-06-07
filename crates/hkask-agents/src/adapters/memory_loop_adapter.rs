@@ -36,7 +36,7 @@ fn triple_to_json(t: Triple) -> Value {
 
 /// Build a `Triple` from a `StorageRequest`.
 ///
-/// The `StorageRequest` captures-common-parameters (P2.4/P1.5), and this
+/// The `StorageRequest` capture-common-parameters (P2.4/P1.5), and this
 /// helper converts it into the `Triple` value object that the storage layer
 /// expects — eliminating per-method inline construction.
 fn request_to_triple(req: &StorageRequest) -> Triple {
@@ -52,6 +52,47 @@ fn request_to_triple(req: &StorageRequest) -> Triple {
         triple = triple.with_perspective(p);
     }
     triple
+}
+
+/// Verify write access to the given store type.
+///
+/// Wraps `require_write_access` with `MemoryError::CapabilityDenied`
+/// mapping, eliminating the `.map_err()` repetition across store methods.
+fn check_write_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryError> {
+    require_write_access(token, store_type).map_err(MemoryError::CapabilityDenied)
+}
+
+/// Verify read access to the given store type.
+///
+/// Wraps `require_read_access` with `MemoryError::CapabilityDenied`
+/// mapping, eliminating the `.map_err()` repetition across recall methods.
+fn check_read_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryError> {
+    require_read_access(token, store_type).map_err(MemoryError::CapabilityDenied)
+}
+
+/// Store a triple via a backend, with capability check and entity return.
+///
+/// Extracts the common pattern shared by `store_episodic`, `store_semantic`,
+/// and `store_episodic_classified`: check write access, convert request to
+/// triple, delegate to the storage backend, return the entity string.
+///
+/// The `store_fn` closure receives the constructed `Triple` and is expected
+/// to call the appropriate backend's `store` method, converting its error
+/// type to `MemoryError` via the `?` operator (which relies on existing
+/// `From` impls).
+fn store_via<E>(
+    request: StorageRequest,
+    token: &DelegationToken,
+    store_type: &str,
+    store_fn: impl FnOnce(Triple) -> Result<(), E>,
+) -> Result<String, MemoryError>
+where
+    MemoryError: From<E>,
+{
+    check_write_access(token, store_type)?;
+    let entity = request.entity.clone();
+    store_fn(request_to_triple(&request))?;
+    Ok(entity)
 }
 
 /// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
@@ -110,16 +151,13 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         request: StorageRequest,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
-
-        let entity = request.entity.clone();
-        self.episodic.store(request_to_triple(&request))?;
-
-        Ok(entity)
+        store_via(request, token, "episodic", |triple| {
+            self.episodic.store(triple)
+        })
     }
 
     fn recall_episodic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
-        require_read_access(&request.token, "episodic").map_err(MemoryError::CapabilityDenied)?;
+        check_read_access(&request.token, "episodic")?;
 
         let owner = request
             .perspective
@@ -168,8 +206,6 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         confidence_override: Option<Confidence>,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        require_write_access(token, "episodic").map_err(MemoryError::CapabilityDenied)?;
-
         // Resolve confidence: override takes precedence, otherwise classification default
         let confidence = confidence_override
             .unwrap_or_else(|| Confidence::new(classification.default_confidence()));
@@ -183,12 +219,15 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
             "Episodic experience encoded (via loop membrane)"
         );
 
-        let mut req = request;
-        req.confidence = confidence;
-        let entity = req.entity.clone();
-        self.episodic.store(request_to_triple(&req))?;
-
-        Ok(entity)
+        store_via(
+            StorageRequest {
+                confidence,
+                ..request
+            },
+            token,
+            "episodic",
+            |triple| self.episodic.store(triple),
+        )
     }
 }
 
@@ -200,16 +239,13 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         request: StorageRequest,
         token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        require_write_access(token, "semantic").map_err(MemoryError::CapabilityDenied)?;
-
-        let entity = request.entity.clone();
-        self.semantic.store(request_to_triple(&request))?;
-
-        Ok(entity)
+        store_via(request, token, "semantic", |triple| {
+            self.semantic.store(triple)
+        })
     }
 
     fn recall_semantic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
-        require_read_access(&request.token, "semantic").map_err(MemoryError::CapabilityDenied)?;
+        check_read_access(&request.token, "semantic")?;
 
         // Route through SemanticMemory's deduped query
         let triples = self.semantic.query_deduped(&request.query)?;

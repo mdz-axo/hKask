@@ -57,7 +57,7 @@ pub use capability::{
     token_err_insufficient_access, token_err_tool_access_denied, verify_delegation_token,
     verify_delegation_token_now,
 };
-pub use cns::{CircuitState, CnsHealth};
+pub use cns::{CircuitState, CnsHealth, QueueDepth, RBarThreshold};
 pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};

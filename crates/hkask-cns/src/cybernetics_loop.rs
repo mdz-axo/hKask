@@ -409,7 +409,9 @@ impl HkaskLoop for CyberneticsLoop {
                 LoopId::Cybernetics,
                 SignalMetric::CommunicationQueueDepth,
                 depth as f64,
-                self.set_points.communication_backpressure_threshold,
+                self.set_points
+                    .communication_backpressure_threshold
+                    .as_raw(),
             ));
         }
 

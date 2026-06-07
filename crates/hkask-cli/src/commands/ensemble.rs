@@ -6,7 +6,7 @@
 
 use crate::block_on;
 use crate::cli::EnsembleAction;
-use hkask_cns::{CircuitBreaker, CyberneticsLoop};
+use hkask_cns::{CircuitBreaker, CyberneticsLoop, GasCost};
 use hkask_ensemble::{
     AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
     ImprovMode, ImprovSessionConfig, InferencePortAdapter, ParticipantRole, SessionManager,
@@ -70,7 +70,7 @@ impl GasGovernancePort for CyberneticsLoopGasAdapter {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             handle.spawn(async move {
                 let loop_read = loop_ref.read().await;
-                let _ = loop_read.acquire_budget(&agent, gas).await;
+                let _ = loop_read.acquire_budget(&agent, GasCost(gas)).await;
             });
         }
     }

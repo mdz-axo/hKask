@@ -21,9 +21,9 @@
 // reads gate.c, gate.n directly), so a port trait would just rename the struct
 // without meaningful decoupling. Revisit when a second implementation of
 // allosteric gating exists.
-use hkask_cns::RBarThreshold;
 use hkask_types::allosteric::gate::{AllostericGate, AllostericGateConfig};
 use hkask_types::allosteric::mwc::mwc_state_function;
+use hkask_types::cns::RBarThreshold;
 use std::time::Duration;
 
 /// Evidence port for the curation confidence gate.
@@ -140,8 +140,8 @@ impl CurationConfidenceGate {
         l: f64,
         c: f64,
         ports: Vec<CurationPort>,
-        upper_threshold: f64,
-        lower_threshold: f64,
+        upper_threshold: RBarThreshold,
+        lower_threshold: RBarThreshold,
     ) -> Self {
         let n = ports.len().max(1);
         let config = AllostericGateConfig {
@@ -156,8 +156,8 @@ impl CurationConfidenceGate {
         Self {
             gate: AllostericGate::new(&config),
             ports,
-            upper_threshold: RBarThreshold::new(upper_threshold),
-            lower_threshold: RBarThreshold::new(lower_threshold),
+            upper_threshold,
+            lower_threshold,
         }
     }
 
@@ -334,7 +334,10 @@ mod tests {
         ];
         let mut gate = CurationConfidenceGate::with_params(
             1.0, // L=1: no T-state preference
-            0.1, ports, 0.8, 0.3,
+            0.1,
+            ports,
+            RBarThreshold::new(0.8),
+            RBarThreshold::new(0.3),
         );
         let r_bar = gate.confidence();
         assert!(
@@ -385,7 +388,10 @@ mod tests {
         ];
         let mut gate = CurationConfidenceGate::with_params(
             10.0, // Low L → less skepticism
-            0.1, ports, 0.8, 0.3,
+            0.1,
+            ports,
+            RBarThreshold::new(0.8),
+            RBarThreshold::new(0.3),
         );
         let decision = gate.decide();
         // With moderate L and moderate evidence, we should be in the transition zone

@@ -29,7 +29,9 @@ use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::communication::MessageDispatch;
 use hkask_agents::hhh_gate;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasBudget, GovernedTool};
+use hkask_cns::{
+    CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasBudget, GasCost, GovernedTool,
+};
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
@@ -377,8 +379,8 @@ pub fn run(
             .await
             .register_gas_budget(
                 agent_webid,
-                GasBudget::new(10_000)
-                    .with_replenish_rate(1_000)
+                GasBudget::new(GasCost(10_000))
+                    .with_replenish_rate(GasCost(1_000))
                     .with_alert_threshold(0.8)
                     .with_hard_limit(true),
             )
@@ -681,7 +683,7 @@ pub fn run(
                             .cybernetics_loop
                             .read()
                             .await
-                            .can_proceed(&state.agent_webid, heuristic_cost)
+                            .can_proceed(&state.agent_webid, GasCost(heuristic_cost))
                             .await
                     });
                     if !can_proceed {
@@ -701,7 +703,7 @@ pub fn run(
                             .cybernetics_loop
                             .read()
                             .await
-                            .reserve_gas(&state.agent_webid, heuristic_cost)
+                            .reserve_gas(&state.agent_webid, GasCost(heuristic_cost))
                             .await
                     });
 
@@ -797,7 +799,11 @@ pub fn run(
                             .cybernetics_loop
                             .read()
                             .await
-                            .settle_gas(&state.agent_webid, heuristic_cost, actual_cost)
+                            .settle_gas(
+                                &state.agent_webid,
+                                GasCost(heuristic_cost),
+                                GasCost(actual_cost),
+                            )
                             .await
                     });
 
@@ -812,7 +818,7 @@ pub fn run(
                     }) {
                         state
                             .inference_loop
-                            .sync_gas_state(status.remaining, status.cap);
+                            .sync_gas_state(status.remaining.as_raw(), status.cap.as_raw());
                     }
 
                     let response = chat_response.text;
@@ -857,7 +863,7 @@ pub fn run(
                                 .cybernetics_loop
                                 .read()
                                 .await
-                                .can_proceed(&state.agent_webid, heuristic_cost)
+                                .can_proceed(&state.agent_webid, GasCost(heuristic_cost))
                                 .await
                         });
                         if can_continue {
@@ -867,7 +873,7 @@ pub fn run(
                                     .cybernetics_loop
                                     .read()
                                     .await
-                                    .reserve_gas(&state.agent_webid, heuristic_cost)
+                                    .reserve_gas(&state.agent_webid, GasCost(heuristic_cost))
                                     .await
                             });
 
@@ -895,7 +901,11 @@ pub fn run(
                                     .cybernetics_loop
                                     .read()
                                     .await
-                                    .settle_gas(&state.agent_webid, heuristic_cost, followup_cost)
+                                    .settle_gas(
+                                        &state.agent_webid,
+                                        GasCost(heuristic_cost),
+                                        GasCost(followup_cost),
+                                    )
                                     .await
                             });
 
@@ -910,7 +920,7 @@ pub fn run(
                             }) {
                                 state
                                     .inference_loop
-                                    .sync_gas_state(status.remaining, status.cap);
+                                    .sync_gas_state(status.remaining.as_raw(), status.cap.as_raw());
                             }
 
                             if let Some(ref usage) = followup.usage {
@@ -965,7 +975,10 @@ pub fn run(
                                             .cybernetics_loop
                                             .read()
                                             .await
-                                            .can_proceed(&state.agent_webid, gate_heuristic)
+                                            .can_proceed(
+                                                &state.agent_webid,
+                                                GasCost(gate_heuristic),
+                                            )
                                             .await
                                     });
                                     if !gate_can_proceed {
@@ -985,7 +998,10 @@ pub fn run(
                                             .cybernetics_loop
                                             .read()
                                             .await
-                                            .reserve_gas(&state.agent_webid, gate_heuristic)
+                                            .reserve_gas(
+                                                &state.agent_webid,
+                                                GasCost(gate_heuristic),
+                                            )
                                             .await
                                     });
 
@@ -1004,8 +1020,8 @@ pub fn run(
                                             .await
                                             .settle_gas(
                                                 &state.agent_webid,
-                                                gate_heuristic,
-                                                gate_heuristic,
+                                                GasCost(gate_heuristic),
+                                                GasCost(gate_heuristic),
                                             )
                                             .await
                                     });
@@ -1019,9 +1035,10 @@ pub fn run(
                                             .agent_gas_status(&state.agent_webid)
                                             .await
                                     }) {
-                                        state
-                                            .inference_loop
-                                            .sync_gas_state(status.remaining, status.cap);
+                                        state.inference_loop.sync_gas_state(
+                                            status.remaining.as_raw(),
+                                            status.cap.as_raw(),
+                                        );
                                     }
 
                                     if evaluation.overall_pass {
@@ -1073,7 +1090,10 @@ pub fn run(
                                             .cybernetics_loop
                                             .read()
                                             .await
-                                            .can_proceed(&state.agent_webid, heuristic_cost)
+                                            .can_proceed(
+                                                &state.agent_webid,
+                                                GasCost(heuristic_cost),
+                                            )
                                             .await
                                     });
                                     if !correction_can_proceed {
@@ -1097,7 +1117,10 @@ pub fn run(
                                             .cybernetics_loop
                                             .read()
                                             .await
-                                            .reserve_gas(&state.agent_webid, heuristic_cost)
+                                            .reserve_gas(
+                                                &state.agent_webid,
+                                                GasCost(heuristic_cost),
+                                            )
                                             .await
                                     });
 
@@ -1129,8 +1152,8 @@ pub fn run(
                                             .await
                                             .settle_gas(
                                                 &state.agent_webid,
-                                                heuristic_cost,
-                                                correction_cost,
+                                                GasCost(heuristic_cost),
+                                                GasCost(correction_cost),
                                             )
                                             .await
                                     });
@@ -1144,9 +1167,10 @@ pub fn run(
                                             .agent_gas_status(&state.agent_webid)
                                             .await
                                     }) {
-                                        state
-                                            .inference_loop
-                                            .sync_gas_state(status.remaining, status.cap);
+                                        state.inference_loop.sync_gas_state(
+                                            status.remaining.as_raw(),
+                                            status.cap.as_raw(),
+                                        );
                                     }
 
                                     current_response = correction_response.text;

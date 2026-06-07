@@ -10,6 +10,7 @@
 //! - 4.1 DISPATCH (GUARD+ROUTE) — priority-ordered message queuing
 
 use crate::communication::dispatch::MessageDispatch;
+use hkask_types::cns::QueueDepth;
 use hkask_types::loops::dispatch::{DispatchTarget, LoopMessage, WorkerKind};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric};
 use std::sync::Arc;
@@ -113,7 +114,7 @@ impl HkaskLoop for CommunicationLoop {
                 LoopId::Communication,
                 SignalMetric::QueueDepth,
                 queue_depth as f64,
-                100.0, // set-point: 100 messages before considered overloaded
+                QueueDepth::DEFAULT_BACKPRESSURE.as_raw(),
             ),
             Signal::new(
                 LoopId::Communication,

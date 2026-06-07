@@ -100,7 +100,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!(
                 "  communication_backpressure_threshold: {}",
                 communication_backpressure_threshold
+                    .map(hkask_types::cns::QueueDepth::new)
                     .unwrap_or(defaults.communication_backpressure_threshold)
+                    .as_raw()
             );
             if gas_min_remaining.is_some()
                 || variety_max_deficit.is_some()
@@ -113,7 +115,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                     variety_max_deficit,
                     error_rate_max,
                     connector_latency_max_secs,
-                    communication_backpressure_threshold,
+                    communication_backpressure_threshold: communication_backpressure_threshold
+                        .map(hkask_types::cns::QueueDepth::new),
                 };
                 let updated = hkask_cns::SetPoints::from_config(&config);
                 println!();
@@ -130,7 +133,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 );
                 println!(
                     "  communication_backpressure_threshold: {}",
-                    updated.communication_backpressure_threshold
+                    updated.communication_backpressure_threshold.as_raw()
                 );
             }
         }

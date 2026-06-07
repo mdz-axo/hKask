@@ -12,6 +12,9 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
+// Re-export domain newtypes that live in the substrate crate (hkask-types).
+pub use hkask_types::cns::{QueueDepth, RBarThreshold};
+
 // ── Domain newtypes (P2.3) ──────────────────────────────────────────────────
 
 /// Gas cost of a single tool invocation.
@@ -71,90 +74,6 @@ impl fmt::Display for GasCost {
 
 /// Default gas budget alert threshold — alert when 80% of gas is consumed.
 pub const DEFAULT_GAS_ALERT_THRESHOLD: f64 = 0.8;
-
-/// Threshold for R̄ (confidence) in the curation gate's transition zone.
-///
-/// Newtype wrapper around `f64` that prevents accidental confusion with
-/// other floating-point quantities (priority weight, usage ratio, etc.).
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct RBarThreshold(pub f64);
-
-impl RBarThreshold {
-    /// Create an R̄ threshold, clamped to [0.0, 1.0].
-    pub fn new(value: f64) -> Self {
-        RBarThreshold(value.clamp(0.0, 1.0))
-    }
-
-    /// Default upper threshold for the Proceed zone.
-    pub const DEFAULT_UPPER: RBarThreshold = RBarThreshold(0.8);
-    /// Default lower threshold for the Suppress zone.
-    pub const DEFAULT_LOWER: RBarThreshold = RBarThreshold(0.3);
-
-    /// Return the raw `f64` value.
-    pub fn as_raw(self) -> f64 {
-        self.0
-    }
-}
-
-impl Deref for RBarThreshold {
-    type Target = f64;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for RBarThreshold {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl fmt::Display for RBarThreshold {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "R̄={:.2}", self.0)
-    }
-}
-
-/// Communication queue depth for backpressure regulation.
-///
-/// Newtype wrapper that prevents accidental confusion with other numeric
-/// thresholds in `SetPoints` (gas, variety deficit, error rate).
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct QueueDepth(pub f64);
-
-impl QueueDepth {
-    /// Create a queue depth threshold.
-    pub fn new(value: f64) -> Self {
-        QueueDepth(value.max(0.0))
-    }
-
-    /// Default backpressure threshold: 100 messages.
-    pub const DEFAULT_BACKPRESSURE: QueueDepth = QueueDepth(100.0);
-
-    /// Return the raw `f64` value.
-    pub fn as_raw(self) -> f64 {
-        self.0
-    }
-}
-
-impl Deref for QueueDepth {
-    type Target = f64;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for QueueDepth {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl fmt::Display for QueueDepth {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "depth={:.0}", self.0)
-    }
-}
 
 /// Default priority for serde default.
 const fn default_priority() -> f64 {
