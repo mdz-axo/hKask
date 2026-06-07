@@ -13,7 +13,7 @@ use hkask_agents::AcpRuntime;
 use hkask_keystore::Keychain;
 use hkask_keystore::master_key::derive_all_internal_secrets;
 use hkask_storage::{AgentRegistryStore, Database};
-use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
+use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID, now_rfc3339};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -315,7 +315,8 @@ async fn register_replicant(
     let registered = RegisteredAgent {
         definition,
         token_hash: token.signature.clone(),
-        registered_at: chrono::Utc::now().to_rfc3339(),
+        // P4.3: Use canonical `now_rfc3339()` helper.
+        registered_at: now_rfc3339(),
         source_yaml: "onboarding".to_string(),
     };
 

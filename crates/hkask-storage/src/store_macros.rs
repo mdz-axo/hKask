@@ -8,13 +8,16 @@
 use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-/// Produce an RFC 3339 timestamp string for the current moment.
-///
-/// Consolidates the repeated `Utc::now().to_rfc3339()` pattern across
-/// stores and agents (P4.3).
-pub fn now_rfc3339() -> String {
-    chrono::Utc::now().to_rfc3339()
-}
+// P4.3: `now_rfc3339` lives in `hkask-types` (the foundation crate) so
+// that non-storage crates (CLI, ensemble, agents) can also use it without
+// pulling in the entire storage dependency tree. Re-export it from this
+// module for backward compatibility with `hkask_storage::now_rfc3339`.
+// The actual implementation is in `hkask_types::time`.
+//
+// (Kept as a re-export inside the macro module so the path
+// `crate::store_macros::now_rfc3339` still resolves for any caller that
+// reaches for the canonical implementation directly.)
+pub use hkask_types::now_rfc3339;
 
 /// Shared trait for all SQLite-backed stores.
 ///

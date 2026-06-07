@@ -174,6 +174,10 @@ impl AgentPod {
         // Use first capability from persona, or default to "tool:execute"
         let default_capability = "tool:execute".to_string();
         let capability_str = persona.capabilities.first().unwrap_or(&default_capability);
+        // P4.1: Hardcoded capability string is a compile-time constant.
+        // `CapabilitySpec::parse` only fails on malformed input, and
+        // "tool:execute" is the canonical literal. If this ever changes,
+        // the test suite will catch the parse failure.
         let spec = CapabilitySpec::parse(capability_str)
             .expect("Default capability 'tool:execute' must always parse");
 

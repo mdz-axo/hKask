@@ -33,6 +33,7 @@ pub mod soap_config;
 pub mod sovereignty;
 pub mod template;
 pub mod text;
+pub mod time;
 pub mod visibility;
 
 #[cfg(feature = "sql")]
@@ -92,4 +93,5 @@ pub use soap_config::InferenceConfig;
 pub use sovereignty::{DataCategory, SovereigntyPort, UserSovereigntyState};
 pub use template::{LLMParameters, TemplateCrate, TemplateFile};
 pub use text::blake3_hash;
+pub use time::now_rfc3339;
 pub use visibility::{AccessControl, Confidence, TemporalBounds, Visibility};

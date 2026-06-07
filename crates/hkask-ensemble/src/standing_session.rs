@@ -6,6 +6,7 @@
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
 use hkask_types::NuEventSink;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::now_rfc3339;
 use hkask_types::ports::{MessageRecord, SessionRecord};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
@@ -249,7 +250,10 @@ impl StandingSession {
 
     pub fn persist_session(&self, config_yaml: &str) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
-            let now = chrono::Utc::now().to_rfc3339();
+            // P4.3: Use the canonical `hkask_types::now_rfc3339()` helper
+            // instead of inlining `chrono::Utc::now().to_rfc3339()` so the
+            // timestamp format is consistent across all hKask crates.
+            let now = now_rfc3339();
             let record = SessionRecord {
                 session_id: self.session_id.clone(),
                 config_yaml: config_yaml.to_string(),

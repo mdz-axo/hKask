@@ -1,7 +1,9 @@
-use chrono::Utc;
 use rusqlite::Connection;
 
 use crate::types::EditTagRequest;
+// P4.3: Use the canonical timestamp helper from `hkask-types` rather than
+// inlining `chrono::Utc::now().to_rfc3339()` at every call site.
+use hkask_types::now_rfc3339;
 
 // RSS schema DDL — executed as extensions via Database::open_with_extensions()
 
@@ -352,7 +354,7 @@ pub fn mark_stream_read(conn: &Connection, stream_id: &str) -> Result<usize, any
         .filter_map(|r| r.ok())
         .collect();
 
-    let now = Utc::now().to_rfc3339();
+    let now = now_rfc3339();
     for id in &entry_ids {
         conn.execute(
             "INSERT INTO entry_states (entry_id, is_read, read_at) VALUES (?1, 1, ?2)
@@ -367,7 +369,7 @@ pub fn edit_tags(
     conn: &Connection,
     req: &EditTagRequest,
 ) -> Result<serde_json::Value, anyhow::Error> {
-    let now = Utc::now().to_rfc3339();
+    let now = now_rfc3339();
     let mut updated = 0u64;
 
     for id in &req.entry_ids {

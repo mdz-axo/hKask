@@ -95,7 +95,8 @@ pub async fn agent_register(
     let registered = hkask_types::RegisteredAgent {
         definition,
         token_hash: token.signature.clone(),
-        registered_at: chrono::Utc::now().to_rfc3339(),
+        // P4.3: Use canonical `now_rfc3339()` helper.
+        registered_at: hkask_types::now_rfc3339(),
         source_yaml: "cli-register".to_string(),
     };
 

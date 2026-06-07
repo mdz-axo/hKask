@@ -159,9 +159,14 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
     fn recall_episodic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
         check_read_access(&request.token, "episodic")?;
 
-        let owner = request
-            .perspective
-            .expect("Episodic recall requires a perspective (owner WebID)");
+        // P4.1: Replaced `.expect(...)` with a typed error. Episodic memory
+        // is owner-scoped (OCAP), so a missing `perspective` is a capability
+        // constraint violation, not a panic-worthy condition.
+        let owner = request.perspective.ok_or_else(|| {
+            MemoryError::CapabilityDenied(
+                "Episodic recall requires a perspective (owner WebID)".into(),
+            )
+        })?;
 
         // Route through EpisodicMemory's deduped+decayed query
         let triples = self.episodic.query_for_deduped(&request.query, owner)?;

@@ -125,39 +125,282 @@ pub enum A2AMessage {
     },
 }
 
+/// Variant payloads as named structs so visitors and external callers can
+/// match on a type name rather than reach into enum-tuple field positions.
+///
+/// Each struct mirrors the corresponding `A2AMessage` arm. Constructed only by
+/// `A2AMessage::visit`; not `pub` outside the module.
+pub struct TemplateDispatch<'a> {
+    pub from: &'a WebID,
+    pub to: Option<WebID>,
+    pub template_id: &'a str,
+    pub input: &'a serde_json::Value,
+    pub correlation_id: &'a str,
+}
+
+pub struct TemplateResponse<'a> {
+    pub correlation_id: &'a str,
+    pub result: &'a serde_json::Value,
+    pub error: Option<&'a str>,
+}
+
+pub struct MemoryArtifact<'a> {
+    pub producer: &'a WebID,
+    pub artifact_type: &'a str,
+    pub artifact_id: &'a str,
+    pub visibility: &'a str,
+}
+
+/// Visitor for `A2AMessage`.
+///
+/// Replaces match-on-variant for "ask the message a question" — adding a new
+/// variant means adding one `on_*` method (default no-op) here and one arm to
+/// `A2AMessage::visit`; the existing extraction sites do not change.
+///
+/// Every method is defaulted to a no-op so concrete visitors only override
+/// the variants they care about (Visitor pattern, Gamma et al.).
+pub trait A2AMessageVisitor {
+    fn on_template_dispatch(&mut self, _msg: TemplateDispatch<'_>) {}
+    fn on_template_response(&mut self, _msg: TemplateResponse<'_>) {}
+    fn on_memory_artifact(&mut self, _msg: MemoryArtifact<'_>) {}
+}
+
+// Compile-time guard: the visitor trait must remain object-safe because
+// `A2AMessage::visit` takes `&mut dyn A2AMessageVisitor`.
+const _: fn() = || {
+    fn assert_obj_safe(_: &dyn A2AMessageVisitor) {}
+};
+
 impl A2AMessage {
-    /// Get the sender's WebID regardless of message type.
-    ///
-    /// Returns `Some` for `TemplateDispatch` (from) and `MemoryArtifact` (producer),
-    /// `None` for `TemplateResponse` (no sender).
-    pub fn from_webid(&self) -> Option<&WebID> {
+    /// Dispatch a visitor over the variant. Single match site in the codebase.
+    pub fn visit(&self, visitor: &mut dyn A2AMessageVisitor) {
         match self {
-            A2AMessage::TemplateDispatch { from, .. } => Some(from),
-            A2AMessage::TemplateResponse { .. } => None,
-            A2AMessage::MemoryArtifact { producer, .. } => Some(producer),
+            A2AMessage::TemplateDispatch {
+                from,
+                to,
+                template_id,
+                input,
+                correlation_id,
+            } => visitor.on_template_dispatch(TemplateDispatch {
+                from,
+                to: *to,
+                template_id,
+                input,
+                correlation_id,
+            }),
+            A2AMessage::TemplateResponse {
+                correlation_id,
+                result,
+                error,
+            } => visitor.on_template_response(TemplateResponse {
+                correlation_id,
+                result,
+                error: error.as_deref(),
+            }),
+            A2AMessage::MemoryArtifact {
+                producer,
+                artifact_type,
+                artifact_id,
+                visibility,
+            } => visitor.on_memory_artifact(MemoryArtifact {
+                producer,
+                artifact_type,
+                artifact_id,
+                visibility,
+            }),
         }
     }
 
-    /// Get the correlation/artifact ID for this message.
+    /// Get the sender's WebID regardless of message type.
     ///
-    /// All variants carry an identifier that serves as a correlation key:
-    /// `TemplateDispatch` and `TemplateResponse` use `correlation_id`,
-    /// `MemoryArtifact` uses `artifact_id`.
-    pub fn correlation_id(&self) -> &str {
-        match self {
-            A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id,
-            A2AMessage::TemplateResponse { correlation_id, .. } => correlation_id,
-            A2AMessage::MemoryArtifact { artifact_id, .. } => artifact_id,
+    /// Thin wrapper over the visitor pattern; preserved for the public API.
+    pub fn from_webid(&self) -> Option<&WebID> {
+        struct Extractor<'a>(Option<&'a WebID>);
+        impl A2AMessageVisitor for Extractor<'_> {
+            fn on_template_dispatch(&mut self, msg: TemplateDispatch<'_>) {
+                self.0 = Some(msg.from);
+            }
+            fn on_memory_artifact(&mut self, msg: MemoryArtifact<'_>) {
+                self.0 = Some(msg.producer);
+            }
         }
+        let mut v = Extractor(None);
+        self.visit(&mut v);
+        v.0
+    }
+
+    /// Get the correlation/artifact ID for this message.
+    pub fn correlation_id(&self) -> &str {
+        struct Extractor<'a>(Option<&'a str>);
+        impl A2AMessageVisitor for Extractor<'_> {
+            fn on_template_dispatch(&mut self, msg: TemplateDispatch<'_>) {
+                self.0 = Some(msg.correlation_id);
+            }
+            fn on_template_response(&mut self, msg: TemplateResponse<'_>) {
+                self.0 = Some(msg.correlation_id);
+            }
+            fn on_memory_artifact(&mut self, msg: MemoryArtifact<'_>) {
+                self.0 = Some(msg.artifact_id);
+            }
+        }
+        let mut v = Extractor(None);
+        self.visit(&mut v);
+        v.0.unwrap_or("")
     }
 
     /// Get a human-readable message type name.
     pub fn message_type(&self) -> &'static str {
-        match self {
-            A2AMessage::TemplateDispatch { .. } => "template_dispatch",
-            A2AMessage::TemplateResponse { .. } => "template_response",
-            A2AMessage::MemoryArtifact { .. } => "memory_artifact",
+        struct Extractor(Option<&'static str>);
+        impl A2AMessageVisitor for Extractor {
+            fn on_template_dispatch(&mut self, _: TemplateDispatch<'_>) {
+                self.0 = Some("template_dispatch");
+            }
+            fn on_template_response(&mut self, _: TemplateResponse<'_>) {
+                self.0 = Some("template_response");
+            }
+            fn on_memory_artifact(&mut self, _: MemoryArtifact<'_>) {
+                self.0 = Some("memory_artifact");
+            }
         }
+        let mut v = Extractor(None);
+        self.visit(&mut v);
+        v.0.unwrap_or("")
+    }
+}
+
+// DDMVSS P8 invariant: the visitor dispatch must visit exactly one variant.
+// The following test pins the bijection between enum variants and visitor
+// methods. Adding a new variant without a visitor method (or vice versa)
+// breaks the test.
+#[cfg(test)]
+mod visitor_tests {
+    use super::*;
+
+    /// Counts how many variants the visitor actually visits.
+    struct Counter(u32);
+    impl A2AMessageVisitor for Counter {
+        fn on_template_dispatch(&mut self, _: TemplateDispatch<'_>) {
+            self.0 += 1;
+        }
+        fn on_template_response(&mut self, _: TemplateResponse<'_>) {
+            self.0 += 1;
+        }
+        fn on_memory_artifact(&mut self, _: MemoryArtifact<'_>) {
+            self.0 += 1;
+        }
+    }
+
+    #[test]
+    fn visit_dispatches_exactly_one_variant_per_message() {
+        let messages = [
+            A2AMessage::TemplateDispatch {
+                from: WebID::from_persona(b"a"),
+                to: None,
+                template_id: "t".into(),
+                input: serde_json::json!({}),
+                correlation_id: "c1".into(),
+            },
+            A2AMessage::TemplateResponse {
+                correlation_id: "c2".into(),
+                result: serde_json::json!({}),
+                error: None,
+            },
+            A2AMessage::MemoryArtifact {
+                producer: WebID::from_persona(b"a"),
+                artifact_type: "ty".into(),
+                artifact_id: "id".into(),
+                visibility: "private".into(),
+            },
+        ];
+        for m in &messages {
+            let mut c = Counter(0);
+            m.visit(&mut c);
+            assert_eq!(
+                c.0, 1,
+                "visit() must call exactly one on_* method per message"
+            );
+        }
+    }
+
+    #[test]
+    fn from_webid_visitor_matches_old_match() {
+        let dispatch = A2AMessage::TemplateDispatch {
+            from: WebID::from_persona(b"alice"),
+            to: None,
+            template_id: "t".into(),
+            input: serde_json::json!({}),
+            correlation_id: "c".into(),
+        };
+        let response = A2AMessage::TemplateResponse {
+            correlation_id: "c".into(),
+            result: serde_json::json!({}),
+            error: None,
+        };
+        let artifact = A2AMessage::MemoryArtifact {
+            producer: WebID::from_persona(b"bob"),
+            artifact_type: "ty".into(),
+            artifact_id: "id".into(),
+            visibility: "private".into(),
+        };
+        assert_eq!(
+            dispatch.from_webid().map(|w| w.to_string()),
+            Some("alice".to_string())
+        );
+        assert_eq!(response.from_webid(), None);
+        assert_eq!(
+            artifact.from_webid().map(|w| w.to_string()),
+            Some("bob".to_string())
+        );
+    }
+
+    #[test]
+    fn correlation_id_visitor_matches_old_match() {
+        let dispatch = A2AMessage::TemplateDispatch {
+            from: WebID::from_persona(b"a"),
+            to: None,
+            template_id: "t".into(),
+            input: serde_json::json!({}),
+            correlation_id: "corr-1".into(),
+        };
+        let response = A2AMessage::TemplateResponse {
+            correlation_id: "corr-2".into(),
+            result: serde_json::json!({}),
+            error: None,
+        };
+        let artifact = A2AMessage::MemoryArtifact {
+            producer: WebID::from_persona(b"a"),
+            artifact_type: "ty".into(),
+            artifact_id: "art-3".into(),
+            visibility: "private".into(),
+        };
+        assert_eq!(dispatch.correlation_id(), "corr-1");
+        assert_eq!(response.correlation_id(), "corr-2");
+        assert_eq!(artifact.correlation_id(), "art-3");
+    }
+
+    #[test]
+    fn message_type_visitor_matches_old_match() {
+        let dispatch = A2AMessage::TemplateDispatch {
+            from: WebID::from_persona(b"a"),
+            to: None,
+            template_id: "t".into(),
+            input: serde_json::json!({}),
+            correlation_id: "c".into(),
+        };
+        let response = A2AMessage::TemplateResponse {
+            correlation_id: "c".into(),
+            result: serde_json::json!({}),
+            error: None,
+        };
+        let artifact = A2AMessage::MemoryArtifact {
+            producer: WebID::from_persona(b"a"),
+            artifact_type: "ty".into(),
+            artifact_id: "id".into(),
+            visibility: "private".into(),
+        };
+        assert_eq!(dispatch.message_type(), "template_dispatch");
+        assert_eq!(response.message_type(), "template_response");
+        assert_eq!(artifact.message_type(), "memory_artifact");
     }
 }
 

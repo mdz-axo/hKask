@@ -49,6 +49,12 @@ impl MessageDispatch {
     /// Enqueue a message and return its trace ID.
     ///
     /// The message is placed into the queue corresponding to its priority.
+    ///
+    /// P4.1: `expect` documents the invariant that the queue is initialized
+    /// with an entry for every `MessagePriority` variant — adding a new
+    /// variant to `MessagePriority` is a compile-error (no `match` arm),
+    /// and `DispatchQueue::new()` would also need updating, so the queue
+    /// will never be missing a priority at runtime.
     pub async fn send(&self, message: LoopMessage) -> TraceId {
         let trace_id = message.trace_id;
         let priority = message.priority;

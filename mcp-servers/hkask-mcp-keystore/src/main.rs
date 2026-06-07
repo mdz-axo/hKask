@@ -18,7 +18,7 @@
 use hkask_keystore::Keychain;
 use hkask_keystore::encryption::EncryptionService;
 use hkask_mcp::server::{CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard};
-use hkask_types::{McpErrorKind, WebID};
+use hkask_types::{McpErrorKind, WebID, now_rfc3339};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -236,7 +236,8 @@ impl KeystoreServer {
                             encrypted,
                             salt: salt.to_vec(),
                             owner_webid: owner.clone(),
-                            updated_at: chrono::Utc::now().to_rfc3339(),
+                            // P4.3: Use canonical `now_rfc3339()` helper.
+                            updated_at: now_rfc3339(),
                         },
                     );
                     drop(entries); // Release write lock before I/O
@@ -373,7 +374,8 @@ impl KeystoreServer {
                             encrypted,
                             salt: salt.to_vec(),
                             owner_webid: owner,
-                            updated_at: chrono::Utc::now().to_rfc3339(),
+                            // P4.3: Use canonical `now_rfc3339()` helper.
+                            updated_at: now_rfc3339(),
                         },
                     );
                     drop(entries); // Release write lock before I/O
