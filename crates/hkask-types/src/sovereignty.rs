@@ -172,8 +172,8 @@ impl DataSovereigntyBoundary {
         self.public_data.contains(category)
     }
 
-    /// Whether this boundary requires affirmative consent
-    pub fn prevents_passive_acquisition(&self) -> bool {
+    /// Whether this boundary requires affirmative consent (default: true)
+    pub fn requires_affirmative_consent(&self) -> bool {
         self.requires_affirmative_consent
     }
 }

@@ -1,6 +1,6 @@
 # hKask Macaroon Issuer Configuration
 #
-# This configuration enables hKask to issue macaroons to Russell ACP agents
+# This configuration enables hKask to issue macaroons for ACP agents
 # and manage third-party discharge for Okapi access.
 #
 # Location: ~/.config/hkask/macaroon.yaml
@@ -15,7 +15,7 @@ macaroon:
       # Skill registration macaroons
       rk_hkask_skill_registry:
         key: "${HKASK_SKILL_REGISTRY_KEY}" # Set via environment or generate
-        purpose: "Skill registration macaroons for Russell agents"
+        purpose: "Skill registration macaroons for agents"
         rotation_days: 90
 
       # MCP tool access macaroons
@@ -170,33 +170,3 @@ okapi:
     max_connections: 10
     idle_timeout: 5m
     connection_timeout: 30s
-
-# Russell ACP agent configuration
-russell:
-  enabled: true
-
-  # Agent registration
-  agents:
-    - agent_id: russell-prod-1
-      skills:
-        - evolution-watcher
-        - rdf-embedding
-        - perf-benchmark
-        - system-diagnoser
-      auto_register: true
-
-    - agent_id: russell-dev-1
-      skills:
-        - evolution-watcher
-      auto_register: false
-
-  # MCP server configuration
-  mcp:
-    endpoint: http://127.0.0.1:11435/mcp
-    version: v1
-
-    # Tool authorization
-    authorization:
-      mode: macaroon
-      require_skill_caveat: true
-      require_endpoint_caveat: true

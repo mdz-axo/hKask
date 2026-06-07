@@ -22,22 +22,21 @@ fn project_root() -> PathBuf {
 /// 2. Git config `user.name` (if in a git repo)
 /// 3. Fallback: "local" (indicates skills not yet published to a shared remote)
 fn resolve_replicant_name() -> String {
-    if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME") {
-        if !name.is_empty() {
-            return name;
-        }
+    if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME")
+        && !name.is_empty()
+    {
+        return name;
     }
 
     // Try git user.name as a reasonable default
     if let Ok(output) = std::process::Command::new("git")
         .args(["config", "user.name"])
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !name.is_empty() {
-                return name;
-            }
+        let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !name.is_empty() {
+            return name;
         }
     }
 
@@ -94,10 +93,10 @@ fn list_skills(visibility_filter: Option<&str>) {
             let vis = read_skill_visibility(&skill_dir.join("SKILL.md"));
 
             // Apply filter
-            if let Some(filter) = vis_filter {
-                if vis != filter {
-                    continue;
-                }
+            if let Some(filter) = vis_filter
+                && vis != filter
+            {
+                continue;
             }
 
             let vis_str = vis.as_str();
@@ -432,14 +431,14 @@ fn find_public_skill(root: &Path, name: &str) -> Option<PathBuf> {
     for entry in entries {
         let entry = entry.ok()?;
         let path = entry.path();
-        if path.is_dir() && path.join("SKILL.md").exists() {
-            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                if dir_name.ends_with(&suffix) {
-                    // Verify it's a valid qualified ID
-                    if Skill::parse_qualified_id(dir_name).is_some() {
-                        return Some(path);
-                    }
-                }
+        if path.is_dir()
+            && path.join("SKILL.md").exists()
+            && let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+            && dir_name.ends_with(&suffix)
+        {
+            // Verify it's a valid qualified ID
+            if Skill::parse_qualified_id(dir_name).is_some() {
+                return Some(path);
             }
         }
     }

@@ -352,7 +352,7 @@ Legend: **✓** implemented · **~** partially · **✗** missing · **n/a** not
 | `OcapServer` (mcp-ocap) | n/a | n/a | ✓ | n/a | n/a | n/a | The MCP-OCAP server is the membrane over the canonical capability impl. |
 | `MemoryStoragePort` (in `AgentPod`) | n/a | n/a | ✗ | n/a | n/a | ✗ | A port passed by value, not a membrane. The pod's *persistence* is not capability-gated. |
 | `AgentPod` | ~ | n/a | n/a | n/a | ~ | ~ | The pod is a revocable forwarder: when the master is rotated, the pod is implicitly severed (because its OCAP secret is HKDF-derived from the master). But the *forwarding* is implicit; there is no explicit `RevocableForwarder` trait. |
-| `RussellAcpAdapter` | n/a | n/a | n/a | n/a | ✗ | ✗ | Shared secret via HKDF — not a capability. Revocation = master rotation. |
+
 | `Dampener` (CNS) | n/a | n/a | n/a | n/a | n/a | n/a | Not a capability primitive; a *regulation* primitive. Out of scope for this matrix. |
 | `Dampener::override_cooldown` | n/a | n/a | n/a | n/a | ~ | n/a | Cooldown is a form of "soft revocation" — the override is invalidated, not the token. Per-issuer granularity is an open question. |
 | `WebID` | ✓ | n/a | n/a | n/a | n/a | n/a | The unforgeable identity. |

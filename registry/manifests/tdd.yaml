@@ -48,7 +48,7 @@ inputs:
   - name: domain_anchor
     type: string
     description: >
-      Domain anchor for spec resolution. Valid values: okapi, russell, hkask.
+      Domain anchor for spec resolution. Valid values: okapi, hkask.
       Defaults to hkask if not specified.
     required: false
   - name: code_context

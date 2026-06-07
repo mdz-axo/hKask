@@ -458,7 +458,7 @@ fn verify_resource_verification(assertion: &Assertion) -> AssertionResult {
     }
 
     // Verify requires_affirmative_consent is true (default boundary)
-    if !boundary.prevents_passive_acquisition() {
+    if !boundary.requires_affirmative_consent() {
         findings.push("requires_affirmative_consent is false in default boundary".to_string());
         all_pass = false;
     }

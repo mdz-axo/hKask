@@ -1,8 +1,8 @@
 ---
 title: "hKask CLI Reference (auto-generated)"
 audience: [CLI operators, developers, agents]
-last_updated: 2026-06-07
-version: "0.23.0"
+last_updated: 2026-05-29
+version: "0.21.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface]
@@ -34,8 +34,6 @@ kask [OPTIONS] <COMMAND>
 ```bash
 kask chat [AGENT]             # Default: Curator
 kask chat -m qwen3:8b        # Start with specific model
-kask chat russell             # Chat with Russell
-kask chat Russell -m llama3.1:70b  # Chat with Russell using 70B
 kask chat -f input.txt        # Non-interactive (file input)
 echo "hello" | kask chat -f - -m qwen3:8b  # Pipe with model
 ```
@@ -93,9 +91,6 @@ kask bot <SUBCOMMAND>
 Subcommands:
 - `list` — List bot capabilities
   - `-b`, `--bot-id <BOT_ID>` — Bot WebID
-- `grant` — Grant capability to bot
-  - `-b`, `--bot-id <BOT_ID>` — Bot WebID
-  - `-c`, `--capability <CAPABILITY>` — Capability name (e.g., "inference:call")
 
 ### `kask pod` — Agent pod management
 
@@ -167,12 +162,8 @@ Subcommands:
 # Start chat session
 kask chat
 
-# Chat with a specific agent
-kask chat Russell
-
 # Chat with model selection
 kask chat -m qwen3:8b
-kask chat Russell -m llama3.1:70b
 
 # Non-interactive with model
 echo "Summarize this" | kask chat -f - -m qwen3:8b
@@ -204,4 +195,4 @@ kask docs all -o docs/
 
 ---
 
-*ℏKask v0.21.0 - A Minimal Viable Container for Agents*
+*ℏKask v0.23.0 - A Minimal Viable Container for Agents*

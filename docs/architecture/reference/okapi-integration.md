@@ -195,7 +195,7 @@ Models are selected by:
 1. **Runtime override** — `/model` CLI slash command or `model` field in API `POST /api/chat` request
 2. `ModelRequirements.required` if provided (via `generate_with_model`)
 3. `OkapiInference.model` default (set at construction)
-4. `ModelTierSelection` rules in Russell mapping config
+4. `ModelTierSelection` rules in registry mapping config
 
 ### Discovering Models
 

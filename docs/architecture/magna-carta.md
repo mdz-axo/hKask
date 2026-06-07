@@ -112,7 +112,7 @@ pub struct DataSovereigntyBoundary {
 }
 
 impl DataSovereigntyBoundary {
-    pub fn prevents_passive_acquisition(&self) -> bool {
+    pub fn requires_affirmative_consent(&self) -> bool {
         self.requires_affirmative_consent
     }
 }

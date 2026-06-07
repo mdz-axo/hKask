@@ -673,7 +673,7 @@ Bridge configuration defines the translation and authentication layer for cross-
 
 external_workspace:
   name: my-external-workspace
-  type: Russell | Custom | Other
+  type: Custom | Other
   
 adapter:
   crate_name: external-workspace-adapter

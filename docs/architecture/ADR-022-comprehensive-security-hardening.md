@@ -103,6 +103,8 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 **Solution:** Emit spans on mint, attenuate, revoke, verify  
 **Impact:** Complete audit trail
 
+> **⚠️ Removed (v0.24):** The Russell ACP bridge (`RussellAcpAdapter`) has been removed. The code references below are historical. See ADR-028 for the archived transport design.
+
 #### T14: Russell ACP Bridge
 **Problem:** No federation with Russell  
 **Solution:** Bidirectional ACP bridge with session lifecycle  
@@ -190,7 +192,7 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 
 | Principle | Compliance | Evidence |
 |-----------|-----------|----------|
-| **P1** (No trait without two consumers) | ✅ | `AcpPort` used by `AcpRuntime` and `RussellAcpAdapter` |
+| **P1** (No trait without two consumers) | ✅ | `AcpPort` used by `AcpRuntime` |
 | **P2** (No generic without two instantiations) | ✅ | `CapabilityToken<Caveat>` instantiated for all caveat types |
 | **P3** (No module directory without encapsulation) | ✅ | `adapters/`, `ports/` encapsulate hexagonal boundaries |
 | **P4** (No builder without fallibility) | ✅ | `PodManagerBuilder` returns `Result` |

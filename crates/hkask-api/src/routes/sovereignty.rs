@@ -18,7 +18,7 @@ use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
 
-/// Map a boolean `prevents_passive_acquisition` to an affirmative-consent
+/// Map a boolean `requires_affirmative_consent` to an affirmative-consent
 /// label. The runtime type is a bool after simplification; the API surfaces
 /// a stable, doc-aligned string.
 fn consent_name(value: bool) -> &'static str {
@@ -103,7 +103,7 @@ async fn sovereignty_status(
     // into the type system) for the data-category lists. This is a constant
     // view of what the Magna Carta prescribes, surfaced for visibility.
     let boundary = DataSovereigntyBoundary::hkask_default();
-    let requires_affirmative_consent = boundary.prevents_passive_acquisition();
+    let requires_affirmative_consent = boundary.requires_affirmative_consent();
 
     // Enrich status with consent manager state
     let granted_categories: Vec<String> = state

@@ -245,7 +245,7 @@ status: VERIFIED
 | 3 | `realizes` | Goals must anchor to a domain or they float free | Goals become generic; no bounded context to test completeness against |
 | 4 | `constrains` | Unconstrained capabilities are ambient authority (POLA violation) | Security model collapses; any agent can do anything |
 | 5 | `enables` | Capabilities must surface through interfaces or they're latent | System has powers no one can exercise; dead functionality |
-| 6 | `belongsToDomain` | Domain membership prevents scope creep across bounded contexts | Specification bloat; one spec tries to cover Okapi + Russell + hKask |
+| 6 | `belongsToDomain` | Domain membership prevents scope creep across bounded contexts | Specification bloat; one spec tries to cover Okapi + hKask |
 | 7 | `satisfies` | Without a completeness predicate, "done" is undefined | MVP never ships; infinite refinement loop |
 | 8 | `composesInto` | Atomic specs must compose or the system can't grow incrementally | Each new feature requires full re-specification; no incremental development |
 | 9 | `simplifiesVia` | Focusing assumptions collapse dimensions (e.g., MCP≡CLI≡API) | Specification surface triples; redundant docs for each interface |
@@ -261,7 +261,7 @@ status: VERIFIED
 | **TOGAF ADM** | Phase-gated architecture development | MVSDD recursion cycle (specify→grant→compose→curate→reflect) | Content metamodel, Architecture Repository, full 8-phase ADM |
 | **Agile-TOGAF / MVA** | "Just-enough architecture" threshold | CompletenessPredicate per category | Sprint planning, story points, velocity tracking |
 | **Lean Startup MVP** | Build-Measure-Learn feedback loop [^ries-lean] | MVSDD reflect→respecify step | Pivot/persevere decisions, innovation accounting |
-| **Cynefin** | Domain framing (clear/complicated/complex/chaotic) [^snowden-cynefin] | Domain anchor selection (Okapi/Russell/hKask) | Full sense-making framework, probe-respond patterns |
+| **Cynefin** | Domain framing (clear/complicated/complex/chaotic) [^snowden-cynefin] | Domain anchor selection (Okapi/hKask) | Full sense-making framework, probe-respond patterns |
 | **DDD (Evans)** | Bounded Context, Ubiquitous Language | Domain spec category, hLexicon grounding | Aggregates, repositories, domain events (hKask uses ν-events) |
 | **Capability-based design (Miller)** | OCAP, POLA, unforgeable capability tokens [^miller-robust] | Capability spec category, hkask-keystore integration | Full E-language, vat model, distributed promises |
 | **Job Stories** | `When <situation>, I want to <motivation>, so I can <outcome>` | Goal text format in templates | Persona creation, job mapping canvas |
@@ -407,7 +407,7 @@ status: VERIFIED
 # domain-spec.yaml
 schema_version: "0.2.0"
 category: domain
-domain_anchor: hkask  # okapi | russell | hkask
+domain_anchor: hkask  # okapi | hkask
 bounded_context: "Agentic AI tooling"
 
 ontology:
@@ -1162,7 +1162,7 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 | **Curation** | `AuditLogPort` dual-write (in-memory cache + SQLite storage), CNS span emission for audit trail | ⚠️ Partial | Curation decisions not yet gradient-evaluated (Merge/Revise/Defer/Discard) |
 | **Domain** | Bounded context: "Agentic AI tooling". ν-events: `cns.agent_pod.*`, `cns.cap.*`. Entities: `AgentPod`, `CapabilityToken`, `WebID` | ✅ Complete | [`hKask-architecture-master.md`](hKask-architecture-master.md) |
 | **Interface** | Hexagonal ports: `AcpPort`, `GitCASPort`, `MCPRuntimePort`, `MemoryStoragePort`, `CnsEmit`, `KeystorePort`, `SovereigntyPort`. All async (`#[async_trait]`) | ✅ Complete | [`reference/ports-inventory.md`](reference/ports-inventory.md) |
-| **Composition** | Russell ACP bridge with session lifecycle, bidirectional federation via JSON-RPC 2.0 over stdio | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §6 |
+| **Composition** | ~~Russell ACP bridge~~ (removed v0.24) | — | ~~Removed~~ |
 | **Persistence** | `MemoryStoragePort` wired into pod lifecycle, episodic/semantic memory for lifecycle events | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §7 |
 
 **Gaps Identified (updated 2026-05-25):**
@@ -1255,7 +1255,7 @@ pub struct Criterion {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DomainAnchor { Okapi, Russell, Hkask }
+pub enum DomainAnchor { Okapi, Hkask }
 
 // ── Completeness Predicate ───────────────────────────────────
 
@@ -1399,7 +1399,7 @@ impl SpecStore for SqliteSpecStore {
 
 5. **CNS algedonic coupling:** When does spec-drift (a spec's actual implementation diverging from its goals) trigger an algedonic alert? Currently: CNS monitors variety counters, not spec-drift. A `cns.spec.drift` span with a drift-magnitude metric is needed.
 
-6. **Cross-domain composition:** Can DDMVSS for Okapi + Russell + hKask be *summed* into a tri-domain spec? Current answer: **federated, not summed.** Each domain maintains its own MVSS; cross-domain capabilities are delegated tokens that cross boundaries. A "sum" operation would require a meta-domain, which violates bounded-context discipline.
+6. **Cross-domain composition:** Can DDMVSS for Okapi + hKask be *summed* into a multi-domain spec? Current answer: **federated, not summed.** Each domain maintains its own MVSS; cross-domain capabilities are delegated tokens that cross boundaries. A "sum" operation would require a meta-domain, which violates bounded-context discipline.
 
 7. **Goal ≡ Requirement naming:** Does the bidirectional equivalence survive contact with stakeholders who use "goal" and "requirement" differently? In DDMVSS, `Goal` is the internal type name; `Requirement` is the external-facing alias in templates. This is a *naming as cybernetic act* — the vocabulary shapes the thinking. If stakeholders resist, the framework should support configurable aliases without changing the type system.
 

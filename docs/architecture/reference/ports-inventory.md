@@ -20,7 +20,7 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
-| ACP | `AcpPort` | `ports/acp.rs` | `AcpRuntime`, `RussellAcpAdapter` |
+| ACP | `AcpPort` | `ports/acp.rs` | `AcpRuntime` |
 | Git CAS | `GitCASPort` | `ports/git_cas.rs` | `GitCasAdapter`, `MockGitCas` |
 | MCP Runtime | `MCPRuntimePort` | `ports/mcp_runtime.rs` | `McpRuntimeAdapter` |
 | Standing Session | `StandingSessionPort` | `ports/standing_session.rs` | `StandingSessionStoreAdapter` |

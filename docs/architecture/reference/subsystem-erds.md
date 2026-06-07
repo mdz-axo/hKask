@@ -1289,7 +1289,7 @@ status: VERIFIED
 
 ## Review Acknowledgment
 
-A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`, the shared-secret nature of `RussellAcpAdapter`, and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`domain-and-capability.md`](../domain-and-capability.md) §5.5) and the relevant ADRs. The review ERDs have been archived to `docs/archive/2026-06-07-documentation-refresh/review/`.
+A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`domain-and-capability.md`](../domain-and-capability.md) §5.5) and the relevant ADRs. The review ERDs have been archived to `docs/archive/2026-06-07-documentation-refresh/review/`.
 
 ---
 

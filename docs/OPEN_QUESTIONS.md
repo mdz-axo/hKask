@@ -36,7 +36,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Status:** **Resolved — Option 1**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document federation as a deferred architectural direction (no dedicated ADR yet). The bidirectional ACP bridge via `RussellAcpAdapter` (606 LOC) provides practical cross-system agent communication without requiring dedicated federation crates. Federation as a first-class concept (separate crates, discovery protocol, resource negotiation) is deferred until essential, at which point a forward ADR will record the decision.
+Document federation as a deferred architectural direction (no dedicated ADR yet). The Russell ACP bridge has been removed (v0.24); federation as a first-class concept is deferred until essential.
 
 **Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design was recorded in ADR-028 (now archived — ACP transport layer removed; see [`ADR-028`](archive/2026-06-07-documentation-refresh/ADR-028-acp-protocol-design.md)).
 
@@ -161,6 +161,8 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **See:** `crates/hkask-types/src/secret.rs::RUSSELL_BRIDGE_SECRET`, `crates/hkask-agents/src/adapters/russell_acp.rs::new()`
 
+> **Update (v0.24):** The Russell ACP bridge (`RussellAcpAdapter`) and `RUSSELL_BRIDGE_SECRET` have been removed. This question is now moot.
+
 ### F3: Memory Pipeline Completeness ✅ RESOLVED
 
 **DDMVSS Category:** Persistence  
@@ -231,7 +233,7 @@ All sub-questions are **moot**:
 **Status:** Deferred (no current need)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `AcpRuntime` works in-process, `RussellAcpAdapter` works over stdio. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process. (ADR-028, which documented the ACP protocol design, is archived — the transport layer was removed.)
+Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `AcpRuntime` works in-process. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process. (ADR-028, which documented the ACP protocol design, is archived — the transport layer was removed.)
 
 ### P3-b: CyberneticsToken/CurationToken Runtime Enforcement ⚠️ DEFERRED
 
@@ -452,6 +454,8 @@ Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question 
 **Opened:** 2026-06-07
 
 When a Russell bridge is revoked, is revocation global (all bridges for that agent) or independent (per-bridge)? Currently, revocation appears to be all-or-nothing. Independent revocation for multiple bridges is not supported, limiting multi-bridge agent configurations.
+
+> **Closed (v0.24):** The Russell ACP bridge has been removed. This question is moot.
 
 ---
 

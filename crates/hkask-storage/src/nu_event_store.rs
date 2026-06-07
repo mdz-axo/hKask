@@ -126,7 +126,6 @@ impl NuEventStore {
     /// Parses the input through `SpanCategory::from_short_name` so
     /// the dispatch table is the *same* as `lambda_for`. New code
     /// should use `lambda_for` directly.
-
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
         let conn = self.lock_conn()?;
         let (span_category, span_path) = span_to_columns(&event.span);

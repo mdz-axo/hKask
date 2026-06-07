@@ -268,7 +268,7 @@ impl RegistryEntry {
 /// read it — `ManifestExecutor` orders steps by `BundleManifestStep.ordinal`.
 /// P6 ("Delete stubs, don't publish them") applies. Execution ordering is
 /// declared per-bundle in the YAML, not per-skill in the registry.
-
+//
 /// Skill directory zone — identifies where a skill was discovered on disk.
 ///
 /// Two-zone model (src→dist pattern):
@@ -277,9 +277,12 @@ impl RegistryEntry {
 ///
 /// The public zone is a build artifact, never hand-edited.
 /// This eliminates bidirectional sync — only one-way export exists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum SkillZone {
+    #[default]
     Private,
     Public,
 }
@@ -306,12 +309,6 @@ impl SkillZone {
             SkillZone::Private => ".agents/skills",
             SkillZone::Public => "skills",
         }
-    }
-}
-
-impl Default for SkillZone {
-    fn default() -> Self {
-        SkillZone::Private
     }
 }
 
