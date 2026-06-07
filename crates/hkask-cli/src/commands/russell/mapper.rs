@@ -203,8 +203,12 @@ fn default_true() -> bool {
     true
 }
 
+// F-SYN-018: this was previously "cns.template.russell_mapping". The
+// CNS namespace is owned by `hkask-cns`; CLI telemetry should not
+// use it. Renamed to `cli.russell.mapping` to mark the boundary
+// clearly. Consumers that filter on the old prefix must update.
 fn default_cns_namespace() -> String {
-    "cns.template.russell_mapping".to_string()
+    "cli.russell.mapping".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
