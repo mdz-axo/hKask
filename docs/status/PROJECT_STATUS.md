@@ -1,7 +1,7 @@
 ---
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "0.23.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -128,12 +128,12 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Architecture Specs** | 4 | `docs/architecture/` (domain-and-capability, interface-and-composition, trust-security-observability, persistence-and-lifecycle) |
 | **Architecture Framework** | 4 | `docs/architecture/` (DDMVSS, PRINCIPLES, loop-architecture, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
-| **Architecture ADR** | 10 | `docs/architecture/` (ADR-022 through ADR-031) |
-| **Reference Artifacts** | 7 | `docs/architecture/reference/` (incl. distillation-erd) |
+| **Architecture ADR** | 7 (+ 3 archived) | `docs/architecture/` (ADR-022, ADR-024–027, ADR-030, ADR-031 active; ADR-023 superseded by ADR-027, ADR-028 deferred, ADR-029 superseded) |
+| **Reference Artifacts** | 6 (+ 1 archived) | `docs/architecture/reference/` (distillation-erd.md archived; canonical ERDs remain active) |
 | **Specifications** | 9 | `docs/specifications/` |
 | **Plans** | 2 | `docs/plans/` (TODO, high-temp-templates) |
 | **User Guides** | 2 | `docs/user-guides/` |
-| **Status** | 6 | `docs/status/` (PROJECT_STATUS, mcp-server-audit, mcp-tools-inventory, test-inventory, fowler-audit-status, adversarial-simplification-inventory) |
+| **Status** | 6 | `docs/status/` (PROJECT_STATUS, mcp-server-audit, mcp-tools-inventory, test-inventory, fowler-audit-status, adversarial-simplification-inventory; refactor-sweep-2026-06-06.md archived) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
@@ -151,7 +151,9 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `2026-05-28-documentation-refresh` | 10 (+ 4 deleted) | Stale/historical docs archived; MODEL_CATALOG, 2 plan files, and 1 other deleted |
 | `2026-06-01-documentation-refresh` | 11 | Audit artifacts + speculative 10-loop feedback-loops-decomposition archived |
 | `2026-06-03-documentation-refresh` | 17 | 3 reference docs, 5 plan docs, 9 GML docs archived |
-| **Total** | 132 | — |
+| `2026-06-06-documentation-refresh` | 1 | IMPLEMENTATION-PLAN-simplification.md archived |
+| `2026-06-07-documentation-refresh` | 5 | ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (changes applied to codebase), refactor-sweep-2026-06-06.md (content captured in fowler-audit-status.md and adversarial-simplification-inventory.md) |
+| **Total** | 137 | — |
 
 ### 4.3 DDMVSS Completeness
 

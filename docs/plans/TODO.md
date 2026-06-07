@@ -1,7 +1,7 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "1.5.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -30,7 +30,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P1-01** | Requirements specification | Architect | High | ✅ Complete | `docs/specifications/REQUIREMENTS.md` |
 | **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `docs/specifications/TRACEABILITY_MATRIX.md` |
 | **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
-| **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6) |
+| **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | ⬜ Open | P1-06 — Deferred pending build regression fix |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web: 3,389 LOC (verified 2026-05-28) |
@@ -118,7 +118,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-31** | Archive 8 stale documents (Task 2) | 2026-06-03 | `docs/archive/2026-06-03-documentation-refresh/` |
 | **R-32** | Delete 3 superseded/implementation reference docs | 2026-06-03 | reference/loop-architecture.md (superseded), mcp-memory-split-plan.md, mcp-memory-continuation-prompt.md |
 | **R-33** | Update MCP server count 15→18 across all docs | 2026-06-03 | PRINCIPLES, domain-and-capability, persistence-and-lifecycle, subsystem-erds, REQUIREMENTS, OPEN_QUESTIONS, mcp-server-audit |
-| **R-34** | Update DDMVSS_SCAFFOLD directory tree | 2026-06-03 | Removed archived plans, added loop-architecture.md, distillation-erd.md |
+| **R-34** | Update DDMVSS_SCAFFOLD directory tree | 2026-06-03 | Removed archived plans, added loop-architecture.md; note: distillation-erd.md subsequently archived 2026-06-07 |
 | **R-35** | Fix docs/README.md portal (remove dead links) | 2026-06-03 | Removed archived plan links, fixed GML reference |
 | **R-37** | Archive IMPLEMENTATION-PLAN-simplification.md (Task 2) | 2026-06-06 | `docs/archive/2026-06-06-documentation-refresh/` |
 | **R-38** | Update PROJECT_STATUS.md (v0.23.0, build regression, MCP server count 21) | 2026-06-06 | version, metrics, build status |

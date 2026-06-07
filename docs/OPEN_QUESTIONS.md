@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -38,7 +38,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Document federation as a deferred architectural direction (no dedicated ADR yet). The bidirectional ACP bridge via `RussellAcpAdapter` (606 LOC) provides practical cross-system agent communication without requiring dedicated federation crates. Federation as a first-class concept (separate crates, discovery protocol, resource negotiation) is deferred until essential, at which point a forward ADR will record the decision.
 
-**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design is recorded in [`ADR-028`](architecture/ADR-028-acp-protocol-design.md).
+**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design was recorded in ADR-028 (now archived — ACP transport layer removed; see [`ADR-028`](architecture/ADR-028-acp-protocol-design.md)).
 
 ---
 
@@ -91,7 +91,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 2. **ADR-025**: 7-Level Attenuation Depth Limit — rationale for max 7 delegation levels
 3. **ADR-026**: Bitemporal Triple Schema — valid-time + transaction-time semantics
 4. **ADR-027**: Argon2id + HKDF-SHA256 Master Key Derivation — deterministic secrets
-5. **ADR-028**: ACP Protocol Design — JSON-RPC 2.0 over stdio for agent communication
+5. **ADR-028**: ACP Protocol Design — JSON-RPC 2.0 over stdio for agent communication (now archived — ACP transport layer removed)
 
 **Rationale:** These 5 decisions are the most frequently referenced and most impactful architectural choices. Creating retroactive ADRs provides decision traceability without requiring ADRs for every implementation detail.
 
@@ -194,6 +194,7 @@ type, its HMAC signing, epoch-based revocation, and attenuation were all
 deleted. Goal operations now use `&WebID` for owner scoping instead of token
 verification. The entire token infrastructure (HMAC, revocation, attenuation,
 ADR-029) was removed as over-engineered ceremony with no functional payoff.
+ADR-029 is now archived.
 
 All sub-questions are **moot**:
 
@@ -203,14 +204,14 @@ All sub-questions are **moot**:
 3. **Operation-set canonicalization encoding** — No longer applicable; no
    token signature to bind an operation set.
 4. **Single vs. dual capability primitive** — No longer applicable;
-   `GoalCapabilityToken` no longer exists. ADR-029 is superseded.
+   `GoalCapabilityToken` no longer exists. ADR-029 is archived (superseded).
 5. **Persistence corruption response** — Remains relevant for
    `GoalRepositoryError::Corrupt` but is decoupled from token concerns.
 6. **Recursion-bound coherence** — `SYSTEM_MAX_ATTENUATION` still applies to
    `CapabilityToken` attenuation, but the goal-specific recursion question is
    moot.
 
-**See:** `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `mcp-servers/hkask-mcp-goal/src/main.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025. ~~ADR-029 is superseded (the `GoalCapabilityToken` type no longer exists).~~
+**See:** `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `mcp-servers/hkask-mcp-goal/src/main.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025. ~~ADR-029 is archived (superseded — `GoalCapabilityToken` type no longer exists).~~
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 
@@ -230,7 +231,7 @@ All sub-questions are **moot**:
 **Status:** Deferred (no current need)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `AcpRuntime` works in-process, `RussellAcpAdapter` works over stdio. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process.
+Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `AcpRuntime` works in-process, `RussellAcpAdapter` works over stdio. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process. (ADR-028, which documented the ACP protocol design, is archived — the transport layer was removed.)
 
 ### P3-b: CyberneticsToken/CurationToken Runtime Enforcement ⚠️ DEFERRED
 

@@ -400,6 +400,8 @@ Bidirectional federation via JSON-RPC 2.0 over stdio:
 - ~~`AcpTransport` trait (`ports/acp_transport.rs`) — wire protocol~~ ⚠️ REMOVED in v0.21.x
 - ~~`AcpWireMessage` / `AcpWireResponse` — message format~~ ⚠️ REMOVED in v0.21.x
 
+> **Note:** ADR-028 (ACP Protocol Design) is archived — the ACP transport layer was removed. The `AcpPort` bridge interface remains for in-process communication.
+
 ---
 
 ## Loop Assignment

@@ -12,7 +12,7 @@ ddmvss_categories: [trust]
 
 **Date:** 2026-05-29 (retroactive)  
 **Status:** Implemented  
-**Supersedes:** ADR-023 (expands on the derivation chain rationale)
+**Supersedes:** ADR-023 (archived — expanded derivation chain rationale now in this ADR)
 
 ## Context
 

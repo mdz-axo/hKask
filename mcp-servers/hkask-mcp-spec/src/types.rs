@@ -18,6 +18,34 @@ pub enum TestClassification {
     ImplementationCoupled,
 }
 
+impl TestClassification {
+    /// Returns the string representation of this classification.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TestClassification::PublicInterface => "PublicInterface",
+            TestClassification::SeamIntegration => "SeamIntegration",
+            TestClassification::ImplementationCoupled => "ImplementationCoupled",
+        }
+    }
+
+    /// Parse a string into a TestClassification. Case-insensitive.
+    /// Returns PublicInterface for unrecognized values (safe default per DDMVSS TP-1).
+    pub fn parse_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "publicinterface" | "public_interface" | "public-interface" => {
+                TestClassification::PublicInterface
+            }
+            "seamintegration" | "seam_integration" | "seam-integration" => {
+                TestClassification::SeamIntegration
+            }
+            "implementationcoupled" | "implementation_coupled" | "implementation-coupled" => {
+                TestClassification::ImplementationCoupled
+            }
+            _ => TestClassification::PublicInterface,
+        }
+    }
+}
+
 /// Testing protocol status for a DDMVSS requirement.
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 pub struct TestTraceability {
@@ -193,6 +221,45 @@ pub struct GraphQueryRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GraphValidateRequest {
     pub coherence_threshold: Option<f64>,
+    pub capability_token: Option<String>,
+}
+
+// ── Test protocol request types ────────────────────────────────
+
+/// Request to create a test traceability record linking a test to a specification requirement.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TestInvariantRequest {
+    /// The spec ID (UUID) to link the test invariant to.
+    pub spec_id: String,
+    /// The seam or module boundary this test exercises.
+    pub seam: String,
+    /// A human-readable description of the invariant being tested.
+    pub invariant: String,
+    /// DDMVSS test classification: PublicInterface, SeamIntegration, or ImplementationCoupled.
+    pub category: String,
+    /// Optional TDD cycle identifier (e.g., "red", "green", "refactor").
+    pub cycle: Option<String>,
+    /// OCAP capability token for authorization.
+    pub capability_token: Option<String>,
+}
+
+/// Response from spec/test/invariant confirming the traceability record.
+#[derive(Debug, Serialize)]
+pub struct TestInvariantResponse {
+    /// The invariant ID (derived from spec_id + seam + category).
+    pub invariant_id: String,
+    /// Status of the record ("recorded").
+    pub status: String,
+}
+
+/// Request to verify test coverage for a seam or spec category.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TestVerifyRequest {
+    /// Optional seam filter — only verify specs relevant to this seam.
+    pub seam: Option<String>,
+    /// Optional category filter — only verify specs in this DDMVSS category.
+    pub category: Option<String>,
+    /// OCAP capability token for authorization.
     pub capability_token: Option<String>,
 }
 
@@ -551,5 +618,100 @@ mod tests {
         assert!(!resp.valid, "violations present → valid must be false");
         assert_eq!(resp.violations.len(), 1);
         assert_eq!(resp.suggestions.len(), 1);
+    }
+
+    // ── TestInvariantRequest/TestVerifyRequest ─────────────────────
+
+    // P8 invariant: TestInvariantRequest deserialization accepts all fields
+    #[test]
+    fn test_invariant_request_full_deserialization() {
+        let json = r#"{"spec_id":"00000000-0000-0000-0000-000000000001","seam":"spec-test-invariant","invariant":"rejects-missing-token","category":"PublicInterface","cycle":"red","capability_token":"dG9rZW4="}"#;
+        let req: TestInvariantRequest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(req.spec_id, "00000000-0000-0000-0000-000000000001");
+        assert_eq!(req.seam, "spec-test-invariant");
+        assert_eq!(req.invariant, "rejects-missing-token");
+        assert_eq!(req.category, "PublicInterface");
+        assert_eq!(req.cycle.as_deref(), Some("red"));
+    }
+
+    // P8 invariant: TestInvariantRequest deserialization allows optional fields to be absent
+    #[test]
+    fn test_invariant_request_minimal_fields() {
+        let json = r#"{"spec_id":"00000000-0000-0000-0000-000000000001","seam":"spec-test-invariant","invariant":"rejects-missing-token","category":"PublicInterface"}"#;
+        let req: TestInvariantRequest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(req.spec_id, "00000000-0000-0000-0000-000000000001");
+        assert!(req.cycle.is_none());
+        assert!(req.capability_token.is_none());
+    }
+
+    // P8 invariant: TestVerifyRequest deserialization works with optional fields
+    #[test]
+    fn test_verify_request_deserialization() {
+        let json = r#"{"category":"domain","capability_token":"dG9rZW4="}"#;
+        let req: TestVerifyRequest = serde_json::from_str(json).expect("deserialize");
+        assert!(req.seam.is_none());
+        assert_eq!(req.category.as_deref(), Some("domain"));
+    }
+
+    // P8 invariant: TestVerifyRequest with all fields absent
+    #[test]
+    fn test_verify_request_empty() {
+        let json = r#"{}"#;
+        let req: TestVerifyRequest = serde_json::from_str(json).expect("deserialize");
+        assert!(req.seam.is_none());
+        assert!(req.category.is_none());
+        assert!(req.capability_token.is_none());
+    }
+
+    // P8 invariant: TestInvariantResponse serialization
+    #[test]
+    fn test_invariant_response_serialization() {
+        let resp = TestInvariantResponse {
+            invariant_id:
+                "00000000-0000-0000-0000-000000000001:spec-test-invariant:publicinterface"
+                    .to_string(),
+            status: "recorded".to_string(),
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        assert!(json.contains("invariant_id"), "must contain invariant_id");
+        assert!(json.contains("recorded"), "must contain status recorded");
+    }
+
+    // P8 invariant: TestClassification::parse_str roundtrips through as_str
+    #[test]
+    fn test_classification_parse_str_roundtrip() {
+        for (input, expected) in [
+            ("PublicInterface", TestClassification::PublicInterface),
+            ("publicinterface", TestClassification::PublicInterface),
+            ("public_interface", TestClassification::PublicInterface),
+            ("SeamIntegration", TestClassification::SeamIntegration),
+            ("seamintegration", TestClassification::SeamIntegration),
+            (
+                "ImplementationCoupled",
+                TestClassification::ImplementationCoupled,
+            ),
+            (
+                "implementation_coupled",
+                TestClassification::ImplementationCoupled,
+            ),
+        ] {
+            let parsed = TestClassification::parse_str(input);
+            assert_eq!(
+                parsed, expected,
+                "parse_str({}) should equal {:?}",
+                input, expected
+            );
+        }
+    }
+
+    // P8 invariant: TestClassification::parse_str defaults to PublicInterface for unknown values
+    #[test]
+    fn test_classification_parse_str_unknown_defaults_to_public_interface() {
+        let parsed = TestClassification::parse_str("unknown-category");
+        assert_eq!(
+            parsed,
+            TestClassification::PublicInterface,
+            "unknown category must default to PublicInterface"
+        );
     }
 }

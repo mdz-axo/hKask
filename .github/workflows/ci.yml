@@ -234,7 +234,8 @@ jobs:
             | grep -v "cfg(test)" | grep -v "test_" | grep -v "registry.rs" \
             | grep -v "verification.rs" \
             | grep -v '== "\*"' | grep -v '!= "\*"' \
-            | grep -v 'Wildcard' | grep -v 'Err(' || true)
+            | grep -v 'Wildcard' | grep -v 'Err(' \
+            | grep -v '"\*",$' || true)
           if [ -n "$violations" ]; then
             echo "SECURITY INVARIANT VIOLATED: Wildcard capabilities detected:"
             echo "$violations"

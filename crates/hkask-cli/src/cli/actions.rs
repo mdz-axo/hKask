@@ -706,6 +706,40 @@ pub enum SpecAction {
         #[arg(short, long)]
         spec_id: Option<String>,
     },
+
+    /// Create a test traceability record linking a test to a specification
+    TestInvariant {
+        /// Specification ID to link the test invariant to
+        #[arg(short, long)]
+        spec_id: String,
+
+        /// The seam or module boundary this test exercises
+        #[arg(short, long)]
+        seam: String,
+
+        /// A description of the invariant being tested
+        #[arg(short, long)]
+        invariant: String,
+
+        /// DDMVSS test classification: PublicInterface, SeamIntegration, ImplementationCoupled
+        #[arg(short, long, default_value = "PublicInterface")]
+        category: String,
+
+        /// Optional TDD cycle (red, green, refactor)
+        #[arg(short, long)]
+        cycle: Option<String>,
+    },
+
+    /// Verify test coverage for a seam or spec category
+    TestVerify {
+        /// Filter by seam name
+        #[arg(short, long)]
+        seam: Option<String>,
+
+        /// Filter by DDMVSS category
+        #[arg(short, long)]
+        category: Option<String>,
+    },
 }
 
 /// Style composition — generate prose with exemplar retrieval and centroid validation

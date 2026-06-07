@@ -14,7 +14,7 @@
 //! (Fowler C3: Replace Primitive with Object — eliminates manual
 //! parse/serialize boilerplate at every DB column boundary.)
 //!
-//! Note: DateTime<Utc> and Option<T> impls live in hkask-storage
+//! Note: `DateTime<Utc>` and `Option<T>` impls live in hkask-storage
 //! (newtype wrappers) because Rust's orphan rules forbid implementing
 //! foreign traits for foreign types.
 

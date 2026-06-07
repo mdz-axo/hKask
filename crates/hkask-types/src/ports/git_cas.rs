@@ -369,7 +369,7 @@ pub enum SnapshotTrigger {
 
 // ── Triple Entry DTO ────────────────────────────────────────────────────────
 
-/// Serializable representation of a [`Triple`](hkask_storage::Triple).
+/// Serializable representation of `Triple` from `hkask-storage`.
 ///
 /// `Triple` in `hkask-storage` does not derive `Serialize`, so this DTO
 /// captures the same fields in a serializable form for CAS write-through.

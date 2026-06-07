@@ -22,7 +22,7 @@ use serde_json::Value;
 /// and `store_semantic` accept a single request object instead of a flat
 /// parameter list.
 ///
-/// For classified episodic stores, use [`StorageRequest::with_classification`]
+/// For classified episodic stores, use [`StorageRequest::classified_episodic`]
 /// to attach an experience classification and optional confidence override.
 #[derive(Debug, Clone)]
 pub struct StorageRequest {

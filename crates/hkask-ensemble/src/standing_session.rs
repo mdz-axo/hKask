@@ -90,7 +90,7 @@ pub struct ParticipantEntry {
     pub role: String,
     pub description: String,
     /// Template domains this participant owns. Converted to capability specs
-    /// ("tool:<domain>:execute") on load for R4 capability intersection checks.
+    /// ("tool:`<domain>`:execute") on load for R4 capability intersection checks.
     /// Curator has no domains.
     #[serde(default)]
     pub domains: Vec<String>,

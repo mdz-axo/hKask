@@ -1,7 +1,7 @@
 ---
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
@@ -47,14 +47,14 @@ docs/
 │   ├── trust-security-observability.md    # SPEC (Trust + Observability)
 │   ├── persistence-and-lifecycle.md       # SPEC (Persistence + Lifecycle)
 │   ├── ADR-022-*.md                       # DECISION RECORD
-│   ├── ADR-023-*.md                       # DECISION RECORD
+│   ├── ~~ADR-023-*.md~~                       # ARCHIVED (superseded by ADR-027)
 │   ├── loop-architecture.md              # FRAMEWORK (6-loop authority model)
 │   ├── magna-carta.md                     # FRAMEWORK (user sovereignty)
 │   └── reference/
 │       ├── hKask-erd.md                   # Diagram artifact
 │       ├── registry-erd.md                # Diagram artifact
 │       ├── subsystem-erds.md              # Diagram artifact
-│       ├── distillation-erd.md            # Post-distillation ERD
+│       ├── ~~distillation-erd.md~~            # ARCHIVED (changes applied to codebase)
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
 │       ├── ports-inventory.md             # Port reference
 │       ├── utoipa-implementation.md       # API guide

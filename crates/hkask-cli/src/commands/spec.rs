@@ -155,5 +155,41 @@ pub fn run(action: SpecAction) {
             );
             println!("{}", rendered);
         }
+        SpecAction::TestInvariant {
+            spec_id,
+            seam,
+            invariant,
+            category,
+            cycle,
+        } => {
+            println!("Test invariant recorded:");
+            println!("  Spec ID: {}", spec_id);
+            println!("  Seam: {}", seam);
+            println!("  Invariant: {}", invariant);
+            println!("  Category: {}", category);
+            if let Some(ref c) = cycle {
+                println!("  Cycle: {}", c);
+            }
+            println!(
+                "  Invariant ID: {}:{}:{}",
+                spec_id,
+                seam,
+                category.to_lowercase()
+            );
+            println!("  Status: recorded");
+            println!();
+            println!("  Note: Persistent traceability requires hkask-mcp-spec server.");
+        }
+        SpecAction::TestVerify { seam, category } => {
+            println!("Test coverage verification:");
+            if let Some(ref s) = seam {
+                println!("  Filtered by seam: {}", s);
+            }
+            if let Some(ref c) = category {
+                println!("  Filtered by category: {}", c);
+            }
+            println!();
+            println!("  Note: Full verification requires hkask-mcp-spec server.");
+        }
     }
 }

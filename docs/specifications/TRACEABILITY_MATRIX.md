@@ -1,7 +1,7 @@
 ---
 title: "hKask Traceability Matrix"
 audience: [architects, developers, auditors]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -66,7 +66,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-OBS-001 | CNS span emission | `hkask-types`, `hkask-cns` | `event`, `runtime` | `Span`, `CnsRuntime` | — | ✅ Implemented |
 | REQ-OBS-002 | Algedonic alerting | `hkask-cns`, `hkask-types` | `algedonic`, `cns` | `AlgedonicManager`, `AlgedonicAlert` | — | ✅ Implemented |
-| REQ-OBS-003 (ADR-029, P0-03) | Goal operations use WebID-based owner scoping — access is determined by `&WebID` identity rather than capability tokens; no capability denials to observe | `hkask-types`, `hkask-storage`, `hkask-api`, `hkask-mcp-goal` | `goal`, `goals`, `routes/goal`, `main` | `WebID`, `SqliteGoalRepository`, `ApiState.goal_repo`, `GoalServer` | `goals::tests` (owner-scoped access), `hkask-mcp-goal` tests | ✅ Implemented |
+| REQ-OBS-003 (ADR-029, P0-03) | Goal operations use WebID-based owner scoping — access is determined by `&WebID` identity rather than capability tokens; no capability denials to observe (ADR-029 archived) | `hkask-types`, `hkask-storage`, `hkask-api`, `hkask-mcp-goal` | `goal`, `goals`, `routes/goal`, `main` | `WebID`, `SqliteGoalRepository`, `ApiState.goal_repo`, `GoalServer` | `goals::tests` (owner-scoped access), `hkask-mcp-goal` tests | ✅ Implemented |
 
 ## Persistence
 
@@ -108,4 +108,4 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **DDMVSS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
 
-**Test coverage note (updated 2026-06-04):** The goal-capability hardening (ADR-029, P0-03) now uses WebID-based owner scoping. `GoalCapabilityToken` and associated forgery/expiry/attenuation tests were removed in v0.23.0. Remaining dedicated `#[test]` coverage: transition tests in `hkask-types` (`goal`), owner-only-delete tests in `hkask-storage` (`goals`). `cargo test --workspace` is green. Other DDMVSS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).
+**Test coverage note (updated 2026-06-04):** The goal-capability hardening (originally ADR-029, P0-03; ADR-029 archived — `GoalCapabilityToken` removed) now uses WebID-based owner scoping. `GoalCapabilityToken` and associated forgery/expiry/attenuation tests were removed in v0.23.0. Remaining dedicated `#[test]` coverage: transition tests in `hkask-types` (`goal`), owner-only-delete tests in `hkask-storage` (`goals`). `cargo test --workspace` is green. Other DDMVSS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).

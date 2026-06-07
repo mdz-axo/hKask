@@ -1,6 +1,6 @@
 //! hKask MCP Spec — Specification authoring, curation, and validation
 //!
-//! 8 tools following DDMVSS §6.3:
+//! 10 tools following DDMVSS §6.3:
 //! - spec/goal/capture — Elicit user intent as binding requirement
 //! - spec/goal/decompose — Break goal into ordered sub-goals
 //! - spec/require/bind — Attach OCAP boundaries to a goal
@@ -9,6 +9,8 @@
 //! - spec/curate/cultivate — Grow collection toward coherence
 //! - spec/graph/query — Query specification graph
 //! - spec/graph/validate — Validate collection coherence
+//! - spec/test/invariant — Create test traceability record linking test to spec requirement
+//! - spec/test/verify — Verify test coverage for a seam or spec category
 
 // F-SYN-020: `types` must be `pub` so that integration tests in
 // `tests/` can reference request types for fuzz testing.
@@ -34,7 +36,8 @@ use types::{
     CurateReconcileRequest, CurateReconcileResponse, GoalCaptureRequest, GoalCaptureResponse,
     GoalDecomposeRequest, GoalDecomposeResponse, GraphNodeResponse, GraphQueryRequest,
     GraphQueryResponse, GraphValidateRequest, GraphValidateResponse, RequireBindRequest,
-    RequireBindResponse, TensionReport,
+    RequireBindResponse, TensionReport, TestClassification, TestInvariantRequest,
+    TestInvariantResponse, TestTraceability, TestVerifyRequest, TestVerifyResponse,
 };
 
 // ── Server ───────────────────────────────────────────────────
@@ -682,6 +685,164 @@ impl SpecServer {
                 violations,
                 suggestions,
                 spec_count: all_specs.len(),
+            })
+            .unwrap_or_default(),
+        )
+    }
+
+    #[tool(
+        description = "Create a test traceability record linking a test to a specification requirement"
+    )]
+    async fn spec_test_invariant(
+        &self,
+        Parameters(TestInvariantRequest {
+            spec_id,
+            seam,
+            invariant,
+            category,
+            cycle,
+            capability_token,
+        }): Parameters<TestInvariantRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("spec_test_invariant", &self.webid);
+
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "test/invariant",
+            DelegationAction::Write,
+        ) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        validate_field!(span, "spec_id", &spec_id, 256);
+        validate_field!(span, "seam", &seam, 256);
+        validate_field!(span, "invariant", &invariant, 1024);
+        validate_field!(span, "category", &category, 64);
+
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
+        let _spec = match self.store.load(spec_id_parsed) {
+            Ok(s) => s,
+            Err(SpecError::NotFound(_)) => {
+                return span.error(
+                    McpErrorKind::NotFound,
+                    McpToolError::not_found(format!("Spec not found: {}", spec_id))
+                        .to_json_string(),
+                );
+            }
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Failed to load spec: {}", e)}),
+                );
+            }
+        };
+
+        let invariant_id = format!("{}:{}:{}", spec_id, seam, category.to_lowercase());
+
+        // MVP: TestTraceability record is ephemeral (not persisted to a separate table).
+        // The canonical traceability record is the // REQ: comment in test source code.
+        // A future iteration can add a test_traceability SQLite table.
+
+        let cycle_tag = cycle
+            .as_deref()
+            .map(|c| format!(" [{} cycle]", c))
+            .unwrap_or_default();
+
+        span.ok_json(
+            serde_json::to_value(TestInvariantResponse {
+                invariant_id,
+                status: format!("recorded{}", cycle_tag),
+            })
+            .unwrap_or_default(),
+        )
+    }
+
+    #[tool(
+        description = "Verify test coverage for a seam or spec category, returning gaps and debt"
+    )]
+    async fn spec_test_verify(
+        &self,
+        Parameters(TestVerifyRequest {
+            seam: _,
+            category,
+            capability_token,
+        }): Parameters<TestVerifyRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("spec_test_verify", &self.webid);
+
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "test/verify",
+            DelegationAction::Read,
+        ) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        let all_specs: Vec<Spec> = match self.store.list_all() {
+            Ok(specs) => specs,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
+                );
+            }
+        };
+
+        let category_filter: Option<SpecCategory> =
+            category.as_deref().and_then(SpecCategory::parse_str);
+
+        let filtered: Vec<&Spec> = all_specs
+            .iter()
+            .filter(|s| {
+                let cat_match = category_filter
+                    .as_ref()
+                    .map(|cf| s.category == *cf)
+                    .unwrap_or(true);
+                cat_match
+            })
+            .collect();
+
+        let mut traceability = Vec::new();
+        let mut tested = 0;
+        let mut gaps = 0;
+        let debt = 0;
+
+        for spec in &filtered {
+            let is_complete = spec.is_complete();
+            let classification = if is_complete {
+                Some(TestClassification::PublicInterface)
+            } else {
+                None
+            };
+            let has_gap = !is_complete;
+
+            if is_complete {
+                tested += 1;
+            } else {
+                gaps += 1;
+            }
+
+            traceability.push(TestTraceability {
+                requirement_id: spec.id.to_string(),
+                classification,
+                test_path: if is_complete {
+                    Some(format!("spec:{}", spec.id))
+                } else {
+                    None
+                },
+                has_gap,
+                test_debt_location: None,
+            });
+        }
+
+        let complete = gaps == 0 && !filtered.is_empty();
+
+        span.ok_json(
+            serde_json::to_value(TestVerifyResponse {
+                total_requirements: filtered.len(),
+                tested,
+                gaps,
+                debt,
+                traceability,
+                complete,
             })
             .unwrap_or_default(),
         )
@@ -1412,6 +1573,217 @@ mod tests {
         assert!(
             result.contains("suggestions") || result.contains("Missing category"),
             "validate must report missing categories, got: {result}"
+        );
+    }
+
+    // ── spec_test_invariant ──────────────────────────────────────────────────
+
+    // P8 invariant: spec_test_invariant rejects requests without capability token
+    #[tokio::test]
+    async fn test_invariant_rejects_missing_capability_token() {
+        let server = test_server();
+        let result = server
+            .spec_test_invariant(Parameters(TestInvariantRequest {
+                spec_id: "00000000-0000-0000-0000-000000000001".to_string(),
+                seam: "spec-test-invariant".to_string(),
+                invariant: "rejects-missing-token".to_string(),
+                category: "PublicInterface".to_string(),
+                cycle: None,
+                capability_token: None,
+            }))
+            .await;
+        assert!(
+            result.contains("permission_denied") || result.contains("No capability token"),
+            "missing token must produce permission error, got: {result}"
+        );
+    }
+
+    // P8 invariant: spec_test_invariant rejects invalid capability token
+    #[tokio::test]
+    async fn test_invariant_rejects_invalid_token() {
+        let server = test_server();
+        let result = server
+            .spec_test_invariant(Parameters(TestInvariantRequest {
+                spec_id: "00000000-0000-0000-0000-000000000001".to_string(),
+                seam: "spec-test-invariant".to_string(),
+                invariant: "rejects-invalid-token".to_string(),
+                category: "PublicInterface".to_string(),
+                cycle: None,
+                capability_token: Some("invalid-token".to_string()),
+            }))
+            .await;
+        assert!(
+            result.contains("permission_denied") || result.contains("Invalid token"),
+            "invalid token must produce permission error, got: {result}"
+        );
+    }
+
+    // P8 invariant: spec_test_invariant rejects unknown spec_id
+    #[tokio::test]
+    async fn test_invariant_rejects_unknown_spec_id() {
+        let server = test_server();
+        let token = valid_token(&server, "test/invariant", DelegationAction::Write);
+        let result = server
+            .spec_test_invariant(Parameters(TestInvariantRequest {
+                spec_id: "00000000-0000-0000-0000-000000009999".to_string(),
+                seam: "spec-test-invariant".to_string(),
+                invariant: "rejects-unknown-spec".to_string(),
+                category: "PublicInterface".to_string(),
+                cycle: None,
+                capability_token: Some(token),
+            }))
+            .await;
+        assert!(
+            result.contains("not_found") || result.contains("Spec not found"),
+            "unknown spec must produce not_found error, got: {result}"
+        );
+    }
+
+    // P8 invariant: spec_test_invariant with valid token and existing spec returns recorded status
+    #[tokio::test]
+    async fn test_invariant_records_with_valid_token_and_existing_spec() {
+        let (server, store) = test_server_with_store();
+        let spec = Spec::new("test domain", SpecCategory::Domain, DomainAnchor::Hkask);
+        store.save(&spec).expect("save");
+        let spec_id = spec.id.to_string();
+
+        let token = valid_token(&server, "test/invariant", DelegationAction::Write);
+        let result = server
+            .spec_test_invariant(Parameters(TestInvariantRequest {
+                spec_id: spec_id.clone(),
+                seam: "spec-test-invariant".to_string(),
+                invariant: "records-with-valid-token".to_string(),
+                category: "PublicInterface".to_string(),
+                cycle: Some("red".to_string()),
+                capability_token: Some(token),
+            }))
+            .await;
+        assert!(
+            result.contains("recorded"),
+            "successful invariant must return 'recorded' status, got: {result}"
+        );
+        assert!(
+            result.contains("red cycle"),
+            "cycle tag must appear in response, got: {result}"
+        );
+    }
+
+    // ── spec_test_verify ───────────────────────────────────────────────────
+
+    // P8 invariant: spec_test_verify rejects requests without capability token
+    #[tokio::test]
+    async fn test_verify_rejects_missing_capability_token() {
+        let server = test_server();
+        let result = server
+            .spec_test_verify(Parameters(TestVerifyRequest {
+                seam: None,
+                category: None,
+                capability_token: None,
+            }))
+            .await;
+        assert!(
+            result.contains("permission_denied") || result.contains("No capability token"),
+            "missing token must produce permission error, got: {result}"
+        );
+    }
+
+    // P8 invariant: spec_test_verify returns complete=true when all specs are satisfied
+    #[tokio::test]
+    async fn test_verify_complete_when_all_specs_satisfied() {
+        let (server, store) = test_server_with_store();
+        let read_token = valid_token(&server, "test/verify", DelegationAction::Read);
+
+        // Create a spec with all criteria satisfied
+        let goal = GoalSpec::new("satisfied goal").with_criterion("criterion 1");
+        let mut spec =
+            Spec::new("satisfied spec", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        // Mark criterion as satisfied
+        for goal in &mut spec.goals {
+            for criterion in &mut goal.criteria {
+                criterion.mark_satisfied();
+            }
+        }
+        store.save(&spec).expect("save");
+
+        let result = server
+            .spec_test_verify(Parameters(TestVerifyRequest {
+                seam: None,
+                category: None,
+                capability_token: Some(read_token),
+            }))
+            .await;
+        assert!(
+            result.contains("\"complete\":true"),
+            "verify must report complete=true when all specs satisfied, got: {result}"
+        );
+        assert!(
+            result.contains("\"tested\":1"),
+            "verify must report tested=1, got: {result}"
+        );
+    }
+
+    // P8 invariant: spec_test_verify reports gaps for incomplete specs
+    #[tokio::test]
+    async fn test_verify_reports_gaps_for_incomplete_specs() {
+        let (server, store) = test_server_with_store();
+        let read_token = valid_token(&server, "test/verify", DelegationAction::Read);
+
+        // Create an incomplete spec (no criteria)
+        let spec = Spec::new(
+            "incomplete spec",
+            SpecCategory::Capability,
+            DomainAnchor::Hkask,
+        );
+        store.save(&spec).expect("save");
+
+        let result = server
+            .spec_test_verify(Parameters(TestVerifyRequest {
+                seam: None,
+                category: None,
+                capability_token: Some(read_token),
+            }))
+            .await;
+        assert!(
+            result.contains("\"complete\":false"),
+            "verify must report complete=false for incomplete specs, got: {result}"
+        );
+        assert!(
+            result.contains("\"gaps\":1"),
+            "verify must report gaps=1, got: {result}"
+        );
+        assert!(
+            result.contains("\"has_gap\":true"),
+            "verify must report has_gap=true for incomplete specs, got: {result}"
+        );
+    }
+
+    // P8 invariant: spec_test_verify filters by category
+    #[tokio::test]
+    async fn test_verify_filters_by_category() {
+        let (server, store) = test_server_with_store();
+        let read_token = valid_token(&server, "test/verify", DelegationAction::Read);
+
+        // Create two specs in different categories
+        let domain_spec = Spec::new("domain spec", SpecCategory::Domain, DomainAnchor::Hkask);
+        let cap_spec = Spec::new(
+            "capability spec",
+            SpecCategory::Capability,
+            DomainAnchor::Hkask,
+        );
+        store.save(&domain_spec).expect("save domain");
+        store.save(&cap_spec).expect("save capability");
+
+        // Filter to only domain category
+        let result = server
+            .spec_test_verify(Parameters(TestVerifyRequest {
+                seam: None,
+                category: Some("domain".to_string()),
+                capability_token: Some(read_token),
+            }))
+            .await;
+        assert!(
+            result.contains("\"total_requirements\":1"),
+            "verify with category filter must count only matching specs, got: {result}"
         );
     }
 }

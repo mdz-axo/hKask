@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -54,13 +54,13 @@ for its category cluster.
 | ADR | DDMVSS | Decision | Status |
 |-----|--------|----------|--------|
 | [ADR-022](architecture/ADR-022-comprehensive-security-hardening.md) | trust | Comprehensive security hardening | Active |
-| [ADR-023](architecture/ADR-023-master-key-derivation.md) | trust | Master key derivation via HKDF-SHA256 | Active |
+| ~~[ADR-023](architecture/ADR-023-master-key-derivation.md)~~ | trust | ~~Master key derivation via HKDF-SHA256~~ | **Archived** — superseded by [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) |
 | [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
 | [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
 | [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema | Active |
 | [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
-| [ADR-028](architecture/ADR-028-acp-protocol-design.md) | interface, composition | ACP protocol design (JSON-RPC 2.0 over stdio) | Deferred |
-| [ADR-029](architecture/ADR-029-goal-capability-primitive.md) | capability, trust | Goal capability primitive — distinct typed token (not collapsed into generic capability) | **Superseded** (v0.23.0: `GoalCapabilityToken` removed; goals use `&WebID` owner scoping per [`domain-and-capability.md`](architecture/domain-and-capability.md)) |
+| ~~[ADR-028](architecture/ADR-028-acp-protocol-design.md)~~ | interface, composition | ~~ACP protocol design (JSON-RPC 2.0 over stdio)~~ | **Archived** — deferred (ACP transport layer removed) |
+| ~~[ADR-029](architecture/ADR-029-goal-capability-primitive.md)~~ | capability, trust | ~~Goal capability primitive — distinct typed token~~ | **Archived** — superseded (v0.23.0: `GoalCapabilityToken` removed; goals use `&WebID` owner scoping per [`domain-and-capability.md`](architecture/domain-and-capability.md)) |
 | [ADR-030](architecture/ADR-030-skill-bundler.md) | curation | Skill Bundler — meta-skill composition | Proposed |
 | [ADR-031](architecture/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
 
@@ -104,7 +104,7 @@ for its category cluster.
 | [`mcp-server-audit.md`](status/mcp-server-audit.md) | capability, observability | MCP server completeness audit (21 servers, 123 tools) |
 | [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs and credentials |
 | [`test-inventory.md`](status/test-inventory.md) | observability, domain, capability | Test seam depth and behavioral coverage |
-| [`refactor-sweep-2026-06-06.md`](status/refactor-sweep-2026-06-06.md) | capability, interface, composition | Refactor sweep T1–T7 report (parent of fowler-audit and adversarial-simplification) |
+| ~~`refactor-sweep-2026-06-06.md`~~ | capability, interface, composition | ~~Refactor sweep T1–T7 report~~ — **Archived**; content captured in [`fowler-audit-status.md`](status/fowler-audit-status.md) and [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) |
 | [`fowler-audit-status.md`](status/fowler-audit-status.md) | capability, interface, composition | Fowler pattern refactoring tracker |
 | [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | capability, interface, composition | Dead code and unwired seam inventory |
 

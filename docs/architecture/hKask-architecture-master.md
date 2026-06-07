@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-03
+last_updated: 2026-06-07
 version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
@@ -56,7 +56,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/distillation-erd.md`](reference/distillation-erd.md) | Post-distillation authority DAG and ERD |
+| ~~`reference/distillation-erd.md`~~ | ~~Post-distillation authority DAG and ERD~~ — **Archived**; canonical ERDs remain active |
 | [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
 
 
@@ -67,13 +67,13 @@ Detailed lookup tables and diagrams in `reference/`:
 | ADR | Topic |
 |-----|-------|
 | [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) | ADV-REVIEW-F2 security hardening (T01-T22) |
-| [`ADR-023-master-key-derivation.md`](ADR-023-master-key-derivation.md) | Master key derivation via HKDF-SHA256, eliminate random secret generation, keystore persistence |
+| ~~[`ADR-023-master-key-derivation.md`](ADR-023-master-key-derivation.md)~~ | ~~Master key derivation via HKDF-SHA256~~ — **Archived**; superseded by [ADR-027](ADR-027-argon2-hkdf-master-key.md) |
 | [`ADR-024-unified-registry.md`](ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
 | [`ADR-025-attenuation-depth-limit.md`](ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
 | [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
 | [`ADR-027-argon2-hkdf-master-key.md`](ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
-| [`ADR-028-acp-protocol-design.md`](ADR-028-acp-protocol-design.md) | ACP protocol design — JSON-RPC 2.0 over stdio (retroactive) |
-| [`ADR-029-goal-capability-primitive.md`](ADR-029-goal-capability-primitive.md) | Goal capability primitive — distinct typed token (not collapsed into generic capability) |
+| ~~[`ADR-028-acp-protocol-design.md`](ADR-028-acp-protocol-design.md)~~ | ~~ACP protocol design — JSON-RPC 2.0 over stdio~~ — **Archived**; deferred (ACP transport layer removed) |
+| ~~[`ADR-029-goal-capability-primitive.md`](ADR-029-goal-capability-primitive.md)~~ | ~~Goal capability primitive — distinct typed token~~ — **Archived**; superseded (`GoalCapabilityToken` removed; goals use `&WebID` owner scoping) |
 | [`ADR-030-skill-bundler.md`](ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
 | [`ADR-031-consolidation-authorization.md`](ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
 
@@ -114,13 +114,13 @@ docs/architecture/
 ├── trust-security-observability.md        # SPEC (Trust + Observability)
 ├── persistence-and-lifecycle.md           # SPEC (Persistence + Lifecycle)
 ├── ADR-022-comprehensive-security-hardening.md  # Decision record
-├── ADR-023-master-key-derivation.md       # Decision record
+├── ~~ADR-023-master-key-derivation.md~~   # ARCHIVED (superseded by ADR-027)
 ├── ADR-024-unified-registry.md            # Decision record
 ├── ADR-025-attenuation-depth-limit.md     # Decision record
 ├── ADR-026-bitemporal-triple-schema.md    # Decision record
 ├── ADR-027-argon2-hkdf-master-key.md      # Decision record
-├── ADR-028-acp-protocol-design.md         # Decision record
-├── ADR-029-goal-capability-primitive.md    # Decision record
+├── ~~ADR-028-acp-protocol-design.md~~        # ARCHIVED (deferred)
+├── ~~ADR-029-goal-capability-primitive.md~~   # ARCHIVED (superseded)
 ├── ADR-030-skill-bundler.md                # Decision record
 ├── ADR-031-consolidation-authorization.md  # Decision record
 └── reference/
@@ -135,7 +135,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 22 active architecture documents (4 specs + 4 framework + 1 index + 10 ADRs + 7 reference artifacts). Archived: IMPLEMENTATION-PLAN-simplification.md (moved to docs/archive/2026-06-06-documentation-refresh/).
+**Total:** 22 active architecture documents (4 specs + 4 framework + 1 index + 7 active ADRs + 6 active reference artifacts). Archived: ADR-023 (superseded by ADR-027), ADR-028 (deferred), ADR-029 (superseded), distillation-erd.md (changes applied to codebase), IMPLEMENTATION-PLAN-simplification.md.
 
 ---
 
