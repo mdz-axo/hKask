@@ -236,4 +236,55 @@ mod tests {
             "rendered message should include the session id: {rendered}"
         );
     }
+
+    // ── CuratorError P3.5 property tests ──────────────────────────────────
+
+    /// P8 invariant: `From<EscalationError>` produces a transparent
+    /// `Escalation` variant that renders the upstream text directly.
+    #[test]
+    fn from_escalation_error_is_transparent() {
+        let inner = hkask_agents::EscalationError::NotFound("esc-42".to_string());
+        let inner_rendered = inner.to_string();
+        let curator_err: CuratorError = inner.into();
+        assert_eq!(curator_err.to_string(), inner_rendered);
+    }
+
+    /// P8 invariant: `From<MetacognitionError>` produces a transparent
+    /// `Metacognition` variant that renders the upstream text directly.
+    #[test]
+    fn from_metacognition_error_is_transparent() {
+        let inner = hkask_agents::curator_agent::metacognition::MetacognitionError::NoSnapshot;
+        let inner_rendered = inner.to_string();
+        let curator_err: CuratorError = inner.into();
+        assert_eq!(curator_err.to_string(), inner_rendered);
+    }
+
+    /// P8 invariant: `From<RegistryError>` produces a transparent `Registry`
+    /// variant that renders the upstream text directly.
+    #[test]
+    fn curator_from_registry_error_is_transparent() {
+        let inner = hkask_types::InfrastructureError::Database("schema missing".to_string());
+        let inner_rendered = inner.to_string();
+        let reg_err: RegistryError = inner.into();
+        let curator_err: CuratorError = reg_err.into();
+        assert_eq!(curator_err.to_string(), inner_rendered);
+    }
+
+    /// P8 invariant: `EscalationNotFound` is a *user-facing* input sentinel
+    /// — it must NOT be derived from an upstream error. The `Display` impl
+    /// must include the variant prefix so the user can tell input errors
+    /// from upstream failures apart in logs.
+    #[test]
+    fn curator_escalation_not_found_includes_variant_prefix() {
+        let err = CuratorError::EscalationNotFound("esc-99".to_string());
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("Escalation not found"),
+            "rendered message should include the 'Escalation not found' prefix: {rendered}"
+        );
+        assert!(
+            rendered.contains("esc-99"),
+            "rendered message should include the escalation id: {rendered}"
+        );
+    }
 }
