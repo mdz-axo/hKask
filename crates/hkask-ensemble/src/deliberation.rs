@@ -130,7 +130,7 @@ mod tests {
     #[test]
     fn agent_response_new_has_defaults() {
         let webid = WebID::new();
-        let resp = AgentResponse::new(webid.clone(), "hello".to_string(), 0.9);
+        let resp = AgentResponse::new(webid, "hello".to_string(), 0.9);
         assert_eq!(resp.agent_webid, webid);
         assert_eq!(resp.content, "hello");
         assert!((resp.confidence - 0.9).abs() < f64::EPSILON);
@@ -167,7 +167,7 @@ mod tests {
     fn deliberation_session_record_response() {
         let mut session = DeliberationSession::new("s1".to_string(), WebID::new());
         let webid = WebID::new();
-        session.record_response(AgentResponse::new(webid.clone(), "answer".to_string(), 0.8));
+        session.record_response(AgentResponse::new(webid, "answer".to_string(), 0.8));
         assert_eq!(session.response_count(), 1);
         assert!(session.get_responses().contains_key(&webid));
     }
@@ -177,8 +177,8 @@ mod tests {
     fn deliberation_session_same_agent_overwrites() {
         let mut session = DeliberationSession::new("s1".to_string(), WebID::new());
         let webid = WebID::new();
-        session.record_response(AgentResponse::new(webid.clone(), "first".to_string(), 0.8));
-        session.record_response(AgentResponse::new(webid.clone(), "second".to_string(), 0.9));
+        session.record_response(AgentResponse::new(webid, "first".to_string(), 0.8));
+        session.record_response(AgentResponse::new(webid, "second".to_string(), 0.9));
         assert_eq!(session.response_count(), 1);
         assert_eq!(session.get_responses()[&webid].content, "second");
     }

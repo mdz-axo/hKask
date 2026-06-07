@@ -4,6 +4,7 @@
 //! TTL by category: instruct=24h, thinking=1h, embedding=30d
 //! LRU eviction when cache >100MB
 
+use hkask_storage::lock_mutex;
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferenceResult;
 use rusqlite::{Connection, params};
@@ -106,10 +107,7 @@ impl PromptCache {
     pub fn get(&self, key: &str) -> Result<InferenceResult, CacheError> {
         let now = Instant::now().elapsed().as_secs() as i64;
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
+        let conn = lock_mutex(&self.conn)?;
         let mut stmt = conn.prepare(
             "SELECT result, size_bytes FROM prompt_cache WHERE key = ?1 AND expires_at > ?2",
         )?;
@@ -152,7 +150,7 @@ impl PromptCache {
 
         self.evict_if_needed(size_bytes)?;
 
-        self.conn.lock().map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?.execute(
+        lock_mutex(&self.conn)?.execute(
             "INSERT OR REPLACE INTO prompt_cache (key, prompt, model, result, created_at, expires_at, size_bytes, access_count, last_accessed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8)",
             params![key, prompt, model, result_json, now, expires_at, size_bytes, now],
@@ -173,10 +171,7 @@ impl PromptCache {
             return Ok(());
         }
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
+        let conn = lock_mutex(&self.conn)?;
         let mut stmt = conn.prepare(
             "SELECT key, size_bytes FROM prompt_cache
              ORDER BY access_count ASC, last_accessed ASC

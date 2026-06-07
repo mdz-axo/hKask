@@ -3,6 +3,7 @@
 //! Goals are transient coordination substrates.
 //! Long-term retention lives in agent memory (episodic/semantic).
 
+use crate::lock_helpers::lock_mutex;
 use crate::{Store, now_rfc3339};
 use chrono::Utc;
 use hkask_types::InfrastructureError;
@@ -72,9 +73,7 @@ impl Store for SqliteGoalRepository {
     fn lock_conn(
         &self,
     ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
-        self.conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)
+        lock_mutex(&self.conn)
     }
 }
 

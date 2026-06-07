@@ -2,7 +2,9 @@
 
 #[macro_use]
 mod store_macros;
+pub mod lock_helpers;
 
+pub use lock_helpers::{lock_mutex, read_rwlock, write_rwlock};
 pub use store_macros::Store;
 pub use store_macros::now_rfc3339;
 

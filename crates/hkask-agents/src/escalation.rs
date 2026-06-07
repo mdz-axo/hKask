@@ -5,6 +5,7 @@
 //! from Curation and escalation signals from algedonic variety deficit detection.
 
 use chrono::{DateTime, Utc};
+use hkask_storage::lock_mutex;
 use hkask_storage::{Store, now_rfc3339};
 use hkask_types::{BotID, InfrastructureError, TemplateID};
 use rusqlite::params;
@@ -63,9 +64,7 @@ impl Store for EscalationQueue {
     fn lock_conn(
         &self,
     ) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, InfrastructureError> {
-        self.conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)
+        lock_mutex(&self.conn)
     }
 }
 

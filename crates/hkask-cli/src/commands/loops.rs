@@ -100,7 +100,8 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     println!("Note: Inference Loop not registered (requires Okapi connection)");
     println!();
 
-    rt.block_on(loop_system.start());
+    rt.block_on(loop_system.start())
+        .expect("Failed to start loop system: lock poisoned");
 
     // 9. Run until Ctrl+C
     println!("Loop system running. Press Ctrl+C to shutdown.");

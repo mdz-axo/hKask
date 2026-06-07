@@ -10,6 +10,8 @@
 use crate::communication::CommunicationLoop;
 use crate::communication::dispatch::MessageDispatch;
 use hkask_cns::CyberneticsLoop;
+use hkask_storage::lock_mutex;
+use hkask_types::InfrastructureError;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::LoopId;
 use hkask_types::loops::dispatch::LoopMessage;
@@ -268,18 +270,13 @@ impl LoopSystem {
     ///    and delivers to target loop inboxes
     /// 3. **Per-loop tick** — each registered loop runs its
     ///    `sense → compare → compute → act` cycle on a timer
-    pub async fn start(&self) {
+    pub async fn start(&self) -> Result<(), InfrastructureError> {
         let cancel = self.cancel.clone();
 
         // 1. Dispatch forwarder: dispatch_rx → MessageDispatch
         {
             let dispatch = Arc::clone(&self.dispatch);
-            // SAFETY: lock is held briefly during startup; poison indicates a panic
-            // in code that already broke, so unwrapping is consistent with abort semantics.
-            let mut rx_guard = self
-                .dispatch_rx
-                .lock()
-                .expect("dispatch_rx lock poisoned during LoopSystem::start");
+            let mut rx_guard = lock_mutex(&self.dispatch_rx)?;
             let mut rx = std::mem::replace(&mut *rx_guard, {
                 // Replace with a closed channel so nobody can use it
                 let (_, dead_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -377,6 +374,8 @@ impl LoopSystem {
             target: "loop_system",
             "LoopSystem started with per-loop tick intervals"
         );
+
+        Ok(())
     }
 
     /// Run a single regulation cycle across all loops in authority order.

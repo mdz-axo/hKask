@@ -136,11 +136,9 @@ impl SnapshotLoop {
     /// Record a successful snapshot for a repo.
     fn record_snapshot(&self, repo: &RepoId, commit: CommitHash) {
         let mut state = self.state.write();
-        state
-            .entry(repo.dir_name().to_string())
-            .or_default()
-            .last_snapshot = Some(Instant::now());
-        state.get_mut(repo.dir_name()).unwrap().last_commit = Some(commit);
+        let entry = state.entry(repo.dir_name().to_string()).or_default();
+        entry.last_snapshot = Some(Instant::now());
+        entry.last_commit = Some(commit);
     }
 }
 

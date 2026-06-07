@@ -9,7 +9,7 @@
 //! Consent records are persisted via `ConsentStore` (SQLite-backed),
 //! so they survive restarts — enforcing user sovereignty (Principle 1.3).
 
-use hkask_storage::{ConsentStore, Store, StoredConsentRecord};
+use hkask_storage::{ConsentStore, Store, StoredConsentRecord, read_rwlock, write_rwlock};
 use hkask_types::DataCategory;
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
@@ -159,9 +159,7 @@ impl ConsentManager {
             .collect::<Vec<_>>()
         };
 
-        let mut cache = self.cache.write().map_err(|_| {
-            ConsentError::ConsentNotFound("Consent cache lock poisoned".to_string())
-        })?;
+        let mut cache = write_rwlock(&self.cache)?;
         *cache = records;
         Ok(())
     }
@@ -175,9 +173,7 @@ impl ConsentManager {
 
     /// Grant consent for a data category
     pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), ConsentError> {
-        let mut cache = self.cache.write().map_err(|_| {
-            ConsentError::ConsentNotFound("Consent cache lock poisoned".to_string())
-        })?;
+        let mut cache = write_rwlock(&self.cache)?;
 
         // Find or create consent record
         let record = cache.iter_mut().find(|r| r.webid == webid);
@@ -202,9 +198,7 @@ impl ConsentManager {
 
     /// Revoke all consent for a WebID
     pub fn revoke_consent(&self, webid: &str) -> Result<(), ConsentError> {
-        let mut cache = self.cache.write().map_err(|_| {
-            ConsentError::ConsentNotFound("Consent cache lock poisoned".to_string())
-        })?;
+        let mut cache = write_rwlock(&self.cache)?;
 
         if let Some(record) = cache.iter_mut().find(|r| r.webid == webid) {
             record.revoke();
@@ -218,10 +212,7 @@ impl ConsentManager {
 
     /// Check if consent is granted for a data category
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
-        let cache = self
-            .cache
-            .read()
-            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
+        let cache = read_rwlock(&self.cache)?;
 
         Ok(cache
             .iter()
@@ -232,10 +223,7 @@ impl ConsentManager {
 
     /// Get all granted categories for a WebID
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {
-        let cache = self
-            .cache
-            .read()
-            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
+        let cache = read_rwlock(&self.cache)?;
 
         Ok(cache
             .iter()

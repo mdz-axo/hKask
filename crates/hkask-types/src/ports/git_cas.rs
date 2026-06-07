@@ -765,7 +765,7 @@ mod tests {
     #[test]
     fn git_cas_error_variants_have_distinct_recovery_paths() {
         // C5: every error variant = unique recovery path.
-        let errors = vec![
+        let errors = [
             GitCasError::CrateNotFound("test".into()),
             GitCasError::Io("test".into()),
             GitCasError::Git("test".into()),

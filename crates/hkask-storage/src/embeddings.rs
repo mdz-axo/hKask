@@ -11,6 +11,7 @@
 //! **Spec Reference:** Architecture v0.21.0 §2.3, sqlite-vec integration
 
 use crate::Store;
+use crate::lock_helpers::lock_mutex;
 use hkask_types::InfrastructureError;
 
 /// Stored embedding record with metadata
@@ -62,9 +63,7 @@ impl Store for EmbeddingStore {
     fn lock_conn(
         &self,
     ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
-        self.conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)
+        lock_mutex(&self.conn)
     }
 }
 
@@ -145,10 +144,7 @@ impl EmbeddingStore {
         let blob = Self::encode_vector(vector);
         let dim = vector.len() as i32;
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         conn.execute_batch("BEGIN TRANSACTION;")
             .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
@@ -195,10 +191,7 @@ impl EmbeddingStore {
 
     /// Retrieve an embedding by entity reference.
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         let mut stmt = conn
             .prepare("SELECT id, entity_ref, vector, dimensions, model FROM embeddings WHERE entity_ref = ?1")
@@ -243,10 +236,7 @@ impl EmbeddingStore {
         self.validate_dim(query_vector)?;
 
         let query_blob = Self::encode_vector(query_vector);
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         let mut stmt = conn
             .prepare(
@@ -293,10 +283,7 @@ impl EmbeddingStore {
     /// Removes from both the `embeddings` metadata table and the
     /// `vec_embeddings` virtual table in a single transaction.
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         // Look up the embedding ID first
         let id_result: Result<String, _> = conn.query_row(
@@ -347,10 +334,7 @@ impl EmbeddingStore {
 
     /// Count total embeddings stored.
     pub fn count(&self) -> Result<usize, EmbeddingError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))
@@ -364,10 +348,7 @@ impl EmbeddingStore {
     /// Uses SQL LIKE with the prefix + '%' pattern.
     /// Efficient when the `idx_embeddings_entity_ref` index exists.
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+        let conn = lock_mutex(&self.conn).map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         let pattern = format!("{}%", prefix);
         let mut stmt = conn
@@ -532,6 +513,7 @@ mod tests {
         assert_eq!(store.count().unwrap(), 3);
     }
 
+    #[test]
     fn query_by_prefix_finds_matching_refs() {
         let store = test_store();
 

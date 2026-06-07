@@ -250,7 +250,6 @@ pub struct CnsVarietyResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use hkask_types::event::SpanNamespace;
     #[test]
     fn cns_subscribe_validates_spans() {

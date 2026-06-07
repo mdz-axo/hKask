@@ -3,7 +3,7 @@
 //! Utility functions used across multiple command modules for error handling,
 //! output, and common setup.
 
-use hkask_storage::Database;
+use hkask_storage::{Database, lock_mutex};
 use std::path::Path;
 
 /// Unwrap a `Result` or print an error message and exit.
@@ -50,7 +50,10 @@ pub fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_
     let store = hkask_storage::user_store::UserStore::new(db.conn_arc());
     let store = std::sync::Arc::new(std::sync::Mutex::new(store));
     or_exit(
-        store.lock().expect("mutex lock").initialize_schema(),
+        lock_mutex(&store).and_then(|mut g| {
+            g.initialize_schema()
+                .map_err(|e| hkask_types::InfrastructureError::Database(e.to_string()))
+        }),
         "Failed to initialize user store schema",
     );
     store

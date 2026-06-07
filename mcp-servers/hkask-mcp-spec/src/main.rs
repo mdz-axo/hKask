@@ -1256,7 +1256,7 @@ mod tests {
     // P8 invariant: spec_graph_validate reports violations when below threshold
     #[tokio::test]
     async fn graph_validate_reports_violations_below_threshold() {
-        let (server, store) = test_server_with_store();
+        let (server, _store) = test_server_with_store();
         let read_token = valid_token(&server, "validate", DelegationAction::Read);
 
         // Empty collection → coherence 0 → below any threshold

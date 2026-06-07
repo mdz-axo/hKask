@@ -20,8 +20,50 @@ hot_dirs=(
 has_violation=false
 violations=""
 
-# For each .rs file, find the line ranges of #[cfg(test)] mod blocks,
-# then check .unwrap() calls that fall outside those ranges.
+# For each .rs file, use awk to strip #[cfg(test)] mod blocks and then
+# check the remaining (production-only) code for .unwrap() calls.
+# The awk script tracks brace depth to correctly handle nested braces.
+strip_test_blocks() {
+    local file="$1"
+    awk '
+    /^#\[cfg\(test\)\]/ {
+        # Found #[cfg(test)] — enter skip mode, wait for opening brace
+        skip = 1
+        next
+    }
+    skip == 1 && /{/ {
+        # First opening brace after #[cfg(test)] — start tracking depth
+        gsub(/\{/, "{")
+        depth = gsub(/\{/, "{")
+        gsub(/\}/, "}")
+        depth -= gsub(/\}/, "}")
+        if (depth <= 0) {
+            # Single-line block like: mod tests { } (unlikely but handle)
+            depth = 0
+            skip = 0
+        } else {
+            skip = 2
+        }
+        next
+    }
+    skip == 1 {
+        # Lines between #[cfg(test)] and the opening brace (e.g., "mod tests")
+        next
+    }
+    skip == 2 {
+        # Inside a #[cfg(test)] block — track brace depth
+        depth += gsub(/\{/, "{")
+        depth -= gsub(/\}/, "}")
+        if (depth <= 0) {
+            depth = 0
+            skip = 0
+        }
+        next
+    }
+    { print }
+    ' "$file"
+}
+
 for dir in "${hot_dirs[@]}"; do
     if [ ! -d "$dir" ]; then
         echo "WARNING: Hot-path directory not found: $dir"
@@ -31,87 +73,20 @@ for dir in "${hot_dirs[@]}"; do
     while IFS= read -r file; do
         [ -f "$file" ] || continue
 
-        # Extract #[cfg(test)] module line ranges: start_line end_line
-        # A #[cfg(test)] block looks like:
-        #   #[cfg(test)]
-        #   mod tests { ... }
-        # We need to find the matching closing brace.
-        test_ranges=()
+        # Get production-only code (test blocks stripped), then check for .unwrap()
+        prod_violations=$(strip_test_blocks "$file" | grep -n '\.unwrap()' || true)
 
-        # Find all lines with #[cfg(test)]
-        cfg_test_lines=()
-        while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            cfg_test_lines+=("$line")
-        done < <(grep -n '#\[cfg(test)\]' "$file" 2>/dev/null || true)
-
-        for cfg_line in "${cfg_test_lines[@]}"; do
-            start_line="$(echo "$cfg_line" | cut -d: -f1)"
-
-            # Find the opening brace of the mod block (could be same line or next line)
-            mod_start="$start_line"
-            found_brace=false
-            for ((i = mod_start; i <= mod_start + 5; i++)); do
-                line_content="$(sed -n "${i}p" "$file")"
-                if echo "$line_content" | grep -q '{'; then
-                    mod_start="$i"
-                    found_brace=true
-                    break
-                fi
-            done
-
-            if [ "$found_brace" = false ]; then
-                continue
-            fi
-
-            # Find matching closing brace
-            depth=0
-            end_line="$mod_start"
-            total_lines="$(wc -l < "$file")"
-            for ((i = mod_start; i <= total_lines; i++)); do
-                line_content="$(sed -n "${i}p" "$file")"
-                # Count braces (ignore braces inside strings/comments approximately)
-                opens="$(echo "$line_content" | tr -cd '{' | wc -c)"
-                closes="$(echo "$line_content" | tr -cd '}' | wc -c)"
-                depth=$((depth + opens - closes))
-                if [ $depth -le 0 ]; then
-                    end_line="$i"
-                    break
-                fi
-            done
-
-            test_ranges+=("$start_line $end_line")
-        done
-
-        # Now find all .unwrap() calls and check if they're outside test ranges
-        while IFS= read -r match; do
-            [ -z "$match" ] && continue
-            linenum="$(echo "$match" | cut -d: -f1)"
-
-            # Skip comment lines
-            content="$(echo "$match" | cut -d: -f2-)"
-            if echo "$content" | grep -qE '^\s*//'; then
-                continue
-            fi
-
-            # Check if this line is inside any cfg(test) range
-            in_test=false
-            for range in "${test_ranges[@]}"; do
-                range_start="$(echo "$range" | cut -d' ' -f1)"
-                range_end="$(echo "$range" | cut -d' ' -f2)"
-                if [ "$linenum" -ge "$range_start" ] && [ "$linenum" -le "$range_end" ]; then
-                    in_test=true
-                    break
-                fi
-            done
-
-            if [ "$in_test" = true ]; then
-                continue
-            fi
-
-            violations="${violations}${match}"$'\n'
-            has_violation=true
-        done < <(grep -rn '\.unwrap()' "$file" | grep -v '^\s*//')
+        if [ -n "$prod_violations" ]; then
+            # Report violations with original file paths
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                # Extract the line number from the stripped output and map it
+                # back to the original file. Since we can't easily map line numbers
+                # after stripping, just report the production-code violations directly.
+                violations="${violations}${file##$repo_root/}:${line}"$'\n'
+                has_violation=true
+            done <<< "$prod_violations"
+        fi
     done < <(find "$dir" -name '*.rs')
 done
 
@@ -119,7 +94,7 @@ if $has_violation; then
     echo "VIOLATION: .unwrap() on hot paths (CNS/agents) outside test code:"
     echo "$violations"
     echo ""
-    echo "Use proper error handling (Result, .expect(), OCAP-gated fallthrough) instead."
+    echo "Use proper error handling (Result, .expect(), or OCAP-gated fallthrough) instead."
     exit 1
 fi
 

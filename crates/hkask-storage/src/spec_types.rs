@@ -369,7 +369,7 @@ impl_from_serde_json!(SpecError, Infra);
 
 #[cfg(test)]
 mod tests {
-    //!
+    //
     // Behavioral tests for DDMVSS specification types.
     //
     // Each test verifies a stated invariant of a public seam.

@@ -667,30 +667,25 @@ mod tests {
     struct MockMcp;
 
     impl McpPort for MockMcp {
-        fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send {
-            async { vec![] }
+        async fn discover_tools(&self) -> Vec<String> {
+            vec![]
         }
 
-        fn invoke(
+        async fn invoke(
             &self,
             tool_name: &str,
             _input: Value,
             _token: &DelegationToken,
-        ) -> impl std::future::Future<Output = Result<Value>> + Send {
+        ) -> Result<Value> {
             let name = tool_name.to_string();
-            async move {
-                Ok(serde_json::json!({
-                    "tool": name,
-                    "status": "ok"
-                }))
-            }
+            Ok(serde_json::json!({
+                "tool": name,
+                "status": "ok"
+            }))
         }
 
-        fn get_tool_info(
-            &self,
-            _tool_name: &str,
-        ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send {
-            async { None }
+        async fn get_tool_info(&self, _tool_name: &str) -> Option<ToolInfo> {
+            None
         }
     }
 }

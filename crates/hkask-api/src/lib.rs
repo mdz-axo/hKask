@@ -687,13 +687,13 @@ impl ApiState {
     ///
     /// Call this after the API server starts listening. The loops run in
     /// background tokio tasks until `shutdown_loops()` is called.
-    pub async fn start_loops(&self) {
+    pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
         tracing::info!(
             target: "hkask.api",
             loops = ?self.loop_system.registered_loop_ids().await,
             "Starting loop system"
         );
-        self.loop_system.start().await;
+        self.loop_system.start().await
     }
 
     /// Signal the loop system to shut down.
