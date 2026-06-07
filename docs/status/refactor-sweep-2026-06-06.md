@@ -557,7 +557,44 @@ pass** — the sweep's job is refactor, not test breadth.
   inline. A future pass could expose a `hkask-ensemble::message`
   builder; not material for this sweep.
 
-### T7.10 — Primitives hKask does not yet ship
+### T7.10 — Pre-existing compile error in `hkask-cli` (not in this sweep's scope)
+
+`crates/hkask-cli/src/commands/curator.rs:15` (HEAD `79cd9cfe`):
+
+```rust
+pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
+    let conn = open_registry_db()?;
+    let queue = hkask_agents::EscalationQueue::new(conn)?;
+    queue.list_pending()?    // ← E0308: returns Vec, not Result
+}
+```
+
+`queue.list_pending()` returns `Vec<EscalationEntry>`, not a `Result`;
+the `?` operator cannot apply. The same pattern likely exists in
+`crates/hkask-cli/src/commands/curator.rs:30` (`queue.list_pending()?`
+inside `curator_resolve` with similar shape) and possibly elsewhere in
+the file. The v6 sweep's test command list (`cargo test -p
+hkask-types -p hkask-storage -p hkask-cns -p hkask-keystore -p
+hkask-mcp -p hkask-templates -p hkask-agents -p hkask-api --lib`)
+excluded `hkask-cli`, so this latent error was not caught by the
+v6 validation.
+
+`cargo check --workspace` is therefore *not* green pre-sweep either;
+this is pre-existing.
+
+**Fix (deferred to next pass):** replace `queue.list_pending()?` with
+`Ok(queue.list_pending())`, or change the function signature to drop
+the `Result` wrapper. Both are 1-line patches; the right call depends
+on whether the caller chain (none of which is unit-tested today)
+expects to handle errors from `list_pending()`.
+
+**Why not in this sweep:** the prompt's surgical-changes rule
+("Touch only what you must. Clean up only your own mess.") and the
+coding-guidelines anti-pattern ("Refactoring adjacent code 'while
+you're in the area'") say: don't fix it here. It is recorded so the
+next pass picks it up.
+
+### T7.11 — Primitives hKask does not yet ship
 
 The sweep *used* the following external primitives that hKask has not
 internalized as named seams:
