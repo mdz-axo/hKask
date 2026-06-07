@@ -365,7 +365,7 @@ impl EmbeddingStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::Database;
+    use crate::in_memory_db;
 
     fn test_store() -> EmbeddingStore {
         let db = in_memory_db();

@@ -1347,9 +1347,9 @@ impl SpecStore for SqliteSpecStore {
 - Traits define ports; `SqliteSpecStore` demonstrates the adapter pattern.
 - Zero `async` in domain core — async only at adapter boundary (via `async-trait` in adapters).
 - Newtypes `SpecId`, `CapabilityId` follow existing `hkask-types/src/id.rs` conventions.
-- `SpecCurationRecord` integrates with existing `CurationDecision` (3 variants: Merge, Discard, Revise) from `curation.rs`. The `Defer` variant was removed in v0.23.0.
+- `SpecCurationRecord` integrates with `CurationDecision` (4 variants: Merge, Revise, Defer, Discard) from `curation.rs`. The Defer variant was restored per DDMVSS §5.9 audit remediation R2.
 - `SpecCurator` trait has ≥2 potential consumers (spec-curator bot, human-via-CLI) — P1 compliant.
-- `SpecCategory` reduced to 4 live variants (Domain, Capability, Interface, Composition).
+- `SpecCategory` has 9 variants (Domain, Capability, Interface, Composition, Trust, Observability, Persistence, Lifecycle, Curation) covering all DDMVSS categories.
 - `SpecError::CurationDenied` and `SpecError::CoherenceInsufficient` — distinct recovery paths per C5.
 
 ---
@@ -1367,9 +1367,9 @@ impl SpecStore for SqliteSpecStore {
 | Interface | MCP: `hkask-mcp-spec` (8 tools). CLI: `kask spec <subcommand>`. API: `POST /api/v1/specs/*`. All equivalent via `SpecStore` port. | **Pass** — three surfaces, one core |
 | Composition | Specs compose via `Spec.goals` aggregation. Registry stores spec templates with `template_type: FlowDef`. | **Pass** — unified registry |
 | Trust | OCAP tokens govern all spec ops. Manifests signed via `hkask-keystore`. Curation authority bounded via `OCAPBoundary`. Threat model in §7.1. | **Pass** |
-| Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **:partial** — Span::Spec exists in code. Variety counter on spec diversity not wired to algedonic system. SpecDriftAlert defined but not in CNS loop. |
+| Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **:partial** — Span::Spec exists in code. Variety counter on spec diversity not wired to algedonic system. SpecDriftAlert wired into Communication Loop (R13 remediated). |
 | Persistence | Specs stored as bitemporal triples in `hkask-storage`. Embeddings for semantic recall of prior specs. | **:partial** — TripleStore has bitemporal columns, but SpecStore uses `created_at` only (valid_from/valid_to absent). Curation records not persisted (§11 R3.8). |
-| Lifecycle | Bootstrap: register spec templates + initialize Curator. Evolution: Git SHA versioning. Deprecation: delete per P7. | **:drift** — `version_sha` removed as dead field; no replacement exists. Spec versioning absent. Bootstrap and deprecation are operational. |
+| Lifecycle | Bootstrap: register spec templates + initialize Curator. Evolution: Git SHA versioning. Deprecation: delete per P7. | **:partial** — `Spec.version` field added (R15 remediated) but bitemporal semantics absent from SpecStore. Bootstrap and deprecation are operational. |
 | Curation | `CurationDecision` gradient (Merge/Revise/Defer/Discard) from `curation.rs`. Spec-curator bot as Replicant. Coherence metric defined. | **:drift** — CurationDecision has 4 variants (Defer added per audit remediation R2). Coherence threshold 0.7 uncalibrated (§10.3). Curation records not persisted (§11 R3.8). |
 
 ### 9.2 Gaps Discovered & Corrections

@@ -620,7 +620,7 @@ impl SqliteGoalRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::Database;
+    use crate::in_memory_db;
     use hkask_types::NuEvent;
     use hkask_types::id::WebID;
     use hkask_types::ports::git_cas::MockGitCas;
