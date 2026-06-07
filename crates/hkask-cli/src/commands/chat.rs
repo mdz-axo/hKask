@@ -434,12 +434,9 @@ pub async fn chat_with_agent(
             );
             adapter.store_episodic(request, &capability_token)
         }
-        (None, None) => Err(hkask_agents::error::MemoryError::Storage(Box::new(
-            std::io::Error::new(
-                std::io::ErrorKind::NotConnected,
-                "No memory adapter available",
-            ),
-        ))),
+        (None, None) => Err(hkask_agents::error::MemoryError::Infra(
+            hkask_types::InfrastructureError::Io("No memory adapter available".into()),
+        )),
     };
 
     match store_result {

@@ -31,13 +31,17 @@ pub enum McpError {
 pub use hkask_types::GitError;
 
 /// Memory storage errors
+///
+/// Composes from `InfrastructureError` (the cross-crate foundation) for
+/// transport-layer failures, with a `CapabilityDenied` variant for OCAP
+/// visibility/perspective constraints.
+///
+/// Matches the pattern used by `ConsentError`, `GoalRepositoryError`,
+/// `AgentRegistryError`, and other domain error types.
 #[derive(Debug, Error)]
 pub enum MemoryError {
-    #[error("Storage error: {0}")]
-    Storage(#[source] Box<dyn std::error::Error + Send + Sync>),
-
-    #[error("Query error: {0}")]
-    Query(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error(transparent)]
+    Infra(#[from] hkask_types::InfrastructureError),
 
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
@@ -45,30 +49,69 @@ pub enum MemoryError {
 
 impl From<hkask_storage::DatabaseError> for MemoryError {
     fn from(e: hkask_storage::DatabaseError) -> Self {
-        MemoryError::Storage(Box::new(e))
+        MemoryError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
     }
 }
 
 impl From<hkask_memory::EpisodicMemoryError> for MemoryError {
     fn from(e: hkask_memory::EpisodicMemoryError) -> Self {
-        match &e {
-            hkask_memory::EpisodicMemoryError::Triple(_) => MemoryError::Storage(Box::new(e)),
-            hkask_memory::EpisodicMemoryError::InvalidVisibility(_)
-            | hkask_memory::EpisodicMemoryError::MissingPerspective => {
-                MemoryError::Query(Box::new(e))
+        match e {
+            hkask_memory::EpisodicMemoryError::Triple(inner) => inner.into(),
+            hkask_memory::EpisodicMemoryError::InvalidVisibility(msg) => {
+                MemoryError::CapabilityDenied(msg)
             }
+            hkask_memory::EpisodicMemoryError::MissingPerspective => MemoryError::CapabilityDenied(
+                "Episodic memory requires a perspective (agent WebID)".into(),
+            ),
         }
     }
 }
 
 impl From<hkask_memory::SemanticMemoryError> for MemoryError {
     fn from(e: hkask_memory::SemanticMemoryError) -> Self {
-        match &e {
-            hkask_memory::SemanticMemoryError::Triple(_)
-            | hkask_memory::SemanticMemoryError::Embedding(_) => MemoryError::Storage(Box::new(e)),
-            hkask_memory::SemanticMemoryError::InvalidVisibility(_)
-            | hkask_memory::SemanticMemoryError::NoEmbeddingsForCentroid(_)
-            | hkask_memory::SemanticMemoryError::HasPerspective => MemoryError::Query(Box::new(e)),
+        match e {
+            hkask_memory::SemanticMemoryError::Triple(inner) => inner.into(),
+            hkask_memory::SemanticMemoryError::Embedding(inner) => inner.into(),
+            hkask_memory::SemanticMemoryError::InvalidVisibility(msg) => {
+                MemoryError::CapabilityDenied(msg)
+            }
+            hkask_memory::SemanticMemoryError::NoEmbeddingsForCentroid(msg) => {
+                MemoryError::Infra(hkask_types::InfrastructureError::NotFound(msg))
+            }
+            hkask_memory::SemanticMemoryError::HasPerspective => MemoryError::CapabilityDenied(
+                "Semantic memory requires no perspective (use consolidation bridge for episodic→semantic promotion)".into(),
+            ),
+        }
+    }
+}
+
+impl From<hkask_storage::TripleError> for MemoryError {
+    fn from(e: hkask_storage::TripleError) -> Self {
+        match e {
+            hkask_storage::TripleError::Infra(inner) => MemoryError::Infra(inner),
+            hkask_storage::TripleError::NotFound => {
+                MemoryError::Infra(hkask_types::InfrastructureError::NotFound("triple".into()))
+            }
+        }
+    }
+}
+
+impl From<hkask_storage::EmbeddingError> for MemoryError {
+    fn from(e: hkask_storage::EmbeddingError) -> Self {
+        match e {
+            hkask_storage::EmbeddingError::Infrastructure(inner) => MemoryError::Infra(inner),
+            hkask_storage::EmbeddingError::NotFound(msg) => {
+                MemoryError::Infra(hkask_types::InfrastructureError::NotFound(msg))
+            }
+            hkask_storage::EmbeddingError::DimensionMismatch { .. } => MemoryError::Infra(
+                hkask_types::InfrastructureError::Serialization(e.to_string()),
+            ),
+            hkask_storage::EmbeddingError::Storage(_) => {
+                MemoryError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
+            }
+            hkask_storage::EmbeddingError::Decode(msg) => {
+                MemoryError::Infra(hkask_types::InfrastructureError::Serialization(msg))
+            }
         }
     }
 }
