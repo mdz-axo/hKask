@@ -453,3 +453,182 @@ impl CapabilityContext {
         self.capabilities.iter().any(|c| c == tool)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── CapabilityContext ───────────────────────────────────────────────────
+
+    // P8 invariant: empty capabilities allows all (open policy)
+    #[test]
+    fn capability_context_empty_allows_all() {
+        let ctx = CapabilityContext::default();
+        assert!(ctx.allows("web_search"));
+        assert!(ctx.allows("web_extract"));
+    }
+
+    // P8 invariant: explicit capabilities only allow listed tools
+    #[test]
+    fn capability_context_explicit_allows_listed() {
+        let ctx = CapabilityContext {
+            requester_id: None,
+            capabilities: vec!["web_search".to_string()],
+        };
+        assert!(ctx.allows("web_search"));
+        assert!(!ctx.allows("web_extract"));
+    }
+
+    // P8 invariant: multiple capabilities allow any listed tool
+    #[test]
+    fn capability_context_multiple_capabilities() {
+        let ctx = CapabilityContext {
+            requester_id: None,
+            capabilities: vec!["web_search".to_string(), "web_extract".to_string()],
+        };
+        assert!(ctx.allows("web_search"));
+        assert!(ctx.allows("web_extract"));
+        assert!(!ctx.allows("web_browse"));
+    }
+
+    // ── SearchStrategy ──────────────────────────────────────────────────────
+
+    // P8 invariant: canonical names parse correctly
+    #[test]
+    fn search_strategy_parses_canonical() {
+        assert_eq!(
+            "quick".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Quick
+        );
+        assert_eq!(
+            "web".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Web
+        );
+        assert_eq!(
+            "news".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::News
+        );
+        assert_eq!(
+            "deep".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Deep
+        );
+    }
+
+    // P8 invariant: aliases parse correctly
+    #[test]
+    fn search_strategy_parses_aliases() {
+        assert_eq!(
+            "semantic".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Web
+        );
+        assert_eq!(
+            "research".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Deep
+        );
+    }
+
+    // P8 invariant: case-insensitive parsing
+    #[test]
+    fn search_strategy_case_insensitive() {
+        assert_eq!(
+            "QUICK".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Quick
+        );
+        assert_eq!(
+            "Web".parse::<SearchStrategy>().unwrap(),
+            SearchStrategy::Web
+        );
+    }
+
+    // P8 invariant: invalid strategy is rejected
+    #[test]
+    fn search_strategy_rejects_invalid() {
+        assert!("invalid".parse::<SearchStrategy>().is_err());
+    }
+
+    // P8 invariant: Display round-trips
+    #[test]
+    fn search_strategy_display_round_trips() {
+        for variant in [
+            SearchStrategy::Quick,
+            SearchStrategy::Web,
+            SearchStrategy::News,
+            SearchStrategy::Deep,
+        ] {
+            let s = variant.to_string();
+            assert_eq!(
+                s.parse::<SearchStrategy>().unwrap(),
+                variant,
+                "Display must round-trip"
+            );
+        }
+    }
+
+    // ── ProviderFilter ─────────────────────────────────────────────────────
+
+    // P8 invariant: All filter matches everything
+    #[test]
+    fn provider_filter_all_matches_everything() {
+        let filter = ProviderFilter::All;
+        assert!(filter.matches("brave"));
+        assert!(filter.matches("tavily"));
+    }
+
+    // P8 invariant: Kinds filter only matches listed kinds
+    #[test]
+    fn provider_filter_kinds_matches_listed() {
+        let filter = ProviderFilter::Kinds(vec!["brave", "tavily"]);
+        assert!(filter.matches("brave"));
+        assert!(filter.matches("tavily"));
+        assert!(!filter.matches("exa"));
+    }
+
+    // ── WebError::kind() ─────────────────────────────────────────────────────
+
+    // P8 invariant: each variant maps to the correct McpErrorKind
+    #[test]
+    fn web_error_kind_mapping() {
+        assert_eq!(
+            WebError::BadArgs("x".into()).kind(),
+            McpErrorKind::InvalidArgument
+        );
+        assert_eq!(
+            WebError::ProviderUnavailable("x".into()).kind(),
+            McpErrorKind::Unavailable
+        );
+        assert_eq!(
+            WebError::ProviderError("x".into()).kind(),
+            McpErrorKind::Internal
+        );
+        assert_eq!(
+            WebError::RateLimited("x".into()).kind(),
+            McpErrorKind::RateLimited
+        );
+        assert_eq!(WebError::NoProvider.kind(), McpErrorKind::Unavailable);
+    }
+
+    // ── SearchResultOutput From<RankedResult> ───────────────────────────────
+
+    // P8 invariant: From<RankedResult> preserves fields
+    #[test]
+    fn search_result_output_from_ranked() {
+        let ranked = RankedResult {
+            title: "Test".to_string(),
+            url: "https://example.com".to_string(),
+            description: Some("desc".to_string()),
+            source: Some("brave".to_string()),
+            published: Some("today".to_string()),
+            rrf_score: 0.5,
+            provider_count: 1,
+            providers: vec!["brave".to_string()],
+            best_rank: Some(0),
+            content_preview: Some("preview".to_string()),
+            semantic_score: None,
+            extracted_content: None,
+        };
+        let output = SearchResultOutput::from(&ranked);
+        assert_eq!(output.title, "Test");
+        assert_eq!(output.url, "https://example.com");
+        assert_eq!(output.content_preview, Some("preview".to_string()));
+    }
+}

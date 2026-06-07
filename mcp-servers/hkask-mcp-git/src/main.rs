@@ -4,8 +4,7 @@
 //! trait implementation (GixCasAdapter). All operations route through
 //! the hexagonal port, not through raw shell commands.
 
-use hkask_mcp::GixCasAdapter;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_types::WebID;
 use hkask_types::ports::git_cas::{GitCASPort, GitCasError, RepoId};
@@ -99,25 +98,21 @@ pub struct GitServer {
 }
 
 impl GitServer {
-    /// Create a server using the default GixCasAdapter resolved from environment.
-    pub fn from_env(webid: WebID) -> Result<Self, GitCasError> {
-        let adapter = GixCasAdapter::from_env()?;
-        Ok(Self {
-            port: Arc::new(adapter),
-            webid,
-        })
-    }
-
-    /// Create a server with a specific base path for the CAS adapter.
-    pub fn with_base_path(base_path: std::path::PathBuf, webid: WebID) -> Self {
-        let adapter = GixCasAdapter::new(base_path).unwrap_or_else(|_| {
-            // Fall back to from_env if the path doesn't work
-            GixCasAdapter::from_env().expect("Failed to create GixCasAdapter")
-        });
-        Self {
-            port: Arc::new(adapter),
-            webid,
-        }
+    /// Create a server using the hexagonal port from a ServerContext's AdapterContainer.
+    ///
+    /// The port must be pre-configured via `AdapterContainer::configure_git_cas_port()`.
+    /// Returns `GitCasError::Configuration` if no port is available.
+    pub fn from_context(ctx: &ServerContext, webid: WebID) -> Result<Self, GitCasError> {
+        let port = ctx
+            .adapters
+            .get_git_cas_port()
+            .map_err(GitCasError::Configuration)?
+            .ok_or_else(|| {
+                GitCasError::Configuration(
+                    "git_cas_port not configured in AdapterContainer".to_string(),
+                )
+            })?;
+        Ok(Self { port, webid })
     }
 
     /// Create a server with an injected GitCASPort (for testing).
@@ -291,13 +286,33 @@ impl GitServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let webid = WebID::new();
-    let server = GitServer::from_env(webid)?;
-
     hkask_mcp::run_server(
         "hkask-mcp-git",
         env!("CARGO_PKG_VERSION"),
-        |_ctx| Ok(server),
+        |ctx| {
+            // Configure the hexagonal port on the AdapterContainer.
+            // When launched from the API process, this port is pre-configured;
+            // when standalone, we construct one from the environment.
+            if ctx
+                .adapters
+                .get_git_cas_port()
+                .map_err(|e| anyhow::anyhow!(e))?
+                .is_none()
+            {
+                let port: Arc<dyn GitCASPort> =
+                    Arc::new(hkask_mcp::GixCasAdapter::from_env().unwrap_or_else(|_| {
+                        hkask_mcp::GixCasAdapter::new(std::path::PathBuf::from(
+                            "/tmp/hkask-templates",
+                        ))
+                        .expect("Failed to create GixCasAdapter")
+                    }));
+                ctx.adapters
+                    .configure_git_cas_port(port)
+                    .map_err(|e| anyhow::anyhow!(e))?;
+            }
+            let webid = ctx.webid;
+            Ok(GitServer::from_context(&ctx, webid)?)
+        },
         vec![hkask_mcp::CredentialRequirement::optional(
             "HKASK_CAS_HOME",
             "Base path for Git CAS operations",

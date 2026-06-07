@@ -119,7 +119,7 @@ impl HkaskLoop for CommunicationLoop {
                 LoopId::Communication,
                 SignalMetric::RegisteredLoops,
                 registered_loops as f64,
-                6.0, // set-point: all 6 loops types should be registered
+                7.0, // set-point: all 7 loops should be registered (Inference, Episodic, Semantic, Communication, Curation, Cybernetics, Snapshot)
             ),
         ]
     }

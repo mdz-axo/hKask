@@ -419,6 +419,9 @@ pub enum GitCasError {
 
     #[error("Not found: {0}")]
     NotFound(String),
+
+    #[error("Configuration error: {0}")]
+    Configuration(String),
 }
 
 // ── Hexagonal Port ───────────────────────────────────────────────────────────
@@ -490,6 +493,11 @@ impl MockGitCas {
     /// Return the history of snapshot calls as `(repo, message, commit_hash)`.
     pub fn snapshot_history(&self) -> Vec<(RepoId, String, CommitHash)> {
         self.snapshots.read().unwrap().clone()
+    }
+
+    /// Return the number of blobs stored via `put_blob`.
+    pub fn blob_count(&self) -> usize {
+        self.blobs.read().unwrap().len()
     }
 }
 

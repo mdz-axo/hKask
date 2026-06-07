@@ -64,6 +64,12 @@ pub const COMMUNICATION_TICK_MS: u64 = 100;
 /// Default tick interval for the Cybernetics loop (2s).
 pub const CYBERNETICS_TICK_SECS: u64 = 2;
 
+/// Default tick interval for the Snapshot loop (60s).
+/// Snapshots are less frequent than Cybernetics sensing — they
+/// check RetentionPolicy intervals (30min minimum) and only act
+/// when a snapshot is due.
+pub const SNAPSHOT_TICK_SECS: u64 = 60;
+
 /// Default tick interval for the Curation loop (10s).
 pub const CURATION_TICK_SECS: u64 = 10;
 
@@ -77,17 +83,19 @@ pub fn default_tick_interval(loop_id: LoopId) -> Duration {
         LoopId::Semantic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
         LoopId::Communication => Duration::from_millis(COMMUNICATION_TICK_MS),
         LoopId::Cybernetics => Duration::from_secs(CYBERNETICS_TICK_SECS),
+        LoopId::Snapshot => Duration::from_secs(SNAPSHOT_TICK_SECS),
         LoopId::Curation => Duration::from_secs(CURATION_TICK_SECS),
     }
 }
 
 /// Authority DAG tick order: meta-loops first, then domain loops.
 /// Communication ticks independently as shared infrastructure.
-/// Curation (5) → Cybernetics (6) → Inference (1) → Episodic (2a) → Semantic (2b)
+/// Curation (5) → Cybernetics (6) → Snapshot (6b) → Inference (1) → Episodic (2a) → Semantic (2b)
 /// No sideways edges. Authority flows downward.
-pub const AUTHORITY_ORDER: [LoopId; 5] = [
+pub const AUTHORITY_ORDER: [LoopId; 6] = [
     LoopId::Curation,
     LoopId::Cybernetics,
+    LoopId::Snapshot,
     LoopId::Inference,
     LoopId::Episodic,
     LoopId::Semantic,
@@ -151,6 +159,7 @@ impl LoopSystem {
                 LoopId::Semantic,
                 LoopId::Communication,
                 LoopId::Cybernetics,
+                LoopId::Snapshot,
                 LoopId::Curation,
             ]
             .into_iter()
@@ -521,10 +530,11 @@ mod tests {
         let dispatch = Arc::new(MessageDispatch::new());
         let system = LoopSystem::new(dispatch);
 
-        // Register all 6 loop types with simple TestLoop instances
+        // Register all loop types with simple TestLoop instances
         for id in [
             LoopId::Curation,
             LoopId::Cybernetics,
+            LoopId::Snapshot,
             LoopId::Inference,
             LoopId::Episodic,
             LoopId::Semantic,
@@ -536,7 +546,7 @@ mod tests {
         // Tick should complete without panic
         system.tick().await;
 
-        assert_eq!(system.registered_count().await, 6);
+        assert_eq!(system.registered_count().await, 7);
     }
 
     #[tokio::test]

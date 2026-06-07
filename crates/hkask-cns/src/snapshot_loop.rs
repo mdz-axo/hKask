@@ -147,7 +147,7 @@ impl SnapshotLoop {
 #[async_trait::async_trait]
 impl HkaskLoop for SnapshotLoop {
     fn id(&self) -> LoopId {
-        LoopId::Cybernetics
+        LoopId::Snapshot
     }
 
     /// Sense: measure time since last snapshot per repo.
@@ -177,7 +177,7 @@ impl HkaskLoop for SnapshotLoop {
             // Signal: elapsed time vs. expected interval
             // If elapsed >= interval, we're "above set-point" (snapshot is due)
             signals.push(Signal::new(
-                LoopId::Cybernetics,
+                LoopId::Snapshot,
                 SignalMetric::SnapshotInterval,
                 elapsed_secs as f64,
                 interval,
@@ -209,7 +209,7 @@ impl HkaskLoop for SnapshotLoop {
         }
         // One action covers all due repos — act() iterates them
         vec![LoopAction::new(
-            LoopId::Cybernetics,
+            LoopId::Snapshot,
             ActionType::Calibrate,
             serde_json::json!({"action": "snapshot", "repos": "all_due"}),
         )]
@@ -399,5 +399,28 @@ mod tests {
         // u64::MAX → last tier (monthly interval, forever)
         let tier = SnapshotLoop::applicable_tier(&policy, u64::MAX).unwrap();
         assert_eq!(tier.interval_secs, 30 * 86400);
+    }
+
+    /// Behavioral property: SnapshotLoop implements HkaskLoop with LoopId::Snapshot,
+    /// so it can be registered in the LoopSystem and ticks the full sense→compare→compute→act cycle.
+    #[tokio::test]
+    async fn snapshot_loop_ticks_full_cycle_with_correct_loop_id() {
+        let mock = Arc::new(MockGitCas::new());
+        let loop_ = SnapshotLoop::new(mock.clone());
+
+        assert_eq!(
+            loop_.id(),
+            LoopId::Snapshot,
+            "SnapshotLoop must identify as LoopId::Snapshot"
+        );
+
+        // A full tick should complete without panic and produce snapshots
+        loop_.tick().await;
+
+        let history = mock.snapshot_history();
+        assert!(
+            !history.is_empty(),
+            "tick should produce at least one snapshot"
+        );
     }
 }

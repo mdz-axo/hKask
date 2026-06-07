@@ -30,6 +30,13 @@ pub fn parse_age_to_days(age: &str) -> f64 {
         return -1.0;
     }
 
+    // Strip "published" prefix first so that "published 3 days ago"
+    // recurses into "3 days ago" instead of hitting the " ago" suffix
+    // with "published 3 days" (which fails f64 parsing).
+    if let Some(rest) = lower.strip_prefix("published ") {
+        return parse_age_to_days(rest);
+    }
+
     if let Some(rest) = lower.strip_suffix(" ago") {
         let rest = rest.trim();
         return parse_relative_age(rest);
@@ -37,15 +44,6 @@ pub fn parse_age_to_days(age: &str) -> f64 {
 
     if let Ok(days) = parse_iso_date_to_days(lower) {
         return days;
-    }
-
-    if let Some(rest) = lower.strip_prefix("published ") {
-        if let Ok(days) = parse_iso_date_to_days(rest) {
-            return days;
-        }
-        if let Some(rest2) = rest.strip_suffix(" ago") {
-            return parse_relative_age(rest2.trim());
-        }
     }
 
     parse_fuzzy_date(lower)
@@ -171,4 +169,200 @@ pub fn normalize_date_bucket(published: &str) -> &'static str {
         return "this month";
     }
     "older"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── parse_age_to_days ─────────────────────────────────────────────────
+
+    // P8 invariant: empty string returns -1.0 (unparseable)
+    #[test]
+    fn parse_age_empty_returns_negative() {
+        assert_eq!(
+            parse_age_to_days(""),
+            -1.0,
+            "empty string must be unparseable"
+        );
+    }
+
+    // P8 invariant: relative age — "N days ago" parses to N
+    #[test]
+    fn parse_age_relative_days() {
+        let result = parse_age_to_days("3 days ago");
+        assert!(
+            (result - 3.0).abs() < 1e-10,
+            "3 days ago must parse to 3.0, got {result}"
+        );
+    }
+
+    // P8 invariant: relative age — "N weeks ago" parses to N*7
+    #[test]
+    fn parse_age_relative_weeks() {
+        let result = parse_age_to_days("2 weeks ago");
+        assert!(
+            (result - 14.0).abs() < 1e-10,
+            "2 weeks ago must parse to 14.0, got {result}"
+        );
+    }
+
+    // P8 invariant: relative age — "N months ago" parses to N*30
+    #[test]
+    fn parse_age_relative_months() {
+        let result = parse_age_to_days("6 months ago");
+        assert!(
+            (result - 180.0).abs() < 1e-10,
+            "6 months ago must parse to 180.0, got {result}"
+        );
+    }
+
+    // P8 invariant: relative age — "N years ago" parses to N*365
+    #[test]
+    fn parse_age_relative_years() {
+        let result = parse_age_to_days("1 year ago");
+        assert!(
+            (result - 365.0).abs() < 1e-10,
+            "1 year ago must parse to 365.0, got {result}"
+        );
+    }
+
+    // P8 invariant: relative age — hours and minutes convert correctly
+    #[test]
+    fn parse_age_relative_hours() {
+        let result = parse_age_to_days("24 hours ago");
+        assert!(
+            (result - 1.0).abs() < 1e-10,
+            "24 hours ago must parse to 1.0, got {result}"
+        );
+    }
+
+    // P8 invariant: relative age — seconds convert to fractional days
+    #[test]
+    fn parse_age_relative_seconds() {
+        let result = parse_age_to_days("86400 seconds ago");
+        assert!(
+            (result - 1.0).abs() < 1e-6,
+            "86400 seconds ago must parse to ~1.0, got {result}"
+        );
+    }
+
+    // P8 invariant: ISO date "YYYY-MM-DD" parses to correct day difference
+    #[test]
+    fn parse_age_iso_date() {
+        let now = chrono::Utc::now();
+        let three_days_ago = now - chrono::Duration::days(3);
+        let date_str = three_days_ago.format("%Y-%m-%d").to_string();
+        let result = parse_age_to_days(&date_str);
+        assert!(
+            (result - 3.0).abs() < 1.1,
+            "ISO date 3 days ago must parse to ~3.0, got {result}"
+        );
+    }
+
+    // P8 invariant: "published YYYY-MM-DD" prefix is stripped
+    #[test]
+    fn parse_age_published_prefix() {
+        let now = chrono::Utc::now();
+        let five_days_ago = now - chrono::Duration::days(5);
+        let date_str = format!("published {}", five_days_ago.format("%Y-%m-%d"));
+        let result = parse_age_to_days(&date_str);
+        assert!(
+            (result - 5.0).abs() < 1.1,
+            "published prefix must be stripped, got {result}"
+        );
+    }
+
+    // P8 invariant: "published N days ago" prefix is stripped and parses correctly
+    #[test]
+    fn parse_age_published_relative() {
+        let result = parse_age_to_days("published 3 days ago");
+        assert!(
+            (result - 3.0).abs() < 1e-10,
+            "published + relative must work, got {result}"
+        );
+    }
+
+    // P8 invariant: fuzzy date "Jan 15, 2024" parses correctly
+    #[test]
+    fn parse_age_fuzzy_date() {
+        let result = parse_age_to_days("Jan 1, 2020");
+        // Jan 1, 2020 is well in the past — result must be positive
+        assert!(
+            result > 0.0,
+            "fuzzy date must parse to positive days, got {result}"
+        );
+    }
+
+    // P8 invariant: completely unparseable input returns -1.0
+    #[test]
+    fn parse_age_unparseable_returns_negative() {
+        assert_eq!(
+            parse_age_to_days("gibberish"),
+            -1.0,
+            "unparseable input must return -1.0"
+        );
+    }
+
+    // ── normalize_date_bucket ──────────────────────────────────────────────
+
+    // P8 invariant: "0 days ago" → "today"
+    #[test]
+    fn normalize_date_bucket_today() {
+        assert_eq!(normalize_date_bucket("0 days ago"), "today");
+    }
+
+    // P8 invariant: "3 days ago" → "this week"
+    #[test]
+    fn normalize_date_bucket_this_week() {
+        assert_eq!(normalize_date_bucket("3 days ago"), "this week");
+    }
+
+    // P8 invariant: "10 days ago" → "this month"
+    #[test]
+    fn normalize_date_bucket_this_month() {
+        assert_eq!(normalize_date_bucket("10 days ago"), "this month");
+    }
+
+    // P8 invariant: "60 days ago" → "older"
+    #[test]
+    fn normalize_date_bucket_older() {
+        assert_eq!(normalize_date_bucket("60 days ago"), "older");
+    }
+
+    // P8 invariant: unparseable → "unknown"
+    #[test]
+    fn normalize_date_bucket_unknown() {
+        assert_eq!(normalize_date_bucket("gibberish"), "unknown");
+    }
+
+    // ── rrf_score ───────────────────────────────────────────────────────────
+
+    // P8 invariant: single rank computes 1/(k + rank + 1)
+    #[test]
+    fn rrf_score_single_rank() {
+        let score = rrf_score(60, &[0]);
+        let expected = 1.0 / 61.0;
+        assert!(
+            (score - expected).abs() < 1e-10,
+            "rrf_score(60, [0]) = {score}, expected {expected}"
+        );
+    }
+
+    // P8 invariant: multiple ranks sum correctly
+    #[test]
+    fn rrf_score_multiple_ranks() {
+        let score = rrf_score(60, &[0, 1, 5]);
+        let expected = 1.0 / 61.0 + 1.0 / 62.0 + 1.0 / 66.0;
+        assert!(
+            (score - expected).abs() < 1e-10,
+            "rrf_score(60, [0,1,5]) = {score}, expected {expected}"
+        );
+    }
+
+    // P8 invariant: empty ranks yields zero
+    #[test]
+    fn rrf_score_empty() {
+        assert_eq!(rrf_score(60, &[]), 0.0, "empty ranks must yield 0.0");
+    }
 }

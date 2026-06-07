@@ -42,7 +42,7 @@ use hkask_agents::escalation::EscalationQueue;
 use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
+use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool, SnapshotLoop};
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
@@ -51,6 +51,7 @@ use hkask_templates::SqliteRegistry;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::curation::CuratorHandle;
+use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::{CapabilityChecker, WebID};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -102,9 +103,17 @@ impl Stores {
     ///
     /// Each store gets its own database connection (and therefore its own
     /// connection pool) so a slow store cannot starve another.
-    fn init(db_config: Option<&DbConfig>) -> Result<Stores, ApiError> {
+    ///
+    /// The `git_cas_port` is injected into stores that support CAS write-through
+    /// via their `.with_cas()` builder methods, enabling per-mutation audit
+    /// trails alongside batch snapshots from the SnapshotLoop.
+    fn init(
+        db_config: Option<&DbConfig>,
+        git_cas_port: Arc<dyn GitCASPort>,
+    ) -> Result<Stores, ApiError> {
         let consent_conn = open_db(db_config, "consent")?.conn_arc();
-        let consent_store = hkask_storage::ConsentStore::new(consent_conn);
+        let consent_store =
+            hkask_storage::ConsentStore::new(consent_conn).with_cas(Arc::clone(&git_cas_port));
         consent_store
             .initialize_schema()
             .map_err(|e| ApiError::Internal {
@@ -123,11 +132,15 @@ impl Stores {
         let goal_conn = open_db(db_config, "goal")?.conn_arc();
         let goal_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
-        let goal_repo =
-            Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
+        let goal_repo = Arc::new(
+            hkask_storage::SqliteGoalRepository::new(goal_conn)
+                .with_telemetry(goal_sink)
+                .with_cas(Arc::clone(&git_cas_port)),
+        );
 
         let standing_conn = open_db(db_config, "standing session")?.conn_arc();
-        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
+        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn)
+            .with_cas(Arc::clone(&git_cas_port));
         standing_session_store
             .initialize_schema()
             .map_err(|e| ApiError::Internal {
@@ -236,6 +249,7 @@ fn build_loop_system(
     system_webid: WebID,
     acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     event_sink: Option<Arc<dyn NuEventSink>>,
+    git_cas_port: Arc<dyn GitCASPort>,
 ) -> Result<
     (
         Arc<LoopSystem>,
@@ -348,6 +362,12 @@ fn build_loop_system(
         loop_system.register_loop(curation_loop).await;
     });
 
+    // Snapshot Loop (CAS — scheduled snapshots based on RetentionPolicy)
+    let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
+    rt.block_on(async {
+        loop_system.register_loop(Arc::new(snapshot_loop)).await;
+    });
+
     drop(rt);
     Ok((
         Arc::new(loop_system),
@@ -369,9 +389,7 @@ impl ApiState {
         acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     ) -> Result<Self, ApiError> {
         // ── Persistent stores ──
-        let stores = Stores::init(db_config)?;
-
-        // ── Subsystems ──
+        // git_cas_port is created before stores so each can attach it for CAS write-through.
         let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
@@ -380,6 +398,7 @@ impl ApiState {
                 hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
                     .expect("Failed to create GixCasAdapter")
             }));
+        let stores = Stores::init(db_config, Arc::clone(&git_cas_port))?;
         let dispatcher_runtime = mcp_runtime.clone();
 
         // Build the LoopSystem with shared dispatch and escalation queue
@@ -399,6 +418,7 @@ impl ApiState {
             system_webid,
             acp,
             Some(Arc::clone(&cns_event_sink)),
+            Arc::clone(&git_cas_port),
         )?;
 
         // Create GovernedTool membrane with CompositeGasEstimator
@@ -678,4 +698,41 @@ pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
 /// Build OpenAPI spec
 pub fn create_openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::ports::git_cas::{GitCASPort, MockGitCas};
+
+    /// Behavioral property: Stores::init with git_cas_port creates stores that have CAS attached.
+    ///
+    /// Verifies the wiring from ApiState::new() → Stores::init() → .with_cas() by
+    /// calling Stores::init with a mock port and confirming the goal repository
+    /// can perform CAS write-through (the goal repo is directly accessible on Stores).
+    #[tokio::test]
+    async fn stores_init_attaches_cas_port_to_goal_repo() {
+        let mock = Arc::new(MockGitCas::new());
+        let port: Arc<dyn GitCASPort> = mock.clone() as Arc<dyn GitCASPort>;
+        let stores = Stores::init(None, Arc::clone(&port)).expect("Stores::init");
+
+        let webid = WebID::new();
+        let _goal = stores
+            .goal_repo
+            .create_goal_with_cas(
+                &webid,
+                "test goal",
+                hkask_types::visibility::Visibility::Public,
+            )
+            .await
+            .expect("create_goal_with_cas should succeed with CAS port attached");
+
+        // Without CAS port, create_goal_with_cas persists only to SQLite (0 blobs in mock).
+        // With CAS port, put_blob writes the goal JSON to the CAS (1 blob in mock).
+        assert_eq!(
+            mock.blob_count(),
+            1,
+            "SqliteGoalRepository with CAS port should write one blob to CAS"
+        );
+    }
 }

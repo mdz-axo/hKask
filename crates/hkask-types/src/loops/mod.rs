@@ -17,6 +17,7 @@
 //! | 4 | Communication | Channel (dumb pipe) | Meta |
 //! | 5 | Curation | Metasystem (observer) | Meta |
 //! | 6 | Cybernetics | Homeostatic regulation | Meta |
+//! | 6b | Snapshot | Scheduled CAS snapshots | Meta |
 //!
 //! **Bridge:**
 //! - 2a→2b: Consolidation — episodic → strip perspective → store semantic (one-way)
@@ -51,6 +52,8 @@ pub enum LoopId {
     Communication,
     Curation,
     Cybernetics,
+    /// Scheduled CAS snapshots (sub-function of Cybernetics Loop 6)
+    Snapshot,
 }
 
 impl std::fmt::Display for LoopId {
@@ -62,6 +65,7 @@ impl std::fmt::Display for LoopId {
             LoopId::Communication => write!(f, "communication"),
             LoopId::Curation => write!(f, "curation"),
             LoopId::Cybernetics => write!(f, "cybernetics"),
+            LoopId::Snapshot => write!(f, "snapshot"),
         }
     }
 }
