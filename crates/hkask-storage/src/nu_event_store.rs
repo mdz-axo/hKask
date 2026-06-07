@@ -1,6 +1,6 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 use crate::{Store, now_rfc3339};
-use hkask_types::event::{Phase, Span, SpanNamespace};
+use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::ports::git_cas::RepoId;
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
@@ -89,7 +89,8 @@ impl NuEventStore {
             .into_iter()
             .filter_map(|event| {
                 let delta_secs = (now - event.timestamp).num_seconds() as f64;
-                let lambda = Self::lambda_for_category(event.span.namespace.short_name(), config);
+                // F-SYN-009: typed dispatch via SpanCategory.
+                let lambda = Self::lambda_for(event.span.namespace.category(), config);
                 let weight = (-lambda * delta_secs).exp();
                 if weight >= config.weight_threshold {
                     Some(WeightedEvent { event, weight })
@@ -102,16 +103,31 @@ impl NuEventStore {
         Ok(weighted)
     }
 
-    fn lambda_for_category(category: &str, config: &DecayConfig) -> f64 {
+    /// F-SYN-009: typed dispatch. Returns the `λ` for a `SpanCategory`.
+    ///
+    /// The previous `lambda_for_category(&str, ...)` API is preserved
+    /// (F-L1-002 backwards compatibility) but the call site in
+    /// `weighted_algedonic` now uses this typed version. Unknown
+    /// categories fall back to `cybernetics_lambda` — the historical
+    /// behaviour — but the fallback is *explicit* at the type level
+    /// via `SpanCategory::Unknown`.
+    pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
         match category {
-            c if c.starts_with("variety") || c.starts_with("gas") || c.starts_with("killzone") => {
-                config.cybernetics_lambda
-            }
-            c if c.starts_with("curation") || c.starts_with("spec") => config.curation_lambda,
-            c if c.starts_with("inference") => config.inference_lambda,
-            c if c.starts_with("agent_pod") || c.starts_with("connector") => config.episodic_lambda,
-            _ => config.cybernetics_lambda, // safe default
+            SpanCategory::Cybernetics => config.cybernetics_lambda,
+            SpanCategory::Curation => config.curation_lambda,
+            SpanCategory::Inference => config.inference_lambda,
+            SpanCategory::Episodic => config.episodic_lambda,
+            SpanCategory::Unknown => config.cybernetics_lambda, // safe default
         }
+    }
+
+    /// String-based dispatch (F-SYN-009 backwards compat).
+    ///
+    /// Parses the input through `SpanCategory::from_short_name` so
+    /// the dispatch table is the *same* as `lambda_for`. New code
+    /// should use `lambda_for` directly.
+    fn lambda_for_category(category: &str, config: &DecayConfig) -> f64 {
+        Self::lambda_for(SpanCategory::from_short_name(category), config)
     }
 
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {

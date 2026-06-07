@@ -140,6 +140,77 @@ impl SpanNamespace {
     pub fn short_name(&self) -> &str {
         &self.0[4..] // Skip "cns."
     }
+
+    /// F-SYN-009: classify this namespace into a `SpanCategory` for
+    /// typed dispatch (e.g. by `DecayConfig::lambda_for`).
+    ///
+    /// Hierarchical matches by `short_name()` prefix are preserved
+    /// (e.g. `cns.variety.sensor` → `Variety`). Unknown namespaces
+    /// return `SpanCategory::Unknown` so the caller can decide the
+    /// fallback policy explicitly (the historical behaviour was
+    /// `cybernetics_lambda`).
+    pub fn category(&self) -> SpanCategory {
+        let s = self.short_name();
+        let prefix = s.split('.').next().unwrap_or(s);
+        match prefix {
+            "variety" | "gas" | "killzone" => SpanCategory::Cybernetics,
+            "curation" | "spec" => SpanCategory::Curation,
+            "inference" => SpanCategory::Inference,
+            "agent_pod" | "connector" => SpanCategory::Episodic,
+            _ => SpanCategory::Unknown,
+        }
+    }
+}
+
+/// F-SYN-009: typed dispatch key for span-category-dependent logic
+/// (e.g. `DecayConfig::lambda_for`).
+///
+/// Replaces the previous `&str` dispatch with a closed enum, while
+/// preserving the hierarchical `.starts_with` matches that the old
+/// string-based dispatch used. An `Unknown` variant makes the
+/// fallback policy explicit at the type level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpanCategory {
+    /// `cns.variety*`, `cns.gas*`, `cns.killzone*` — the cybernetics loop.
+    Cybernetics,
+    /// `cns.curation*`, `cns.spec*` — the curation loop.
+    Curation,
+    /// `cns.inference*` — the inference loop.
+    Inference,
+    /// `cns.agent_pod*`, `cns.connector*` — episodic memory.
+    Episodic,
+    /// Any other namespace. Callers decide the fallback policy.
+    Unknown,
+}
+
+impl SpanCategory {
+    /// Parse a `SpanCategory` from a `short_name()` string (e.g. `variety`,
+    /// `variety.sensor`, `agent_pod.registered`). Returns `Unknown`
+    /// for unrecognised prefixes.
+    pub fn from_short_name(s: &str) -> Self {
+        let prefix = s.split('.').next().unwrap_or(s);
+        match prefix {
+            "variety" | "gas" | "killzone" => Self::Cybernetics,
+            "curation" | "spec" => Self::Curation,
+            "inference" => Self::Inference,
+            "agent_pod" | "connector" => Self::Episodic,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl std::fmt::Display for SpanCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            SpanCategory::Cybernetics => "cybernetics",
+            SpanCategory::Curation => "curation",
+            SpanCategory::Inference => "inference",
+            SpanCategory::Episodic => "episodic",
+            SpanCategory::Unknown => "unknown",
+        };
+        f.write_str(s)
+    }
 }
 
 impl FromStr for SpanNamespace {
@@ -356,5 +427,77 @@ mod tests {
         let ns = SpanNamespace::new("cns.tool");
         let span = Span::new(ns, "invoked");
         assert_eq!(span.path, "cns.tool.invoked");
+    }
+
+    // ── SpanCategory (F-SYN-009) ─────────────────────────────────
+
+    #[test]
+    // P8 invariant: every canonical namespace maps to a known category
+    fn span_category_classifies_canonical_namespaces() {
+        use std::collections::HashMap;
+        let expectations: HashMap<&str, SpanCategory> = [
+            ("cns.variety", SpanCategory::Cybernetics),
+            ("cns.gas", SpanCategory::Cybernetics),
+            ("cns.killzone", SpanCategory::Cybernetics),
+            ("cns.curation", SpanCategory::Curation),
+            ("cns.spec", SpanCategory::Curation),
+            ("cns.inference", SpanCategory::Inference),
+            ("cns.agent_pod", SpanCategory::Episodic),
+            ("cns.connector", SpanCategory::Episodic),
+            // Hierarchical — the prefix determines the category.
+            ("cns.variety.sensor", SpanCategory::Cybernetics),
+            ("cns.gas.depleted", SpanCategory::Cybernetics),
+            ("cns.spec.drift", SpanCategory::Curation),
+        ]
+        .iter()
+        .copied()
+        .collect();
+        for (ns_str, expected) in &expectations {
+            let ns = SpanNamespace::new(ns_str);
+            assert_eq!(ns.category(), *expected, "namespace {ns_str}");
+        }
+    }
+
+    #[test]
+    // P8 invariant: namespaces outside the dispatch set return Unknown
+    fn span_category_unknown_for_unrelated_namespaces() {
+        for ns_str in ["cns.tool", "cns.clone", "cns.read", "cns.template"] {
+            let ns = SpanNamespace::new(ns_str);
+            assert_eq!(ns.category(), SpanCategory::Unknown, "namespace {ns_str}");
+        }
+    }
+
+    #[test]
+    // P8 invariant: SpanCategory::from_short_name is the inverse of category()
+    fn span_category_from_short_name_roundtrip() {
+        for short in [
+            "variety",
+            "gas",
+            "killzone",
+            "curation",
+            "spec",
+            "inference",
+            "agent_pod",
+            "connector",
+            "tool",
+            "clone",
+            "",
+        ] {
+            let parsed = SpanCategory::from_short_name(short);
+            // Re-classify via the SpanNamespace path (when valid)
+            if let Ok(ns) = short.parse::<SpanNamespace>() {
+                assert_eq!(ns.category(), parsed, "short = {short:?}");
+            }
+        }
+    }
+
+    #[test]
+    // P8 invariant: SpanCategory Display is the canonical name
+    fn span_category_display_matches_variant() {
+        assert_eq!(SpanCategory::Cybernetics.to_string(), "cybernetics");
+        assert_eq!(SpanCategory::Curation.to_string(), "curation");
+        assert_eq!(SpanCategory::Inference.to_string(), "inference");
+        assert_eq!(SpanCategory::Episodic.to_string(), "episodic");
+        assert_eq!(SpanCategory::Unknown.to_string(), "unknown");
     }
 }
