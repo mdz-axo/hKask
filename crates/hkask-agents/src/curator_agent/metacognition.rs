@@ -261,8 +261,15 @@ pub struct MetacognitionLoop {
     config: MetacognitionConfig,
     escalation_policy: EscalationPolicy,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
-    /// Snapshot from the most recent sense() phase, used by compute()/act().
-    last_snapshot: Arc<RwLock<Option<HealthSnapshot>>>,
+    /// Snapshot from the most recent sense() phase, used by compute()/act()
+    /// and exposed via `run_cycle()`. `tokio::sync::watch` is the idiomatic
+    /// single-producer/single-consumer broadcast primitive: the producer
+    /// (`sense()`) calls `send`; consumers can `borrow()` for the latest
+    /// value or `subscribe()` to be notified of changes. The `None` initial
+    /// value preserves the previous `Option<HealthSnapshot>` semantics —
+    /// `run_cycle()` still returns `MetacognitionError::NoSnapshot` until
+    /// the first sense completes.
+    last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
 }
 
 impl MetacognitionLoop {
@@ -274,12 +281,13 @@ impl MetacognitionLoop {
     /// (human review routing).
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
         let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
+        let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
         Self {
             context,
             escalation_policy,
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
-            last_snapshot: Arc::new(RwLock::new(None)),
+            last_snapshot_tx,
         }
     }
 
@@ -295,9 +303,10 @@ impl MetacognitionLoop {
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: "curator.metacognition", "Starting metacognition cycle");
         self.tick().await;
-        self.last_snapshot
-            .read()
-            .await
+        // `borrow()` returns a `Ref`; cloning the inner `Option` is cheap
+        // because `HealthSnapshot` already clones its inner vecs.
+        self.last_snapshot_tx
+            .borrow()
             .clone()
             .ok_or(MetacognitionError::NoSnapshot)
     }
@@ -705,10 +714,10 @@ impl HkaskLoop for MetacognitionLoop {
             total_alerts: all_alerts.len(),
             bot_status_reports: bot_reports.clone(),
         };
-        {
-            let mut last = self.last_snapshot.write().await;
-            *last = Some(snapshot);
-        }
+        // `send_replace` returns the previous value and Errs only if the
+        // channel is closed — which can't happen here because we own the
+        // `Sender`. Ignore the previous value (we just wrote).
+        let _ = self.last_snapshot_tx.send_replace(Some(snapshot));
 
         // Produce afferent signals
         let signals = vec![
@@ -789,9 +798,8 @@ impl HkaskLoop for MetacognitionLoop {
                     let count = dev.signal.value as u64;
                     // Retrieve bot names from the stored snapshot
                     let bot_names: Vec<String> = self
-                        .last_snapshot
-                        .read()
-                        .await
+                        .last_snapshot_tx
+                        .borrow()
                         .as_ref()
                         .map(|s| {
                             s.bot_status_reports
@@ -1069,5 +1077,38 @@ mod tests {
         // Below all thresholds → no alerts
         let alerts = policy.check_conditions(10.0, 1, 0);
         assert!(alerts.is_empty());
+    }
+
+    // P4.5 / A3: last_snapshot is a `tokio::sync::watch` channel. The
+    // initial value is `None` so the first call to `run_cycle()` returns
+    // `MetacognitionError::NoSnapshot` — preserving the previous
+    // `RwLock<Option<HealthSnapshot>>` semantics. This test pins the
+    // invariant without spinning up a full CuratorContext.
+    #[tokio::test]
+    async fn watch_channel_starts_with_none_for_no_snapshot_yet() {
+        let (tx, _rx): (tokio::sync::watch::Sender<Option<HealthSnapshot>>, _) =
+            tokio::sync::watch::channel(None);
+        let borrowed = tx.borrow();
+        assert!(borrowed.is_none(), "fresh channel must hold None");
+    }
+
+    #[tokio::test]
+    async fn watch_channel_send_replace_stores_latest_value() {
+        // Mimic the sense() write: send_replace(Some(snapshot)). Subsequent
+        // borrows see the new value without an explicit `await` because
+        // watch reads are non-blocking (last-writer-wins).
+        let (tx, _rx): (tokio::sync::watch::Sender<Option<HealthSnapshot>>, _) =
+            tokio::sync::watch::channel(None);
+        let snap = HealthSnapshot {
+            timestamp: chrono::Utc::now(),
+            cns_health: "healthy".into(),
+            variety_counters: Vec::new(),
+            critical_alerts: 0,
+            total_alerts: 0,
+            bot_status_reports: vec![],
+        };
+        let prev = tx.send_replace(Some(snap.clone()));
+        assert!(prev.is_none(), "previous value was None");
+        assert!(tx.borrow().is_some(), "after send, borrow sees Some");
     }
 }

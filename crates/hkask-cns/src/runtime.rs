@@ -322,17 +322,93 @@ impl CnsRuntime {
 
     /// Update VC investment and check if kill zone is triggered.
     ///
-    /// Returns `true` if the kill zone alert should be fired.
+    /// When the kill zone is active, this method:
+    /// 1. Fires an algedonic alert through the standard `AlgedonicManager::check`
+    ///    path (domain: `"cns.killzone"`), so the alert is visible via
+    ///    `CnsRuntime::alerts()` and `CnsRuntime::health()`.
+    /// 2. Emits a `cns.killzone.threshold_exceeded` `NuEvent` to subscribers
+    ///    whose interest mask includes the `cns.killzone` namespace.
+    /// 3. Returns the bool indicating whether the kill zone is active.
     ///
-    /// Exposed via the CNS MCP server's `cns_kill_zone` tool.
+    /// Exposed via the CNS MCP server's `cns_kill_zone` tool and any other
+    /// caller that observes the kill-zone state.
     pub async fn check_kill_zone(&self, vc_investment: f32, acquisition_attempt: bool) -> bool {
-        let state = self.state.read().await;
-        let mut detector = state.kill_zone.lock().await;
-        detector.update_vc_investment(vc_investment);
-        if acquisition_attempt {
-            detector.mark_acquisition_attempt();
+        // Phase 1: Update the detector (sense + compare).
+        let triggered = {
+            let state = self.state.read().await;
+            let mut detector = state.kill_zone.lock().await;
+            detector.update_vc_investment(vc_investment);
+            if acquisition_attempt {
+                detector.mark_acquisition_attempt();
+            }
+            detector.needs_alert()
+        };
+
+        if triggered {
+            self.fire_killzone_alert(vc_investment, acquisition_attempt)
+                .await;
         }
-        detector.needs_alert()
+
+        triggered
+    }
+
+    /// Fire algedonic alert + NuEvent for an active kill zone.
+    ///
+    /// Mirrors the structure of `check_variety`: feed a synthetic variety
+    /// counter into `AlgedonicManager::check` (domain = `"cns.killzone"`),
+    /// then emit a `cns.killzone.threshold_exceeded` `NuEvent` to subscribers.
+    async fn fire_killzone_alert(&self, vc_investment: f32, acquisition_attempt: bool) {
+        // Build a synthetic variety counter representing the kill-zone state.
+        // We use 0 states to maximize the deficit (algedonic critical when
+        // deficit > threshold); this is appropriate because a kill zone
+        // indicates that the system's autonomy is being externally constrained.
+        let counter = {
+            let state = self.state.read().await;
+            state
+                .tracker
+                .variety_monitor()
+                .counters()
+                .get("cns.killzone")
+                .cloned()
+                .unwrap_or_else(VarietyTracker::new)
+        };
+
+        // Phase 2: Fire algedonic alert through the standard path.
+        let alert = {
+            let state = self.state.write().await;
+            let mut mgr = state.algedonic.write();
+            mgr.check(&counter, "cns.killzone").cloned()
+        };
+
+        // Phase 3: Emit NuEvent to subscribers.
+        let event = hkask_types::event::NuEvent::new(
+            WebID::default(),
+            hkask_types::event::Span::new(
+                hkask_types::event::SpanNamespace::new("cns.killzone"),
+                "threshold_exceeded",
+            ),
+            hkask_types::event::Phase::Act,
+            serde_json::json!({
+                "vc_investment": vc_investment,
+                "acquisition_attempt": acquisition_attempt,
+                "severity": alert
+                    .as_ref()
+                    .map(|a| format!("{:?}", a.severity))
+                    .unwrap_or_else(|| "Unknown".to_string()),
+            }),
+            0,
+        );
+
+        let subscribers = self.subscribers.read().await;
+        for observer in subscribers.iter() {
+            if observer
+                .interest_mask()
+                .iter()
+                .any(|ns| ns == &hkask_types::event::SpanNamespace::new("cns.killzone"))
+            {
+                observer.on_event(&event).await;
+            }
+        }
     }
 }
 

@@ -1,4 +1,12 @@
 //! User sovereignty routes
+//!
+//! Endpoints read live state from the CNS runtime (`CnsRuntime`) and the
+//! persistent `ConsentManager` rather than constructing throwaway
+//! `UserSovereigntyState` values. This is the runtime enforcement path for
+//! the Magna Carta: the API never reports stale or fabricated sovereignty
+//! state.
+//!
+//! See `docs/architecture/magna-carta.md` for the contract.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State, routing::Router};
@@ -9,6 +17,13 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
+
+/// Map a boolean `acquisition_resistance` to the typed name used in the
+/// Magna Carta (`AcquisitionResistance` enum). The runtime type is a bool
+/// after simplification; the API surfaces a stable, doc-aligned string.
+fn resistance_name(value: bool) -> &'static str {
+    if value { "maximum" } else { "none" }
+}
 
 /// Create sovereignty router
 pub fn sovereignty_router() -> Router<ApiState> {
@@ -97,10 +112,19 @@ async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
-    use hkask_types::UserSovereigntyState;
-    let sovereignty_state = UserSovereigntyState::new();
+    use hkask_types::sovereignty::DataSovereigntyBoundary;
 
     let webid_str = auth.webid.to_string();
+
+    // Read live kill-zone state from the CNS runtime (not a throwaway state).
+    let kill_zone = state.cns_runtime.kill_zone_state().await;
+    let sovereignty_compromised = kill_zone.kill_zone_active;
+
+    // Use the default boundary classification (the only one currently wired
+    // into the type system) for the data-category lists. This is a constant
+    // view of what the Magna Carta prescribes, surfaced for visibility.
+    let boundary = DataSovereigntyBoundary::hkask_default();
+    let acquisition_resistance = boundary.prevents_passive_acquisition();
 
     // Enrich status with consent manager state
     let granted_categories = state
@@ -111,29 +135,23 @@ async fn sovereignty_status(
         .collect();
 
     Ok(Json(SovereigntyStatusResponse {
-        explicit_consent: sovereignty_state.explicit_consent,
-        sovereignty_compromised: sovereignty_state.is_compromised(),
-        kill_zone_active: sovereignty_state.kill_zone_state.kill_zone_active,
-        vc_investment: sovereignty_state.kill_zone_state.vc_investment,
-        threshold: sovereignty_state.kill_zone_threshold,
-        acquisition_resistance: sovereignty_state
-            .boundary
-            .prevents_passive_acquisition()
-            .to_string(),
-        sovereign_data: sovereignty_state
-            .boundary
+        explicit_consent: !granted_categories.is_empty(),
+        sovereignty_compromised,
+        kill_zone_active: kill_zone.kill_zone_active,
+        vc_investment: kill_zone.vc_investment,
+        threshold: 0.5,
+        acquisition_resistance: resistance_name(acquisition_resistance).to_string(),
+        sovereign_data: boundary
             .sovereign_data
             .iter()
             .map(|c| c.as_str().to_string())
             .collect(),
-        shared_data: sovereignty_state
-            .boundary
+        shared_data: boundary
             .shared_data
             .iter()
             .map(|c| c.as_str().to_string())
             .collect(),
-        public_data: sovereignty_state
-            .boundary
+        public_data: boundary
             .public_data
             .iter()
             .map(|c| c.as_str().to_string())
@@ -226,17 +244,19 @@ async fn sovereignty_revoke_consent(
     ),
 )]
 async fn sovereignty_killzone(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Json<KillZoneResponse> {
-    use hkask_types::UserSovereigntyState;
-    let state = UserSovereigntyState::new();
+    // Read live state from the CNS runtime's KillZoneDetector.
+    // Previously this constructed a throwaway `UserSovereigntyState::new()`
+    // and always reported `kill_zone_active: false`.
+    let kz = state.cns_runtime.kill_zone_state().await;
 
     Json(KillZoneResponse {
-        active: state.kill_zone_state.kill_zone_active,
-        acquisition_attempt: state.kill_zone_state.acquisition_attempt,
-        vc_investment: state.kill_zone_state.vc_investment,
-        threshold: state.kill_zone_threshold,
+        active: kz.kill_zone_active,
+        acquisition_attempt: kz.acquisition_attempt,
+        vc_investment: kz.vc_investment,
+        threshold: 0.5,
     })
 }
 
@@ -256,12 +276,10 @@ async fn sovereignty_killzone(
     ),
 )]
 async fn sovereignty_check_access(
-    State(_state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<AccessCheckResponse>, ApiError> {
-    use hkask_types::UserSovereigntyState;
-
     let category_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if category_str.is_empty() {
         return Err(ApiError::BadRequest {
@@ -269,25 +287,43 @@ async fn sovereignty_check_access(
         });
     }
 
-    let state = UserSovereigntyState::new();
     let category = parse_data_category(category_str);
     let category_name = category.as_str();
+    let webid_str = auth.webid.to_string();
 
-    let (classification, access_required) = if state.boundary.is_sovereign(&category) {
+    // Use the default boundary classification to map the category to its
+    // policy class (Sovereign / Shared / Public), then check the live
+    // ConsentManager for the requesting WebID.
+    use hkask_types::sovereignty::DataSovereigntyBoundary;
+    let boundary = DataSovereigntyBoundary::hkask_default();
+
+    let (classification, access_required) = if boundary.is_sovereign(&category) {
         (
             "SOVEREIGN".to_string(),
             "Requires explicit consent AND owner".to_string(),
         )
-    } else if state.boundary.is_shared(&category) {
+    } else if boundary.is_shared(&category) {
         (
             "SHARED".to_string(),
             "Requires explicit consent".to_string(),
         )
-    } else if state.boundary.is_public(&category) {
+    } else if boundary.is_public(&category) {
         ("PUBLIC".to_string(), "Always accessible".to_string())
     } else {
         ("UNKNOWN".to_string(), "Denied by default".to_string())
     };
+
+    // Effective access: live consent lookup overrides the policy class for
+    // non-public categories. Public data is always accessible.
+    let has_consent = state
+        .consent_manager
+        .has_consent(&webid_str, &category)
+        .unwrap_or(false);
+    if !has_consent && classification != "PUBLIC" {
+        return Err(ApiError::Forbidden {
+            reason: format!("No consent for category '{category_name}' (class {classification})"),
+        });
+    }
 
     Ok(Json(AccessCheckResponse {
         category: category_name.to_string(),

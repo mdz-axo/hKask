@@ -1,0 +1,53 @@
+%% ERD #3 — Spec ↔ Goal ↔ Criterion ↔ Artifact
+%% Source: crates/hkask-storage/src/goals.rs, crates/hkask-types/src/goal.rs
+%% Realization: concept:goal → tech:hkask_storage
+%%
+%% Cardinality notes:
+%%   * GoalState ∈ {Pending, Active, Completed, Blocked}. No Cancelled.
+%%     (Source: crates/hkask-types/src/goal.rs:39)
+%%   * create_subgoal(parent) sets depth = parent.depth + 1. No upper
+%%     cap on sub-goal depth is asserted in code; the spec curator
+%%     applies a tolerance check, not a structural limit.
+%%   * criterion transitions: unsatisfied -> satisfied via
+%%     mark_satisfied(); a satisfied criterion is not unsatisfiable
+%%     by design (immutable forward edge).
+%%   * artifact is opaque payload; structural type is the goal link.
+%%   * CurationDecision ∈ {Merge, Revise, Defer, Discard}
+%%     (crates/hkask-types/src/curation.rs:9-21). All four are
+%%     terminal; no automatic re-evaluation.
+
+erDiagram
+    SPEC ||--o{ GOAL : "spec_goal_capture / spec_goal_decompose"
+    GOAL ||--o{ GOAL : "sub_goal (depth = parent.depth + 1)"
+    GOAL ||--o{ CRITERION : "owns"
+    GOAL ||--o{ ARTIFACT : "owns"
+    GOAL }o--|| WEBID : "owner (via &WebID per OPEN_QUESTIONS F6)"
+    SPEC ||--o{ CURATION_DECISION : "spec_curate_evaluate"
+    CURATION_DECISION }o--|| GOAL : "references"
+
+    SPEC {
+        string id "SpecID"
+        string title
+    }
+    GOAL {
+        string id "GoalID"
+        string webid "owner"
+        GoalState state "Pending | Active | Completed | Blocked"
+        u8 depth "<= 7? (no cap in code)"
+        datetime created_at
+        datetime completed_at "set on terminal transition"
+    }
+    CRITERION {
+        string id "gc_<...>"
+        bool satisfied "immutable forward edge"
+    }
+    ARTIFACT {
+        string id "ga_<...>"
+        string payload "opaque"
+    }
+    CURATION_DECISION {
+        CurationDecision kind "Merge | Revise | Defer | Discard"
+    }
+    WEBID {
+        string uri
+    }

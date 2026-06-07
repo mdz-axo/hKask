@@ -56,7 +56,9 @@ impl SovereigntyBoundaryStore {
                 shared_categories TEXT NOT NULL,
                 public_categories TEXT NOT NULL,
                 resistance TEXT NOT NULL,
-                kill_zone_threshold REAL NOT NULL DEFAULT 0.2,
+                -- Default 0.5 matches `UserSovereigntyState::new()` and `CnsRuntime`
+                -- per the Magna Carta (Kill-Zone Detection section).
+                kill_zone_threshold REAL NOT NULL DEFAULT 0.5,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
