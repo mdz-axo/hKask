@@ -2,7 +2,7 @@
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
 last_updated: 2026-06-06
-version: "2.2.1"
+version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -126,7 +126,9 @@ Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
 | Lifecycle | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; `Spec.version` added but no bitemporal semantics | ✅ Merge |
 | Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated; curation records not persisted | ✅ Merge |
 
-**Result:** 4/9 categories fully confirmed (Domain, Capability, Interface, Composition). 5/9 categories have partial or drifting alignment — marked ⚠️. Audit remediation in progress (see `docs/status/DDMVSS-AUDIT-2026-06-06.md`).
+**Result:** 4/9 categories fully confirmed (Domain, Capability, Interface, Composition). 5/9 categories have partial or drifting alignment — marked ⚠️.
+
+**Audit remediation status (2026-06-06):** R1 (SpecCategory 4→9 variants), R2 (CurationDecision 3→4, Defer added), R7 (DomainAnchor 2→3, Russell added) are **resolved in code**. Remaining gaps: R9 (DIAG-PL-001 verified), R12 (Ed25519 spec signing), R13 (SpecDriftAlert → CNS loop), R14 (SpecStore bitemporal), R17 (curation record persistence). See `docs/status/DDMVSS-AUDIT-2026-06-06.md` for full remediation plan.
 
 ---
 

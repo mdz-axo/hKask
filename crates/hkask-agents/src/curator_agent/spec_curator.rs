@@ -90,6 +90,41 @@ impl DefaultSpecCurator {
         self.dispatch_tx = Some(tx);
         self
     }
+
+    /// Record a sovereignty check for a spec evaluation.
+    ///
+    /// Emits a `cns.sovereignty.checked` `NuEvent` (Phase::Compare) describing
+    /// which data categories the curator consulted. This is the
+    /// Curator-as-Enforcer recording the Magna Carta's "sovereignty checking"
+    /// responsibility (Curator Responsibilities §2 in `magna-carta.md`).
+    ///
+    /// This call does not change the existing `evaluate` semantics: it is a
+    /// side-channel that records the fact that sovereignty was considered
+    /// during curation.
+    pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) {
+        // Emit a NuEvent whenever a sink is wired. The sink is optional
+        // (set via `with_event_sink`), so absent one we silently no-op.
+        let Some(ref sink) = self.event_sink else {
+            return;
+        };
+        let event = NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.sovereignty"), "checked"),
+            Phase::Compare,
+            serde_json::json!({
+                "spec_id": spec_id,
+                "categories": categories,
+            }),
+            0,
+        );
+        if let Err(e) = sink.persist(&event) {
+            tracing::warn!(
+                target: "cns.sovereignty",
+                error = %e,
+                "Failed to persist sovereignty check event"
+            );
+        }
+    }
 }
 
 impl Default for DefaultSpecCurator {

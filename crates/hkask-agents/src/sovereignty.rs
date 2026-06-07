@@ -63,6 +63,19 @@ pub struct SovereigntyChecker {
     consent: Arc<dyn SovereigntyConsent>,
 }
 
+impl Clone for SovereigntyChecker {
+    fn clone(&self) -> Self {
+        // The Arc<dyn SovereigntyConsent> shares state by reference, so a
+        // shallow clone is safe and preserves the consent-port wiring.
+        // `UserSovereigntyState` is `Copy`-able (it holds primitive enums).
+        Self {
+            state: self.state.clone(),
+            owner_webid: self.owner_webid,
+            consent: Arc::clone(&self.consent),
+        }
+    }
+}
+
 impl SovereigntyChecker {
     pub fn new(owner_webid: WebID, consent: Arc<dyn SovereigntyConsent>) -> Self {
         Self {

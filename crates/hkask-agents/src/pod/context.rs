@@ -176,6 +176,7 @@ impl PodContext {
             "episodic_memory",
             DelegationAction::Write,
         )?;
+        self.require_sovereignty(&DataCategory::EpisodicMemory, &self.webid)?;
         let request =
             StorageRequest::episodic(entity, attribute, value, confidence.into(), self.webid);
         self.episodic_storage
@@ -193,6 +194,7 @@ impl PodContext {
             "episodic_memory",
             DelegationAction::Read,
         )?;
+        self.require_sovereignty(&DataCategory::EpisodicMemory, &self.webid)?;
         let request = RecallRequest::episodic(query, self.webid, self.capability_token.clone());
         self.episodic_storage
             .recall_episodic(&request)
@@ -280,6 +282,7 @@ impl PodContext {
             "semantic_memory",
             DelegationAction::Write,
         )?;
+        self.require_sovereignty(&DataCategory::SemanticMemory, &self.webid)?;
         let request =
             StorageRequest::semantic(entity, attribute, value, confidence.into(), self.webid);
         self.semantic_storage
@@ -296,6 +299,7 @@ impl PodContext {
             "semantic_memory",
             DelegationAction::Read,
         )?;
+        self.require_sovereignty(&DataCategory::SemanticMemory, &self.webid)?;
         let request = RecallRequest::semantic(query, self.capability_token.clone());
         self.semantic_storage
             .recall_semantic(&request)
