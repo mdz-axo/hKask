@@ -101,8 +101,7 @@ for its category cluster.
 | Document | DDMVSS | Description |
 |----------|--------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | all | **Single source of truth** for metrics, build, test, DDMVSS completeness |
-| [`mcp-server-audit.md`](status/mcp-server-audit.md) | capability, observability | MCP server completeness audit (21 servers, 123 tools) |
-| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs and credentials |
+| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs, credentials, and per-tool detail (includes replicant architecture spotlight) |
 | [`test-inventory.md`](status/test-inventory.md) | observability, domain, capability | Test seam depth and behavioral coverage |
 | ~~`refactor-sweep-2026-06-06.md`~~ | capability, interface, composition | ~~Refactor sweep T1–T7 report~~ — **Archived**; content captured in [`fowler-audit-status.md`](status/fowler-audit-status.md) and [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) |
 | [`fowler-audit-status.md`](status/fowler-audit-status.md) | capability, interface, composition | Fowler pattern refactoring tracker |

@@ -381,6 +381,16 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ---
 
+### Q11: DelegationResource extensibility
+
+**DDMVSS Category:** Capability  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+`DelegationResource` enum covers 3 of 11 resource patterns in the capability grant table. Remaining 8 are handled by string matching in `capabilities_match()`. Recommendation: add `from_grant_table()` parse method that validates against known resource patterns.
+
+---
+
 ## Resolution Summary
 
 | OQ | Status | Decision | Date |

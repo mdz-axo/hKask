@@ -28,4 +28,4 @@ name = "hkask_mcp_spec"
 path = "src/lib.rs"
 
 [dev-dependencies]
-proptest = "1"
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }

@@ -89,14 +89,7 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ---
 
-## Verification
-
-```bash
-cargo check --workspace                    # Build
-cargo test --workspace                     # Test
-cargo clippy --workspace -- -D warnings    # Lint
-cargo fmt --check                          # Format
-```
+*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`DDMVSS_SCAFFOLD.md`](../specifications/DDMVSS_SCAFFOLD.md) §6 for the full verification gate table.
 
 ---
 

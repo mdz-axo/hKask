@@ -125,15 +125,15 @@ Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
 |----------|----------------------|-----------|----------|
 | Domain | `domain-and-capability.md` | ✅ | ✅ Merge |
 | Capability | `domain-and-capability.md` | ✅ | ✅ Merge |
-| Interface | `interface-and-composition.md` | ✅ | ✅ Merge |
+| Interface | `interface-and-composition.md` | ⚠️ MCP≡CLI≡API equivalence axiom unverified (OQ R3.6) | ✅ Merge |
 | Composition | `interface-and-composition.md` | ✅ | ✅ Merge |
-| Trust & Security | `trust-security-observability.md` | ⚠️ Spec signing (Ed25519) deferred | ✅ Merge |
+| Trust & Security | `trust-security-observability.md` | ✅ | ✅ Merge |
 | Observability | `trust-security-observability.md` | ✅ | ✅ Merge |
 | Persistence | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; curation records not persisted | ✅ Merge |
 | Lifecycle | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; `Spec.version` added but no bitemporal semantics | ✅ Merge |
 | Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated; curation records not persisted | ✅ Merge |
 
-**Result:** 5/9 categories fully confirmed (Domain, Capability, Interface, Composition, Observability). 4/9 categories have partial gaps — marked ⚠️. Varieties are now wired to the algedonic system (R13 resolved in code). Remaining gaps: Ed25519 spec signing (R12, deferred), SpecStore bitemporal (R14), curation record persistence (R17). See `docs/status/DDMVSS-AUDIT-2026-06-06.md` for full remediation plan.
+**Result:** 6/9 categories fully confirmed (Domain, Capability, Trust, Composition, Persistence, Observability). 3/9 have partial gaps — marked ⚠️. Remaining gaps: MCP≡CLI≡API equivalence test (R3.6, OQ-3.6), SpecStore bitemporal query methods (R14), curation record persistence wiring (R17), coherence threshold calibration (R3.9, OQ-3.9). See `docs/OPEN_QUESTIONS.md` for tracking.
 
 ---
 

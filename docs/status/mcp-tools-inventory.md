@@ -1,8 +1,8 @@
 ---
 title: "MCP Tools Inventory"
 audience: [architects, developers, agents]
-last_updated: 2026-06-04
-version: "1.0.0"
+last_updated: 2026-06-07
+version: "1.1.0"
 status: "Active"
 domain: "Capability"
 ddmvss_categories: [capability, interface]
@@ -20,29 +20,29 @@ ddmvss_categories: [capability, interface]
 
 ## Summary by Server
 
-| # | Server | Tools | Gas Cost | Domain |
-|---|--------|-------|----------|--------|
-| 1 | `hkask-mcp-ocap` | 5 | 1 | Capability management |
-| 2 | `hkask-mcp-cns` | 6 | 1 | Observability |
-| 3 | `hkask-mcp-keystore` | 5 | 2 | Secret management |
-| 4 | `hkask-mcp-registry` | 6 | 2 | Template registry |
-| 5 | `hkask-mcp-ensemble` | 5 | 2 | Multi-agent coordination |
-| 6 | `hkask-mcp-episodic` | 4 | 5 | Episodic memory |
-| 7 | `hkask-mcp-semantic` | 6 | 5 | Semantic memory |
-| 8 | `hkask-mcp-goal` | 3 | 5 | Goal coordination |
-| 9 | `hkask-mcp-spec` | 8 | 5 | DDMVSS specification |
-| 10 | `hkask-mcp-git` | 5 | 5 | Git CAS operations |
-| 11 | `hkask-mcp-replicant` | 3 | 5 | Replicant chat bridge |
-| 12 | `hkask-mcp-condenser` | 6 | 10 | Context condensation |
-| 13 | `hkask-mcp-rss-reader` | 12 | 20 | RSS feed management |
-| 14 | `hkask-mcp-github` | 8 | 30 | GitHub API |
-| 15 | `hkask-mcp-fmp` | 11 | 40 | Financial data (FMP) |
-| 16 | `hkask-mcp-web` | 5 | 50 | Web search (SSRF-protected) |
-| 17 | `hkask-mcp-telnyx` | 7 | 50 | SMS/voice (Telnyx) |
-| 18 | `hkask-mcp-fal` | 9 | 100 | Media generation (FAL) |
-| 19 | `hkask-mcp-inference` | 4 | 0* | Okapi LLM inference |
-| 20 | `hkask-mcp-doc-knowledge` | 4 | 5 | Document parsing and chunking |
-| 21 | `hkask-mcp-markitdown` | 3 | 10 | Document format conversion and OCR |
+| # | Server | Tools | Gas Cost | LOC | Domain |
+|---|--------|-------|----------|-----|--------|
+| 1 | `hkask-mcp-ocap` | 5 | 1 | 319 | Capability management |
+| 2 | `hkask-mcp-cns` | 6 | 1 | 280 | Observability |
+| 3 | `hkask-mcp-keystore` | 5 | 2 | 529 | Secret management |
+| 4 | `hkask-mcp-registry` | 6 | 2 | 310 | Template registry |
+| 5 | `hkask-mcp-ensemble` | 5 | 2 | 295 | Multi-agent coordination |
+| 6 | `hkask-mcp-episodic` | 4 | 5 | 190 | Episodic memory |
+| 7 | `hkask-mcp-semantic` | 6 | 5 | 290 | Semantic memory |
+| 8 | `hkask-mcp-goal` | 3 | 5 | ~235 | Goal coordination |
+| 9 | `hkask-mcp-spec` | 8 | 5 | 853 | DDMVSS specification |
+| 10 | `hkask-mcp-git` | 5 | 5 | 412 | Git CAS operations |
+| 11 | `hkask-mcp-replicant` | 3 | 5 | ~310 | Replicant chat bridge |
+| 12 | `hkask-mcp-condenser` | 6 | 10 | 761 | Context condensation |
+| 13 | `hkask-mcp-rss-reader` | 12 | 20 | 1,443 | RSS feed management |
+| 14 | `hkask-mcp-github` | 8 | 30 | 459 | GitHub API |
+| 15 | `hkask-mcp-fmp` | 11 | 40 | 369 | Financial data (FMP) |
+| 16 | `hkask-mcp-web` | 5 | 50 | 3,389 | Web search (SSRF-protected) |
+| 17 | `hkask-mcp-telnyx` | 7 | 50 | 244 | SMS/voice (Telnyx) |
+| 18 | `hkask-mcp-fal` | 9 | 100 | 434 | Media generation (FAL) |
+| 19 | `hkask-mcp-inference` | 4 | 0* | 391 | Okapi LLM inference |
+| 20 | `hkask-mcp-doc-knowledge` | 4 | 5 | 747 | Document parsing and chunking |
+| 21 | `hkask-mcp-markitdown` | 3 | 10 | 724 | Document format conversion and OCR |
 
 \* Inference gas cost is overridden by `InferenceGasEstimator` (token-based).
 
@@ -165,7 +165,88 @@ These tools operate on hKask internal state — no external API calls, no rate l
 | `replicant_status` | Check registration status and identity of the configured replicant |
 | `replicant_history` | List recent conversation turns in the current session (session persistence across calls) |
 
-**Architecture:** Bridges external MCP clients (Zed, VS Code) with hKask's pod-mediated inference. Resolves persona → WebID, creates pod via `PodManagerBuilder`, routes through `InferencePort`. See `docs/status/mcp-server-audit.md` §Architecture Spotlight for full diagram.
+**Architecture:** Bridges external MCP clients (Zed, VS Code) with hKask's pod-mediated inference. Resolves persona → WebID, creates pod via `PodManagerBuilder`, routes through `InferencePort`.
+
+#### Architecture Spotlight: `hkask-mcp-replicant`
+
+**Purpose:** `hkask-mcp-replicant` is the **external integration bridge** for hKask. It enables external MCP clients (Zed, VS Code, custom toolchains) to chat with a hKask replicant without running `kask chat` directly.
+
+**How it differs from other MCP servers:**
+
+| Dimension | Standard MCP Servers | `hkask-mcp-replicant` |
+|-----------|----------------------|----------------------|
+| **Purpose** | Expose infrastructure capabilities (search, storage, inference) | Expose a replicant persona for conversation |
+| **Input** | Structured tool parameters | Natural language message |
+| **Output** | Structured JSON result | LLM-generated response text |
+| **State** | Stateless (per-call) | Pod-mediated (creates + activates pod per chat) |
+| **Inference** | Not involved | Core function — routes through `InferencePort` |
+| **Client** | Internal agents (via `McpRuntime` dispatch) | External MCP clients (Zed, VS Code, etc.) |
+
+```mermaid
+sequenceDiagram
+    participant Client as External MCP Client
+    participant Server as hkask-mcp-replicant
+    participant Builder as PodManagerBuilder
+    participant Pod as AgentPod
+    participant Okapi as Okapi LLM
+
+    Client->>Server: replicant_chat {message, model?}
+    Server->>Server: Resolve persona → WebID
+    Server->>Builder: PodManagerBuilder::new()
+    Builder->>Builder: Auto-resolve AcpRuntime + CapabilityChecker
+    Builder-->>Server: PodManager
+    Server->>Pod: create_pod(persona, capabilities)
+    Server->>Pod: activate_pod(pod_id)
+    Pod-->>Server: PodContext (inference_port)
+    Server->>Okapi: generate_with_model(prompt, params, model)
+    Okapi-->>Server: InferenceResult
+    Server-->>Client: {text, model, usage, persona}
+```
+
+The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`), with three follow-up enhancements:
+
+1. **Resolve persona** — `HKASK_AGENT_PERSONA` env var → `WebID::from_persona()`
+2. **Load agent definition** — Try registry database → YAML files → minimal fallback (Follow-up #2: system prompt richness)
+3. **Build pod** — `PodManagerBuilder` with ACP runtime and capability checker resolved from the same secret derivation chain as the CLI (Follow-up #1: ACP integration)
+4. **Create + activate pod** — Persona YAML with `tool:inference:call` capability
+5. **Compose system prompt** — Full agent definition (charter, responsibilities, rights, voice/tone) when available, minimal fallback otherwise (Follow-up #2)
+6. **Append conversation history** — Recent turns from in-memory session state for context continuity (Follow-up #3: session persistence)
+7. **Inference** — `PodContext::inference_port()` → `generate_with_model()` with model override
+8. **Record turn** — Append user message and response to session history, bounded to 20 turns
+9. **Return response** — JSON with `text`, `model`, `usage`, `persona`, `finish_reason`
+
+**Configuration:**
+
+| Environment Variable | Default | Purpose |
+|---------------------|---------|--------|
+| `HKASK_AGENT_PERSONA` | `Curator` | Replicant persona name (resolves to deterministic WebID) |
+| `HKASK_DEFAULT_MODEL` | `deepseek-v4-pro` | Default LLM model for inference |
+| `OKAPI_BASE_URL` | `http://127.0.0.1:11435` | Okapi API endpoint |
+| `HKASK_ACP_SECRET` | *(derived)* | ACP secret (or `HKASK_MASTER_KEY` for derivation) |
+| `HKASK_REGISTRY_PATH` | `registry/bots` | Path to agent YAML registry |
+| `HKASK_DB_PATH` | `hkask.db` | Agent registry database path |
+| `HKASK_DB_PASSPHRASE` | *(keychain)* | Database passphrase |
+| `HKASK_MASTER_KEY` | *(required)* | Master key for HKDF derivation (secrets fail closed without it) |
+
+**Zed Integration** — To register a replicant (e.g., "Jacques") in Zed's `settings.json`:
+
+```json
+{
+  "context_servers": {
+    "hkask-jacques": {
+      "command": "/path/to/hkask-mcp-replicant",
+      "args": [],
+      "env": {
+        "HKASK_AGENT_PERSONA": "Jacques",
+        "HKASK_DEFAULT_MODEL": "deepseek-v4-pro",
+        "OKAPI_BASE_URL": "http://127.0.0.1:11435"
+      }
+    }
+  }
+}
+```
+
+**CNS Gas Budget:** Registered in `table_gas_estimator.rs` with gas cost **5** (internal LLM-mediated tool, same tier as episodic/semantic memory servers). Inference gas is further governed by the `InferenceGasEstimator` via the `GovernedTool` membrane.
 
 ---
 
@@ -362,6 +443,20 @@ Servers ordered by gas cost (cheapest to most expensive). Tool count on Y axis.
 | `hkask-mcp-markitdown` | `HKASK_OCR_MODEL` (optional) | Vision model for OCR; `OKAPI_BASE_URL` (optional) |
 
 Servers without credential requirements: `ocap`, `cns`, `keystore`, `registry`, `ensemble`, `episodic`, `semantic`, `goal`, `git`, `replicant`, `condenser`, `rss-reader`, `inference`, `doc-knowledge` (uses spec DB passphrase if SQLCipher), `markitdown` (optional OCR model).
+
+---
+
+## Recommendations
+
+1. **No shell servers.** All 21 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
+
+2. **Per-crate README:** Create individual `README.md` files in each `mcp-servers/hkask-mcp-*/README.md` documenting the tool surface, configuration, and any external service dependencies.
+
+3. **Tool count outliers:** `hkask-mcp-telnyx` (244 LOC, 8 tools — high tool density) vs `hkask-mcp-rss-reader` (1,443 LOC, 12 tools — high LOC per tool). Consider whether `telnyx` tools are thin wrappers around API endpoints.
+
+4. **Dependency hygiene:** Several servers (github, fmp, telnyx, fal) depend on external API services. Document API key requirements and rate limits in per-crate READMEs.
+
+5. **OQ-3 resolved:** This inventory satisfies option 2 of OQ-3 — catalog approach with common pattern description and per-crate README for implemented servers.
 
 ---
 

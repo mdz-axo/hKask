@@ -133,7 +133,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Specifications** | 9 | `docs/specifications/` |
 | **Plans** | 2 | `docs/plans/` (TODO, high-temp-templates) |
 | **User Guides** | 2 | `docs/user-guides/` |
-| **Status** | 6 | `docs/status/` (PROJECT_STATUS, mcp-server-audit, mcp-tools-inventory, test-inventory, fowler-audit-status, adversarial-simplification-inventory; refactor-sweep-2026-06-06.md archived) |
+| **Status** | 5 | `docs/status/` (PROJECT_STATUS, mcp-tools-inventory, test-inventory, fowler-audit-status, adversarial-simplification-inventory) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
