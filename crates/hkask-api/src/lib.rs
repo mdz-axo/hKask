@@ -128,8 +128,7 @@ pub use routes::{
     ModelListResponse, ModelSearchQuery, ObjectiveData, PodStatusResponse, SeverityCounts,
     SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SpecCaptureRequest,
     SpecCaptureResponse, SpecCultivateResponse, SpecListResponse, SpecValidateRequest,
-    SpecValidateResponse, TemplateResponse, TestInvariantRequest, TestInvariantResponse,
-    TestVerifyRequest, TestVerifyResponse, ValidationErrorType, VarietyCounterResponse,
+    SpecValidateResponse, TemplateResponse, ValidationErrorType, VarietyCounterResponse,
 };
 
 use openapi::ApiDoc;

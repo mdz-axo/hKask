@@ -69,7 +69,6 @@ pub use sovereignty::{
 };
 pub use spec::{
     SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,
-    SpecValidateRequest, SpecValidateResponse, TestInvariantRequest, TestInvariantResponse,
-    TestVerifyRequest, TestVerifyResponse,
+    SpecValidateRequest, SpecValidateResponse,
 };
 pub use templates::{GrantCapabilityRequest, TemplateResponse};

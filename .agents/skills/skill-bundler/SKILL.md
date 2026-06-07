@@ -1,6 +1,6 @@
 ---
 name: skill-bundler
-description: Orchestrate and compose multiple skills into a cohesive bundle. Activates a set of skills together, resolves conflicts, determines application order, and produces a manifest that governs how the skills compose. Re-composes the manifest when skills evolve. Use when the user says "bundle skills", "compose skills", "activate a skill bundle", or wants multiple skills active simultaneously in a session.
+description: "Orchestrate and compose multiple skills into a cohesive bundle. Activates a set of skills together, resolves conflicts, determines application order, and produces a manifest that governs how the skills compose. Re-composes the manifest when skills evolve. Use when the user says 'bundle skills', 'compose skills', 'activate a skill bundle', or wants multiple skills active simultaneously in a session."
 ---
 
 # Skill Bundler

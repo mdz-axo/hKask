@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Intensely interrogate the user about a topic using Socratic questioning. Tests deep understanding through escalating difficulty, probes gaps in knowledge, and challenges assumptions. Use when the user says "grill me about X" or wants their knowledge stress-tested.
+description: "Intensely interrogate the user about a topic using Socratic questioning. Tests deep understanding through escalating difficulty, probes gaps in knowledge, and challenges assumptions. Use when the user says 'grill me about X' or wants their knowledge stress-tested."
 ---
 
 # Grill-Me Skill

@@ -17,6 +17,7 @@ const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("registry", "hkask-mcp-registry"),
     ("goal", "hkask-mcp-goal"),
     ("doc-knowledge", "hkask-mcp-doc-knowledge"),
+    ("spec", "hkask-mcp-spec"),
 ];
 
 pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
