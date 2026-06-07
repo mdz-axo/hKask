@@ -97,7 +97,7 @@ pub enum CuratorError {
     /// P3.5: replaces the `.map_err(|e| DatabaseError/EscalationNotFound/...
     /// (e.to_string())` calls in `commands/curator.rs`.
     #[error(transparent)]
-    Escalation(#[from] hkask_agents::escalation::EscalationError),
+    Escalation(#[from] hkask_agents::EscalationError),
 
     /// Upstream metacognition-loop failure.
     /// P3.5: replaces the `.map_err(|e| MetacognitionFailed(e.to_string()))`

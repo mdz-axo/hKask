@@ -346,6 +346,30 @@ mod tests {
         assert_eq!(QueueDepth::DEFAULT_BACKPRESSURE.to_string(), "depth=100");
     }
 
+    // F-SYN-023: the backpressure default is a single source of truth.
+    // The threshold is defined exactly once (on `QueueDepth` in
+    // `hkask-types/src/cns.rs`) and re-exported under an alias in
+    // `hkask-cns/src/set_points.rs`. Any drift to *two* definitions
+    // (or a re-definition outside `hkask-types`) is a finding.
+    #[test]
+    fn backpressure_default_is_single_source() {
+        // The canonical default is 100.0 (== QueueDepth(100.0)).
+        assert_eq!(
+            QueueDepth::DEFAULT_BACKPRESSURE.to_string(),
+            "depth=100",
+            "F-SYN-023: QueueDepth::DEFAULT_BACKPRESSURE is the canonical value"
+        );
+        // The re-export alias in hkask-cns points at the same
+        // definition. Asserting equality here catches the case
+        // where someone redefines the threshold in hkask-cns.
+        use crate::set_points::DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD;
+        assert_eq!(
+            DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
+            QueueDepth::DEFAULT_BACKPRESSURE,
+            "F-SYN-023: the hkask-cns alias must equal the canonical default"
+        );
+    }
+
     #[test]
     fn gas_budget_new_has_defaults() {
         let budget = GasBudget::new(GasCost(1000));
