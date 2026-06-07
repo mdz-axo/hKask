@@ -924,12 +924,16 @@ mod tests {
     /// manager are still wired (the CNS sensing path is preserved).
     #[tokio::test]
     async fn build_ensemble_session_none_inferencer_preserves_governance() {
-        let loop_handle = Arc::new(tokio::sync::RwLock::new(hkask_cns::CyberneticsLoop::new(
-            Arc::new(tokio::sync::RwLock::new(hkask_cns::CnsRuntime::default())),
-            hkask_mcp::dispatch::McpDispatcher::dummy_sender(),
-        )));
+        use hkask_cns::{CnsRuntime, CyberneticsLoop};
+        use hkask_types::loops::LoopMessage;
+        use tokio::sync::mpsc;
+
+        let (tx, _rx) = mpsc::unbounded_channel::<LoopMessage>();
+        let cns = Arc::new(tokio::sync::RwLock::new(CnsRuntime::default()));
+        let loop_handle = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(cns, tx)));
         let webid = hkask_types::WebID::new();
         let session = build_ensemble_session(None, Arc::clone(&loop_handle), webid);
+
         assert!(
             session.inference_port.is_none(),
             "None inferencer must yield None inference_port"
@@ -945,7 +949,5 @@ mod tests {
         // session_manager is always Some — `/api/chat` requires it.
         let _manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>> =
             session.session_manager.clone();
-        // Touch the loop handle so the compiler doesn't drop the binding.
-        let _ = Arc::strong_count(&loop_handle);
     }
 }

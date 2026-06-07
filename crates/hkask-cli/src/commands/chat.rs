@@ -99,10 +99,10 @@ pub async fn chat_with_agent(
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     agent_webid: Option<WebID>,
     system_prompt_suffix: Option<&str>,
-    /// Pre-formatted tool-call section of the system prompt. When `Some`, the
-    /// caller has already discovered the live tool list (typically via the
-    /// REPL's `governed_tool`) and passes the resulting string. When `None`,
-    /// the minimal hardcoded instruction is used.
+    // Pre-formatted tool-call section of the system prompt. When `Some`, the
+    // caller has already discovered the live tool list (typically via the
+    // REPL's `governed_tool`) and passes the resulting string. When `None`,
+    // the minimal hardcoded instruction is used.
     tool_section: Option<&str>,
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
@@ -548,7 +548,7 @@ pub fn run_chat(
             None, // No persistent storage in non-interactive mode
             None, // WebID derived from agent name
             None, // No HHH suffix in non-interactive mode
-            None, // No tool port — non-interactive mode has no MCP runtime
+            None, // No tool section — non-interactive mode has no MCP runtime
         ));
         println!("{}: {}", agent, chat_response.text);
         if let Some(ref usage) = chat_response.usage {

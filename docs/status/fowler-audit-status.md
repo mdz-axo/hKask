@@ -58,7 +58,7 @@ against the working tree on 2026-06-06.
 |----|------|--------|------------------|
 | **P3.1** | Unified error hierarchy across 6+ error enums | 🟡 Partial | `InfrastructureError` defined in `crates/hkask-types/src/error.rs` (`Database`, `Serialization`, `LockPoisoned`, `NotFound`); 11 files now `use hkask_types::InfrastructureError` across `hkask-storage` (store_macros, lock_helpers, spec_store, standing_session, consent_store, embeddings, goals, sovereignty, triples, nu_event_store), `hkask-keystore/spec_signer`, and `hkask-api/error`. Crate-local enums (`AcpError`, `McpError`, `MemoryError`, `EscalationError`, `ConsentError`, `MetacognitionError`, `PodError`) still exist; migration to `InfrastructureError` + crate-specific variants is incomplete. |
 | **P3.2** | Split `McpRuntimeAdapter` into `CapabilityOnlyAdapter` + `FullMcpAdapter` | ⬜ Open | `crates/hkask-agents/src/adapters/mcp_runtime.rs` still has a single type with optional `capability_checker`. |
-| **P3.3** | Extract `RussellProcessManager` from `RussellAcpAdapter` | ⬜ Open | `crates/hkask-agents/src/adapters/russell_acp.rs` still owns both protocol and process lifecycle. |
+| **P3.3** | Extract `RussellProcessManager` from `RussellAcpAdapter` | ✅ Done | `RussellProcessManager` extracted into `crates/hkask-agents/src/adapters/russell_acp.rs` with `child`, `binary_path`, `ensure_started()`, `send_request()`, `shutdown()`. `RussellAcpAdapter` now holds `process: Mutex<RussellProcessManager>`. A5 also resolved. |
 | **P3.4** | A2AMessage visitor pattern | ⬜ Open | `crates/hkask-agents/src/acp/mod.rs` still uses match-on-variant for `A2AMessage` dispatch. |
 | **P3.5** | Structured storage errors (replace `String` payloads) | ⬜ Open | `MemoryError::Storage(String)`, `MemoryError::Query(String)`, `MemoryError::CapabilityDenied(String)` still primitive in `crates/hkask-agents/src/error.rs:5–11`. Pre-requisite for P1.3 completion. |
 | **P3.6** | Extract escalation logic from `metacognition::sense()` | ⬜ Open | `crates/hkask-agents/src/curator_agent/metacognition.rs:sense()` body is still ~80 lines; algedonic review, cursor advance, and goal-stale counting are inlined. |
@@ -81,7 +81,7 @@ against the working tree on 2026-06-06.
 | **A2** | `CuratorContext` `Option<Arc<dyn ...>>` fields | ⬜ Open | Acceptable per audit; keep as `Option`-intentional. |
 | **A3** | `MetacognitionLoop` `Arc<RwLock<Vec<...>>>` | ⬜ Open | See P4.5. |
 | **A4** | `MessageDispatch` `Arc<Mutex<VecDeque<...>>>` | ✅ Done | See P2.7. |
-| **A5** | `RussellAcpAdapter` `Mutex<Option<Child>>` | ⬜ Open | See P3.3. |
+| **A5** | `RussellAcpAdapter` `Mutex<Option<Child>>` | ✅ Done | See P3.3. `Mutex<Option<Child>>` moved into `RussellProcessManager`; adapter now holds `Mutex<RussellProcessManager>`. |
 
 ---
 
@@ -89,22 +89,22 @@ against the working tree on 2026-06-06.
 
 | Category | Count |
 |----------|-------|
-| ✅ Done | **19** |
+| ✅ Done | **21** |
 | 🟡 Partial | **3** (P1.3, P3.1, P4.1) |
-| ⬜ Open | **8** (P2.2, P3.2–P3.6, P4.4, P4.5, A2, A3, A5) |
+| ⬜ Open | **6** (P2.2, P3.2, P3.4–P3.6, P4.4, P4.5, A2, A3) |
 | **Total** | **30** items tracked |
 
 | Priority | Done | Partial | Open | Items |
 |----------|------|---------|------|-------|
 | P1 | 6 | 1 | 0 | 7 |
 | P2 | 7 | 0 | 1 | 8 |
-| P3 | 0 | 1 | 5 | 6 |
+| P3 | 1 | 1 | 4 | 6 |
 | P4 | 2 | 1 | 2 | 5 |
-| Aux | 2 | 0 | 3 | 5 |
+| Aux | 3 | 0 | 2 | 5 |
 
-**Net result:** of the 26 P1–P4 items, **15 are done**, **3 are partial**, and **8 remain
-open**. Of the 8 open items, 5 are in P3 (significant refactors — visitor pattern,
-process manager extraction, error hierarchy completion, structured errors, escalation
+**Net result:** of the 26 P1–P4 items, **16 are done**, **3 are partial**, and **7 remain
+open**. Of the 7 open items, 4 are in P3 (significant refactors — visitor pattern,
+MCP adapter split, error hierarchy completion, structured errors, escalation
 extraction), 1 is P2.2 (the long `ApiState::new`), and 2 are P4 polish.
 
 ---

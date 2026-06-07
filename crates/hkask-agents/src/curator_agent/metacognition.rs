@@ -79,6 +79,124 @@ impl Default for EscalationThresholds {
     }
 }
 
+/// The trigger that caused an escalation alert.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EscalationTrigger {
+    /// Variety deficit exceeded a threshold.
+    VarietyDeficit,
+    /// Critical alert count exceeded a threshold.
+    CriticalAlerts,
+    /// Bot failure count exceeded a threshold.
+    BotFailures,
+}
+
+/// Severity of an escalation alert, following the algedonic signal model:
+/// - **Warning**: deficit > threshold / 2 (early signal)
+/// - **Critical**: deficit > threshold (full escalation)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EscalationSeverity {
+    Warning,
+    Critical,
+}
+
+/// An alert produced by the escalation policy when a threshold is breached.
+///
+/// Carries the trigger, current measured value, configured threshold,
+/// and whether this is a warning or critical alert.
+#[derive(Debug, Clone)]
+pub struct EscalationAlert {
+    /// What triggered this alert.
+    pub trigger: EscalationTrigger,
+    /// The current measured value.
+    pub value: f64,
+    /// The configured threshold that was compared against.
+    pub threshold: f64,
+    /// Whether this is a warning (deficit > threshold/2) or critical (deficit > threshold).
+    pub severity: EscalationSeverity,
+}
+
+/// Determines whether the system should escalate based on health metrics.
+///
+/// Encapsulates the escalation thresholds and decision logic, making it
+/// independently testable from the metacognition loop's sense→compare→compute→act
+/// pipeline. The algedonic signal model uses two levels:
+/// - **Warning** when a metric exceeds half the configured threshold
+/// - **Critical** when a metric exceeds the full threshold
+///
+/// For variety deficit specifically, this implements the algedonic alert system
+/// described in the architecture: deficit > threshold/2 → warning to Curator,
+/// deficit > threshold → critical to human.
+pub struct EscalationPolicy {
+    thresholds: EscalationThresholds,
+}
+
+impl EscalationPolicy {
+    /// Create a new escalation policy with the given thresholds.
+    pub fn new(thresholds: EscalationThresholds) -> Self {
+        Self { thresholds }
+    }
+
+    /// Check all escalation conditions and return a list of active alerts.
+    ///
+    /// Each metric is evaluated against its configured threshold. Variety deficit
+    /// uses the algedonic two-level model (warning at threshold/2, critical at
+    /// threshold). Critical alerts and bot failures trigger a critical alert
+    /// when their count meets or exceeds the threshold.
+    pub fn check_conditions(
+        &self,
+        variety_deficit: f64,
+        critical_alerts: u64,
+        bot_failures: u64,
+    ) -> Vec<EscalationAlert> {
+        let mut alerts = Vec::new();
+
+        let variety_threshold = self.thresholds.variety_deficit as f64;
+        if variety_deficit > variety_threshold {
+            alerts.push(EscalationAlert {
+                trigger: EscalationTrigger::VarietyDeficit,
+                value: variety_deficit,
+                threshold: variety_threshold,
+                severity: EscalationSeverity::Critical,
+            });
+        } else if variety_deficit > variety_threshold / 2.0 {
+            alerts.push(EscalationAlert {
+                trigger: EscalationTrigger::VarietyDeficit,
+                value: variety_deficit,
+                threshold: variety_threshold,
+                severity: EscalationSeverity::Warning,
+            });
+        }
+
+        let critical_alerts_threshold = self.thresholds.critical_alerts as f64;
+        if critical_alerts >= self.thresholds.critical_alerts as u64 {
+            alerts.push(EscalationAlert {
+                trigger: EscalationTrigger::CriticalAlerts,
+                value: critical_alerts as f64,
+                threshold: critical_alerts_threshold,
+                severity: EscalationSeverity::Critical,
+            });
+        }
+
+        let bot_failures_threshold = self.thresholds.bot_failures as f64;
+        if bot_failures >= self.thresholds.bot_failures as u64 {
+            alerts.push(EscalationAlert {
+                trigger: EscalationTrigger::BotFailures,
+                value: bot_failures as f64,
+                threshold: bot_failures_threshold,
+                severity: EscalationSeverity::Critical,
+            });
+        }
+
+        alerts
+    }
+}
+
+impl Default for EscalationPolicy {
+    fn default() -> Self {
+        Self::new(EscalationThresholds::default())
+    }
+}
+
 /// Health snapshot — unified type for system health state.
 ///
 /// Collapses the former `SystemHealthSnapshot` and `StoredHealthSnapshot` into
@@ -141,6 +259,7 @@ impl Default for MetacognitionConfig {
 pub struct MetacognitionLoop {
     context: Arc<CuratorContext>,
     config: MetacognitionConfig,
+    escalation_policy: EscalationPolicy,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
     /// Snapshot from the most recent sense() phase, used by compute()/act().
     last_snapshot: Arc<RwLock<Option<HealthSnapshot>>>,
@@ -154,8 +273,10 @@ impl MetacognitionLoop {
     /// message dispatch (inter-loop directives), and escalation queue
     /// (human review routing).
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
+        let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
         Self {
             context,
+            escalation_policy,
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             last_snapshot: Arc::new(RwLock::new(None)),
