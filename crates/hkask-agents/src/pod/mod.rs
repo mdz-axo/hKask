@@ -64,8 +64,10 @@ use hkask_types::{
     CapabilitySpec, DataCategory, DelegationAction, DelegationResource, DelegationToken,
     SYSTEM_MAX_ATTENUATION, WebID,
 };
+use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
+
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;

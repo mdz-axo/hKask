@@ -41,7 +41,7 @@ For every `pub` symbol I read, I ask:
   forgeable, tokens are not.
 - **root_cause_driver:** `over_engineering` — backward-compat shim that
   could be a single migration with a deadline.
-- **proposed_fix_shape:** Add a deprecation note in the *changelog* (not
+- **proposed_fix_shape:** Add a `#[deprecated]` note in the *changelog* (not
   the code, per P7), then remove `String` variant in v0.25.0 with a one-line
   migration table in `OPEN_QUESTIONS.md`.
 - **test_that_proves_it:** Red: write a test that asserts all
