@@ -51,9 +51,11 @@ pub(crate) const DEFAULT_ESCALATION_BOT_FAILURES: usize = 2;
 #[derive(Debug, Error)]
 pub enum MetacognitionError {
     #[error("Escalation error: {0}")]
-    Escalation(String),
+    Escalation(#[from] crate::escalation::EscalationError),
+    #[error("No snapshot available for metacognition cycle")]
+    NoSnapshot,
     #[error("ACP error: {0}")]
-    Acp(String),
+    Acp(#[from] crate::acp::AcpError),
 }
 
 /// Escalation trigger thresholds
@@ -176,7 +178,7 @@ impl MetacognitionLoop {
             .read()
             .await
             .clone()
-            .ok_or_else(|| MetacognitionError::Escalation("No snapshot available".to_string()))
+            .ok_or_else(|| MetacognitionError::NoSnapshot)
     }
     /// Generate a system state summary for posting to standing session
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
@@ -243,9 +245,7 @@ impl MetacognitionLoop {
             correlation_id,
         };
 
-        acp.send_message(msg)
-            .await
-            .map_err(|e| MetacognitionError::Acp(e.to_string()))?;
+        acp.send_message(msg).await?;
 
         info!(
             target: "curator.metacognition",

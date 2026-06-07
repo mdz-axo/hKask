@@ -389,7 +389,7 @@ impl PodManager {
             let pods = self.pods.read().await;
             let pod = pods
                 .get(pod_id)
-                .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+                .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
 
             if pod.state() == PodLifecycleState::Populated {
                 Some((pod.webid, pod.agent_type, pod.persona.capabilities.clone()))
@@ -403,8 +403,7 @@ impl PodManager {
             Some(
                 self.acp_runtime
                     .register_agent(webid, agent_type, capabilities)
-                    .await
-                    .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?,
+                    .await?,
             )
         } else {
             None
@@ -414,7 +413,7 @@ impl PodManager {
         let mut pods = self.pods.write().await;
         let pod = pods
             .get_mut(pod_id)
-            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+            .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
 
         if let Some(token) = token {
             pod.capability_token = token;
@@ -463,7 +462,7 @@ impl PodManager {
         let mut pods = self.pods.write().await;
         let pod = pods
             .get_mut(pod_id)
-            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+            .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
 
         let token_id = pod.capability_token.id.clone();
         let webid = pod.webid;
@@ -516,7 +515,7 @@ impl PodManager {
         let pods = self.pods.read().await;
         let pod = pods
             .get(pod_id)
-            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+            .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
 
         let request = crate::ports::RecallRequest::episodic(
             "lifecycle",
@@ -525,7 +524,7 @@ impl PodManager {
         );
         self.episodic_storage
             .recall_episodic(&request)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     /// Get pod status
@@ -533,7 +532,7 @@ impl PodManager {
         let pods = self.pods.read().await;
         let pod = pods
             .get(pod_id)
-            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+            .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
 
         Ok(PodStatus {
             pod_id: pod.id.to_string(),

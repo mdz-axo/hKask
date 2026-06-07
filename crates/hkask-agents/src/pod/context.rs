@@ -57,12 +57,10 @@ impl PodContext {
         let pods = manager.pods.read().await;
         let pod = pods
             .get(pod_id)
-            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+            .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))?;
 
         if pod.state != super::types::PodLifecycleState::Activated {
-            return Err(AgentPodError::ACPRegistrationError(
-                "Pod must be activated before creating context".to_string(),
-            ));
+            return Err(AgentPodError::PodNotActivated);
         }
 
         Ok(Self {
@@ -140,7 +138,7 @@ impl PodContext {
             StorageRequest::episodic(entity, attribute, value, confidence.into(), self.webid);
         self.episodic_storage
             .store_episodic(request, &self.capability_token)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     /// Recall episodic triples for the agent's own perspective.
@@ -156,7 +154,7 @@ impl PodContext {
         let request = RecallRequest::episodic(query, self.webid, self.capability_token.clone());
         self.episodic_storage
             .recall_episodic(&request)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     /// Check episodic storage usage for this agent's perspective.
@@ -171,7 +169,7 @@ impl PodContext {
         )?;
         self.episodic_storage
             .episodic_storage_usage(&self.webid)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     /// Get the per-agent storage budget (max episodic triples).
@@ -219,7 +217,7 @@ impl PodContext {
                 confidence_override,
                 &self.capability_token,
             )
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     // Semantic memory methods — shared, public knowledge
@@ -244,7 +242,7 @@ impl PodContext {
             StorageRequest::semantic(entity, attribute, value, confidence.into(), self.webid);
         self.semantic_storage
             .store_semantic(request, &self.capability_token)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     /// Recall semantic triples (shared, deduplicated knowledge).
@@ -259,7 +257,7 @@ impl PodContext {
         let request = RecallRequest::semantic(query, self.capability_token.clone());
         self.semantic_storage
             .recall_semantic(&request)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     /// Check semantic storage usage for an entity.
@@ -274,7 +272,7 @@ impl PodContext {
         )?;
         self.semantic_storage
             .semantic_storage_usage(entity)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+            .map_err(AgentPodError::from)
     }
 
     // Tool invocation and CNS span emission
@@ -306,13 +304,13 @@ impl PodContext {
             let rt = tokio::runtime::Handle::current();
             match rt.block_on(governed.invoke(&server, tool_name, input, &self.capability_token)) {
                 Ok(value) => Ok(value),
-                Err(e) => Err(AgentPodError::ToolError(e.to_string())),
+                Err(e) => Err(AgentPodError::ToolError(e.into())),
             }
         } else {
             // Fallback: raw mcp_runtime path (OCAP verification but no CNS governance)
             self.mcp_runtime
                 .invoke_tool(tool_name, input, &self.capability_token)
-                .map_err(|e| AgentPodError::ToolError(e.to_string()))
+                .map_err(|e| AgentPodError::ToolError(e.into()))
         }
     }
 }

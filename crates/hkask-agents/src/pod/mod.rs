@@ -106,13 +106,13 @@ pub enum AgentPodError {
     PersonaParseError(String),
 
     #[error("Failed to load template crate: {0}")]
-    CrateLoadError(String),
+    CrateLoadError(#[from] hkask_types::GitError),
 
     #[error("ACP registration failed: {0}")]
-    ACPRegistrationError(String),
+    ACPRegistrationError(#[from] crate::acp::AcpError),
 
     #[error("MCP access grant failed: {0}")]
-    MCPAccessError(String),
+    MCPAccessError(#[from] crate::error::McpError),
 
     #[error("Capability attenuation limit exceeded")]
     AttenuationLimitExceeded,
@@ -133,13 +133,25 @@ pub enum AgentPodError {
     InferenceUnavailable(String),
 
     #[error("Memory operation failed: {0}")]
-    MemoryError(String),
+    MemoryError(#[from] crate::error::MemoryError),
 
     #[error("Tool invocation failed: {0}")]
-    ToolError(String),
+    ToolError(#[source] Box<dyn std::error::Error + Send + Sync>),
 
     #[error("Key derivation failed: {0}")]
-    KeyDerivation(String),
+    KeyDerivation(#[from] hkask_keystore::KeystoreError),
+
+    #[error("Pod not found: {0}")]
+    PodNotFound(PodID),
+
+    #[error("Pod must be activated before creating context")]
+    PodNotActivated,
+}
+
+impl From<hkask_types::ports::ToolPortError> for AgentPodError {
+    fn from(e: hkask_types::ports::ToolPortError) -> Self {
+        AgentPodError::ToolError(Box::new(e))
+    }
 }
 
 /// Result type for agent pod operations
@@ -152,9 +164,7 @@ impl AgentPod {
         persona: &AgentPersona,
         git: &GitCasAdapter,
     ) -> AgentPodResult<Self> {
-        let template_crate = git
-            .load_template_crate(crate_name)
-            .map_err(|e| AgentPodError::CrateLoadError(e.to_string()))?;
+        let template_crate = git.load_template_crate(crate_name)?;
 
         // Derive OCAP secret per WebID via HKDF-SHA256 from master key
         // (ADR-027: deterministic, restart-safe, per-agent isolation)
@@ -213,8 +223,7 @@ impl AgentPod {
         let capabilities: Vec<String> = self.persona.capabilities.clone();
         let token = acp
             .register_agent(self.webid, self.agent_type, capabilities)
-            .await
-            .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?;
+            .await?;
 
         self.capability_token = token;
         self.state = PodLifecycleState::Registered;
@@ -252,8 +261,7 @@ impl AgentPod {
             ));
         }
 
-        mcp.grant_tool_access(self.capability_token.clone())
-            .map_err(|e| AgentPodError::MCPAccessError(e.to_string()))?;
+        mcp.grant_tool_access(self.capability_token.clone())?;
 
         self.state = PodLifecycleState::Activated;
 
@@ -401,7 +409,7 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
 fn derive_ocap_secret(webid: &WebID) -> AgentPodResult<Zeroizing<String>> {
     let context = format!("{}:{}", derivation_contexts::OCAP_SECRET, webid);
     let secret_ref = SecretRef::derived(derivation_contexts::MASTER_KEY_ENV, &context);
-    let bytes = hkask_keystore::resolve(&secret_ref)
-        .map_err(|e| AgentPodError::KeyDerivation(e.to_string()))?;
+    let bytes =
+        hkask_keystore::resolve(&secret_ref).map_err(|e| AgentPodError::KeyDerivation(e.into()))?;
     Ok(Zeroizing::new(hex::encode(&*bytes)))
 }
