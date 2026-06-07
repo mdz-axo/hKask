@@ -95,7 +95,7 @@ struct Stores {
     consent_manager: Arc<ConsentManager>,
     escalation_queue: Arc<EscalationQueue>,
     goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
-    standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>>,
+    standing_session_store: Arc<hkask_storage::StandingSessionStore>,
 }
 
 impl Stores {
@@ -146,8 +146,7 @@ impl Stores {
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to initialize standing session store schema: {e}"),
             })?;
-        let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
-            Some(Arc::new(standing_session_store));
+        let standing_session_store = Arc::new(standing_session_store);
 
         Ok(Stores {
             consent_manager,
@@ -219,7 +218,7 @@ pub struct ApiState {
         >,
     >,
     /// Standing session storage port (persistent or in-memory)
-    pub standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>>,
+    pub standing_session_store: Arc<hkask_storage::StandingSessionStore>,
     /// Ensemble session manager for chat/deliberation
     pub session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
     /// Goal repository for the goal coordination substrate. Mirrors the CLI

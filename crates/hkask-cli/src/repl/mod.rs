@@ -119,6 +119,11 @@ pub(crate) struct ReplState {
     /// Dynamically generated tool section for the system prompt.
     /// Lists available MCP tools grouped by server, derived from runtime discovery.
     /// Set once at REPL init; GovernedTool enforces authorization at invocation time.
+    ///
+    /// This is cached rather than re-derived per turn because MCP servers are
+    /// started at init and do not change during a session. If dynamic server
+    /// start/stop is added later, this should become a method that re-derives
+    /// from the MCP runtime on each turn.
     pub(crate) tool_prompt_section: String,
     /// Manifest executor — runs the process_manifest cascade for agents that
     /// have one defined. Created at REPL init from the agent's process_manifest

@@ -504,12 +504,10 @@ async fn standing_start(
 
     let mut session = StandingSession::from_config(config.clone());
 
-    // Wire storage if available — persist config and enable message archival
-    if let Some(ref store) = state.standing_session_store {
-        session = session.with_store(store.clone());
-        let config_yaml = serde_yaml::to_string(&config).unwrap_or_default();
-        session.persist_session(&config_yaml).ok();
-    }
+    // Wire storage — persist config and enable message archival
+    session = session.with_store(state.standing_session_store.clone());
+    let config_yaml = serde_yaml::to_string(&config).unwrap_or_default();
+    session.persist_session(&config_yaml).ok();
 
     session.post_initial_messages(&config);
 

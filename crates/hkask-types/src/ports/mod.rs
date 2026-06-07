@@ -513,7 +513,7 @@ pub struct ToolInfo {
     pub description: String,
     pub input_schema: serde_json::Value,
     pub server_id: String,
-    pub required_capability: Option<String>,
+    pub required_capability: Option<String>, // TODO: Populate from AgentDefinition.capabilities or server config
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

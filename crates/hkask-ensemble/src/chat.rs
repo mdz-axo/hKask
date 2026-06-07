@@ -11,7 +11,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::info;
+
+/// Tracks whether the missing-gas-governance warning has been emitted,
+/// so we warn once per `EnsembleChat` lifetime rather than per message.
+static GAS_GOVERNANCE_WARNED: AtomicBool = AtomicBool::new(false);
 
 use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
 use crate::ports::InferenceClient;
@@ -408,6 +413,18 @@ impl EnsembleChat {
                 return;
             }
             governance.acquire(cost);
+        } else if GAS_GOVERNANCE_WARNED
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            // No gas governance wired — ensemble sessions in API mode bypass all gas tracking.
+            // This is a known gap: https://github.com/mdz-axo/hKask/issues/XXX
+            // The CLI wires CyberneticsLoopGasAdapter, but API does not.
+            tracing::warn!(
+                target: "cns.gas",
+                "No GasGovernancePort wired — ensemble session running without gas governance. \
+                 This is expected in API mode. CLI mode wires gas governance automatically."
+            );
         }
 
         self.messages.push(message);
@@ -568,6 +585,15 @@ impl EnsembleChat {
                     "CNS governance blocked operation".to_string(),
                 )));
             }
+        } else if GAS_GOVERNANCE_WARNED
+            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            tracing::warn!(
+                target: "cns.gas",
+                "No GasGovernancePort wired — ensemble improv turn running without gas governance. \
+                 This is expected in API mode. CLI mode wires gas governance automatically."
+            );
         }
 
         let participants: Vec<(WebID, String, String)> = self
