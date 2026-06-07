@@ -2,9 +2,8 @@
 title: "HHH Alignment Mode for hKask: A Research Paper on Honest, Helpful, Harmless Inference Governance"
 authors: ["hKask Research"]
 date: 2026-06-04
-last_updated: 2026-06-06
 version: "2.0.0"
-status: "Active"
+status: "Research"
 domain: "Architecture, Alignment, Inference Governance"
 audience: [architects, developers, agents]
 ddmvss_categories: [domain, capability, observability, curation]

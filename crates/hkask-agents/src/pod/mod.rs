@@ -30,6 +30,7 @@
 //! use hkask_agents::acp::AcpRuntime;
 //! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
 //! use hkask_types::{CapabilityChecker, WebID};
+//! use hkask_agents::{DenyAllConsent, SovereigntyConsent};
 //! use std::sync::Arc;
 //!
 //! // Create adapters
@@ -46,7 +47,12 @@
 //! "#;
 //!
 //! let persona = AgentPersona::from_yaml(yaml_str)?;
-//! let mut pod = AgentPod::new("test-bot", &persona, &git_adapter)?;
+//! let mut pod = AgentPod::new(
+//!     "test-bot",
+//!     &persona,
+//!     &git_adapter,
+//!     Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
+//! )?;
 //! pod.register(acp_runtime.as_ref()).await?;
 //! pod.activate(&mcp_runtime)?;
 //! # Ok(())

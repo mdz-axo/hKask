@@ -1,9 +1,23 @@
 //! Sovereignty command handlers for `kask sovereignty`
 //!
 //! Implements the CLI display logic for data sovereignty management.
+//!
+//! The kill-zone state is process-local: `MarkAcquisition` writes to a
+//! shared `UserSovereigntyState`, and `KillZone` reads from the same
+//! state. This replaces the previous behavior, which derived
+//! `kill_zone_active` from a string match on the user's resistance level
+//! (a conflation of configuration and detection).
 
 use crate::cli::{self, SovereigntyAction};
 use crate::commands;
+use hkask_types::UserSovereigntyState;
+use std::sync::{LazyLock, Mutex};
+
+/// Process-local sovereignty state, shared by `MarkAcquisition` (writer) and
+/// `KillZone` (reader). The Magna Carta's "kill-zone state" lives in the
+/// `UserSovereigntyState`; the CLI is one of the writers.
+static SOVEREIGNTY_STATE: LazyLock<Mutex<UserSovereigntyState>> =
+    LazyLock::new(|| Mutex::new(UserSovereigntyState::new()));
 
 pub fn run(action: SovereigntyAction) {
     use hkask_types::DataCategory;
@@ -117,60 +131,58 @@ pub fn run(action: SovereigntyAction) {
             }
         }
         SovereigntyAction::MarkAcquisition { vc_investment } => {
-            let mut state = hkask_types::UserSovereigntyState::new();
+            // Write the acquisition attempt and current VC investment into
+            // the process-local state. The kill-zone derivation follows the
+            // same rule the runtime uses (acquisition_attempt && vc < 0.5).
+            let mut state = SOVEREIGNTY_STATE
+                .lock()
+                .expect("sovereignty state mutex poisoned");
             state.mark_acquisition_attempt();
             state.update_vc_investment(vc_investment);
+            let kill_zone_active = state.is_compromised();
             println!("Acquisition attempt marked.");
             println!("  VC investment: {:.2}", vc_investment);
-            println!("  Kill zone active: {}", state.is_compromised());
-            if state.is_compromised() {
+            println!("  Kill zone active: {}", kill_zone_active);
+            if kill_zone_active {
                 println!("  [ALERT] Sovereignty compromised - CNS alert triggered!");
             }
         }
         SovereigntyAction::KillZone => {
-            let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let store = super::helpers::or_exit(
-                commands::config::open_sovereignty_store(),
-                "Failed to open sovereignty store",
-            );
+            // Read the process-local kill-zone state. This is the same state
+            // that `MarkAcquisition` writes to, so the two commands are
+            // coherent within a CLI process. To see the same state across
+            // processes (e.g., the API server's runtime), use the
+            // `/api/sovereignty/killzone` endpoint.
+            let state = SOVEREIGNTY_STATE
+                .lock()
+                .expect("sovereignty state mutex poisoned");
+
             println!("Kill-Zone Detection");
             println!("===================");
             println!();
-            match store.get(&webid.to_string()) {
-                Ok(Some(entry)) => {
-                    let resistance = &entry.resistance;
-                    let threshold = entry.kill_zone_threshold;
-                    let kill_zone_active = resistance != "Minimum" && resistance != "Low";
-                    println!("Status:");
-                    println!("  • Kill-zone active: {}", kill_zone_active);
-                    println!("  • Kill-zone threshold: {:.2}", threshold);
-                    println!();
-                    println!("Investment:");
-                    println!(
-                        "  • VC investment level: {} (threshold: {:.2})",
-                        if kill_zone_active {
-                            "HIGH (above threshold)"
-                        } else {
-                            "LOW (below threshold)"
-                        },
-                        threshold
-                    );
-                    println!();
-                    println!("Resistance:");
-                    println!("  • Resistance level: {}", resistance);
-                    println!();
-                    if kill_zone_active {
-                        println!("[ALERT] Kill-zone active — sovereignty may be compromised!");
-                    } else {
-                        println!("Sovereignty boundary intact.");
-                    }
-                }
-                Ok(None) => {
-                    println!("  • No sovereignty data stored yet");
-                    println!("  • Kill-zone status: UNKNOWN");
-                    println!("  • Use 'kask sovereignty grant' to initialize");
-                }
-                Err(e) => println!("  • Error loading kill-zone data: {}", e),
+            println!("Status:");
+            println!(
+                "  • Kill-zone active: {}",
+                state.kill_zone_state.kill_zone_active
+            );
+            println!("  • Kill-zone threshold: {:.2}", state.kill_zone_threshold);
+            println!();
+            println!("Investment:");
+            println!(
+                "  • VC investment level: {:.2} (threshold: {:.2})",
+                state.kill_zone_state.vc_investment, state.kill_zone_threshold
+            );
+            println!();
+            println!("State:");
+            println!(
+                "  • Acquisition attempt: {}",
+                state.kill_zone_state.acquisition_attempt
+            );
+            println!();
+            if state.kill_zone_state.kill_zone_active {
+                println!("[ALERT] Kill-zone active — sovereignty may be compromised!");
+            } else {
+                println!("Sovereignty boundary intact.");
             }
         }
         SovereigntyAction::Check { category } => {

@@ -48,6 +48,10 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
 | **P2-06** | Resolve hkask-agents build regression (SovereigntyChecker, ConsentManager) | Dev | High | ⬜ Open | 5 compile errors in hkask-agents |
+| **P2-07** | DDMVSS audit R4: Update §9.1 self-application matrix | Curator | Medium | ⬜ Open | 3 cells need :partial/:drift labels |
+| **P2-08** | DDMVSS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ⬜ Open | PRINCIPLES.md §1.4 is authoritative |
+| **P2-09** | DDMVSS audit R8: Add TemplateType vocabulary mapping to interface-and-composition.md | Curator | Medium | ⬜ Open | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct |
+| **P2-10** | DDMVSS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ⬜ Open | 10 items from DDMVSS §11 R3 |
 
 ---
 
