@@ -101,17 +101,28 @@ where
     Ok(entity)
 }
 
-/// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
+/// Memory Loop Forwarder — wraps EpisodicMemory and SemanticMemory
 ///
-/// Routes pod storage requests through `hkask-memory`'s domain logic
-/// (dedup, Bayesian confidence decay, temporal attention weighting)
-/// instead of directly hitting `TripleStore`.
-pub struct MemoryLoopAdapter {
+/// F-SYN-015: the type was previously named `MemoryLoopAdapter`. The
+/// rename to `MemoryLoopForwarder` reflects what the type actually
+/// does: it *forwards* pod storage requests through `hkask-memory`'s
+/// domain logic (dedup, Bayesian confidence decay, temporal
+/// attention weighting) without owning the underlying loops. The
+/// old name `MemoryLoopAdapter` is preserved as a type alias for
+/// source compatibility; the rename is the fix, not a deprecation.
+///
+/// Routes pod storage requests through `hkask-memory`'s domain
+/// logic instead of directly hitting `TripleStore`.
+pub struct MemoryLoopForwarder {
     episodic: EpisodicMemory,
     semantic: SemanticMemory,
 }
 
-impl MemoryLoopAdapter {
+/// F-SYN-015: type alias for source compatibility. New code should
+/// use `MemoryLoopForwarder` directly.
+pub type MemoryLoopAdapter = MemoryLoopForwarder;
+
+impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
         Self { episodic, semantic }
@@ -197,11 +208,18 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
     ) -> Result<usize, MemoryError> {
         let count = self.episodic.storage_usage(perspective)?;
 
+        // F-SYN-013: `cns.memory.budget` is observed by the
+        // cybernetics loop's `CyberneticsLoop` (consumes via
+        // `tracing-subscriber` layer). The expected consumer is
+        // the `hkask-cns` crate's CNS runtime, not any in-source
+        // subscriber. The consumer boundary is the tracing
+        // registry, configured at startup via
+        // `hkask_cli::bootstrap::install_tracing_subscriber`.
         tracing::debug!(
             target: "cns.memory.budget",
             perspective = %perspective,
             count = count,
-            "Episodic storage usage checked (via loop membrane)"
+            "Episodic storage usage checked (via loop membrane); consumer: hkask-cns"
         );
 
         Ok(count)

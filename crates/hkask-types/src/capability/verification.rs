@@ -605,6 +605,55 @@ mod tests {
         assert_eq!(outcome, VerificationOutcome::Expired);
     }
 
+    // F-SYN-014 boundary test: exactly at expiry, the token is NOT
+    // yet expired (the check is `current_time > exp`, not `>=`).
+    #[test]
+    fn verify_at_expiry_is_not_yet_expired() {
+        let checker = CapabilityChecker::new(SECRET);
+        let token = crate::DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+        )
+        .expires_at(1000)
+        .sign(SECRET);
+
+        // Exactly at 1000: not yet expired.
+        assert!(!token.is_expired(1000));
+        let outcome = verify_delegation_token(
+            Some(&checker),
+            &token,
+            &bob(),
+            DelegationResource::Tool,
+            "inference",
+            DelegationAction::Execute,
+            1000,
+        );
+        assert_eq!(
+            outcome,
+            VerificationOutcome::Valid,
+            "F-SYN-014: at-expiry must be Valid (boundary is strict-greater)"
+        );
+
+        // One second past: Expired.
+        let outcome = verify_delegation_token(
+            Some(&checker),
+            &token,
+            &bob(),
+            DelegationResource::Tool,
+            "inference",
+            DelegationAction::Execute,
+            1001,
+        );
+        assert_eq!(
+            outcome,
+            VerificationOutcome::Expired,
+            "F-SYN-014: 1s past expiry must be Expired"
+        );
+    }
+
     #[test]
     fn verify_delegation_token_returns_insufficient_access() {
         let checker = CapabilityChecker::new(SECRET);

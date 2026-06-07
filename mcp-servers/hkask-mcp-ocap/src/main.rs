@@ -577,6 +577,73 @@ mod tests {
         );
     }
 
+    // F-SYN-006 red→green: a revoked token cannot be re-issued.
+    //
+    // Because the token id is a *deterministic hash* of the
+    // (resource, resource_id, action, issuer, subject) tuple,
+    // re-minting with identical parameters produces the same id.
+    // Without the F-SYN-006 check, the re-mint would silently
+    // overwrite the revoked entry in the tokens map, bypassing
+    // revocation. With the check, the re-mint returns
+    // `FailedPrecondition`.
+    #[tokio::test]
+    async fn re_mint_after_revoke_is_rejected() {
+        let server = test_server();
+        let issuer = WebID::new().to_string();
+        let subject = WebID::new().to_string();
+        let capability = "tool:call".to_string();
+
+        // Mint a token.
+        let delegate_result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: issuer.clone(),
+                subject: subject.clone(),
+                capabilities: capability.clone(),
+            }))
+            .await;
+        let token_id = extract_json_string(&delegate_result, "id").unwrap();
+
+        // Revoke it.
+        let revoke_result = server
+            .ocap_revoke(Parameters(RevokeRequest {
+                token_id: token_id.clone(),
+            }))
+            .await;
+        assert!(
+            revoke_result.contains("revoked") && revoke_result.contains("true"),
+            "first revoke must succeed, got: {revoke_result}"
+        );
+
+        // Re-mint with identical parameters. The id is the same
+        // (deterministic hash), so this would silently overwrite
+        // the revoked entry without the F-SYN-006 check.
+        let re_mint_result = server
+            .ocap_delegate(Parameters(DelegateRequest {
+                issuer: issuer.clone(),
+                subject: subject.clone(),
+                capabilities: capability.clone(),
+            }))
+            .await;
+        assert!(
+            re_mint_result.contains("FailedPrecondition")
+                || re_mint_result.contains("revoked")
+                || re_mint_result.contains("re-issuance is not permitted"),
+            "F-SYN-006: re-mint after revoke must be rejected, got: {re_mint_result}"
+        );
+
+        // The verify path still rejects the revoked id.
+        let verify_result = server
+            .ocap_verify(Parameters(VerifyRequest {
+                token_id: token_id.clone(),
+                capability: capability.clone(),
+            }))
+            .await;
+        assert!(
+            verify_result.contains("revoked") || verify_result.contains("FailedPrecondition"),
+            "F-SYN-006: verify still rejects the revoked id after re-mint attempt, got: {verify_result}"
+        );
+    }
+
     // P8 invariant: ocap_revoke returns not_found for unknown token
     #[tokio::test]
     async fn revoke_returns_not_found_for_unknown_token() {
