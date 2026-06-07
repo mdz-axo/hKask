@@ -163,3 +163,45 @@ impl SovereigntyBoundaryStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Database;
+
+    fn test_store() -> SovereigntyBoundaryStore {
+        let db = Database::in_memory().expect("in-memory db");
+        let store = SovereigntyBoundaryStore::new(db.conn_arc());
+        store.initialize_schema().expect("schema");
+        store
+    }
+
+    /// Property: when a row is inserted without specifying the
+    /// `kill_zone_threshold` column, the SQLite schema's `DEFAULT 0.5` is
+    /// applied. The Magna Carta requires a threshold of 0.5 (the
+    /// "VC investment < 0.5" trigger); an older schema default of 0.2
+    /// would have weakened detection.
+    #[test]
+    fn schema_default_kill_zone_threshold_is_0_5() {
+        use crate::Store;
+        let store = test_store();
+        // Insert a row, omitting the threshold column to exercise the default.
+        let conn = store.lock_conn().expect("conn");
+        conn.execute(
+            "INSERT INTO sovereignty_boundaries
+             (id, webid, sovereign_categories, shared_categories, public_categories,
+              resistance, created_at, updated_at)
+             VALUES ('test_id', 'hkask:test:user', '[]', '[]', '[]', 'Maximum', 0, 0)",
+            [],
+        )
+        .expect("insert");
+        drop(conn);
+
+        let entry = store.get("hkask:test:user").expect("get").expect("present");
+        assert!(
+            (entry.kill_zone_threshold - 0.5).abs() < f32::EPSILON,
+            "kill_zone_threshold default must be 0.5 per the Magna Carta, got {}",
+            entry.kill_zone_threshold
+        );
+    }
+}
