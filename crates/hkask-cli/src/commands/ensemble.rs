@@ -398,8 +398,7 @@ pub fn ensemble_standing_start(
     config_path: &std::path::Path,
 ) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
     let store = open_standing_session_store();
-    let session = bootstrap_standing_session_with_store(config_path, store)
-        .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
+    let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
 }
 
@@ -415,8 +414,7 @@ pub fn ensemble_standing_status()
     }
 
     let store = open_standing_session_store();
-    let session = bootstrap_standing_session_with_store(config_path, store)
-        .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
+    let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
 }
 

@@ -60,22 +60,19 @@ impl From<uuid::Error> for AgentError {
 }
 
 /// Errors that can occur during ensemble operations
+///
+/// P3.5: most variants are now `#[from]`-style wrappers around typed upstream
+/// errors (`StandingSessionError`). The remaining `String` variants are
+/// sentinels for *user-facing* input errors (e.g. missing config file).
 #[derive(Debug, Error)]
 pub enum EnsembleError {
     #[error("Session not found: {0}")]
     SessionNotFound(String),
 
-    #[error("Session creation failed: {0}")]
-    SessionCreationFailed(String),
-
-    #[error("Message send failed: {0}")]
-    MessageSendFailed(String),
-
-    #[error("Deliberation failed: {0}")]
-    DeliberationFailed(String),
-
-    #[error("Invalid session state: {0}")]
-    InvalidState(String),
+    /// Upstream standing-session bootstrap failure.
+    /// P3.5: replaces `.map_err(|e| SessionCreationFailed(e.to_string()))` calls.
+    #[error(transparent)]
+    Standing(#[from] hkask_ensemble::StandingSessionError),
 }
 
 /// Errors that can occur during curator operations
@@ -189,5 +186,39 @@ mod tests {
         let reg_err: RegistryError = inner.into();
         let agent_err: AgentError = reg_err.into();
         assert_eq!(agent_err.to_string(), inner_rendered);
+    }
+
+    // ── EnsembleError P3.5 property tests ───────────────────────────────
+
+    /// P8 invariant: `From<StandingSessionError>` produces a `Standing`
+    /// variant that is `#[error(transparent)]`, so the upstream `Display`
+    /// text is rendered directly.
+    #[test]
+    fn from_standing_session_error_is_transparent() {
+        // StandingSessionError::Bootstrap is the only String variant;
+        // it stands in for any of the typed variants here.
+        let inner =
+            hkask_ensemble::StandingSessionError::Bootstrap("missing config file".to_string());
+        let inner_rendered = inner.to_string();
+        let ensemble_err: EnsembleError = inner.into();
+        assert_eq!(ensemble_err.to_string(), inner_rendered);
+    }
+
+    /// P8 invariant: `SessionNotFound` is a *user-facing* input sentinel —
+    /// it must NOT be derived from an upstream error. The `Display` impl
+    /// must include the variant prefix so the user can tell input errors
+    /// from upstream failures apart in logs.
+    #[test]
+    fn ensemble_session_not_found_includes_variant_prefix() {
+        let err = EnsembleError::SessionNotFound("ensemble-x".to_string());
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("Session not found"),
+            "rendered message should include the 'Session not found' prefix: {rendered}"
+        );
+        assert!(
+            rendered.contains("ensemble-x"),
+            "rendered message should include the session id: {rendered}"
+        );
     }
 }
