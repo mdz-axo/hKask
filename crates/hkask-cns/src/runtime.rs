@@ -263,8 +263,6 @@ impl CnsRuntime {
         }
     }
 
-    // ── Kill Zone ──
-
     /// Register a gas budget for an agent.
     ///
     /// Called during agent pod creation so the CNS can track and replenish budgets.

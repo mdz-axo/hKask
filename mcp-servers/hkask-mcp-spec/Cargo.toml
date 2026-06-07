@@ -33,4 +33,6 @@ path = "src/main.rs"
 
 [dev-dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }
+tokio-util.workspace = true
 proptest = "1"
