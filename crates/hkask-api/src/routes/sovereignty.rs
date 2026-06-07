@@ -18,11 +18,11 @@ use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
 
-/// Map a boolean `acquisition_resistance` to the typed name used in the
-/// Magna Carta (`AcquisitionResistance` enum). The runtime type is a bool
-/// after simplification; the API surfaces a stable, doc-aligned string.
-fn resistance_name(value: bool) -> &'static str {
-    if value { "maximum" } else { "none" }
+/// Map a boolean `prevents_passive_acquisition` to an affirmative-consent
+/// label. The runtime type is a bool after simplification; the API surfaces
+/// a stable, doc-aligned string.
+fn consent_name(value: bool) -> &'static str {
+    if value { "required" } else { "open" }
 }
 
 /// Create sovereignty router
@@ -41,10 +41,6 @@ pub fn sovereignty_router() -> Router<ApiState> {
             axum::routing::post(sovereignty_revoke_consent),
         )
         .route(
-            "/api/sovereignty/killzone",
-            axum::routing::get(sovereignty_killzone),
-        )
-        .route(
             "/api/sovereignty/access/check",
             axum::routing::get(sovereignty_check_access),
         )
@@ -54,11 +50,7 @@ pub fn sovereignty_router() -> Router<ApiState> {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SovereigntyStatusResponse {
     pub explicit_consent: bool,
-    pub sovereignty_compromised: bool,
-    pub kill_zone_active: bool,
-    pub vc_investment: f32,
-    pub threshold: f32,
-    pub acquisition_resistance: String,
+    pub requires_affirmative_consent: String,
     pub sovereign_data: Vec<String>,
     pub shared_data: Vec<String>,
     pub public_data: Vec<String>,
@@ -78,15 +70,6 @@ pub struct SovereigntyConsentResponse {
     pub consent: bool,
     pub message: String,
     pub categories: Vec<String>,
-}
-
-/// Kill zone status response
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct KillZoneResponse {
-    pub active: bool,
-    pub acquisition_attempt: bool,
-    pub vc_investment: f32,
-    pub threshold: f32,
 }
 
 /// Access check response
@@ -116,15 +99,11 @@ async fn sovereignty_status(
 
     let webid_str = auth.webid.to_string();
 
-    // Read live kill-zone state from the CNS runtime (not a throwaway state).
-    let kill_zone = state.cns_runtime.kill_zone_state().await;
-    let sovereignty_compromised = kill_zone.kill_zone_active;
-
     // Use the default boundary classification (the only one currently wired
     // into the type system) for the data-category lists. This is a constant
     // view of what the Magna Carta prescribes, surfaced for visibility.
     let boundary = DataSovereigntyBoundary::hkask_default();
-    let acquisition_resistance = boundary.prevents_passive_acquisition();
+    let requires_affirmative_consent = boundary.prevents_passive_acquisition();
 
     // Enrich status with consent manager state
     let granted_categories: Vec<String> = state
@@ -136,11 +115,7 @@ async fn sovereignty_status(
 
     Ok(Json(SovereigntyStatusResponse {
         explicit_consent: !granted_categories.is_empty(),
-        sovereignty_compromised,
-        kill_zone_active: kill_zone.kill_zone_active,
-        vc_investment: kill_zone.vc_investment,
-        threshold: 0.5,
-        acquisition_resistance: resistance_name(acquisition_resistance).to_string(),
+        requires_affirmative_consent: consent_name(requires_affirmative_consent).to_string(),
         sovereign_data: boundary
             .sovereign_data
             .iter()
@@ -230,34 +205,6 @@ async fn sovereignty_revoke_consent(
         message: "Explicit consent revoked. Only public data is accessible.".to_string(),
         categories: vec![],
     }))
-}
-
-/// Kill zone status endpoint
-#[utoipa::path(
-    get,
-    path = "/api/sovereignty/killzone",
-    tag = "sovereignty",
-    responses(
-        (status = 200, description = "Kill zone status", body = KillZoneResponse),
-        (status = 401, description = "Unauthorized"),
-        (status = 500, description = "Internal server error"),
-    ),
-)]
-async fn sovereignty_killzone(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-) -> Json<KillZoneResponse> {
-    // Read live state from the CNS runtime's KillZoneDetector.
-    // Previously this constructed a throwaway `UserSovereigntyState::new()`
-    // and always reported `kill_zone_active: false`.
-    let kz = state.cns_runtime.kill_zone_state().await;
-
-    Json(KillZoneResponse {
-        active: kz.kill_zone_active,
-        acquisition_attempt: kz.acquisition_attempt,
-        vc_investment: kz.vc_investment,
-        threshold: 0.5,
-    })
 }
 
 /// Check access endpoint

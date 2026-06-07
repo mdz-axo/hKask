@@ -13,7 +13,7 @@ pub mod energy; // Loop 6 — gas budget (replaces energy budget)
 pub mod gas_budget_management; // Loop 6 — gas budget registration/reservation/settlement
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator; // Loop 6 → Inference gas estimation
-pub(crate) mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
+
 pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
@@ -45,4 +45,3 @@ pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
 // Re-export types moved to hkask-types for backward compatibility
 pub use hkask_types::cns::{CircuitState, CnsHealth};
 pub use hkask_types::ports::CircuitBreakerPort;
-// KillZoneDetector: pub(crate) — only consumed via CnsRuntime methods

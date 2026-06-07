@@ -200,16 +200,6 @@ pub enum SovereigntyAction {
         category: String,
     },
 
-    /// Mark acquisition attempt (for testing)
-    MarkAcquisition {
-        /// VC investment level (0.0-1.0)
-        #[arg(short, long, default_value = "0.3")]
-        vc_investment: f32,
-    },
-
-    /// Check if kill zone is active
-    KillZone,
-
     /// Check data access permissions
     Check {
         /// Data category to check

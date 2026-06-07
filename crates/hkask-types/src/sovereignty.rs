@@ -1,9 +1,9 @@
-//! User sovereignty and anti-catch-kill types
+//! User sovereignty and affirmative consent types
 //!
 //! These types enforce the Magna Carta of hKask:
 //! - Clear boundaries that honor user sovereignty
-//! - Acquisition resistance mechanisms
-//! - Kill-zone detection for VC investment patterns
+//! - Affirmative consent (default deny, explicit yes required)
+//! - Data sovereignty boundaries (sovereign/shared/public)
 
 use crate::id::SovereigntyId;
 use crate::visibility::Visibility;
@@ -105,8 +105,8 @@ pub struct DataSovereigntyBoundary {
     pub shared_data: HashSet<DataCategory>,
     /// What data is public (no sovereignty claim)
     pub public_data: HashSet<DataCategory>,
-    /// Whether this boundary resists passive acquisition
-    pub(crate) acquisition_resistance: bool,
+    /// Whether this boundary requires affirmative consent (default: true)
+    pub(crate) requires_affirmative_consent: bool,
 }
 
 impl DataSovereigntyBoundary {
@@ -116,7 +116,7 @@ impl DataSovereigntyBoundary {
             sovereign_data: HashSet::new(),
             shared_data: HashSet::new(),
             public_data: HashSet::new(),
-            acquisition_resistance: false,
+            requires_affirmative_consent: false,
         }
     }
 
@@ -146,7 +146,7 @@ impl DataSovereigntyBoundary {
             sovereign_data,
             shared_data,
             public_data,
-            acquisition_resistance: true,
+            requires_affirmative_consent: true,
         }
     }
 
@@ -172,9 +172,9 @@ impl DataSovereigntyBoundary {
         self.public_data.contains(category)
     }
 
-    /// Whether this boundary resists passive acquisition
+    /// Whether this boundary requires affirmative consent
     pub fn prevents_passive_acquisition(&self) -> bool {
-        self.acquisition_resistance
+        self.requires_affirmative_consent
     }
 }
 
@@ -184,37 +184,9 @@ impl Default for DataSovereigntyBoundary {
     }
 }
 
-/// Kill zone state — mutable operational state for kill-zone detection.
-///
-/// The detection logic lives in hkask-cns (Cybernetics subloop 6.5).
-/// This struct holds the operational state that CNS senses and compares.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KillZoneState {
-    /// Current VC investment level (0.0 to 1.0)
-    pub vc_investment: f32,
-    /// Whether kill zone is currently detected
-    pub kill_zone_active: bool,
-    /// Whether an acquisition attempt has been detected
-    pub acquisition_attempt: bool,
-}
-
-impl Default for KillZoneState {
-    fn default() -> Self {
-        Self {
-            vc_investment: 1.0,
-            kill_zone_active: false,
-            acquisition_attempt: false,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSovereigntyState {
     pub boundary: DataSovereigntyBoundary,
-    pub kill_zone_state: KillZoneState,
-    /// Kill zone thresholds (set by Curation, immutable at runtime)
-    #[serde(skip)]
-    pub kill_zone_threshold: f32,
     /// Whether user has explicitly consented to data sharing
     pub explicit_consent: bool,
     /// Timestamp of last sovereignty check
@@ -225,32 +197,9 @@ impl UserSovereigntyState {
     pub fn new() -> Self {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
-            kill_zone_state: KillZoneState::default(),
-            kill_zone_threshold: 0.5,
             explicit_consent: false,
             last_check: chrono::Utc::now(),
         }
-    }
-
-    /// Update sovereignty state with current VC investment
-    pub fn update_vc_investment(&mut self, vc_investment: f32) {
-        self.kill_zone_state.vc_investment = vc_investment.clamp(0.0, 1.0);
-        self.kill_zone_state.kill_zone_active = self.kill_zone_state.acquisition_attempt
-            && self.kill_zone_state.vc_investment < self.kill_zone_threshold;
-        self.last_check = chrono::Utc::now();
-    }
-
-    /// Mark acquisition attempt
-    pub fn mark_acquisition_attempt(&mut self) {
-        self.kill_zone_state.acquisition_attempt = true;
-        self.kill_zone_state.kill_zone_active = self.kill_zone_state.acquisition_attempt
-            && self.kill_zone_state.vc_investment < self.kill_zone_threshold;
-        self.last_check = chrono::Utc::now();
-    }
-
-    /// Check if sovereignty is compromised
-    pub fn is_compromised(&self) -> bool {
-        self.kill_zone_state.kill_zone_active
     }
 
     /// Grant explicit consent for data sharing

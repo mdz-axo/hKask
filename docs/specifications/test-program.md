@@ -89,8 +89,8 @@ Capability tokens for test operations follow the same `DelegationToken` pattern 
 
 | Tool | Input | Output | hLexicon |
 |------|-------|--------|----------|
-| `spec/test/invariant` | `{seam, invariant, category, cycle}` | `{invariant_id, status}` | `trace`, `verify` |
-| `spec/test/verify` | `{seam}` | `{seam, tests_found, invariants_verified, gaps}` | `verify`, `diagnose` |
+| `spec/test/invariant` | `{spec_id, seam, invariant, category, cycle?, capability_token?}` | `{invariant_id, status}` | `trace`, `verify` |
+| `spec/test/verify` | `{seam?, category?, capability_token?}` | `{total_requirements, tested, gaps, debt, traceability: [{requirement_id, classification?, test_path?, has_gap, test_debt_location?}], complete}` | `verify`, `diagnose` |
 | `spec/skill/register` | `{skill_name, root_principle, ddmvss_categories, hlexicon_terms}` | `{artifact_id, status}` | `register`, `curate` |
 | `spec/skill/evaluate` | `{skill_name, context}` | `{skill, constraints_evaluated, violations, curation_decision}` | `evaluate`, `diagnose` |
 
@@ -98,8 +98,8 @@ Capability tokens for test operations follow the same `DelegationToken` pattern 
 
 | MCP Tool | CLI Command |
 |----------|-------------|
-| `spec/test/invariant` | `kask test invariant --seam <seam> --category <cat> --cycle <cycle>` |
-| `spec/test/verify` | `kask test verify --seam <seam>` |
+| `spec/test/invariant` | `kask spec test-invariant --spec-id <id> --seam <seam> --invariant <text> --category <cat> [--cycle <cycle>]` |
+| `spec/test/verify` | `kask spec test-verify [--seam <seam>] [--category <cat>]` |
 | `spec/skill/register` | `kask skill register --name <name> --principle <text> --categories <cats>` |
 | `spec/skill/evaluate` | `kask skill evaluate --name <name> --context <context>` |
 

@@ -96,7 +96,6 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.template",
     "cns.curation",
     "cns.variety",
-    "cns.killzone",
     "cns.sovereignty",
     "cns.goal",
     "cns.spec",
@@ -153,7 +152,7 @@ impl SpanNamespace {
         let s = self.short_name();
         let prefix = s.split('.').next().unwrap_or(s);
         match prefix {
-            "variety" | "gas" | "killzone" => SpanCategory::Cybernetics,
+            "variety" | "gas" => SpanCategory::Cybernetics,
             "curation" | "spec" => SpanCategory::Curation,
             "inference" => SpanCategory::Inference,
             "agent_pod" | "connector" => SpanCategory::Episodic,
@@ -172,7 +171,7 @@ impl SpanNamespace {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpanCategory {
-    /// `cns.variety*`, `cns.gas*`, `cns.killzone*` — the cybernetics loop.
+    /// `cns.variety*`, `cns.gas*` — the cybernetics loop.
     Cybernetics,
     /// `cns.curation*`, `cns.spec*` — the curation loop.
     Curation,
@@ -191,7 +190,7 @@ impl SpanCategory {
     pub fn from_short_name(s: &str) -> Self {
         let prefix = s.split('.').next().unwrap_or(s);
         match prefix {
-            "variety" | "gas" | "killzone" => Self::Cybernetics,
+            "variety" | "gas" => Self::Cybernetics,
             "curation" | "spec" => Self::Curation,
             "inference" => Self::Inference,
             "agent_pod" | "connector" => Self::Episodic,

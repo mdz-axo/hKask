@@ -1,13 +1,13 @@
 //! hKask MCP CNS — Cybernetic Nervous System monitoring and alerts
 //!
-//! Starts an MCP server over stdio exposing 10 tools:
+//! Starts an MCP server over stdio exposing 9 tools:
 //! - `cns_emit` — Emit a CNS observation event
 //! - `cns_variety` — Get variety count for a span pattern
 //! - `cns_alert` — Trigger a real algedonic alert
 //! - `cns_calibrate` — Calibrate a span threshold
 //! - `cns_list_alerts` — List active algedonic alerts
 //! - `cns_health` — Get CNS health status
-//! - `cns_kill_zone` — Check or update kill-zone state
+
 //! - `cns_replenish_budget` — Replenish an agent's gas budget
 //! - `cns_energy` — Get an agent's gas budget status
 //! - `cns_backpressure` — Emit a backpressure signal
@@ -50,14 +50,6 @@ pub struct CalibrateRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ListAlertsRequest {
     pub limit: Option<u32>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct KillZoneRequest {
-    /// Optional: update VC investment level (0.0 to 1.0)
-    pub vc_investment: Option<f32>,
-    /// Optional: mark acquisition attempt detected
-    pub acquisition_attempt: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -261,40 +253,6 @@ impl CnsServer {
             "critical_count": health.critical_count,
             "warning_count": health.warning_count,
             "overall_deficit": health.overall_deficit,
-        }))
-    }
-
-    #[tool(description = "Check or update kill-zone state (VC investment, acquisition detection)")]
-    async fn cns_kill_zone(
-        &self,
-        Parameters(KillZoneRequest {
-            vc_investment,
-            acquisition_attempt,
-        }): Parameters<KillZoneRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("cns_kill_zone", &self.webid);
-
-        // If parameters provided, update and check
-        let triggered = if vc_investment.is_some() || acquisition_attempt.is_some() {
-            self.runtime
-                .check_kill_zone(
-                    vc_investment.unwrap_or(1.0),
-                    acquisition_attempt.unwrap_or(false),
-                )
-                .await
-        } else {
-            // Just read current state
-            let state = self.runtime.kill_zone_state().await;
-            state.kill_zone_active
-        };
-
-        let state = self.runtime.kill_zone_state().await;
-
-        span.ok_json(serde_json::json!({
-            "kill_zone_active": state.kill_zone_active,
-            "vc_investment": state.vc_investment,
-            "acquisition_attempt": state.acquisition_attempt,
-            "triggered": triggered,
         }))
     }
 

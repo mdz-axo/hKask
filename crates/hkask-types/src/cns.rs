@@ -1,7 +1,7 @@
 //! CNS (Cybernetic Nervous System) types for hKask
 //
 //! Namespace: cns.* (canonical observability namespace)
-//! Key spans: cns.tool.*, cns.prompt.*, cns.inference.*, cns.agent_pod.*, cns.connector.*, cns.pipeline.*, cns.gas.*, cns.review.*, cns.template.*, cns.curation.*, cns.variety.*, cns.killzone.*, cns.sovereignty.*, cns.goal.*, cns.spec.*
+//! Key spans: cns.tool.*, cns.prompt.*, cns.inference.*, cns.agent_pod.*, cns.connector.*, cns.pipeline.*, cns.gas.*, cns.review.*, cns.template.*, cns.curation.*, cns.variety.*, cns.sovereignty.*, cns.goal.*, cns.spec.*
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -103,7 +103,7 @@ pub struct CnsHealth {
 
 // CnsSpan has been collapsed into SpanNamespace (in event.rs).
 // Use `SpanNamespace` for namespace validation and `Span` for
-// namespace + path contexts. The 15 canonical namespaces are in
+// path contexts. The canonical namespaces are in
 // CANONICAL_NAMESPACES.
 
 /// RetryConfig — Canonical retry configuration for all hKask subsystems

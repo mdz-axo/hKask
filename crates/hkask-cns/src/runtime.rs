@@ -8,7 +8,6 @@ use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
 use crate::energy::{AgentGasStatus, GasBudget, GasCost};
-use crate::kill_zone::KillZoneDetector;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
 
@@ -16,7 +15,6 @@ use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::event::SpanNamespace;
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
-use hkask_types::sovereignty::KillZoneState;
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -27,7 +25,6 @@ use tracing;
 struct CnsState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: UnifiedVarietyTracker,
-    kill_zone: Arc<tokio::sync::Mutex<KillZoneDetector>>,
     gas_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, GasBudget>>>,
 }
 
@@ -37,12 +34,10 @@ impl CnsState {
             AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
         ));
         let tracker = UnifiedVarietyTracker::new();
-        let kill_zone = Arc::new(tokio::sync::Mutex::new(KillZoneDetector::new(0.5)));
         let gas_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             algedonic,
             tracker,
-            kill_zone,
             gas_budgets,
         }
     }
@@ -310,105 +305,6 @@ impl CnsRuntime {
         let state = self.state.read().await;
         let budgets = state.gas_budgets.read().await;
         budgets.get(agent).map(AgentGasStatus::from)
-    }
-
-    /// Get the current kill zone configuration/state.
-    ///
-    /// Exposed via the CNS MCP server's `cns_kill_zone` tool.
-    pub async fn kill_zone_state(&self) -> KillZoneState {
-        let state = self.state.read().await;
-        state.kill_zone.lock().await.state().clone()
-    }
-
-    /// Update VC investment and check if kill zone is triggered.
-    ///
-    /// When the kill zone is active, this method:
-    /// 1. Fires an algedonic alert through the standard `AlgedonicManager::check`
-    ///    path (domain: `"cns.killzone"`), so the alert is visible via
-    ///    `CnsRuntime::alerts()` and `CnsRuntime::health()`.
-    /// 2. Emits a `cns.killzone.threshold_exceeded` `NuEvent` to subscribers
-    ///    whose interest mask includes the `cns.killzone` namespace.
-    /// 3. Returns the bool indicating whether the kill zone is active.
-    ///
-    /// Exposed via the CNS MCP server's `cns_kill_zone` tool and any other
-    /// caller that observes the kill-zone state.
-    pub async fn check_kill_zone(&self, vc_investment: f32, acquisition_attempt: bool) -> bool {
-        // Phase 1: Update the detector (sense + compare).
-        let triggered = {
-            let state = self.state.read().await;
-            let mut detector = state.kill_zone.lock().await;
-            detector.update_vc_investment(vc_investment);
-            if acquisition_attempt {
-                detector.mark_acquisition_attempt();
-            }
-            detector.needs_alert()
-        };
-
-        if triggered {
-            self.fire_killzone_alert(vc_investment, acquisition_attempt)
-                .await;
-        }
-
-        triggered
-    }
-
-    /// Fire algedonic alert + NuEvent for an active kill zone.
-    ///
-    /// Mirrors the structure of `check_variety`: feed a synthetic variety
-    /// counter into `AlgedonicManager::check` (domain = `"cns.killzone"`),
-    /// then emit a `cns.killzone.threshold_exceeded` `NuEvent` to subscribers.
-    async fn fire_killzone_alert(&self, vc_investment: f32, acquisition_attempt: bool) {
-        // Build a synthetic variety counter representing the kill-zone state.
-        // We use 0 states to maximize the deficit (algedonic critical when
-        // deficit > threshold); this is appropriate because a kill zone
-        // indicates that the system's autonomy is being externally constrained.
-        let counter = {
-            let state = self.state.read().await;
-            state
-                .tracker
-                .variety_monitor()
-                .counters()
-                .get("cns.killzone")
-                .cloned()
-                .unwrap_or_else(VarietyTracker::new)
-        };
-
-        // Phase 2: Fire algedonic alert through the standard path.
-        let alert = {
-            let state = self.state.write().await;
-            let mut mgr = state.algedonic.write();
-            mgr.check(&counter, "cns.killzone").cloned()
-        };
-
-        // Phase 3: Emit NuEvent to subscribers.
-        let event = hkask_types::event::NuEvent::new(
-            WebID::default(),
-            hkask_types::event::Span::new(
-                hkask_types::event::SpanNamespace::new("cns.killzone"),
-                "threshold_exceeded",
-            ),
-            hkask_types::event::Phase::Act,
-            serde_json::json!({
-                "vc_investment": vc_investment,
-                "acquisition_attempt": acquisition_attempt,
-                "severity": alert
-                    .as_ref()
-                    .map(|a| format!("{:?}", a.severity))
-                    .unwrap_or_else(|| "Unknown".to_string()),
-            }),
-            0,
-        );
-
-        let subscribers = self.subscribers.read().await;
-        for observer in subscribers.iter() {
-            if observer
-                .interest_mask()
-                .iter()
-                .any(|ns| ns == &hkask_types::event::SpanNamespace::new("cns.killzone"))
-            {
-                observer.on_event(&event).await;
-            }
-        }
     }
 }
 

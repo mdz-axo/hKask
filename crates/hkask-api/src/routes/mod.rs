@@ -64,9 +64,7 @@ pub use soap_infer::{
     EventRecord, ObjectiveData, SeverityCounts, SoapInferAuthRequest, SoapInferRequest,
     SoapInferResponse, ValidationErrorType,
 };
-pub use sovereignty::{
-    AccessCheckResponse, KillZoneResponse, SovereigntyConsentResponse, SovereigntyStatusResponse,
-};
+pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use spec::{
     SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,
     SpecValidateRequest, SpecValidateResponse,

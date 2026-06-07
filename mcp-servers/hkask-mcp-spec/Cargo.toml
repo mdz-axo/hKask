@@ -32,4 +32,5 @@ name = "hkask-mcp-spec"
 path = "src/main.rs"
 
 [dev-dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
 proptest = "1"

@@ -58,8 +58,8 @@ impl_from_serde_json!(NuEventError, Infra);
 ///
 /// These are the CNS span namespaces that produce events requiring
 /// Curation (Loop 5) attention: energy deficits, variety imbalances,
-/// kill-zone threats, and agent pod failures.
-const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &["energy", "variety", "killzone", "agent_pod"];
+/// and agent pod failures.
+const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &["energy", "variety", "agent_pod"];
 
 define_store_cas!(NuEventStore);
 
@@ -71,7 +71,7 @@ impl NuEventStore {
     /// weight below `config.weight_threshold` are excluded.
     ///
     /// The domain is determined from the event's span namespace:
-    /// - "variety", "gas", "killzone" → cybernetics_lambda
+    /// - "variety", "gas" → cybernetics_lambda
     /// - "curation", "spec" → curation_lambda
     /// - "inference" → inference_lambda
     /// - "agent_pod", "connector" → episodic_lambda
@@ -169,7 +169,7 @@ impl NuEventStore {
     /// Query algedonic-significant events since a given timestamp.
     ///
     /// Returns NuEvents from algedonic span categories (energy, variety,
-    /// killzone, agent_pod) with `phase = Act` and severity exceeding
+    /// agent_pod) with `phase = Act` and severity exceeding
     /// threshold, ordered by timestamp ascending. This is the canonical
     /// alerts log that Curation reads via cursor — one fact in one place.
     ///

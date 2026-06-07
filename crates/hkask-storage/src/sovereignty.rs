@@ -1,11 +1,10 @@
 //! Sovereignty Boundary Store — SQLite persistence for user sovereignty boundaries
-//!
+//
 //! Persists user-configured sovereignty boundaries including:
 //! - Sovereign data categories (require explicit consent)
 //! - Shared data categories (require consent)
 //! - Public data categories (always accessible)
-//! - Acquisition resistance settings
-//! - Kill-zone detector thresholds
+//! - Affirmative consent requirements
 
 use crate::Store;
 use hkask_types::InfrastructureError;
@@ -35,8 +34,7 @@ pub struct SovereigntyBoundaryEntry {
     pub sovereign_categories: Vec<String>,
     pub shared_categories: Vec<String>,
     pub public_categories: Vec<String>,
-    pub resistance: String,
-    pub kill_zone_threshold: f32,
+    pub requires_affirmative_consent: String,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -55,10 +53,7 @@ impl SovereigntyBoundaryStore {
                 sovereign_categories TEXT NOT NULL,
                 shared_categories TEXT NOT NULL,
                 public_categories TEXT NOT NULL,
-                resistance TEXT NOT NULL,
-                -- Default 0.5 matches `UserSovereigntyState::new()` and `CnsRuntime`
-                -- per the Magna Carta (Kill-Zone Detection section).
-                kill_zone_threshold REAL NOT NULL DEFAULT 0.5,
+                requires_affirmative_consent TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
@@ -80,14 +75,13 @@ impl SovereigntyBoundaryStore {
         conn.execute(
             "INSERT INTO sovereignty_boundaries
              (id, webid, sovereign_categories, shared_categories, public_categories,
-              resistance, kill_zone_threshold, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+              requires_affirmative_consent, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
              ON CONFLICT(webid) DO UPDATE SET
                 sovereign_categories = excluded.sovereign_categories,
                 shared_categories = excluded.shared_categories,
                 public_categories = excluded.public_categories,
-                resistance = excluded.resistance,
-                kill_zone_threshold = excluded.kill_zone_threshold,
+                requires_affirmative_consent = excluded.requires_affirmative_consent,
                 updated_at = excluded.updated_at",
             params![
                 entry.id,
@@ -95,8 +89,7 @@ impl SovereigntyBoundaryStore {
                 sovereign_json,
                 shared_json,
                 public_json,
-                entry.resistance,
-                entry.kill_zone_threshold,
+                entry.requires_affirmative_consent,
                 entry.created_at,
                 now
             ],
@@ -113,7 +106,7 @@ impl SovereigntyBoundaryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
-                    resistance, kill_zone_threshold, created_at, updated_at
+                    requires_affirmative_consent, created_at, updated_at
              FROM sovereignty_boundaries WHERE webid = ?1",
         )?;
 
@@ -124,10 +117,9 @@ impl SovereigntyBoundaryStore {
                 let sovereign_json: String = row.get(2)?;
                 let shared_json: String = row.get(3)?;
                 let public_json: String = row.get(4)?;
-                let resistance: String = row.get(5)?;
-                let kill_zone_threshold: f32 = row.get(6)?;
-                let created_at: i64 = row.get(7)?;
-                let updated_at: i64 = row.get(8)?;
+                let requires_affirmative_consent: String = row.get(5)?;
+                let created_at: i64 = row.get(6)?;
+                let updated_at: i64 = row.get(7)?;
 
                 let sovereign_categories: Vec<String> = serde_json::from_str(&sovereign_json)
                     .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
@@ -142,8 +134,7 @@ impl SovereigntyBoundaryStore {
                     sovereign_categories,
                     shared_categories,
                     public_categories,
-                    resistance,
-                    kill_zone_threshold,
+                    requires_affirmative_consent,
                     created_at,
                     updated_at,
                 })

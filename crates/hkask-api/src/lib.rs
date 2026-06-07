@@ -23,7 +23,7 @@
 //! - `GET /api/sovereignty/status` — User sovereignty status
 //! - `POST /api/sovereignty/consent/grant` — Grant explicit consent
 //! - `POST /api/sovereignty/consent/revoke` — Revoke explicit consent
-//! - `GET /api/sovereignty/killzone` — Kill zone status
+
 //! - `GET /api/sovereignty/access/check` — Check data access status
 //! - `POST /api/llm/infer` — SOAP inference endpoint for Russell
 //! - `POST /api/episodic/store` — Store episodic triple

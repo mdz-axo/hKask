@@ -1,6 +1,7 @@
 use super::ReplState;
 use super::display::{print_command_help, print_help};
 use super::handlers::{handle_ensemble, handle_into, handle_model};
+use crate::cli::SovereigntyAction;
 use hkask_types::ports::ToolPort;
 use std::sync::Arc;
 
@@ -421,18 +422,7 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "sovereignty" | "sov" => {
-            // Read the process-local state, consistent with the `kask sovereignty`
-            // CLI commands. Previously this built a throwaway state and always
-            // reported `Consent: false, Compromised: false, Kill zone: false`.
-            let sov_state = crate::commands::sovereignty::process_local_state_snapshot();
-            println!("  Sovereignty Status:");
-            println!("    Consent:    {}", sov_state.explicit_consent);
-            println!("    Compromised: {}", sov_state.is_compromised());
-            println!(
-                "    Kill zone:  {}",
-                sov_state.kill_zone_state.kill_zone_active
-            );
-            println!();
+            crate::commands::sovereignty::run(SovereigntyAction::Status);
         }
         "pods" => {
             match rt.block_on(crate::commands::list_pods()) {

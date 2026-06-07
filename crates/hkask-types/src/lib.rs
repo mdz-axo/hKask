@@ -8,8 +8,8 @@
 //! - Capability types (OCAP tokens)
 //! - Template types (high-temperature templates, LLM parameters)
 //! - Curation types (Curator, OCAP boundaries, curation decisions)
-//! - CNS types (variety counters, algedonic alerts, kill zone detection)
-//! - Sovereignty types (user sovereignty, acquisition resistance, kill-zone detection)
+//! - CNS types (variety counters, algedonic alerts)
+//! - Sovereignty types (user sovereignty, acquisition resistance)
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
 
 pub mod agent_def;
