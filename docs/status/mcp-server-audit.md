@@ -11,7 +11,7 @@ ddmvss_categories: [capability, observability]
 # MCP Server Completeness Audit
 
 **Date:** 2026-05-29
-**Version:** hKask v0.23.00
+**Version:** hKask v0.23.0
 **Total servers:** 21
 **Total tools:** 123+
 
@@ -259,4 +259,4 @@ Registered in `table_gas_estimator.rs` with gas cost **5** (internal LLM-mediate
 
 ---
 
-*ℏKask MCP Arsenal — 21 servers, ~123 tools, 0 stubs — v0.23.00*
+*ℏKask MCP Arsenal — 21 servers, ~123 tools, 0 stubs — v0.23.0*

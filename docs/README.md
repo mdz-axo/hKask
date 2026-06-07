@@ -15,7 +15,7 @@ by [DDMVSS](architecture/DDMVSS.md) category. This portal is the navigation
 surface; canonical content lives in the linked documents, never duplicated here.
 
 ℏKask - "A Minimal Viable Container for Agents" - binary `kask`,
-crate prefix `hkask-`, workspace v0.23.00.
+crate prefix `hkask-`, workspace v0.23.0.
 
 > **Lifecycle note.** Retired documents are removed from the active tree via
 > `git rm` (git history is the archive of record) and the on-disk `docs/archive/`
@@ -144,4 +144,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers on every active doc
 ```
 
-*ℏKask - A Minimal Viable Container for Agents — v0.23.00*
+*ℏKask - A Minimal Viable Container for Agents — v0.23.0*

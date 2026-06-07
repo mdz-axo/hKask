@@ -164,4 +164,4 @@ pub struct Skill {
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-030 — v0.23.00*
+*ℏKask - A Minimal Viable Container for Agents — ADR-030 — v0.23.0*

@@ -109,4 +109,4 @@ The API endpoint enforces a coarse-grained rate limit (30-second minimum interva
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-031 — v0.23.00*
+*ℏKask - A Minimal Viable Container for Agents — ADR-031 — v0.23.0*

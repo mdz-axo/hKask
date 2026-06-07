@@ -186,10 +186,10 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 ### F6: Goal Capability — Revocation and Lineage Unification ✅ RESOLVED
 
 **DDMVSS Category:** Trust  
-**Status:** **Resolved** — `GoalCapabilityToken` entirely removed in v0.23.00  
+**Status:** **Resolved** — `GoalCapabilityToken` entirely removed in v0.23.0  
 **Raised:** 2026-05-29 · **Resolved:** 2026-06-04
 
-**Resolution:** In v0.23.00, `GoalCapabilityToken` was **entirely removed** — the
+**Resolution:** In v0.23.0, `GoalCapabilityToken` was **entirely removed** — the
 type, its HMAC signing, epoch-based revocation, and attenuation were all
 deleted. Goal operations now use `&WebID` for owner scoping instead of token
 verification. The entire token infrastructure (HMAC, revocation, attenuation,

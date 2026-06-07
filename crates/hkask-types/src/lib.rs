@@ -55,6 +55,7 @@ pub use capability::{
     TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome, capabilities_match,
     capability_from_server_id, require_read_access, require_write_access,
     token_err_insufficient_access, token_err_tool_access_denied, verify_delegation_token,
+    verify_delegation_token_now,
 };
 pub use cns::{CircuitState, CnsHealth};
 pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};

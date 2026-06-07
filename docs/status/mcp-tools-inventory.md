@@ -12,7 +12,7 @@ ddmvss_categories: [capability, interface]
 
 **Complete catalog of all MCP tools across all 21 hKask MCP servers.**
 
-**Version:** hKask v0.23.00
+**Version:** hKask v0.23.0
 **Total servers:** 21
 **Total tools:** 123
 
@@ -365,4 +365,4 @@ Servers without credential requirements: `ocap`, `cns`, `keystore`, `registry`, 
 
 ---
 
-*ℏKask MCP Tools Inventory — 21 servers, 123 tools — v0.23.00*
+*ℏKask MCP Tools Inventory — 21 servers, 123 tools — v0.23.0*

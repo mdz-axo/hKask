@@ -1,9 +1,9 @@
 # Template crate manifest for improve-codebase-architecture skill
-# ℏKask v0.23.00
+# ℏKask v0.23.0
 
 crate:
   name: improve-codebase-architecture
-  version: "0.23.00"
+  version: "0.23.0"
   description: >
     Find deepening opportunities in the codebase. Surfaces shallow modules,
     proposes deep modules with small interfaces and large implementations.

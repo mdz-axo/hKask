@@ -1140,7 +1140,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hkask-agents"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1165,7 +1165,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-api"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1194,7 +1194,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-cli"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-cns"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-ensemble"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1264,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-keystore"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1308,7 +1308,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-cns"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-cns",
@@ -1324,7 +1324,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-condenser"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1341,7 +1341,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-doc-knowledge"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1358,7 +1358,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-ensemble"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1375,7 +1375,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-episodic"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1391,7 +1391,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-fal"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1406,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-fmp"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-git"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1436,7 +1436,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-github"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-goal"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hex",
@@ -1468,7 +1468,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-inference"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1484,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-keystore"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1502,7 +1502,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-markitdown"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1521,7 +1521,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-ocap"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1536,7 +1536,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-registry"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-replicant"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-agents",
@@ -1573,7 +1573,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-rss-reader"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1596,7 +1596,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-semantic"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1612,10 +1612,9 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-spec"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
- "chrono",
  "hex",
  "hkask-mcp",
  "hkask-storage",
@@ -1631,7 +1630,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-telnyx"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
@@ -1646,7 +1645,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-web"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1669,7 +1668,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-memory"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1683,7 +1682,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-storage"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1707,7 +1706,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-templates"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1730,7 +1729,7 @@ dependencies = [
 
 [[package]]
 name = "hkask-types"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "async-trait",
  "base64 0.21.7",

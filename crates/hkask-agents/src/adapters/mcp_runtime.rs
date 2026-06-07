@@ -11,7 +11,7 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
     TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
-    token_err_tool_access_denied, verify_delegation_token,
+    token_err_tool_access_denied, verify_delegation_token_now,
 };
 use std::sync::Arc;
 
@@ -75,18 +75,13 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         }
 
         // P1.1: Use unified verification instead of inline HMAC check
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
-        match verify_delegation_token(
+        match verify_delegation_token_now(
             self.capability_checker.as_ref().map(|a| a.as_ref()),
             &token,
             &token.delegated_to,
             DelegationResource::Tool,
             &token.resource_id,
             DelegationAction::Execute,
-            current_time,
         ) {
             VerificationOutcome::Valid => Ok(()),
             VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
@@ -111,18 +106,13 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         token: &DelegationToken,
     ) -> Result<serde_json::Value, McpError> {
         // P1.1: Use unified verification instead of duplicated inline HMAC check
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
-        match verify_delegation_token(
+        match verify_delegation_token_now(
             self.capability_checker.as_ref().map(|a| a.as_ref()),
             token,
             &token.delegated_to,
             DelegationResource::Tool,
             tool_name,
             DelegationAction::Execute,
-            current_time,
         ) {
             VerificationOutcome::Valid => {}
             VerificationOutcome::InvalidSignature => {

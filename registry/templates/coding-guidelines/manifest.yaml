@@ -1,9 +1,9 @@
 # Template crate manifest for coding-guidelines skill
-# ℏKask v0.23.00
+# ℏKask v0.23.0
 
 crate:
   name: coding-guidelines
-  version: "0.23.00"
+  version: "0.23.0"
   description: >
     Behavioral guardrails for LLM coding based on Karpathy's four principles:
     Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.

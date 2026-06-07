@@ -1,5 +1,5 @@
 # Handoff Process Manifest
-# ℏKask v0.23.00 — Session context transfer for agent continuity
+# ℏKask v0.23.0 — Session context transfer for agent continuity
 # Template type: Process (FlowDef) — multi-step context compaction and handoff
 
 manifest:
@@ -12,7 +12,7 @@ manifest:
     pick up cleanly: session purpose, progress summary, key decisions,
     artifact references, suggested skills, and redacted sensitive data.
   functional_role: knowact
-  version: 0.23.00
+  version: 0.23.0
   editor: curator-or-human-admin
   visibility: Shared
 

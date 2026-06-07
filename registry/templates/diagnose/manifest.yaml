@@ -1,9 +1,9 @@
 # Template crate manifest for diagnose skill
-# ℏKask v0.23.00
+# ℏKask v0.23.0
 
 crate:
   name: diagnose
-  version: "0.23.00"
+  version: "0.23.0"
   description: >
     Disciplined diagnosis loop for hard bugs and performance regressions.
     Cybernetic debugging: build feedback loop → reproduce → hypothesise →

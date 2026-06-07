@@ -1,6 +1,6 @@
 ---
 title: Hexagonal Port Inventory
-version: v0.23.00
+version: v0.23.0
 status: accurate
 last_updated: 2026-06-05
 audience: [architects, developers]
@@ -8,7 +8,7 @@ domain: "Application"
 ddmvss_categories: [interface]
 ---
 
-# Hexagonal Port Inventory — hKask v0.23.00
+# Hexagonal Port Inventory — hKask v0.23.0
 
 ## Active Traits
 

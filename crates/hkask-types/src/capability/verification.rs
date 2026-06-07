@@ -203,6 +203,34 @@ impl CapabilityChecker {
 /// a specific error response.
 ///
 /// When `checker` is `None`, returns `VerificationOutcome::NoChecker`.
+/// Verify a delegation token using the current system time.
+///
+/// Equivalent to calling [`verify_delegation_token`] with `current_time` set to
+/// the current UNIX epoch timestamp (seconds). Uses `std::time::SystemTime` so
+/// no external time dependency is required.
+pub fn verify_delegation_token_now(
+    checker: Option<&CapabilityChecker>,
+    token: &DelegationToken,
+    holder: &WebID,
+    resource: DelegationResource,
+    resource_id: &str,
+    action: DelegationAction,
+) -> VerificationOutcome {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    verify_delegation_token(
+        checker,
+        token,
+        holder,
+        resource,
+        resource_id,
+        action,
+        current_time,
+    )
+}
+
 pub fn verify_delegation_token(
     checker: Option<&CapabilityChecker>,
     token: &DelegationToken,
@@ -461,6 +489,45 @@ mod tests {
     }
 
     // ── verify_delegation_token ───────────────────────────────────────────
+
+    #[test]
+    fn verify_delegation_token_now_produces_same_result_as_verify_delegation_token() {
+        let checker = CapabilityChecker::new(SECRET);
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "inference".to_string(),
+            DelegationAction::Execute,
+            alice(),
+            bob(),
+            SECRET,
+        );
+
+        // Compute current_time the same way the _now function does
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        let explicit = verify_delegation_token(
+            Some(&checker),
+            &token,
+            &bob(),
+            DelegationResource::Tool,
+            "inference",
+            DelegationAction::Execute,
+            current_time,
+        );
+        let convenience = verify_delegation_token_now(
+            Some(&checker),
+            &token,
+            &bob(),
+            DelegationResource::Tool,
+            "inference",
+            DelegationAction::Execute,
+        );
+
+        assert_eq!(explicit, convenience);
+    }
 
     #[test]
     fn verify_delegation_token_returns_valid_when_all_checks_pass() {

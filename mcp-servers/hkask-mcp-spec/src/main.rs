@@ -22,7 +22,7 @@ use hkask_types::{
     CapabilityChecker, CurationDecision, DelegationAction, DelegationResource, DelegationToken,
     McpErrorKind, OCAPBoundary, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE,
     TOKEN_ERR_NO_CHECKER, VerificationOutcome, WebID, token_err_insufficient_access,
-    verify_delegation_token,
+    verify_delegation_token_now,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -89,15 +89,13 @@ impl SpecServer {
         })?;
 
         // P1.1: Use unified verification instead of duplicated inline checks
-        let current_time = chrono::Utc::now().timestamp();
-        match verify_delegation_token(
+        match verify_delegation_token_now(
             Some(&self.capability_checker),
             &token,
             &self.webid,
             DelegationResource::Registry,
             resource_id,
             action,
-            current_time,
         ) {
             VerificationOutcome::Valid => Ok(()),
             VerificationOutcome::InvalidSignature => Err(McpToolError::permission_denied(
