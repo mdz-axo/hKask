@@ -178,7 +178,7 @@ erDiagram
         set sovereign_data
         set shared_data
         set public_data
-        AcquisitionResistance resistance
+        string requires_affirmative_consent
     }
 ```
 

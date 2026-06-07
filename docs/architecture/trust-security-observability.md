@@ -201,7 +201,7 @@ A concrete struct (not a trait) enforcing user data boundaries. Each `AgentPod` 
 - `check_operation(operation, data_category)` — verify access authorization (2 args)
 - `can_access(category, requester)` — boolean access check
 
-Kill-zone detection is handled by `KillZoneDetector` in `hkask-cns` (not SovereigntyChecker). Consent management is handled by `ConsentManager` (not SovereigntyChecker).
+Consent management is handled by `ConsentManager` (not SovereigntyChecker). Affirmative consent is handled by `DataSovereigntyBoundary::requires_affirmative_consent` (not SovereigntyChecker).
 
 ### 3.0.1 ConsentManager Authorization Flow
 
@@ -219,12 +219,11 @@ sequenceDiagram
     CM->>CS: query_consent(webid, category)
     CS-->>CM: consent_record or None
     CM->>SC: can_access(category, requester)
-    SC->>SC: check_kill_zone(webid)
     SC-->>CM: access_decision
-    alt consent granted and not in kill-zone
+    alt consent granted
         CM->>DM: authorize(operation, category)
         DM-->>AGT: data_result
-    else consent denied or kill-zone active
+    else consent denied
         CM-->>AGT: AccessDenied(category)
     end
 ```
@@ -286,7 +285,6 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-10
 | `cns.template.*` | `Template` | Template lifecycle |
 | `cns.curation.*` | `Curation` | Curation operations |
 | `cns.variety.*` | `Variety` | Variety counter tracking |
-| `cns.killzone.*` | `KillZone` | User sovereignty kill-zone events |
 | `cns.sovereignty.*` | `Sovereignty` | User sovereignty enforcement |
 | `cns.goal.*` | `Goal` | Goal lifecycle operations |
 | `cns.spec.*` | `Spec` | DDMVSS specification operations |

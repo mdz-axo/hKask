@@ -662,7 +662,6 @@ Response:
 | GET | `/api/sovereignty/status` | User sovereignty status |
 | POST | `/api/sovereignty/consent/grant` | Grant consent |
 | POST | `/api/sovereignty/consent/revoke` | Revoke consent |
-| GET | `/api/sovereignty/killzone` | Kill zone status |
 | GET | `/api/sovereignty/access/check` | Check data access |
 
 ### 12.6 Generate OpenAPI Spec

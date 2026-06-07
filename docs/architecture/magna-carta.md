@@ -48,8 +48,6 @@ hKask operates under a Magna Carta — a charter of liberties that honors user s
 3. **Generative Space** — Within boundaries, hKask is maximally generative. Inference and tooling expose all probabilistic/generative settings to users. No privileged engineer access. Open-source only.
 4. **Clear Boundaries (OCAP)** — Principles 1–3 are enforced through explicit OCAP boundaries. Every agent, pod, and template invocation operates within unforgeable capability tokens.[^miller-ocap]
 
-
-
 ---
 
 ## Principle 1: User Sovereignty
