@@ -2,7 +2,7 @@
 title: "Okapi Integration — API Contract"
 version: "0.23.0"
 status: "Active"
-last_updated: 2026-05-24
+last_updated: 2026-06-07
 audience: [architects, developers]
 domain: "Application"
 ddmvss_categories: [domain]
@@ -10,8 +10,10 @@ ddmvss_categories: [domain]
 
 # Okapi Integration — API Contract
 
+> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`interface-and-composition.md`](../interface-and-composition.md) §2.5.
+
 **Version:** 0.23.0
-**Last Updated:** 2026-05-24
+**Last Updated:** 2026-06-07
 **Status:** Active
 
 ---

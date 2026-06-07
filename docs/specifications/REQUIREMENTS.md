@@ -1,7 +1,7 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"

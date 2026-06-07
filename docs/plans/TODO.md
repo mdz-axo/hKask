@@ -139,6 +139,11 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-53** | Reconcile Curator hLexicon term lists (6→11) in domain-and-capability.md | 2026-06-07 | Canonical spec now matches persona doc |
 | **R-54** | Remove duplicate Verification section from architecture-master.md | 2026-06-07 | Points to DDMVSS_SCAFFOLD §6 instead |
 | **R-55** | Fix architecture-master version (2.2.2→2.2.3) | 2026-06-07 | Align with max spec version |
+| **R-56** | Semantic consistency review — consolidated 7 stale docs, fixed SCAFFOLD completeness (5/9→correct 5/9), reconciled Curator hLexicon (6→11 terms) | 2026-06-07 | Full corpus review |
+| **R-57** | Archive mcp-server-audit.md (merged into mcp-tools-inventory.md v1.1.0) and DDMVSS-AUDIT-2026-06-06.md (absorbed into SCAFFOLD §4) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/` |
+| **R-58** | Remove duplicate Verification section from architecture-master; add self-application precedent note to SCAFFOLD §6.1 | 2026-06-07 | Points to DDMVSS_SCAFFOLD §6 |
+| **R-59** | Fix OQ-3 to note 'arsenal' is not a hKask term | 2026-06-07 | OPEN_QUESTIONS.md OQ-3 rationale |
+| **R-60** | Add ddmvss_categories to ADR template body frontmatter | 2026-06-07 | ADR_TEMPLATE.md |
 
 ---
 

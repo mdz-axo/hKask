@@ -167,6 +167,10 @@ ddmvss_categories: [category1, category2, ...]
 | Links | `docs/ci/check-links.sh` | Zero broken (excluding intentional placeholders) |
 | Metadata | `docs/ci/check-metadata.sh` | All headers present |
 
+### 6.1 Self-Application Precedent
+
+The `hkask-mcp-spec` server provides 8 DDMVSS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/bind`, `spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`, `spec/graph/query`, `spec/graph/validate`) that can in principle be used to capture and curate the specification corpus itself. This self-application is documented as a future opportunity in [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) (OQ-8). For v0.23.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle when circularity concerns can be addressed.
+
 ---
 
 ## References

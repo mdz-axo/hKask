@@ -26,6 +26,7 @@ last_updated: YYYY-MM-DD
 version: "MAJOR.MINOR.PATCH"
 status: "Draft | Active | Deprecated | Superseded"
 domain: "Cross-cutting | Business | Data | Application | Technology"
+ddmvss_categories: [lifecycle]
 ---
 
 # ADR-NNN: Title
