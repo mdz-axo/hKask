@@ -89,23 +89,24 @@ against the working tree on 2026-06-06.
 
 | Category | Count |
 |----------|-------|
-| ✅ Done | **20** |
+| ✅ Done | **21** |
 | 🟡 Partial | **3** (P1.3, P3.1, P4.1) |
-| ⬜ Open | **7** (P3.2–P3.6, P4.4, P4.5, A2, A3, A5) |
+| ⬜ Open | **6** (P3.2, P3.4, P3.5, P3.6, P4.4, P4.5, A2, A3) |
 | **Total** | **30** items tracked |
 
 | Priority | Done | Partial | Open | Items |
 |----------|------|---------|------|-------|
 | P1 | 6 | 1 | 0 | 7 |
 | P2 | 8 | 0 | 0 | 8 |
-| P3 | 0 | 1 | 5 | 6 |
+| P3 | 1 | 1 | 4 | 6 |
 | P4 | 2 | 1 | 2 | 5 |
-| Aux | 2 | 0 | 3 | 5 |
+| Aux | 3 | 0 | 2 | 5 |
 
-**Net result:** of the 26 P1–P4 items, **16 are done**, **3 are partial**, and **7 remain
-open**. **P1 and P2 are now fully complete** (P1.3 is the only partial — waiting on
-P3.5 to finish structured storage errors). The bulk of remaining work is in P3
-(significant refactors).
+**Net result:** of the 26 P1–P4 items, **17 are done**, **3 are partial**, and **6 remain
+open**. **P1 and P2 are now fully complete; P3.3 closed** the process-manager
+extraction (along with A5). The remaining work is in P3 (4 significant refactors —
+structured errors, escalation extraction, visitor pattern, MCP adapter split) plus
+2 P4 polish items.
 
 ---
 
@@ -113,7 +114,7 @@ P3.5 to finish structured storage errors). The bulk of remaining work is in P3
 
 Ordered by **leverage ÷ effort**:
 
-1. **P3.5 — Structured storage errors** (small) — replace `String` payloads in
+1. **P3.5 — Structured storage errors** (small) — replace `String` payload in
    `MemoryError::CapabilityDenied` (others are already `Box<dyn Error>`).
    Pre-requisite for closing P1.3 fully.
 2. **P3.6 — Extract escalation logic from `metacognition::sense()`** (medium) —
@@ -123,13 +124,9 @@ Ordered by **leverage ÷ effort**:
    with a visitor trait; makes adding new message types less error-prone.
 4. **P3.2 — Split `McpRuntimeAdapter`** (medium) — make impossible states
    unrepresentable: `CapabilityOnlyAdapter` vs `FullMcpAdapter`.
-5. **P3.3 — `RussellProcessManager`** (medium) — the working tree has partial
-   work in `russell_acp.rs` that already defines `RussellProcessManager`; needs
-   one fix to `child.kill()` (`.take()` returns `Option` without `mut`) and
-   tests for the new boundary.
-6. **P3.1 (continuation) — finish unified error hierarchy** (large) — extend
+5. **P3.1 (continuation) — finish unified error hierarchy** (large) — extend
    `InfrastructureError` to cover the remaining crate-local enums.
-7. **P4.5 + A3 — `tokio::sync::watch` for `last_snapshot`** (small) — more
+6. **P4.5 + A3 — `tokio::sync::watch` for `last_snapshot`** (small) — more
    idiomatic for single-producer/single-consumer broadcast.
 
 ---
@@ -138,5 +135,6 @@ Ordered by **leverage ÷ effort**:
 
 `cargo check --workspace` is **green** (2026-06-06, HEAD `91f5b053`).
 `cargo test -p hkask-types -p hkask-cns -p hkask-cli -p hkask-agents -p hkask-api --lib`:
-`15 + 107 + 196 + 49 + 4 = 371` tests pass, **0 failures** (after the P2.2 refactor added
-2 new property tests for `init_git_cas` and `build_ensemble_session`).
+`196 + 107 + 15 + 63 + 4 = 385` tests pass, **0 failures** (after the P2.2 refactor
+added 2 property tests for `init_git_cas` / `build_ensemble_session`, and the P3.3
+work added 3 property tests for `RussellProcessManager`).

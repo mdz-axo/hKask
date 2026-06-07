@@ -299,7 +299,7 @@ impl MetacognitionLoop {
             .read()
             .await
             .clone()
-            .ok_or_else(|| MetacognitionError::NoSnapshot)
+            .ok_or(MetacognitionError::NoSnapshot)
     }
     /// Generate a system state summary for posting to standing session
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
