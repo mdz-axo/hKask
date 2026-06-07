@@ -256,6 +256,7 @@ mod tests {
         // SQLCipher passphrase path used in production.
         let db = Arc::new(Database::in_memory().expect("in-memory db"));
         let store = ConsentStore::new(db);
+        store.initialize_schema().expect("consent schema");
         ConsentManager::new(store)
     }
 

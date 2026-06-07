@@ -43,8 +43,8 @@ pub enum MemoryError {
     #[error(transparent)]
     Infra(#[from] hkask_types::InfrastructureError),
 
-    #[error("Capability denied: {0}")]
-    CapabilityDenied(String),
+    #[error("Capability denied: {action} on {resource}")]
+    CapabilityDenied { resource: String, action: String },
 }
 
 impl From<hkask_storage::DatabaseError> for MemoryError {
@@ -58,11 +58,17 @@ impl From<hkask_memory::EpisodicMemoryError> for MemoryError {
         match e {
             hkask_memory::EpisodicMemoryError::Triple(inner) => inner.into(),
             hkask_memory::EpisodicMemoryError::InvalidVisibility(msg) => {
-                MemoryError::CapabilityDenied(msg)
+                MemoryError::CapabilityDenied {
+                    resource: "episodic_memory".into(),
+                    action: msg,
+                }
             }
-            hkask_memory::EpisodicMemoryError::MissingPerspective => MemoryError::CapabilityDenied(
-                "Episodic memory requires a perspective (agent WebID)".into(),
-            ),
+            hkask_memory::EpisodicMemoryError::MissingPerspective => {
+                MemoryError::CapabilityDenied {
+                    resource: "episodic_memory".into(),
+                    action: "requires a perspective (agent WebID)".into(),
+                }
+            }
         }
     }
 }
@@ -73,14 +79,15 @@ impl From<hkask_memory::SemanticMemoryError> for MemoryError {
             hkask_memory::SemanticMemoryError::Triple(inner) => inner.into(),
             hkask_memory::SemanticMemoryError::Embedding(inner) => inner.into(),
             hkask_memory::SemanticMemoryError::InvalidVisibility(msg) => {
-                MemoryError::CapabilityDenied(msg)
+                MemoryError::CapabilityDenied { resource: "semantic_memory".into(), action: msg }
             }
             hkask_memory::SemanticMemoryError::NoEmbeddingsForCentroid(msg) => {
                 MemoryError::Infra(hkask_types::InfrastructureError::NotFound(msg))
             }
-            hkask_memory::SemanticMemoryError::HasPerspective => MemoryError::CapabilityDenied(
-                "Semantic memory requires no perspective (use consolidation bridge for episodic→semantic promotion)".into(),
-            ),
+            hkask_memory::SemanticMemoryError::HasPerspective => MemoryError::CapabilityDenied {
+                resource: "semantic_memory".into(),
+                action: "requires no perspective (use consolidation bridge for episodic→semantic promotion)".into(),
+            },
         }
     }
 }

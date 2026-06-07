@@ -183,10 +183,13 @@ ls review/handoff/HANDOFF.md                                       # this file
 # Synthesis integrity
 rg -o 'F-SYN-[0-9]+' review/findings/SYNTHESIS.md | sort -u | wc -l # 25
 rg -c '^### F-SYN' review/findings/SYNTHESIS.md                    # 25
-rg -c 'severity: \*\*blocker\*\*' review/findings/SYNTHESIS.md      # 1
+rg -c 'BLOCKER' review/findings/SYNTHESIS.md                         # 1 (F-SYN-001)
+rg -c 'severity: major' review/findings/SYNTHESIS.md                 # 7 (F-SYN-002..008)
+rg -c 'severity: minor' review/findings/SYNTHESIS.md                 # 8 (F-SYN-009..016)
+rg -c 'severity: nit' review/findings/SYNTHESIS.md                   # 9 (F-SYN-017..025)
 
 # Future integrity
-rg -c '^## FUT-' review/future/FUTURE.md                           # 10
+rg -c '^## FUT-' review/future/FUTURE.md                             # 10
 
 # No foreign code
 find review/ -name '*.py' -o -name '*.js' -o -name '*.sh' | wc -l  # 0

@@ -148,8 +148,8 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | [`hhh-alignment-research.md`](specifications/hhh-alignment-research.md) | domain, capability, observability, curation | HHH alignment mode for inference governance |
 
 > The `hhh-open-design-questions.md` companion document has been retired (HHH
-> mode implemented in v0.23.0; see [`crates/hkask-agents/src/hhh_gate.rs`](../../crates/hkask-agents/src/hhh_gate.rs)
-> and [`crates/hkask-cli/src/repl/commands.rs`](../../crates/hkask-cli/src/repl/commands.rs)
+> mode implemented in v0.23.0; see [`crates/hkask-agents/src/hhh_gate.rs`](../crates/hkask-agents/src/hhh_gate.rs)
+> and [`crates/hkask-cli/src/repl/commands.rs`](../crates/hkask-cli/src/repl/commands.rs)
 > `/hhh` command). Recoverable from git history via
 > `git log --diff-filter=D -- docs/research/hhh-open-design-questions.md`.
 

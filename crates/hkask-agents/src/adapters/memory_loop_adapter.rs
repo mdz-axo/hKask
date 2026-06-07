@@ -59,7 +59,10 @@ fn request_to_triple(req: &StorageRequest) -> Triple {
 /// Wraps `require_write_access` with `MemoryError::CapabilityDenied`
 /// mapping, eliminating the `.map_err()` repetition across store methods.
 fn check_write_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryError> {
-    require_write_access(token, store_type).map_err(MemoryError::CapabilityDenied)
+    require_write_access(token, store_type).map_err(|msg| MemoryError::CapabilityDenied {
+        resource: store_type.to_string(),
+        action: msg,
+    })
 }
 
 /// Verify read access to the given store type.
@@ -67,7 +70,10 @@ fn check_write_access(token: &DelegationToken, store_type: &str) -> Result<(), M
 /// Wraps `require_read_access` with `MemoryError::CapabilityDenied`
 /// mapping, eliminating the `.map_err()` repetition across recall methods.
 fn check_read_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryError> {
-    require_read_access(token, store_type).map_err(MemoryError::CapabilityDenied)
+    require_read_access(token, store_type).map_err(|msg| MemoryError::CapabilityDenied {
+        resource: store_type.to_string(),
+        action: msg,
+    })
 }
 
 /// Store a triple via a backend, with capability check and entity return.
@@ -162,11 +168,12 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         // P4.1: Replaced `.expect(...)` with a typed error. Episodic memory
         // is owner-scoped (OCAP), so a missing `perspective` is a capability
         // constraint violation, not a panic-worthy condition.
-        let owner = request.perspective.ok_or_else(|| {
-            MemoryError::CapabilityDenied(
-                "Episodic recall requires a perspective (owner WebID)".into(),
-            )
-        })?;
+        let owner = request
+            .perspective
+            .ok_or_else(|| MemoryError::CapabilityDenied {
+                resource: "episodic_memory".into(),
+                action: "recall requires a perspective (owner WebID)".into(),
+            })?;
 
         // Route through EpisodicMemory's deduped+decayed query
         let triples = self.episodic.query_for_deduped(&request.query, owner)?;

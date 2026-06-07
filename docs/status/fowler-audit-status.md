@@ -61,7 +61,7 @@ against the working tree on 2026-06-06.
 | **P3.2** | Split `McpRuntimeAdapter` into `CapabilityOnlyAdapter` + `FullMcpAdapter` | ✅ Done | `crates/hkask-agents/src/adapters/mcp_runtime.rs:34-256` defines both adapters. `CapabilityOnlyAdapter` carries a `CapabilityChecker` and rejects `invoke_tool` with `McpError::NoRuntime`; `FullMcpAdapter` carries checker + `McpRuntime` + tokio `Handle` and dispatches through `RawMcpToolPort`. `McpRuntimeAdapter` is preserved as a `#[deprecated]` type alias for `FullMcpAdapter`. |
 | **P3.3** | Extract `RussellProcessManager` from `RussellAcpAdapter` | ✅ Done | `RussellProcessManager` extracted into `crates/hkask-agents/src/adapters/russell_acp.rs` with `child`, `binary_path`, `ensure_started()`, `send_request()`, `shutdown()`. `RussellAcpAdapter` now holds `process: Mutex<RussellProcessManager>`. A5 also resolved. |
 | **P3.4** | A2AMessage visitor pattern | ✅ Done | `crates/hkask-agents/src/acp/mod.rs:128-203` defines `A2AMessageVisitor` with `on_template_dispatch`/`on_template_response`/`on_memory_artifact` methods, payload structs (`TemplateDispatch<'_>`, `TemplateResponse<'_>`, `MemoryArtifact<'_>`), and a single `A2AMessage::visit` dispatch. The internal `RouteFields` visitor in `send_message` (was 4 separate match-on-variant blocks at L347-357) now extracts `from`/`to`/`correlation_id`/`message_type` in one pass. The three trivial getters (`from_webid`, `correlation_id`, `message_type`) remain as inline `match` because they return `&'self`-bound references that the visitor cannot own. 4 new tests in `mod visitor_tests` pin the dispatch invariant and per-variant routing. |
-| **P3.5** | Structured storage errors (replace `String` payloads) | 🟡 Partial | `MemoryError::Infra(#[from] hkask_types::InfrastructureError)`, `From<DatabaseError>`, `From<EpisodicMemoryError>`, `From<SemanticMemoryError>`, `From<TripleError>`, `From<EmbeddingError>` all present in `crates/hkask-agents/src/error.rs`. The only `String` variant left in `MemoryError` is `CapabilityDenied(String)` (line 47). The P3.5 task in the original audit also named `Storage(String)` and `Query(String)` — neither exists in the current `MemoryError` (they were never on this enum). The remaining work is the one `CapabilityDenied(String)` variant plus the cluster of CLI error enums (see T7 future ledger). |
+| **P3.5** | Structured storage errors (replace `String` payloads) | ✅ Done | `MemoryError::CapabilityDenied` now uses structured fields `{ resource: String, action: String }` matching `McpError::CapabilityDenied` pattern. `MemoryError::Infra(#[from] InfrastructureError)` is the cross-crate foundation. The only Stringly-typed error variants remain in CLI error enums (see P4.4). |
 | **P3.6** | Extract escalation logic from `metacognition::sense()` | ✅ Done | `EscalationPolicy::check_conditions` extracted into `crates/hkask-agents/src/curator_agent/metacognition.rs:147-192`. The `sense()` body now delegates variety-deficit/critical-alerts/bot-failures threshold checks to the policy (L675-679). 11 unit tests in `mod tests` cover the dispatch table (warning at threshold/2, critical at threshold, multiple simultaneous conditions). The v6 audit text referring to "80-line sense()" is stale; the current `sense()` is shorter. |
 
 ## Priority 4 — Polish
@@ -90,24 +90,22 @@ against the working tree on 2026-06-06.
 
 | Category | Count |
 |----------|-------|
-| ✅ Done | **24** |
-| 🟡 Partial | **3** (P1.3, P3.1, P4.1) |
-| ⬜ Open | **2** (P3.5, P4.4) |
+| ✅ Done | **25** |
+| 🟡 Partial | **2** (P1.3, P4.1) |
+| ⬜ Open | **1** (P4.4) |
 | **Total** | **30** items tracked |
 
 | Priority | Done | Partial | Open | Items |
 |----------|------|---------|------|-------|
 | P1 | 6 | 1 | 0 | 7 |
 | P2 | 8 | 0 | 0 | 8 |
-| P3 | 4 | 1 | 1 | 6 |
+| P3 | 5 | 0 | 1 | 6 |
 | P4 | 3 | 1 | 1 | 5 |
 | Aux | 4 | 0 | 1 | 5 |
 
-**Net result:** of the 30 P1–P4 + Aux items, **24 are done**, **3 are partial**, and
-**2 remain open**. P3 has the only structurally significant remaining item (P3.5:
-`MemoryError::CapabilityDenied(String)` is the last stringly-typed variant; CLI
-error enums are a related but separate cluster — see the T7 future ledger in the
-Refactor Sweep report).
+**Net result:** of the 30 P1–P4 + Aux items, **25 are done**, **2 are partial**, and
+**1 remains open** (P4.4). P4.4 is the last structurally significant remaining
+item — the `.map_err(|e| e.to_string())` audit across CLI error enums.
 
 ---
 
@@ -115,17 +113,12 @@ Refactor Sweep report).
 
 Ordered by **leverage ÷ effort**:
 
-1. **P3.5 — `MemoryError::CapabilityDenied(String)`** (small) — the last
-   stringly-typed variant in `MemoryError`. Pairs with the CLI error-enum
-   cluster (12+ `String` payloads across `AgentError`, `EnsembleError`,
-   `CuratorError`, `UserError`, `RegistryError`); the CLI cluster is bigger
-   but follows the same `From<...>` pattern.
-2. **P4.4 — `.map_err(|e| e.to_string())` audit** (medium) — ~129 sites
-   remain across the workspace (down from the original count), concentrated
-   in `hkask-keystore` (28), `hkask-cli` (40+), and `hkask-storage` (8 each in
-   `user_store.rs`, `goals.rs`). The high-frequency call sites already route
-   through typed `From` impls; the remainder are mostly per-crate
-   conversions that a single `From<hkask_storage::X>` impl would clean up.
+1. **P4.4 — `.map_err(|e| e.to_string())` audit** (medium) — ~25 sites
+   remain in `hkask-agents/` (down from the original count). Each follows
+   the same pattern: replace `.map_err(|e| ...to_string())` with a typed
+   `From` impl. The `MemoryError::CapabilityDenied` restructuring (P3.5)
+   removed the last Stringly-typed variant from `MemoryError`, completing
+   that enum's migration.
 
 ---
 
