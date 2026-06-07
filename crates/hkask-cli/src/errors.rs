@@ -76,19 +76,34 @@ pub enum EnsembleError {
 }
 
 /// Errors that can occur during curator operations
+///
+/// P3.5: most variants are now `#[from]`-style wrappers around typed upstream
+/// errors (`EscalationError`, `MetacognitionError`, `RegistryError`). The
+/// remaining `String` variants are sentinels for *user-facing* input errors
+/// (e.g. unknown escalation id).
 #[derive(Debug, Error)]
 pub enum CuratorError {
     #[error("Escalation not found: {0}")]
     EscalationNotFound(String),
 
-    #[error("Escalation resolution failed: {0}")]
-    EscalationResolutionFailed(String),
+    /// Upstream registry / database failure (DB open, IO, schema).
+    /// P3.5: replaces the `.map_err(|e| DatabaseError(e.to_string()))` calls
+    /// in `commands/curator.rs` and `commands/config.rs::open_registry_db`.
+    #[error(transparent)]
+    Registry(#[from] RegistryError),
 
-    #[error("Metacognition failed: {0}")]
-    MetacognitionFailed(String),
+    /// Upstream escalation-queue failure (`EscalationQueue::new`,
+    /// `list_pending`, `resolve`, `dismiss`).
+    /// P3.5: replaces the `.map_err(|e| DatabaseError/EscalationNotFound/...
+    /// (e.to_string())` calls in `commands/curator.rs`.
+    #[error(transparent)]
+    Escalation(#[from] hkask_agents::escalation::EscalationError),
 
-    #[error("Database error: {0}")]
-    DatabaseError(String),
+    /// Upstream metacognition-loop failure.
+    /// P3.5: replaces the `.map_err(|e| MetacognitionFailed(e.to_string()))`
+    /// call in `commands/curator.rs::curator_metacognition`.
+    #[error(transparent)]
+    Metacognition(#[from] hkask_agents::curator_agent::metacognition::MetacognitionError),
 }
 
 /// Errors that can occur during registry operations

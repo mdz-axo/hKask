@@ -11,34 +11,24 @@ use crate::errors::CuratorError;
 /// List all pending escalations
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
     let conn = open_registry_db()?;
-    let queue = hkask_agents::EscalationQueue::new(conn)
-        .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
-
-    queue
-        .list_pending()
-        .map_err(|e| CuratorError::EscalationNotFound(e.to_string()))
+    let queue = hkask_agents::EscalationQueue::new(conn)?;
+    queue.list_pending()?
 }
 
 /// Resolve an escalation by ID
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
     let conn = open_registry_db()?;
-    let queue = hkask_agents::EscalationQueue::new(conn)
-        .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
-
-    queue
-        .resolve(id, "cli-administrator")
-        .map_err(|e| CuratorError::EscalationResolutionFailed(e.to_string()))
+    let queue = hkask_agents::EscalationQueue::new(conn)?;
+    queue.resolve(id, "cli-administrator")?;
+    Ok(())
 }
 
 /// Dismiss an escalation by ID
 pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
     let conn = open_registry_db()?;
-    let queue = hkask_agents::EscalationQueue::new(conn)
-        .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
-
-    queue
-        .dismiss(id, "cli-administrator")
-        .map_err(|e| CuratorError::EscalationResolutionFailed(e.to_string()))
+    let queue = hkask_agents::EscalationQueue::new(conn)?;
+    queue.dismiss(id, "cli-administrator")?;
+    Ok(())
 }
 
 /// Run a metacognition cycle and return a summary string
@@ -50,10 +40,7 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
     use hkask_types::loops::curation::CuratorHandle;
 
     let conn = open_registry_db()?;
-    let queue = Arc::new(
-        hkask_agents::EscalationQueue::new(conn)
-            .map_err(|e| CuratorError::DatabaseError(e.to_string()))?,
-    );
+    let queue = Arc::new(hkask_agents::EscalationQueue::new(conn)?);
 
     let cns = Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD));
     let dispatch = Arc::new(MessageDispatch::new());
@@ -62,11 +49,7 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
     let agent = CuratorAgent::new(context);
     let metacognition = agent.metacognition();
 
-    let snapshot = metacognition
-        .run_cycle()
-        .await
-        .map_err(|e| CuratorError::MetacognitionFailed(e.to_string()))?;
-
+    let snapshot = metacognition.run_cycle().await?;
     Ok(metacognition.generate_summary(&snapshot))
 }
 

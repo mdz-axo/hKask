@@ -1674,3 +1674,78 @@ mod delegation_token_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod attenuation_level_tests {
+    //! F-SYN-010: typed attenuation level (newtype).
+    //!
+    //! The `AttenuationLevel::new()` constructor enforces the system
+    //! cap (`SYSTEM_MAX_RECURSION = 7`). Pre-fix, attenuation levels
+    //! were raw `u8` and the cap was checked only at verify time
+    //! (after construction).
+
+    use super::{AttenuationError, AttenuationLevel, SYSTEM_MAX_RECURSION};
+
+    /// Every value in `[0, 7]` is constructible.
+    #[test]
+    fn new_accepts_values_at_or_below_cap() {
+        for level in 0..=SYSTEM_MAX_RECURSION {
+            let a = AttenuationLevel::new(level).expect("must accept value at/below cap");
+            assert_eq!(a.as_u8(), level);
+        }
+    }
+
+    /// `AttenuationLevel::max()` returns `SYSTEM_MAX_RECURSION` (7).
+    #[test]
+    fn max_returns_system_max_recursion() {
+        assert_eq!(AttenuationLevel::max(), SYSTEM_MAX_RECURSION);
+        assert_eq!(AttenuationLevel::max(), 7);
+    }
+
+    /// **F-SYN-010 red→green:** values above the system cap are
+    /// rejected at construction.
+    #[test]
+    fn new_rejects_values_above_system_cap() {
+        for level in (SYSTEM_MAX_RECURSION + 1)..=u8::MAX {
+            let result = AttenuationLevel::new(level);
+            assert_eq!(
+                result,
+                Err(AttenuationError::ExceedsSystemMax {
+                    level,
+                    max: SYSTEM_MAX_RECURSION
+                }),
+                "F-SYN-010: level {level} must be rejected"
+            );
+        }
+    }
+
+    /// `unchecked()` is the only path that bypasses the cap
+    /// (reserved for deserialisation).
+    #[test]
+    fn unchecked_bypasses_cap_for_deserialisation() {
+        let a = AttenuationLevel::unchecked(255);
+        assert_eq!(a.as_u8(), 255);
+    }
+
+    /// Display matches the inner value.
+    #[test]
+    fn display_matches_inner_value() {
+        for level in 0..=SYSTEM_MAX_RECURSION {
+            let a = AttenuationLevel::new(level).unwrap();
+            assert_eq!(a.to_string(), level.to_string());
+        }
+    }
+
+    /// Serde roundtrip: a `u8` deserialises back to the same
+    /// `AttenuationLevel` (transparent).
+    #[test]
+    fn serde_roundtrip() {
+        for level in 0..=SYSTEM_MAX_RECURSION {
+            let a = AttenuationLevel::new(level).unwrap();
+            let json = serde_json::to_string(&a).unwrap();
+            assert_eq!(json, level.to_string());
+            let back: AttenuationLevel = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, a);
+        }
+    }
+}

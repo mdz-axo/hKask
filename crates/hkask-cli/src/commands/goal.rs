@@ -25,8 +25,7 @@ use std::sync::Arc;
 ///
 /// Returns the repository plus the caller's `WebID`.
 fn open_repository() -> Result<(SqliteGoalRepository, WebID), RegistryError> {
-    let conn = crate::commands::config::open_registry_db()
-        .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
+    let conn = crate::commands::config::open_registry_db()?;
 
     // The denial sink shares the database connection so telemetry lands in the
     // same ν-event store as the rest of CNS observability.

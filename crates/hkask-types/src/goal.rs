@@ -502,4 +502,52 @@ mod tests {
         assert!(goal.is_terminal());
         assert!(!goal.can_have_subgoals());
     }
+
+    // F-SYN-011: depth-7 goals (the cap) cannot have subgoals.
+    #[test]
+    fn goal_at_depth_cap_cannot_have_subgoals() {
+        use crate::capability::SYSTEM_MAX_RECURSION;
+        // Build a goal whose depth equals the system cap by chaining
+        // `with_parent` (each call returns a new goal with depth+1).
+        let mut goal = make_goal();
+        goal.activate();
+        for _ in 0..SYSTEM_MAX_RECURSION {
+            let new_depth = goal.depth + 1;
+            let fresh_parent = crate::id::GoalID::new();
+            // Use `std::mem::replace` to swap the moved goal with a
+            // freshly-built one — we only care about the *depth*
+            // invariant, not the parent link.
+            goal =
+                std::mem::replace(&mut goal, make_goal()).with_parent(fresh_parent, new_depth - 1);
+        }
+        assert_eq!(goal.depth, SYSTEM_MAX_RECURSION);
+        // F-SYN-011: at the cap, can_have_subgoals is false.
+        assert!(
+            !goal.can_have_subgoals(),
+            "a goal at depth {} (system cap) must not be able to have subgoals",
+            goal.depth
+        );
+    }
+
+    // F-SYN-011: depth 6 (just below the cap) can still have subgoals.
+    #[test]
+    fn goal_just_below_depth_cap_can_have_subgoals() {
+        use crate::capability::SYSTEM_MAX_RECURSION;
+        let mut goal = make_goal();
+        goal.activate();
+        for _ in 0..(SYSTEM_MAX_RECURSION - 1) {
+            let new_depth = goal.depth + 1;
+            let fresh_parent = crate::id::GoalID::new();
+            goal =
+                std::mem::replace(&mut goal, make_goal()).with_parent(fresh_parent, new_depth - 1);
+        }
+        assert_eq!(goal.depth, SYSTEM_MAX_RECURSION - 1);
+        // F-SYN-011: at depth (cap - 1), can_have_subgoals is true.
+        assert!(
+            goal.can_have_subgoals(),
+            "a goal at depth {} (just below cap {}) must be able to have subgoals",
+            goal.depth,
+            SYSTEM_MAX_RECURSION
+        );
+    }
 }
