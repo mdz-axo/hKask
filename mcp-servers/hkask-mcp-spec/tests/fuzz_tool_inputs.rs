@@ -8,7 +8,7 @@
 //!
 //! Run with `cargo test -p hkask-mcp --test fuzz_tool_inputs`.
 
-use hkask_mcp_spec::types::RequireBindRequest;
+use crate::types::RequireBindRequest;
 use proptest::prelude::*;
 
 /// proptest strategy: any JSON string. Generates 1000 random

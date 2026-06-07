@@ -1,0 +1,416 @@
+# TDD Process Manifest
+# ℏKask v0.23.0 — Spec-anchored test-driven development with functional gap analysis
+# Template type: Process (FlowDef) — plan → trace → refactor → verify → gap-check
+# Related: .agents/skills/tdd/SKILL.md, docs/specifications/TESTING_STANDARDS.md
+
+manifest:
+  id: tdd
+  name: TDD (Spec-Anchored)
+  description: >
+    Test-driven development with red-green-refactor loop, spec-anchored functional
+    testing, and gap analysis. Pipeline:
+    (1) Spec-Anchored Planning — extract functional requirements from specifications,
+        map each REQ-ID to a testable behavior, prioritize by risk,
+    (2) Tracer Bullet — write one failing test for one behavior with // REQ: tag,
+        then minimal implementation to pass,
+    (3) Refactor — while GREEN, extract duplication, deepen modules, preserve // REQ: tags,
+    (4) Verify — all tests pass, clippy clean, spec traceability, functional coverage,
+    (5) Gap Check — compare spec requirements against tested behaviors, identify gaps,
+        produce deferral recommendations for OPEN_QUESTIONS.md.
+  functional_role: knowact
+  version: 0.23.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+gas:
+  cap: 28672
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: task_description
+    type: string
+    description: "The feature or bug to implement using TDD"
+    required: true
+  - name: crate_scope
+    type: string
+    description: "Target crate (e.g., hkask-storage, hkask-agents)"
+    required: true
+  - name: spec_source
+    type: string
+    description: >
+      Path or content of the relevant specification document(s). If empty,
+      the agent will create a minimal specification before planning.
+    required: false
+  - name: code_context
+    type: object
+    description: "Relevant code snippets, file paths, and existing implementation"
+    required: false
+  - name: diff_preview
+    type: string
+    description: "Proposed diff or implementation to verify"
+    required: false
+
+# The five TDD principles as enforceable checks
+principles:
+  - id: spec-anchored
+    name: "Spec-Anchored Testing"
+    description: >
+      Every tracer bullet starts from a specification requirement, not from intuition.
+      Each test carries a // REQ: tag referencing its source requirement. If no spec
+      exists, create a minimal one before planning.
+    cns_span: "cns.prompt.tdd.spec-anchored"
+    severity: critical
+
+  - id: vertical-slicing
+    name: "Vertical Slicing"
+    description: >
+      One test → one implementation → repeat. Never write all tests first, then all
+      code. This is horizontal slicing and produces bad tests.
+    cns_span: "cns.prompt.tdd.vertical-slicing"
+    severity: critical
+
+  - id: behavioral-testing
+    name: "Behavioral Testing"
+    description: >
+      Tests verify behavior through public interfaces, not implementation details.
+      A good test reads like a specification and survives refactors.
+    cns_span: "cns.prompt.tdd.behavioral-testing"
+    severity: critical
+
+  - id: minimal-implementation
+    name: "Minimal Implementation"
+    description: >
+      Write only enough code to pass the current test. No speculative features.
+      No todo!() or unimplemented!() stubs.
+    cns_span: "cns.prompt.tdd.minimal-implementation"
+    severity: high
+
+  - id: gap-closure
+    name: "Gap Closure"
+    description: >
+      After verification, compare spec requirements against tested behaviors.
+      Every P0 gap must have a tracer bullet. P2+ gaps may be deferred to
+      OPEN_QUESTIONS.md with documented rationale.
+    cns_span: "cns.prompt.tdd.gap-closure"
+    severity: high
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Spec-anchored planning: extract functional requirements from specifications,
+      map each to a testable behavior on a public seam, prioritize by risk
+      (P0 security → P1 correctness → P2+ ergonomics), and get user approval.
+    renderer: minijinja
+    template_ref: tdd/tdd-plan
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    gas_cap: 6144
+    timeout_seconds: 90
+    input_mapping:
+      task_description: "{{ task_description }}"
+      crate_scope: "{{ crate_scope }}"
+      code_context: "{{ code_context | default({}) }}"
+      spec_source: "{{ spec_source | default('') }}"
+    output_schema:
+      type: object
+      properties:
+        functional_requirements:
+          type: array
+          items:
+            type: object
+            properties:
+              req_id: { type: string }
+              category: { type: string }
+              requirement: { type: string }
+              seam: { type: string }
+              priority: { type: string }
+        behaviors_to_test:
+          type: array
+          items:
+            type: object
+            properties:
+              behavior: { type: string }
+              req_id: { type: string }
+              seam: { type: string }
+              priority: { type: string }
+        public_interface:
+          type: array
+          items:
+            type: object
+            properties:
+              item: { type: string }
+              change: { type: string }
+              description: { type: string }
+        priority_order:
+          type: array
+          items: { type: string }
+        assumptions:
+          type: array
+          items:
+            type: object
+            properties:
+              assumption: { type: string }
+              confidence: { type: string }
+              alternative: { type: string }
+        plan_approved: { type: boolean }
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Execute a tracer bullet: write ONE failing test for ONE behavior anchored
+      to a spec requirement (// REQ: tag), then write the minimal code to pass.
+    renderer: minijinja
+    template_ref: tdd/tdd-tracer
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    gas_cap: 8192
+    timeout_seconds: 120
+    input_mapping:
+      behavior_description: "{{ item.behavior }}"
+      req_id: "{{ item.req_id }}"
+      seam: "{{ item.seam }}"
+      crate_scope: "{{ crate_scope }}"
+      test_style: ""
+    output_schema:
+      type: object
+      properties:
+        test_code: { type: string }
+        test_file_path: { type: string }
+        implementation_code: { type: string }
+        implementation_file_path: { type: string }
+        req_id: { type: string }
+        test_passes: { type: boolean }
+        verification_command: { type: string }
+    # This step loops over behaviors_to_test from ordinal 1
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Refactor while GREEN: extract duplication, deepen modules, apply SOLID
+      principles. Preserve // REQ: tags during refactoring. One refactor step
+      at a time, verified by tests.
+    renderer: minijinja
+    template_ref: tdd/tdd-refactor
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    gas_cap: 6144
+    timeout_seconds: 90
+    input_mapping:
+      crate_scope: "{{ crate_scope }}"
+      passing_tests: "{{ ordinal_2_output }}"
+      refactor_candidates: []
+    output_schema:
+      type: object
+      properties:
+        refactor_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              step: { type: string }
+              files: { type: array }
+              lines_estimate: { type: integer }
+              verification: { type: string }
+              req_tags_preserved: { type: array }
+        each_step_passes: { type: boolean }
+        simplification_notes:
+          type: array
+          items: { type: string }
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Verify TDD cycle completion: all tests pass, clippy clean, no todo!/unimplemented!
+      stubs, spec traceability via // REQ: tags, functional coverage gaps identified.
+    renderer: minijinja
+    template_ref: tdd/tdd-verify
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    gas_cap: 4096
+    timeout_seconds: 60
+    input_mapping:
+      crate_scope: "{{ crate_scope }}"
+      behaviors_tested: "{{ ordinal_2_output }}"
+      test_commands: ["cargo test -p {{ crate_scope }}"]
+      clippy_commands: ["cargo clippy -p {{ crate_scope }} -- -D warnings"]
+    output_schema:
+      type: object
+      properties:
+        all_tests_pass: { type: boolean }
+        clippy_clean: { type: boolean }
+        no_todo_stubs: { type: boolean }
+        behavior_coverage:
+          type: array
+          items:
+            type: object
+            properties:
+              behavior: { type: string }
+              covered: { type: boolean }
+              seam: { type: string }
+              req_id: { type: string }
+        functional_gaps:
+          type: array
+          items:
+            type: object
+            properties:
+              req_id: { type: string }
+              requirement: { type: string }
+              priority: { type: string }
+              recommendation: { type: string }
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              severity: { type: string }
+              description: { type: string }
+              location: { type: string }
+              correction: { type: string }
+        passed: { type: boolean }
+
+  - ordinal: 5
+    action: populate
+    description: >
+      Functional gap analysis: compare specification requirements against tested
+      behaviors. Identify uncovered requirements (gaps) and produce deferral
+      recommendations for OPEN_QUESTIONS.md. P0 gaps MUST have tracer bullets.
+    renderer: minijinja
+    template_ref: tdd/tdd-gap-check
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    gas_cap: 4096
+    timeout_seconds: 60
+    input_mapping:
+      spec_requirements: "{{ ordinal_1.functional_requirements }}"
+      tested_behaviors: "{{ ordinal_4.behavior_coverage }}"
+      crate_scope: "{{ crate_scope }}"
+    output_schema:
+      type: object
+      properties:
+        covered_requirements:
+          type: array
+          items:
+            type: object
+            properties:
+              req_id: { type: string }
+              requirement: { type: string }
+              test_name: { type: string }
+              seam: { type: string }
+              priority: { type: string }
+        gaps:
+          type: array
+          items:
+            type: object
+            properties:
+              req_id: { type: string }
+              requirement: { type: string }
+              priority: { type: string }
+              recommendation: { type: string }
+              rationale: { type: string }
+        deferrals:
+          type: array
+          items:
+            type: object
+            properties:
+              req_id: { type: string }
+              requirement: { type: string }
+              priority: { type: string }
+              rationale: { type: string }
+              open_questions_entry: { type: string }
+        coverage_percentage: { type: number }
+
+  - ordinal: 6
+    action: feedback
+    description: >
+      Emit CNS feedback for TDD cycle monitoring. Track spec-anchored coverage
+      rates, gap closure rates, and tracer-bullet discipline.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    gas_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      spec_coverage_percentage: float
+      gaps_count: integer
+      deferrals_count: integer
+      violations_count: integer
+    output_schema:
+      type: object
+      properties:
+        variety_counter: { type: integer }
+        cns_event_id: { type: string }
+
+# Violation severity classification
+violation_severity:
+  critical: "Must fix before proceeding — spec requirement has no tracer bullet, or test probes private methods"
+  high: "Should fix — missing // REQ: tag, missing test coverage for declared behavior, or P0 gap without tracer bullet"
+  medium: "Worth fixing — P2 gap deferred without rationale, or test coupled to implementation"
+  low: "Nit — style preference, not a principle violation"
+
+# Error Handling
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: tdd/tdd-plan
+      gas_budget: 6144
+    - resource: template
+      action: render
+      template_id: tdd/tdd-tracer
+      gas_budget: 8192
+    - resource: template
+      action: render
+      template_id: tdd/tdd-refactor
+      gas_budget: 6144
+    - resource: template
+      action: render
+      template_id: tdd/tdd-verify
+      gas_budget: 4096
+    - resource: template
+      action: render
+      template_id: tdd/tdd-gap-check
+      gas_budget: 4096
+    - resource: manifest
+      action: execute
+      template_id: tdd
+      gas_budget: 500
+    - resource: cns
+      action: emit
+      template_id: tdd
+      gas_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.tdd
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true

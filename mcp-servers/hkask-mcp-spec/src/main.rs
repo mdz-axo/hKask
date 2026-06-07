@@ -10,7 +10,9 @@
 //! - spec/graph/query — Query specification graph
 //! - spec/graph/validate — Validate collection coherence
 
-mod types;
+// F-SYN-020: `types` must be `pub` so that integration tests in
+// `tests/` can reference request types for fuzz testing.
+pub mod types;
 
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;

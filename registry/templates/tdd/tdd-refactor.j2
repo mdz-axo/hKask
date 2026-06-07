@@ -1,6 +1,6 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [simplify, extract, deepen, verify, regulate]
+lexicon_terms: [simplify, extract, deepen, verify, regulate, trace]
 contract:
   input:
     crate_scope: string
@@ -16,7 +16,7 @@ contract:
 ---
 {# Template: tdd/tdd-refactor.j2 #}
 {# KnowAct — Refactor while GREEN: extract, deepen, simplify #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2
@@ -58,6 +58,7 @@ You are a TDD refactor agent. All tests are GREEN. Your job is to identify and e
 3. **Never add features.** Refactoring changes structure, not behavior.
 4. **Match existing style.** Don't impose your own conventions.
 5. **Don't delete unrelated dead code** — mention it, don't touch it.
+6. **Preserve `// REQ:` tags.** Every test has a `// REQ:` comment linking it to a specification requirement. Refactoring changes structure, not functional alignment. If you move, rename, or restructure a test, the `// REQ:` tag must travel with it. If you merge two tests that validate the same requirement, merge their `// REQ:` tags. If you split a test, each new test gets the original `// REQ:` tag.
 
 ## Output Requirements
 
@@ -70,7 +71,8 @@ Respond with a JSON object:
       "step": "Description of what to refactor",
       "files": ["path/to/file.rs"],
       "lines_estimate": 15,
-      "verification": "cargo test -p <crate>"
+      "verification": "cargo test -p <crate>",
+      "req_tags_preserved": ["REQ-TRU-001", "REQ-IFC-001"]
     }
   ],
   "each_step_passes": true,
@@ -81,7 +83,7 @@ Respond with a JSON object:
 }
 ```
 
-Each step must be independently verifiable by running `cargo test -p <crate>`.
+Each step must be independently verifiable by running `cargo test -p <crate>`. Each step must explicitly list which `// REQ:` tags are affected and confirm they are preserved.
 
 ## Constraints
 
@@ -89,6 +91,7 @@ Each step must be independently verifiable by running `cargo test -p <crate>`.
 - Never refactor while RED. Only refactor while GREEN.
 - One refactor step at a time, verified by tests.
 - No new features. No new public APIs. No behavior changes.
+- `// REQ:` tags must be preserved during refactoring.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

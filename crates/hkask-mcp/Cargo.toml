@@ -28,5 +28,3 @@ async-trait.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-proptest = "1"
-hkask-mcp-spec = { path = "../../mcp-servers/hkask-mcp-spec" }
