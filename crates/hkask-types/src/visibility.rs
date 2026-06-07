@@ -318,7 +318,7 @@ mod access_control_flip_tests {
     #[test]
     #[should_panic(expected = "refusing perspective-locked flip")]
     fn episodic_ac_refuses_flip_to_shared() {
-        let ac = episodic_ac().with_visibility(Visibility::Shared);
+        let _ac = episodic_ac().with_visibility(Visibility::Shared);
         // Should not reach here.
     }
 
@@ -326,7 +326,7 @@ mod access_control_flip_tests {
     #[test]
     #[should_panic(expected = "refusing perspective-locked flip")]
     fn episodic_ac_refuses_flip_to_public() {
-        let ac = episodic_ac().with_visibility(Visibility::Public);
+        let _ac = episodic_ac().with_visibility(Visibility::Public);
         // Should not reach here.
     }
 

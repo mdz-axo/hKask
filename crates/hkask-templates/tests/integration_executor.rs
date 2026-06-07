@@ -1,13 +1,16 @@
 //! Integration test for the ManifestExecutor — runs a real manifest through the executor
 //! with mock ports, verifying end-to-end cascade behavior.
 
-use hkask_templates::{ManifestExecutor, ports::McpPort};
+use hkask_templates::ManifestExecutor;
+use hkask_templates::ports::McpPort;
 use hkask_types::{
     BundleManifest, BundleManifestStep, DelegationToken, InferenceError, InferenceResult,
     LLMParameters, ports::InferencePort, ports::InferenceUsage, ports::ToolInfo,
 };
 use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 // --- Mock inference port ---
@@ -64,8 +67,8 @@ impl MockMcp {
 }
 
 impl McpPort for MockMcp {
-    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send {
-        std::future::ready(vec!["test-tool".to_string()])
+    fn discover_tools(&self) -> Pin<Box<dyn Future<Output = Vec<String>> + Send>> {
+        Box::pin(std::future::ready(vec!["test-tool".to_string()]))
     }
 
     fn invoke(
@@ -73,17 +76,17 @@ impl McpPort for MockMcp {
         _tool_name: &str,
         _input: Value,
         _token: &DelegationToken,
-    ) -> impl std::future::Future<Output = Result<Value, hkask_templates::ports::TemplateError>> + Send
+    ) -> Pin<Box<dyn Future<Output = Result<Value, hkask_templates::ports::TemplateError>> + Send>>
     {
         let response = self.tool_response.clone();
-        std::future::ready(Ok(response))
+        Box::pin(std::future::ready(Ok(response)))
     }
 
     fn get_tool_info(
         &self,
         _tool_name: &str,
-    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send {
-        std::future::ready(None)
+    ) -> Pin<Box<dyn Future<Output = Option<ToolInfo>> + Send>> {
+        Box::pin(std::future::ready(None))
     }
 }
 

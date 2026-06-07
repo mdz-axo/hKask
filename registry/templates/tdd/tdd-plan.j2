@@ -58,15 +58,19 @@ Target: **{{ crate_scope }}**
 {% endif %}
 
 {% if spec_source %}
-## Specification Source
+## Specification Requirements (from spec/graph/query)
 
-{{ spec_source }}
+The following specification requirements were retrieved from the specification graph. Each spec has a `spec_id`, category, goals with criteria, and a completeness status. Use these as the source of truth for functional requirements.
 
-Extract functional requirements from the specification above. Each requirement must have a REQ-ID (e.g., REQ-TRU-001, REQ-IFC-001) from the DDMVSS categories: Domain, Capability, Interface, Composition, Trust & Security, Observability, Persistence, Lifecycle, Curation.
+```json
+{{ spec_source | tojson }}
+```
+
+For each spec, extract functional requirements from its `goals` and `criteria`. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet. The `spec_id` field is the stable identifier for the `// REQ:` tag in tests.
 {% else %}
 ## Specification Source
 
-No specification source was provided. You MUST create a minimal specification for this feature before planning tests. List the functional requirements with REQ-IDs following the DDMVSS category pattern (REQ-DOM-*, REQ-CAP-*, REQ-IFC-*, REQ-COM-*, REQ-TRU-*, REQ-OBS-*, REQ-PER-*, REQ-LIF-*, REQ-CUR-*).
+No specification data was provided and no specs were found in the graph for the given categories. You MUST use `spec/goal/capture` to create a specification before planning tests. A feature without a spec cannot be spec-anchored.
 {% endif %}
 
 ## Rust Conventions
@@ -82,10 +86,10 @@ No specification source was provided. You MUST create a minimal specification fo
 
 ## Planning Requirements
 
-1. **Functional requirements**: Extract every requirement from the specification that is in scope for this task. Each must have a REQ-ID and map to a testable behavior.
-2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference a REQ-ID from the specification.
+1. **Functional requirements**: Extract every requirement from the specification graph that is in scope for this task. Use the `spec_id` as the stable reference. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet.
+2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph.
 3. **Public interface**: Describe the interface changes needed.
-4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical. P1 = correctness. P2+ = ergonomics.
+4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust & Security). P1 = correctness (Capability, Interface, Domain, Composition). P2+ = ergonomics (Observability, Persistence, Lifecycle, Curation). Use `spec/curate/evaluate` results to inform priority — specs with `Merge` decisions are ready for testing; specs with `Revise` need more work first.
 5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation.
 
 ## Output Requirements
@@ -96,17 +100,18 @@ Respond with a JSON object:
 {
   "functional_requirements": [
     {
-      "req_id": "REQ-TRU-001",
-      "category": "Trust & Security",
+      "spec_id": "UUID from spec/graph/query",
+      "category": "trust",
       "requirement": "Fail-closed capability checker",
       "seam": "CapabilityChecker trait",
-      "priority": "P0"
+      "priority": "P0",
+      "curation_decision": "Merge|Revise|Discard"
     }
   ],
   "behaviors_to_test": [
     {
       "behavior": "What the system should do (observable, through public interface)",
-      "req_id": "REQ-TRU-001",
+      "spec_id": "UUID from spec/graph/query",
       "seam": "Which public interface exercises this behavior",
       "priority": "P0|P1|P2"
     }
@@ -119,8 +124,8 @@ Respond with a JSON object:
     }
   ],
   "priority_order": [
-    "REQ-TRU-001: capability_check_denies_when_no_checker",
-    "REQ-TRU-001: capability_check_attenuation_depth_limit"
+    "REQ-<spec_id>: capability_check_denies_when_no_checker",
+    "REQ-<spec_id>: capability_check_attenuation_depth_limit"
   ],
   "assumptions": [
     {
@@ -137,8 +142,8 @@ Respond with a JSON object:
 
 - Do NOT write any code. This is planning only.
 - Every behavior must be testable through a public interface (seam).
-- Every behavior must reference a REQ-ID from the specification.
-- If no spec source was provided, you must create functional requirements with REQ-IDs before listing behaviors.
+- Every behavior must reference a `spec_id` from the specification graph.
+- If no spec data was provided, you must use `spec/goal/capture` to create a specification before listing behaviors.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

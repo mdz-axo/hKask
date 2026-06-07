@@ -20,6 +20,8 @@ use hkask_templates::{McpPort, Result, TemplateError};
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_types::{CapabilityChecker, DelegationToken, WebID};
 use serde_json::Value;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 /// MCP dispatcher — Communication-layer tool routing.
@@ -72,50 +74,62 @@ impl McpDispatcher {
 }
 
 impl McpPort for McpDispatcher {
-    async fn discover_tools(&self) -> Vec<String> {
-        self.runtime.discover_tools().await
+    fn discover_tools(&self) -> Pin<Box<dyn Future<Output = Vec<String>> + Send>> {
+        let runtime = self.runtime.clone();
+        Box::pin(async move { runtime.discover_tools().await })
     }
 
-    async fn invoke(
+    fn invoke(
         &self,
         tool_name: &str,
         input: Value,
         token: &DelegationToken,
-    ) -> Result<Value> {
+    ) -> Pin<Box<dyn Future<Output = Result<Value>> + Send>> {
         let governed = self.governed_tool.clone();
         let runtime = self.runtime.clone();
-        if let Some(governed) = governed {
-            // Route through GovernedTool membrane
-            let server_id = runtime
-                .get_tool_info(tool_name)
-                .await
-                .map(|t| t.server_id)
-                .unwrap_or_else(|| "unknown".to_string());
+        let tool_name = tool_name.to_string();
+        let token = token.clone();
+        Box::pin(async move {
+            if let Some(governed) = governed {
+                // Route through GovernedTool membrane
+                let server_id = runtime
+                    .get_tool_info(&tool_name)
+                    .await
+                    .map(|t| t.server_id)
+                    .unwrap_or_else(|| "unknown".to_string());
 
-            governed
-                .invoke(&server_id, tool_name, input, token)
-                .await
-                .map_err(|e| match e {
-                    ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),
-                    ToolPortError::GasBudgetExceeded(msg) => {
-                        TemplateError::Mcp(Box::new(ToolPortError::GasBudgetExceeded(msg)))
-                    }
-                    ToolPortError::NotFound(msg) => {
-                        TemplateError::Mcp(Box::new(ToolPortError::NotFound(msg)))
-                    }
-                    ToolPortError::InvocationFailed(msg) => {
-                        TemplateError::Mcp(Box::new(ToolPortError::InvocationFailed(msg)))
-                    }
-                })
-        } else {
-            Err(TemplateError::Mcp(Box::new(std::io::Error::new(
-                std::io::ErrorKind::NotConnected,
-                "GovernedTool membrane not configured — all tool invocations require governance",
-            ))))
-        }
+                governed
+                    .invoke(&server_id, &tool_name, input, &token)
+                    .await
+                    .map_err(|e| match e {
+                        ToolPortError::CapabilityDenied(msg) => {
+                            TemplateError::CapabilityDenied(msg)
+                        }
+                        ToolPortError::GasBudgetExceeded(msg) => {
+                            TemplateError::Mcp(Box::new(ToolPortError::GasBudgetExceeded(msg)))
+                        }
+                        ToolPortError::NotFound(msg) => {
+                            TemplateError::Mcp(Box::new(ToolPortError::NotFound(msg)))
+                        }
+                        ToolPortError::InvocationFailed(msg) => {
+                            TemplateError::Mcp(Box::new(ToolPortError::InvocationFailed(msg)))
+                        }
+                    })
+            } else {
+                Err(TemplateError::Mcp(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::NotConnected,
+                    "GovernedTool membrane not configured — all tool invocations require governance",
+                ))))
+            }
+        })
     }
 
-    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
-        self.runtime.get_tool_info(tool_name).await
+    fn get_tool_info(
+        &self,
+        tool_name: &str,
+    ) -> Pin<Box<dyn Future<Output = Option<ToolInfo>> + Send>> {
+        let runtime = self.runtime.clone();
+        let tool_name = tool_name.to_string();
+        Box::pin(async move { runtime.get_tool_info(&tool_name).await })
     }
 }

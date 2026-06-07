@@ -35,6 +35,10 @@ pub fn register_replicant_with_passphrase(
     phone: Option<&str>,
     passphrase: Zeroizing<String>,
 ) -> Result<hkask_types::ReplicantIdentity, UserError> {
+    // Sentinels: context-dependent mapping from RegistrationError.
+    // validate_passphrase errors → InvalidPassphrase (user input error).
+    // validate_registration errors → ValidationError (field validation error).
+    // Same upstream type, different CLI-facing variants — can't use #[from].
     validate_passphrase(&passphrase).map_err(|e| UserError::InvalidPassphrase(e.to_string()))?;
 
     let request = RegistrationRequest {
@@ -48,9 +52,10 @@ pub fn register_replicant_with_passphrase(
 
     validate_registration(&request).map_err(|e| UserError::ValidationError(e.to_string()))?;
 
-    let store = store
-        .lock()
-        .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
+    // P3.5: lock acquisition uses From<PoisonError<T>> for UserError →
+    // Infra(LockPoisoned). Store operations use From<UserStoreError> →
+    // Store(UserStoreError) — transparent rendering, no double-wrapping.
+    let store = store.lock()?;
     store
         .register_replicant(
             request.replicant_name,
@@ -60,7 +65,7 @@ pub fn register_replicant_with_passphrase(
             request.last_name,
             request.passphrase,
         )
-        .map_err(|e| UserError::RegistrationFailed(e.to_string()))
+        .map_err(Into::into)
 }
 
 /// Login as a replicant identity (non-interactive)
@@ -71,9 +76,9 @@ pub fn login_with_passphrase(
     replicant_name: &str,
     passphrase: Zeroizing<String>,
 ) -> Result<hkask_types::UserSession, UserError> {
-    let store = store
-        .lock()
-        .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
+    let store = store.lock()?;
+    // Deliberately opaque: drops the UserStoreError source to prevent
+    // information leakage (whether user exists, passphrase hash format, etc.)
     store
         .login(replicant_name, &passphrase)
         .map_err(|_| UserError::LoginFailed("Invalid credentials".to_string()))
@@ -84,12 +89,9 @@ pub fn get_replicant(
     store: &Arc<Mutex<UserStore>>,
     replicant_name: &str,
 ) -> Result<hkask_types::ReplicantIdentity, UserError> {
-    let store = store
-        .lock()
-        .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
+    let store = store.lock()?;
     store
-        .get_replicant(replicant_name)
-        .map_err(|e| UserError::DatabaseError(e.to_string()))?
+        .get_replicant(replicant_name)?
         .ok_or_else(|| UserError::NotFound(format!("Replicant '{}'", replicant_name)))
 }
 
@@ -98,12 +100,8 @@ pub fn get_replicants(
     store: &Arc<Mutex<UserStore>>,
     user_id: &hkask_types::UserID,
 ) -> Result<Vec<hkask_types::ReplicantIdentity>, UserError> {
-    let store = store
-        .lock()
-        .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
-    store
-        .list_replicants(user_id)
-        .map_err(|e| UserError::DatabaseError(e.to_string()))
+    let store = store.lock()?;
+    store.list_replicants(user_id).map_err(Into::into)
 }
 
 /// List active sessions for a replicant
@@ -111,12 +109,8 @@ pub fn get_sessions(
     store: &Arc<Mutex<UserStore>>,
     replicant_name: &str,
 ) -> Result<Vec<hkask_types::UserSession>, UserError> {
-    let store = store
-        .lock()
-        .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
-    store
-        .list_sessions(replicant_name)
-        .map_err(|e| UserError::DatabaseError(e.to_string()))
+    let store = store.lock()?;
+    store.list_sessions(replicant_name).map_err(Into::into)
 }
 
 /// Revoke a session by ID
@@ -124,16 +118,11 @@ pub fn revoke_session(
     store: &Arc<Mutex<UserStore>>,
     session_id: &str,
 ) -> Result<hkask_types::UserSession, UserError> {
-    let store = store
-        .lock()
-        .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
+    let store = store.lock()?;
     let session = store
-        .get_session(session_id)
-        .map_err(|e| UserError::DatabaseError(e.to_string()))?
+        .get_session(session_id)?
         .ok_or_else(|| UserError::SessionNotFound(session_id.to_string()))?;
-    store
-        .logout(session_id)
-        .map_err(|e| UserError::DatabaseError(e.to_string()))?;
+    store.logout(session_id)?;
     Ok(session)
 }
 

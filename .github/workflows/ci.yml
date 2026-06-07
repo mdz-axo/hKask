@@ -158,6 +158,9 @@ jobs:
       - name: Run integration tests
         run: cargo test --workspace --tests
 
+      - name: Run doctests
+        run: cargo test --workspace --doc
+
       - name: Upload test binary metadata
         uses: actions/upload-artifact@v4
         if: failure()

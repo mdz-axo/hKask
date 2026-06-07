@@ -8,7 +8,10 @@
 //!
 //! Run with `cargo test -p hkask-mcp --test fuzz_tool_inputs`.
 
-use crate::types::RequireBindRequest;
+// F-SYN-020: integration test for the `hkask-mcp-spec` binary.
+// The `types` module is `pub` in `main.rs`; integration tests
+// reference it via the binary's name (`hkask_mcp_spec`).
+use hkask_mcp_spec::types::RequireBindRequest;
 use proptest::prelude::*;
 
 /// proptest strategy: any JSON string. Generates 1000 random

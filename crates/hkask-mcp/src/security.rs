@@ -291,13 +291,9 @@ mod tests {
                 // Skip past this attribute and any other attributes
                 // (e.g. `#[tool_router(...)]` or `#[allow(...)]`).
                 let mut scan = abs;
-                loop {
+                'skip_attrs: while let Some(end) = source[scan..].find(']') {
                     // Advance past the current `#[...]` block.
-                    if let Some(end) = source[scan..].find(']') {
-                        scan = scan + end + 1;
-                    } else {
-                        break;
-                    }
+                    scan = scan + end + 1;
                     // Consume any whitespace.
                     let trimmed = source[scan..].trim_start();
                     let ws = source[scan..].len() - trimmed.len();
@@ -305,10 +301,8 @@ mod tests {
                     // If the next non-whitespace starts a *new*
                     // attribute (`#[`), continue scanning; otherwise
                     // we are at the function declaration.
-                    if source[scan..].starts_with("#[") {
-                        continue;
-                    } else {
-                        break;
+                    if !source[scan..].starts_with("#[") {
+                        break 'skip_attrs;
                     }
                 }
                 // Now `scan` points to the start of the function
@@ -397,45 +391,37 @@ mod tests {
         while let Some(attr_pos) = synthetic[scan..].find("#[tool") {
             let abs = scan + attr_pos;
             let mut s = abs;
-            loop {
-                if let Some(end) = synthetic[s..].find(']') {
-                    s = s + end + 1;
-                } else {
-                    break;
-                }
+            'skip_attrs: while let Some(end) = synthetic[s..].find(']') {
+                s = s + end + 1;
                 let trimmed = synthetic[s..].trim_start();
                 let ws = synthetic[s..].len() - trimmed.len();
                 s += ws;
-                if synthetic[s..].starts_with("#[") {
-                    continue;
-                } else {
-                    break;
+                if !synthetic[s..].starts_with("#[") {
+                    break 'skip_attrs;
                 }
             }
             if let Some(fn_p) = synthetic[s..].find("fn ") {
                 let abs_fn = s + fn_p;
-                if let Some(close) = synthetic[abs_fn..].find(')') {
-                    if let Some(open) = synthetic[abs_fn + close..].find('{') {
-                        let bp = abs_fn + close + open;
-                        let mut depth = 0;
-                        let mut end = bp;
-                        for (i, ch) in synthetic[bp..].char_indices() {
-                            if ch == '{' {
-                                depth += 1;
-                            } else if ch == '}' {
-                                depth -= 1;
-                                if depth == 0 {
-                                    end = bp + i;
-                                    break;
-                                }
+                if let Some(close) = synthetic[abs_fn..].find(')')
+                    && let Some(open) = synthetic[abs_fn + close..].find('{')
+                {
+                    let bp = abs_fn + close + open;
+                    let mut depth = 0;
+                    let mut end = bp;
+                    for (i, ch) in synthetic[bp..].char_indices() {
+                        if ch == '{' {
+                            depth += 1;
+                        } else if ch == '}' {
+                            depth -= 1;
+                            if depth == 0 {
+                                end = bp + i;
+                                break;
                             }
                         }
-                        let body = &synthetic[bp..=end];
-                        if !body.contains("verify_capability")
-                            && !body.contains("ToolSpanGuard::new")
-                        {
-                            count += 1;
-                        }
+                    }
+                    let body = &synthetic[bp..=end];
+                    if !body.contains("verify_capability") && !body.contains("ToolSpanGuard::new") {
+                        count += 1;
                     }
                 }
             }
@@ -473,8 +459,6 @@ mod tests {
         // counts `fn` lines inside the block — but it's enough to
         // catch the failure mode (a trait with 6+ methods).
         let mut violations: Vec<String> = Vec::new();
-        let mut stack: Vec<(String, usize, usize)> = Vec::new();
-        // (file, brace_count_when_opened, current_method_count)
         for entry in walkdir_rs(&crates_dir) {
             if !entry.ends_with(".rs") {
                 continue;
@@ -484,35 +468,34 @@ mod tests {
                 Err(_) => continue,
             };
             let mut depth: i32 = 0;
-            let mut i = 0;
             let mut current_trait: Option<(String, i32, usize)> = None;
             for (idx, ch) in source.char_indices() {
                 match ch {
                     '{' => {
                         depth += 1;
-                        if let Some((name, open_depth, count)) = current_trait.clone() {
-                            if open_depth + 1 == depth {
-                                // We are entering the trait body.
-                                // The method counter is already
-                                // initialised; continue.
-                                let _ = (name, count);
-                            }
+                        if let Some((name, open_depth, count)) = current_trait.clone()
+                            && open_depth + 1 == depth
+                        {
+                            // We are entering the trait body.
+                            // The method counter is already
+                            // initialised; continue.
+                            let _ = (name, count);
                         }
                     }
                     '}' => {
-                        if let Some((name, open_depth, count)) = current_trait.take() {
-                            if depth == open_depth + 1 {
-                                // We are exiting the trait body.
-                                if count > 5 {
-                                    violations.push(format!(
-                                        "{}: trait {} has {} methods (limit: 5)",
-                                        entry.display(),
-                                        name,
-                                        count
-                                    ));
-                                }
-                                current_trait = None;
+                        if let Some((name, open_depth, count)) = current_trait.take()
+                            && depth == open_depth + 1
+                        {
+                            // We are exiting the trait body.
+                            if count > 5 {
+                                violations.push(format!(
+                                    "{}: trait {} has {} methods (limit: 5)",
+                                    entry.display(),
+                                    name,
+                                    count
+                                ));
                             }
+                            current_trait = None;
                         }
                         depth -= 1;
                     }
@@ -525,21 +508,18 @@ mod tests {
                 {
                     // Find the trait name.
                     let after = &source[idx + 1..];
-                    let name_end = after
-                        .find(|c: char| c == ' ' || c == '<' || c == ':' || c == '{')
-                        .unwrap_or(after.len());
+                    let name_end = after.find([' ', '<', ':', '{']).unwrap_or(after.len());
                     let name = after[..name_end].to_string();
                     current_trait = Some((name, depth, 0));
                 }
                 // Count `fn` declarations inside the trait body.
-                if let Some(t) = current_trait.as_mut() {
-                    if ch == 'f' && source[idx..].starts_with("fn ") && depth > 0 {
-                        t.2 += 1;
-                    }
+                if let Some(t) = current_trait.as_mut()
+                    && ch == 'f'
+                    && source[idx..].starts_with("fn ")
+                    && depth > 0
+                {
+                    t.2 += 1;
                 }
-                // The walk above is approximate; skip files that
-                // parse to a negative depth (malformed input).
-                i = idx;
             }
         }
         if !violations.is_empty() {
@@ -552,6 +532,7 @@ mod tests {
     }
 }
 
+#[cfg(test)]
 fn walkdir_rs(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];
@@ -568,4 +549,78 @@ fn walkdir_rs(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod arc_mutex_baseline {
+    use std::path::Path;
+
+    /// Baseline count of `Arc<Mutex<...>>` in the workspace
+    /// as of the F-SYN-021 review (measured via
+    /// `rg 'Arc<Mutex<' crates/ mcp-servers/ | wc -l`).
+    /// Bump this with a comment when adding a justified mutex.
+    const BASELINE: usize = 50; // measured 41 on 2026-06-06; +9 headroom
+
+    #[test]
+    #[ignore]
+    fn arc_mutex_count_below_baseline() {
+        if std::env::var("HKASK_RUN_ARC_MUTEX_AUDIT").is_err() {
+            eprintln!(
+                "F-SYN-021: skipping arc_mutex_count_below_baseline. \
+                 Set HKASK_RUN_ARC_MUTEX_AUDIT=1 to run."
+            );
+            return;
+        }
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("hkask-mcp is at crates/hkask-mcp, parent.parent is the workspace root");
+        let crates_dir = workspace_root.join("crates");
+        let mcp_servers_dir = workspace_root.join("mcp-servers");
+
+        let mut count = 0;
+        for dir in [&crates_dir, &mcp_servers_dir] {
+            count += count_arc_mutex_in(dir);
+        }
+        assert!(
+            count <= BASELINE,
+            "F-SYN-021: Arc<Mutex<...>> count = {} (baseline {}). \
+             A new occurrence requires a finding.",
+            count,
+            BASELINE
+        );
+    }
+
+    fn count_arc_mutex_in(dir: &Path) -> usize {
+        let mut out = 0;
+        for entry in walkdir_rs(dir) {
+            let Ok(source) = std::fs::read_to_string(&entry) else {
+                continue;
+            };
+            // Count every `Arc<Mutex<` literal. This is a
+            // coarse heuristic (e.g. comments count too), but
+            // it's a *baseline* — the goal is to detect growth.
+            out += source.matches("Arc<Mutex<").count();
+        }
+        out
+    }
+
+    fn walkdir_rs(dir: &Path) -> Vec<std::path::PathBuf> {
+        let mut out = Vec::new();
+        let mut stack = vec![dir.to_path_buf()];
+        while let Some(p) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&p) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        stack.push(path);
+                    } else if path.extension().map(|e| e == "rs").unwrap_or(false) {
+                        out.push(path);
+                    }
+                }
+            }
+        }
+        out
+    }
 }

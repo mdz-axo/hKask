@@ -19,5 +19,13 @@ anyhow.workspace = true
 rusqlite.workspace = true
 hex.workspace = true
 
+# F-SYN-020: the `lib` target exists so that integration tests in
+# `tests/` can `use hkask_mcp_spec::types::...`. Without this,
+# tests for a pure `bin` target cannot import the binary's
+# modules.
+[lib]
+name = "hkask_mcp_spec"
+path = "src/lib.rs"
+
 [dev-dependencies]
 proptest = "1"

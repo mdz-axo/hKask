@@ -51,11 +51,11 @@ const DEFAULT_TEMPLATE_BASE_PATH: &str = "registry/templates";
 /// - `McpPort` — for invoking MCP tools in execute steps
 /// - `template_base_path` — filesystem path for resolving `template_ref` values
 ///   when `renderer == "minijinja"`
-pub struct ManifestExecutor<M: McpPort> {
+pub struct ManifestExecutor {
     /// Inference port for select/populate actions
     inference: Arc<dyn InferencePort>,
     /// MCP port for execute actions
-    mcp: Arc<M>,
+    mcp: Arc<dyn McpPort>,
     /// Default LLM parameters for inference calls
     default_params: LLMParameters,
     /// Secret for minting delegation tokens
@@ -66,11 +66,11 @@ pub struct ManifestExecutor<M: McpPort> {
     template_base_path: PathBuf,
 }
 
-impl<M: McpPort> ManifestExecutor<M> {
+impl ManifestExecutor {
     /// Create a new executor with the given infrastructure ports.
     pub fn new(
         inference: Arc<dyn InferencePort>,
-        mcp: Arc<M>,
+        mcp: Arc<dyn McpPort>,
         default_params: LLMParameters,
         acp_secret: Vec<u8>,
     ) -> Self {
@@ -237,7 +237,7 @@ impl<M: McpPort> ManifestExecutor<M> {
 ///   then render with full Jinja2 syntax via minijinja.
 /// - Inline/absent — Render `step.template_ref` or `step.renderer` as a
 ///   simple template string with `{{key}}` substitution.
-impl<M: McpPort> ManifestExecutor<M> {
+impl ManifestExecutor {
     fn render_step_template(
         &self,
         step: &BundleManifestStep,
@@ -436,6 +436,8 @@ fn resolve_dot_path(path: &str, context: &HashMap<String, Value>) -> Option<Valu
 mod tests {
     use super::*;
     use hkask_types::ports::{InferenceError, ToolInfo};
+    use std::future::Future;
+    use std::pin::Pin;
 
     #[test]
     fn parse_json_response_direct() {
@@ -663,25 +665,28 @@ mod tests {
     struct MockMcp;
 
     impl McpPort for MockMcp {
-        async fn discover_tools(&self) -> Vec<String> {
-            vec![]
+        fn discover_tools(&self) -> Pin<Box<dyn Future<Output = Vec<String>> + Send>> {
+            Box::pin(std::future::ready(vec![]))
         }
 
-        async fn invoke(
+        fn invoke(
             &self,
             tool_name: &str,
             _input: Value,
             _token: &DelegationToken,
-        ) -> Result<Value> {
+        ) -> Pin<Box<dyn Future<Output = Result<Value>> + Send>> {
             let name = tool_name.to_string();
-            Ok(serde_json::json!({
+            Box::pin(std::future::ready(Ok(serde_json::json!({
                 "tool": name,
                 "status": "ok"
-            }))
+            }))))
         }
 
-        async fn get_tool_info(&self, _tool_name: &str) -> Option<ToolInfo> {
-            None
+        fn get_tool_info(
+            &self,
+            _tool_name: &str,
+        ) -> Pin<Box<dyn Future<Output = Option<ToolInfo>> + Send>> {
+            Box::pin(std::future::ready(None))
         }
     }
 }

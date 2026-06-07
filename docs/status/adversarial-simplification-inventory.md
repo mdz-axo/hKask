@@ -130,11 +130,11 @@ ignores them.
 |------|----------|-------------|----------|
 | `tool_prompt_section: String` field on `ReplState` | `crates/hkask-cli/src/repl/mod.rs:121-128` | Cache. The user's Task 8 flagged this. **Documented constraint:** `ToolPort` uses `impl Trait` returns and is not dyn-compatible, so it cannot be re-derived on demand via `Arc<dyn ToolPort>`. Field is intentional; not a phantom seam. | n/a |
 | `process_manifest: Option<BundleManifest>` field on `ReplState` | `crates/hkask-cli/src/repl/mod.rs:137` | Set only when the agent YAML declares `process_manifest`. Curator.yaml does, so it's populated for the default agent. Other agents (R7.x) have no manifest, and `process_manifest` stays `None` for them. The field is intentional. | n/a |
-| `manifest_executor: Option<ManifestExecutor<McpDispatcher>>` field on `ReplState` | `crates/hkask-cli/src/repl/mod.rs:133` | Same as `process_manifest` — populated when the agent has a manifest. | n/a |
+| `manifest_executor: Option<ManifestExecutor>` field on `ReplState` | `crates/hkask-cli/src/repl/mod.rs:131` | P1 resolved: `McpPort` is now object-safe, `ManifestExecutor` uses `Arc<dyn McpPort>` instead of generic param. | ✅ |
 | `OnboardingError::Database(String)` | `crates/hkask-cli/src/onboarding.rs:33` | Primitive String payload. Pre-requisite for P3.5 (structured storage errors). | 2026-07-06 |
-| `EnsembleError::SessionNotFound(String)` and 3 others | `crates/hkask-cli/src/errors.rs:30-50` | Same. | 2026-07-06 |
-| `CuratorError::*` 4 variants | `crates/hkask-cli/src/errors.rs:49-65` | Same. | 2026-07-06 |
-| `UserError::*` 4 variants | `crates/hkask-cli/src/errors.rs:81-95` | Same. | 2026-07-06 |
+| `EnsembleError::SessionNotFound(String)` and `Standing(#[from])` | `crates/hkask-cli/src/errors.rs:68-76` | **Resolved.** P3.5: `Standing(#[from] StandingSessionError)` added. `SessionNotFound(String)` kept as user-facing sentinel. | ✅ |
+| `CuratorError::*` | `crates/hkask-cli/src/errors.rs:85-107` | **Resolved.** P3.5: `Registry(#[from])`, `Escalation(#[from])`, `Metacognition(#[from])` added. `EscalationNotFound(String)` kept as user-facing sentinel. | ✅ |
+| `UserError::*` 7 variants | `crates/hkask-cli/src/errors.rs:130-153` | **Resolved.** P3.5: `RegistrationFailed(String)` and `DatabaseError(String)` replaced with `Store(#[from] UserStoreError)` and `Infra(#[from] InfrastructureError)`. 5 sentinels kept for user-facing input errors. | ✅ |
 | `RegistryError::*` 4 variants | `crates/hkask-cli/src/errors.rs:65-75` | Same. | 2026-07-06 |
 
 ### `hkask-agents` crate
@@ -231,20 +231,30 @@ materialize; remove the `#[allow(dead_code)]` and add a real consumer if it did.
   commits `aaec5285` and `fbbb6265` respectively. The Fowler audit
   (`docs/status/fowler-audit-status.md`) now shows P1 + P2 fully done and
   2 of 6 P3 items done.
+- ✅ **`UserError` P3.5 close-out** — `RegistrationFailed(String)` and
+  `DatabaseError(String)` replaced with `Store(#[from] UserStoreError)` and
+  `Infra(#[from] InfrastructureError)`. `From<PoisonError<T>> for UserError`
+  added for lock-poisoning path. Five sentinels kept (`NotFound`, `SessionNotFound`,
+  `LoginFailed`, `InvalidPassphrase`, `ValidationError`) for user-facing input
+  errors. Seven P8 property tests added. CLI call sites in `commands/user.rs`
+  now use `?` instead of `.map_err(|e| ...to_string())`.
+- ✅ **`McpPort` P1 violation resolved** — `McpPort` trait made object-safe
+  (boxed `Pin<Box<dyn Future>>` return types, matching `InferencePort` pattern).
+  `ManifestExecutor` changed from `ManifestExecutor<M: McpPort>` (generic) to
+  `ManifestExecutor` with `Arc<dyn McpPort>` (concrete, dyn-dispatch).
+  `McpDispatcher`, `MockMcp` (unit test), and `MockMcp` (integration test)
+  updated to boxed-future signatures. Eliminates the premature generic that
+  had only one production consumer.
 
 ## Next steps (priority order)
 
-1. **CLI error enums — `EnsembleError`, `CuratorError`, `UserError`** (medium) — same pattern as the `AgentError` work. Migrate from `String` payloads to typed `From<...>` wrappers.
-2. **Manifest config sub-structs** (medium) — decide whether `BundleManifest::cns`,
+1. **Manifest config sub-structs** (medium) — decide whether `BundleManifest::cns`,
    `audit`, `gas`, `ocap`, `error_handling`, `convergence` are read by the
    executor. If not, delete (P6). If yes, implement the enforcement in
    `ManifestExecutor`. The 8 items in `hkask-types` are clustered here.
-3. **`McpPort` folding** (medium) — fold the trait into `McpDispatcher`
-   concrete methods. The user's commit `73100319` started this in
-   `executor.rs` (made `ManifestExecutor` non-generic) but the test file
-   still uses `MockMcp: McpPort` and `McpPort` is still defined in
-   `ports.rs`. Pick one direction: either restore the generic fully, or
-   rewrite the integration test to use a real `McpDispatcher`.
+2. **P4.4 — `.map_err(|e| e.to_string())` audit** (low) — ~25 sites remain
+   in `hkask-agents/src/`. Each follows the same pattern: add `#[from]`
+   upstream variants and replace `.map_err(|e| ...to_string())` with `?`.
 
 ---
 

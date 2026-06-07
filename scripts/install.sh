@@ -311,8 +311,7 @@ add_to_path() {
     # Strategy 1: symlink into /usr/local/bin (already in PATH on all Linux)
     if [ -w "$SYSTEM_BIN" ] || [ "${HKASK_SYSTEM_INSTALL:-false}" = "true" ]; then
         log "Creating symlink at $SYSTEM_BIN/kask → $BIN_DIR/kask"
-        ln -sf "$BIN_DIR/kask" "$SYSTEM_BIN/kask" 2>/dev/null
-        if [ $? -eq 0 ]; then
+        if ln -sf "$BIN_DIR/kask" "$SYSTEM_BIN/kask" 2>/dev/null; then
             log_success "kask linked into $SYSTEM_BIN (system PATH)"
             return 0
         fi

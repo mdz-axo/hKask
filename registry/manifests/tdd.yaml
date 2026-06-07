@@ -37,11 +37,19 @@ inputs:
     type: string
     description: "Target crate (e.g., hkask-storage, hkask-agents)"
     required: true
-  - name: spec_source
+  - name: spec_categories
+    type: array
+    description: >
+      DDMVSS categories in scope for this task. Each category triggers a
+      spec/graph/query call to retrieve structured requirements.
+      Valid values: domain, capability, interface, composition, trust,
+      observability, persistence, lifecycle, curation.
+    required: false
+  - name: domain_anchor
     type: string
     description: >
-      Path or content of the relevant specification document(s). If empty,
-      the agent will create a minimal specification before planning.
+      Domain anchor for spec resolution. Valid values: okapi, russell, hkask.
+      Defaults to hkask if not specified.
     required: false
   - name: code_context
     type: object
@@ -98,6 +106,71 @@ principles:
 
 # Process Steps
 steps:
+  - ordinal: 0
+    action: execute
+    description: >
+      Spec resolution: query the specification graph for DDMVSS categories in scope.
+      Retrieve structured Spec objects with GoalSpec trees and Criterion lists.
+      Determine which specs are ready for testing (Merge curation decision)
+      and which need revision. If no specs exist for the categories, flag that
+      spec/goal/capture must be called first.
+    renderer: null
+    template_ref: null
+    mcp: hkask-mcp-spec
+    gas_cap: 2000
+    timeout_seconds: 15
+    input_mapping:
+      categories: "{{ spec_categories | default([]) }}"
+      domain_anchor: "{{ domain_anchor | default('hkask') }}"
+    mcp_calls:
+      - tool: spec/graph/query
+        input:
+          category: "{{ item }}"
+          domain_anchor: "{{ domain_anchor | default('hkask') }}"
+          capability_token: "{{ capability_token | default('') }}"
+        for_each: spec_categories
+      - tool: spec/graph/validate
+        input:
+          coherence_threshold: 0.7
+          capability_token: "{{ capability_token | default('') }}"
+    output_schema:
+      type: object
+      properties:
+        specs_in_scope:
+          type: array
+          items:
+            type: object
+            properties:
+              spec_id: { type: string }
+              name: { type: string }
+              category: { type: string }
+              complete: { type: boolean }
+              goals:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    text: { type: string }
+                    criteria:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          description: { type: string }
+                          satisfied: { type: boolean }
+                    depth: { type: integer }
+              coherence_score: { type: number }
+        collection_coherence:
+          type: object
+          properties:
+            valid: { type: boolean }
+            coherence_score: { type: number }
+            categories_missing: { type: array }
+            spec_count: { type: integer }
+        categories_without_specs:
+          type: array
+          items: { type: string }
+
   - ordinal: 1
     action: populate
     description: >
@@ -114,7 +187,7 @@ steps:
       task_description: "{{ task_description }}"
       crate_scope: "{{ crate_scope }}"
       code_context: "{{ code_context | default({}) }}"
-      spec_source: "{{ spec_source | default('') }}"
+      spec_source: "{{ ordinal_0.specs_in_scope | default([]) | tojson }}"
     output_schema:
       type: object
       properties:
@@ -171,7 +244,7 @@ steps:
     timeout_seconds: 120
     input_mapping:
       behavior_description: "{{ item.behavior }}"
-      req_id: "{{ item.req_id }}"
+      spec_id: "{{ item.spec_id }}"
       seam: "{{ item.seam }}"
       crate_scope: "{{ crate_scope }}"
       test_style: ""
@@ -182,7 +255,7 @@ steps:
         test_file_path: { type: string }
         implementation_code: { type: string }
         implementation_file_path: { type: string }
-        req_id: { type: string }
+        spec_id: { type: string }
         test_passes: { type: boolean }
         verification_command: { type: string }
     # This step loops over behaviors_to_test from ordinal 1
@@ -286,8 +359,9 @@ steps:
     gas_cap: 4096
     timeout_seconds: 60
     input_mapping:
-      spec_requirements: "{{ ordinal_1.functional_requirements }}"
+      spec_requirements: "{{ ordinal_0.specs_in_scope | default([]) }}"
       tested_behaviors: "{{ ordinal_4.behavior_coverage }}"
+      collection_coherence: "{{ ordinal_0.collection_coherence | default({}) }}"
       crate_scope: "{{ crate_scope }}"
     output_schema:
       type: object

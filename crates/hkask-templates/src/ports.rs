@@ -8,6 +8,8 @@
 
 use hkask_types::DelegationToken;
 use serde_json::Value;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Error type for template operations
 #[derive(Debug, thiserror::Error)]
@@ -63,16 +65,29 @@ pub use hkask_types::ports::RegistryError;
 pub use hkask_types::ports::ToolInfo;
 
 /// MCP port for tool invocation
+///
+/// Object-safe trait for dynamic dispatch. Uses `Pin<Box<dyn Future>>`
+/// return types to be dyn-compatible, matching the pattern used by
+/// `InferencePort` in `hkask_types::ports`.
+///
+/// P1 fix: previously used `impl Future` return types which prevented
+/// dyn-dispatch. Now uses boxed futures, enabling `Arc<dyn McpPort>`
+/// and removing the generic parameter from `ManifestExecutor`.
 pub trait McpPort: Send + Sync {
-    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send;
+    /// Discover available tools on the connected MCP server.
+    fn discover_tools(&self) -> Pin<Box<dyn Future<Output = Vec<String>> + Send>>;
+
+    /// Invoke an MCP tool by name with the given input and delegation token.
     fn invoke(
         &self,
         tool_name: &str,
         input: Value,
         token: &DelegationToken,
-    ) -> impl std::future::Future<Output = Result<Value>> + Send;
+    ) -> Pin<Box<dyn Future<Output = Result<Value>> + Send>>;
+
+    /// Get metadata for a specific tool.
     fn get_tool_info(
         &self,
         tool_name: &str,
-    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send;
+    ) -> Pin<Box<dyn Future<Output = Option<ToolInfo>> + Send>>;
 }

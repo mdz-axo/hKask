@@ -19,9 +19,17 @@ Adapted from Matt Pocock's TDD skill.
 
 Every tracer bullet starts from a specification requirement, not from intuition. The specification is the source of truth for *what* to test. Without spec anchoring, tests validate behavior that may not matter and miss behavior that does.
 
-**Traceability chain**: Specification → REQ-ID → `// REQ:` comment → test → implementation.
+**Traceability chain**: `spec/graph/query` → `Spec` objects → `GoalSpec.criteria` → `// REQ:` comment → test → implementation.
 
-If no specification exists for the feature, create a minimal one before planning tests. A feature without a spec cannot be spec-anchored.
+The TDD process queries the specification graph via MCP tools before planning. Requirements come from structured `Spec` and `GoalSpec` objects — not from LLM interpretation of markdown. This makes spec anchoring mechanically verifiable:
+
+- `spec/graph/query` retrieves specs filtered by DDMVSS category and domain anchor
+- `spec/graph/validate` checks collection coherence and identifies missing categories
+- `spec/curate/evaluate` determines whether a spec is ready for testing (Merge = ready, Revise = needs work)
+- `spec/test/invariant` creates the `TestTraceability` record linking a test to a requirement
+- `spec/test/verify` returns `TestVerifyResponse` with coverage, gaps, and debt counts
+
+If no specification exists for the feature, use `spec/goal/capture` to create one before planning tests. A feature without a spec cannot be spec-anchored.
 
 ## Anti-Pattern: Horizontal Slices
 
@@ -56,7 +64,7 @@ RIGHT (vertical):
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: REQ-XXX — requirement summary`. If a test has no REQ-ID, it tests implementation detail, not a functional requirement.
+8. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. The `spec_id` comes from `spec/graph/query` or `spec/goal/capture`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
 
 ## Workflow
 
@@ -84,7 +92,9 @@ Before writing any code:
 - List behaviors to test (not implementation steps)
 - Get user approval on the plan
 
-Ask: "Which specification requirements does this change touch? What should the public interface look like? Which requirements are most critical to test?"
+Ask: "Which DDMVSS categories does this change touch? What should the public interface look like? Which requirements are most critical to test?"
+
+**Spec resolution via MCP:** Before writing any test plan, call `spec/graph/query` with the relevant `SpecCategory` to retrieve structured requirements. Use `spec/curate/evaluate` to check whether each spec is ready for testing. Only plan tracer bullets for specs with `Merge` curation decisions.
 
 **You can't test everything.** Focus on requirements in the change scope, prioritized by risk.
 
@@ -97,12 +107,13 @@ RED:   Write test for first behavior → test fails
 GREEN: Write minimal code to pass → test passes
 ```
 
-Each test must include a `// REQ:` comment:
+Each test must include a `// REQ:` comment that references the spec's `id` field from the `SpecStore`:
 ```rust
-// REQ: REQ-TRU-001 — Fail-closed capability checker
+// REQ: <spec_id from spec/graph/query> — Fail-closed capability checker
 #[test]
 fn capability_check_denies_when_no_checker() { ... }
 ```
+The `spec_id` is the UUID returned by `spec/goal/capture` or `spec/graph/query`. For human readability, include the DDMVSS category and a brief summary after the em-dash.
 
 ### 3. Incremental Loop
 
@@ -144,13 +155,15 @@ cargo check -p <crate>          # Type-check
 
 After verification, compare tested behaviors against specification requirements:
 
-1. **List every REQ-ID** from the specifications that were in scope for this change
-2. **For each REQ-ID**, check: is there a tracer bullet with this tag?
-3. **Gaps** — requirements without a tracer bullet — must be addressed:
+1. **Call `spec/graph/query`** with the DDMVSS categories in scope to retrieve all relevant specs
+2. **Call `spec/test/verify`** to get a `TestVerifyResponse` with `total_requirements`, `tested`, `gaps`, `debt`, and `traceability`
+3. **For each spec in the query result**, check `is_complete()` — if false, the spec has unsatisfied criteria that may need tracer bullets
+4. **Gaps** — specs with `has_gap: true` in their `TestTraceability` — must be addressed:
    - Write a tracer bullet for the gap, OR
    - Document the gap in `OPEN_QUESTIONS.md` with a deferral rationale
+5. **Call `spec/graph/validate`** to check overall collection coherence and identify missing categories
 
-This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
+This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage). Both are mechanically verifiable via the MCP spec tools.
 
 ## Checklist Per Cycle
 
@@ -170,7 +183,9 @@ This step catches the "tested but wrong" problem (tests that don't validate real
 
 ```
 [ ] Every spec requirement in scope has a tracer bullet OR a documented deferral
-[ ] No // REQ: tag references a non-existent requirement
-[ ] TRACEABILITY_MATRIX.md is updated for new REQ-ID coverage
+[ ] No // REQ: tag references a non-existent spec (verify via spec/graph/query)
+[ ] spec/graph/validate confirms collection coherence above threshold
+[ ] spec/test/verify confirms no gaps for in-scope categories
+[ ] TRACEABILITY_MATRIX.md is updated for new coverage
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
 ```

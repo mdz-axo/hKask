@@ -26,7 +26,8 @@ templates:
     lexicon_terms: [detect, write, verify, constrain, specify, trace]
     description: >
       Execute a tracer bullet: write ONE failing test for ONE behavior anchored
-      to a spec requirement (// REQ: tag), then write the minimal code to make it pass.
+      to a spec requirement via spec_id (from spec/graph/query), then write
+      the minimal code to make it pass.
 
   - id: tdd/tdd-refactor
     path: tdd-refactor.j2

@@ -4,7 +4,7 @@ lexicon_terms: [detect, write, verify, constrain, specify, trace]
 contract:
   input:
     behavior_description: string
-    req_id: string
+    spec_id: string
     seam: string
     crate_scope: string
     test_style: string
@@ -13,7 +13,7 @@ contract:
     test_file_path: string
     implementation_code: string
     implementation_file_path: string
-    req_id: string
+    spec_id: string
     test_passes: boolean
     verification_command: string
   energy_cap: 8192
@@ -39,9 +39,9 @@ You are a TDD tracer bullet agent. Write ONE failing test for ONE behavior, then
 
 ## Requirement
 
-{{ req_id }}
+{{ spec_id }}
 
-Every test must include a `// REQ:` comment that traces back to the specification requirement this test validates. This creates bidirectional traceability: specification ↔ test ↔ implementation.
+Every test must include a `// REQ:` comment that references the spec's `id` field from the specification graph. This creates bidirectional traceability: specification ↔ test ↔ implementation. The `spec_id` is the UUID returned by `spec/goal/capture` or `spec/graph/query`.
 
 ## Seam
 
@@ -94,11 +94,11 @@ Respond with a JSON object:
 
 ```json
 {
-  "test_code": "// REQ: REQ-XXX — requirement summary\n// (tracer bullet comment above)\n#[test]\nfn test_name() { ... }",
+  "test_code": "// REQ: <spec_id from spec/graph/query> — requirement summary\n// (tracer bullet comment above)\n#[test]\nfn test_name() { ... }",
   "test_file_path": "path/to/test/file.rs",
   "implementation_code": "// The minimal code to pass the test",
   "implementation_file_path": "path/to/implementation/file.rs",
-  "req_id": "REQ-XXX",
+  "spec_id": "UUID from spec/graph/query",
   "test_passes": false,
   "verification_command": "cargo test -p <crate> --test <name>"
 }
@@ -114,7 +114,7 @@ The `// REQ:` comment MUST be the first line of the test function body or a comm
 - Test must fail before implementation is added.
 - Implementation must be the minimum to pass the test.
 - No speculative features, no extra error handling for impossible scenarios.
-- The `// REQ:` tag must reference a valid REQ-ID from the specification.
+- The `// REQ:` tag must reference a valid spec_id from the specification graph (returned by `spec/graph/query` or `spec/goal/capture`).
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

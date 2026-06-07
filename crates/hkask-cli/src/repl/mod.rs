@@ -38,7 +38,7 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, TripleStore, in_memory_db};
 use hkask_templates::{
-    BundleManifest, ManifestExecutor, OkapiConfig, OkapiInference, SqliteRegistry,
+    BundleManifest, ManifestExecutor, McpPort, OkapiConfig, OkapiInference, SqliteRegistry,
 };
 use hkask_types::CuratorHandle;
 use hkask_types::LLMParameters;
@@ -128,7 +128,7 @@ pub(crate) struct ReplState {
     /// Manifest executor — runs the process_manifest cascade for agents that
     /// have one defined. Created at REPL init from the agent's process_manifest
     /// reference. None if the agent has no process manifest or if loading failed.
-    pub(crate) manifest_executor: Option<ManifestExecutor<McpDispatcher>>,
+    pub(crate) manifest_executor: Option<ManifestExecutor>,
     /// The resolved process manifest for the current agent.
     /// Present when the agent definition includes a process_manifest reference
     /// and the manifest was successfully loaded.
@@ -504,7 +504,7 @@ pub fn run(
 
             let executor = ManifestExecutor::new(
                 state.inference_port.clone(),
-                Arc::new(mcp_dispatcher),
+                Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
                 LLMParameters::default(),
                 acp_secret.to_vec(),
             );

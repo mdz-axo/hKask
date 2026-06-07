@@ -126,6 +126,7 @@ impl NuEventStore {
     /// Parses the input through `SpanCategory::from_short_name` so
     /// the dispatch table is the *same* as `lambda_for`. New code
     /// should use `lambda_for` directly.
+    #[cfg(test)]
     fn lambda_for_category(category: &str, config: &DecayConfig) -> f64 {
         Self::lambda_for(SpanCategory::from_short_name(category), config)
     }
