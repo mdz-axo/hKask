@@ -180,18 +180,20 @@ ls review/findings/T*.md | wc -l                                   # 3 (T4, T5, 
 ls review/future/FUTURE.md                                         # future
 ls review/handoff/HANDOFF.md                                       # this file
 
-# Synthesis integrity
-rg -o 'F-SYN-[0-9]+' review/findings/SYNTHESIS.md | sort -u | wc -l # 25
-rg -c '^### F-SYN' review/findings/SYNTHESIS.md                    # 25
-rg -c 'BLOCKER' review/findings/SYNTHESIS.md                         # 1 (F-SYN-001)
-rg -c 'severity: major' review/findings/SYNTHESIS.md                 # 7 (F-SYN-002..008)
-rg -c 'severity: minor' review/findings/SYNTHESIS.md                 # 8 (F-SYN-009..016)
-rg -c 'severity: nit' review/findings/SYNTHESIS.md                   # 9 (F-SYN-017..025)
+# Synthesis integrity (severity is in the H3 title, not a `severity:` field)
+rg -o 'F-SYN-[0-9]+' review/findings/SYNTHESIS.md | sort -u | wc -l  # 25
+rg -c '^### F-SYN' review/findings/SYNTHESIS.md                       # 25
+rg -c 'BLOCKER' review/findings/SYNTHESIS.md                          # 1  (F-SYN-001)
+rg -c '\(MAJOR\)' review/findings/SYNTHESIS.md                        # 7  (F-SYN-002..008)
+rg -c '\(MINOR\)' review/findings/SYNTHESIS.md                        # 7  (F-SYN-009,013..016,019,020)
+rg -c '\(NIT' review/findings/SYNTHESIS.md                            # 9  (F-SYN-010,011,017,018 + 5 positive)
+rg -c '\(DESIGN EXERCISE' review/findings/SYNTHESIS.md                # 1  (F-SYN-012)
+echo "Total: $((1+7+7+9+1))"                                          # 25
 
 # Future integrity
-rg -c '^## FUT-' review/future/FUTURE.md                             # 10
+rg -c '^## FUT-' review/future/FUTURE.md                              # 10
 
-# No foreign code
+# No foreign code (review is markdown + Mermaid + Turtle only)
 find review/ -name '*.py' -o -name '*.js' -o -name '*.sh' | wc -l  # 0
 ```
 

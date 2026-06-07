@@ -249,13 +249,10 @@ mod tests {
     use super::*;
     use hkask_storage::Database;
     use hkask_types::DataCategory;
-    use std::sync::Arc;
 
     fn test_manager() -> ConsentManager {
-        // The `Database` type's `in_memory` constructor avoids the
-        // SQLCipher passphrase path used in production.
-        let db = Arc::new(Database::in_memory().expect("in-memory db"));
-        let store = ConsentStore::new(db);
+        let db = Database::in_memory().expect("in-memory db");
+        let store = ConsentStore::new(db.conn_arc());
         store.initialize_schema().expect("consent schema");
         ConsentManager::new(store)
     }
@@ -266,8 +263,16 @@ mod tests {
     fn fresh_consent_manager_denies_everything() {
         let mgr = test_manager();
         let webid = "hkask:test:user";
-        assert!(!mgr.has_consent(webid, &DataCategory::EpisodicMemory));
-        assert!(!mgr.has_consent(webid, &DataCategory::SemanticMemory));
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::EpisodicMemory)
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap(),
+            false
+        );
     }
 
     /// Property: after `grant_consent`, the `SovereigntyConsent::has_consent`
@@ -279,14 +284,26 @@ mod tests {
         let webid = "hkask:test:user";
 
         // Before grant: no consent.
-        assert!(!mgr.has_consent(webid, &DataCategory::EpisodicMemory));
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::EpisodicMemory)
+                .unwrap(),
+            false
+        );
 
         // After grant: consent is observed.
         mgr.grant_consent(webid, &DataCategory::EpisodicMemory)
             .expect("grant");
-        assert!(mgr.has_consent(webid, &DataCategory::EpisodicMemory));
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::EpisodicMemory)
+                .unwrap(),
+            true
+        );
         // Other categories remain unconsented.
-        assert!(!mgr.has_consent(webid, &DataCategory::SemanticMemory));
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap(),
+            false
+        );
     }
 
     /// Property: after `revoke_consent`, the lookup reverts to denied.
@@ -296,8 +313,36 @@ mod tests {
         let webid = "hkask:test:user";
         mgr.grant_consent(webid, &DataCategory::SemanticMemory)
             .expect("grant");
-        assert!(mgr.has_consent(webid, &DataCategory::SemanticMemory));
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap(),
+            true
+        );
         mgr.revoke_consent(webid).expect("revoke");
-        assert!(!mgr.has_consent(webid, &DataCategory::SemanticMemory));
+        assert_eq!(
+            mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap(),
+            false
+        );
+    }
+
+    /// Property: the `SovereigntyConsent` adapter (deny-on-error) returns
+    /// `false` for any unconsented (webid, category) pair, matching the
+    /// charter's "deny by default" requirement.
+    #[test]
+    fn sovereignty_consent_adapter_denies_unconsented() {
+        let mgr = test_manager();
+        let webid = "hkask:test:user";
+        mgr.grant_consent(webid, &DataCategory::EpisodicMemory)
+            .expect("grant");
+        // Disambiguate the trait method from the inherent one (which
+        // returns Result).
+        let sovereignty_has = |cat: &DataCategory| {
+            <ConsentManager as SovereigntyConsent>::has_consent(&mgr, webid, cat)
+        };
+        // Granted category: consent reported.
+        assert!(sovereignty_has(&DataCategory::EpisodicMemory));
+        // Ungranted category: consent denied.
+        assert!(!sovereignty_has(&DataCategory::PersonalContext));
     }
 }
