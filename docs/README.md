@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-03
+last_updated: 2026-06-06
 version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -104,6 +104,7 @@ for its category cluster.
 | [`mcp-server-audit.md`](status/mcp-server-audit.md) | capability, observability | MCP server completeness audit (21 servers, 123 tools) |
 | [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs and credentials |
 | [`test-inventory.md`](status/test-inventory.md) | observability, domain, capability | Test seam depth and behavioral coverage |
+| [`refactor-sweep-2026-06-06.md`](status/refactor-sweep-2026-06-06.md) | capability, interface, composition | Refactor sweep T1–T7 report (parent of fowler-audit and adversarial-simplification) |
 | [`fowler-audit-status.md`](status/fowler-audit-status.md) | capability, interface, composition | Fowler pattern refactoring tracker |
 | [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | capability, interface, composition | Dead code and unwired seam inventory |
 

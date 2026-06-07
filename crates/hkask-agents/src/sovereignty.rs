@@ -222,14 +222,24 @@ mod tests {
         assert!(checker.can_access(&DataCategory::HLexiconTerms, &owner));
     }
 
-    /// Property: `AllowAllConsent` grants everything (test-only scaffold).
+    /// Property: `AllowAllConsent` grants consent to any WebID for any
+    /// category, so shared data becomes accessible. Sovereign data still
+    /// requires the requester to equal the owner — the `AllowAllConsent`
+    /// only affects the consent lookup, not the ownership check.
     /// Production code must not use this — it bypasses explicit consent.
     #[test]
-    fn allow_all_consent_grants_sovereign_and_shared() {
+    fn allow_all_consent_grants_shared_but_sovereign_still_needs_owner() {
         let owner = WebID::new();
         let other = WebID::new();
         let checker = SovereigntyChecker::new(owner, Arc::new(AllowAllConsent));
-        assert!(checker.can_access(&DataCategory::EpisodicMemory, &other));
+        // Shared: consent is granted, so other can access.
         assert!(checker.can_access(&DataCategory::SemanticMemory, &other));
+        assert!(checker.can_access(&DataCategory::TemplateInvocations, &other));
+        // Sovereign: consent is granted, but ownership is still required.
+        assert!(!checker.can_access(&DataCategory::EpisodicMemory, &other));
+        // Public: always accessible.
+        assert!(checker.can_access(&DataCategory::HLexiconTerms, &other));
+        // The owner with allow-all can access sovereign data.
+        assert!(checker.can_access(&DataCategory::EpisodicMemory, &owner));
     }
 }

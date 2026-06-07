@@ -203,6 +203,39 @@ A concrete struct (not a trait) enforcing user data boundaries. Each `AgentPod` 
 
 Kill-zone detection is handled by `KillZoneDetector` in `hkask-cns` (not SovereigntyChecker). Consent management is handled by `ConsentManager` (not SovereigntyChecker).
 
+### 3.0.1 ConsentManager Authorization Flow
+
+The ConsentManager mediates all data access decisions between agents and the user's data boundaries. Every read/write operation on episodic memory, semantic memory, or other data categories must pass through the consent gate.
+
+```mermaid
+sequenceDiagram
+    participant AGT as Agent (Bot/Replicant)
+    participant CM as ConsentManager
+    participant CS as ConsentStore
+    participant SC as SovereigntyChecker
+    participant DM as DataManager
+
+    AGT->>CM: request_access(webid, category, operation)
+    CM->>CS: query_consent(webid, category)
+    CS-->>CM: consent_record or None
+    CM->>SC: can_access(category, requester)
+    SC->>SC: check_kill_zone(webid)
+    SC-->>CM: access_decision
+    alt consent granted and not in kill-zone
+        CM->>DM: authorize(operation, category)
+        DM-->>AGT: data_result
+    else consent denied or kill-zone active
+        CM-->>AGT: AccessDenied(category)
+    end
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TO-006-CM
+verified_date: 2026-06-06
+verified_against: crates/hkask-agents/src/consent.rs; crates/hkask-agents/src/sovereignty.rs; crates/hkask-storage/src/consent_store.rs
+status: VERIFIED
+-->
+
 [^westin-data]: Westin, A. F. (1967). *Privacy and Freedom*. Atheneum. Informational self-determination.
 
 ---
@@ -317,6 +350,47 @@ status: VERIFIED
 - `healthy` — `bool` indicating whether CNS is within normal bounds
 
 **Accessible via:** `kask cns health` (CLI), `GET /api/v1/cns/health` (API), `cns_health()` (MCP)
+
+### 4.4.1 CNS Span Emission and Algedonic Alert End-to-End Flow
+
+This diagram shows the complete flow from CNS span emission through variety tracking to algedonic alert escalation, including the SpecDriftAlert pathway.
+
+```mermaid
+sequenceDiagram
+    participant LOOP as CurationLoop
+    participant SC as DefaultSpecCurator
+    participant COMM as CommunicationLoop
+    participant CYB as CyberneticsLoop
+    participant ALG as AlgedonicManager
+    participant EVT as NuEventStore
+
+    Note over SC: Spec coherence evaluation
+    SC->>SC: evaluate() detects drift
+    SC->>COMM: LoopMessage(SpecDriftAlert)
+    COMM->>LOOP: deliver to Curation inbox
+    LOOP->>LOOP: sense() drains SpecDriftAlert
+
+    Note over CYB: Periodic variety sensing
+    CYB->>CYB: sense() collect variety counters
+    CYB->>ALG: check_algedonic(counters)
+    alt deficit > threshold/2
+        ALG->>EVT: persist NuEvent(cns.variety.algedonic_alert)
+        ALG-->>LOOP: escalate warning to Curator
+    else deficit > threshold
+        ALG->>EVT: persist NuEvent(cns.variety.critical)
+        ALG-->>LOOP: escalate critical to Human
+    else within bounds
+        ALG-->>CYB: OK
+    end
+    CYB->>EVT: persist NuEvent(cns.cybernetics.*)
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TO-006
+verified_date: 2026-06-06
+verified_against: crates/hkask-agents/src/curator_agent/spec_curator.rs; crates/hkask-cns/src/cybernetics_loop.rs; crates/hkask-cns/src/algedonic.rs
+status: VERIFIED
+-->
 
 ### 4.6 Rate Limiting
 

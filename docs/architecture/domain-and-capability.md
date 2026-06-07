@@ -405,6 +405,92 @@ This bridges the gap between Zed's MCP context server model and hKask's ACP/pod-
 
 **verified-against:** `mcp-servers/hkask-mcp-replicant/src/tools.rs` (tool_router)
 
+### 6.4 Standing Session Chat Lifecycle
+
+The standing session chat lifecycle governs how a replicant's conversation session is managed from creation through teardown. This is the core interaction pattern for `kask chat` and the MCP replicant server.
+
+```mermaid
+sequenceDiagram
+    participant USR as User / MCP Client
+    participant REPL as Replicant
+    participant PM as PodManager
+    participant INFR as InferencePort
+    participant MEM as Memory Pipeline
+    participant CNS as CNS Runtime
+
+    USR->>REPL: send_message(content)
+    REPL->>PM: resolve_persona(name) >> WebID
+    PM->>PM: create_pod(persona) + activate
+    PM->>CNS: emit(cns.agent_pod.activated)
+    REPL->>MEM: load_episodic_history(webid, limit=20)
+    MEM-->>REPL: session_turns[]
+    REPL->>REPL: compose_system_prompt(charter + responsibilities + voice)
+    REPL->>INFR: generate_with_model(system + history + user_message)
+    INFR-->>REPL: llm_response
+    REPL->>MEM: store_episodic_turn(webid, user_msg, llm_response)
+    REPL->>CNS: emit(cns.prompt.completed)
+    REPL-->>USR: structured_response
+    Note over REPL: Session remains active (standing)
+    USR->>REPL: send_message(followup)
+    REPL->>MEM: load_episodic_history(webid, limit=20)
+    REPL->>INFR: generate_with_model(full_context)
+    INFR-->>REPL: llm_response
+    REPL->>MEM: store_episodic_turn(webid, followup, llm_response)
+    REPL-->>USR: structured_response
+    Note over PM: On session close
+    PM->>CNS: emit(cns.agent_pod.deactivated)
+    PM->>PM: deactivate_pod()
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DC-007
+verified_date: 2026-06-06
+verified_against: crates/hkask-cli/src/commands/chat.rs; mcp-servers/hkask-mcp-replicant/src/tools.rs
+status: VERIFIED
+-->
+
+### 6.5 hKask Container Lifecycle
+
+The hKask container lifecycle describes the end-to-end flow from creating an agent container to surfacing results. This is the primary domain interaction pattern.
+
+```mermaid
+sequenceDiagram
+    participant USR as User
+    participant CLI as kask CLI
+    participant PM as PodManager
+    participant REG as Registry
+    participant CAP as CapabilityChecker
+    participant CNS as CNS Runtime
+    participant MCP as MCP Runtime
+
+    USR->>CLI: kask chat (or API call)
+    CLI->>PM: create_pod(persona)
+    PM->>REG: load_template(persona)
+    REG->>PM: template_definition
+    PM->>CAP: grant_initial_capabilities(webid)
+    CAP->>PM: capability_tokens[]
+    PM->>CNS: emit(cns.agent_pod.created)
+    PM->>PM: register_pod()
+    PM->>CNS: emit(cns.agent_pod.registered)
+    PM->>MCP: discover_tools()
+    MCP->>PM: tool_registry[]
+    PM->>PM: activate_pod()
+    PM->>CNS: emit(cns.agent_pod.activated)
+    Note over PM: Pod is now active
+    PM->>CLI: agent_handle
+    CLI->>USR: interactive_session
+    Note over CLI: User interacts via chat
+    CLI->>PM: deactivate_pod()
+    PM->>CNS: emit(cns.agent_pod.deactivated)
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DC-008
+verified_date: 2026-06-06
+verified_against: crates/hkask-cli/src/commands/chat.rs; crates/hkask-agents/src/pod/mod.rs
+status: VERIFIED
+-->
+
 ---
 
 ## 7. hLexicon Allocation

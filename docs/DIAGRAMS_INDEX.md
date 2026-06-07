@@ -26,6 +26,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
+| DIAG-DC-007 | Standing Session Chat Lifecycle | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-replicant/src/tools.rs` | ✅ VERIFIED |
+| DIAG-DC-008 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams
 

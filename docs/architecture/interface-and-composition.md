@@ -198,6 +198,50 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 
 All ports use `#[async_trait]`. No `block_in_place` or `block_on` in library code.
 
+### 2.5 LLM Routing and Failover (Okapi Integration)
+
+LLM inference is delegated to Okapi, an external inference service. The routing layer selects models and handles failover when a model is unavailable.
+
+```mermaid
+sequenceDiagram
+    participant AGT as Agent / Pod
+    participant RT as McpRuntime
+    participant GOV as GovernedTool
+    participant OKP as Okapi (Inference)
+    participant CNS as CnsRuntime
+
+    AGT->>RT: invoke_tool("inference", prompt)
+    RT->>GOV: before_call(tool, capabilities)
+    GOV->>GOV: check_gas_budget()
+    GOV->>CNS: emit(cns.inference.gas_check)
+    alt gas available
+        GOV->>OKP: generate_with_model(model, prompt)
+        alt model available
+            OKP-->>GOV: llm_response
+            GOV->>CNS: emit(cns.inference.completed)
+            GOV-->>RT: tool_result(response)
+            RT-->>AGT: agent_result
+        else model unavailable
+            OKP-->>GOV: ModelUnavailable
+            GOV->>GOV: select_fallback_model()
+            GOV->>OKP: generate_with_model(fallback, prompt)
+            OKP-->>GOV: llm_response
+            GOV->>CNS: emit(cns.inference.failover)
+            GOV-->>RT: tool_result(response)
+        end
+    else gas exhausted
+        GOV->>CNS: emit(cns.inference.gas_exhausted)
+        GOV-->>RT: ToolError(GasExhausted)
+    end
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-IC-006
+verified_date: 2026-06-06
+verified_against: crates/hkask-mcp/src/runtime.rs; crates/hkask-mcp/src/security.rs; mcp-servers/hkask-mcp-inference/
+status: VERIFIED
+-->
+
 ---
 
 ## 3. Unified Registry
