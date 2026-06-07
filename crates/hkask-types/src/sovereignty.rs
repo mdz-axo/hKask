@@ -120,8 +120,13 @@ impl DataSovereigntyBoundary {
         }
     }
 
-    /// Create boundary with typical hKask defaults
-    pub(crate) fn hkask_default() -> Self {
+    /// Create boundary with typical hKask defaults.
+    ///
+    /// This is the canonical boundary classification referenced by the
+    /// Magna Carta (Data Sovereignty Boundary section). Surfaced as a
+    /// public constructor so external crates (CLI, API) can render the
+    /// same default that runtime types use.
+    pub fn hkask_default() -> Self {
         let mut sovereign_data = HashSet::new();
         sovereign_data.insert(DataCategory::EpisodicMemory);
         sovereign_data.insert(DataCategory::PersonalContext);

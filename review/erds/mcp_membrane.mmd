@@ -1,0 +1,71 @@
+%% Class diagram #8 — MCP server ↔ Tool ↔ Capability gate
+%% Source: mcp-servers/hkask-mcp-*/src/main.rs (all 21 servers),
+%%         crates/hkask-mcp/src/{server.rs, security.rs, dispatch.rs}
+%% Realization: concept:mcp → tech:hkask_mcp
+%%
+%% Architecture notes (Mark Miller membrane pattern):
+%%   * An MCP server is a MEMBRANE over a canonical realization.
+%%     A membrane takes a capability and returns a (possibly
+%%     attenuated) capability; it never Mints a new one.
+%%   * The capability gate is the FIRST statement after argument
+%%     parsing in every tool handler. This is asserted in v6 tests
+%%     for hkask-mcp-spec (capability_gate_*) and hkask-mcp-ocap
+%%     (parse_capability_*).
+%%   * hkask-mcp/runtime (crates/hkask-mcp) is the seam that wires
+%%     the membrane together. The actual capability boundary is
+%%     enforced via OcapBoundary + DelegationToken.
+%%   * 21 MCP servers in total. Per the gaps.md, 15 are external-
+%%     service adapters (mcp-fal, mcp-fmp, mcp-github, mcp-telnyx,
+%%     mcp-rss-reader, mcp-markitdown, ...) and 6 are membranes over
+%%     canonical realizations (mcp-cns, mcp-keystore, mcp-ocap,
+%%     mcp-spec, mcp-inference, mcp-registry).
+
+classDiagram
+    class MCPServer {
+        <<membrane>>
+        +name: String
+        +tools: Vec~MCPTool~
+    }
+    class MCPTool {
+        +name: String
+        +parameters: Parameters~T~
+        +capability_required: OcapCapability
+        +handler(args) Result
+    }
+    class CapabilityGate {
+        <<seam>>
+        +check(caller, tool) Result~OcapCapability, Error~
+    }
+    class OcapBoundary {
+        +capability: OcapCapability
+        +enforced: bool
+    }
+    class CanonicalRealization {
+        <<abstract>>
+        +invoke(cap) Result
+    }
+    class CnsMcp {
+        +backing = hkask-cns
+    }
+    class OcapMcp {
+        +backing = hkask-types::capability
+    }
+    class SpecMcp {
+        +backing = hkask-templates
+    }
+    class WebMcp {
+        +backing = hkask-mcp-web
+    }
+
+    MCPServer "1" *-- "1..*" MCPTool
+    MCPTool "1" --> "1" CapabilityGate : "first statement"
+    CapabilityGate "1" --> "1" OcapBoundary : "yields"
+    MCPServer "1" --> "1" CanonicalRealization : "wraps"
+    CnsMcp --|> MCPServer
+    OcapMcp --|> MCPServer
+    SpecMcp --|> MCPServer
+    WebMcp --|> MCPServer
+    CnsMcp --> CanonicalRealization
+    OcapMcp --> CanonicalRealization
+    SpecMcp --> CanonicalRealization
+    WebMcp --> CanonicalRealization
