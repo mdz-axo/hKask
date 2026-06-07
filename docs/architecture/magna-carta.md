@@ -112,12 +112,24 @@ impl DataSovereigntyBoundary {
 
 ### Kill-Zone Detection
 
+The detection logic lives in `hkask-cns::KillZoneDetector` (a CNS
+regulation function, not a data type). The operational state is
+`hkask_types::KillZoneState`, held by the `CnsRuntime`. The CNS
+runtime fires an algedonic alert (domain: `cns.killzone`) and emits
+a `cns.killzone.threshold_exceeded` `NuEvent` when the trigger fires.
+
 ```rust
-pub struct KillZoneDetector {
-    pub vc_investment: f32,     // 0.0 to 1.0
-    pub threshold: f32,         // 0.5
+// Operational state — owned by CnsRuntime
+pub struct KillZoneState {
+    pub vc_investment: f32,
     pub kill_zone_active: bool,
     pub acquisition_attempt: bool,
+}
+
+// Regulation function — held by CnsRuntime
+pub(crate) struct KillZoneDetector {
+    threshold: f32,
+    state: KillZoneState,
 }
 ```
 

@@ -601,4 +601,70 @@ mod tests {
             "spec with coherence 0.0 must produce Revise with default threshold"
         );
     }
+
+    // ── check_sovereignty ────────────────────────────────────────────────────
+
+    /// In-memory `NuEventSink` for unit tests.
+    struct TestEventSink {
+        events: std::sync::Mutex<Vec<NuEvent>>,
+    }
+    impl TestEventSink {
+        fn new() -> Self {
+            Self {
+                events: std::sync::Mutex::new(Vec::new()),
+            }
+        }
+    }
+    impl hkask_types::event::NuEventSink for TestEventSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            self.events.lock().unwrap().push(event.clone());
+            Ok(())
+        }
+    }
+
+    /// Property: `check_sovereignty` is a no-op when no event sink is wired.
+    /// This is the safe default — production code that wants auditability
+    /// wires a sink; tests and scaffolds without sinks silently no-op.
+    #[test]
+    fn check_sovereignty_is_noop_without_sink() {
+        let curator = DefaultSpecCurator::new(0.7);
+        // No sink wired: call must not panic and must return.
+        curator.check_sovereignty("test_spec", &["episodic_memory".to_string()]);
+    }
+
+    /// Property: with a wired event sink, `check_sovereignty` persists
+    /// exactly one `cns.sovereignty.checked` `NuEvent` containing the
+    /// spec id and the consulted categories. This is the audit trail
+    /// mandated by the Magna Carta's "Audit Trail" enforcement section.
+    #[test]
+    fn check_sovereignty_persists_event_with_sink() {
+        let sink = Arc::new(TestEventSink::new());
+        let curator = DefaultSpecCurator::new(0.7).with_event_sink(sink.clone());
+
+        let categories = vec![
+            "episodic_memory".to_string(),
+            "personal_context".to_string(),
+        ];
+        curator.check_sovereignty("spec_42", &categories);
+
+        let recorded = sink.events.lock().unwrap();
+        assert_eq!(
+            recorded.len(),
+            1,
+            "check_sovereignty must persist exactly one NuEvent"
+        );
+        let event = &recorded[0];
+        assert_eq!(event.span.path, "cns.sovereignty.checked");
+        assert_eq!(
+            event.observation.get("spec_id").and_then(|v| v.as_str()),
+            Some("spec_42"),
+            "spec_id must be recorded in the observation"
+        );
+        let recorded_cats = event
+            .observation
+            .get("categories")
+            .and_then(|v| v.as_array())
+            .expect("categories array");
+        assert_eq!(recorded_cats.len(), 2);
+    }
 }

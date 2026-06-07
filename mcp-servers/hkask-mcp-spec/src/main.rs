@@ -286,10 +286,37 @@ impl SpecServer {
             );
         }
 
-        let boundary = match authority.as_str() {
-            "denied" => OCAPBoundary::denied(capability.clone()),
-            _ => OCAPBoundary::explicit(capability.clone()),
+        // F-SYN-001: parse the user-supplied capability string into a typed
+        // token. Untrusted input that does not match a known token kind is
+        // rejected; the previous code accepted any string and minted a
+        // boundary with `OcapCapability::String(attack_string)`.
+        let boundary = match OCAPBoundary::parse_token(&capability) {
+            Some(b) => b,
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!(
+                        "Unknown capability kind: {capability:?}. Expected one of: curation, cybernetics, spec_curate."
+                    ))
+                    .to_json_string(),
+                );
+            }
         };
+
+        // The `authority` field is now informational only; every
+        // boundary is enforced by construction. Reject the legacy
+        // "denied" sentinel with a clear migration error rather than
+        // silently accepting it.
+        if authority == "denied" {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "The 'denied' authority is no longer supported. Every OCAPBoundary is enforced by construction; omit the request or use a different tool to record a denial."
+                        .to_string(),
+                )
+                .to_json_string(),
+            );
+        }
 
         spec.goals[goal_index].constraints.push(boundary);
 
@@ -1006,7 +1033,10 @@ mod tests {
             .spec_require_bind(Parameters(RequireBindRequest {
                 spec_id: spec_id_str,
                 goal_index: 0,
-                capability: "tool:inference:call".to_string(),
+                // F-SYN-001: must be a known OcapTokenKind, not an arbitrary
+                // string. "spec_curate" is the natural choice for a spec
+                // curation boundary.
+                capability: "spec_curate".to_string(),
                 authority: "explicit".to_string(),
                 capability_token: Some(bind_token),
             }))
@@ -1014,6 +1044,93 @@ mod tests {
         assert!(
             result.contains("enforced") && result.contains("true"),
             "bind must return enforced=true, got: {result}"
+        );
+    }
+
+    // F-SYN-001 P8 invariant: the attack scenario — an attacker passes
+    // an arbitrary string as the `capability` field — is rejected
+    // with InvalidArgument. The pre-fix code silently accepted any
+    // string and minted a forgeable OCAPBoundary.
+    #[tokio::test]
+    async fn require_bind_rejects_unknown_capability_kind() {
+        let (server, store) = test_server_with_store();
+        let token = valid_token(&server, "capture", DelegationAction::Write);
+
+        let capture_result = server
+            .spec_goal_capture(Parameters(GoalCaptureRequest {
+                description: "goal for attack test".to_string(),
+                category: "capability".to_string(),
+                domain_anchor: "hkask".to_string(),
+                criteria: None,
+                capability_token: Some(token.clone()),
+            }))
+            .await;
+        assert!(capture_result.contains("captured"));
+
+        let specs = store.list_all().expect("list_all");
+        let spec_id_str = specs[0].id.to_string();
+
+        let bind_token = valid_token(&server, &spec_id_str, DelegationAction::Write);
+        for attack in [
+            "tool:inference:call",    // the previous (vulnerable) input
+            "memory:write:any-webid", // the canonical F-SYN-001 attack
+            "*",                      // wildcard
+            "",                       // empty
+        ] {
+            let result = server
+                .spec_require_bind(Parameters(RequireBindRequest {
+                    spec_id: spec_id_str.clone(),
+                    goal_index: 0,
+                    capability: attack.to_string(),
+                    authority: "explicit".to_string(),
+                    capability_token: Some(bind_token.clone()),
+                }))
+                .await;
+            assert!(
+                result.contains("invalid_argument") || result.contains("Unknown capability"),
+                "F-SYN-001: attack input `{attack}` must be rejected, got: {result}"
+            );
+        }
+    }
+
+    // F-SYN-002 P8 invariant: the legacy "denied" authority is rejected.
+    // The pre-fix code accepted "denied" and constructed an
+    // OCAPBoundary::denied(...), which was unenforced (an
+    // unenforceable value of the type). Post-fix, the only
+    // OCAPBoundary value is enforced by construction.
+    #[tokio::test]
+    async fn require_bind_rejects_legacy_denied_authority() {
+        let (server, store) = test_server_with_store();
+        let token = valid_token(&server, "capture", DelegationAction::Write);
+
+        let capture_result = server
+            .spec_goal_capture(Parameters(GoalCaptureRequest {
+                description: "goal for denied-test".to_string(),
+                category: "capability".to_string(),
+                domain_anchor: "hkask".to_string(),
+                criteria: None,
+                capability_token: Some(token.clone()),
+            }))
+            .await;
+        assert!(capture_result.contains("captured"));
+
+        let specs = store.list_all().expect("list_all");
+        let spec_id_str = specs[0].id.to_string();
+
+        let bind_token = valid_token(&server, &spec_id_str, DelegationAction::Write);
+        let result = server
+            .spec_require_bind(Parameters(RequireBindRequest {
+                spec_id: spec_id_str,
+                goal_index: 0,
+                capability: "spec_curate".to_string(),
+                authority: "denied".to_string(),
+                capability_token: Some(bind_token),
+            }))
+            .await;
+        assert!(
+            result.contains("invalid_argument")
+                || result.contains("'denied' authority is no longer supported"),
+            "F-SYN-002: legacy 'denied' authority must be rejected, got: {result}"
         );
     }
 

@@ -263,15 +263,13 @@ mod tests {
     fn fresh_consent_manager_denies_everything() {
         let mgr = test_manager();
         let webid = "hkask:test:user";
-        assert_eq!(
-            mgr.has_consent(webid, &DataCategory::EpisodicMemory)
-                .unwrap(),
-            false
+        assert!(
+            !mgr.has_consent(webid, &DataCategory::EpisodicMemory)
+                .unwrap()
         );
-        assert_eq!(
-            mgr.has_consent(webid, &DataCategory::SemanticMemory)
-                .unwrap(),
-            false
+        assert!(
+            !mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap()
         );
     }
 
@@ -284,25 +282,22 @@ mod tests {
         let webid = "hkask:test:user";
 
         // Before grant: no consent.
-        assert_eq!(
-            mgr.has_consent(webid, &DataCategory::EpisodicMemory)
-                .unwrap(),
-            false
+        assert!(
+            !mgr.has_consent(webid, &DataCategory::EpisodicMemory)
+                .unwrap()
         );
 
         // After grant: consent is observed.
         mgr.grant_consent(webid, &DataCategory::EpisodicMemory)
             .expect("grant");
-        assert_eq!(
+        assert!(
             mgr.has_consent(webid, &DataCategory::EpisodicMemory)
-                .unwrap(),
-            true
+                .unwrap()
         );
         // Other categories remain unconsented.
-        assert_eq!(
-            mgr.has_consent(webid, &DataCategory::SemanticMemory)
-                .unwrap(),
-            false
+        assert!(
+            !mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap()
         );
     }
 
@@ -313,16 +308,14 @@ mod tests {
         let webid = "hkask:test:user";
         mgr.grant_consent(webid, &DataCategory::SemanticMemory)
             .expect("grant");
-        assert_eq!(
+        assert!(
             mgr.has_consent(webid, &DataCategory::SemanticMemory)
-                .unwrap(),
-            true
+                .unwrap()
         );
         mgr.revoke_consent(webid).expect("revoke");
-        assert_eq!(
-            mgr.has_consent(webid, &DataCategory::SemanticMemory)
-                .unwrap(),
-            false
+        assert!(
+            !mgr.has_consent(webid, &DataCategory::SemanticMemory)
+                .unwrap()
         );
     }
 

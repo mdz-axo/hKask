@@ -1,4 +1,12 @@
 //! Curation types for hKask — The Curator and OCAP boundaries
+//!
+//! Per F-SYN-001 (review `findings/SYNTHESIS.md`): the legacy
+//! `OcapCapability::String` variant has been removed. All capabilities
+//! are now unforgeable typed brands (`OcapTokenKind`).
+//!
+//! Per F-SYN-002: `OCAPBoundary::enforced: bool` has been removed.
+//! An `OCAPBoundary` *is* enforced by construction; the field was a
+//! foot-gun that allowed an unenforceable value of the type.
 
 use serde::{Deserialize, Serialize};
 
@@ -47,49 +55,59 @@ impl TryFrom<&str> for CurationDecision {
 
 /// Token-based capability kinds for OCAP boundaries.
 ///
-/// Replaces stringly-typed capability identifiers with typed enum variants.
-/// Each variant maps to a ZST token in `crate::capability::tokens`.
+/// The closed set of capability *kinds* in hKask. Each variant maps to
+/// a ZST token in `crate::capability::tokens`. Adding a new kind
+/// requires editing this enum; the type system then ensures every
+/// `OcapCapability` is exhaustively handled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OcapTokenKind {
     /// Curation authority — ConsolidationToken
     Curation,
     /// Cybernetics authority — CyberneticsToken
-    Cybernetics, // (future — no production callers yet)
+    Cybernetics,
     /// Spec curation authority
     SpecCurate,
 }
 
-/// Capability identifier — typed token or legacy string.
-///
-/// New code should use `OcapCapability::Token(OcapTokenKind)` instead of
-/// `OcapCapability::String(String)`. The string variant exists for backward
-/// compatibility with existing persisted records.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum OcapCapability {
-    /// Legacy string-based capability identifier
-    #[serde(rename = "string")]
-    String(String),
-    /// Typed token-based capability identifier
-    #[serde(rename = "token")]
-    Token(OcapTokenKind),
+impl std::fmt::Display for OcapTokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            OcapTokenKind::Curation => "curation",
+            OcapTokenKind::Cybernetics => "cybernetics",
+            OcapTokenKind::SpecCurate => "spec_curate",
+        };
+        f.write_str(s)
+    }
 }
+
+/// Parse an `OcapTokenKind` from its canonical snake_case name.
+///
+/// Returns `None` for unknown names so callers (e.g. MCP tool
+/// handlers) can convert untrusted input into a `ToolSpanGuard` error
+/// rather than silently accepting it.
+pub fn parse_ocap_token_kind(s: &str) -> Option<OcapTokenKind> {
+    match s {
+        "curation" => Some(OcapTokenKind::Curation),
+        "cybernetics" => Some(OcapTokenKind::Cybernetics),
+        "spec_curate" => Some(OcapTokenKind::SpecCurate),
+        _ => None,
+    }
+}
+
+/// Capability identifier — typed brand.
+///
+/// **Removed in this PR (F-SYN-001):** the previous `String(String)`
+/// variant, which let any caller mint any capability
+/// (`OCAPBoundary::explicit("memory:write:any-webid")`). All
+/// capabilities now flow through this enum's only variant.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct OcapCapability(pub OcapTokenKind);
 
 impl std::fmt::Display for OcapCapability {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OcapCapability::String(s) => write!(f, "{}", s),
-            OcapCapability::Token(kind) => write!(
-                f,
-                "{}",
-                match kind {
-                    OcapTokenKind::Curation => "curation",
-                    OcapTokenKind::Cybernetics => "cybernetics",
-                    OcapTokenKind::SpecCurate => "spec_curate",
-                }
-            ),
-        }
+        std::fmt::Display::fmt(&self.0, f)
     }
 }
 
@@ -97,43 +115,33 @@ impl std::fmt::Display for OcapCapability {
 ///
 /// The Curator must master normative behavior to maintain the OCAP boundary.
 /// Within the OCAP boundary, The Curator creates non-normative potential.
-/// Authority is expressed via CapabilityToken — no token, no authority.
+/// Authority is expressed via `OcapTokenKind` — no token, no authority.
+///
+/// **Removed in this PR (F-SYN-002):** the `enforced: bool` field.
+/// An `OCAPBoundary` is enforced by construction; there is no
+/// "unenforceable" value of this type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OCAPBoundary {
-    /// The capability being bounded — either a typed token or a legacy string
+    /// The capability being bounded (a typed brand).
     pub capability: OcapCapability,
-    /// Whether this boundary is enforced
-    pub enforced: bool,
 }
 
 impl OCAPBoundary {
     /// Create an enforced boundary with a typed token.
     ///
-    /// Preferred over `explicit()` for new code — the typed token
-    /// prevents stringly-typed capability mismatches.
+    /// This is the only constructor. There is no `enforced: false`
+    /// variant — an `OCAPBoundary` *is* a boundary.
     pub fn token(kind: OcapTokenKind) -> Self {
         Self {
-            capability: OcapCapability::Token(kind),
-            enforced: true,
+            capability: OcapCapability(kind),
         }
     }
 
-    /// Create an enforced boundary with a legacy string capability.
-    ///
-    /// Prefer `token()` for new code. `explicit()` exists for backward
-    /// compatibility with existing consumers.
-    pub fn explicit(capability: String) -> Self {
-        Self {
-            capability: OcapCapability::String(capability),
-            enforced: true,
-        }
-    }
-
-    pub fn denied(capability: String) -> Self {
-        Self {
-            capability: OcapCapability::String(capability),
-            enforced: false,
-        }
+    /// Parse a typed token from a string, returning `None` for unknown
+    /// names. Use this to convert untrusted input (e.g. an MCP tool
+    /// request field) into a boundary; reject the request on `None`.
+    pub fn parse_token(name: &str) -> Option<Self> {
+        parse_ocap_token_kind(name).map(Self::token)
     }
 }
 
@@ -253,149 +261,166 @@ mod tests {
         }
     }
 
+    /// Display maps each kind to its canonical snake_case name.
+    #[test]
+    fn ocap_token_kind_display_matches_canonical_name() {
+        assert_eq!(OcapTokenKind::Curation.to_string(), "curation");
+        assert_eq!(OcapTokenKind::Cybernetics.to_string(), "cybernetics");
+        assert_eq!(OcapTokenKind::SpecCurate.to_string(), "spec_curate");
+    }
+
+    /// `parse_ocap_token_kind` is the inverse of `Display` for every variant.
+    #[test]
+    fn parse_ocap_token_kind_round_trips_display() {
+        for kind in [
+            OcapTokenKind::Curation,
+            OcapTokenKind::Cybernetics,
+            OcapTokenKind::SpecCurate,
+        ] {
+            let s = kind.to_string();
+            assert_eq!(parse_ocap_token_kind(&s), Some(kind));
+        }
+    }
+
+    /// `parse_ocap_token_kind` rejects arbitrary attacker input.
+    /// This is the F-SYN-001 attack scenario: a string that
+    /// *would have* minted any capability under the old `String`
+    /// variant now fails to parse, returning `None`.
+    #[test]
+    fn parse_ocap_token_kind_rejects_attacker_string() {
+        for attack in [
+            "memory:write:any-webid",
+            "memory:write",
+            "*",
+            "",
+            "Memory:Write", // case-sensitive
+            "spec_curate ", // trailing space
+            " spec_curate", // leading space
+        ] {
+            assert_eq!(
+                parse_ocap_token_kind(attack),
+                None,
+                "attack input `{attack}` must not parse"
+            );
+        }
+    }
+
     // ------------------------------------------------------------------
     // OcapCapability — behavioural properties
     // ------------------------------------------------------------------
 
-    /// String variant holds and displays the inner string.
+    /// `OcapCapability` is a single-variant newtype; equality and Display
+    /// are derived from the inner `OcapTokenKind`.
     #[test]
-    fn ocap_capability_string_displays_inner_value() {
-        let cap = OcapCapability::String("curation".into());
-        assert_eq!(cap.to_string(), "curation");
-        let cap2 = OcapCapability::String("custom_cap".into());
-        assert_eq!(cap2.to_string(), "custom_cap");
+    fn ocap_capability_equality_and_display() {
+        let a = OcapCapability(OcapTokenKind::Curation);
+        let b = OcapCapability(OcapTokenKind::Curation);
+        let c = OcapCapability(OcapTokenKind::SpecCurate);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+        assert_eq!(a.to_string(), "curation");
+        assert_eq!(c.to_string(), "spec_curate");
     }
 
-    /// Token variant Display maps each kind to its canonical name.
-    #[test]
-    fn ocap_capability_token_display_mapping() {
-        assert_eq!(
-            OcapCapability::Token(OcapTokenKind::Curation).to_string(),
-            "curation"
-        );
-        assert_eq!(
-            OcapCapability::Token(OcapTokenKind::Cybernetics).to_string(),
-            "cybernetics"
-        );
-        assert_eq!(
-            OcapCapability::Token(OcapTokenKind::SpecCurate).to_string(),
-            "spec_curate"
-        );
-    }
-
-    /// PartialEq: same variant + same inner value → equal;
-    /// different inner values → not equal;
-    /// different capability kinds → not equal.
-    #[test]
-    fn ocap_capability_equality_semantics() {
-        // Same string value → equal
-        assert_eq!(
-            OcapCapability::String("curation".into()),
-            OcapCapability::String("curation".into()),
-        );
-        // Different string values → not equal
-        assert_ne!(
-            OcapCapability::String("curation".into()),
-            OcapCapability::String("cybernetics".into()),
-        );
-        // Same token kind → equal
-        assert_eq!(
-            OcapCapability::Token(OcapTokenKind::Curation),
-            OcapCapability::Token(OcapTokenKind::Curation),
-        );
-        // Different token kinds → not equal
-        assert_ne!(
-            OcapCapability::Token(OcapTokenKind::Curation),
-            OcapCapability::Token(OcapTokenKind::Cybernetics),
-        );
-        // String vs Token with same display name → not equal (different variants)
-        assert_ne!(
-            OcapCapability::String("curation".into()),
-            OcapCapability::Token(OcapTokenKind::Curation),
-        );
-    }
-
-    /// Serde roundtrip for both OcapCapability variants.
+    /// Serde roundtrip: a token-based capability serializes to its
+    /// canonical snake_case name (transparent).
     #[test]
     fn ocap_capability_serde_roundtrip() {
-        let string_cap = OcapCapability::String("curation".into());
-        let json = serde_json::to_string(&string_cap).unwrap();
-        assert_eq!(json, "{\"string\":\"curation\"}");
+        let cap = OcapCapability(OcapTokenKind::Cybernetics);
+        let json = serde_json::to_string(&cap).unwrap();
+        assert_eq!(json, "\"cybernetics\"");
         let back: OcapCapability = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, string_cap);
-
-        let token_cap = OcapCapability::Token(OcapTokenKind::Cybernetics);
-        let json = serde_json::to_string(&token_cap).unwrap();
-        assert_eq!(json, "{\"token\":\"cybernetics\"}");
-        let back: OcapCapability = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, token_cap);
+        assert_eq!(back, cap);
     }
 
     // ------------------------------------------------------------------
     // OCAPBoundary — behavioural properties
     // ------------------------------------------------------------------
 
-    /// token() creates an enforced boundary with the given token kind.
+    /// `token()` creates a boundary with the given token kind.
     #[test]
-    fn ocap_boundary_token_creates_enforced() {
+    fn ocap_boundary_token_creates() {
         let b = OCAPBoundary::token(OcapTokenKind::Curation);
-        assert_eq!(b.capability, OcapCapability::Token(OcapTokenKind::Curation));
-        assert!(b.enforced);
+        assert_eq!(b.capability, OcapCapability(OcapTokenKind::Curation));
 
         let b = OCAPBoundary::token(OcapTokenKind::SpecCurate);
+        assert_eq!(b.capability, OcapCapability(OcapTokenKind::SpecCurate));
+    }
+
+    /// `parse_token` round-trips every known name.
+    #[test]
+    fn ocap_boundary_parse_token_known_names() {
         assert_eq!(
-            b.capability,
-            OcapCapability::Token(OcapTokenKind::SpecCurate)
+            OCAPBoundary::parse_token("curation"),
+            Some(OCAPBoundary::token(OcapTokenKind::Curation))
         );
-        assert!(b.enforced);
+        assert_eq!(
+            OCAPBoundary::parse_token("cybernetics"),
+            Some(OCAPBoundary::token(OcapTokenKind::Cybernetics))
+        );
+        assert_eq!(
+            OCAPBoundary::parse_token("spec_curate"),
+            Some(OCAPBoundary::token(OcapTokenKind::SpecCurate))
+        );
     }
 
-    /// explicit() creates an enforced boundary with a String capability.
+    /// `parse_token` rejects unknown names (F-SYN-001 attack surface).
     #[test]
-    fn ocap_boundary_explicit_creates_enforced() {
-        let b = OCAPBoundary::explicit("curation".into());
-        assert_eq!(b.capability, OcapCapability::String("curation".into()));
-        assert!(b.enforced);
+    fn ocap_boundary_parse_token_rejects_unknown() {
+        for s in ["", "unknown", "memory:write:any-webid", "SpecCurate"] {
+            assert_eq!(
+                OCAPBoundary::parse_token(s),
+                None,
+                "unknown input `{s}` must not parse"
+            );
+        }
     }
 
-    /// denied() creates a non-enforced boundary with a String capability.
+    /// Two boundaries with the same capability are equal.
     #[test]
-    fn ocap_boundary_denied_creates_unenforced() {
-        let b = OCAPBoundary::denied("curation".into());
-        assert_eq!(b.capability, OcapCapability::String("curation".into()));
-        assert!(!b.enforced);
+    fn ocap_boundary_equality() {
+        let a = OCAPBoundary::token(OcapTokenKind::Curation);
+        let b = OCAPBoundary::token(OcapTokenKind::Curation);
+        let c = OCAPBoundary::token(OcapTokenKind::SpecCurate);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
     }
 
-    /// Token and explicit boundaries with the same display name are not equal
-    /// — they differ in capability variant.
-    #[test]
-    fn ocap_boundary_token_and_explicit_are_not_equal() {
-        let token_boundary = OCAPBoundary::token(OcapTokenKind::Curation);
-        let explicit_boundary = OCAPBoundary::explicit("curation".into());
-        assert_ne!(token_boundary, explicit_boundary);
-    }
-
-    /// Serde roundtrip: token and explicit boundaries serialize/deserialize correctly.
+    /// Serde roundtrip: a boundary with a token capability
+    /// serializes and deserializes correctly.
     #[test]
     fn ocap_boundary_serde_roundtrip() {
-        // Token boundary
-        let token_b = OCAPBoundary::token(OcapTokenKind::Curation);
-        let json = serde_json::to_string(&token_b).unwrap();
+        let b = OCAPBoundary::token(OcapTokenKind::Curation);
+        let json = serde_json::to_string(&b).unwrap();
         let back: OCAPBoundary = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, token_b);
+        assert_eq!(back, b);
+    }
 
-        // Explicit boundary (enforced)
-        let explicit_b = OCAPBoundary::explicit("curation".into());
-        let json = serde_json::to_string(&explicit_b).unwrap();
-        let back: OCAPBoundary = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, explicit_b);
-
-        // Denied boundary (not enforced)
-        let denied_b = OCAPBoundary::denied("curation".into());
-        let json = serde_json::to_string(&denied_b).unwrap();
-        let back: OCAPBoundary = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, denied_b);
-        assert!(!back.enforced);
+    /// **F-SYN-001 red→green invariant:** an attacker can no longer
+    /// construct an `OCAPBoundary` with a forged capability. The old
+    /// `OCAPBoundary::explicit(String)` and
+    /// `OcapCapability::String(String)` paths are gone. This test
+    /// asserts the attack fails: `parse_token` returns `None`.
+    ///
+    /// Compile-fail counterpart (manual check): the following does
+    /// not compile after F-SYN-001 lands:
+    ///
+    /// ```ignore
+    /// let _ = OCAPBoundary::explicit("memory:write:any-webid".into());
+    /// // error[E0599]: no function or associated item named `explicit`
+    /// ```
+    #[test]
+    fn f_syn_001_attack_scenario_does_not_parse() {
+        let attack = "memory:write:any-webid";
+        // Pre-fix: this would have constructed an OCAPBoundary with
+        // OcapCapability::String("memory:write:any-webid") — a
+        // forgeable capability.
+        // Post-fix: parse_token returns None; the call site must
+        // reject the request.
+        assert!(
+            OCAPBoundary::parse_token(attack).is_none(),
+            "F-SYN-001 invariant: the attack input must not parse into a boundary"
+        );
     }
 
     // ------------------------------------------------------------------
