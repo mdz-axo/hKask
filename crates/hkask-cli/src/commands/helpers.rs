@@ -3,7 +3,6 @@
 //! Utility functions used across multiple command modules for error handling,
 //! output, and common setup.
 
-use hkask_storage::{Database, lock_mutex};
 use std::path::Path;
 
 /// Unwrap a `Result` or print an error message and exit.
@@ -29,34 +28,6 @@ pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
         }
         None => println!("{}", content),
     }
-}
-
-/// Open the user store with the registry database.
-pub fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_store::UserStore>> {
-    use super::config::{registry_db_path, resolve_db_passphrase};
-
-    let db_path = registry_db_path();
-    let passphrase = or_exit(resolve_db_passphrase(), "Failed to resolve DB passphrase");
-
-    let db = or_exit(
-        if db_path == ":memory:" {
-            Database::in_memory()
-        } else {
-            Database::open(&db_path, &passphrase)
-        },
-        "Failed to open user database",
-    );
-
-    let store = hkask_storage::user_store::UserStore::new(db.conn_arc());
-    let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-    {
-        let guard = or_exit(lock_mutex(&store), "Failed to acquire lock on user store");
-        or_exit(
-            guard.initialize_schema(),
-            "Failed to initialize user store schema",
-        );
-    }
-    store
 }
 
 /// Run an async future on the tokio runtime and exit on error.

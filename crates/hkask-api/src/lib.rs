@@ -219,10 +219,9 @@ impl ApiState {
 
 /// Create API router with OpenAPI documentation and authentication
 pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRouter, String> {
-    let auth_service = std::sync::Arc::new(
-        middleware::AuthService::new()
-            .map_err(|e| format!("Failed to initialize auth service: {}", e))?,
-    );
+    let auth_service = std::sync::Arc::new(middleware::AuthService::from_config(
+        &state.service_context.config,
+    ));
 
     Ok(
         utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())

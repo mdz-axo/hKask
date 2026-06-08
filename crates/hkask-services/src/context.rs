@@ -36,6 +36,7 @@ use hkask_memory::{
 };
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
+use hkask_storage::user_store::UserStore;
 use hkask_storage::{
     ConsentStore, Database, EmbeddingStore, SovereigntyBoundaryStore, SqliteSpecStore,
     StandingSessionStore, TripleStore, in_memory_db,
@@ -135,6 +136,9 @@ pub struct ServiceContext {
     /// Agent registry store for persistent agent records.
     pub agent_registry_store: hkask_storage::AgentRegistryStore,
 
+    /// User store for replicant identity and authentication.
+    pub user_store: Arc<std::sync::Mutex<UserStore>>,
+
     /// Configuration used to build this context.
     pub config: ServiceConfig,
 }
@@ -230,6 +234,22 @@ impl ServiceContext {
         let spec_conn = spec_db.conn_arc();
         let spec_store = SqliteSpecStore::new(spec_conn);
         spec_store.init_schema().map_err(ServiceError::Spec)?;
+
+        let user_db = if config.in_memory {
+            in_memory_db()
+        } else {
+            Database::open(&config.db_path, &config.db_passphrase)?
+        };
+        let user_conn = user_db.conn_arc();
+        let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
+        {
+            let guard = user_store.lock().map_err(|_| {
+                ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
+                    hkask_types::InfrastructureError::LockPoisoned,
+                ))
+            })?;
+            guard.initialize_schema().map_err(ServiceError::UserStore)?;
+        }
 
         // ── 4. CNS runtime + event sink ──────────────────────────────────────
         let cns_runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
@@ -463,6 +483,7 @@ impl ServiceContext {
             session_manager,
             acp_runtime,
             agent_registry_store,
+            user_store,
             config,
         })
     }

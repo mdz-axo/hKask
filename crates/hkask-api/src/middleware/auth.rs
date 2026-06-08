@@ -33,8 +33,8 @@ pub struct AuthService {
 }
 
 impl AuthService {
-    /// Create a new `AuthService` by deriving the MCP security key from
-    /// the master key environment variable.
+    /// Create a new `AuthService` by deriving the MCP security key
+    /// from the keystore's resolution chain.
     ///
     /// Delegates to the keystore's domain-specific resolution chain.
     pub fn new() -> Result<Self, String> {
@@ -45,6 +45,17 @@ impl AuthService {
             secret: Arc::new((*secret).clone()),
             revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
         })
+    }
+
+    /// Create an `AuthService` from the MCP secret in a ServiceConfig.
+    ///
+    /// This avoids re-resolving the secret from the keystore by using
+    /// the already-resolved `config.mcp_secret`.
+    pub fn from_config(config: &hkask_services::ServiceConfig) -> Self {
+        Self {
+            secret: Arc::new(config.mcp_secret.clone()),
+            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
+        }
     }
 
     /// Create an `AuthService` from an explicit secret (useful for tests).

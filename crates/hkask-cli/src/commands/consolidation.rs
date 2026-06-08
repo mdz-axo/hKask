@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_services::ServiceContext;
+use hkask_storage::{EmbeddingStore, TripleStore};
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
@@ -18,18 +19,26 @@ pub fn run(
     // Resolve agent name — defaults to "curator" for the Curator agent
     let agent_name = agent.unwrap_or("curator");
 
+    // Build ServiceContext to get config with DB passphrase
+    let config = super::helpers::or_exit(
+        hkask_services::ServiceConfig::from_env(),
+        "Failed to resolve config",
+    );
+    let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
+        eprintln!("Runtime error: {e}");
+        std::process::exit(1)
+    });
+    let _ctx = super::helpers::or_exit(
+        rt.block_on(ServiceContext::build(config.clone())),
+        "Failed to build ServiceContext",
+    );
+
     // Resolve the agent's per-agent memory DB path and passphrase.
     // Consolidation operates on the agent's actual episodic and semantic
     // triples, which live in hkask-memory-{agent}.db — not the registry DB.
     let db_path = format!("hkask-memory-{}.db", agent_name);
-    let db_passphrase = match hkask_keystore::resolve_db_passphrase() {
-        Ok(pass) => String::from_utf8_lossy(&pass).to_string(),
-        Err(e) => {
-            eprintln!("Error: Could not resolve DB passphrase: {}", e);
-            std::process::exit(1);
-        }
-    };
-    let db = match Database::open(&db_path, &db_passphrase) {
+    let db_passphrase = config.db_passphrase.clone();
+    let db = match hkask_storage::Database::open(&db_path, &db_passphrase) {
         Ok(db) => db,
         Err(e) => {
             eprintln!("Error: Failed to open agent memory DB ({}): {}", db_path, e);
@@ -67,15 +76,7 @@ pub fn run(
     // deriving the capability_key and comparing it against the resolved DB passphrase.
     if agent.is_some() {
         if let Some(provided) = passphrase {
-            let expected = match hkask_keystore::resolve_db_passphrase() {
-                Ok(db_pass) => String::from_utf8_lossy(&db_pass).to_string(),
-                Err(_) => {
-                    eprintln!(
-                        "Error: Could not resolve database passphrase from keychain or environment"
-                    );
-                    std::process::exit(1);
-                }
-            };
+            let expected = config.db_passphrase.clone();
             // Derive capability_key from the provided master passphrase
             let secrets = hkask_keystore::master_key::derive_all_internal_secrets(provided);
             if secrets.capability_key != expected {

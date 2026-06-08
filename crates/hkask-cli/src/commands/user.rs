@@ -330,7 +330,19 @@ pub fn list_sessions(
 pub fn run_replicant(action: crate::cli::ReplicantAction) {
     use hkask_types::UserID;
 
-    let store = super::helpers::open_user_store();
+    let config = super::helpers::or_exit(
+        hkask_services::ServiceConfig::from_env(),
+        "Failed to resolve config",
+    );
+    let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
+        eprintln!("Runtime error: {e}");
+        std::process::exit(1)
+    });
+    let ctx = super::helpers::or_exit(
+        rt.block_on(hkask_services::ServiceContext::build(config)),
+        "Failed to build ServiceContext",
+    );
+    let store = ctx.user_store.clone();
 
     match action {
         ReplicantAction::Register {

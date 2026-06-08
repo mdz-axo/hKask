@@ -22,10 +22,8 @@ use hkask_types::{
 };
 use std::sync::Arc;
 
-use crate::commands::config::{
-    ResolvedSecrets, init_registry, init_registry_with_secrets, registry_yaml_path,
-    resolve_acp_secret,
-};
+use crate::commands::config::ResolvedSecrets;
+use hkask_services::ServiceContext;
 
 use hkask_types::ports::StructuredToolCall;
 
@@ -106,36 +104,60 @@ pub async fn chat_with_agent(
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
-    // Load agent registry — prefer pre-resolved secrets from onboarding
-    let (acp, store) = match secrets {
-        Some(s) => match init_registry_with_secrets(s).await {
-            Ok(r) => r,
-            Err(e) => {
-                return ChatResponse {
-                    text: format!("Registry init error: {}", e),
-                    usage: None,
-                    finish_reason: "error".to_string(),
-                    tool_calls: vec![],
-                };
+    // Load agent registry via ServiceContext — prefer pre-resolved secrets from onboarding
+    let ctx = match secrets {
+        Some(s) => {
+            let mcp_secret = hkask_keystore::resolve_mcp_secret()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+            let config = hkask_services::ServiceConfig::from_secrets(
+                s.acp_secret.clone(),
+                s.db_passphrase.clone(),
+                mcp_secret,
+                name.to_string(),
+            );
+            match ServiceContext::build(config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("ServiceContext error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
             }
-        },
-        None => match init_registry().await {
-            Ok(r) => r,
-            Err(e) => {
-                return ChatResponse {
-                    text: format!("Registry init error: {}", e),
-                    usage: None,
-                    finish_reason: "error".to_string(),
-                    tool_calls: vec![],
-                };
+        }
+        None => {
+            let config = match hkask_services::ServiceConfig::from_env() {
+                Ok(c) => c,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("Config error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            };
+            match ServiceContext::build(config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("ServiceContext error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
             }
-        },
+        }
     };
 
     let loader = hkask_agents::AgentRegistryLoader::new(
-        registry_yaml_path(),
-        acp.clone(),
-        store,
+        ctx.config.registry_yaml_path.clone(),
+        ctx.acp_runtime.clone(),
+        ctx.agent_registry_store.clone(),
         Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
     );
 
@@ -260,25 +282,13 @@ pub async fn chat_with_agent(
     // The token uses the ACP secret for HMAC signing, ensuring that
     // memory operations are authorized through the same OCAP discipline
     // as pod-mediated access.
-    let acp_secret = match resolve_acp_secret() {
-        Ok(s) => s,
-        Err(e) => {
-            return ChatResponse {
-                text: format!("ACP secret resolution failed: {}", e),
-                usage: None,
-                finish_reason: "error".to_string(),
-                tool_calls: vec![],
-            };
-        }
-    };
-
     let capability_token = DelegationToken::new(
         DelegationResource::Registry,
         "memory".to_string(),
         DelegationAction::Execute,
         WebID::new(), // system
         agent_webid,
-        acp_secret.as_bytes(),
+        &ctx.config.acp_secret,
     );
 
     // Recall relevant knowledge from semantic memory to enrich the prompt.

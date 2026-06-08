@@ -10,11 +10,13 @@ pub fn registry_db_path() -> String {
     std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| hkask_services::DEFAULT_DB_PATH.to_string())
 }
 
+#[allow(dead_code)] // Still used by init_registry() — delete together in final cleanup
 pub(crate) fn registry_yaml_path() -> PathBuf {
     let p = std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string());
     PathBuf::from(p)
 }
 
+#[allow(dead_code)] // Still used by onboarding's ResolvedSecrets — delete together in final cleanup
 pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
     hkask_keystore::resolve_acp_secret()
         .map(|s| String::from_utf8_lossy(&s).to_string())
@@ -90,31 +92,6 @@ pub fn create_disconnected_governed_dispatcher(
     (dispatcher, governed)
 }
 
-/// Create an MCP dispatcher wired with GovernedTool and a capability token.
-/// Returns (McpDispatcher, token) for invoking tools.
-///
-/// **Note:** This creates a dispatcher with NO live MCP servers — the
-/// underlying `McpRuntime` is empty. All tool invocations will fail because
-/// no servers have been started via `McpRuntime::start_server()`. Use
-/// `create_mcp_dispatcher_with_servers()` for dispatchers that can actually
-/// invoke tools, or start servers manually on the runtime before creating
-/// the dispatcher.
-///
-/// This function also creates a *disconnected* CyberneticsLoop — it is not
-/// wired into any LoopSystem or REPL session. For REPL-connected tool
-/// dispatch, the GovernedTool is created in `repl::run()` using the
-/// session's shared CyberneticsLoop and dispatch channel.
-pub fn create_mcp_dispatcher()
--> Result<(hkask_mcp::McpDispatcher, hkask_types::DelegationToken), RegistryError> {
-    let runtime = hkask_mcp::runtime::McpRuntime::new();
-    let mcp_secret = resolve_mcp_secret()?;
-    let (dispatcher, _) = create_disconnected_governed_dispatcher(runtime, mcp_secret.as_bytes());
-    let from = hkask_types::WebID::new();
-    let to = hkask_types::WebID::new();
-    let token = dispatcher.issue_capability("tools".to_string(), from, to);
-    Ok((dispatcher, token))
-}
-
 /// Create an MCP dispatcher wired with GovernedTool, a capability token,
 /// and the specified MCP servers started as child processes.
 ///
@@ -166,6 +143,7 @@ pub struct ResolvedSecrets {
 }
 
 /// Initialize the registry by resolving secrets from env/keychain/derivation.
+#[allow(dead_code)] // Still used by init_registry_with_secrets — delete together in final cleanup
 pub(crate) async fn init_registry() -> Result<
     (
         Arc<hkask_agents::AcpRuntime>,

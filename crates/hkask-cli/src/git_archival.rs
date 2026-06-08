@@ -181,11 +181,12 @@ pub async fn create_registry_snapshot(
     repo_owner: &str,
     repo_name: &str,
     message: &str,
+    agent_registry_store: &hkask_storage::AgentRegistryStore,
 ) -> Result<String, String> {
     let client = build_github_client()?;
 
     // Read the local registry and serialize to JSON
-    let registry_content = read_local_registry()?;
+    let registry_content = read_local_registry(agent_registry_store)?;
 
     let encoded_content = BASE64_STANDARD.encode(registry_content.as_bytes());
 
@@ -228,25 +229,7 @@ pub async fn create_registry_snapshot(
 }
 
 /// Read the local registry database and serialize it to JSON.
-fn read_local_registry() -> Result<String, String> {
-    use crate::commands::config::{registry_db_path, resolve_db_passphrase};
-    use hkask_storage::{AgentRegistryStore, Database};
-
-    let db_path = registry_db_path();
-    let passphrase = resolve_db_passphrase().map_err(|e| format!("{e}"))?;
-
-    let db = if db_path == ":memory:" {
-        Database::in_memory()
-    } else {
-        Database::open(&db_path, &passphrase)
-    }
-    .map_err(|e| format!("Failed to open database: {e}"))?;
-
-    let store = AgentRegistryStore::new(db.conn_arc());
-    store
-        .initialize_schema()
-        .map_err(|e| format!("Failed to initialize schema: {e}"))?;
-
+fn read_local_registry(store: &hkask_storage::AgentRegistryStore) -> Result<String, String> {
     let agents = store
         .list()
         .map_err(|e| format!("Failed to list agents: {e}"))?;

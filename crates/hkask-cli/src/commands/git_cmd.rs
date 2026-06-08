@@ -9,6 +9,7 @@ use crate::block_on;
 use crate::cli::GitAction;
 use crate::commands;
 use hkask_mcp::GixCasAdapter;
+use hkask_services::ServiceContext;
 use hkask_types::ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 
 /// Resolve the hexagonal `GitCASPort` from the environment.
@@ -40,6 +41,17 @@ fn parse_repo_id(repo: &str) -> RepoId {
     }
 }
 
+fn build_service_context(rt: &tokio::runtime::Runtime) -> ServiceContext {
+    let config = super::helpers::or_exit(
+        hkask_services::ServiceConfig::from_env(),
+        "Failed to resolve config",
+    );
+    super::helpers::or_exit(
+        rt.block_on(hkask_services::ServiceContext::build(config)),
+        "Failed to build ServiceContext",
+    )
+}
+
 pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
     match action {
         // ── GitHub API operations (existing) ──────────────────────────────
@@ -51,12 +63,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             content,
             file,
         } => {
-            let runtime = hkask_mcp::runtime::McpRuntime::new();
-            let acp_secret = super::helpers::or_exit(
-                super::config::resolve_acp_secret(),
-                "Failed to resolve ACP secret for capability tokens",
-            );
-            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+            let ctx = build_service_context(rt);
+            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
 
             let content_str = if let Some(c) = content {
                 c
@@ -71,7 +79,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                 block_on!(
                     rt,
                     commands::archive_registry_to_git(
-                        &runtime,
+                        ctx.mcp_runtime.as_ref(),
                         &checker,
                         &owner,
                         &repo,
@@ -90,19 +98,20 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             r#ref,
             target,
         } => {
-            let runtime = hkask_mcp::runtime::McpRuntime::new();
-            let acp_secret = super::helpers::or_exit(
-                super::config::resolve_acp_secret(),
-                "Failed to resolve ACP secret for capability tokens",
-            );
-            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+            let ctx = build_service_context(rt);
+            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
 
             println!(
                 "{}",
                 block_on!(
                     rt,
                     commands::restore_registry_from_git(
-                        &runtime, &checker, &owner, &repo, &r#ref, &target,
+                        ctx.mcp_runtime.as_ref(),
+                        &checker,
+                        &owner,
+                        &repo,
+                        &r#ref,
+                        &target,
                     ),
                     "Restore failed"
                 )
@@ -110,16 +119,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         }
 
         GitAction::List { owner, repo } => {
-            let runtime = hkask_mcp::runtime::McpRuntime::new();
-            let acp_secret = super::helpers::or_exit(
-                super::config::resolve_acp_secret(),
-                "Failed to resolve ACP secret for capability tokens",
-            );
-            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+            let ctx = build_service_context(rt);
+            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
 
             let commits = block_on!(
                 rt,
-                commands::list_registry_archives(&runtime, &checker, &owner, &repo,),
+                commands::list_registry_archives(ctx.mcp_runtime.as_ref(), &checker, &owner, &repo,),
                 "List failed"
             );
             println!("Archived versions for {}/{}:", owner, repo);
@@ -133,18 +138,21 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             repo,
             message,
         } => {
-            let runtime = hkask_mcp::runtime::McpRuntime::new();
-            let acp_secret = super::helpers::or_exit(
-                super::config::resolve_acp_secret(),
-                "Failed to resolve ACP secret for capability tokens",
-            );
-            let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
+            let ctx = build_service_context(rt);
+            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
 
             println!(
                 "{}",
                 block_on!(
                     rt,
-                    commands::create_registry_snapshot(&runtime, &checker, &owner, &repo, &message,),
+                    commands::create_registry_snapshot(
+                        ctx.mcp_runtime.as_ref(),
+                        &checker,
+                        &owner,
+                        &repo,
+                        &message,
+                        &ctx.agent_registry_store,
+                    ),
                     "Snapshot failed"
                 )
             );

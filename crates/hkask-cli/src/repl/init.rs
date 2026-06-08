@@ -102,13 +102,19 @@ pub(super) fn init_repl_state(
 
     // Build a ServiceConfig from onboarding outcome for ServiceContext::build().
     let service_config = match &onboarding_outcome.resolved_secrets {
-        Some(secrets) => hkask_services::ServiceConfig::from_secrets(
-            secrets.acp_secret.clone(),
-            secrets.db_passphrase.clone(),
-            crate::commands::config::resolve_mcp_secret()
-                .unwrap_or_else(|_| "hkask-mcp-default".to_string()),
-            onboarding_outcome.signed_in_agent.clone(),
-        ),
+        Some(secrets) => {
+            // Onboarding provides ACP + DB secrets. MCP secret is resolved
+            // separately since ResolvedSecrets doesn't carry it.
+            let mcp_secret = hkask_keystore::resolve_mcp_secret()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+            hkask_services::ServiceConfig::from_secrets(
+                secrets.acp_secret.clone(),
+                secrets.db_passphrase.clone(),
+                mcp_secret,
+                onboarding_outcome.signed_in_agent.clone(),
+            )
+        }
         None => hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
             eprintln!("Warning: Failed to resolve service config from env: {}", e);
             hkask_services::ServiceConfig::in_memory()
