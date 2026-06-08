@@ -156,6 +156,10 @@ pub enum ServiceError {
     #[error("CNS operation failed: {0}")]
     Cns(String),
 
+    /// Keystore secret resolution failed.
+    #[error("Keystore resolution failed: {0}")]
+    Keystore(String),
+
     /// Upstream allosteric gate error.
     #[error(transparent)]
     Allosteric(#[from] AllostericError),

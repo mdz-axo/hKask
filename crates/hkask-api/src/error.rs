@@ -33,6 +33,8 @@ pub enum ApiError {
     BadRequest { message: String },
     /// A conflict occurred (409)
     Conflict { message: String },
+    /// The service is temporarily unavailable (503)
+    ServiceUnavailable { reason: String },
     /// An internal server error occurred (500)
     Internal { message: String },
 }
@@ -45,6 +47,7 @@ impl std::fmt::Display for ApiError {
             ApiError::Forbidden { reason } => write!(f, "Forbidden: {reason}"),
             ApiError::BadRequest { message } => write!(f, "Bad request: {message}"),
             ApiError::Conflict { message } => write!(f, "Conflict: {message}"),
+            ApiError::ServiceUnavailable { reason } => write!(f, "Service unavailable: {reason}"),
             ApiError::Internal { message } => write!(f, "Internal error: {message}"),
         }
     }
@@ -69,6 +72,7 @@ impl IntoResponse for ApiError {
             ApiError::Forbidden { reason } => (StatusCode::FORBIDDEN, reason),
             ApiError::BadRequest { message } => (StatusCode::BAD_REQUEST, message),
             ApiError::Conflict { message } => (StatusCode::CONFLICT, message),
+            ApiError::ServiceUnavailable { reason } => (StatusCode::SERVICE_UNAVAILABLE, reason),
             ApiError::Internal { message } => (StatusCode::INTERNAL_SERVER_ERROR, message),
         };
         (status, Json(ErrorBody { error: message })).into_response()
@@ -425,6 +429,9 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::NuEvent(err) => ApiError::Internal {
                 message: err.to_string(),
             },
+
+            // ── Service Unavailable (infrastructure not ready) ──────────────
+            SE::Keystore(msg) => ApiError::ServiceUnavailable { reason: msg },
 
             // ── Internal errors (catch-all) ─────────────────────────────────
             SE::Infra(err) => ApiError::Internal {
