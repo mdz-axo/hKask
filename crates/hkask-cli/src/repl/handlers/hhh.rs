@@ -1,9 +1,7 @@
 //! REPL /hhh handler — HHH alignment mode (Helpful, Harmless, Honest)
 
-use std::sync::Arc;
-
 use hkask_agents::HhhMode;
-use hkask_types::ports::InferencePort;
+use hkask_services::{InferenceContext, InferenceService};
 
 pub(crate) fn handle_hhh(arg: &str, state: &mut super::super::ReplState) {
     match arg.trim() {
@@ -53,10 +51,15 @@ pub(crate) fn handle_hhh(arg: &str, state: &mut super::super::ReplState) {
             if model_name.is_empty() {
                 println!("  Usage: \x1b[36m/hhh model <name>\x1b[0m");
             } else {
-                // Recreate the gate inference port with the new model
-                match hkask_templates::OkapiInference::new(model_name, state.okapi_config.clone()) {
+                // Recreate the gate inference port with the new model via InferenceService
+                let ctx = InferenceContext::from_parts(
+                    state.gate_inference_port.clone(),
+                    &state.service_config.default_model,
+                    &state.service_config.okapi_base_url,
+                );
+                match InferenceService::resolve_port(&ctx, model_name) {
                     Ok(port) => {
-                        state.gate_inference_port = Some(Arc::new(port) as Arc<dyn InferencePort>);
+                        state.gate_inference_port = Some(port);
                         state.hhh_config.gate_model = model_name.to_string();
                         println!(
                             "  Gate model set to: \x1b[1m{}\x1b[0m",

@@ -12,8 +12,6 @@ use hkask_ensemble::{
     ImprovMode, ImprovSessionConfig, InferencePortAdapter, ParticipantRole, SessionManager,
     bootstrap_standing_session_with_store,
 };
-use hkask_templates::OkapiConfig;
-use hkask_templates::OkapiInference;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};
@@ -128,15 +126,14 @@ pub fn get_improv_client(
                     Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
                 }
                 None => {
-                    let base_url = std::env::var("OKAPI_BASE_URL")
-                        .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
-                    let config = OkapiConfig {
-                        base_url,
-                        ..OkapiConfig::default()
-                    };
-                    let inference = OkapiInference::new("qwen3:8b", config)
+                    let ctx = hkask_services::InferenceContext::from_parts(
+                        None,
+                        "qwen3:8b",
+                        std::env::var("OKAPI_BASE_URL")
+                            .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string()),
+                    );
+                    let port = hkask_services::InferenceService::resolve_port(&ctx, "qwen3:8b")
                         .expect("Failed to create Okapi inference");
-                    let port: Arc<dyn InferencePort> = Arc::new(inference);
                     let adapter = InferencePortAdapter::new(port);
                     Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
                 }

@@ -26,8 +26,9 @@ use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
+use hkask_services::{InferenceContext, InferenceService};
 use hkask_storage::{Database, in_memory_db};
-use hkask_templates::{ManifestExecutor, McpPort, OkapiConfig, OkapiInference, SqliteRegistry};
+use hkask_templates::{ManifestExecutor, McpPort, SqliteRegistry};
 use hkask_types::CuratorHandle;
 use hkask_types::LLMParameters;
 use hkask_types::WebID;
@@ -51,11 +52,21 @@ pub(super) fn init_repl_state(
 ) -> Option<ReplState> {
     let initial_model_str = initial_model.unwrap_or("deepseek-v4-pro");
 
-    // Initialize inference port once — reused across all chat turns
-    let okapi_config = OkapiConfig::local_dev();
+    // Resolve okapi_base_url from env for InferenceService calls.
+    // This is used before onboarding to create the initial inference port.
+    let okapi_base_url =
+        std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+
+    // Initialize inference port once — reused across all chat turns.
+    // Route through InferenceService so all surfaces share the same logic.
+    let inference_ctx = InferenceContext::from_parts(
+        None, // No shared port yet — we're creating it now
+        initial_model_str,
+        &okapi_base_url,
+    );
     let inference_port: Arc<dyn InferencePort> =
-        match OkapiInference::new(initial_model_str, okapi_config.clone()) {
-            Ok(i) => Arc::new(i),
+        match InferenceService::resolve_port(&inference_ctx, initial_model_str) {
+            Ok(port) => port,
             Err(e) => {
                 eprintln!("Failed to initialize inference port: {}", e);
                 return None;
@@ -76,18 +87,19 @@ pub(super) fn init_repl_state(
     // Created eagerly to avoid cold-start latency when /hhh on is first called.
     // If the gate model is unavailable, the port is None and HHH mode
     // auto-disables — the user can configure a different model with /hhh model.
-    let gate_inference_port: Option<Arc<dyn InferencePort>> = match OkapiInference::new(
-        hhh_gate::HHH_DEFAULT_GATE_MODEL,
-        okapi_config.clone(),
-    ) {
-        Ok(port) => Some(Arc::new(port)),
-        Err(e) => {
-            tracing::warn!(
-                target: "cns.hhh.gate",
-                error = %e,
-                "Gate model initialization failed — HHH mode unavailable until /hhh model is used"
-            );
-            None
+    let gate_inference_port: Option<Arc<dyn InferencePort>> = {
+        let gate_ctx =
+            InferenceContext::from_parts(None, hhh_gate::HHH_DEFAULT_GATE_MODEL, &okapi_base_url);
+        match InferenceService::resolve_port(&gate_ctx, hhh_gate::HHH_DEFAULT_GATE_MODEL) {
+            Ok(port) => Some(port),
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.hhh.gate",
+                    error = %e,
+                    "Gate model initialization failed — HHH mode unavailable until /hhh model is used"
+                );
+                None
+            }
         }
     };
 
@@ -101,6 +113,22 @@ pub(super) fn init_repl_state(
             eprintln!("Run `kask chat` to set up your replicant identity.");
             return None;
         }
+    };
+
+    // Build a ServiceConfig from onboarding outcome for InferenceService calls.
+    // The okapi_base_url was resolved from env earlier (before onboarding).
+    let service_config = match &onboarding_outcome.resolved_secrets {
+        Some(secrets) => hkask_services::ServiceConfig::from_secrets(
+            secrets.acp_secret.clone(),
+            secrets.db_passphrase.clone(),
+            crate::commands::config::resolve_mcp_secret()
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string()),
+            onboarding_outcome.signed_in_agent.clone(),
+        ),
+        None => hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to resolve service config from env: {}", e);
+            hkask_services::ServiceConfig::in_memory()
+        }),
     };
 
     // Derive the agent's WebID from the agent name (deterministic)
@@ -287,7 +315,7 @@ pub(super) fn init_repl_state(
         cybernetics_loop,
         loop_system,
         dispatch,
-        okapi_config,
+        service_config,
         current_model: initial_model_str.to_string(),
         current_agent: onboarding_outcome.signed_in_agent,
         session_history: SessionHistory::new(),

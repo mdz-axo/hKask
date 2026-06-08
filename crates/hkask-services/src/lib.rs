@@ -27,4 +27,4 @@ pub mod inference;
 pub use config::ServiceConfig;
 pub use context::ServiceContext;
 pub use error::ServiceError;
-pub use inference::{InferenceService, ModelInfo};
+pub use inference::{InferenceContext, InferenceService, ModelInfo};

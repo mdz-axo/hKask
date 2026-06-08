@@ -14,7 +14,7 @@
 use crate::cli::ComposeAction;
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
-use hkask_templates::{OkapiConfig, OkapiEmbedding, OkapiInference};
+use hkask_templates::{OkapiConfig, OkapiEmbedding};
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
 use serde::Deserialize;
@@ -272,17 +272,22 @@ fn run_compose(
     // Use a generation model (not the embedding model) for prose generation.
     // Default to the same model family; override via OKAPI_MODEL env if needed.
     let gen_model = std::env::var("OKAPI_MODEL").unwrap_or_else(|_| config.embedding.model.clone());
-    let inference_config = match okapi_url {
-        Some(ref url) => OkapiConfig {
-            base_url: url.clone(),
-            ..OkapiConfig::default()
+    let inference_ctx = hkask_services::InferenceContext::from_parts(
+        None,
+        &gen_model,
+        match &okapi_url {
+            Some(url) => url.as_str(),
+            None => "http://127.0.0.1:11435",
         },
-        None => OkapiConfig::local_dev(),
+    );
+    let inference = match hkask_services::InferenceService::resolve_port(&inference_ctx, &gen_model)
+    {
+        Ok(port) => port,
+        Err(e) => {
+            eprintln!("Failed to create inference client: {}", e);
+            std::process::exit(1);
+        }
     };
-    let inference = OkapiInference::new(&gen_model, inference_config).unwrap_or_else(|e| {
-        eprintln!("Failed to create inference client: {}", e);
-        std::process::exit(1);
-    });
 
     eprintln!("Generating prose with model '{}'...", gen_model);
     let params = LLMParameters {

@@ -131,6 +131,8 @@ pub struct ApiState {
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
     pub inference_port: Option<Arc<dyn InferencePort>>,
+    /// Service configuration for InferenceService calls.
+    pub service_config: hkask_services::ServiceConfig,
     /// CNS gas governance port for ensemble sessions.
     /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
     pub gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
@@ -215,6 +217,10 @@ impl ApiState {
             episodic_storage,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
             inference_port,
+            service_config: hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
+                tracing::warn!(target: "hkask.api", error = %e, "Failed to resolve service config from env, using in-memory");
+                hkask_services::ServiceConfig::in_memory()
+            }),
             gas_governance,
         })
     }
@@ -296,19 +302,21 @@ impl ApiState {
         model: &str,
         db_config: Option<&DbConfig>,
     ) -> Result<Self, ApiError> {
-        let base_url = std::env::var("OKAPI_BASE_URL")
-            .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
-        let config = hkask_templates::OkapiConfig {
-            base_url,
-            ..hkask_templates::OkapiConfig::default()
-        };
-        let inference = hkask_templates::OkapiInference::new(model, config).map_err(|e| {
-            ApiError::Internal {
-                message: format!("Failed to create Okapi inference: {e}"),
-            }
-        })?;
-        let port: Arc<dyn InferencePort> = Arc::new(inference);
-        let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(port));
+        let ctx = hkask_services::InferenceContext::from_parts(
+            None,
+            model,
+            std::env::var("OKAPI_BASE_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string()),
+        );
+        let inference =
+            hkask_services::InferenceService::resolve_port(&ctx, model).map_err(|e| {
+                ApiError::Internal {
+                    message: format!("Failed to create Okapi inference: {e}"),
+                }
+            })?;
+        let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(
+            inference,
+        ));
         Self::new(
             registry,
             mcp_runtime,

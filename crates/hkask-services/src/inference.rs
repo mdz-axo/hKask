@@ -2,12 +2,11 @@
 //!
 //! `InferenceService` replaces the scattered `OkapiConfig::local_dev()` +
 //! `OkapiInference::new()` call sites across CLI, API, and service context.
-//! It uses `ServiceConfig` for connection settings and the shared
-//! `ServiceContext::inference_port` when available, falling back to
-//! fresh `OkapiInference` instances for model switches.
+//! It uses `InferenceContext` (a lightweight struct with just the fields
+//! needed for inference) instead of requiring a full `ServiceContext`.
 //!
 //! # Design decisions
-//!
+//
 //! - **Constraint: Prohibition (P1)** — MCP servers do NOT use this service.
 //!   They continue using `OkapiConfig`/`OkapiInference` directly because they
 //!   run in separate processes and cannot share `ServiceContext`.
@@ -16,14 +15,67 @@
 //!   `OkapiInference`. Caching is a future optimization (Hypothesis).
 //! - **Depth test** — Deleting this module would cause inference port
 //!   construction logic to reappear in 11+ call sites. Passes deletion test.
+//! - **Strangler fig** — `InferenceContext` is a lightweight alternative to
+//!   `ServiceContext` that CLI and API surfaces construct from their own
+//!   config/state. Full `ServiceContext` composition happens in Task 7b.
 
 use std::sync::Arc;
 
 use hkask_templates::{OkapiConfig, OkapiInference, OkapiModelEntry};
 use hkask_types::ports::InferencePort;
 
-use crate::ServiceContext;
 use crate::ServiceError;
+
+/// Lightweight context for `InferenceService` calls.
+///
+/// Contains only the fields needed for inference port resolution and model
+/// listing. Construct from a `ServiceContext` (full assembly) or from parts
+/// (CLI/API surfaces that don't yet compose a full `ServiceContext`).
+///
+/// This struct enables the strangler fig pattern: surfaces can route
+/// inference through `InferenceService` without building a complete
+/// `ServiceContext` (which opens databases, starts loops, etc.).
+pub struct InferenceContext {
+    /// Shared inference port for the default model. When the requested model
+    /// matches `default_model`, this port is reused. `None` if no shared
+    /// port is available (standalone commands, fallback paths).
+    pub shared_port: Option<Arc<dyn InferencePort>>,
+    /// Default model name (used to decide whether to reuse the shared port).
+    pub default_model: String,
+    /// Base URL for the Okapi inference server.
+    pub okapi_base_url: String,
+}
+
+impl InferenceContext {
+    /// Construct from individual parts (for CLI/API surfaces that don't
+    /// have a full `ServiceContext`).
+    ///
+    /// `shared_port` is `None` for standalone commands that create fresh
+    /// inference ports on every call. When available (e.g., from
+    /// `ReplState::inference_port`), passing it here enables port reuse
+    /// for the default model.
+    pub fn from_parts(
+        shared_port: Option<Arc<dyn InferencePort>>,
+        default_model: impl Into<String>,
+        okapi_base_url: impl Into<String>,
+    ) -> Self {
+        Self {
+            shared_port,
+            default_model: default_model.into(),
+            okapi_base_url: okapi_base_url.into(),
+        }
+    }
+}
+
+impl From<&crate::ServiceContext> for InferenceContext {
+    fn from(ctx: &crate::ServiceContext) -> Self {
+        Self {
+            shared_port: ctx.inference_port.clone(),
+            default_model: ctx.config.default_model.clone(),
+            okapi_base_url: ctx.config.okapi_base_url.clone(),
+        }
+    }
+}
 
 /// Model metadata returned by the inference backend.
 #[derive(Debug, Clone)]
@@ -72,19 +124,19 @@ impl InferenceService {
     /// # REQ: svc-inf-002 — resolve_port creates fresh instance for non-default model
     /// # REQ: svc-inf-003 — resolve_port returns Inference error on connection failure
     pub fn resolve_port(
-        ctx: &ServiceContext,
+        ctx: &InferenceContext,
         model: &str,
     ) -> Result<Arc<dyn InferencePort>, ServiceError> {
         // If the requested model matches the default, reuse the shared port.
-        if let Some(ref port) = ctx.inference_port
-            && model == ctx.config.default_model
+        if let Some(ref port) = ctx.shared_port
+            && model == ctx.default_model
         {
             return Ok(Arc::clone(port));
         }
 
         // Fall back to a fresh OkapiInference instance.
         let config = OkapiConfig {
-            base_url: ctx.config.okapi_base_url.clone(),
+            base_url: ctx.okapi_base_url.clone(),
             ..OkapiConfig::default()
         };
         OkapiInference::new(model, config)
@@ -95,9 +147,9 @@ impl InferenceService {
     /// List all locally available models from the inference backend.
     ///
     /// # REQ: svc-inf-004 — list_models returns model metadata from Okapi
-    pub async fn list_models(ctx: &ServiceContext) -> Result<Vec<ModelInfo>, ServiceError> {
+    pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
         let config = OkapiConfig {
-            base_url: ctx.config.okapi_base_url.clone(),
+            base_url: ctx.okapi_base_url.clone(),
             ..OkapiConfig::default()
         };
         let models = hkask_templates::list_okapi_models(&config).await;
@@ -108,11 +160,11 @@ impl InferenceService {
     ///
     /// # REQ: svc-inf-005 — search_models filters models by query substring
     pub async fn search_models(
-        ctx: &ServiceContext,
+        ctx: &InferenceContext,
         query: &str,
     ) -> Result<Vec<ModelInfo>, ServiceError> {
         let config = OkapiConfig {
-            base_url: ctx.config.okapi_base_url.clone(),
+            base_url: ctx.okapi_base_url.clone(),
             ..OkapiConfig::default()
         };
         let models = hkask_templates::search_okapi_models(&config, query).await;

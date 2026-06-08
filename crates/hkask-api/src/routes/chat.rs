@@ -9,6 +9,7 @@ use std::sync::Arc;
 use axum::{Json, extract::State, routing::Router};
 
 use crate::ApiState;
+use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -66,7 +67,7 @@ pub fn chat_router() -> Router<ApiState> {
     ),
 )]
 async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
-    use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
+    use hkask_services::{InferenceContext, InferenceService};
     use hkask_types::LLMParameters;
 
     let model = req.model.as_deref().unwrap_or("qwen3:8b");
@@ -76,12 +77,16 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
     let inference: Arc<dyn InferencePort> = match state.inference_port {
         Some(ref port) => Arc::clone(port),
         None => {
-            let config = OkapiConfig::local_dev();
-            match OkapiInference::new(model, config) {
-                Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
+            let ctx = InferenceContext::from_parts(
+                None,
+                model,
+                state.service_config.okapi_base_url.clone(),
+            );
+            match InferenceService::resolve_port(&ctx, model) {
+                Ok(i) => i,
                 Err(e) => {
                     return Json(ChatResponse {
-                        output: format!("Failed to initialize Okapi: {}", e),
+                        output: format!("Failed to initialize inference: {}", e),
                         template_id: req
                             .template_id
                             .unwrap_or_else(|| strategy.name().to_string()),

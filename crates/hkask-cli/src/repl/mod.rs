@@ -33,7 +33,8 @@ use hkask_cns::{CnsRuntime, CyberneticsLoop, GovernedTool};
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
-use hkask_templates::{BundleManifest, ManifestExecutor, OkapiConfig, SqliteRegistry};
+use hkask_services::ServiceConfig;
+use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::ports::InferencePort;
@@ -78,7 +79,9 @@ pub(crate) struct ReplState {
     /// MessageDispatch — priority queue for inter-loop messages.
     /// Drained after each tick to display regulatory actions in the REPL.
     pub(crate) dispatch: Arc<MessageDispatch>,
-    pub(crate) okapi_config: OkapiConfig,
+    /// Service configuration for InferenceService calls.
+    /// Provides okapi_base_url, default_model, gate_model, and other settings.
+    pub(crate) service_config: ServiceConfig,
     pub(crate) current_model: String,
     pub(crate) current_agent: String,
     pub(crate) session_history: SessionHistory,

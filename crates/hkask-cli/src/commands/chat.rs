@@ -13,7 +13,7 @@ use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, SemanticStoragePort, StorageRequest,
 };
-use hkask_templates::{OkapiConfig, OkapiInference};
+use hkask_services::{InferenceContext, InferenceService};
 use hkask_types::ports::InferencePort;
 
 use crate::repl::TOOL_CALL_FORMAT_INTRO;
@@ -204,16 +204,20 @@ pub async fn chat_with_agent(
     };
     let model = model_override.unwrap_or(default_model);
 
-    // Use the shared inference port when available, otherwise create one
+    // Use the shared inference port when available, otherwise create one via InferenceService
     let inference: Arc<dyn InferencePort> = match inference_port {
         Some(port) => port,
         None => {
-            let config = OkapiConfig::local_dev();
-            match OkapiInference::new(model, config) {
-                Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
+            let ctx = InferenceContext::from_parts(
+                None,
+                model,
+                "http://127.0.0.1:11435", // fallback base URL
+            );
+            match InferenceService::resolve_port(&ctx, model) {
+                Ok(i) => i,
                 Err(e) => {
                     return ChatResponse {
-                        text: format!("Okapi init error: {}", e),
+                        text: format!("Inference init error: {}", e),
                         usage: None,
                         finish_reason: "error".to_string(),
                         tool_calls: vec![],

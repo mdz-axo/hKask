@@ -78,23 +78,26 @@ pub struct ModelSearchQuery {
         (status = 503, description = "Okapi unreachable (returns empty list)"),
     ),
 )]
-async fn list_models(State(_state): State<ApiState>) -> Json<ModelListResponse> {
-    use hkask_templates::{OkapiConfig, list_okapi_models};
+async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
+    use hkask_services::InferenceService;
 
-    let config = OkapiConfig::local_dev();
-    let okapi_models = list_okapi_models(&config).await;
+    let ctx = hkask_services::InferenceContext::from_parts(
+        state.inference_port.clone(),
+        &state.service_config.default_model,
+        &state.service_config.okapi_base_url,
+    );
+    let models = InferenceService::list_models(&ctx)
+        .await
+        .unwrap_or_default();
 
-    let models: Vec<ModelEntry> = okapi_models
+    let models: Vec<ModelEntry> = models
         .into_iter()
         .map(|m| ModelEntry {
             name: m.name,
-            family: m.details.as_ref().and_then(|d| d.family.clone()),
-            parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
-            quantization_level: m
-                .details
-                .as_ref()
-                .and_then(|d| d.quantization_level.clone()),
-            size_gb: m.size.map(|s| s as f64 / 1_073_741_824.0),
+            family: m.family,
+            parameter_size: m.parameter_size,
+            quantization_level: m.quantization_level,
+            size_gb: m.size_bytes.map(|s| s as f64 / 1_073_741_824.0),
         })
         .collect();
 
@@ -119,25 +122,28 @@ async fn list_models(State(_state): State<ApiState>) -> Json<ModelListResponse> 
     ),
 )]
 async fn search_models(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     axum::extract::Query(query): axum::extract::Query<ModelSearchQuery>,
 ) -> Json<ModelListResponse> {
-    use hkask_templates::{OkapiConfig, search_okapi_models};
+    use hkask_services::InferenceService;
 
-    let config = OkapiConfig::local_dev();
-    let okapi_models = search_okapi_models(&config, &query.q).await;
+    let ctx = hkask_services::InferenceContext::from_parts(
+        state.inference_port.clone(),
+        &state.service_config.default_model,
+        &state.service_config.okapi_base_url,
+    );
+    let models = InferenceService::search_models(&ctx, &query.q)
+        .await
+        .unwrap_or_default();
 
-    let models: Vec<ModelEntry> = okapi_models
+    let models: Vec<ModelEntry> = models
         .into_iter()
         .map(|m| ModelEntry {
             name: m.name,
-            family: m.details.as_ref().and_then(|d| d.family.clone()),
-            parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
-            quantization_level: m
-                .details
-                .as_ref()
-                .and_then(|d| d.quantization_level.clone()),
-            size_gb: m.size.map(|s| s as f64 / 1_073_741_824.0),
+            family: m.family,
+            parameter_size: m.parameter_size,
+            quantization_level: m.quantization_level,
+            size_gb: m.size_bytes.map(|s| s as f64 / 1_073_741_824.0),
         })
         .collect();
 
