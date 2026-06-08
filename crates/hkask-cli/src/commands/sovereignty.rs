@@ -37,16 +37,13 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
         }
         crate::cli::SovereigntyAction::Status => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let ctx = build_ctx();
+            let svc_ctx = build_service_context();
+            let ctx = SovereigntyContext::from(&svc_ctx);
             let status = SovereigntyService::get_status(&ctx, &webid.to_string())
                 .expect("Failed to get sovereignty status");
 
-            // Also load boundary data from the sovereignty store for
-            // user-customized affirmative consent display.
-            let store = super::helpers::or_exit(
-                commands::config::open_sovereignty_store(),
-                "Failed to open sovereignty store",
-            );
+            // Use the sovereignty store from ServiceContext (replaces open_sovereignty_store)
+            let store = &svc_ctx.sovereignty_boundary_store;
 
             println!("Sovereignty Status");
             println!("==================");

@@ -3,13 +3,10 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::{Extension, Json, extract::State};
-use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_services::ConsolidationService;
 use hkask_types::WebID;
-use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use utoipa::ToSchema;
 
 use crate::ApiError;
@@ -111,54 +108,26 @@ async fn consolidate(
             message: "Invalid agent_webid: must be a valid UUID".to_string(),
         })?;
 
-    // Verify passphrase using the master-passphrase → capability_key derivation chain.
-    // This matches onboarding: derive_all_internal_secrets(master_passphrase) produces
-    // a capability_key that is stored in the keychain as "hkask-db-passphrase" and used
-    // as the DB encryption key. We verify the user-supplied master passphrase by
-    // deriving the capability_key and comparing it against the resolved DB passphrase.
-    let expected = hkask_keystore::resolve_db_passphrase().map_err(|_| ApiError::Internal {
-        message: "Server passphrase not configured".to_string(),
-    })?;
-    let expected_str = String::from_utf8_lossy(&expected).to_string();
-    let secrets = hkask_keystore::master_key::derive_all_internal_secrets(&req.passphrase);
-    if secrets.capability_key != expected_str {
-        tracing::warn!(
-            target: "api.consolidation",
-            agent_webid = %req.agent_webid,
-            "Consolidation rejected: passphrase mismatch"
-        );
-        return Err(ApiError::Unauthorized {
-            reason: "Invalid passphrase".to_string(),
-        });
-    }
-
-    // Resolve the agent's per-agent memory DB.
-    // Consolidation operates on the agent's actual episodic and semantic triples,
-    // which live in hkask-memory-{agent}.db — not the registry DB or in-memory DBs.
-    // Derive the agent name from the WebID for DB path resolution.
-    let agent_name = format!("agent-{}", webid);
-    let db_path = format!("hkask-memory-{}.db", agent_name);
-    let db_passphrase = expected_str;
-    let db = Database::open(&db_path, &db_passphrase).map_err(|e| ApiError::Internal {
-        message: format!("Failed to open agent memory DB: {}", e),
-    })?;
-
-    // Build ConsolidationService from the agent's per-agent memory DB.
-    // Same pattern as CLI and REPL: EpisodicMemory + SemanticMemory from
-    // the same DB, ConsolidationBridge connecting them.
-    let conn = db.conn_arc();
-    let ts1 = TripleStore::new(Arc::clone(&conn));
-    let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
-    let ts2 = TripleStore::new(Arc::clone(&conn));
-    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
-    let semantic_memory = Arc::new(SemanticMemory::new(ts2, embedding_store));
-    let bridge = Arc::new(ConsolidationBridge::new(
-        Arc::clone(&episodic_memory),
-        Arc::clone(&semantic_memory),
-    ));
-    let handle = CuratorHandle::system();
-    let token = handle.issue_consolidation_token();
-    let service = ConsolidationService::new(bridge, semantic_memory, token);
+    // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
+    let db_passphrase =
+        ConsolidationService::verify_passphrase(&req.passphrase).map_err(|e| match e {
+            hkask_services::ServiceError::InvalidPassphrase(_) => {
+                tracing::warn!(
+                    target: "api.consolidation",
+                    agent_webid = %req.agent_webid,
+                    "Consolidation rejected: passphrase mismatch"
+                );
+                ApiError::Unauthorized {
+                    reason: "Invalid passphrase".to_string(),
+                }
+            }
+            hkask_services::ServiceError::Keystore(_) => ApiError::Internal {
+                message: "Server passphrase not configured".to_string(),
+            },
+            other => ApiError::Internal {
+                message: other.to_string(),
+            },
+        })?;
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {
@@ -167,10 +136,11 @@ async fn consolidate(
         max_semantic_triples: req.max_semantic_triples,
     };
 
-    // Execute via ConsolidationService
-    let outcome = service
-        .consolidate(&webid, consolidation_request)
-        .map_err(|e| ApiError::Internal { message: e })?;
+    // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
+    let outcome = ConsolidationService::consolidate(&webid, &db_passphrase, consolidation_request)
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

@@ -1,4 +1,16 @@
 //! ACP registration and listing routes
+//!
+//! # Service layer depth test
+//!
+//! AcpService was considered but **rejected** as shallow: every handler is a thin
+//! delegation to `AcpRuntime` methods (`register_agent`, `list_agents`,
+//! `unregister_agent`) plus HTTP response mapping. No CLI ACP commands exist.
+//! An AcpService would just be `self.acp_runtime.register_agent()` — a pure
+//! pass-through that increases interface cost without adding behavior.
+//!
+//! Decision: Guideline — keep direct `service_context.pod_manager.acp_runtime()` access.
+//! Revisit if ACP policy logic (e.g., capability scoping, agent tier enforcement)
+//! grows beyond simple registration/delegation.
 
 use axum::extract::{Extension, Path};
 use axum::http::StatusCode;

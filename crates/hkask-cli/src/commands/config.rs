@@ -37,31 +37,6 @@ pub fn resolve_db_passphrase() -> Result<String, RegistryError> {
         .map_err(|e| RegistryError::InitFailed(e.to_string()))
 }
 
-/// Open a SovereigntyBoundaryStore (used by `kask sovereignty` subcommands).
-/// Opens the shared database and wraps it in a sovereignty store.
-pub fn open_sovereignty_store()
--> Result<hkask_storage::SovereigntyBoundaryStore, crate::errors::RegistryError> {
-    let db_path = registry_db_path();
-    let passphrase = resolve_db_passphrase()?;
-    let db = hkask_storage::open_database(&db_path, &passphrase)
-        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
-    Ok(hkask_storage::SovereigntyBoundaryStore::new(db.conn_arc()))
-}
-
-/// Open a SqliteSpecStore (used by `kask spec` subcommands).
-/// Opens the shared database and initializes the spec schema.
-pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {
-    let db_path = registry_db_path();
-    let passphrase = resolve_db_passphrase()?;
-    let db = hkask_storage::open_database(&db_path, &passphrase)
-        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
-    let store = hkask_storage::SqliteSpecStore::new(db.conn_arc());
-    store
-        .init_schema()
-        .map_err(|e| crate::errors::RegistryError::SchemaError(e.to_string()))?;
-    Ok(store)
-}
-
 /// Create a governed MCP dispatcher with a *disconnected* CyberneticsLoop.
 ///
 /// This creates a standalone CyberneticsLoop that is not wired into any LoopSystem

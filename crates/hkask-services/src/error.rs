@@ -152,6 +152,10 @@ pub enum ServiceError {
     #[error(transparent)]
     SemanticMemory(#[from] SemanticMemoryError),
 
+    /// Consolidation pipeline execution failed.
+    #[error("Consolidation failed: {0}")]
+    Consolidation(String),
+
     // ── CNS domain ──────────────────────────────────────────────────────
     /// CNS operation failed.
     #[error("CNS operation failed: {0}")]

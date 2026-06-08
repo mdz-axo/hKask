@@ -1,4 +1,16 @@
 //! Template management routes
+//!
+//! # Service layer depth test
+//!
+//! TemplateService was considered but **rejected** as shallow: every handler is a
+//! thin delegation to a `SqliteRegistry` method plus HTTP response mapping. No
+//! cross-surface business logic duplication exists (CLI template commands take
+//! `&mut SqliteRegistry` directly and do terminal formatting). A TemplateService
+//! would just be `self.registry.list()` / `self.registry.get()` / etc. — pure
+//! pass-throughs that increase interface cost without adding behavior.
+//!
+//! Decision: Guideline — keep direct `service_context.registry` access.
+//! Revisit if template matching logic grows beyond name/skill/polarity queries.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;

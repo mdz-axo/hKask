@@ -1,10 +1,19 @@
 //! Spec command handlers for `kask spec`
 //!
 //! Implements the CLI display logic for specification capture, validation,
-//! cultivation, and rendering.
+//! cultivation, and rendering. Uses `ServiceContext::spec_store` for
+//! spec persistence — no direct `open_spec_store()` calls.
 
 use crate::cli::SpecAction;
 use hkask_storage::SpecStore;
+
+fn build_service_context() -> hkask_services::ServiceContext {
+    let config =
+        hkask_services::ServiceConfig::from_env().expect("Failed to resolve service config");
+    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
+    rt.block_on(hkask_services::ServiceContext::build(config))
+        .expect("Failed to build service context")
+}
 
 pub fn run(action: SpecAction) {
     match action {
@@ -27,10 +36,8 @@ pub fn run(action: SpecAction) {
             let spec = Spec::new(&name, cat, anchor).with_goal(goal);
             let complete = spec.is_complete();
 
-            let store = super::helpers::or_exit(
-                crate::commands::config::open_spec_store(),
-                "Failed to open spec store",
-            );
+            let ctx = build_service_context();
+            let store = &ctx.spec_store;
             super::helpers::or_exit(store.save(&spec), "Failed to save specification");
 
             println!("Specification captured:");
@@ -59,10 +66,8 @@ pub fn run(action: SpecAction) {
                 hkask_storage::spec_types::SpecId::from_string(&id),
                 "Invalid spec ID",
             );
-            let store = super::helpers::or_exit(
-                crate::commands::config::open_spec_store(),
-                "Failed to open spec store",
-            );
+            let ctx = build_service_context();
+            let store = &ctx.spec_store;
             let spec = super::helpers::or_exit(store.load(spec_id), "Failed to load specification");
             let curator = DefaultSpecCurator::default();
             let record = super::helpers::or_exit(
@@ -85,10 +90,8 @@ pub fn run(action: SpecAction) {
                 hkask_storage::spec_types::SpecId::from_string(&id),
                 "Invalid spec ID",
             );
-            let store = super::helpers::or_exit(
-                crate::commands::config::open_spec_store(),
-                "Failed to open spec store",
-            );
+            let ctx = build_service_context();
+            let store = &ctx.spec_store;
             let spec = super::helpers::or_exit(store.load(spec_id), "Failed to load specification");
             let curator = DefaultSpecCurator::default();
             let record = super::helpers::or_exit(
@@ -118,12 +121,10 @@ pub fn run(action: SpecAction) {
                 "Template not found",
             );
 
-            let store = super::helpers::or_exit(
-                crate::commands::config::open_spec_store(),
-                "Failed to open spec store",
-            );
+            let ctx = build_service_context();
+            let store = &ctx.spec_store;
 
-            let ctx = if let Some(sid) = spec_id {
+            let render_ctx = if let Some(sid) = spec_id {
                 let parsed_id = super::helpers::or_exit(
                     hkask_storage::spec_types::SpecId::from_string(&sid),
                     "Invalid spec ID",
@@ -150,7 +151,7 @@ pub fn run(action: SpecAction) {
             let mut env = minijinja::Environment::new();
             env.set_undefined_behavior(UndefinedBehavior::Strict);
             let rendered = super::helpers::or_exit(
-                env.render_str(&template_content, ctx),
+                env.render_str(&template_content, render_ctx),
                 "Template render error",
             );
             println!("{}", rendered);

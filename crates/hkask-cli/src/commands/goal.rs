@@ -1,15 +1,14 @@
 //! Goal coordination commands.
-//
+//!
 //! This module wires the goal subsystem into the CLI via `ServiceContext`,
-//! which provides the `goal_repo` field (already wired with CNS telemetry).
-//! No direct database access.
+//! which provides the `goal_repo` field. Business logic (parsing, validation)
+//! is delegated to `GoalService` in the shared service layer.
+
+use hkask_services::{GoalContext, GoalService};
+use hkask_types::id::WebID;
 
 use crate::cli::GoalAction;
 use crate::errors::RegistryError;
-use hkask_types::goal::GoalState;
-
-use hkask_types::id::{GoalID, WebID};
-use hkask_types::visibility::Visibility;
 
 /// Build a ServiceContext for goal subcommands.
 fn build_service_context() -> Result<hkask_services::ServiceContext, RegistryError> {
@@ -24,16 +23,10 @@ fn build_service_context() -> Result<hkask_services::ServiceContext, RegistryErr
 /// `kask goal create <text> [--visibility ...]`
 pub fn create(text: &str, visibility: &str) -> Result<(), RegistryError> {
     let ctx = build_service_context()?;
+    let goal_ctx = GoalContext::from(&ctx);
     let webid = WebID::from_persona(b"cli-user");
-    let vis = Visibility::parse_str(visibility).ok_or_else(|| {
-        RegistryError::InitFailed(format!(
-            "Invalid visibility '{visibility}' (expected private | shared | public)"
-        ))
-    })?;
 
-    let goal = ctx
-        .goal_repo
-        .create_goal(&webid, text, vis)
+    let goal = GoalService::create_goal(&goal_ctx, &webid, text, visibility)
         .map_err(|e| RegistryError::InitFailed(format!("Goal creation failed: {e}")))?;
 
     println!("Created goal {}", goal.id);
@@ -46,18 +39,10 @@ pub fn create(text: &str, visibility: &str) -> Result<(), RegistryError> {
 /// `kask goal list [--state ...]`
 pub fn list(state: Option<&str>) -> Result<(), RegistryError> {
     let ctx = build_service_context()?;
+    let goal_ctx = GoalContext::from(&ctx);
     let webid = WebID::from_persona(b"cli-user");
-    let state_filter = match state {
-        Some(s) => Some(
-            GoalState::parse_str(s)
-                .ok_or_else(|| RegistryError::InitFailed(format!("Invalid state filter '{s}'")))?,
-        ),
-        None => None,
-    };
 
-    let goals = ctx
-        .goal_repo
-        .list_goals(&webid, state_filter)
+    let goals = GoalService::list_goals(&goal_ctx, &webid, state)
         .map_err(|e| RegistryError::InitFailed(format!("Goal list failed: {e}")))?;
 
     if goals.is_empty() {
@@ -74,20 +59,16 @@ pub fn list(state: Option<&str>) -> Result<(), RegistryError> {
 /// `kask goal set-state <id> <state>`
 pub fn set_state(id: &str, state: &str) -> Result<(), RegistryError> {
     let ctx = build_service_context()?;
-    let goal_id = id
-        .parse::<GoalID>()
-        .map_err(|e| RegistryError::InitFailed(format!("Invalid goal ID: {e}")))?;
-    let new_state = GoalState::parse_str(state).ok_or_else(|| {
-        RegistryError::InitFailed(format!(
-            "Invalid state '{state}' (expected pending | active | completed | blocked | abandoned)"
-        ))
-    })?;
+    let goal_ctx = GoalContext::from(&ctx);
 
-    ctx.goal_repo
-        .update_goal_state(goal_id, new_state)
+    // Parse goal ID first for the success message
+    let goal_id =
+        GoalService::parse_goal_id(id).map_err(|e| RegistryError::InitFailed(e.to_string()))?;
+
+    GoalService::set_goal_state(&goal_ctx, id, state)
         .map_err(|e| RegistryError::InitFailed(format!("Goal state change failed: {e}")))?;
 
-    println!("Goal {} -> {}", goal_id, new_state.as_str());
+    println!("Goal {} -> {}", goal_id, state);
     Ok(())
 }
 

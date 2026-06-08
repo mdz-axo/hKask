@@ -3,14 +3,12 @@
 //! HTTP surface for the goal substrate, mirroring `kask goal` (CLI) and the
 //! `goal` MCP tools for MCP ≡ CLI ≡ API equivalence (REQ-IFC-001).
 //! Authority is co-located with effect: the caller's WebID is passed directly
-//! to the goal repository, and denials are observed via the repository's CNS
+//! to the goal service, and denials are observed via the repository's CNS
 //! telemetry sink.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::Query, extract::State, routing::Router};
-use hkask_types::goal::GoalState;
-use hkask_types::id::GoalID;
-use hkask_types::visibility::Visibility;
+use hkask_services::{GoalContext, GoalService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -77,15 +75,11 @@ async fn create_goal(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
+    let goal_ctx = GoalContext::from(&*state.service_context);
     let visibility_str = req.visibility.as_deref().unwrap_or("private");
-    let visibility = Visibility::parse_str(visibility_str).ok_or_else(|| ApiError::BadRequest {
-        message: "visibility must be private | shared | public".to_string(),
-    })?;
 
-    let goal = state
-        .service_context
-        .goal_repo
-        .create_goal(&auth.webid, &req.text, visibility)?;
+    let goal = GoalService::create_goal(&goal_ctx, &auth.webid, &req.text, visibility_str)
+        .map_err(ApiError::from)?;
 
     Ok(Json(GoalResponse {
         id: goal.id.to_string(),
@@ -115,17 +109,11 @@ async fn list_goals(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<GoalListResponse>, ApiError> {
-    let state_filter = match params.get("state") {
-        Some(s) => Some(GoalState::parse_str(s).ok_or_else(|| ApiError::BadRequest {
-            message: "invalid state filter".to_string(),
-        })?),
-        None => None,
-    };
+    let goal_ctx = GoalContext::from(&*state.service_context);
+    let state_filter = params.get("state").map(|s| s.as_str());
 
-    let goals = state
-        .service_context
-        .goal_repo
-        .list_goals(&auth.webid, state_filter)?;
+    let goals =
+        GoalService::list_goals(&goal_ctx, &auth.webid, state_filter).map_err(ApiError::from)?;
 
     Ok(Json(GoalListResponse {
         goals: goals
@@ -163,22 +151,17 @@ async fn set_goal_state(
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let goal_id = id.parse::<GoalID>().map_err(|_| ApiError::BadRequest {
-        message: "Invalid goal ID".to_string(),
-    })?;
-    let new_state = GoalState::parse_str(&req.state).ok_or_else(|| ApiError::BadRequest {
-        message: "state must be pending | active | completed | blocked | abandoned".to_string(),
-    })?;
+    let goal_ctx = GoalContext::from(&*state.service_context);
 
-    state
-        .service_context
-        .goal_repo
-        .update_goal_state(goal_id, new_state)?;
+    GoalService::set_goal_state(&goal_ctx, &id, &req.state).map_err(ApiError::from)?;
+
+    // Parse goal ID back for the response (already validated by service)
+    let goal_id = GoalService::parse_goal_id(&id).map_err(ApiError::from)?;
 
     Ok(Json(GoalResponse {
         id: goal_id.to_string(),
         text: String::new(),
-        state: new_state.as_str().to_string(),
+        state: req.state.clone(),
         visibility: String::new(),
     }))
 }

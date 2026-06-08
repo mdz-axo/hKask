@@ -4,6 +4,19 @@
 //! (e.g., via the `API_SERVERS` table in `serve.rs`) for tools to be
 //! discoverable and invokable. If no servers are running, the listing
 //! endpoints return empty results and invocations will fail.
+//!
+//! # Service layer depth test
+//!
+//! McpService was considered but **rejected** as shallow: every handler is a
+//! thin delegation to `McpRuntime`/`McpDispatcher` methods (`list_servers`,
+//! `discover_tools`, `invoke`, `get_tool_info`) plus HTTP response mapping.
+//! No CLI MCP commands share this logic (CLI `commands/mcp.rs` uses a separate
+//! `create_mcp_dispatcher_with_servers` path). An McpService would just be
+//! `self.mcp_runtime.discover_tools()` — a pure pass-through.
+//!
+//! Decision: Guideline — keep direct `service_context.mcp_runtime`/`mcp_dispatcher`
+//! access. Revisit if MCP orchestration logic (e.g., server health monitoring,
+//! tool result caching) grows beyond simple discovery/invocation.
 
 use axum::extract::Extension;
 use axum::{Json, extract::State, routing::Router};

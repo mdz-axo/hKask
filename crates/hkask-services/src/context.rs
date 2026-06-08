@@ -37,7 +37,8 @@ use hkask_memory::{
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
 use hkask_storage::{
-    ConsentStore, Database, EmbeddingStore, StandingSessionStore, TripleStore, in_memory_db,
+    ConsentStore, Database, EmbeddingStore, SovereigntyBoundaryStore, SqliteSpecStore,
+    StandingSessionStore, TripleStore, in_memory_db,
 };
 use hkask_templates::OkapiConfig;
 use hkask_templates::SqliteRegistry;
@@ -119,6 +120,12 @@ pub struct ServiceContext {
     /// Standing session store for ensemble persistence.
     pub standing_session_store: Arc<StandingSessionStore>,
 
+    /// Sovereignty boundary store for Magna Carta compliance queries.
+    pub sovereignty_boundary_store: SovereigntyBoundaryStore,
+
+    /// Spec store for specification capture, validation, and cultivation.
+    pub spec_store: SqliteSpecStore,
+
     /// Ensemble session manager for chat and deliberation coordination.
     pub session_manager: Arc<RwLock<hkask_ensemble::session::SessionManager>>,
 
@@ -197,6 +204,26 @@ impl ServiceContext {
         };
         let standing_conn = standing_db.conn_arc();
         let standing_session_store = Arc::new(StandingSessionStore::new(standing_conn));
+
+        let sovereignty_db = if config.in_memory {
+            in_memory_db()
+        } else {
+            Database::open(&config.db_path, &config.db_passphrase)?
+        };
+        let sovereignty_conn = sovereignty_db.conn_arc();
+        let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
+        sovereignty_boundary_store
+            .initialize_schema()
+            .map_err(ServiceError::SovereigntyStore)?;
+
+        let spec_db = if config.in_memory {
+            in_memory_db()
+        } else {
+            Database::open(&config.db_path, &config.db_passphrase)?
+        };
+        let spec_conn = spec_db.conn_arc();
+        let spec_store = SqliteSpecStore::new(spec_conn);
+        spec_store.init_schema().map_err(ServiceError::Spec)?;
 
         // ── 4. CNS runtime + event sink ──────────────────────────────────────
         let cns_runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
@@ -392,6 +419,8 @@ impl ServiceContext {
             system_webid,
             event_sink: cns_event_sink,
             standing_session_store,
+            sovereignty_boundary_store,
+            spec_store,
             session_manager,
             config,
         })

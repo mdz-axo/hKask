@@ -20,6 +20,7 @@
 //! `hkask-api` directly depend on domain crates for business operations.
 
 pub mod config;
+pub mod consolidation;
 pub mod context;
 pub mod curator;
 pub mod ensemble;
@@ -31,6 +32,7 @@ pub mod sovereignty;
 
 pub use config::ServiceConfig;
 pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
+pub use consolidation::ConsolidationService;
 pub use context::ServiceContext;
 pub use curator::{CuratorContext, CuratorService, MetacognitionSummary};
 pub use ensemble::{EnsembleContext, EnsembleService, map_participant_role};
