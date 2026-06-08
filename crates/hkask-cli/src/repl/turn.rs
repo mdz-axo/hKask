@@ -93,7 +93,7 @@ pub(super) fn single_agent_turn(
     // Hold-settle pattern via GasGuard: reserve heuristic estimate
     // before inference, settle with actual token cost after.
     let Some(mut gas_guard) = gas::GasGuard::try_reserve(
-        &state.cybernetics_loop,
+        &state.service_context.cybernetics_loop,
         &state.inference_loop,
         &state.agent_webid,
         rt,
@@ -211,7 +211,7 @@ pub(super) fn single_agent_turn(
         );
 
         if let Some(mut followup_guard) = gas::GasGuard::try_reserve(
-            &state.cybernetics_loop,
+            &state.service_context.cybernetics_loop,
             &state.inference_loop,
             &state.agent_webid,
             rt,

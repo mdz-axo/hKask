@@ -223,12 +223,6 @@ pub(super) fn init_repl_state(
         episodic_storage,
         semantic_storage,
         agent_webid,
-        // Shared CNS from ServiceContext
-        cns: ctx.cns_runtime.clone(),
-        cybernetics_loop: ctx.cybernetics_loop.clone(),
-        loop_system: ctx.loop_system.clone(),
-        dispatch: ctx.dispatch.clone(),
-        service_config,
         current_model: initial_model_str.to_string(),
         current_agent: onboarding_outcome.signed_in_agent,
         session_history: SessionHistory::new(),

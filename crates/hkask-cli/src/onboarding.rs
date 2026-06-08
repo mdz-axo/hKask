@@ -19,7 +19,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::commands::config::ResolvedSecrets;
 use crate::repl::display;
 
 #[derive(Error, Debug)]
@@ -48,7 +47,14 @@ pub struct OnboardingOutcome {
     /// or sign-in). Carries the secrets forward so the REPL can use them
     /// directly instead of re-resolving from the OS keychain (which may not
     /// persist across Entry instances with the mock backend).
-    pub resolved_secrets: Option<crate::commands::config::ResolvedSecrets>,
+    pub resolved_secrets: Option<ResolvedSecrets>,
+}
+
+/// Pre-resolved secrets for onboarding, passed explicitly instead of
+/// mutating environment variables.
+pub struct ResolvedSecrets {
+    pub acp_secret: String,
+    pub db_passphrase: String,
 }
 
 /// Run the onboarding/sign-in flow.

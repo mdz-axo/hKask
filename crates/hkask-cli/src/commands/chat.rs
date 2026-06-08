@@ -22,7 +22,7 @@ use hkask_types::{
 };
 use std::sync::Arc;
 
-use crate::commands::config::ResolvedSecrets;
+use crate::onboarding::ResolvedSecrets;
 use hkask_services::ServiceContext;
 
 use hkask_types::ports::StructuredToolCall;

@@ -25,15 +25,13 @@ pub(crate) use tool_augmented::TOOL_CALL_FORMAT_INTRO;
 use hkask_agents::HhhConfig;
 use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
-use hkask_agents::LoopSystem;
-use hkask_agents::communication::MessageDispatch;
 use hkask_agents::ports::EpisodicStoragePort;
 use hkask_agents::ports::SemanticStoragePort;
-use hkask_cns::{CnsRuntime, CyberneticsLoop, GovernedTool};
+use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
-use hkask_services::{ServiceConfig, ServiceContext};
+use hkask_services::ServiceContext;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
@@ -41,7 +39,6 @@ use hkask_types::ports::InferencePort;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use commands::handle_slash_command;
 use helper::{KaskHelper, SessionHistory};
@@ -64,24 +61,6 @@ pub(crate) struct ReplState {
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
     /// Agent WebID — derived from the agent name, used for memory operations
     pub(crate) agent_webid: WebID,
-    /// CNS runtime for variety sensing and algedonic alerts
-    pub(crate) cns: Arc<RwLock<CnsRuntime>>,
-    /// CyberneticsLoop — direct reference for gas budget operations
-    /// (register_gas_budget, acquire_budget, can_proceed).
-    /// Also registered with LoopSystem for the sense→compare→compute→act cycle.
-    /// Wrapped in RwLock so GovernedTool can share the same instance.
-    pub(crate) cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
-    /// LoopSystem — runs the sense→compare→compute→act regulation cycle
-    /// for Curation, Cybernetics, and Inference loops after each chat turn.
-    /// Ticking is synchronous (after each user turn), not on a clock.
-    /// The tick rate is defined by the interaction rate on the thread.
-    pub(crate) loop_system: Arc<LoopSystem>,
-    /// MessageDispatch — priority queue for inter-loop messages.
-    /// Drained after each tick to display regulatory actions in the REPL.
-    pub(crate) dispatch: Arc<MessageDispatch>,
-    /// Service configuration for InferenceService calls.
-    /// Provides okapi_base_url, default_model, gate_model, and other settings.
-    pub(crate) service_config: ServiceConfig,
     pub(crate) current_model: String,
     pub(crate) current_agent: String,
     pub(crate) session_history: SessionHistory,
@@ -89,7 +68,7 @@ pub(crate) struct ReplState {
     /// Pre-resolved secrets from onboarding, carried forward to avoid
     /// re-resolving from the OS keychain (which may use a mock backend
     /// with EntryOnly persistence on Linux).
-    pub(crate) resolved_secrets: Option<crate::commands::config::ResolvedSecrets>,
+    pub(crate) resolved_secrets: Option<crate::onboarding::ResolvedSecrets>,
     /// GovernedTool membrane — the singular governance boundary for MCP tool
     /// invocations. All tool calls route through this membrane, which enforces
     /// OCAP authority, gas budgets, and CNS observability.
@@ -124,10 +103,7 @@ pub(crate) struct ReplState {
     /// and the manifest was successfully loaded.
     pub(crate) process_manifest: Option<BundleManifest>,
     /// Shared service context — the canonical assembly point for all
-    /// infrastructure. ReplState fields that duplicate ServiceContext fields
-    /// (cns, cybernetics_loop, loop_system, dispatch, service_config,
-    /// inference_port, episodic_storage, semantic_storage) are retained for
-    /// backward compatibility and will be removed once all consumers migrate.
+    /// infrastructure.
     pub(crate) service_context: Arc<ServiceContext>,
 }
 

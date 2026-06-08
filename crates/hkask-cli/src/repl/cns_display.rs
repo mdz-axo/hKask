@@ -15,7 +15,7 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // variety counters for depth, structure, and topic domains.
     let analysis = hkask_agents::decompose_prompt(input);
     {
-        let cns_guard = rt.block_on(state.cns.read());
+        let cns_guard = rt.block_on(state.service_context.cns_runtime.read());
         // Prompt depth bucket (shallow/medium/deep)
         rt.block_on(
             cns_guard.increment_variety("cns.inference.prompt_depth", analysis.depth_bucket),
@@ -46,7 +46,15 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     }
 
     // Check for CNS algedonic alerts
-    let alerts = rt.block_on(async { state.cns.read().await.critical_alerts().await });
+    let alerts = rt.block_on(async {
+        state
+            .service_context
+            .cns_runtime
+            .read()
+            .await
+            .critical_alerts()
+            .await
+    });
     if !alerts.is_empty() {
         for alert in &alerts {
             println!(
@@ -60,13 +68,13 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
     // CNS variety and gas budgets, producing regulatory actions
     // (Throttle, AdjustGasBudget, Escalate, Calibrate).
-    rt.block_on(state.loop_system.tick());
+    rt.block_on(state.service_context.loop_system.tick());
 
     // Drain the MessageDispatch for regulatory actions produced
     // by the loop cycle. Surface Throttle, Calibrate, Escalate,
     // AdjustGasBudget, and CircuitBreak actions as REPL notices.
     loop {
-        let msg = rt.block_on(state.dispatch.receive());
+        let msg = rt.block_on(state.service_context.dispatch.receive());
         match msg {
             Some(msg) => match &msg.payload {
                 LoopPayload::CyberneticsRegulation {

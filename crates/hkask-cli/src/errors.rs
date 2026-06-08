@@ -28,7 +28,7 @@ pub enum AgentError {
     #[error("Agent registration failed: {0}")]
     RegistrationFailed(String),
 
-    /// Upstream registry init/load failure (from `commands::config::init_registry`).
+    /// Upstream registry init/load failure.
     /// P3.5: replaces the `.map_err(|e| CapabilityError(e.to_string()))` calls.
     #[error(transparent)]
     Registry(#[from] RegistryError),

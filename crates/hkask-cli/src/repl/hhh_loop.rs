@@ -33,7 +33,7 @@ pub(super) fn evaluate_hhh(
 
     loop {
         let Some(mut gate_guard) = gas::GasGuard::try_reserve(
-            &state.cybernetics_loop,
+            &state.service_context.cybernetics_loop,
             &state.inference_loop,
             &state.agent_webid,
             rt,
@@ -91,7 +91,7 @@ pub(super) fn evaluate_hhh(
             hhh_gate::hhh_correction_prompt(input, &current_response, &evaluation);
 
         let Some(mut correction_guard) = gas::GasGuard::try_reserve(
-            &state.cybernetics_loop,
+            &state.service_context.cybernetics_loop,
             &state.inference_loop,
             &state.agent_webid,
             rt,
