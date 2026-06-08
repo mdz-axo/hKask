@@ -1,4 +1,7 @@
 //! Curator escalation and metacognition routes
+//!
+//! Routed through `CuratorService` for business logic consistency
+//! across CLI and API surfaces.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State, routing::Router};
@@ -118,8 +121,9 @@ async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ApiError> {
-    let queue = state.escalation_queue.clone();
-    let entries = queue.list_pending()?;
+    let ctx =
+        hkask_services::CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
+    let entries = hkask_services::CuratorService::list_escalations(&ctx)?;
 
     let escalations: Vec<EscalationEntryResponse> = entries
         .into_iter()
@@ -160,18 +164,9 @@ async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ApiError> {
-    let queue = state.escalation_queue.clone();
-
-    // Verify escalation exists
-    let entry = queue.get(&id)?;
-    if entry.is_none() {
-        return Err(ApiError::NotFound {
-            resource: "Escalation".to_string(),
-            id,
-        });
-    }
-
-    queue.resolve(&id, &req.resolved_by)?;
+    let ctx =
+        hkask_services::CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
+    hkask_services::CuratorService::resolve_escalation(&ctx, &id, &req.resolved_by)?;
 
     Ok(Json(ResolveEscalationResponse {
         id,
@@ -198,18 +193,9 @@ async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ApiError> {
-    let queue = state.escalation_queue.clone();
-
-    // Verify escalation exists
-    let entry = queue.get(&id)?;
-    if entry.is_none() {
-        return Err(ApiError::NotFound {
-            resource: "Escalation".to_string(),
-            id,
-        });
-    }
-
-    queue.dismiss(&id, &req.dismissed_by)?;
+    let ctx =
+        hkask_services::CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
+    hkask_services::CuratorService::dismiss_escalation(&ctx, &id, &req.dismissed_by)?;
 
     Ok(Json(DismissEscalationResponse {
         id,
@@ -232,8 +218,9 @@ async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
-    let queue = state.escalation_queue.clone();
-    let stats = queue.stats()?;
+    let ctx =
+        hkask_services::CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
+    let stats = hkask_services::CuratorService::escalation_stats(&ctx)?;
 
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,

@@ -2,13 +2,15 @@
 
 ## 1. Session Context
 
-Three sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
+Four sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
 **Session 2** (Re-audit + Fixes + Task 4 start): Activated all 5 mandatory skills. Ran full Phase 0→1→2 re-audit, found 4 MUST FIX bugs. Fixed all 4 plus 4 SHOULD FIX items. Created `InferenceService` module with 3 public functions and 4 tests. Did NOT wire CLI or API surfaces.
 
 **Session 3** (Task 4 completion — Phases 4c–4f): Wired all CLI (8 sites) and API (4 sites) to call InferenceService. Introduced `InferenceContext` as a lightweight alternative to `ServiceContext` for surface layers. Removed all `OkapiConfig::local_dev()` and `OkapiInference::new()` calls from CLI and API inference sites. All workspace checks pass: `cargo check`, `cargo clippy -D warnings`, `cargo test`.
+
+**Session 4** (Task 5 — CuratorService): Extracted `CuratorService` with 6 service operations, `CuratorContext`, and `MetacognitionSummary`. Full strangler fig cycle completed: RED (6 tests) → GREEN (all pass) → Wire CLI → Wire API → Delete duplication → Verify workspace.
 
 ## 2. What Was Done
 
@@ -92,21 +94,59 @@ Introduced `InferenceContext` as a lightweight struct containing only the 3 fiel
 | `api/routes/chat.rs` | Fallback inference via `InferenceService::resolve_port()` using `state.service_config`. |
 | `api/routes/models.rs` | `list_models` and `search_models` via `InferenceService::list_models()` / `search_models()`. Uses `ModelInfo` fields directly. |
 
-**Intentionally NOT replaced (by design):**
-- `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
-- `cli/commands/embed_corpus.rs:191-197` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
-- `api/routes/models.rs` — `ApiState`'s own `OkapiConfig` usages removed
-- MCP server call sites (P1 Prohibition — out of process)
+### Session 4 — CuratorService (Task 5, complete)
+
+Created `hkask-services/src/curator.rs` with:
+
+- `CuratorContext` — lightweight context with `escalation_queue`, optional `cns_runtime`, optional `dispatch`
+- `CuratorService` — 6 service operations (all wired to both surfaces)
+- `MetacognitionSummary` — service-layer type capturing public `HealthSnapshot` fields
+- 6 unit tests with `// REQ:` tags (svc-cur-001 through svc-cur-006)
+
+**Key Design Decisions for CuratorService:**
+
+| Decision | Force | Rationale |
+|----------|-------|-----------|
+| `resolve_escalation`/`dismiss_escalation` verify existence before mutating | Guideline | Normalizes behavior: API checked, CLI didn't. Both surfaces now get `ServiceError::EscalationNotFound` |
+| `CuratorContext.cns_runtime` and `dispatch` are `Option<Arc<..>>` | Guideline | Escalation-only ops don't need them; follows `InferenceContext.shared_port` pattern |
+| `CuratorAgent` constructed fresh per `run_metacognition` call | Hypothesis | Matches CLI's current behavior. Shared MetacognitionLoop is future work |
+| `EscalationStats` re-exported from `hkask_agents::escalation` | Guideline | Clean domain type, no need for service-layer wrapper |
+| `MetacognitionSummary` is a new service-layer type | Guideline | `HealthSnapshot.bot_status_reports` is `pub(crate)`, so we expose public fields only |
+| `From<&ServiceContext> for CuratorContext` deferred | Guideline | Requires async `.read().await` on `RwLock<CnsRuntime>`; add in Task 7b |
+
+**CLI Wiring (4 operations in `cli/commands/curator.rs`):**
+
+| Function | What Changed |
+|----------|-------------|
+| `curator_escalations()` | Creates `CuratorContext` from `EscalationQueue::new()`, calls `CuratorService::list_escalations()` |
+| `curator_resolve(id)` | Creates `CuratorContext`, calls `CuratorService::resolve_escalation()` |
+| `curator_dismiss(id)` | Creates `CuratorContext`, calls `CuratorService::dismiss_escalation()` |
+| `curator_metacognition()` | Creates `CuratorContext` with CNS + dispatch, calls `CuratorService::run_metacognition()`, returns `summary.summary_text` |
+
+**API Wiring (4 operations in `api/routes/curator.rs`):**
+
+| Function | What Changed |
+|----------|-------------|
+| `list_escalations` | Creates `CuratorContext` from `state.escalation_queue`, calls `CuratorService::list_escalations()` |
+| `resolve_escalation` | Creates `CuratorContext`, calls `CuratorService::resolve_escalation()` (existence check now in service) |
+| `dismiss_escalation` | Creates `CuratorContext`, calls `CuratorService::dismiss_escalation()` (existence check now in service) |
+| `metacognition_status` | Creates `CuratorContext`, calls `CuratorService::escalation_stats()` |
+
+**Duplication removed:**
+- CLI no longer directly calls `EscalationQueue::list_pending()`, `queue.resolve()`, `queue.dismiss()`, or constructs `CuratorAgent` + `MetacognitionLoop`
+- API no longer directly calls `queue.list_pending()`, `queue.get()`, `queue.resolve()`, `queue.dismiss()`, `queue.stats()`
+- Both surfaces route through `CuratorService`, which normalizes behavior (existence check before resolve/dismiss)
 
 ## 3. Current Module Structure
 
 ```
 hkask-services/src/
-├── lib.rs           — re-exports ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo
-├── error.rs         — 31 variants across 9 domain groups + Keystore
+├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary
+├── error.rs         — 31 variants across 9 domain groups + Keystore + EscalationNotFound + Cns
 ├── config.rs        — ServiceConfig with 3 constructors + 8 default constants + template_cache_path
 ├── context.rs       — ServiceContext::async build() with 18 Arc fields
-└── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
+├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
+└── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + 6 tests
 ```
 
 ## 4. Verification Status
@@ -114,18 +154,21 @@ hkask-services/src/
 ```
 cargo check --workspace                    ✅
 cargo clippy --workspace -- -D warnings   ✅
-cargo test --workspace                    ✅ (all 4 hkask-services tests passing)
-cargo test -p hkask-services             ✅ (4 tests)
+cargo test --workspace                    ✅ (all tests passing)
+cargo test -p hkask-services              ✅ (10 tests: 4 inference + 6 curator)
 No todo!/unimplemented! in hkask-services ✅
-No OkapiConfig::local_dev() in CLI or API ✅ (only in embedding uses + ServiceContext::build)
-No OkapiInference::new() in CLI or API   ✅ (only in ServiceContext::build + MCP servers)
+No EscalationQueue direct calls in CLI/API curator routes ✅
+No CuratorAgent/MetacognitionLoop direct calls in CLI ✅
+No direct EscalationQueue calls in API curator routes ✅
+MCP servers do NOT depend on hkask-services ✅ (P1 preserved)
+Dependency direction: CLI/API → services → domain ✅ (no reverse)
 ```
 
 ## 5. Key Decisions
 
 1. **Flat error hierarchy, not nested.** `ServiceError` composes domain errors via `#[from]`. `Keystore(String)` for secret resolution failures.
 2. **`ServiceContext::build()` is async.** No more `Runtime::new()` + `block_on()` + `drop(rt)`. Callers `.await` it.
-3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext` + `ServiceConfig` instead.
+3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext`/`CuratorContext` + `ServiceConfig` instead.
 4. **MCP servers do NOT depend on `hkask-services`.** They use `hkask-templates` primitives directly.
 5. **`InferenceService` does NOT cache ports by model.** Each non-default model call creates a fresh `OkapiInference`. Caching is a future Hypothesis.
 6. **`InferenceService::resolve_port()` reuses shared port for default model.** Falls back to fresh instance for other models.
@@ -139,24 +182,16 @@ No OkapiInference::new() in CLI or API   ✅ (only in ServiceContext::build + MC
 14. **`ReplState` stores `ServiceConfig` instead of `OkapiConfig`.** The `service_config` field provides `okapi_base_url`, `default_model`, and `gate_model` for `InferenceContext` construction.
 15. **`ApiState` stores `ServiceConfig`** initialized from `ServiceConfig::from_env()` at construction time.
 16. **`embed_corpus.rs` and `compose.rs` embedding paths keep `OkapiConfig`.** `InferenceService` handles inference ports only, not embedding. `OkapiEmbedding` is a separate concern.
+17. **`CuratorService` normalizes existence check before resolve/dismiss.** API previously checked, CLI didn't. Both surfaces now get consistent `ServiceError::EscalationNotFound`.
+18. **`CuratorContext` uses `Option<Arc<CnsRuntime>>` and `Option<Arc<MessageDispatch>>`.** Escalation-only operations don't need them. `run_metacognition` requires both and returns `ServiceError::Cns` if missing.
+19. **`MetacognitionSummary` is a service-layer type** because `HealthSnapshot.bot_status_reports` is `pub(crate)` in `hkask-agents`.
+20. **`From<&ServiceContext> for CuratorContext` deferred to Task 7b.** Extracting `Arc<CnsRuntime>` from `Arc<RwLock<CnsRuntime>>` requires async, which can't be done in a `From` impl.
 
 ## 6. What Remains
 
-### HIGH — Task 5: Extract CuratorService (proof of concept)
-
-Create `hkask-services/src/curator.rs` with `CuratorService` (6 functions):
-- `list_escalations(ctx)` → `Result<Vec<EscalationEntry>, ServiceError>`
-- `get_escalation(ctx, id)` → `Result<Option<EscalationEntry>, ServiceError>`
-- `resolve_escalation(ctx, id, resolved_by)` → `Result<(), ServiceError>`
-- `dismiss_escalation(ctx, id, dismissed_by)` → `Result<(), ServiceError>`
-- `escalation_stats(ctx)` → `Result<EscalationStats, ServiceError>`
-- `run_metacognition(ctx)` → `Result<MetacognitionSummary, ServiceError>`
-
-Full strangler fig cycle: RED→GREEN→wire CLI→wire API→delete duplication→verify.
-
 ### MEDIUM — Task 6: Extract remaining service modules
 
-Apply the same pattern (InferenceContext-style lightweight context or ServiceContext) for:
+Apply the same pattern (lightweight context like `InferenceContext`/`CuratorContext`) for:
 - `models.rs` — already partially covered by InferenceService::list_models/search_models, but may need a ModelsService for richer queries
 - `ensemble.rs` — ensemble session CRUD
 - `pods.rs` — pod lifecycle
@@ -168,7 +203,7 @@ Apply the same pattern (InferenceContext-style lightweight context or ServiceCon
 ### MEDIUM — Task 7: Infrastructure unification
 
 - **7a** — Extract cross-cutting infrastructure (DB/Store init, secret resolution, CNS/Loop/EventSink wiring) into ServiceContext::build()
-- **7b** — Replace `ReplState` and `ApiState` assemblies with `ServiceContext::build()`. Compose full ServiceContext at CLI/API init instead of the current 4 independent assembly paths.
+- **7b** — Replace `ReplState` and `ApiState` assemblies with `ServiceContext::build()`. Compose full ServiceContext at CLI/API init instead of the current 4 independent assembly paths. Add `From<&ServiceContext> for InferenceContext` and `From<&ServiceContext> for CuratorContext`.
 - **7c** — Extract DB/Store init from surface layers
 - **7d** — Extract secret resolution from surface layers
 - **7e** — Extract CNS/Loop/EventSink wiring from surface layers
@@ -185,9 +220,9 @@ Apply the same pattern (InferenceContext-style lightweight context or ServiceCon
 
 - Update `docs/status/test-inventory.md`
 - Update `docs/architecture/hKask-architecture-master.md` with service layer section
-- Write `OPEN_QUESTIONS.md` for F1–F14
+- Write `OPEN_QUESTIONS.md` for F1–F17
 
-## 7. Open Questions (F1–F14)
+## 7. Open Questions (F1–F17)
 
 | ID | Question | Priority | Status |
 |----|----------|----------|--------|
@@ -205,8 +240,9 @@ Apply the same pattern (InferenceContext-style lightweight context or ServiceCon
 | F12 | ValidationError(String) too generic | LOW | Track |
 | F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | MEDIUM | Investigate before Task 7b |
 | F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | Planned for Task 7f |
-| F15 | InferenceContext vs ServiceContext for service modules | MEDIUM | Decided — InferenceContext for surfaces, ServiceContext for full composition |
+| F15 | InferenceContext vs ServiceContext for service modules | MEDIUM | Decided — lightweight context for surfaces, ServiceContext for full composition |
 | F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later |
+| F17 | CuratorService standalone commands still open DB each time | MEDIUM | Track — ReplState has escalation_queue; standalone kask curator commands could reuse it |
 
 ## 8. Mandatory Skills for Next Session
 
@@ -250,87 +286,100 @@ pub struct ModelInfo {
 }
 ```
 
-### ServiceContext Key Fields for InferenceService
+### CuratorService Design (implemented + wired)
 
 ```rust
-pub struct ServiceContext {
-    pub inference_port: Option<Arc<dyn InferencePort>>,  // shared port for default model
-    pub config: ServiceConfig,                            // has default_model, okapi_base_url
-    // ... 16 other Arc fields
+// curator.rs — CuratorContext + CuratorService (6 public functions) + MetacognitionSummary
+pub struct CuratorContext {
+    pub escalation_queue: Arc<EscalationQueue>,
+    pub cns_runtime: Option<Arc<CnsRuntime>>,        // Required for run_metacognition
+    pub dispatch: Option<Arc<MessageDispatch>>,        // Required for run_metacognition
 }
-```
 
-### ServiceConfig Key Fields
+impl CuratorContext {
+    pub fn from_parts(
+        escalation_queue: Arc<EscalationQueue>,
+        cns_runtime: Option<Arc<CnsRuntime>>,
+        dispatch: Option<Arc<MessageDispatch>>,
+    ) -> Self
+}
+// From<&ServiceContext> for CuratorContext deferred to Task 7b (needs async)
 
-```rust
-pub struct ServiceConfig {
-    pub db_path: String,
-    pub db_passphrase: String,
-    pub acp_secret: Vec<u8>,
-    pub mcp_secret: Vec<u8>,
-    pub okapi_base_url: String,      // <-- InferenceService uses this
-    pub cns_threshold: u64,
-    pub gas_budget_cap: u64,
-    pub gas_replenish_rate: u64,
-    pub in_memory: bool,
-    pub default_model: String,        // <-- InferenceService uses this
-    pub gate_model: String,           // <-- InferenceService uses this
-    pub agent_name: String,
-    pub template_cache_path: String,
+pub struct MetacognitionSummary {
+    pub summary_text: String,
+    pub cns_health: String,
+    pub variety_counters: Vec<(String, u64)>,
+    pub critical_alerts: usize,
+    pub total_alerts: usize,
+}
+
+pub struct CuratorService;
+impl CuratorService {
+    // REQ: svc-cur-001
+    pub fn list_escalations(ctx: &CuratorContext) -> Result<Vec<EscalationEntry>, ServiceError>
+    // REQ: svc-cur-002
+    pub fn get_escalation(ctx: &CuratorContext, id: &str) -> Result<Option<EscalationEntry>, ServiceError>
+    // REQ: svc-cur-003 — verifies existence before resolving
+    pub fn resolve_escalation(ctx: &CuratorContext, id: &str, resolved_by: &str) -> Result<(), ServiceError>
+    // REQ: svc-cur-004 — verifies existence before dismissing
+    pub fn dismiss_escalation(ctx: &CuratorContext, id: &str, dismissed_by: &str) -> Result<(), ServiceError>
+    // REQ: svc-cur-005
+    pub fn escalation_stats(ctx: &CuratorContext) -> Result<EscalationStats, ServiceError>
+    // REQ: svc-cur-006 — requires cns_runtime and dispatch in context
+    pub async fn run_metacognition(ctx: &CuratorContext) -> Result<MetacognitionSummary, ServiceError>
 }
 ```
 
 ### Surface Wiring Pattern
 
-CLI and API surfaces construct an `InferenceContext` from their own state:
+CLI and API surfaces construct context structs from their own state:
 
 ```rust
-// CLI (from ReplState)
-let ctx = InferenceContext::from_parts(
-    Some(state.inference_port.clone()),
-    &state.service_config.default_model,
-    &state.service_config.okapi_base_url,
-);
+// CLI escalation-only (standalone commands)
+let queue = Arc::new(EscalationQueue::new(conn)?);
+let ctx = CuratorContext::from_parts(queue, None, None);
+CuratorService::list_escalations(&ctx)?
 
-// API (from ApiState)
-let ctx = InferenceContext::from_parts(
-    state.inference_port.clone(),
-    &state.service_config.default_model,
-    &state.service_config.okapi_base_url,
-);
+// CLI metacognition (standalone command)
+let queue = Arc::new(EscalationQueue::new(conn)?);
+let cns = Arc::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD));
+let dispatch = Arc::new(MessageDispatch::new());
+let ctx = CuratorContext::from_parts(queue, Some(cns), Some(dispatch));
+let summary = CuratorService::run_metacognition(&ctx).await?;
 
-// Standalone commands (from env or args)
-let ctx = InferenceContext::from_parts(
-    None,
-    model_name,
-    okapi_base_url,
-);
+// API escalation-only (from ApiState)
+let ctx = CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
+CuratorService::resolve_escalation(&ctx, &id, &req.resolved_by)?
+
+// API metacognition stats (from ApiState — no CNS/dispatch needed)
+let ctx = CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
+let stats = CuratorService::escalation_stats(&ctx)?
 ```
-
-This pattern will extend to future service modules. Each service module that needs context from the surface will define its own lightweight context struct (e.g., `CuratorContext`), and the surface will construct it from its state.
 
 ### Completed Call Site Replacements
 
-**CLI (all inference port sites wired):**
+**CLI (all inference + curator sites wired):**
 1. `cli/repl/init.rs` — Default + gate inference ports → `InferenceService::resolve_port()`
 2. `cli/repl/handlers/hhh.rs` — Gate model switch → `InferenceService::resolve_port()`
 3. `cli/repl/handlers/model.rs` — Model listing/search → `InferenceService::search_models()`
 4. `cli/commands/chat.rs` — Fallback inference port → `InferenceService::resolve_port()`
 5. `cli/commands/compose.rs:275-284` — Generation inference → `InferenceService::resolve_port()`
 6. `cli/commands/ensemble.rs:130-140` — Ensemble improv → `InferenceService::resolve_port()`
+7. `cli/commands/curator.rs` — All 4 curator operations → `CuratorService::*`
 
-**API (all inference/model sites wired):**
+**API (all inference + curator sites wired):**
 1. `api/lib.rs` — `with_ensemble_inferencer()` → `InferenceService::resolve_port()`
 2. `api/routes/chat.rs` — Fallback inference → `InferenceService::resolve_port()`
 3. `api/routes/models.rs` — `list_models` → `InferenceService::list_models()`
 4. `api/routes/models.rs` — `search_models` → `InferenceService::search_models()`
+5. `api/routes/curator.rs` — All 4 curator routes → `CuratorService::*`
 
 **Intentionally NOT replaced (by design):**
 - `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
 - `cli/commands/embed_corpus.rs:191-197` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
 - MCP server call sites (P1 Prohibition — out of process)
 
-### Constraint Forces (Key Decisions for InferenceService)
+### Constraint Forces (Key Decisions)
 
 | Decision | Force | Rationale |
 |----------|-------|-----------|
@@ -341,5 +390,11 @@ This pattern will extend to future service modules. Each service module that nee
 | ModelInfo is a service-layer type, not OkapiModelEntry | Guideline | Surface adapters translate to their own types |
 | InferenceContext is the surface-facing type (not ServiceContext) | Guideline | Surfaces shouldn't need to build full ServiceContext for inference calls; full composition deferred to Task 7b |
 | ReplState stores ServiceConfig (not OkapiConfig) | Guideline | ServiceConfig provides all needed fields for InferenceContext construction |
+| CuratorService resolves/dismisses with existence check | Guideline | Normalizes behavior — API checked, CLI didn't |
+| CuratorContext cns_runtime/dispatch are Option | Guideline | Escalation-only ops don't need them; follows InferenceContext.shared_port pattern |
+| CuratorAgent constructed fresh per run_metacognition call | Hypothesis | Matches CLI's current behavior; shared MetacognitionLoop is future work |
+| EscalationStats re-exported from domain crate | Guideline | Clean domain type, no need for service-layer wrapper |
+| MetacognitionSummary is a service-layer type | Guideline | HealthSnapshot.bot_status_reports is pub(crate) |
+| From<&ServiceContext> for CuratorContext deferred | Guideline | Needs async read on RwLock; add in Task 7b |
 
 *ℏKask - A Minimal Viable Container for Agents — v0.23.0*

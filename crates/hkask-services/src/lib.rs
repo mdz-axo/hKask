@@ -21,10 +21,12 @@
 
 pub mod config;
 pub mod context;
+pub mod curator;
 pub mod error;
 pub mod inference;
 
 pub use config::ServiceConfig;
 pub use context::ServiceContext;
+pub use curator::{CuratorContext, CuratorService, MetacognitionSummary};
 pub use error::ServiceError;
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
