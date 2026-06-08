@@ -26,6 +26,7 @@ pub mod ensemble;
 pub mod error;
 pub mod inference;
 pub mod pods;
+pub mod sovereignty;
 
 pub use config::ServiceConfig;
 pub use context::ServiceContext;
@@ -34,3 +35,6 @@ pub use ensemble::{EnsembleContext, EnsembleService, map_participant_role};
 pub use error::ServiceError;
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use pods::{PodContext, PodService};
+pub use sovereignty::{
+    AccessCheck, SovereigntyContext, SovereigntyService, SovereigntyStatus, parse_data_category,
+};

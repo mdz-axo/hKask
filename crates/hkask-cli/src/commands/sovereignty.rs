@@ -1,39 +1,58 @@
 //! Sovereignty command handlers for `kask sovereignty`
 //!
 //! Implements the CLI display logic for data sovereignty management.
+//! Delegates consent/boundary operations to `SovereigntyService` and
+//! formats results for terminal output.
 
-use crate::cli::{self, SovereigntyAction};
+use std::sync::Arc;
+
+use hkask_agents::consent::ConsentManager;
+use hkask_services::{SovereigntyContext, SovereigntyService, parse_data_category};
+use hkask_types::DataCategory;
+
 use crate::commands;
 
-pub fn run(action: SovereigntyAction) {
+pub fn run(action: crate::cli::SovereigntyAction) {
     match action {
-        SovereigntyAction::Verify { .. } => commands::magna_carta::run(action),
+        crate::cli::SovereigntyAction::Verify { .. } => commands::magna_carta::run(action),
         _ => run_sovereignty_ops(action),
     }
 }
 
-fn run_sovereignty_ops(action: SovereigntyAction) {
-    use hkask_types::DataCategory;
+fn build_ctx() -> SovereigntyContext {
+    let consent_store = super::helpers::or_exit(
+        commands::config::open_consent_store(),
+        "Failed to open consent store",
+    );
+    let consent_manager = Arc::new(ConsentManager::new(consent_store));
+    SovereigntyContext::from_parts(consent_manager)
+}
 
+fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
     match action {
-        SovereigntyAction::Verify { .. } => unreachable!("Verify handled by magna_carta module"),
-        SovereigntyAction::Status => {
+        crate::cli::SovereigntyAction::Verify { .. } => {
+            unreachable!("Verify handled by magna_carta module")
+        }
+        crate::cli::SovereigntyAction::Status => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
+            let ctx = build_ctx();
+            let status = SovereigntyService::get_status(&ctx, &webid.to_string())
+                .expect("Failed to get sovereignty status");
+
+            // Also load boundary data from the sovereignty store for
+            // user-customized affirmative consent display.
             let store = super::helpers::or_exit(
                 commands::config::open_sovereignty_store(),
                 "Failed to open sovereignty store",
             );
-            let consent_store = super::helpers::or_exit(
-                commands::config::open_consent_store(),
-                "Failed to open consent store",
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
 
             println!("Sovereignty Status");
             println!("==================");
             println!();
             println!("Consent State:");
             println!("  WebID: {}", webid);
+
+            // Per-category consent check using service
             let categories = [
                 ("episodic_memory", DataCategory::EpisodicMemory),
                 ("semantic_memory", DataCategory::SemanticMemory),
@@ -45,7 +64,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                 ("template_registry", DataCategory::TemplateRegistry),
             ];
             for (label, cat) in &categories {
-                match consent_manager.has_consent(&webid.to_string(), cat) {
+                match SovereigntyService::has_consent(&ctx, &webid.to_string(), cat) {
                     Ok(true) => println!("  • {}: GRANTED", label),
                     Ok(false) => println!("  • {}: DENIED", label),
                     Err(e) => println!("  • {}: ERROR ({})", label, e),
@@ -53,31 +72,26 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
             }
             println!();
             println!("Data Boundaries:");
-            match store.get(&webid.to_string()) {
-                Ok(Some(entry)) => {
-                    if !entry.sovereign_categories.is_empty() {
-                        println!("  • Sovereign: {}", entry.sovereign_categories.join(", "));
-                    }
-                    if !entry.shared_categories.is_empty() {
-                        println!("  • Shared: {}", entry.shared_categories.join(", "));
-                    }
-                    if !entry.public_categories.is_empty() {
-                        println!("  • Public: {}", entry.public_categories.join(", "));
-                    }
-                    if entry.sovereign_categories.is_empty()
-                        && entry.shared_categories.is_empty()
-                        && entry.public_categories.is_empty()
-                    {
-                        println!("  • No boundary data stored yet");
-                    }
+            if status.sovereign_data.is_empty()
+                && status.shared_data.is_empty()
+                && status.public_data.is_empty()
+            {
+                println!("  • No boundary data stored yet");
+            } else {
+                if !status.sovereign_data.is_empty() {
+                    println!("  • Sovereign: {}", status.sovereign_data.join(", "));
                 }
-                Ok(None) => {
-                    println!("  • No boundary data stored yet (run 'kask sovereignty grant' first)")
+                if !status.shared_data.is_empty() {
+                    println!("  • Shared: {}", status.shared_data.join(", "));
                 }
-                Err(e) => println!("  • Error loading boundaries: {}", e),
+                if !status.public_data.is_empty() {
+                    println!("  • Public: {}", status.public_data.join(", "));
+                }
             }
             println!();
             println!("Affirmative Consent:");
+            // The store may have user-customized affirmative consent settings.
+            // Fall back to the service-provided default boundary.
             match store.get(&webid.to_string()) {
                 Ok(Some(entry)) => {
                     println!(
@@ -85,19 +99,21 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                         entry.requires_affirmative_consent
                     );
                 }
-                Ok(None) => println!("  • No affirmative consent data stored yet"),
-                Err(e) => println!("  • Error loading affirmative consent: {}", e),
+                Ok(None) => println!(
+                    "  • Requires Affirmative Consent: {}",
+                    status.requires_affirmative_consent
+                ),
+                Err(_) => println!(
+                    "  • Requires Affirmative Consent: {}",
+                    status.requires_affirmative_consent
+                ),
             }
         }
-        SovereigntyAction::Grant { category } => {
+        crate::cli::SovereigntyAction::Grant { category } => {
             let webid = hkask_types::WebID::new();
-            let data_category = cli::parse_data_category(&category);
-            let consent_store = super::helpers::or_exit(
-                commands::config::open_consent_store(),
-                "Failed to open consent store",
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
-            match consent_manager.grant_consent(&webid.to_string(), &data_category) {
+            let data_category = parse_data_category(&category);
+            let ctx = build_ctx();
+            match SovereigntyService::grant_consent(&ctx, &webid.to_string(), &data_category) {
                 Ok(()) => {
                     println!("Consent granted for category: {}", category);
                     println!("  Data sharing is now enabled for this category.");
@@ -108,51 +124,47 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                 Err(e) => eprintln!("Error granting consent: {}", e),
             }
         }
-        SovereigntyAction::Revoke { category } => {
+        crate::cli::SovereigntyAction::Revoke { category: _ } => {
             let webid = hkask_types::WebID::new();
-            let consent_store = super::helpers::or_exit(
-                commands::config::open_consent_store(),
-                "Failed to open consent store",
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
-            let data_category = cli::parse_data_category(&category);
-            let _ = consent_manager.grant_consent(&webid.to_string(), &data_category);
-            match consent_manager.revoke_consent(&webid.to_string()) {
+            let ctx = build_ctx();
+            match SovereigntyService::revoke_consent(&ctx, &webid.to_string()) {
                 Ok(()) => {
-                    println!("Consent revoked for category: {}", category);
+                    println!("Consent revoked.");
                     println!("  Data sharing is now disabled for this category.");
                     println!("  Only public data is accessible.");
                 }
                 Err(e) => eprintln!("Error revoking consent: {}", e),
             }
         }
-
-        SovereigntyAction::Check { category } => {
+        crate::cli::SovereigntyAction::Check { category } => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let consent_store = super::helpers::or_exit(
-                commands::config::open_consent_store(),
-                "Failed to open consent store",
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
-            let data_category = cli::parse_data_category(&category);
+            let data_category = parse_data_category(&category);
+            let ctx = build_ctx();
+
+            let result = SovereigntyService::check_access(&ctx, &webid.to_string(), &data_category);
+
             println!("Data Access Check");
             println!("=================");
             println!("  Category: {}", category);
-            match consent_manager.has_consent(&webid.to_string(), &data_category) {
-                Ok(true) => {
-                    println!("  Access: GRANTED");
-                    println!("  Consent has been explicitly given for this category.");
-                }
-                Ok(false) => {
-                    println!("  Access: DENIED");
-                    println!(
-                        "  No consent for this category. Use 'kask sovereignty grant --category {}' to grant.",
-                        category
-                    );
+
+            match result {
+                Ok(access) => {
+                    println!("  Classification: {}", access.classification);
+                    println!("  Access required: {}", access.access_required);
+                    if access.has_consent {
+                        println!("  Access: GRANTED");
+                        println!("  Consent has been explicitly given for this category.");
+                    } else {
+                        println!("  Access: DENIED");
+                        println!(
+                            "  No consent for this category. Use 'kask sovereignty grant --category {}' to grant.",
+                            category
+                        );
+                    }
                 }
                 Err(e) => {
                     println!("  Access: ERROR");
-                    println!("  Failed to check consent: {}", e);
+                    println!("  Failed to check access: {}", e);
                 }
             }
         }

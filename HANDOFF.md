@@ -254,18 +254,53 @@ Created `hkask-services/src/pods.rs` with:
 - `Pod(AgentPodError::InvalidStateTransition(from, to))` → `Conflict { message: "Invalid pod state transition: {from} -> {to}" }`
 - `Pod(_)` → `Internal { message: e.to_string() }`
 
+**Task 6c — memory.rs (SKIPPED)**
+
+Depth test FAILED. Memory domain does not warrant extraction:
+- **Episodic store/recall/usage** — P1 OCAP-gated (EpisodicStoragePort membrane). Service layer MUST NOT bypass OCAP. No duplication across surfaces.
+- **Semantic store/recall** — CLI-only (compose, embed_corpus). No API counterpart. No duplication.
+- **Consolidation trigger** — Only 2 call sites (CLI + API) with high divergence (API has rate limiting, different WebID resolution, different passphrase flow). Below 8-call-site threshold.
+- **Memory infrastructure construction** (DB open, passphrase resolve, memory build) — belongs in Task 7 (ServiceContext::build()), not a service module.
+
+**Task 6d — SovereigntyService (COMPLETE)**
+
+9 public functions + 2 return types, 13 tests, all passing:
+- `parse_data_category()` — centralizes identical string-to-DataCategory mapping from CLI helpers and API route
+- `get_boundary()` — returns `DataSovereigntyBoundary::hkask_default()` (previously duplicated in both surfaces)
+- `requires_affirmative_consent()` — boundary policy check
+- `grant_consent()` — delegates to ConsentManager
+- `revoke_consent()` — delegates to ConsentManager (fixes CLI bug: spurious grant_consent call before revoke)
+- `has_consent()` — delegates to ConsentManager, fails closed
+- `get_granted_categories()` — delegates to ConsentManager
+- `check_access()` — combines boundary classification + consent check; returns AccessCheck struct
+- `get_status()` — combines boundary data + consent state; returns SovereigntyStatus struct
+
+Key achievements for 6d:
+- `SovereigntyContext` with `Arc<ConsentManager>` — follows PodContext pattern (single field)
+- CLI `Revoke` bug fixed: removed spurious `grant_consent` call before `revoke_consent`
+- CLI `Check` now shows classification + access_required + has_consent (was showing only granted/denied)
+- API `sovereignty_status` now uses `SovereigntyService::get_status()` instead of inline boundary + consent logic
+- API `sovereignty_check_access` now uses `SovereigntyService::check_access()` instead of inline boundary classification
+- API `sovereignty_grant_consent` now uses `SovereigntyService::grant_consent()` + `get_granted_categories()`
+- API `sovereignty_revoke_consent` now uses `SovereigntyService::revoke_consent()` (previously called `state.consent_manager.revoke_consent()` directly)
+- P1 Prohibition preserved: `check_access()` returns data + consent state; the surface decides to grant/deny
+- Constraint: Guideline — `parse_data_category` centralized from 2 duplicate sites
+- Constraint: Guardrail — `revoke_consent` in service only revokes (no spurious grant)
+- All 40 service-layer tests passing, workspace compiles clean with clippy `-D warnings`
+
 ## 3. Current Module Structure
 
 ```
 hkask-services/src/
-├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary, EnsembleContext, EnsembleService, map_participant_role
+├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary, EnsembleContext, EnsembleService, map_participant_role, PodContext, PodService, SovereigntyContext, SovereigntyService, SovereigntyStatus, AccessCheck, parse_data_category
 ├── error.rs         — 31 variants across 9 domain groups + SessionNotFound + Keystore + EscalationNotFound + Cns
 ├── config.rs        — ServiceConfig with 3 constructors + 8 default constants + template_cache_path
 ├── context.rs       — ServiceContext::async build() with 18 Arc fields
 ├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
 ├── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + 6 tests
 ├── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + 11 tests
-└── pods.rs          — PodContext + PodService (6 functions) + normalize_pod_error + 6 tests
+├── pods.rs          — PodContext + PodService (6 functions) + normalize_pod_error + 6 tests
+└── sovereignty.rs   — SovereigntyContext + SovereigntyService (9 functions) + AccessCheck + SovereigntyStatus + parse_data_category + 13 tests
 ```
 
 ## 4. Verification Status
@@ -274,7 +309,7 @@ hkask-services/src/
 cargo check --workspace                    ✅
 cargo clippy --workspace -- -D warnings   ✅
 cargo test --workspace                    ✅ (all tests passing)
-cargo test -p hkask-services              ✅ (27 tests: 4 inference + 6 curator + 11 ensemble + 6 pods)
+cargo test -p hkask-services              ✅ (40 tests: 4 inference + 6 curator + 11 ensemble + 6 pods + 13 sovereignty)
 No todo!/unimplemented! in hkask-services ✅
 No EscalationQueue direct calls in CLI/API curator routes ✅
 No CuratorAgent/MetacognitionLoop direct calls in CLI ✅
@@ -331,8 +366,8 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 Apply the same pattern (lightweight context like `InferenceContext`/`CuratorContext`/`EnsembleContext`) for:
 - ~~`ensemble.rs`~~ — **DONE (Task 6a)**
 - ~~`pods.rs`~~ — **DONE (Task 6b)** (6 functions: parse_pod_id, get_pod_status, list_pods, create_pod, activate_pod, deactivate_pod)
-- `memory.rs` — episodic/semantic storage ports (5 functions: episodic store/recall, semantic store/recall, consolidation trigger)
-- `sovereignty.rs` — consent and verification (4 functions)
+- ~~`memory.rs`~~ — **SKIPPED** — fails depth test (only 2 call sites with high divergence; episodic ops are P1 OCAP-gated; consolidation infrastructure belongs in Task 7)
+- ~~`sovereignty.rs`~~ — **DONE (Task 6d)** (9 public functions + 2 types: parse_data_category, get_boundary, requires_affirmative_consent, grant_consent, revoke_consent, has_consent, get_granted_categories, check_access, get_status + AccessCheck + SovereigntyStatus)
 - `spec.rs` — spec capture, cultivate, validate (4 functions)
 - `goal.rs` — goal CRUD (3 functions)
 - `models.rs` — already partially covered by `InferenceService::list_models/search_models`; apply depth test first
@@ -383,6 +418,8 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 | F18 | EnsembleService standing session extraction | MEDIUM | Deferred — divergent CLI/API flows need parameterization |
 | F19 | EnsembleService improv operation extraction | MEDIUM | Deferred — divergent inferencer setup needs surface-specific abstraction |
 | F20 | EnsembleService `list_deliberation_sessions` depth test result | LOW | Pass-through — stays as direct SessionManager call |
+| F21 | Memory domain depth test result | CLOSED | Skipped — 2 call sites, P1 OCAP-gated episodic ops, CLI-only semantic ops, consolidation infrastructure belongs in Task 7 |
+| F22 | SovereigntyBoundaryStore reads in CLI Status | Guideline | Per-user boundary data from persisted store; service returns default boundary. Surface merges both sources. |
 
 ## 8. Mandatory Skills for Next Session
 
@@ -536,6 +573,59 @@ impl PodService {
 }
 ```
 
+### SovereigntyService Design (implemented + wired)
+
+```rust
+// sovereignty.rs — SovereigntyContext + SovereigntyService + AccessCheck + SovereigntyStatus
+pub struct SovereigntyContext {
+    pub consent_manager: Arc<ConsentManager>,
+}
+
+impl SovereigntyContext {
+    pub fn from_parts(consent_manager: Arc<ConsentManager>) -> Self
+}
+// From<&ServiceContext> for SovereigntyContext deferred to Task 7b
+
+pub struct AccessCheck {
+    pub classification: String,
+    pub access_required: String,
+    pub has_consent: bool,
+}
+
+pub struct SovereigntyStatus {
+    pub explicit_consent: bool,
+    pub requires_affirmative_consent: bool,
+    pub sovereign_data: Vec<String>,
+    pub shared_data: Vec<String>,
+    pub public_data: Vec<String>,
+    pub granted_categories: Vec<String>,
+}
+
+pub fn parse_data_category(s: &str) -> DataCategory
+
+pub struct SovereigntyService;
+impl SovereigntyService {
+    // REQ: svc-sov-001 — parse_data_category maps string to DataCategory
+    pub fn parse_data_category(s: &str) -> DataCategory
+    // REQ: svc-sov-002 — get_boundary returns the default Magna Carta classification
+    pub fn get_boundary() -> DataSovereigntyBoundary
+    // REQ: svc-sov-003 — requires_affirmative_consent reflects boundary policy
+    pub fn requires_affirmative_consent() -> bool
+    // REQ: svc-sov-004 — grant_consent delegates to ConsentManager
+    pub fn grant_consent(ctx: &SovereigntyContext, webid: &str, category: &DataCategory) -> Result<(), ServiceError>
+    // REQ: svc-sov-005 — revoke_consent revokes all consent for the WebID
+    pub fn revoke_consent(ctx: &SovereigntyContext, webid: &str) -> Result<(), ServiceError>
+    // REQ: svc-sov-006 — has_consent returns Ok(bool), fails closed
+    pub fn has_consent(ctx: &SovereigntyContext, webid: &str, category: &DataCategory) -> Result<bool, ServiceError>
+    // REQ: svc-sov-007 — get_granted_categories returns category names
+    pub fn get_granted_categories(ctx: &SovereigntyContext, webid: &str) -> Result<Vec<String>, ServiceError>
+    // REQ: svc-sov-008 — check_access returns classification, access_required, and has_consent
+    pub fn check_access(ctx: &SovereigntyContext, webid: &str, category: &DataCategory) -> Result<AccessCheck, ServiceError>
+    // REQ: svc-sov-009 — get_status combines boundary and consent state
+    pub fn get_status(ctx: &SovereigntyContext, webid: &str) -> Result<SovereigntyStatus, ServiceError>
+}
+```
+
 ### Surface Wiring Pattern
 
 CLI and API surfaces construct context structs from their own state:
@@ -545,10 +635,13 @@ CLI and API surfaces construct context structs from their own state:
 let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
 EnsembleService::create_chat(&ctx, &session).await.map_err(|e| e.to_string())?;
 
-// API ensemble (from ApiState)
-let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
-EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![]).await
-    .map_err(ApiError::from)?;
+// CLI sovereignty (standalone commands using ConsentManager per-invocation)
+let ctx = hkask_services::SovereigntyContext::from_parts(Arc::new(ConsentManager::new(consent_store)));
+SovereigntyService::grant_consent(&ctx, &webid.to_string(), &category).map_err(|e| e.to_string())?;
+
+// API sovereignty (from ApiState)
+let ctx = hkask_services::SovereigntyContext::from_parts(state.consent_manager.clone());
+SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(ApiError::from)?;
 ```
 
 ### Completed Call Site Replacements
@@ -563,8 +656,9 @@ EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![
 7. `cli/commands/curator.rs` — All 4 curator operations → `CuratorService::*`
 8. `cli/commands/ensemble.rs` — 9 ensemble chat/deliberation operations → `EnsembleService::*`
 9. `cli/commands/pod.rs` — 5 pod lifecycle operations → `PodService::*`
+10. `cli/commands/sovereignty.rs` — 4 sovereignty operations → `SovereigntyService::*` + `parse_data_category`
 
-**API (all inference + curator + ensemble + pods sites wired):**
+**API (all inference + curator + ensemble + pods + sovereignty sites wired):**
 1. `api/lib.rs` — `with_ensemble_inferencer()` → `InferenceService::resolve_port()`
 2. `api/routes/chat.rs` — Fallback inference → `InferenceService::resolve_port()`
 3. `api/routes/models.rs` — `list_models` → `InferenceService::list_models()`
@@ -572,6 +666,7 @@ EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![
 5. `api/routes/curator.rs` — All 4 curator routes → `CuratorService::*`
 6. `api/routes/ensemble.rs` — 8 chat/deliberation handlers → `EnsembleService::*`
 7. `api/routes/pods.rs` — 5 pod lifecycle handlers → `PodService::*`
+8. `api/routes/sovereignty.rs` — 4 sovereignty handlers → `SovereigntyService::*` + `parse_data_category`
 
 **Intentionally NOT replaced (by design):**
 - `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
@@ -612,5 +707,11 @@ EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![
 | CLI PodManager::new_mock() stays in surface | Hypothesis | CLI pod ops are stateless (transient PodManager). Service normalizes ops, not PodManager lifecycle. |
 | PodNotFound(String) sentinel for UUID parse errors | Guideline | Follows EscalationNotFound/SessionNotFound pattern. |
 | Pod(AgentPodError) catch-all for domain errors | Guideline | PodNotFound(PodID) maps to PodNotFound(String); all other variants pass through. |
+| Memory domain skipped (fails depth test) | Evidence | Only 2 call sites for consolidation; episodic ops are P1 OCAP-gated; semantic ops are CLI-only; no duplication |
+| SovereigntyContext holds only Arc<ConsentManager> | Guideline | Follows PodContext pattern. Consent/boundary ops need only the consent manager. Store construction is surface concern (Task 7). |
+| parse_data_category centralized in service | Guideline | Both CLI and API had identical string-to-DataCategory mapping |
+| check_access returns data + consent state; surface decides deny | Prohibition (P1) | OCAP capability gating is user sovereignty. Service doesn't decide who accesses what. |
+| revoke_consent fixes CLI bug (spurious grant before revoke) | Guardrail | CLI did `consent_manager.grant_consent()` before `revoke_consent()`. Service only revokes. |
+| SovereigntyBoundaryStore reads stay in CLI Status handler | Guideline | Per-user boundary data from persisted store; service returns default boundary. Surface merges both. |
 
 *ℏKask - A Minimal Viable Container for Agents — v0.23.0*

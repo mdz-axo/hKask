@@ -6,11 +6,12 @@
 //! the Magna Carta: the API never reports stale or fabricated sovereignty
 //! state.
 //!
-//! See `docs/architecture/magna-carta.md` for the contract.
+//! Business logic is delegated to `SovereigntyService`; this module handles
+//! HTTP request parsing and response formatting only.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State, routing::Router};
-use hkask_types::DataCategory;
+use hkask_services::{SovereigntyContext, SovereigntyService, parse_data_category};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -80,6 +81,8 @@ pub struct AccessCheckResponse {
     pub access_required: String,
 }
 
+// Handlers
+
 /// Sovereignty status endpoint
 #[utoipa::path(
     get,
@@ -95,43 +98,21 @@ async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
-    use hkask_types::sovereignty::DataSovereigntyBoundary;
-
+    let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
     let webid_str = auth.webid.to_string();
 
-    // Use the default boundary classification (the only one currently wired
-    // into the type system) for the data-category lists. This is a constant
-    // view of what the Magna Carta prescribes, surfaced for visibility.
-    let boundary = DataSovereigntyBoundary::hkask_default();
-    let requires_affirmative_consent = boundary.requires_affirmative_consent();
-
-    // Enrich status with consent manager state
-    let granted_categories: Vec<String> = state
-        .consent_manager
-        .get_granted_categories(&webid_str)
-        .unwrap_or_default()
-        .into_iter()
-        .collect();
+    let status =
+        SovereigntyService::get_status(&ctx, &webid_str).map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
 
     Ok(Json(SovereigntyStatusResponse {
-        explicit_consent: !granted_categories.is_empty(),
-        requires_affirmative_consent: consent_name(requires_affirmative_consent).to_string(),
-        sovereign_data: boundary
-            .sovereign_data
-            .iter()
-            .map(|c| c.as_str().to_string())
-            .collect(),
-        shared_data: boundary
-            .shared_data
-            .iter()
-            .map(|c| c.as_str().to_string())
-            .collect(),
-        public_data: boundary
-            .public_data
-            .iter()
-            .map(|c| c.as_str().to_string())
-            .collect(),
-        granted_categories,
+        explicit_consent: status.explicit_consent,
+        requires_affirmative_consent: consent_name(status.requires_affirmative_consent).to_string(),
+        sovereign_data: status.sovereign_data,
+        shared_data: status.shared_data,
+        public_data: status.public_data,
+        granted_categories: status.granted_categories,
     }))
 }
 
@@ -156,19 +137,15 @@ async fn sovereignty_grant_consent(
     let category_str = req.category.unwrap_or_else(|| "all".to_string());
     let category = parse_data_category(&category_str);
 
-    state
-        .consent_manager
-        .grant_consent(&webid_str, &category)
-        .map_err(|e| ApiError::Internal {
-            message: e.to_string(),
-        })?;
+    let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
 
-    let granted = state
-        .consent_manager
-        .get_granted_categories(&webid_str)
-        .unwrap_or_default()
-        .into_iter()
-        .collect();
+    SovereigntyService::grant_consent(&ctx, &webid_str, &category).map_err(|e| {
+        ApiError::Internal {
+            message: e.to_string(),
+        }
+    })?;
+
+    let granted = SovereigntyService::get_granted_categories(&ctx, &webid_str).unwrap_or_default();
 
     Ok(Json(SovereigntyConsentResponse {
         consent: true,
@@ -198,7 +175,8 @@ async fn sovereignty_revoke_consent(
 ) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
 
-    state.consent_manager.revoke_consent(&webid_str)?;
+    let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
+    SovereigntyService::revoke_consent(&ctx, &webid_str)?;
 
     Ok(Json(SovereigntyConsentResponse {
         consent: false,
@@ -238,58 +216,28 @@ async fn sovereignty_check_access(
     let category_name = category.as_str();
     let webid_str = auth.webid.to_string();
 
-    // Use the default boundary classification to map the category to its
-    // policy class (Sovereign / Shared / Public), then check the live
-    // ConsentManager for the requesting WebID.
-    use hkask_types::sovereignty::DataSovereigntyBoundary;
-    let boundary = DataSovereigntyBoundary::hkask_default();
+    let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
 
-    let (classification, access_required) = if boundary.is_sovereign(&category) {
-        (
-            "SOVEREIGN".to_string(),
-            "Requires explicit consent AND owner".to_string(),
-        )
-    } else if boundary.is_category_shared(&category) {
-        (
-            "SHARED".to_string(),
-            "Requires explicit consent".to_string(),
-        )
-    } else if boundary.is_category_public(&category) {
-        ("PUBLIC".to_string(), "Always accessible".to_string())
-    } else {
-        ("UNKNOWN".to_string(), "Denied by default".to_string())
-    };
+    let access = SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(|e| {
+        ApiError::Internal {
+            message: e.to_string(),
+        }
+    })?;
 
-    // Effective access: live consent lookup overrides the policy class for
-    // non-public categories. Public data is always accessible.
-    let has_consent = state
-        .consent_manager
-        .has_consent(&webid_str, &category)
-        .unwrap_or(false);
-    if !has_consent && classification != "PUBLIC" {
+    // P1 Prohibition: The service returns classification + consent state;
+    // the surface decides whether to grant or deny access.
+    if !access.has_consent && access.classification != "PUBLIC" {
         return Err(ApiError::Forbidden {
-            reason: format!("No consent for category '{category_name}' (class {classification})"),
+            reason: format!(
+                "No consent for category '{category_name}' (class {})",
+                access.classification
+            ),
         });
     }
 
     Ok(Json(AccessCheckResponse {
         category: category_name.to_string(),
-        classification,
-        access_required,
+        classification: access.classification,
+        access_required: access.access_required,
     }))
-}
-
-/// Parse a string into a DataCategory
-fn parse_data_category(s: &str) -> DataCategory {
-    match s {
-        "episodic_memory" => DataCategory::EpisodicMemory,
-        "semantic_memory" => DataCategory::SemanticMemory,
-        "personal_context" => DataCategory::PersonalContext,
-        "capability_tokens" => DataCategory::CapabilityTokens,
-        "ocap_boundaries" => DataCategory::OcapBoundaries,
-        "template_invocations" => DataCategory::TemplateInvocations,
-        "hlexicon_terms" => DataCategory::HLexiconTerms,
-        "template_registry" => DataCategory::TemplateRegistry,
-        _ => DataCategory::Custom(s.to_string()),
-    }
 }
