@@ -280,9 +280,14 @@ mod tests {
 
         // Shared fields from ServiceContext are populated
         // Registry is usable (even if empty, it doesn't panic)
-        let _skills = state.registry.lock().await.list_skills_owned();
+        let _skills = state
+            .service_context
+            .registry
+            .lock()
+            .await
+            .list_skills_owned();
         assert!(
-            !state.system_webid.to_string().is_empty(),
+            !state.service_context.system_webid.to_string().is_empty(),
             "system_webid should be set"
         );
 
@@ -299,7 +304,13 @@ mod tests {
 
         // cns_runtime shares state with ServiceContext (not disconnected)
         assert_eq!(
-            state.cns_runtime.default_threshold().await,
+            state
+                .service_context
+                .cns_runtime
+                .read()
+                .await
+                .default_threshold()
+                .await,
             hkask_cns::DEFAULT_THRESHOLD,
             "cns_runtime threshold should match default"
         );
@@ -321,12 +332,12 @@ mod tests {
 
         // Verify the state has all shared fields populated
         assert!(
-            !state.system_webid.to_string().is_empty(),
+            !state.service_context.system_webid.to_string().is_empty(),
             "system_webid should be set from ServiceContext"
         );
         assert!(
-            state.service_config.in_memory,
-            "service_config should be in-memory for test"
+            state.service_context.config.in_memory,
+            "service_context config should be in-memory for test"
         );
     }
 

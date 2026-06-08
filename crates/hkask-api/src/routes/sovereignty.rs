@@ -98,7 +98,7 @@ async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
-    let ctx = SovereigntyContext::from_parts(state.service_context.consent_manager.clone());
+    let ctx = SovereigntyContext::from(&*state.service_context);
     let webid_str = auth.webid.to_string();
 
     let status = SovereigntyService::get_status(&ctx, &webid_str).map_err(ApiError::from)?;
@@ -134,7 +134,7 @@ async fn sovereignty_grant_consent(
     let category_str = req.category.unwrap_or_else(|| "all".to_string());
     let category = parse_data_category(&category_str);
 
-    let ctx = SovereigntyContext::from_parts(state.service_context.consent_manager.clone());
+    let ctx = SovereigntyContext::from(&*state.service_context);
 
     SovereigntyService::grant_consent(&ctx, &webid_str, &category).map_err(ApiError::from)?;
 
@@ -168,7 +168,7 @@ async fn sovereignty_revoke_consent(
 ) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
 
-    let ctx = SovereigntyContext::from_parts(state.service_context.consent_manager.clone());
+    let ctx = SovereigntyContext::from(&*state.service_context);
     SovereigntyService::revoke_consent(&ctx, &webid_str)?;
 
     Ok(Json(SovereigntyConsentResponse {
@@ -209,7 +209,7 @@ async fn sovereignty_check_access(
     let category_name = category.as_str();
     let webid_str = auth.webid.to_string();
 
-    let ctx = SovereigntyContext::from_parts(state.service_context.consent_manager.clone());
+    let ctx = SovereigntyContext::from(&*state.service_context);
 
     let access =
         SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(ApiError::from)?;

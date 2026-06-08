@@ -1,12 +1,11 @@
 //! Sovereignty command handlers for `kask sovereignty`
-//!
+//
 //! Implements the CLI display logic for data sovereignty management.
 //! Delegates consent/boundary operations to `SovereigntyService` and
-//! formats results for terminal output.
+//! formats results for terminal output. All context is derived from
+//! `ServiceContext` via `SovereigntyContext::from(&*ctx)` — no direct
+//! database access.
 
-use std::sync::Arc;
-
-use hkask_agents::consent::ConsentManager;
 use hkask_services::{SovereigntyContext, SovereigntyService, parse_data_category};
 use hkask_types::DataCategory;
 
@@ -19,13 +18,16 @@ pub fn run(action: crate::cli::SovereigntyAction) {
     }
 }
 
+fn build_service_context() -> hkask_services::ServiceContext {
+    let config =
+        hkask_services::ServiceConfig::from_env().expect("Failed to resolve service config");
+    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
+    rt.block_on(hkask_services::ServiceContext::build(config))
+        .expect("Failed to build service context")
+}
+
 fn build_ctx() -> SovereigntyContext {
-    let consent_store = super::helpers::or_exit(
-        commands::config::open_consent_store(),
-        "Failed to open consent store",
-    );
-    let consent_manager = Arc::new(ConsentManager::new(consent_store));
-    SovereigntyContext::from_parts(consent_manager)
+    SovereigntyContext::from(&build_service_context())
 }
 
 fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {

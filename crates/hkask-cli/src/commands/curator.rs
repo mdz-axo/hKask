@@ -1,53 +1,58 @@
 //! Curator governance command handlers — escalations, metacognition
-//!
+//
 //! Routed through `CuratorService` for business logic consistency
-//! across CLI and API surfaces.
+//! across CLI and API surfaces. All context is derived from `ServiceContext`
+//! via `CuratorContext::from(&*ctx)` — no direct database access.
 
-use std::sync::Arc;
+use hkask_services::{CuratorContext, CuratorService};
 
 use crate::block_on;
 use crate::cli::CuratorAction;
-use hkask_agents::EscalationEntry;
-use hkask_services::{CuratorContext, CuratorService};
-
-use crate::commands::config::open_registry_db;
 use crate::errors::CuratorError;
 
+/// Build a ServiceContext for curator subcommands.
+///
+/// Uses `ServiceConfig::from_env()` to resolve configuration, then builds
+/// the full service context. This replaces the old pattern of opening
+/// databases directly via `open_registry_db()`.
+async fn build_service_context() -> Result<hkask_services::ServiceContext, CuratorError> {
+    let config = hkask_services::ServiceConfig::from_env().map_err(CuratorError::from)?;
+    hkask_services::ServiceContext::build(config)
+        .await
+        .map_err(CuratorError::from)
+}
+
 /// List all pending escalations via CuratorService.
-pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
-    let conn = open_registry_db()?;
-    let queue = Arc::new(hkask_agents::EscalationQueue::new(conn)?);
-    let ctx = CuratorContext::from_parts(queue, None, None);
-    CuratorService::list_escalations(&ctx).map_err(CuratorError::from)
+pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>, CuratorError> {
+    let ctx = build_service_context().await?;
+    let curator_ctx = CuratorContext::from(&ctx);
+    CuratorService::list_escalations(&curator_ctx).map_err(CuratorError::from)
 }
 
 /// Resolve an escalation by ID via CuratorService.
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
-    let conn = open_registry_db()?;
-    let queue = Arc::new(hkask_agents::EscalationQueue::new(conn)?);
-    let ctx = CuratorContext::from_parts(queue, None, None);
-    CuratorService::resolve_escalation(&ctx, id, "cli-administrator").map_err(CuratorError::from)
+    let ctx = build_service_context().await?;
+    let curator_ctx = CuratorContext::from(&ctx);
+    CuratorService::resolve_escalation(&curator_ctx, id, "cli-administrator")
+        .map_err(CuratorError::from)
 }
 
 /// Dismiss an escalation by ID via CuratorService.
 pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
-    let conn = open_registry_db()?;
-    let queue = Arc::new(hkask_agents::EscalationQueue::new(conn)?);
-    let ctx = CuratorContext::from_parts(queue, None, None);
-    CuratorService::dismiss_escalation(&ctx, id, "cli-administrator").map_err(CuratorError::from)
+    let ctx = build_service_context().await?;
+    let curator_ctx = CuratorContext::from(&ctx);
+    CuratorService::dismiss_escalation(&curator_ctx, id, "cli-administrator")
+        .map_err(CuratorError::from)
 }
 
 /// Run a metacognition cycle and return a summary string via CuratorService.
+///
+/// Uses `CuratorContext::from_service_context()` which provides the CNS
+/// runtime and dispatch required for metacognition operations.
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
-    let conn = open_registry_db()?;
-    let queue = Arc::new(hkask_agents::EscalationQueue::new(conn)?);
-    let cns = Arc::new(hkask_cns::CnsRuntime::with_threshold(
-        hkask_cns::DEFAULT_THRESHOLD,
-    ));
-    let dispatch = Arc::new(hkask_agents::communication::MessageDispatch::new());
-
-    let ctx = CuratorContext::from_parts(queue, Some(cns), Some(dispatch));
-    let summary = CuratorService::run_metacognition(&ctx).await?;
+    let ctx = build_service_context().await?;
+    let curator_ctx = CuratorContext::from_service_context(&ctx).await;
+    let summary = CuratorService::run_metacognition(&curator_ctx).await?;
     Ok(summary.summary_text)
 }
 

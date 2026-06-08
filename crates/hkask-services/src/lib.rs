@@ -24,6 +24,7 @@ pub mod context;
 pub mod curator;
 pub mod ensemble;
 pub mod error;
+pub mod goal;
 pub mod inference;
 pub mod pods;
 pub mod sovereignty;
@@ -34,6 +35,7 @@ pub use context::ServiceContext;
 pub use curator::{CuratorContext, CuratorService, MetacognitionSummary};
 pub use ensemble::{EnsembleContext, EnsembleService, map_participant_role};
 pub use error::ServiceError;
+pub use goal::{GoalContext, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use pods::{PodContext, PodService};
 pub use sovereignty::{

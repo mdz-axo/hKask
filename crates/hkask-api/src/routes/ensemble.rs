@@ -131,8 +131,7 @@ async fn create_chat(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::create_chat(&ctx, &req.session_id).await {
         Ok(()) => {
             let response = EnsembleResponse {
@@ -175,8 +174,7 @@ async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) ->
 
 /// List chat sessions
 async fn list_chats(State(state): State<ApiState>) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::list_chat_sessions(&ctx).await {
         Ok(sessions) => Json(sessions).into_response(),
         Err(_) => Json(Vec::<String>::new()).into_response(),
@@ -189,8 +187,7 @@ async fn register_bot(
     Path(session): Path<String>,
     Json(req): Json<RegisterBotRequest>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::register_participant(
         &ctx,
         &session,
@@ -223,8 +220,7 @@ async fn send_message(
     Path(session): Path<String>,
     Json(req): Json<SendMessageRequest>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::send_message(
         &ctx,
         &session,
@@ -314,8 +310,7 @@ async fn create_deliberation(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::create_deliberation(&ctx, &req.session_id).await {
         Ok(()) => {
             let response = EnsembleResponse {
@@ -339,8 +334,7 @@ async fn start_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::start_deliberation(&ctx, &session).await {
         Ok(()) => {
             let response = EnsembleResponse {
@@ -365,8 +359,7 @@ async fn record_response(
     Path(session): Path<String>,
     Json(req): Json<RecordResponseRequest>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::record_deliberation_response(
         &ctx,
         &session,
@@ -398,8 +391,7 @@ async fn synthesize_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let ctx =
-        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
     match hkask_services::EnsembleService::synthesize_deliberation(&ctx, &session).await {
         Ok(synthesized) => {
             let response = EnsembleResponse {

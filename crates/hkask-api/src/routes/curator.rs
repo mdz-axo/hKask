@@ -121,11 +121,7 @@ async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ApiError> {
-    let ctx = hkask_services::CuratorContext::from_parts(
-        state.service_context.escalation_queue.clone(),
-        None,
-        None,
-    );
+    let ctx = hkask_services::CuratorContext::from(&*state.service_context);
     let entries = hkask_services::CuratorService::list_escalations(&ctx)?;
 
     let escalations: Vec<EscalationEntryResponse> = entries
@@ -167,11 +163,7 @@ async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ApiError> {
-    let ctx = hkask_services::CuratorContext::from_parts(
-        state.service_context.escalation_queue.clone(),
-        None,
-        None,
-    );
+    let ctx = hkask_services::CuratorContext::from(&*state.service_context);
     hkask_services::CuratorService::resolve_escalation(&ctx, &id, &req.resolved_by)?;
 
     Ok(Json(ResolveEscalationResponse {
@@ -199,11 +191,7 @@ async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ApiError> {
-    let ctx = hkask_services::CuratorContext::from_parts(
-        state.service_context.escalation_queue.clone(),
-        None,
-        None,
-    );
+    let ctx = hkask_services::CuratorContext::from(&*state.service_context);
     hkask_services::CuratorService::dismiss_escalation(&ctx, &id, &req.dismissed_by)?;
 
     Ok(Json(DismissEscalationResponse {
@@ -227,11 +215,7 @@ async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
-    let ctx = hkask_services::CuratorContext::from_parts(
-        state.service_context.escalation_queue.clone(),
-        None,
-        None,
-    );
+    let ctx = hkask_services::CuratorContext::from(&*state.service_context);
     let stats = hkask_services::CuratorService::escalation_stats(&ctx)?;
 
     let escalation_stats = EscalationStatsResponse {

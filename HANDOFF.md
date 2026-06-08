@@ -1,135 +1,130 @@
 # HANDOFF.md — hKask Service Layer Extraction
 
-**Session:** 12 (Audit) → 13 (Execution)
-**Status:** Build broken (11 compilation errors in `hkask-api`). Service layer less than halfway through strangler fig migration. Previous session incorrectly declared all open questions resolved.
+**Session:** 12 (Audit) → 13 (Execution) → 14 (Continue)
+**Status:** Build clean. Phase 4 partial: API routes migrated, CLI curator/pod/sovereignty/goal wired through ServiceContext. **We are roughly 40% through the total extraction work.** The original spec massively underestimated the scope — every surface (API 16 route files, CLI 8+ command files, REPL 3 handler files) has direct-access paths that need individual migration.
 
 ---
 
 ## 1. Session Context
 
-Session 12 audited 7 Tier 1 MEDIUM-priority open questions (F2, F3, F6, F14, F17, F18, F19) for the service layer extraction. It completed design audits but **made a critical error**: concluding every question was "by design" with no code extraction warranted, when the strangler fig pattern was incomplete — old direct-access paths in both CLI and API surfaces were never deleted after service modules were wired in. Mid-session, `ApiState` was refactored to hold `Arc<ServiceContext>` but left broken. The user caught the mistake and demanded honest documentation. **We are less than halfway through the real extraction work.**
+Session 13 fixed the broken build (11 errors → 0), replaced all `from_parts()` calls in API routes with `From<&ServiceContext>` derivation, wired CLI curator/pod/sovereignty/goal commands through `ServiceContext::build()`, deleted dead `open_registry_db()` and `open_consent_store()`, and passed full workspace verification. The strangler fig is advancing but **nowhere near done** — both surfaces still have ~80+ direct-access sites that bypass the service layer.
 
 ---
 
 ## 2. What Was Done
 
-### ApiState Refactoring (BROKEN — in progress)
-- Replaced 20 individual domain fields in `ApiState` with single `service_context: Arc<ServiceContext>` field
-- `from_service_context()` simplified to store `Arc::new(ctx)` plus 6 surface-specific fields
-- **Left 11 compilation errors**: old `state.field` references in `lib.rs` methods and 2 syntax errors in `bundles.rs`
-- File: `crates/hkask-api/src/lib.rs`
+### Build fix (0 errors, 0 warnings)
+- `bundles.rs`: fixed 2 missing semicolons (L149, L182)
+- `lib.rs`: deleted `with_consent_manager()` and `with_session_manager()` (dead methods referencing old fields); fixed `start_loops()`/`shutdown_loops()` to use `self.service_context.loop_system`; removed 11 dead imports
+- `lib.rs` tests: fixed 5 old field references (`state.registry` → `state.service_context.registry`, etc.)
 
-### Audit Findings (initially wrong — now corrected)
-- F17: CLI curator commands open their own DB instead of using ServiceContext — initially closed as "by design", **must be reopened**
-- F2/F3: Analysis findings correct but conclusions wrong — need re-evaluation
-- F6: Boundary table is valid documentation
-- F14: Closure valid (remaining ApiError constructions are HTTP-layer concerns)
-- F18/F19: Closures valid (too divergent / CLI-only)
+### API routes: `from_parts()` → `From<&ServiceContext>` (28 sites across 5 route files)
+- `routes/curator.rs`: 4 sites
+- `routes/ensemble.rs`: 8 sites
+- `routes/pods.rs`: 5 sites
+- `routes/models.rs`: 2 sites
+- `routes/sovereignty.rs`: 4 sites
+- `routes/chat.rs`: 1 site kept (legitimate fallback for no shared port)
 
-### Current Build State
-```
-cargo check -p hkask-api → 11 errors:
-  - 2 syntax errors in bundles.rs (missing semicolons at L149, L182)
-  - E0609: state.loop_system → state.service_context.loop_system (3 sites in lib.rs)
-  - E0609: state.consent_manager → state.service_context.consent_manager (1 site in lib.rs)
-  - E0609: state.session_manager → state.service_context.session_manager (1 site in lib.rs)
-  - E0425: compose_bundle / get_bundle not found in bundles.rs (routing to non-existent functions)
-  - 10 unused import warnings in lib.rs
-```
+### CLI commands: wired through `ServiceContext::build()`
+- `commands/curator.rs`: 4 functions use `build_service_context()` → `CuratorContext::from(&ctx)`; `curator_metacognition` uses `CuratorContext::from_service_context(&ctx).await`
+- `commands/pod.rs`: 5 functions use `build_service_context()` → `PodContext::from(&ctx)`; eliminated all `PodManager::new_mock()` usage
+- `commands/sovereignty.rs`: `build_ctx()` now uses `SovereigntyContext::from(&build_service_context())`
+- `commands/goal.rs`: 3 functions use `build_service_context()` → `ctx.goal_repo`; eliminated `open_repository()`
+- `commands/serve.rs`: removed `with_session_manager()` call (session manager now from ServiceContext)
+
+### Dead code deletion
+- `config::open_registry_db()` — deleted (no callers)
+- `config::open_consent_store()` — deleted (no callers)
+
+### Error type additions
+- `CuratorError::Service(hkask_services::ServiceError)` variant added with `#[error("Service error: {0}")]`
+
+### Verification
+- `cargo check --workspace` ✅
+- `cargo clippy --workspace -- -D warnings` ✅
+- `cargo test --workspace` ✅ (0 failures)
 
 ---
 
 ## 3. What Remains
 
-### HIGH — Fix the broken build
+**Honest assessment: We are ~40% through.** The `From<&ServiceContext>` impls and API `from_parts` replacement were the easy part. The remaining work requires creating new service modules, wiring deeply-embedded state, and surgically removing parallel infrastructure.
 
-**Task 1: Fix `ApiState` method references in `lib.rs`**
-- Replace `self.loop_system` → `self.service_context.loop_system` (3 sites: L235, L238, L247)
-- Replace `self.consent_manager` → `self.service_context.consent_manager` (L180 in `with_consent_manager`)
-- Replace `self.session_manager` → `self.service_context.session_manager` (L215 in `with_session_manager`)
-- Delete unused imports (L55-62: `ConsentManager`, `EscalationQueue`, `LoopSystem`, `PodManager`, `EpisodicStoragePort`, `CnsRuntime`, `StandingSessionStore`, `SqliteGoalRepository`, `InferencePort`, `CapabilityChecker`, `WebID`)
-- **BUT** `with_consent_manager` and `with_session_manager` are problematic: they mutate fields now inside `Arc<ServiceContext>`. Either remove these methods (preferred — ServiceContext is the single source of truth) or make ServiceContext fields mutable via interior mutability.
+### HIGH — API direct-access paths still bypassing service layer (~45 sites)
 
-**Task 2: Fix syntax errors in `bundles.rs`**
-- L149: Add missing semicolon after `serde_json::to_value(&bundle).unwrap_or(...)`
-- L182: Add missing semicolon after `registry.find_bundle_by_skills(&request.skills)`
+| Route file | Direct access pattern | Sites | Needs |
+|-----------|---------------------|-------|-------|
+| `routes/acp.rs` | `state.service_context.pod_manager.acp_runtime()` | 3 | `AcpService` + `AcpContext` |
+| `routes/bundles.rs` | `state.service_context.registry.lock().await` | 5 | `BundleService` + `BundleContext` |
+| `routes/templates.rs` | `state.service_context.registry.lock().await` | 4 | `TemplateService` + `TemplateContext` |
+| `routes/mcp.rs` | `state.service_context.mcp_runtime.discover_tools()` | 2 | `McpService` + `McpContext` |
+| `routes/pods.rs` | `state.service_context.capability_checker.check_resource()` | 1 | Move OCAP gate into `PodService` |
+| `routes/ensemble.rs` | `state.service_context.session_manager.read().await.get_chat()` | 3 | Route through `EnsembleService` |
+| `routes/ensemble.rs` | `state.service_context.mcp_runtime.discover_tools()` | 1 | `McpService` |
+| `routes/ensemble.rs` | `state.service_context.standing_session_store.clone()` | 1 | Route through `EnsembleService` |
+| `routes/goal.rs` | `state.service_context.goal_repo.create_goal()` etc. | 3 | `GoalService` + `GoalContext` |
+| `routes/chat.rs` | `state.service_context.inference_port` + `from_parts()` fallback | 1 | Route through `InferenceService` |
+| `routes/cns.rs`, `routes/episodic.rs`, `routes/consolidation.rs`, `routes/spec.rs` | Unknown — need audit | ~12 | Full audit needed |
 
-**Task 3: Fix `bundles.rs` routing — `compose_bundle` / `get_bundle`**
-- The router references `compose_bundle` and `get_bundle` but the actual function names in the file are `compose_bundle` and `get_bundle` — check if they were accidentally renamed or if there's a visibility issue.
+### HIGH — CLI direct-access paths still bypassing service layer (~20 sites)
 
-### HIGH — API route strangler fig completion
+| File | Direct access pattern | Sites | Needs |
+|------|----------------------|-------|-------|
+| `commands/ensemble.rs` | `get_session_manager()` global static (8 sites) | 8 | Replace with ServiceContext |
+| `commands/ensemble.rs` | `IMPROV_CLIENT` global static | 1 | Replace with ServiceContext |
+| `commands/ensemble.rs` | `CYBERNETICS_LOOP` global static | 1 | Replace with ServiceContext |
+| `commands/ensemble.rs` | `open_standing_session_store()` | 1 | Use `ServiceContext.standing_session_store` |
+| `commands/sovereignty.rs` | `open_sovereignty_store()` | 1 | Add `SovereigntyBoundaryStore` to ServiceContext |
+| `commands/spec.rs` | `open_spec_store()` | 4 | Add `SqliteSpecStore` to ServiceContext or create SpecService |
+| `commands/compose.rs` | `InferenceContext::from_parts()` | 1 | Wire through ServiceContext |
+| `commands/chat.rs` | `InferenceContext::from_parts()` | 1 | Wire through ServiceContext |
 
-**Task 4: Replace `from_parts()` with `From<&ServiceContext>` derivation**
-Add `From<&ServiceContext>` implementations in `hkask-services` and replace manual context construction:
+### HIGH — REPL direct-access paths (~4 sites)
 
-| Route file | Current pattern | Sites | Target |
-|-----------|----------------|-------|--------|
-| `routes/curator.rs` | `CuratorContext::from_parts(state.service_context.escalation_queue.clone(), None, None)` | 4 | `CuratorContext::from(&state.service_context)` |
-| `routes/sovereignty.rs` | `SovereigntyContext::from_parts(state.service_context.consent_manager.clone())` | 4 | `SovereigntyContext::from(&state.service_context)` |
-| `routes/pods.rs` | `PodContext::from_parts(state.service_context.pod_manager.clone())` | 5 | `PodContext::from(&state.service_context)` |
-| `routes/ensemble.rs` | `EnsembleContext::from_parts(state.service_context.session_manager.clone())` | 9+ | `EnsembleContext::from(&state.service_context)` |
-| `routes/models.rs` | `InferenceContext::from_parts(...)` | 2 | `InferenceContext::from(&state.service_context)` |
-| `routes/chat.rs` | `InferenceContext::from_parts(...)` | 1 | `InferenceContext::from(&state.service_context)` |
-| `routes/goal.rs` | `state.service_context.goal_repo` (direct access) | 3 | `GoalContext::from(&state.service_context)` + `GoalService` |
-| `routes/acp.rs` | `state.service_context.pod_manager.acp_runtime()` (direct access) | 3 | `AcpContext::from(&state.service_context)` + `AcpService` |
+| File | Pattern | Sites | Needs |
+|------|---------|-------|-------|
+| `repl/init.rs` | `InferenceContext::from_parts()` (pre-onboarding) | 2 | REPL already uses ServiceContext; clean up pre-onboarding path |
+| `repl/handlers/model.rs` | `InferenceContext::from_parts()` | 2 | Use `InferenceContext::from(&*state.service_context)` |
+| `repl/handlers/hhh.rs` | `InferenceContext::from_parts()` | 1 | Same pattern |
 
-**Task 5: Remove direct `manager.read().await` calls in `ensemble.rs`**
-- `get_chat` (L156): `manager.read().await.get_chat(...)` → route through `EnsembleService`
-- `improv_turn` (L270): `manager.read().await.get_chat(...)` → route through `EnsembleService`
+### MEDIUM — New service modules needed in `hkask-services`
 
-### HIGH — CLI route strangler fig completion
+| Module | Purpose | Dependencies |
+|--------|---------|-------------|
+| `bundle.rs` | BundleService + BundleContext | `ServiceContext.registry` |
+| `template.rs` | TemplateService + TemplateContext | `ServiceContext.registry` |
+| `mcp.rs` | McpService + McpContext | `ServiceContext.mcp_runtime`, `mcp_dispatcher` |
+| `acp.rs` | AcpService + AcpContext | `ServiceContext.pod_manager.acp_runtime()` |
+| `goal.rs` | GoalService + GoalContext | `ServiceContext.goal_repo` |
 
-**Task 6: Wire `commands/curator.rs` through `ServiceContext::build()`**
-- 4 functions each call `open_registry_db()` + construct their own `EscalationQueue`:
-  - `curator_escalations()` (L17)
-  - `curator_resolve()` (L25)
-  - `curator_dismiss()` (L33)
-  - `curator_metacognition()` (L41) — also constructs standalone `CnsRuntime` + `MessageDispatch`
-- Replace with `ServiceContext::build(config).await` then `CuratorContext::from(&ctx)`
-- `run_curator` signature (L55) takes raw `registry`, `runtime`, `handle` — simplify to take `ServiceContext`
+### MEDIUM — ServiceContext gaps
 
-**Task 7: Wire `commands/sovereignty.rs` through `ServiceContext::build()`**
-- `build_ctx()` (L22) calls `open_consent_store()` per invocation → replace with `ServiceContext` derivation
-- Also opens `open_sovereignty_store()` separately (L44) — move to ServiceContext
+| Missing field | Used by | Action |
+|--------------|---------|--------|
+| `SovereigntyBoundaryStore` | sovereignty CLI Status | Add to ServiceContext::build() |
+| `SqliteSpecStore` | spec CLI commands | Add to ServiceContext::build() |
 
-**Task 8: Wire `commands/ensemble.rs` through `ServiceContext::build()`**
-- 3 global statics creating parallel infrastructure:
-  - `SESSION_MANAGER` (L24): `OnceLock<Arc<RwLock<SessionManager>>>`
-  - `IMPROV_CLIENT` (L26): `OnceLock<Arc<CircuitBreakerInferenceAdapter>>`
-  - `CYBERNETICS_LOOP` (L77): `OnceLock<Arc<RwLock<CyberneticsLoop>>>`
-- Replace with `ServiceContext.session_manager`, `ServiceContext.cybernetics_loop`, etc.
-- `get_session_manager()`, `get_improv_client()`, `get_cybernetics_loop()` → derive from ServiceContext
-- `open_standing_session_store()` (L146) → use `ServiceContext.standing_session_store`
+### MEDIUM — Dead code to delete (after migration)
 
-### MEDIUM — Cleanup
+| Function | Current callers | Delete when |
+|----------|----------------|-------------|
+| `open_sovereignty_store()` | sovereignty.rs L46 | After SovereigntyBoundaryStore in ServiceContext |
+| `open_spec_store()` | spec.rs (4 sites) | After SqliteSpecStore in ServiceContext or SpecService |
+| `create_disconnected_governed_dispatcher()` | config.rs | Audit callers |
+| `create_mcp_dispatcher()` | config.rs | Audit callers |
+| `create_mcp_dispatcher_with_servers()` | config.rs | Audit callers |
+| `init_registry()` / `init_registry_with_secrets()` | config.rs | After full CLI migration |
 
-**Task 9: Remove dead code from `commands/config.rs`**
-- `open_registry_db()` — if no longer called after Task 6
-- `open_consent_store()` — if no longer called after Task 7
-- `open_sovereignty_store()` — if no longer called after Task 7
-- `open_spec_store()` — check for remaining callers
+### LOW — Ensemble global statics architecture decision
 
-**Task 10: Remove `with_consent_manager` and `with_session_manager` from `ApiState`**
-- These mutate fields inside `Arc<ServiceContext>` which breaks the single-source-of-truth invariant
-- If CLI needs to share its SessionManager with the API, pass it during `ServiceContext::build()` via `ServiceConfig`
+The 3 `OnceLock` statics in `commands/ensemble.rs` provide cross-command session persistence in the CLI. Replacing them with `ServiceContext::build()` would create a *different* session manager per subcommand call, breaking CLI session continuity. Options:
 
-**Task 11: Full workspace verification**
-```bash
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
-cargo test --workspace
-```
+1. **ServiceContext singleton in CLI** — Build ServiceContext once at CLI startup, store in `OnceLock`, derive all contexts from it. This preserves session sharing while eliminating parallel infrastructure.
+2. **Pass ServiceContext through CLI command dispatch** — Refactor `kask` main to build ServiceContext once and thread it through all subcommand handlers. More surgical but requires signature changes across many `run_*` functions.
+3. **Keep ensemble statics, document as intentional** — If the ensemble module is truly CLI-only for these operations, the statics may be acceptable. But this violates the "single assembly point" principle.
 
-### LOW — Documentation
-
-**Task 12: Update OPEN_QUESTIONS.md**
-- Reopen F17 with correct assessment
-- Re-evaluate F2/F3 conclusions
-- Update F6 with boundary table reference
-
-**Task 13: Update docs/status/test-inventory.md**
-- Add service-layer seam tests
-- Update existing tests that reference old ApiState fields
+This is an architectural decision that should be made before continuing ensemble migration.
 
 ---
 
@@ -137,53 +132,44 @@ cargo test --workspace
 
 ### Required Skills (load at session start)
 
-1. **`refactor-service-layer`** — The core methodology. Strangler fig sequence, depth test, one-domain-per-commit. This IS the work.
-2. **`coding-guidelines`** — Karpathy's surgical change principle. Every changed line must trace to the extraction.
-3. **`tdd`** — Vertical tracer-bullet discipline. RED→GREEN per behavior, never horizontal slices.
-4. **`constraint-forces`** — Classify the P1 Prohibition misinterpretation. "Standalone CLI commands CAN work without ServiceContext" ≠ "MUST avoid ServiceContext".
-5. **`diagnose`** — For the broken build: reproduce, anchor, hypothesize, fix, verify.
-6. **`zoom-out`** — Use before starting to re-verify the module map after Session 12's partial changes.
+1. **`refactor-service-layer`** — The core methodology. Strangler fig sequence, depth test, one-domain-per-commit, P1-P6 principles. **This IS the work.**
+2. **`coding-guidelines`** — Surgical change principle. Every changed line must trace to the extraction. No "while we're in the area."
+3. **`constraint-forces`** — Classify whether direct access is a Prohibition violation (it's not — it's a Guideline that should become practice) vs. an acceptable surface-specific concern.
+4. **`diagnose`** — When builds break or tests fail during migration.
+5. **`zoom-out`** — Use before starting each new domain extraction to map the call graph.
+6. **`tdd`** — For new service modules (BundleService, TemplateService, etc.): RED→GREEN per behavior.
 
 ### Tools
 
-- `cargo check -p hkask-api` — Primary verification during API fixes
-- `cargo check -p hkask-cli` — Primary verification during CLI fixes
-- `cargo check --workspace` — Full verification after each domain migration
-- `cargo clippy -p <crate> -- -D warnings` — Lint enforcement (P7)
-- `cargo test -p <crate>` — Test verification per domain
-- `grep` — Find remaining `from_parts`, `open_registry_db`, `open_consent_store` call sites
-- `read_file` / `edit_file` — Precise surgical edits
-
-### Verification Commands Per Task
-
-| Task | Verify |
-|------|--------|
-| 1-3 | `cargo check -p hkask-api` |
-| 4 | `cargo check -p hkask-api && cargo test -p hkask-api` |
-| 5 | `cargo check -p hkask-api` |
-| 6 | `cargo check -p hkask-cli && cargo test -p hkask-cli` |
-| 7 | `cargo check -p hkask-cli` |
-| 8 | `cargo check -p hkask-cli && cargo test -p hkask-cli` |
-| 9-10 | `cargo check --workspace` |
-| 11 | `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace` |
+```bash
+cargo check -p hkask-api          # API verification
+cargo check -p hkask-cli          # CLI verification
+cargo check --workspace           # Full verification
+cargo clippy --workspace -- -D warnings  # Lint
+cargo test --workspace           # Full test suite
+grep -rn 'from_parts\|open_registry_db\|open_consent_store\|open_sovereignty_store\|open_spec_store' crates/  # Find remaining direct-access sites
+grep -rn 'state\.service_context\.\(registry\|pod_manager\|session_manager\|mcp_runtime\|capability_checker\|standing_session_store\)' crates/hkask-api/src/routes/  # Find remaining API direct access
+```
 
 ---
 
 ## 5. Key Decisions to Preserve
 
-1. **P1 Prohibition was misinterpreted.** "Standalone CLI commands work without ServiceContext" means they CAN operate independently for simple operations, NOT that they MUST avoid ServiceContext when they need shared infrastructure (escalation queue, consent manager, CNS). When a CLI command needs infrastructure that ServiceContext provides, it should use ServiceContext.
+1. **P1 Prohibition was misinterpreted in Session 12.** "Standalone CLI commands work without ServiceContext" means they CAN operate independently for simple operations, NOT that they MUST avoid ServiceContext. When a command needs shared infrastructure, it should use ServiceContext.
 
-2. **ApiState holds `Arc<ServiceContext>` as single source of truth.** All domain objects come from `service_context.*`. Surface-specific fields (standing_sessions, ensemble_inferencer, git_cas, gas_governance) are the ONLY fields that don't come from ServiceContext. This is the canonical architecture — do not add domain fields back to ApiState.
+2. **ApiState holds `Arc<ServiceContext>` as single source of truth.** All domain objects come from `service_context.*`. Surface-specific fields (standing_sessions, ensemble_inferencer, git_cas, gas_governance) are the ONLY fields that don't come from ServiceContext. Do not add domain fields back to ApiState.
 
-3. **`From<&ServiceContext>` is the derivation pattern.** Replace all `from_parts()` manual construction with `impl From<&ServiceContext> for XxxContext`. This ensures surfaces can't accidentally construct contexts with stale or mismatched components.
+3. **`From<&ServiceContext>` is the derivation pattern for API routes.** Replace all `from_parts()` with this. API routes access `&state.service_context` (inside `Arc`), not owned `ServiceContext`.
 
-4. **F14 closure is valid.** The ~11 remaining `ApiError::` constructions in API routes are legitimate HTTP-layer concerns (input validation, OCAP gates, auth failures). Do not extract these to the service layer.
+4. **CLI commands use `build_service_context()` helper + `From<&ServiceContext>`.** Each CLI subcommand that needs ServiceContext builds one from `ServiceConfig::from_env()`. This is not ideal (rebuilds per call) but is correct and keeps subcommands independent. A future optimization should build ServiceContext once at CLI startup.
 
-5. **F18/F19 closures are valid.** Standing session CLI/API logic is too divergent to share. Improv operations are CLI-only. Do not force extraction where there's no duplication.
+5. **`from_parts()` is acceptable for standalone inference port creation.** When no shared port is available (in-memory mode, fallback paths), `InferenceContext::from_parts(None, model, base_url)` is the correct pattern — it can't use `From<&ServiceContext>` because the ServiceContext itself may lack an inference port.
 
-6. **Strangler fig step "DELETE old code" was never done.** Service modules were wired in but old direct-access paths remained. The sequence is: wire → verify → DELETE. The deletion step must happen for each domain.
+6. **F14/F18/F19 closures are valid.** ~11 `ApiError::` constructions in API routes are legitimate HTTP-layer concerns. Standing session CLI/API logic is too divergent to share. Improv is CLI-only.
 
-7. **Global statics in `commands/ensemble.rs` are parallel infrastructure.** `SESSION_MANAGER`, `IMPROV_CLIENT`, `CYBERNETICS_LOOP` create their own CyberneticsLoops, session managers, and inference adapters outside the ServiceContext. This violates the single-assembly-point principle and must be replaced.
+7. **Ensemble global statics are an open architectural question.** Replacing them naively with per-call `ServiceContext::build()` would break CLI session continuity. Decision needed before ensemble migration continues.
+
+8. **New service modules must pass the depth test.** Before creating `BundleService`, `TemplateService`, etc., apply the deletion test: delete the surface code — does complexity reappear in N callers? If the service module would just be a thin delegation, deepen or merge instead.
 
 ---
 
@@ -191,23 +177,25 @@ cargo test --workspace
 
 | File | Role | Status |
 |------|------|--------|
-| `crates/hkask-api/src/lib.rs` | ApiState definition | BROKEN — 11 errors |
-| `crates/hkask-api/src/routes/bundles.rs` | Bundle routes | 2 syntax errors |
-| `crates/hkask-api/src/routes/curator.rs` | Curator API routes | Uses `from_parts()` (4 sites) |
-| `crates/hkask-api/src/routes/sovereignty.rs` | Sovereignty API routes | Uses `from_parts()` (4 sites) |
-| `crates/hkask-api/src/routes/pods.rs` | Pod API routes | Uses `from_parts()` (5 sites) |
-| `crates/hkask-api/src/routes/ensemble.rs` | Ensemble API routes | Uses `from_parts()` (9+ sites) + direct `manager.read().await` |
-| `crates/hkask-api/src/routes/models.rs` | Model listing routes | Uses `from_parts()` (2 sites) |
-| `crates/hkask-api/src/routes/chat.rs` | Chat route | Uses `from_parts()` (1 site) |
-| `crates/hkask-api/src/routes/goal.rs` | Goal routes | Direct `state.service_context.goal_repo` access (3 sites) |
-| `crates/hkask-api/src/routes/acp.rs` | ACP routes | Direct `state.service_context.pod_manager.acp_runtime()` (3 sites) |
-| `crates/hkask-cli/src/commands/curator.rs` | Curator CLI commands | Opens own DB (4 sites) |
-| `crates/hkask-cli/src/commands/sovereignty.rs` | Sovereignty CLI commands | Opens own consent store |
-| `crates/hkask-cli/src/commands/ensemble.rs` | Ensemble CLI commands | 3 global statics + own DB |
-| `crates/hkask-cli/src/commands/config.rs` | DB/store helpers | `open_registry_db()`, `open_consent_store()`, etc. |
-| `crates/hkask-services/src/context.rs` | ServiceContext definition | Complete, `From` impls needed |
-| `crates/hkask-services/src/curator.rs` | CuratorService + CuratorContext | `from_parts()` only, no `From<&ServiceContext>` |
-| `crates/hkask-services/src/sovereignty.rs` | SovereigntyService + SovereigntyContext | `from_parts()` only |
-| `crates/hkask-services/src/pods.rs` | PodService + PodContext | `from_parts()` only |
-| `crates/hkask-services/src/ensemble.rs` | EnsembleService + EnsembleContext | `from_parts()` only |
-| `crates/hkask-services/src/inference.rs` | InferenceService + InferenceContext | `from_parts()` only |
+| `crates/hkask-api/src/lib.rs` | ApiState definition | ✅ Clean |
+| `crates/hkask-api/src/routes/curator.rs` | Curator API routes | ✅ Uses `From<&ServiceContext>` |
+| `crates/hkask-api/src/routes/sovereignty.rs` | Sovereignty API routes | ✅ Uses `From<&ServiceContext>` |
+| `crates/hkask-api/src/routes/pods.rs` | Pod API routes | ✅ Uses `From<&ServiceContext>` |
+| `crates/hkask-api/src/routes/ensemble.rs` | Ensemble API routes | ✅ Uses `From<&ServiceContext>` (but 3 direct `session_manager` access remain) |
+| `crates/hkask-api/src/routes/models.rs` | Model listing routes | ✅ Uses `From<&ServiceContext>` |
+| `crates/hkask-api/src/routes/chat.rs` | Chat route | ⚠️ 1 `from_parts()` fallback (legitimate) |
+| `crates/hkask-api/src/routes/acp.rs` | ACP routes | ❌ Direct `pod_manager.acp_runtime()` (3 sites) |
+| `crates/hkask-api/src/routes/bundles.rs` | Bundle routes | ❌ Direct `registry.lock().await` (5 sites) |
+| `crates/hkask-api/src/routes/templates.rs` | Template routes | ❌ Direct `registry.lock().await` (4 sites) |
+| `crates/hkask-api/src/routes/mcp.rs` | MCP routes | ❌ Direct `mcp_runtime` access (2 sites) |
+| `crates/hkask-api/src/routes/goal.rs` | Goal API routes | ❌ Direct `goal_repo` access (3 sites) |
+| `crates/hkask-cli/src/commands/curator.rs` | Curator CLI | ✅ Uses ServiceContext |
+| `crates/hkask-cli/src/commands/pod.rs` | Pod CLI | ✅ Uses ServiceContext |
+| `crates/hkask-cli/src/commands/sovereignty.rs` | Sovereignty CLI | ⚠️ Mostly ServiceContext, but `open_sovereignty_store()` (1 site) |
+| `crates/hkask-cli/src/commands/goal.rs` | Goal CLI | ✅ Uses ServiceContext |
+| `crates/hkask-cli/src/commands/ensemble.rs` | Ensemble CLI | ❌ 3 global statics + `from_parts()` (8 sites) |
+| `crates/hkask-cli/src/commands/spec.rs` | Spec CLI | ❌ `open_spec_store()` (4 sites) |
+| `crates/hkask-cli/src/commands/compose.rs` | Compose CLI | ⚠️ `from_parts()` (1 site) |
+| `crates/hkask-cli/src/commands/config.rs` | DB/store helpers | ⚠️ `open_sovereignty_store()`, `open_spec_store()` remain |
+| `crates/hkask-cli/src/repl/` | REPL handlers | ⚠️ `from_parts()` (5 sites) |
+| `crates/hkask-services/src/context.rs` | ServiceContext | ✅ Complete with `From` impls |

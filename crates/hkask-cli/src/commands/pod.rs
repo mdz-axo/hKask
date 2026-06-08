@@ -1,48 +1,40 @@
 //! Pod management command handlers
-//!
+//
 //! Delegates pod lifecycle operations to `PodService` in `hkask-services`.
-//! Surface concerns (file I/O for persona YAML, PodManager construction)
-//! stay here. Business logic (UUID parsing, error normalization) moves to
-//! the service layer.
+//! All context is derived from `ServiceContext` via `PodContext::from(&*ctx)` —
+//! no mock PodManager construction or direct database access.
 
 use crate::block_on;
 use crate::cli::PodAction;
-use hkask_agents::pod::{AgentPersona, PodManager, PodManagerBuilder};
+use hkask_agents::pod::AgentPersona;
 use hkask_services::{PodContext, PodService};
-use hkask_types::CapabilityChecker;
 use std::path::PathBuf;
-use std::sync::Arc;
+
+/// Build a ServiceContext for pod subcommands.
+async fn build_service_context() -> Result<hkask_services::ServiceContext, String> {
+    let config = hkask_services::ServiceConfig::from_env()
+        .map_err(|e| format!("Failed to resolve service config: {}", e))?;
+    hkask_services::ServiceContext::build(config)
+        .await
+        .map_err(|e| format!("Failed to build service context: {}", e))
+}
 
 /// Get pod status
 pub async fn get_pod_status(pod_id: &str) -> Result<hkask_agents::pod::PodStatus, String> {
-    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
-    PodService::get_pod_status(&ctx, pod_id)
+    let ctx = build_service_context().await?;
+    let pod_ctx = PodContext::from(&ctx);
+    PodService::get_pod_status(&pod_ctx, pod_id)
         .await
         .map_err(|e| e.to_string())
 }
 
 /// List all pods
 pub async fn list_pods() -> Result<Vec<hkask_agents::pod::PodStatus>, String> {
-    let (acp, _store) = crate::commands::config::init_registry()
+    let ctx = build_service_context().await?;
+    let pod_ctx = PodContext::from(&ctx);
+    PodService::list_pods(&pod_ctx)
         .await
-        .map_err(|e| {
-            format!(
-                "Registry not initialized: {}. Run `kask chat` to complete onboarding.",
-                e
-            )
-        })?;
-
-    let acp_secret = crate::commands::config::resolve_acp_secret()
-        .map_err(|e| format!("ACP secret resolution error: {}", e))?;
-
-    let manager = PodManagerBuilder::new()
-        .acp_runtime(acp)
-        .capability_checker(CapabilityChecker::new(acp_secret.as_bytes()))
-        .with_in_memory_storage()
-        .build();
-
-    let ctx = PodContext::from_parts(Arc::new(manager));
-    PodService::list_pods(&ctx).await.map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())
 }
 
 /// Create pod from template crate
@@ -57,16 +49,23 @@ pub async fn create_pod(
     let persona = AgentPersona::from_yaml(&yaml_content)
         .map_err(|e| format!("Invalid persona YAML: {}", e))?;
 
-    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
-    PodService::create_pod(&ctx, template_name, &persona, pod_name.map(String::from))
-        .await
-        .map_err(|e| e.to_string())
+    let ctx = build_service_context().await?;
+    let pod_ctx = PodContext::from(&ctx);
+    PodService::create_pod(
+        &pod_ctx,
+        template_name,
+        &persona,
+        pod_name.map(String::from),
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Activate pod
 pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
-    PodService::activate_pod(&ctx, pod_id)
+    let ctx = build_service_context().await?;
+    let pod_ctx = PodContext::from(&ctx);
+    PodService::activate_pod(&pod_ctx, pod_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -77,8 +76,9 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
 /// The service layer now propagates errors consistently — both CLI and API
 /// receive proper `PodNotFound` or `Pod(AgentPodError)` on failure.
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
-    PodService::deactivate_pod(&ctx, pod_id)
+    let ctx = build_service_context().await?;
+    let pod_ctx = PodContext::from(&ctx);
+    PodService::deactivate_pod(&pod_ctx, pod_id)
         .await
         .map_err(|e| e.to_string())
 }

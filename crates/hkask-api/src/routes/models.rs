@@ -81,11 +81,7 @@ pub struct ModelSearchQuery {
 async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
     use hkask_services::InferenceService;
 
-    let ctx = hkask_services::InferenceContext::from_parts(
-        state.service_context.inference_port.clone(),
-        &state.service_context.config.default_model,
-        &state.service_context.config.okapi_base_url,
-    );
+    let ctx = hkask_services::InferenceContext::from(&*state.service_context);
     let models = InferenceService::list_models(&ctx)
         .await
         .unwrap_or_default();
@@ -127,11 +123,7 @@ async fn search_models(
 ) -> Json<ModelListResponse> {
     use hkask_services::InferenceService;
 
-    let ctx = hkask_services::InferenceContext::from_parts(
-        state.service_context.inference_port.clone(),
-        &state.service_context.config.default_model,
-        &state.service_context.config.okapi_base_url,
-    );
+    let ctx = hkask_services::InferenceContext::from(&*state.service_context);
     let models = InferenceService::search_models(&ctx, &query.q)
         .await
         .unwrap_or_default();

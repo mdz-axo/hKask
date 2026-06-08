@@ -37,17 +37,6 @@ pub fn resolve_db_passphrase() -> Result<String, RegistryError> {
         .map_err(|e| RegistryError::InitFailed(e.to_string()))
 }
 
-pub(crate) fn open_registry_db()
--> Result<Arc<std::sync::Mutex<rusqlite::Connection>>, RegistryError> {
-    let db_path = registry_db_path();
-    let passphrase = resolve_db_passphrase()?;
-
-    let db = hkask_storage::open_database(&db_path, &passphrase)
-        .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
-
-    Ok(db.conn_arc())
-}
-
 /// Open a SovereigntyBoundaryStore (used by `kask sovereignty` subcommands).
 /// Opens the shared database and wraps it in a sovereignty store.
 pub fn open_sovereignty_store()
@@ -57,17 +46,6 @@ pub fn open_sovereignty_store()
     let db = hkask_storage::open_database(&db_path, &passphrase)
         .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
     Ok(hkask_storage::SovereigntyBoundaryStore::new(db.conn_arc()))
-}
-
-/// Open a ConsentStore (used by `kask sovereignty` subcommands).
-/// Opens the shared database and initializes the consent schema.
-pub fn open_consent_store() -> Result<hkask_storage::ConsentStore, crate::errors::RegistryError> {
-    let db = open_registry_db()?;
-    let store = hkask_storage::ConsentStore::new(db);
-    store
-        .initialize_schema()
-        .map_err(|e| crate::errors::RegistryError::SchemaError(e.to_string()))?;
-    Ok(store)
 }
 
 /// Open a SqliteSpecStore (used by `kask spec` subcommands).

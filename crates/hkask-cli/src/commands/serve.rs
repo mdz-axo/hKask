@@ -32,8 +32,7 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// `ServiceContext` with all shared infrastructure, starts API MCP servers
 /// on the ServiceContext's runtime, and creates an `ApiState` from it.
 pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // Get CLI singletons (these are the same instances used by CLI commands)
-    let session_manager = crate::commands::ensemble::get_session_manager();
+    // Get CLI singleton for improv client
     let improv_client = crate::commands::ensemble::get_improv_client(None);
 
     // Extract the base InferencePortAdapter from the circuit-breaker-wrapped client
@@ -67,8 +66,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
     // Build ApiState from ServiceContext, adding CLI's ensemble adapter
     let state = ApiState::from_service_context(ctx, Some(base_adapter))
         .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?
-        .with_session_manager(session_manager);
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     // Build router (OpenApiRouter -> axum::Router via From impl)
     let app: axum::Router = hkask_api::create_router(state)
