@@ -1,24 +1,28 @@
 //! Pod management command handlers
+//!
+//! Delegates pod lifecycle operations to `PodService` in `hkask-services`.
+//! Surface concerns (file I/O for persona YAML, PodManager construction)
+//! stay here. Business logic (UUID parsing, error normalization) moves to
+//! the service layer.
 
 use crate::block_on;
 use crate::cli::PodAction;
-use hkask_agents::pod::{AgentPersona, PodID, PodManager, PodManagerBuilder, PodStatus};
+use hkask_agents::pod::{AgentPersona, PodManager, PodManagerBuilder};
+use hkask_services::{PodContext, PodService};
 use hkask_types::CapabilityChecker;
 use std::path::PathBuf;
-use uuid::Uuid;
+use std::sync::Arc;
 
 /// Get pod status
-pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
-    let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
-    let manager = PodManager::new_mock();
-    manager
-        .get_pod_status(&PodID::from_uuid(uuid))
+pub async fn get_pod_status(pod_id: &str) -> Result<hkask_agents::pod::PodStatus, String> {
+    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
+    PodService::get_pod_status(&ctx, pod_id)
         .await
         .map_err(|e| e.to_string())
 }
 
 /// List all pods
-pub async fn list_pods() -> Result<Vec<PodStatus>, String> {
+pub async fn list_pods() -> Result<Vec<hkask_agents::pod::PodStatus>, String> {
     let (acp, _store) = crate::commands::config::init_registry()
         .await
         .map_err(|e| {
@@ -37,7 +41,8 @@ pub async fn list_pods() -> Result<Vec<PodStatus>, String> {
         .with_in_memory_storage()
         .build();
 
-    manager.list_pods().await.map_err(|e| e.to_string())
+    let ctx = PodContext::from_parts(Arc::new(manager));
+    PodService::list_pods(&ctx).await.map_err(|e| e.to_string())
 }
 
 /// Create pod from template crate
@@ -52,37 +57,30 @@ pub async fn create_pod(
     let persona = AgentPersona::from_yaml(&yaml_content)
         .map_err(|e| format!("Invalid persona YAML: {}", e))?;
 
-    let manager = PodManager::new_mock();
-    let pod_id = manager
-        .create_pod(template_name, &persona, pod_name.map(String::from))
+    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
+    PodService::create_pod(&ctx, template_name, &persona, pod_name.map(String::from))
         .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(pod_id.to_string())
+        .map_err(|e| e.to_string())
 }
 
 /// Activate pod
 pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
-    let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
-    let manager = PodManager::new_mock();
-    manager
-        .activate_pod(&PodID::from_uuid(uuid))
+    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
+    PodService::activate_pod(&ctx, pod_id)
         .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+        .map_err(|e| e.to_string())
 }
 
 /// Deactivate pod
+///
+/// Note: Previous CLI code swallowed deactivation errors with `let _ = ...`.
+/// The service layer now propagates errors consistently — both CLI and API
+/// receive proper `PodNotFound` or `Pod(AgentPodError)` on failure.
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
-    let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
-    let manager = PodManager::new_mock();
-    let _ = manager
-        .deactivate_pod(&PodID::from_uuid(uuid))
+    let ctx = PodContext::from_parts(Arc::new(PodManager::new_mock()));
+    PodService::deactivate_pod(&ctx, pod_id)
         .await
-        .map_err(|e| e.to_string());
-
-    Ok(())
+        .map_err(|e| e.to_string())
 }
 
 /// CLI handler for `kask pod` subcommand

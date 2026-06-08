@@ -371,6 +371,10 @@ impl From<hkask_services::ServiceError> for ApiError {
                 resource: "session".into(),
                 id,
             },
+            SE::PodNotFound(id) => ApiError::NotFound {
+                resource: "pod".into(),
+                id,
+            },
 
             // ── Unauthorized / Forbidden ───────────────────────────────────
             SE::LoginFailed(_) => ApiError::Unauthorized {
@@ -424,6 +428,23 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::Consent(err) => ApiError::from(err),
             SE::Spec(err) => ApiError::Internal {
                 message: err.to_string(),
+            },
+            SE::Pod(hkask_agents::pod::AgentPodError::PodNotFound(_)) => ApiError::NotFound {
+                resource: "pod".into(),
+                id: e.to_string(),
+            },
+            SE::Pod(hkask_agents::pod::AgentPodError::PersonaParseError(msg)) => {
+                ApiError::BadRequest {
+                    message: format!("Invalid persona: {}", msg),
+                }
+            },
+            SE::Pod(hkask_agents::pod::AgentPodError::InvalidStateTransition(from, to)) => {
+                ApiError::Conflict {
+                    message: format!("Invalid pod state transition: {} -> {}", from, to),
+                }
+            },
+            SE::Pod(_) => ApiError::Internal {
+                message: e.to_string(),
             },
             SE::Template(err) => ApiError::from(err),
             SE::NuEvent(err) => ApiError::Internal {

@@ -2,7 +2,7 @@
 
 ## 1. Session Context
 
-Five sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
+Six sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
@@ -13,6 +13,8 @@ Five sessions have completed work on the 9-task service layer extraction plan. T
 **Session 4** (Task 5 — CuratorService): Extracted `CuratorService` with 6 service operations, `CuratorContext`, and `MetacognitionSummary`. Full strangler fig cycle completed: RED (6 tests) → GREEN (all pass) → Wire CLI → Wire API → Delete duplication → Verify workspace.
 
 **Session 5** (Task 6a — EnsembleService): Extracted `EnsembleService` with 8 service operations, `EnsembleContext`, and `map_participant_role` helper. Full strangler fig cycle completed for chat/deliberation operations. Standing sessions and improv operations intentionally excluded (divergent/surface-only). All workspace checks pass.
+
+**Session 6** (Task 6b — PodService): Extracted `PodService` with 6 service operations (5 domain + 1 helper), `PodContext`, and `normalize_pod_error` helper. Full strangler fig cycle completed. Fixed CLI bug where `deactivate_pod` silently swallowed errors. Both CLI and API now route through `PodService`. All workspace checks pass.
 
 ## 2. What Was Done
 
@@ -194,6 +196,64 @@ Created `hkask-services/src/ensemble.rs` with:
 - `AgentResponse`, `ChatParticipant`, `ParticipantRole` imports removed from API routes
 - `AgentResponse`, `ChatParticipant`, `ParticipantRole` imports removed from CLI commands
 
+### Session 6 — PodService (Task 6b, complete)
+
+Created `hkask-services/src/pods.rs` with:
+
+- `PodContext` — lightweight context with `pod_manager: Arc<PodManager>`
+- `PodService` — 5 async service operations + 1 sync helper
+- `normalize_pod_error` — internal helper mapping `AgentPodError::PodNotFound` → `ServiceError::PodNotFound`
+- 6 unit tests with `// REQ:` tags (svc-pod-001 through svc-pod-006)
+
+**Key Design Decisions for PodService:**
+
+| Decision | Force | Rationale |
+|----------|-------|-----------|
+| `PodContext` holds only `Arc<PodManager>` | Guideline | Matches `EnsembleContext` pattern (single field). Pod lifecycle ops need only the pod manager. |
+| `PodService::parse_pod_id()` centralizes UUID parsing | Guideline | Was duplicated in 6 call sites. Returns `ServiceError::PodNotFound` for invalid UUIDs. |
+| `PodService::deactivate_pod()` fixes CLI error swallowing | Guardrail | CLI previously did `let _ = manager.deactivate_pod(...)` — silently ignoring errors. Service now propagates consistently. |
+| Auth/capability check stays in API for `create_pod` | Prohibition (P1) | OCAP capability gating is user sovereignty. Service layer doesn't decide who can create pods. |
+| Persona parsing stays in surface | Guideline | CLI reads persona YAML from file; API receives `persona_yaml` in JSON body. File I/O and deserialization are surface concerns. |
+| CLI pod ops use `PodManager::new_mock()` per invocation | Hypothesis | CLI pod operations are stateless (transient PodManager). Service layer normalizes ops, not PodManager lifecycle. |
+
+**CLI Wiring (5 functions in `cli/commands/pod.rs`):**
+
+| Function | What Changed |
+|----------|-------------|
+| `get_pod_status` | Routes through `PodService::get_pod_status()`, UUID parsing removed |
+| `list_pods` | Routes through `PodService::list_pods()`, PodManagerBuilder stays in surface |
+| `create_pod` | Routes through `PodService::create_pod()`, file I/O stays in surface |
+| `activate_pod` | Routes through `PodService::activate_pod()`, UUID parsing removed |
+| `deactivate_pod` | Routes through `PodService::deactivate_pod()`, **error swallowing fixed** |
+
+**API Wiring (5 handlers in `api/routes/pods.rs`):**
+
+| Handler | What Changed |
+|---------|-------------|
+| `list_pods` | Routes through `PodService::list_pods()` |
+| `create_pod` | Routes through `PodService::create_pod()`, auth check stays in surface |
+| `activate_pod` | Routes through `PodService::activate_pod()`, UUID parsing removed |
+| `deactivate_pod` | Routes through `PodService::deactivate_pod()`, UUID parsing removed |
+| `pod_status` | Routes through `PodService::get_pod_status()`, UUID parsing removed |
+
+**Duplication removed:**
+- CLI no longer has `Uuid::parse_str` + `PodID::from_uuid` calls (was in 3 functions)
+- API no longer has `Uuid::parse_str` + `PodID::from_uuid` calls (was in 3 handlers)
+- Both surfaces get consistent `ServiceError::PodNotFound` for missing/invalid pod IDs
+- `uuid` import removed from both CLI and API pod files
+- `PodID` import removed from both CLI and API pod files
+
+**New `ServiceError` variants:**
+- `PodNotFound(String)` — sentinel for UUID parse errors and not-found normalization
+- `Pod(#[from] AgentPodError)` — catch-all for pod domain errors
+
+**API error mappings added** (`From<ServiceError> for ApiError`):
+- `PodNotFound(id)` → `NotFound { resource: "pod", id }`
+- `Pod(AgentPodError::PodNotFound(_))` → `NotFound { resource: "pod", id: e.to_string() }`
+- `Pod(AgentPodError::PersonaParseError(msg))` → `BadRequest { message: "Invalid persona: {msg}" }`
+- `Pod(AgentPodError::InvalidStateTransition(from, to))` → `Conflict { message: "Invalid pod state transition: {from} -> {to}" }`
+- `Pod(_)` → `Internal { message: e.to_string() }`
+
 ## 3. Current Module Structure
 
 ```
@@ -204,7 +264,8 @@ hkask-services/src/
 ├── context.rs       — ServiceContext::async build() with 18 Arc fields
 ├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
 ├── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + 6 tests
-└── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + 11 tests
+├── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + 11 tests
+└── pods.rs          — PodContext + PodService (6 functions) + normalize_pod_error + 6 tests
 ```
 
 ## 4. Verification Status
@@ -213,13 +274,17 @@ hkask-services/src/
 cargo check --workspace                    ✅
 cargo clippy --workspace -- -D warnings   ✅
 cargo test --workspace                    ✅ (all tests passing)
-cargo test -p hkask-services              ✅ (21 tests: 4 inference + 6 curator + 11 ensemble)
+cargo test -p hkask-services              ✅ (27 tests: 4 inference + 6 curator + 11 ensemble + 6 pods)
 No todo!/unimplemented! in hkask-services ✅
 No EscalationQueue direct calls in CLI/API curator routes ✅
 No CuratorAgent/MetacognitionLoop direct calls in CLI ✅
 No direct EscalationQueue calls in API curator routes ✅
 No SessionManager direct calls in wired CLI ensemble functions ✅
 No SessionManager direct calls in wired API ensemble handlers ✅
+No Uuid/PodID direct calls in CLI pod functions ✅
+No Uuid/PodID direct calls in API pod handlers ✅
+No PodManager direct calls in wired CLI pod functions ✅
+No PodManager direct calls in wired API pod handlers ✅
 MCP servers do NOT depend on hkask-services ✅ (P1 preserved)
 Dependency direction: CLI/API → services → domain ✅ (no reverse)
 ```
@@ -251,6 +316,13 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 23. **Standing sessions excluded from `EnsembleService`.** CLI reads YAML from file path; API constructs from JSON body + MCP tool discovery + gas governance wiring. Too divergent to unify — would require parameterizing surface-specific logic that adds more complexity than it removes.
 24. **Improv operations excluded from `EnsembleService`.** `improv_turn` needs a surface-specific inferencer (CLI uses global static; API uses `ApiState.ensemble_inferencer_with_breaker()`). `improv_config`, `set_threshold`, `set_mode` are CLI-only surface operations.
 25. **`list_deliberation_sessions` stays as direct `SessionManager` call.** Thin pass-through with no error normalization. Doesn't pass depth test.
+26. **`PodContext` holds only `Arc<PodManager>`.** Matches `EnsembleContext` pattern (single field). Pod lifecycle operations need only the pod manager.
+27. **`PodService::parse_pod_id()` centralizes UUID parsing.** Was duplicated in 6 call sites (3 CLI: activate, deactivate, status + 3 API: activate, deactivate, status). Returns `ServiceError::PodNotFound` for invalid UUIDs.
+28. **`PodService::deactivate_pod()` fixes CLI error swallowing bug.** CLI previously did `let _ = manager.deactivate_pod(...)` — silently ignoring errors. Service layer now propagates errors consistently.
+29. **Auth/capability check stays in API surface for `create_pod`.** P1 Prohibition: OCAP capability gating is user sovereignty. Service layer doesn't decide who can create pods.
+30. **Persona parsing stays in surface.** CLI reads persona YAML from file; API receives `persona_yaml` string in JSON body. File I/O and request deserialization are surface concerns.
+31. **`ServiceError::PodNotFound(String)` sentinel for UUID parse errors and not-found normalization.** Follows `EscalationNotFound`/`SessionNotFound` pattern.
+32. **`ServiceError::Pod(AgentPodError)` catch-all for domain errors.** `From<AgentPodError>` maps `PodNotFound(PodID)` to `PodNotFound(String)` sentinel; all other variants map to `Pod(AgentPodError)`.
 
 ## 6. What Remains
 
@@ -258,8 +330,8 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 
 Apply the same pattern (lightweight context like `InferenceContext`/`CuratorContext`/`EnsembleContext`) for:
 - ~~`ensemble.rs`~~ — **DONE (Task 6a)**
-- `pods.rs` — pod lifecycle (5 functions)
-- `memory.rs` — episodic/semantic storage ports (5 functions)
+- ~~`pods.rs`~~ — **DONE (Task 6b)** (6 functions: parse_pod_id, get_pod_status, list_pods, create_pod, activate_pod, deactivate_pod)
+- `memory.rs` — episodic/semantic storage ports (5 functions: episodic store/recall, semantic store/recall, consolidation trigger)
 - `sovereignty.rs` — consent and verification (4 functions)
 - `spec.rs` — spec capture, cultivate, validate (4 functions)
 - `goal.rs` — goal CRUD (3 functions)
@@ -434,6 +506,36 @@ impl EnsembleService {
 }
 ```
 
+### PodService Design (implemented + wired)
+
+```rust
+// pods.rs — PodContext + PodService (5 domain operations + 1 helper) + normalize_pod_error
+pub struct PodContext {
+    pub pod_manager: Arc<PodManager>,
+}
+
+impl PodContext {
+    pub fn from_parts(pod_manager: Arc<PodManager>) -> Self
+}
+// From<&ServiceContext> for PodContext deferred to Task 7b
+
+pub struct PodService;
+impl PodService {
+    // REQ: svc-pod-001 — parse_pod_id validates UUID format
+    pub fn parse_pod_id(id: &str) -> Result<PodID, ServiceError>
+    // REQ: svc-pod-002 — get_pod_status normalizes not-found errors
+    pub async fn get_pod_status(ctx: &PodContext, pod_id: &str) -> Result<PodStatus, ServiceError>
+    // REQ: svc-pod-003 — list_pods delegates to PodManager with consistent error mapping
+    pub async fn list_pods(ctx: &PodContext) -> Result<Vec<PodStatus>, ServiceError>
+    // REQ: svc-pod-004 — create_pod delegates to PodManager with consistent error mapping
+    pub async fn create_pod(ctx: &PodContext, template: &str, persona: &AgentPersona, name: Option<String>) -> Result<String, ServiceError>
+    // REQ: svc-pod-005 — activate_pod normalizes not-found errors
+    pub async fn activate_pod(ctx: &PodContext, pod_id: &str) -> Result<(), ServiceError>
+    // REQ: svc-pod-006 — deactivate_pod normalizes not-found errors (fixes CLI error swallowing)
+    pub async fn deactivate_pod(ctx: &PodContext, pod_id: &str) -> Result<(), ServiceError>
+}
+```
+
 ### Surface Wiring Pattern
 
 CLI and API surfaces construct context structs from their own state:
@@ -460,14 +562,16 @@ EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![
 6. `cli/commands/ensemble.rs:130-140` — Ensemble improv → `InferenceService::resolve_port()`
 7. `cli/commands/curator.rs` — All 4 curator operations → `CuratorService::*`
 8. `cli/commands/ensemble.rs` — 9 ensemble chat/deliberation operations → `EnsembleService::*`
+9. `cli/commands/pod.rs` — 5 pod lifecycle operations → `PodService::*`
 
-**API (all inference + curator + ensemble sites wired):**
+**API (all inference + curator + ensemble + pods sites wired):**
 1. `api/lib.rs` — `with_ensemble_inferencer()` → `InferenceService::resolve_port()`
 2. `api/routes/chat.rs` — Fallback inference → `InferenceService::resolve_port()`
 3. `api/routes/models.rs` — `list_models` → `InferenceService::list_models()`
 4. `api/routes/models.rs` — `search_models` → `InferenceService::search_models()`
 5. `api/routes/curator.rs` — All 4 curator routes → `CuratorService::*`
 6. `api/routes/ensemble.rs` — 8 chat/deliberation handlers → `EnsembleService::*`
+7. `api/routes/pods.rs` — 5 pod lifecycle handlers → `PodService::*`
 
 **Intentionally NOT replaced (by design):**
 - `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
@@ -475,6 +579,7 @@ EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![
 - MCP server call sites (P1 Prohibition — out of process)
 - `cli/commands/ensemble.rs` improv/standing functions (divergent/surface-only, not extracted)
 - `api/routes/ensemble.rs` improv/standing handlers (divergent/surface-only, not extracted)
+- `cli/commands/pod.rs` PodManager construction (surface concern — `new_mock()` per invocation vs `PodManagerBuilder` for list)
 
 ### Constraint Forces (Key Decisions)
 
@@ -499,5 +604,13 @@ EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![
 | Improv operations NOT extracted | Divergent/Surface-only | improv_turn needs surface-specific inferencer; config/set ops are CLI-only |
 | EnsembleContext has only session_manager | Guideline | Chat/deliberation ops only need SessionManager; standing ops need surface-specific state |
 | list_deliberation_sessions stays direct | Pass-through | Thin delegation, no error normalization. Doesn't pass depth test. |
+| PodContext holds only Arc<PodManager> | Guideline | Matches EnsembleContext pattern. Pod lifecycle ops need only the pod manager. |
+| PodService::parse_pod_id centralizes UUID parsing | Guideline | Was duplicated in 6 call sites. Returns PodNotFound for invalid UUIDs. |
+| PodService::deactivate_pod fixes CLI error swallowing | Guardrail | CLI did `let _ = manager.deactivate_pod(...)`. Service propagates errors consistently. |
+| Auth/capability check stays in API for create_pod | Prohibition (P1) | OCAP capability gating is user sovereignty. Service doesn't decide who creates pods. |
+| Persona parsing stays in surface | Guideline | CLI reads file; API receives JSON body. File I/O and deserialization are surface concerns. |
+| CLI PodManager::new_mock() stays in surface | Hypothesis | CLI pod ops are stateless (transient PodManager). Service normalizes ops, not PodManager lifecycle. |
+| PodNotFound(String) sentinel for UUID parse errors | Guideline | Follows EscalationNotFound/SessionNotFound pattern. |
+| Pod(AgentPodError) catch-all for domain errors | Guideline | PodNotFound(PodID) maps to PodNotFound(String); all other variants pass through. |
 
 *ℏKask - A Minimal Viable Container for Agents — v0.23.0*

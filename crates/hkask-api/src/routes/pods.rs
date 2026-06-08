@@ -1,8 +1,15 @@
 //! Pod lifecycle management routes
+//!
+//! Delegates pod lifecycle operations to `PodService` in `hkask-services`.
+//! Surface concerns (auth/capability checks, request/response DTOs) stay
+//! here. Business logic (UUID parsing, error normalization) moves to the
+//! service layer.
 
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::{Json, routing::Router};
+use hkask_agents::pod::AgentPersona;
+use hkask_services::{PodContext, PodService};
 use hkask_types::DelegationResource;
 
 use crate::ApiError;
@@ -58,7 +65,8 @@ pub fn pods_router() -> Router<ApiState> {
 
 /// List all pods
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
-    let pod_statuses: Vec<_> = state.pod_manager.list_pods().await.unwrap_or_default();
+    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let pod_statuses = PodService::list_pods(&ctx).await.unwrap_or_default();
 
     let pods: Vec<PodStatusResponse> = pod_statuses
         .into_iter()
@@ -77,13 +85,15 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
 }
 
 /// Create a new pod
+///
+/// Auth/capability check is a surface concern — the service layer does not
+/// enforce who can create pods.
 async fn create_pod(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ApiError> {
-    use hkask_agents::pod::AgentPersona;
-
+    // Surface concern: capability check stays in the API
     let has_capability =
         state
             .capability_checker
@@ -102,17 +112,12 @@ async fn create_pod(
         }
     })?;
 
-    let pod_id = state
-        .pod_manager
-        .create_pod(&req.template, &persona, req.name)
+    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let pod_id = PodService::create_pod(&ctx, &req.template, &persona, req.name)
         .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to create pod: {}", e),
-        })?;
+        .map_err(ApiError::from)?;
 
-    Ok(Json(CreatePodResponse {
-        pod_id: pod_id.to_string(),
-    }))
+    Ok(Json(CreatePodResponse { pod_id }))
 }
 
 /// Activate a pod
@@ -121,22 +126,10 @@ async fn activate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    use hkask_agents::pod::PodID;
-    use uuid::Uuid;
-
-    let uuid = Uuid::parse_str(&id).map_err(|_| ApiError::BadRequest {
-        message: format!("Invalid pod ID: {}", id),
-    })?;
-    let pod_id = PodID::from_uuid(uuid);
-
-    state
-        .pod_manager
-        .activate_pod(&pod_id)
+    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    PodService::activate_pod(&ctx, &id)
         .await
-        .map_err(|_| ApiError::NotFound {
-            resource: "pod".into(),
-            id: id.clone(),
-        })?;
+        .map_err(ApiError::from)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -147,22 +140,10 @@ async fn deactivate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    use hkask_agents::pod::PodID;
-    use uuid::Uuid;
-
-    let uuid = Uuid::parse_str(&id).map_err(|_| ApiError::BadRequest {
-        message: format!("Invalid pod ID: {}", id),
-    })?;
-    let pod_id = PodID::from_uuid(uuid);
-
-    state
-        .pod_manager
-        .deactivate_pod(&pod_id)
+    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    PodService::deactivate_pod(&ctx, &id)
         .await
-        .map_err(|_| ApiError::NotFound {
-            resource: "pod".into(),
-            id: id.clone(),
-        })?;
+        .map_err(ApiError::from)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -173,22 +154,10 @@ async fn pod_status(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ApiError> {
-    use hkask_agents::pod::PodID;
-    use uuid::Uuid;
-
-    let uuid = Uuid::parse_str(&id).map_err(|_| ApiError::BadRequest {
-        message: format!("Invalid pod ID: {}", id),
-    })?;
-    let pod_id = PodID::from_uuid(uuid);
-
-    let status = state
-        .pod_manager
-        .get_pod_status(&pod_id)
+    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let status = PodService::get_pod_status(&ctx, &id)
         .await
-        .map_err(|_| ApiError::NotFound {
-            resource: "pod".into(),
-            id: id.clone(),
-        })?;
+        .map_err(ApiError::from)?;
 
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,

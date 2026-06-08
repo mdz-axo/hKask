@@ -30,6 +30,7 @@ use hkask_agents::EscalationError;
 use hkask_agents::acp::AcpError;
 use hkask_agents::consent::ConsentError;
 use hkask_agents::curator_agent::metacognition::MetacognitionError;
+use hkask_agents::pod::AgentPodError;
 use hkask_agents::registry_loader::RegistryLoaderError;
 use hkask_cns::AllostericError;
 use hkask_cns::GasError;
@@ -176,6 +177,15 @@ pub enum ServiceError {
     /// Upstream standing-session error (ensemble layer).
     #[error(transparent)]
     StandingSession(#[from] StandingSessionError),
+
+    // ── Pod domain ────────────────────────────────────────────────────
+    /// Pod not found by ID.
+    #[error("Pod not found: {0}")]
+    PodNotFound(String),
+
+    /// Upstream agent pod error.
+    #[error(transparent)]
+    Pod(#[from] AgentPodError),
 
     // ── Inference domain ────────────────────────────────────────────────
     /// Inference failed.
