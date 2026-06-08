@@ -29,87 +29,12 @@
 //! - `GET /api/episodic/query` — Query episodic memories
 //! - `GET /api/episodic/usage` — Episodic storage usage
 
-use hkask_agents::CyberneticsLoopHandle;
-use hkask_agents::acp::AcpRuntime;
-use hkask_agents::adapters::mcp_runtime::FullMcpAdapter;
-use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
-use hkask_agents::communication::dispatch::MessageDispatch;
-use hkask_agents::consent::ConsentManager;
-use hkask_agents::curator::context::CuratorContext;
-use hkask_agents::curator_agent::CuratorAgent;
-use hkask_agents::escalation::EscalationQueue;
-use hkask_agents::loop_system::LoopSystem;
-use hkask_agents::pod::PodManager;
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::{
-    CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasCost, GovernedTool, SnapshotLoop,
-};
-use hkask_memory::{
-    ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
-};
-use hkask_storage::{EmbeddingStore, TripleStore};
-use hkask_templates::SqliteRegistry;
-use hkask_types::event::NuEventSink;
-use hkask_types::loops::HkaskLoop;
-use hkask_types::loops::curation::CuratorHandle;
-use hkask_types::ports::git_cas::GitCASPort;
-use hkask_types::{CapabilityChecker, WebID};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use utoipa::OpenApi;
-
-/// Default gas cap for API ensemble sessions (150k = same as CLI default).
-const API_ENSEMBLE_GAS_CAP: u64 = 150_000;
-
-/// Adapter bridging `CyberneticsLoop` to the ensemble's `GasGovernancePort`.
-///
-/// Provides synchronous access to the CyberneticsLoop's gas governance by
-/// using an atomic counter for `can_proceed` (approximate) and a fire-and-forget
-/// task spawn for `acquire` (actual budget consumption via async call).
-///
-/// This is the API-mode equivalent of the CLI's `CyberneticsLoopGasAdapter`.
-struct ApiGasGovernanceAdapter {
-    loop_ref: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-    agent: WebID,
-    gas_used: AtomicU64,
-    gas_cap: AtomicU64,
-}
-
-impl ApiGasGovernanceAdapter {
-    fn new(loop_ref: Arc<tokio::sync::RwLock<CyberneticsLoop>>, agent: WebID, cap: u64) -> Self {
-        Self {
-            loop_ref,
-            agent,
-            gas_used: AtomicU64::new(0),
-            gas_cap: AtomicU64::new(cap),
-        }
-    }
-}
-
-impl hkask_ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
-    fn can_proceed(&self, gas: u64) -> bool {
-        let used = self.gas_used.load(Ordering::Relaxed);
-        let cap = self.gas_cap.load(Ordering::Relaxed);
-        used.saturating_add(gas) <= cap
-    }
-
-    fn acquire(&self, gas: u64) {
-        self.gas_used.fetch_add(gas, Ordering::Relaxed);
-        // Fire-and-forget: report to CyberneticsLoop asynchronously
-        let loop_ref = self.loop_ref.clone();
-        let agent = self.agent;
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                let loop_read = loop_ref.read().await;
-                let _ = loop_read.acquire_budget(&agent, GasCost(gas)).await;
-            });
-        }
-    }
-}
-
-use utoipa_axum::router::OpenApiRouter;
+mod ensemble;
+mod gas;
+mod git_cas;
+mod governed_tool;
+mod loop_system;
+mod stores;
 
 pub mod error;
 pub mod middleware;
@@ -117,6 +42,7 @@ pub mod openapi;
 pub mod routes;
 
 pub use error::ApiError;
+pub use stores::DbConfig;
 
 // Re-export route types for OpenAPI schema generation
 pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
@@ -128,109 +54,33 @@ pub use routes::{
     TemplateResponse, VarietyCounterResponse,
 };
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use hkask_agents::acp::AcpRuntime;
+use hkask_agents::adapters::mcp_runtime::FullMcpAdapter;
+use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
+use hkask_agents::consent::ConsentManager;
+use hkask_agents::escalation::EscalationQueue;
+use hkask_agents::loop_system::LoopSystem;
+use hkask_agents::pod::PodManager;
+use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_cns::CnsRuntime;
+use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_storage::{EmbeddingStore, TripleStore};
+use hkask_templates::SqliteRegistry;
+use hkask_types::event::NuEventSink;
+use hkask_types::ports::InferencePort;
+use hkask_types::{CapabilityChecker, WebID};
+use utoipa::OpenApi;
+
+use ensemble::{EnsembleSession, build_ensemble_session};
+use git_cas::{GitCasBundle, init_git_cas};
+use governed_tool::{GovernedMcpTool, build_governed_mcp_tool};
+use loop_system::build_loop_system;
+use stores::Stores;
+
 use openapi::ApiDoc;
-
-/// Database configuration for persistent storage
-pub struct DbConfig {
-    pub path: Option<String>,
-    pub passphrase: Option<String>,
-}
-
-/// Database-backed stores initialized from a `DbConfig`.
-///
-/// Extracted from `ApiState::new()` so that store creation is composable
-/// and independently testable.
-struct Stores {
-    consent_manager: Arc<ConsentManager>,
-    escalation_queue: Arc<EscalationQueue>,
-    goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
-    standing_session_store: Arc<hkask_storage::StandingSessionStore>,
-}
-
-impl Stores {
-    /// Open and initialise all persistent stores.
-    ///
-    /// Each store gets its own database connection (and therefore its own
-    /// connection pool) so a slow store cannot starve another.
-    ///
-    /// The `git_cas_port` is injected into stores that support CAS write-through
-    /// via their `.with_cas()` builder methods, enabling per-mutation audit
-    /// trails alongside batch snapshots from the SnapshotLoop.
-    fn init(
-        db_config: Option<&DbConfig>,
-        git_cas_port: Arc<dyn GitCASPort>,
-    ) -> Result<Stores, ApiError> {
-        let consent_conn = open_db(db_config, "consent")?.conn_arc();
-        let consent_store =
-            hkask_storage::ConsentStore::new(consent_conn).with_cas(Arc::clone(&git_cas_port));
-        consent_store
-            .initialize_schema()
-            .map_err(|e| ApiError::Internal {
-                message: format!("Failed to initialize consent store schema: {e}"),
-            })?;
-        let consent_manager = Arc::new(ConsentManager::new(consent_store));
-
-        let escalation_conn = open_db(db_config, "escalation")?.conn_arc();
-        let escalation_queue =
-            Arc::new(
-                EscalationQueue::new(escalation_conn).map_err(|e| ApiError::Internal {
-                    message: format!("Failed to initialize escalation queue: {e}"),
-                })?,
-            );
-
-        let goal_conn = open_db(db_config, "goal")?.conn_arc();
-        let goal_sink: Arc<dyn NuEventSink> =
-            Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
-        let goal_repo = Arc::new(
-            hkask_storage::SqliteGoalRepository::new(goal_conn)
-                .with_telemetry(goal_sink)
-                .with_cas(Arc::clone(&git_cas_port)),
-        );
-
-        let standing_conn = open_db(db_config, "standing session")?.conn_arc();
-        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn)
-            .with_cas(Arc::clone(&git_cas_port));
-        standing_session_store
-            .initialize_schema()
-            .map_err(|e| ApiError::Internal {
-                message: format!("Failed to initialize standing session store schema: {e}"),
-            })?;
-        let standing_session_store = Arc::new(standing_session_store);
-
-        Ok(Stores {
-            consent_manager,
-            escalation_queue,
-            goal_repo,
-            standing_session_store,
-        })
-    }
-}
-
-/// Open a persistent database, or fall back to in-memory with a warning.
-///
-/// Extracts the repeated pattern of `db_config.and_then(...)` → `Database::open`
-/// that appeared 4 times in `ApiState::new()`. Returns the `Database`,
-/// so callers can extract `.conn_arc()` or use it directly.
-fn open_db(
-    db_config: Option<&DbConfig>,
-    purpose: &str,
-) -> Result<hkask_storage::Database, ApiError> {
-    match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref())) {
-        Some((path, passphrase)) => {
-            hkask_storage::Database::open(path, passphrase).map_err(|e| ApiError::Internal {
-                message: format!("Failed to open {purpose} database: {e}"),
-            })
-        }
-        None => {
-            tracing::warn!(
-                target: "hkask.api",
-                "No persistent database configured — {purpose} store is in-memory and will be lost on restart. \
-                 Set HKASK_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
-            );
-            Ok(hkask_storage::in_memory_db())
-        }
-    }
-}
 
 /// API state
 #[derive(Clone)]
@@ -280,286 +130,10 @@ pub struct ApiState {
     /// CNS runtime for real-time variety and health data
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
-    pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
+    pub inference_port: Option<Arc<dyn InferencePort>>,
     /// CNS gas governance port for ensemble sessions.
     /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
     pub gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
-}
-
-/// Git CAS adapter bundle (P2.2).
-///
-/// Extracted from `ApiState::new()` to keep CAS initialization self-contained
-/// and to surface the `expect("Failed to create GixCasAdapter")` failure as a
-/// typed `ApiError::Internal` rather than a panic at startup (P4.1).
-struct GitCasBundle {
-    /// Concrete `GitCasAdapter` (legacy — template loading only).
-    git_cas: Arc<hkask_mcp::GitCasAdapter>,
-    /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
-    git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
-}
-
-/// Initialize the Git CAS adapter and the trait-object port.
-///
-/// `git_cas` writes to a fixed on-disk directory; `git_cas_port` resolves
-/// from `GIX_*` env vars when present and falls back to the same directory.
-///
-/// P4.1: Returns `Result<GitCasBundle, ApiError>` so CAS initialization
-/// failures surface as typed errors instead of panics. The hard-coded
-/// `/tmp/hkask-templates` fallback directory is the documented invariant
-/// of this function — if even that cannot be created, returning
-/// `ApiError::Internal` is the correct (non-panicking) failure mode.
-fn init_git_cas() -> Result<GitCasBundle, ApiError> {
-    let git_cas = Arc::new(hkask_mcp::GitCasAdapter::from_path(PathBuf::from(
-        "/tmp/hkask-templates",
-    )));
-    let fallback_path = PathBuf::from("/tmp/hkask-templates");
-    let git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort> = Arc::new(
-        hkask_mcp::GixCasAdapter::from_env()
-            .or_else(|_| hkask_mcp::GixCasAdapter::new(fallback_path))
-            .map_err(|e| ApiError::Internal {
-                message: format!("Failed to create GixCasAdapter: {e}"),
-            })?,
-    );
-    Ok(GitCasBundle {
-        git_cas,
-        git_cas_port,
-    })
-}
-
-/// Governed MCP tool + dispatcher bundle (P2.2).
-///
-/// Extracted from `ApiState::new()`. Wraps the gas estimator, raw tool port,
-/// and `GovernedTool` membrane into the `McpDispatcher` that all tool
-/// invocations route through. Returns the dispatcher plus a cloned
-/// `CyberneticsLoop` handle for downstream gas-governance adapters.
-struct GovernedMcpTool {
-    mcp_dispatcher: Arc<hkask_mcp::dispatch::McpDispatcher>,
-    /// Cloned before being moved into `GovernedTool`; needed for the
-    /// `ApiGasGovernanceAdapter` that the ensemble session manager consumes.
-    cybernetics_loop_for_gas: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-}
-
-/// Build the `GovernedTool` membrane and `McpDispatcher` that route every tool
-/// invocation through CNS gas governance.
-///
-/// P2.2 extraction: this block is the largest single section of
-/// `ApiState::new()` (after `Stores::init` and `build_loop_system` were
-/// already extracted). Isolating it makes the wiring self-documenting and
-/// the failure mode (e.g. tokio handle missing) testable in isolation.
-fn build_governed_mcp_tool(
-    dispatcher_runtime: hkask_mcp::runtime::McpRuntime,
-    cybernetics_loop_rwlock: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-    cns_event_sink: Arc<dyn NuEventSink>,
-    loop_system: &LoopSystem,
-    system_webid: WebID,
-    capability_secret: &[u8],
-) -> GovernedMcpTool {
-    let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
-        dispatcher_runtime.clone(),
-    ));
-    let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
-    let governed_tool = Arc::new(GovernedTool::new(
-        raw_tool_port,
-        Arc::clone(&cybernetics_loop_rwlock),
-        cns_event_sink,
-        estimator,
-        system_webid,
-        loop_system.dispatch_sender(),
-    ));
-    let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::with_governed_tool(
-        dispatcher_runtime,
-        capability_secret,
-        governed_tool,
-    ));
-    GovernedMcpTool {
-        mcp_dispatcher,
-        cybernetics_loop_for_gas: cybernetics_loop_rwlock,
-    }
-}
-
-/// Ensemble session bundle (P2.2).
-///
-/// Extracted from `ApiState::new()`. Composes the gas governance adapter
-/// (which lets CNS sense ensemble gas usage) with the `SessionManager`
-/// that the `/api/chat` route consumes. Also returns the inference port
-/// extracted from the optional `ensemble_inferencer`, and the
-/// `ensemble_inferencer` itself (for `ensemble_inferencer_with_breaker`).
-struct EnsembleSession {
-    session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
-    gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
-    inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
-    /// Returned to the caller to be stored on `ApiState`; consumed by
-    /// `ensemble_inferencer_with_breaker` for SOAP and ensemble routes.
-    ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
-}
-
-/// Wire the ensemble session manager with CNS gas governance so ensemble
-/// sessions in API mode respect the L6 budget.
-///
-/// P2.2 extraction: the inference port is also extracted here because
-/// the caller needs it both on the returned bundle and on the final
-/// `ApiState` literal — extracting once avoids a second clone.
-fn build_ensemble_session(
-    ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
-    cybernetics_loop: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-    system_webid: WebID,
-) -> EnsembleSession {
-    let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
-        ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
-    let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> = Arc::new(
-        ApiGasGovernanceAdapter::new(cybernetics_loop, system_webid, API_ENSEMBLE_GAS_CAP),
-    );
-    let session_manager = Arc::new(tokio::sync::RwLock::new(
-        hkask_ensemble::SessionManager::new(system_webid)
-            .with_gas_governance(Arc::clone(&gas_governance)),
-    ));
-    EnsembleSession {
-        session_manager,
-        gas_governance,
-        inference_port,
-        ensemble_inferencer,
-    }
-}
-
-/// Build the LoopSystem with all loops.
-///
-/// Creates CnsRuntime, MessageDispatch, LoopSystem, and registers:
-/// Cybernetics, Episodic, Semantic, Curation, and Snapshot loops.
-/// Communication Loop is managed internally by LoopSystem.
-/// Inference Loop is registered only if an inference port is provided.
-#[allow(clippy::type_complexity)]
-fn build_loop_system(
-    escalation_queue: Arc<EscalationQueue>,
-    dispatch: Arc<MessageDispatch>,
-    inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
-    system_webid: WebID,
-    acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
-    event_sink: Option<Arc<dyn NuEventSink>>,
-    git_cas_port: Arc<dyn GitCASPort>,
-) -> Result<
-    (
-        Arc<LoopSystem>,
-        Arc<dyn EpisodicStoragePort>,
-        Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-    ),
-    ApiError,
-> {
-    let loop_system = LoopSystem::new(Arc::clone(&dispatch));
-
-    // Cybernetics Loop
-    let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> = Arc::new(tokio::sync::RwLock::new(
-        CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD),
-    ));
-    let cybernetics_dispatch_tx = loop_system.dispatch_sender();
-    let set_points = hkask_cns::load_set_points();
-    let cybernetics_loop = CyberneticsLoop::with_set_points(
-        Arc::clone(&cns_rwlock),
-        set_points,
-        cybernetics_dispatch_tx,
-    );
-    let cybernetics_loop = match event_sink {
-        Some(sink) => cybernetics_loop.with_event_sink(sink),
-        None => cybernetics_loop,
-    };
-    // Wire CommunicationLoop↔CyberneticsLoop queue depth counter.
-    // CommunicationLoop writes, CyberneticsLoop reads — lock-free, Relaxed ordering.
-    let cybernetics_loop = cybernetics_loop
-        .with_communication_queue_depth(loop_system.communication_queue_depth_counter());
-    let cybernetics_loop_rwlock = Arc::new(tokio::sync::RwLock::new(cybernetics_loop));
-    // Register loops (register_loop is async, use a small runtime for sync callers)
-    let rt = tokio::runtime::Runtime::new().map_err(|e| ApiError::Internal {
-        message: format!("Failed to create tokio runtime for loop system: {e}"),
-    })?;
-    rt.block_on(async {
-        loop_system
-            .register_loop(Arc::new(CyberneticsLoopHandle(Arc::clone(
-                &cybernetics_loop_rwlock,
-            ))))
-            .await;
-    });
-
-    // Inference Loop (optional)
-    if inference_port.is_some() {
-        let inference_loop =
-            hkask_agents::InferenceLoop::new().with_dispatch(loop_system.dispatch_sender());
-        rt.block_on(async {
-            loop_system.register_loop(Arc::new(inference_loop)).await;
-        });
-    }
-
-    // Episodic Loop
-    let db = hkask_storage::in_memory_db();
-    let conn = db.conn_arc();
-    let triple_store = TripleStore::new(Arc::clone(&conn));
-    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
-    let storage_budget = episodic_memory.storage_budget();
-    let episodic_loop =
-        EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
-    rt.block_on(async {
-        loop_system.register_loop(Arc::new(episodic_loop)).await;
-    });
-
-    // Semantic Loop
-    let db2 = hkask_storage::in_memory_db();
-    let conn2 = db2.conn_arc();
-    let triple_store2 = TripleStore::new(Arc::clone(&conn2));
-    let embedding_store = EmbeddingStore::new(Arc::clone(&conn2));
-    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
-    let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
-    rt.block_on(async {
-        loop_system.register_loop(Arc::new(semantic_loop)).await;
-    });
-
-    // API-facing memory adapter — shares the same DB connections as the loops
-    // so budget reads see API writes immediately.
-    let memory_adapter = Arc::new(MemoryLoopAdapter::new(
-        EpisodicMemory::new(TripleStore::new(conn)),
-        SemanticMemory::new(
-            TripleStore::new(Arc::clone(&conn2)),
-            EmbeddingStore::new(conn2),
-        ),
-    ));
-    let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
-
-    // Curation Loop (via CuratorAgent)
-    let curator_handle = CuratorHandle::system();
-    let mut curator_context = CuratorContext::new(
-        curator_handle.clone(),
-        Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
-        dispatch,
-        escalation_queue,
-    );
-    if let Some(acp_port) = acp {
-        curator_context = curator_context.with_acp(acp_port);
-    }
-    curator_context = curator_context.with_loop_dispatch_tx(loop_system.dispatch_sender());
-    let curator_context = Arc::new(curator_context);
-    let consolidation_bridge = Arc::new(ConsolidationBridge::new(
-        Arc::clone(&episodic_memory),
-        Arc::clone(&semantic_memory),
-    ));
-    let curator_agent = CuratorAgent::with_consolidation(
-        curator_context,
-        Default::default(),
-        Arc::clone(&consolidation_bridge),
-    );
-    let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
-    rt.block_on(async {
-        loop_system.register_loop(curation_loop).await;
-    });
-
-    // Snapshot Loop (CAS — scheduled snapshots based on RetentionPolicy)
-    let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
-    rt.block_on(async {
-        loop_system.register_loop(Arc::new(snapshot_loop)).await;
-    });
-
-    drop(rt);
-    Ok((
-        Arc::new(loop_system),
-        episodic_storage,
-        cybernetics_loop_rwlock,
-    ))
 }
 
 impl ApiState {
@@ -583,8 +157,8 @@ impl ApiState {
         let stores = Stores::init(db_config, Arc::clone(&git_cas_port))?;
 
         // ── 2. Loop system + CNS event sink ──
-        let dispatch = Arc::new(MessageDispatch::new());
-        let inference_port_for_loops: Option<Arc<dyn hkask_types::ports::InferencePort>> =
+        let dispatch = Arc::new(hkask_agents::communication::dispatch::MessageDispatch::new());
+        let inference_port_for_loops: Option<Arc<dyn InferencePort>> =
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
         let cns_event_conn = hkask_storage::in_memory_db().conn_arc();
         let cns_event_sink: Arc<dyn NuEventSink> =
@@ -662,7 +236,8 @@ impl ApiState {
         system_webid: WebID,
         db_config: Option<&DbConfig>,
     ) -> Result<Self, ApiError> {
-        let git_cas = hkask_mcp::GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
+        let git_cas =
+            hkask_mcp::GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
         let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
         let mcp_runtime_adapter = FullMcpAdapter::new(
@@ -732,7 +307,7 @@ impl ApiState {
                 message: format!("Failed to create Okapi inference: {e}"),
             }
         })?;
-        let port: Arc<dyn hkask_types::ports::InferencePort> = Arc::new(inference);
+        let port: Arc<dyn InferencePort> = Arc::new(inference);
         let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(port));
         Self::new(
             registry,
@@ -814,35 +389,37 @@ impl ApiState {
 }
 
 /// Create API router with OpenAPI documentation and authentication
-pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
+pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(
         middleware::AuthService::new()
             .map_err(|e| format!("Failed to initialize auth service: {}", e))?,
     );
 
-    Ok(OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .merge(routes::templates_router().into())
-        .merge(routes::bots_router().into())
-        .merge(routes::pods_router().into())
-        .merge(routes::mcp_router().into())
-        .merge(routes::cns_router().into())
-        .merge(routes::sovereignty_router().into())
-        .merge(routes::chat_router().into())
-        .merge(routes::models_router().into())
-        .merge(routes::ensemble_router().into())
-        .merge(routes::acp_router().into())
-        .merge(routes::bundles_router().into())
-        .merge(routes::spec_router().into())
-        .merge(routes::curator_router().into())
-        .merge(routes::episodic_router().into())
-        .merge(routes::consolidation_router().into())
-        .merge(routes::git_router().into())
-        .merge(routes::goal_router().into())
-        .layer(axum::middleware::from_fn_with_state(
-            auth_service,
-            middleware::auth_middleware,
-        ))
-        .with_state(state))
+    Ok(
+        utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())
+            .merge(routes::templates_router().into())
+            .merge(routes::bots_router().into())
+            .merge(routes::pods_router().into())
+            .merge(routes::mcp_router().into())
+            .merge(routes::cns_router().into())
+            .merge(routes::sovereignty_router().into())
+            .merge(routes::chat_router().into())
+            .merge(routes::models_router().into())
+            .merge(routes::ensemble_router().into())
+            .merge(routes::acp_router().into())
+            .merge(routes::bundles_router().into())
+            .merge(routes::spec_router().into())
+            .merge(routes::curator_router().into())
+            .merge(routes::episodic_router().into())
+            .merge(routes::consolidation_router().into())
+            .merge(routes::git_router().into())
+            .merge(routes::goal_router().into())
+            .layer(axum::middleware::from_fn_with_state(
+                auth_service,
+                middleware::auth_middleware,
+            ))
+            .with_state(state),
+    )
 }
 
 /// Build OpenAPI spec

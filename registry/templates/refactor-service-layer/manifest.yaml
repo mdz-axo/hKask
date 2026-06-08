@@ -1,0 +1,59 @@
+# Template crate manifest for refactor-service-layer skill
+# ℏKask v0.23.0
+
+crate:
+  name: refactor-service-layer
+  version: "0.23.0"
+  description: >
+    Extract a shared service layer from duplicated surface logic using the strangler
+    fig pattern, deep-module discipline, and vertical tracer-bullet TDD. Classifies
+    duplication hotspots, designs deep service modules, migrates one domain at a time
+    with both surfaces functional at every step. Composes improve-codebase-architecture,
+    tdd, coding-guidelines, constraint-forces, zoom-out, and pragmatic-semantics.
+
+templates:
+  - id: refactor-service-layer/rsl-audit
+    path: rsl-audit.j2
+    type: KnowAct
+    lexicon_terms:
+      [detect, explore, classify, discriminate, orient, assess, rank]
+    description: >
+      Audit and classify all duplicated operations across CLI, API, and MCP surfaces.
+      Apply the deletion test to each candidate. Produce RDF triples, classification
+      table, and mermaid entity-relationship diagram of the duplication landscape.
+
+  - id: refactor-service-layer/rsl-strangle
+    path: rsl-strangle.j2
+    type: FlowDef
+    lexicon_terms:
+      [deepen, design, constrain, verify, crystallize, migrate, extract]
+    description: >
+      Execute the strangler fig migration for a selected domain: create service
+      operation, wire CLI, wire API, delete duplication, verify. Enforces one-domain-
+      per-commit discipline, dependency direction checks, and surgical change scope.
+
+  - id: refactor-service-layer/rsl-verify
+    path: rsl-verify.j2
+    type: KnowAct
+    lexicon_terms: [verify, assess, validate, discriminate, crystallize]
+    description: >
+      Verify surgical completeness after a domain migration or full extraction:
+      dependency direction, depth test, P6/P7/P8 compliance, clippy, test suite,
+      deletion test on service modules. Produces a structured pass/fail report.
+
+hlexicon_terms:
+  - detect
+  - explore
+  - classify
+  - discriminate
+  - orient
+  - assess
+  - rank
+  - deepen
+  - design
+  - constrain
+  - verify
+  - crystallize
+  - migrate
+  - extract
+  - validate
