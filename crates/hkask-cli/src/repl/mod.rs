@@ -205,7 +205,7 @@ pub fn run(
                 };
 
                 if let Some(ref session) = state.active_session.clone() {
-                    turn::ensemble_turn(&session, input, &mut state, &rt, &acp_secret);
+                    turn::ensemble_turn(session, input, &mut state, &rt, &acp_secret);
                 } else {
                     turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
                 }
