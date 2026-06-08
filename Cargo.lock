@@ -1794,6 +1794,7 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tokio",

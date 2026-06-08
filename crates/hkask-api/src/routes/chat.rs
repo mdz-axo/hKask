@@ -4,12 +4,10 @@
 //! switches the LLM used for inference. Use `GET /api/models` to discover
 //! valid model identifiers.
 
-use std::sync::Arc;
-
 use axum::{Json, extract::State, routing::Router};
 
 use crate::ApiState;
-use hkask_types::ports::InferencePort;
+use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -67,61 +65,39 @@ pub fn chat_router() -> Router<ApiState> {
     ),
 )]
 async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
-    use hkask_services::{InferenceContext, InferenceService};
-    use hkask_types::LLMParameters;
-
-    let model = req.model.as_deref().unwrap_or("qwen3:8b");
+    let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
+    let model: &str = &model_str;
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
 
-    // Use the shared inference port when available (avoids per-request OkapiInference construction)
-    let inference: Arc<dyn InferencePort> = match state.service_context.inference_port {
-        Some(ref port) => Arc::clone(port),
-        None => {
-            let ctx = InferenceContext::from_parts(
-                None,
-                model,
-                state.service_context.config.okapi_base_url.clone(),
-            );
-            match InferenceService::resolve_port(&ctx, model) {
-                Ok(i) => i,
-                Err(e) => {
-                    return Json(ChatResponse {
-                        output: format!("Failed to initialize inference: {}", e),
-                        template_id: req
-                            .template_id
-                            .unwrap_or_else(|| strategy.name().to_string()),
-                        model: model.to_string(),
-                    });
-                }
-            }
-        }
-    };
-
+    // Frame the prompt via PromptStrategy (API-specific — uses template_id)
     let prompt = match &req.template_id {
         Some(id) => format!("[template: {}] {}", id, req.input),
-        None => strategy.frame(&req.input),
+        None => strategy.frame(&req.input).to_string(),
     };
 
-    let params = LLMParameters {
-        temperature: 0.7,
-        top_p: 0.9,
-        top_k: 40,
-        frequency_penalty: 0.0,
-        presence_penalty: 0.0,
-        max_tokens: 512,
-        seed: None,
+    let svc_req = ServiceChatRequest {
+        input: prompt,
+        agent_name: Some("Curator".to_string()),
+        model_override: req.model,
+        system_prompt_suffix: None,
+        tool_section: None,
+        inference_port_override: None,
+        episodic_storage_override: None,
+        semantic_storage_override: None,
     };
 
-    let output = match inference
-        .generate_with_model(&prompt, &params, Some(model))
-        .await
-    {
-        Ok(result) => result.text,
-        Err(e) => format!("Inference error: {}", e),
+    let result = match ChatService::chat(&state.service_context, svc_req).await {
+        Ok(resp) => resp,
+        Err(e) => hkask_services::ChatResponse {
+            text: format!("Chat error: {}", e),
+            usage: None,
+            finish_reason: "error".to_string(),
+            tool_calls: vec![],
+        },
     };
 
     Json(ChatResponse {
-        output,
+        output: result.text,
         template_id: req
             .template_id
             .unwrap_or_else(|| strategy.name().to_string()),

@@ -20,8 +20,6 @@ mod memory;
 mod tool_augmented;
 mod turn;
 
-pub(crate) use tool_augmented::TOOL_CALL_FORMAT_INTRO;
-
 use hkask_agents::HhhConfig;
 use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
