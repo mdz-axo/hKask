@@ -8,8 +8,8 @@ use crate::block_on;
 use crate::cli::EnsembleAction;
 use hkask_cns::{CircuitBreaker, CyberneticsLoop, GasCost};
 use hkask_ensemble::{
-    AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
-    ImprovMode, ImprovSessionConfig, InferencePortAdapter, ParticipantRole, SessionManager,
+    ChatMessage, CircuitBreakerInferenceAdapter, GasGovernancePort, ImprovMode,
+    ImprovSessionConfig, InferencePortAdapter, SessionManager,
     bootstrap_standing_session_with_store,
 };
 use hkask_types::WebID;
@@ -164,8 +164,10 @@ fn open_standing_session_store() -> Arc<hkask_storage::StandingSessionStore> {
 
 /// Create chat session
 pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
-    let manager = get_session_manager();
-    manager.read().await.create_chat(&session).await;
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::create_chat(&ctx, &session)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(format!("Chat session '{}' created", session))
 }
 
@@ -175,25 +177,16 @@ pub async fn ensemble_chat_register(
     bot: String,
     role: String,
 ) -> Result<String, String> {
-    let manager = get_session_manager();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(&session).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session))?;
-
-    let participant_role = match role.as_str() {
-        "orchestrator" => ParticipantRole::Curator,
-        _ => ParticipantRole::Custom(role.clone()),
-    };
-
-    let mut chat_write = chat.write().await;
-    chat_write.register_participant(ChatParticipant {
-        webid: WebID::new(),
-        role: participant_role,
-        pod_id: None,
-        capabilities: vec![],
-    });
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::register_participant(
+        &ctx,
+        &session,
+        WebID::new(),
+        &role,
+        vec![],
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(format!(
         "Bot '{}' registered as {} in session '{}'",
@@ -203,28 +196,20 @@ pub async fn ensemble_chat_register(
 
 /// Send message to chat
 pub async fn ensemble_chat_send(session: String, message: String) -> Result<String, String> {
-    let manager = get_session_manager();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(&session).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session))?;
-
-    let mut chat_write = chat.write().await;
-    let msg = ChatMessage::new(WebID::new(), message);
-    chat_write.add_message(msg);
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::send_message(&ctx, &session, WebID::new(), &message)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok("Message sent".to_string())
 }
 
 /// List chat sessions
 pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
-    let manager = get_session_manager();
-    let sessions = {
-        let manager_read = manager.read().await;
-        manager_read.list_chat_sessions().await
-    };
-    Ok(sessions)
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::list_chat_sessions(&ctx)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_improv_turn(
@@ -328,21 +313,18 @@ pub async fn ensemble_participants(
 }
 
 pub async fn ensemble_deliberation_create(session: String) -> Result<String, String> {
-    let manager = get_session_manager();
-    manager.read().await.create_deliberation(&session).await;
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::create_deliberation(&ctx, &session)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(format!("Deliberation session '{}' created", session))
 }
 
 pub async fn ensemble_deliberation_start(session: String) -> Result<String, String> {
-    let manager = get_session_manager();
-    let deliberation = {
-        let manager_read = manager.read().await;
-        manager_read.get_deliberation(&session).await
-    }
-    .ok_or_else(|| format!("Deliberation session '{}' not found", session))?;
-
-    let mut session_write = deliberation.write().await;
-    session_write.start();
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::start_deliberation(&ctx, &session)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok("Deliberation started".to_string())
 }
 
@@ -352,36 +334,31 @@ pub async fn ensemble_deliberation_record(
     content: String,
     confidence: f64,
 ) -> Result<String, String> {
-    let manager = get_session_manager();
-    let deliberation = {
-        let manager_read = manager.read().await;
-        manager_read.get_deliberation(&session).await
-    }
-    .ok_or_else(|| format!("Deliberation session '{}' not found", session))?;
-
-    let agent_webid = WebID::new();
-    let response = AgentResponse::new(agent_webid, content, confidence);
-    let mut session_write = deliberation.write().await;
-    session_write.record_response(response);
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::record_deliberation_response(
+        &ctx,
+        &session,
+        WebID::new(),
+        content,
+        confidence,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok("Response recorded".to_string())
 }
 
 pub async fn ensemble_deliberation_synthesize(session: String) -> Result<String, String> {
-    let manager = get_session_manager();
-    let result = {
-        let manager_read = manager.read().await;
-        let deliberation = manager_read
-            .get_deliberation(&session)
-            .await
-            .ok_or_else(|| format!("Deliberation session '{}' not found", session))?;
-        let session_read = deliberation.read().await;
-        session_read.synthesize()
-    };
-    Ok(result.synthesized_response)
+    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    hkask_services::EnsembleService::synthesize_deliberation(&ctx, &session)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
+    // List deliberations is a thin delegation that doesn't normalize errors.
+    // It stays as a direct SessionManager call because deleting this service
+    // call wouldn't cause complexity to reappear in 8+ call sites.
     let manager = get_session_manager();
     let sessions = {
         let manager_read = manager.read().await;

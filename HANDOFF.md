@@ -2,7 +2,7 @@
 
 ## 1. Session Context
 
-Four sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
+Five sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
@@ -11,6 +11,8 @@ Four sessions have completed work on the 9-task service layer extraction plan. T
 **Session 3** (Task 4 completion — Phases 4c–4f): Wired all CLI (8 sites) and API (4 sites) to call InferenceService. Introduced `InferenceContext` as a lightweight alternative to `ServiceContext` for surface layers. Removed all `OkapiConfig::local_dev()` and `OkapiInference::new()` calls from CLI and API inference sites. All workspace checks pass: `cargo check`, `cargo clippy -D warnings`, `cargo test`.
 
 **Session 4** (Task 5 — CuratorService): Extracted `CuratorService` with 6 service operations, `CuratorContext`, and `MetacognitionSummary`. Full strangler fig cycle completed: RED (6 tests) → GREEN (all pass) → Wire CLI → Wire API → Delete duplication → Verify workspace.
+
+**Session 5** (Task 6a — EnsembleService): Extracted `EnsembleService` with 8 service operations, `EnsembleContext`, and `map_participant_role` helper. Full strangler fig cycle completed for chat/deliberation operations. Standing sessions and improv operations intentionally excluded (divergent/surface-only). All workspace checks pass.
 
 ## 2. What Was Done
 
@@ -47,7 +49,7 @@ Four sessions have completed work on the 9-task service layer extraction plan. T
 |--------|-----------|---------------|------------|
 | `inference.rs` | 3 | Identical | PASS |
 | `curator.rs` | 6 | Divergent | PASS |
-| `ensemble.rs` | 7 (at limit) | Identical | PASS |
+| `ensemble.rs` | 8 | Identical/Divergent mix | PASS |
 | `pods.rs` | 5 | Divergent | PASS |
 | `models.rs` | 2 | Divergent | PASS |
 | `memory.rs` | 5 | Identical | PASS |
@@ -137,16 +139,72 @@ Created `hkask-services/src/curator.rs` with:
 - API no longer directly calls `queue.list_pending()`, `queue.get()`, `queue.resolve()`, `queue.dismiss()`, `queue.stats()`
 - Both surfaces route through `CuratorService`, which normalizes behavior (existence check before resolve/dismiss)
 
+### Session 5 — EnsembleService (Task 6a, complete)
+
+Created `hkask-services/src/ensemble.rs` with:
+
+- `EnsembleContext` — lightweight context with `session_manager: Arc<RwLock<SessionManager>>`
+- `EnsembleService` — 8 async service operations (7 normalization + 1 thin CRUD)
+- `map_participant_role` — public helper normalizing `"orchestrator"` → `ParticipantRole::Curator`
+- 11 unit tests with `// REQ:` tags (svc-ens-001 through svc-ens-008, plus svc-ens-003a)
+
+**Key Design Decisions for EnsembleService:**
+
+| Decision | Force | Rationale |
+|----------|-------|-----------|
+| Standing sessions NOT extracted | Divergent | CLI reads YAML from file; API constructs from JSON + MCP tool discovery + gas governance. Too different to unify. Stay in surface code. |
+| Improv operations NOT extracted | Divergent/Surface-only | `improv_turn` needs surface-specific inferencer (CLI: global static; API: `ensemble_inferencer_with_breaker()`). `improv_config`, `set_threshold`, `set_mode` are CLI-only. |
+| `EnsembleContext` has only `session_manager` | Guideline | Chat/deliberation ops only need the session manager. Standing ops would need `StandingSessionStore` + `GasGovernancePort` but those are surface-specific. |
+| `map_participant_role` is a public function, not a method | Guideline | Surfaces need it for formatting output. Both CLI and API had identical mapping logic. |
+| `list_deliberation_sessions` stays as direct call in both surfaces | Pass-through | Thin delegation that doesn't normalize errors. Not worth a service method. |
+| `get_chat` API handler stays as direct `SessionManager` call | Surface-only | Only in API, not in CLI. Not duplicated. |
+
+**CLI Wiring (9 functions in `cli/commands/ensemble.rs`):**
+
+| Function | What Changed |
+|----------|-------------|
+| `ensemble_chat_create` | Routes through `EnsembleService::create_chat()` |
+| `ensemble_chat_register` | Routes through `EnsembleService::register_participant()` (role mapping now in service) |
+| `ensemble_chat_send` | Routes through `EnsembleService::send_message()` |
+| `ensemble_chat_list` | Routes through `EnsembleService::list_chat_sessions()` |
+| `ensemble_deliberation_create` | Routes through `EnsembleService::create_deliberation()` |
+| `ensemble_deliberation_start` | Routes through `EnsembleService::start_deliberation()` |
+| `ensemble_deliberation_record` | Routes through `EnsembleService::record_deliberation_response()` |
+| `ensemble_deliberation_synthesize` | Routes through `EnsembleService::synthesize_deliberation()` |
+| `ensemble_deliberation_list` | Stays as direct `SessionManager` call (thin pass-through) |
+
+**API Wiring (8 handlers in `api/routes/ensemble.rs`):**
+
+| Handler | What Changed |
+|---------|-------------|
+| `create_chat` | Routes through `EnsembleService::create_chat()` |
+| `list_chats` | Routes through `EnsembleService::list_chat_sessions()` |
+| `register_bot` | Routes through `EnsembleService::register_participant()` (role mapping now in service) |
+| `send_message` | Routes through `EnsembleService::send_message()` |
+| `create_deliberation` | Routes through `EnsembleService::create_deliberation()` |
+| `start_deliberation` | Routes through `EnsembleService::start_deliberation()` |
+| `record_response` | Routes through `EnsembleService::record_deliberation_response()` |
+| `synthesize_deliberation` | Routes through `EnsembleService::synthesize_deliberation()` |
+| `list_deliberations` | Stays as direct `SessionManager` call (thin pass-through) |
+
+**Duplication removed:**
+- CLI no longer has `ParticipantRole` matching logic (`"orchestrator" => Curator`)
+- API no longer has `ParticipantRole` matching logic
+- Both surfaces get consistent `ServiceError::SessionNotFound` for missing sessions
+- `AgentResponse`, `ChatParticipant`, `ParticipantRole` imports removed from API routes
+- `AgentResponse`, `ChatParticipant`, `ParticipantRole` imports removed from CLI commands
+
 ## 3. Current Module Structure
 
 ```
 hkask-services/src/
-├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary
-├── error.rs         — 31 variants across 9 domain groups + Keystore + EscalationNotFound + Cns
+├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary, EnsembleContext, EnsembleService, map_participant_role
+├── error.rs         — 31 variants across 9 domain groups + SessionNotFound + Keystore + EscalationNotFound + Cns
 ├── config.rs        — ServiceConfig with 3 constructors + 8 default constants + template_cache_path
 ├── context.rs       — ServiceContext::async build() with 18 Arc fields
 ├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
-└── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + 6 tests
+├── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + 6 tests
+└── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + 11 tests
 ```
 
 ## 4. Verification Status
@@ -155,11 +213,13 @@ hkask-services/src/
 cargo check --workspace                    ✅
 cargo clippy --workspace -- -D warnings   ✅
 cargo test --workspace                    ✅ (all tests passing)
-cargo test -p hkask-services              ✅ (10 tests: 4 inference + 6 curator)
+cargo test -p hkask-services              ✅ (21 tests: 4 inference + 6 curator + 11 ensemble)
 No todo!/unimplemented! in hkask-services ✅
 No EscalationQueue direct calls in CLI/API curator routes ✅
 No CuratorAgent/MetacognitionLoop direct calls in CLI ✅
 No direct EscalationQueue calls in API curator routes ✅
+No SessionManager direct calls in wired CLI ensemble functions ✅
+No SessionManager direct calls in wired API ensemble handlers ✅
 MCP servers do NOT depend on hkask-services ✅ (P1 preserved)
 Dependency direction: CLI/API → services → domain ✅ (no reverse)
 ```
@@ -168,7 +228,7 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 
 1. **Flat error hierarchy, not nested.** `ServiceError` composes domain errors via `#[from]`. `Keystore(String)` for secret resolution failures.
 2. **`ServiceContext::build()` is async.** No more `Runtime::new()` + `block_on()` + `drop(rt)`. Callers `.await` it.
-3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext`/`CuratorContext` + `ServiceConfig` instead.
+3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext`/`CuratorContext`/`EnsembleContext` + `ServiceConfig` instead.
 4. **MCP servers do NOT depend on `hkask-services`.** They use `hkask-templates` primitives directly.
 5. **`InferenceService` does NOT cache ports by model.** Each non-default model call creates a fresh `OkapiInference`. Caching is a future Hypothesis.
 6. **`InferenceService::resolve_port()` reuses shared port for default model.** Falls back to fresh instance for other models.
@@ -186,19 +246,24 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 18. **`CuratorContext` uses `Option<Arc<CnsRuntime>>` and `Option<Arc<MessageDispatch>>`.** Escalation-only operations don't need them. `run_metacognition` requires both and returns `ServiceError::Cns` if missing.
 19. **`MetacognitionSummary` is a service-layer type** because `HealthSnapshot.bot_status_reports` is `pub(crate)` in `hkask-agents`.
 20. **`From<&ServiceContext> for CuratorContext` deferred to Task 7b.** Extracting `Arc<CnsRuntime>` from `Arc<RwLock<CnsRuntime>>` requires async, which can't be done in a `From` impl.
+21. **`EnsembleService` normalizes session-not-found across 10+ call sites.** Both CLI and API now get consistent `ServiceError::SessionNotFound` instead of ad-hoc string formatting.
+22. **`map_participant_role` is a public function in `hkask-services`.** Both surfaces had identical `"orchestrator" => Curator` mapping. Now centralized.
+23. **Standing sessions excluded from `EnsembleService`.** CLI reads YAML from file path; API constructs from JSON body + MCP tool discovery + gas governance wiring. Too divergent to unify — would require parameterizing surface-specific logic that adds more complexity than it removes.
+24. **Improv operations excluded from `EnsembleService`.** `improv_turn` needs a surface-specific inferencer (CLI uses global static; API uses `ApiState.ensemble_inferencer_with_breaker()`). `improv_config`, `set_threshold`, `set_mode` are CLI-only surface operations.
+25. **`list_deliberation_sessions` stays as direct `SessionManager` call.** Thin pass-through with no error normalization. Doesn't pass depth test.
 
 ## 6. What Remains
 
 ### MEDIUM — Task 6: Extract remaining service modules
 
-Apply the same pattern (lightweight context like `InferenceContext`/`CuratorContext`) for:
-- `models.rs` — already partially covered by InferenceService::list_models/search_models, but may need a ModelsService for richer queries
-- `ensemble.rs` — ensemble session CRUD
-- `pods.rs` — pod lifecycle
-- `memory.rs` — episodic/semantic storage ports
-- `sovereignty.rs` — consent and verification
-- `spec.rs` — spec capture, cultivate, validate
-- `goal.rs` — goal CRUD
+Apply the same pattern (lightweight context like `InferenceContext`/`CuratorContext`/`EnsembleContext`) for:
+- ~~`ensemble.rs`~~ — **DONE (Task 6a)**
+- `pods.rs` — pod lifecycle (5 functions)
+- `memory.rs` — episodic/semantic storage ports (5 functions)
+- `sovereignty.rs` — consent and verification (4 functions)
+- `spec.rs` — spec capture, cultivate, validate (4 functions)
+- `goal.rs` — goal CRUD (3 functions)
+- `models.rs` — already partially covered by `InferenceService::list_models/search_models`; apply depth test first
 
 ### MEDIUM — Task 7: Infrastructure unification
 
@@ -243,6 +308,9 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 | F15 | InferenceContext vs ServiceContext for service modules | MEDIUM | Decided — lightweight context for surfaces, ServiceContext for full composition |
 | F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later |
 | F17 | CuratorService standalone commands still open DB each time | MEDIUM | Track — ReplState has escalation_queue; standalone kask curator commands could reuse it |
+| F18 | EnsembleService standing session extraction | MEDIUM | Deferred — divergent CLI/API flows need parameterization |
+| F19 | EnsembleService improv operation extraction | MEDIUM | Deferred — divergent inferencer setup needs surface-specific abstraction |
+| F20 | EnsembleService `list_deliberation_sessions` depth test result | LOW | Pass-through — stays as direct SessionManager call |
 
 ## 8. Mandatory Skills for Next Session
 
@@ -251,6 +319,7 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Every new service extraction must follow this skill's process.
 2. **`coding-guidelines`** — Assess before implementing. Surgical changes only.
 3. **`tdd`** — Every new service operation gets a RED→GREEN→REFACTOR cycle with `// REQ:` tags.
+4. **`constraint-forces`** — Classify every design decision by force type before implementing.
 
 ## 9. Architectural Context for Continuation Agent
 
@@ -330,35 +399,59 @@ impl CuratorService {
 }
 ```
 
+### EnsembleService Design (implemented + wired)
+
+```rust
+// ensemble.rs — EnsembleContext + EnsembleService (8 public functions) + map_participant_role
+pub struct EnsembleContext {
+    pub session_manager: Arc<RwLock<SessionManager>>,
+}
+
+impl EnsembleContext {
+    pub fn from_parts(session_manager: Arc<RwLock<SessionManager>>) -> Self
+}
+
+pub fn map_participant_role(role: &str) -> ParticipantRole
+
+pub struct EnsembleService;
+impl EnsembleService {
+    // REQ: svc-ens-001
+    pub async fn create_chat(ctx: &EnsembleContext, session_id: &str) -> Result<(), ServiceError>
+    // REQ: svc-ens-002
+    pub async fn list_chat_sessions(ctx: &EnsembleContext) -> Result<Vec<String>, ServiceError>
+    // REQ: svc-ens-003 — normalizes role mapping + checks existence
+    pub async fn register_participant(ctx: &EnsembleContext, session_id: &str, webid: WebID, role: &str, capabilities: Vec<String>) -> Result<(), ServiceError>
+    // REQ: svc-ens-004 — checks session existence before sending
+    pub async fn send_message(ctx: &EnsembleContext, session_id: &str, sender_webid: WebID, content: &str) -> Result<(), ServiceError>
+    // REQ: svc-ens-005
+    pub async fn create_deliberation(ctx: &EnsembleContext, session_id: &str) -> Result<(), ServiceError>
+    // REQ: svc-ens-006 — checks existence before starting
+    pub async fn start_deliberation(ctx: &EnsembleContext, session_id: &str) -> Result<(), ServiceError>
+    // REQ: svc-ens-007 — checks existence before recording
+    pub async fn record_deliberation_response(ctx: &EnsembleContext, session_id: &str, agent_webid: WebID, content: String, confidence: f64) -> Result<(), ServiceError>
+    // REQ: svc-ens-008 — checks existence before synthesizing
+    pub async fn synthesize_deliberation(ctx: &EnsembleContext, session_id: &str) -> Result<String, ServiceError>
+}
+```
+
 ### Surface Wiring Pattern
 
 CLI and API surfaces construct context structs from their own state:
 
 ```rust
-// CLI escalation-only (standalone commands)
-let queue = Arc::new(EscalationQueue::new(conn)?);
-let ctx = CuratorContext::from_parts(queue, None, None);
-CuratorService::list_escalations(&ctx)?
+// CLI ensemble (standalone commands using global SESSION_MANAGER)
+let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+EnsembleService::create_chat(&ctx, &session).await.map_err(|e| e.to_string())?;
 
-// CLI metacognition (standalone command)
-let queue = Arc::new(EscalationQueue::new(conn)?);
-let cns = Arc::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD));
-let dispatch = Arc::new(MessageDispatch::new());
-let ctx = CuratorContext::from_parts(queue, Some(cns), Some(dispatch));
-let summary = CuratorService::run_metacognition(&ctx).await?;
-
-// API escalation-only (from ApiState)
-let ctx = CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
-CuratorService::resolve_escalation(&ctx, &id, &req.resolved_by)?
-
-// API metacognition stats (from ApiState — no CNS/dispatch needed)
-let ctx = CuratorContext::from_parts(state.escalation_queue.clone(), None, None);
-let stats = CuratorService::escalation_stats(&ctx)?
+// API ensemble (from ApiState)
+let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+EnsembleService::register_participant(&ctx, &session, WebID::new(), &role, vec![]).await
+    .map_err(ApiError::from)?;
 ```
 
 ### Completed Call Site Replacements
 
-**CLI (all inference + curator sites wired):**
+**CLI (all inference + curator + ensemble sites wired):**
 1. `cli/repl/init.rs` — Default + gate inference ports → `InferenceService::resolve_port()`
 2. `cli/repl/handlers/hhh.rs` — Gate model switch → `InferenceService::resolve_port()`
 3. `cli/repl/handlers/model.rs` — Model listing/search → `InferenceService::search_models()`
@@ -366,18 +459,22 @@ let stats = CuratorService::escalation_stats(&ctx)?
 5. `cli/commands/compose.rs:275-284` — Generation inference → `InferenceService::resolve_port()`
 6. `cli/commands/ensemble.rs:130-140` — Ensemble improv → `InferenceService::resolve_port()`
 7. `cli/commands/curator.rs` — All 4 curator operations → `CuratorService::*`
+8. `cli/commands/ensemble.rs` — 9 ensemble chat/deliberation operations → `EnsembleService::*`
 
-**API (all inference + curator sites wired):**
+**API (all inference + curator + ensemble sites wired):**
 1. `api/lib.rs` — `with_ensemble_inferencer()` → `InferenceService::resolve_port()`
 2. `api/routes/chat.rs` — Fallback inference → `InferenceService::resolve_port()`
 3. `api/routes/models.rs` — `list_models` → `InferenceService::list_models()`
 4. `api/routes/models.rs` — `search_models` → `InferenceService::search_models()`
 5. `api/routes/curator.rs` — All 4 curator routes → `CuratorService::*`
+6. `api/routes/ensemble.rs` — 8 chat/deliberation handlers → `EnsembleService::*`
 
 **Intentionally NOT replaced (by design):**
 - `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
 - `cli/commands/embed_corpus.rs:191-197` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
 - MCP server call sites (P1 Prohibition — out of process)
+- `cli/commands/ensemble.rs` improv/standing functions (divergent/surface-only, not extracted)
+- `api/routes/ensemble.rs` improv/standing handlers (divergent/surface-only, not extracted)
 
 ### Constraint Forces (Key Decisions)
 
@@ -396,5 +493,11 @@ let stats = CuratorService::escalation_stats(&ctx)?
 | EscalationStats re-exported from domain crate | Guideline | Clean domain type, no need for service-layer wrapper |
 | MetacognitionSummary is a service-layer type | Guideline | HealthSnapshot.bot_status_reports is pub(crate) |
 | From<&ServiceContext> for CuratorContext deferred | Guideline | Needs async read on RwLock; add in Task 7b |
+| EnsembleService normalizes session-not-found | Guideline | 10+ call sites across CLI and API had ad-hoc string formatting |
+| map_participant_role is a public helper | Guideline | Both surfaces had identical "orchestrator" → Curator mapping |
+| Standing sessions NOT extracted | Divergent | CLI reads YAML; API takes JSON + MCP discovery + gas governance. Unifying would overcomplicate. |
+| Improv operations NOT extracted | Divergent/Surface-only | improv_turn needs surface-specific inferencer; config/set ops are CLI-only |
+| EnsembleContext has only session_manager | Guideline | Chat/deliberation ops only need SessionManager; standing ops need surface-specific state |
+| list_deliberation_sessions stays direct | Pass-through | Thin delegation, no error normalization. Doesn't pass depth test. |
 
 *ℏKask - A Minimal Viable Container for Agents — v0.23.0*

@@ -6,7 +6,6 @@ use axum::{
 };
 use hkask_ensemble::StandingSessionConfig;
 use hkask_ensemble::standing_session::StandingSession;
-use hkask_ensemble::{AgentResponse, ChatMessage, ChatParticipant, ParticipantRole};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -132,13 +131,23 @@ async fn create_chat(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    manager.read().await.create_chat(&req.session_id).await;
-    let response = EnsembleResponse {
-        success: true,
-        message: format!("Chat session '{}' created", req.session_id),
-    };
-    (StatusCode::CREATED, Json(response)).into_response()
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::create_chat(&ctx, &req.session_id).await {
+        Ok(()) => {
+            let response = EnsembleResponse {
+                success: true,
+                message: format!("Chat session '{}' created", req.session_id),
+            };
+            (StatusCode::CREATED, Json(response)).into_response()
+        }
+        Err(e) => {
+            let response = EnsembleResponse {
+                success: false,
+                message: e.to_string(),
+            };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response()
+        }
+    }
 }
 
 /// Get chat details
@@ -165,9 +174,11 @@ async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) ->
 
 /// List chat sessions
 async fn list_chats(State(state): State<ApiState>) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    let sessions = manager.read().await.list_chat_sessions().await;
-    Json(sessions)
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::list_chat_sessions(&ctx).await {
+        Ok(sessions) => Json(sessions).into_response(),
+        Err(_) => Json(Vec::<String>::new()).into_response(),
+    }
 }
 
 /// Register bot in chat
@@ -176,31 +187,27 @@ async fn register_bot(
     Path(session): Path<String>,
     Json(req): Json<RegisterBotRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    let chat = manager.read().await.get_chat(&session).await;
-    match chat {
-        Some(chat) => {
-            let participant_role = match req.role.as_str() {
-                "orchestrator" => ParticipantRole::Curator,
-                _ => ParticipantRole::Custom(req.role.clone()),
-            };
-            let mut chat_write = chat.write().await;
-            chat_write.register_participant(ChatParticipant {
-                webid: hkask_types::WebID::new(),
-                role: participant_role,
-                pod_id: None,
-                capabilities: vec![],
-            });
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::register_participant(
+        &ctx,
+        &session,
+        hkask_types::WebID::new(),
+        &req.role,
+        vec![],
+    )
+    .await
+    {
+        Ok(()) => {
             let response = EnsembleResponse {
                 success: true,
                 message: format!("Bot registered in session '{}'", session),
             };
             Json(response).into_response()
         }
-        None => {
+        Err(e) => {
             let response = EnsembleResponse {
                 success: false,
-                message: format!("Chat session '{}' not found", session),
+                message: e.to_string(),
             };
             (StatusCode::NOT_FOUND, Json(response)).into_response()
         }
@@ -213,23 +220,26 @@ async fn send_message(
     Path(session): Path<String>,
     Json(req): Json<SendMessageRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    let chat = manager.read().await.get_chat(&session).await;
-    match chat {
-        Some(chat) => {
-            let mut chat_write = chat.write().await;
-            let msg = ChatMessage::new(hkask_types::WebID::new(), req.content);
-            chat_write.add_message(msg);
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::send_message(
+        &ctx,
+        &session,
+        hkask_types::WebID::new(),
+        &req.content,
+    )
+    .await
+    {
+        Ok(()) => {
             let response = EnsembleResponse {
                 success: true,
                 message: format!("Message sent to session '{}'", session),
             };
             Json(response).into_response()
         }
-        None => {
+        Err(e) => {
             let response = EnsembleResponse {
                 success: false,
-                message: format!("Chat session '{}' not found", session),
+                message: e.to_string(),
             };
             (StatusCode::NOT_FOUND, Json(response)).into_response()
         }
@@ -300,17 +310,23 @@ async fn create_deliberation(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    manager
-        .read()
-        .await
-        .create_deliberation(&req.session_id)
-        .await;
-    let response = EnsembleResponse {
-        success: true,
-        message: format!("Deliberation session '{}' created", req.session_id),
-    };
-    (StatusCode::CREATED, Json(response)).into_response()
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::create_deliberation(&ctx, &req.session_id).await {
+        Ok(()) => {
+            let response = EnsembleResponse {
+                success: true,
+                message: format!("Deliberation session '{}' created", req.session_id),
+            };
+            (StatusCode::CREATED, Json(response)).into_response()
+        }
+        Err(e) => {
+            let response = EnsembleResponse {
+                success: false,
+                message: e.to_string(),
+            };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response()
+        }
+    }
 }
 
 /// Start deliberation
@@ -318,22 +334,19 @@ async fn start_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    let deliberation = manager.read().await.get_deliberation(&session).await;
-    match deliberation {
-        Some(delib) => {
-            let mut session_write = delib.write().await;
-            session_write.start();
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::start_deliberation(&ctx, &session).await {
+        Ok(()) => {
             let response = EnsembleResponse {
                 success: true,
                 message: format!("Deliberation '{}' started", session),
             };
             Json(response).into_response()
         }
-        None => {
+        Err(e) => {
             let response = EnsembleResponse {
                 success: false,
-                message: format!("Deliberation session '{}' not found", session),
+                message: e.to_string(),
             };
             (StatusCode::NOT_FOUND, Json(response)).into_response()
         }
@@ -346,24 +359,27 @@ async fn record_response(
     Path(session): Path<String>,
     Json(req): Json<RecordResponseRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    let deliberation = manager.read().await.get_deliberation(&session).await;
-    match deliberation {
-        Some(delib) => {
-            let agent_webid = hkask_types::WebID::new();
-            let response = AgentResponse::new(agent_webid, req.content, req.confidence);
-            let mut session_write = delib.write().await;
-            session_write.record_response(response);
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::record_deliberation_response(
+        &ctx,
+        &session,
+        hkask_types::WebID::new(),
+        req.content.clone(),
+        req.confidence,
+    )
+    .await
+    {
+        Ok(()) => {
             let resp = EnsembleResponse {
                 success: true,
                 message: format!("Response recorded in deliberation '{}'", session),
             };
             Json(resp).into_response()
         }
-        None => {
+        Err(e) => {
             let resp = EnsembleResponse {
                 success: false,
-                message: format!("Deliberation session '{}' not found", session),
+                message: e.to_string(),
             };
             (StatusCode::NOT_FOUND, Json(resp)).into_response()
         }
@@ -375,22 +391,19 @@ async fn synthesize_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
-    let deliberation = manager.read().await.get_deliberation(&session).await;
-    match deliberation {
-        Some(delib) => {
-            let session_read = delib.read().await;
-            let result = session_read.synthesize();
+    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    match hkask_services::EnsembleService::synthesize_deliberation(&ctx, &session).await {
+        Ok(synthesized) => {
             let response = EnsembleResponse {
                 success: true,
-                message: result.synthesized_response,
+                message: synthesized,
             };
             Json(response).into_response()
         }
-        None => {
+        Err(e) => {
             let response = EnsembleResponse {
                 success: false,
-                message: format!("Deliberation session '{}' not found", session),
+                message: e.to_string(),
             };
             (StatusCode::NOT_FOUND, Json(response)).into_response()
         }
@@ -399,6 +412,7 @@ async fn synthesize_deliberation(
 
 /// List deliberation sessions
 async fn list_deliberations(State(state): State<ApiState>) -> impl IntoResponse {
+    // Thin delegation — list doesn't normalize errors, so stays direct.
     let manager = &state.session_manager;
     let sessions = manager.read().await.list_deliberation_sessions().await;
     Json(sessions)
