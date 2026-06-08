@@ -83,6 +83,7 @@ async fn create_goal(
     })?;
 
     let goal = state
+        .service_context
         .goal_repo
         .create_goal(&auth.webid, &req.text, visibility)?;
 
@@ -121,7 +122,10 @@ async fn list_goals(
         None => None,
     };
 
-    let goals = state.goal_repo.list_goals(&auth.webid, state_filter)?;
+    let goals = state
+        .service_context
+        .goal_repo
+        .list_goals(&auth.webid, state_filter)?;
 
     Ok(Json(GoalListResponse {
         goals: goals
@@ -166,7 +170,10 @@ async fn set_goal_state(
         message: "state must be pending | active | completed | blocked | abandoned".to_string(),
     })?;
 
-    state.goal_repo.update_goal_state(goal_id, new_state)?;
+    state
+        .service_context
+        .goal_repo
+        .update_goal_state(goal_id, new_state)?;
 
     Ok(Json(GoalResponse {
         id: goal_id.to_string(),

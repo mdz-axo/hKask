@@ -50,7 +50,7 @@ pub fn templates_router() -> Router<ApiState> {
     ),
 )]
 async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
-    let registry = state.registry.lock().await;
+    let registry = state.service_context.registry.lock().await;
     let entries = registry.list(None);
 
     let templates = entries
@@ -86,7 +86,7 @@ async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<TemplateResponse>, ApiError> {
-    let registry = state.registry.lock().await;
+    let registry = state.service_context.registry.lock().await;
 
     let entry = registry.get(&id)?;
 
@@ -107,7 +107,7 @@ async fn register_template(
 ) -> Result<StatusCode, ApiError> {
     use axum::http::StatusCode;
 
-    let _registry = state.registry.lock().await;
+    let _registry = state.service_context.registry.lock().await;
     Ok(StatusCode::CREATED)
 }
 
@@ -116,7 +116,7 @@ async fn search_templates(
     State(state): State<ApiState>,
     Path(term): Path<String>,
 ) -> Json<Vec<TemplateResponse>> {
-    let registry = state.registry.lock().await;
+    let registry = state.service_context.registry.lock().await;
     let results = registry.search_by_lexicon(&term).unwrap_or_default();
 
     let templates = results

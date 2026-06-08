@@ -82,9 +82,9 @@ async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
     use hkask_services::InferenceService;
 
     let ctx = hkask_services::InferenceContext::from_parts(
-        state.inference_port.clone(),
-        &state.service_config.default_model,
-        &state.service_config.okapi_base_url,
+        state.service_context.inference_port.clone(),
+        &state.service_context.config.default_model,
+        &state.service_context.config.okapi_base_url,
     );
     let models = InferenceService::list_models(&ctx)
         .await
@@ -128,9 +128,9 @@ async fn search_models(
     use hkask_services::InferenceService;
 
     let ctx = hkask_services::InferenceContext::from_parts(
-        state.inference_port.clone(),
-        &state.service_config.default_model,
-        &state.service_config.okapi_base_url,
+        state.service_context.inference_port.clone(),
+        &state.service_context.config.default_model,
+        &state.service_context.config.okapi_base_url,
     );
     let models = InferenceService::search_models(&ctx, &query.q)
         .await

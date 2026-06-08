@@ -33,7 +33,7 @@ pub fn mcp_router() -> Router<ApiState> {
     ),
 )]
 async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let servers = state.mcp_runtime.list_servers().await;
+    let servers = state.service_context.mcp_runtime.list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
 
@@ -51,7 +51,7 @@ async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
     ),
 )]
 async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let tools = state.mcp_runtime.discover_tools().await;
+    let tools = state.service_context.mcp_runtime.discover_tools().await;
     Json(tools)
 }
 
@@ -109,6 +109,7 @@ async fn mcp_invoke(
 
     // Invoke via the MCP dispatcher with the authenticated capability token
     let result = state
+        .service_context
         .mcp_dispatcher
         .invoke(&req.tool, input, &auth.token)
         .await
@@ -123,6 +124,7 @@ async fn mcp_invoke(
 
     // Resolve server_id from the runtime's tool registry
     let server_id = state
+        .service_context
         .mcp_runtime
         .get_tool_info(&req.tool)
         .await

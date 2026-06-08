@@ -74,13 +74,13 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
 
     // Use the shared inference port when available (avoids per-request OkapiInference construction)
-    let inference: Arc<dyn InferencePort> = match state.inference_port {
+    let inference: Arc<dyn InferencePort> = match state.service_context.inference_port {
         Some(ref port) => Arc::clone(port),
         None => {
             let ctx = InferenceContext::from_parts(
                 None,
                 model,
-                state.service_config.okapi_base_url.clone(),
+                state.service_context.config.okapi_base_url.clone(),
             );
             match InferenceService::resolve_port(&ctx, model) {
                 Ok(i) => i,

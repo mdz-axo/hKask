@@ -52,15 +52,7 @@ pub use routes::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hkask_agents::consent::ConsentManager;
-use hkask_agents::escalation::EscalationQueue;
-use hkask_agents::loop_system::LoopSystem;
-use hkask_agents::pod::PodManager;
-use hkask_agents::ports::EpisodicStoragePort;
-use hkask_cns::CnsRuntime;
-use hkask_templates::SqliteRegistry;
-use hkask_types::ports::InferencePort;
-use hkask_types::{CapabilityChecker, WebID};
+use hkask_services::ServiceContext;
 use utoipa::OpenApi;
 
 use gas::ApiGasGovernanceAdapter;
@@ -68,58 +60,33 @@ use git_cas::{GitCasBundle, init_git_cas};
 
 use openapi::ApiDoc;
 
-/// API state
+/// API state — composes `ServiceContext` for all shared infrastructure.
+///
+/// The `service_context` field is the single source of truth for domain
+/// objects. Surface-specific fields (standing sessions map, git CAS,
+/// ensemble inferencer, gas governance) are the ONLY fields that don't
+/// come from `ServiceContext`.
 #[derive(Clone)]
 pub struct ApiState {
-    /// Template registry
-    pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
-    /// MCP runtime
-    pub mcp_runtime: Arc<hkask_mcp::runtime::McpRuntime>,
-    /// MCP dispatcher for OCAP-protected tool invocation
-    pub mcp_dispatcher: Arc<hkask_mcp::dispatch::McpDispatcher>,
-    /// Pod manager
-    pub pod_manager: Arc<PodManager>,
-    /// Capability checker for OCAP verification
-    pub capability_checker: Arc<CapabilityChecker>,
-    /// System WebID for signing capabilities
-    pub system_webid: WebID,
-    /// CNS span emitter for audit trail
-    /// Ensemble inferencer (optional — for ensemble inference)
-    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
-    /// Spec store for DDMVSS specifications
-    pub spec_store: Option<Arc<dyn hkask_storage::SpecStore + Send + Sync>>,
-    /// Consent manager for user sovereignty
-    pub consent_manager: Arc<ConsentManager>,
-    /// Escalation queue for Curator escalations
-    pub escalation_queue: Arc<EscalationQueue>,
-    /// Git CAS adapter for template archival (legacy — template loading only)
-    pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
-    /// Git CAS port for all CAS operations (hexagonal boundary)
-    pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
-    /// Standing ensemble sessions (keyed by session ID)
+    /// Service context — single source of truth for all shared infrastructure.
+    /// All domain objects (registry, escalation queue, consent manager, etc.)
+    /// come from here. Surface code derives context types via `From<&ServiceContext>`.
+    pub service_context: Arc<ServiceContext>,
+    /// Standing ensemble sessions (keyed by session ID) — surface-specific live state
     pub standing_sessions: Arc<
         tokio::sync::RwLock<
             HashMap<String, Arc<tokio::sync::RwLock<hkask_ensemble::StandingSession>>>,
         >,
     >,
-    /// Standing session storage port (persistent or in-memory)
-    pub standing_session_store: Arc<hkask_storage::StandingSessionStore>,
-    /// Ensemble session manager for chat/deliberation
-    pub session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
-    /// Goal repository for the goal coordination substrate. Mirrors the CLI
-    /// `kask goal` surface for MCP ≡ CLI ≡ API parity.
-    pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
-    /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation, Snapshot)
-    pub loop_system: Arc<LoopSystem>,
-    /// Episodic memory storage — private, agent-scoped (via port trait)
-    pub episodic_storage: Arc<dyn EpisodicStoragePort>,
-    /// CNS runtime for real-time variety and health data
-    pub cns_runtime: Arc<CnsRuntime>,
-    /// General-purpose inference port (shared across requests)
-    pub inference_port: Option<Arc<dyn InferencePort>>,
-    /// Service configuration for InferenceService calls.
-    pub service_config: hkask_services::ServiceConfig,
-    /// CNS gas governance port for ensemble sessions.
+    /// Ensemble inferencer (optional — for ensemble inference) — surface-specific
+    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
+    /// Spec store for DDMVSS specifications — surface-specific
+    pub spec_store: Option<Arc<dyn hkask_storage::SpecStore + Send + Sync>>,
+    /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
+    pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
+    /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
+    pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
+    /// CNS gas governance port for ensemble sessions — surface-specific
     /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
     pub gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
 }
@@ -168,14 +135,9 @@ impl ApiState {
     /// - `spec_store` — initialized to None
     /// - `cns_runtime` — cloned from ServiceContext's shared CnsRuntime
     pub async fn from_service_context(
-        ctx: hkask_services::ServiceContext,
+        ctx: ServiceContext,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
     ) -> Result<Self, ApiError> {
-        // Extract shared cns_runtime from ServiceContext's RwLock-wrapped version.
-        // This ensures the API's cns_runtime shares state with the loop system's
-        // CNS, unlike the old path which created a disconnected fresh instance.
-        let cns_runtime: Arc<CnsRuntime> = Arc::new(ctx.cns_runtime.read().await.clone());
-
         // Surface-specific: gas governance from cybernetics loop + system webid
         let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> =
             Arc::new(ApiGasGovernanceAdapter::new(
@@ -191,36 +153,15 @@ impl ApiState {
         } = init_git_cas()?;
 
         Ok(Self {
-            registry: ctx.registry,
-            mcp_runtime: ctx.mcp_runtime,
-            mcp_dispatcher: ctx.mcp_dispatcher,
-            pod_manager: ctx.pod_manager,
-            capability_checker: ctx.capability_checker,
-            system_webid: ctx.system_webid,
-            consent_manager: ctx.consent_manager,
-            escalation_queue: ctx.escalation_queue,
-            loop_system: ctx.loop_system,
-            episodic_storage: ctx.episodic_storage,
-            inference_port: ctx.inference_port,
-            session_manager: ctx.session_manager,
-            goal_repo: ctx.goal_repo,
-            standing_session_store: ctx.standing_session_store,
-            service_config: ctx.config,
-            // Surface-specific fields
-            cns_runtime,
+            service_context: Arc::new(ctx),
+            // Surface-specific fields only
+            standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             ensemble_inferencer,
             spec_store: None,
             git_cas,
             git_cas_port,
-            standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             gas_governance,
         })
-    }
-
-    /// Create ApiState with consent manager
-    pub fn with_consent_manager(mut self, consent_manager: ConsentManager) -> Self {
-        self.consent_manager = Arc::new(consent_manager);
-        self
     }
 
     /// Create a circuit-breaker-wrapped ensemble inferencer.
@@ -244,20 +185,6 @@ impl ApiState {
         })
     }
 
-    /// Set the ensemble session manager to share state with the CLI.
-    ///
-    /// By default, `ApiState::new()` creates its own `SessionManager`.
-    /// Call this to replace it with the CLI's instance so both CLI and
-    /// API routes operate on the same sessions. Use `SessionManager::clone_shared()`
-    /// to obtain a handle from the CLI's singleton.
-    pub fn with_session_manager(
-        mut self,
-        session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
-    ) -> Self {
-        self.session_manager = session_manager;
-        self
-    }
-
     /// Set the spec store for DDMVSS specifications
     pub fn with_spec_store(
         mut self,
@@ -274,10 +201,10 @@ impl ApiState {
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
         tracing::info!(
             target: "hkask.api",
-            loops = ?self.loop_system.registered_loop_ids().await,
+            loops = ?self.service_context.loop_system.registered_loop_ids().await,
             "Starting loop system"
         );
-        self.loop_system.start().await
+        self.service_context.loop_system.start().await
     }
 
     /// Signal the loop system to shut down.
@@ -286,7 +213,7 @@ impl ApiState {
     /// will stop after their current cycle completes.
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        self.loop_system.shutdown();
+        self.service_context.loop_system.shutdown();
     }
 }
 

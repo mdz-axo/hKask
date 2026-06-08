@@ -131,7 +131,8 @@ async fn create_chat(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::create_chat(&ctx, &req.session_id).await {
         Ok(()) => {
             let response = EnsembleResponse {
@@ -152,7 +153,7 @@ async fn create_chat(
 
 /// Get chat details
 async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) -> impl IntoResponse {
-    let manager = &state.session_manager;
+    let manager = &state.service_context.session_manager;
     let chat = manager.read().await.get_chat(&session).await;
     match chat {
         Some(_) => {
@@ -174,7 +175,8 @@ async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) ->
 
 /// List chat sessions
 async fn list_chats(State(state): State<ApiState>) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::list_chat_sessions(&ctx).await {
         Ok(sessions) => Json(sessions).into_response(),
         Err(_) => Json(Vec::<String>::new()).into_response(),
@@ -187,7 +189,8 @@ async fn register_bot(
     Path(session): Path<String>,
     Json(req): Json<RegisterBotRequest>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::register_participant(
         &ctx,
         &session,
@@ -220,7 +223,8 @@ async fn send_message(
     Path(session): Path<String>,
     Json(req): Json<SendMessageRequest>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::send_message(
         &ctx,
         &session,
@@ -263,7 +267,7 @@ async fn improv_turn(
     Path(session): Path<String>,
     Json(req): Json<ImprovTurnRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.session_manager;
+    let manager = &state.service_context.session_manager;
     let chat = manager.read().await.get_chat(&session).await;
     match chat {
         Some(chat) => {
@@ -310,7 +314,8 @@ async fn create_deliberation(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::create_deliberation(&ctx, &req.session_id).await {
         Ok(()) => {
             let response = EnsembleResponse {
@@ -334,7 +339,8 @@ async fn start_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::start_deliberation(&ctx, &session).await {
         Ok(()) => {
             let response = EnsembleResponse {
@@ -359,7 +365,8 @@ async fn record_response(
     Path(session): Path<String>,
     Json(req): Json<RecordResponseRequest>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::record_deliberation_response(
         &ctx,
         &session,
@@ -391,7 +398,8 @@ async fn synthesize_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let ctx = hkask_services::EnsembleContext::from_parts(state.session_manager.clone());
+    let ctx =
+        hkask_services::EnsembleContext::from_parts(state.service_context.session_manager.clone());
     match hkask_services::EnsembleService::synthesize_deliberation(&ctx, &session).await {
         Ok(synthesized) => {
             let response = EnsembleResponse {
@@ -413,7 +421,7 @@ async fn synthesize_deliberation(
 /// List deliberation sessions
 async fn list_deliberations(State(state): State<ApiState>) -> impl IntoResponse {
     // Thin delegation — list doesn't normalize errors, so stays direct.
-    let manager = &state.session_manager;
+    let manager = &state.service_context.session_manager;
     let sessions = manager.read().await.list_deliberation_sessions().await;
     Json(sessions)
 }
@@ -526,10 +534,10 @@ async fn standing_start(
     // This enables `intersection_tools()` to filter the tool section
     // to only tools visible across all participants.
     {
-        let tool_names = state.mcp_runtime.discover_tools().await;
+        let tool_names = state.service_context.mcp_runtime.discover_tools().await;
         let mut tools: Vec<hkask_types::ports::ToolInfo> = Vec::new();
         for name in &tool_names {
-            if let Some(info) = state.mcp_runtime.get_tool_info(name).await {
+            if let Some(info) = state.service_context.mcp_runtime.get_tool_info(name).await {
                 tools.push(info);
             }
         }
@@ -539,7 +547,7 @@ async fn standing_start(
     }
 
     // Wire storage — persist config and enable message archival
-    session = session.with_store(state.standing_session_store.clone());
+    session = session.with_store(state.service_context.standing_session_store.clone());
     // Wire gas governance — CNS observability for standing session gas usage
     session = session.with_gas_governance(state.gas_governance.clone());
     let config_yaml = serde_yaml::to_string(&config).unwrap_or_default();

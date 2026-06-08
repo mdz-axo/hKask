@@ -65,7 +65,7 @@ pub fn pods_router() -> Router<ApiState> {
 
 /// List all pods
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
-    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let ctx = PodContext::from_parts(state.service_context.pod_manager.clone());
     let pod_statuses = PodService::list_pods(&ctx).await.unwrap_or_default();
 
     let pods: Vec<PodStatusResponse> = pod_statuses
@@ -94,10 +94,11 @@ async fn create_pod(
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ApiError> {
     // Surface concern: capability check stays in the API
-    let has_capability =
-        state
-            .capability_checker
-            .check_resource(&auth.token, &auth.webid, DelegationResource::Tool);
+    let has_capability = state.service_context.capability_checker.check_resource(
+        &auth.token,
+        &auth.webid,
+        DelegationResource::Tool,
+    );
 
     if !has_capability {
         return Err(ApiError::Forbidden {
@@ -112,7 +113,7 @@ async fn create_pod(
         }
     })?;
 
-    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let ctx = PodContext::from_parts(state.service_context.pod_manager.clone());
     let pod_id = PodService::create_pod(&ctx, &req.template, &persona, req.name)
         .await
         .map_err(ApiError::from)?;
@@ -126,7 +127,7 @@ async fn activate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let ctx = PodContext::from_parts(state.service_context.pod_manager.clone());
     PodService::activate_pod(&ctx, &id)
         .await
         .map_err(ApiError::from)?;
@@ -140,7 +141,7 @@ async fn deactivate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let ctx = PodContext::from_parts(state.service_context.pod_manager.clone());
     PodService::deactivate_pod(&ctx, &id)
         .await
         .map_err(ApiError::from)?;
@@ -154,7 +155,7 @@ async fn pod_status(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ApiError> {
-    let ctx = PodContext::from_parts(state.pod_manager.clone());
+    let ctx = PodContext::from_parts(state.service_context.pod_manager.clone());
     let status = PodService::get_pod_status(&ctx, &id)
         .await
         .map_err(ApiError::from)?;
