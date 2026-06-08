@@ -33,7 +33,7 @@ use hkask_cns::{CnsRuntime, CyberneticsLoop, GovernedTool};
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
-use hkask_services::ServiceConfig;
+use hkask_services::{ServiceConfig, ServiceContext};
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
@@ -123,6 +123,12 @@ pub(crate) struct ReplState {
     /// Present when the agent definition includes a process_manifest reference
     /// and the manifest was successfully loaded.
     pub(crate) process_manifest: Option<BundleManifest>,
+    /// Shared service context — the canonical assembly point for all
+    /// infrastructure. ReplState fields that duplicate ServiceContext fields
+    /// (cns, cybernetics_loop, loop_system, dispatch, service_config,
+    /// inference_port, episodic_storage, semantic_storage) are retained for
+    /// backward compatibility and will be removed once all consumers migrate.
+    pub(crate) service_context: Arc<ServiceContext>,
 }
 
 pub fn run(

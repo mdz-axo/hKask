@@ -208,6 +208,8 @@ pub(super) fn init_repl_state(
         }
     };
 
+    let ctx = Arc::new(ctx);
+
     let mut state = ReplState {
         inference_port,
         inference_loop,
@@ -235,6 +237,7 @@ pub(super) fn init_repl_state(
         tool_prompt_section: String::new(), // populated below
         manifest_executor: None,            // populated below
         process_manifest: None,             // populated below
+        service_context: ctx.clone(),
     };
 
     // Discover available MCP tools and format the system prompt section.

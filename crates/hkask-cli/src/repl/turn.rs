@@ -24,6 +24,7 @@ pub(super) fn ensemble_turn(
     acp_secret: &[u8],
 ) {
     match rt.block_on(crate::commands::ensemble_improv_turn(
+        &*state.service_context,
         session,
         input,
         Some(state.inference_port.clone()),

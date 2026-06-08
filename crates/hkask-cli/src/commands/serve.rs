@@ -32,12 +32,6 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// `ServiceContext` with all shared infrastructure, starts API MCP servers
 /// on the ServiceContext's runtime, and creates an `ApiState` from it.
 pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // Get CLI singleton for improv client
-    let improv_client = crate::commands::ensemble::get_improv_client(None);
-
-    // Extract the base InferencePortAdapter from the circuit-breaker-wrapped client
-    let base_adapter = Arc::new(improv_client.inner().clone());
-
     // Resolve configuration from keystore and environment
     let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
         tracing::warn!(
@@ -54,6 +48,10 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         .map_err(|e| {
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
         })?;
+
+    // Build improv client from ServiceContext's inference port
+    let improv_client = crate::commands::ensemble::build_improv_client(&ctx, None);
+    let base_adapter = Arc::new(improv_client.inner().clone());
 
     // Start API MCP servers on the ServiceContext's runtime
     let server_count = start_api_servers(&ctx.mcp_runtime).await;

@@ -129,6 +129,12 @@ pub struct ServiceContext {
     /// Ensemble session manager for chat and deliberation coordination.
     pub session_manager: Arc<RwLock<hkask_ensemble::session::SessionManager>>,
 
+    /// ACP runtime for capability token management and agent registration.
+    pub acp_runtime: Arc<hkask_agents::AcpRuntime>,
+
+    /// Agent registry store for persistent agent records.
+    pub agent_registry_store: hkask_storage::AgentRegistryStore,
+
     /// Configuration used to build this context.
     pub config: ServiceConfig,
 }
@@ -384,7 +390,7 @@ impl ServiceContext {
                 Arc::new(hkask_mcp::GitCasAdapter::from_path(
                     std::path::PathBuf::from(&config.template_cache_path),
                 )),
-                acp_runtime,
+                acp_runtime.clone(),
                 Arc::new(mcp_runtime_adapter),
                 Arc::clone(&episodic_storage) as Arc<dyn EpisodicStoragePort>,
                 Arc::clone(&semantic_storage) as Arc<dyn SemanticStoragePort>,
@@ -394,8 +400,41 @@ impl ServiceContext {
 
         // ── 9. Registry ─────────────────────────────────────────────────────
         let registry = Arc::new(tokio::sync::Mutex::new(
-            SqliteRegistry::new_with_conn(primary_conn).map_err(ServiceError::Template)?,
+            SqliteRegistry::new_with_conn(primary_conn.clone()).map_err(ServiceError::Template)?,
         ));
+
+        // Agent registry store — uses the primary DB for persistent agent records.
+        let agent_registry_store = hkask_storage::AgentRegistryStore::new(primary_conn.clone());
+        agent_registry_store
+            .initialize_schema()
+            .map_err(ServiceError::AgentRegistryStore)?;
+
+        // Restore ACP state from persistent storage
+        let registered_agents = agent_registry_store
+            .list()
+            .map_err(ServiceError::AgentRegistryStore)?;
+        if !registered_agents.is_empty() {
+            use std::str::FromStr;
+            let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
+                .iter()
+                .map(|ra| hkask_agents::acp::AcpAgent {
+                    webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
+                        hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
+                    }),
+                    agent_type: ra.definition.agent_kind,
+                    capabilities: ra.definition.capabilities.clone(),
+                    registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
+                        .map(|dt| dt.timestamp())
+                        .unwrap_or(0),
+                    active: true,
+                })
+                .collect();
+            let tokens = std::collections::HashMap::new();
+            acp_runtime
+                .restore_from_storage(agents, tokens)
+                .await
+                .map_err(|e| ServiceError::Acp(e))?;
+        };
 
         // ── 10. Session manager for ensemble coordination ────────────────────
         let session_manager = Arc::new(RwLock::new(SessionManager::new(system_webid)));
@@ -422,6 +461,8 @@ impl ServiceContext {
             sovereignty_boundary_store,
             spec_store,
             session_manager,
+            acp_runtime,
+            agent_registry_store,
             config,
         })
     }

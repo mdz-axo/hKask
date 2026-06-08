@@ -1783,6 +1783,7 @@ dependencies = [
 name = "hkask-services"
 version = "0.23.0"
 dependencies = [
+ "chrono",
  "hkask-agents",
  "hkask-cns",
  "hkask-ensemble",

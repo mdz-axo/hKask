@@ -1,19 +1,19 @@
 //! Ensemble command handlers — chat, deliberation, improv, and standing sessions
 //!
-//! Manages multi-agent ensemble sessions via singleton patterns for session
-//! manager and improv client. Also handles standing session bootstrap via
-//! hkask-ensemble registry manifests.
+//! Manages multi-agent ensemble sessions via `ServiceContext`. Session manager,
+//! cybernetics loop, and standing session store come from ServiceContext rather
+//! than global statics. The improv client is constructed per-call from
+//! ServiceContext's inference port + circuit breaker.
 
 use crate::block_on;
 use crate::cli::EnsembleAction;
-use hkask_cns::{CircuitBreaker, CyberneticsLoop, GasCost};
+use hkask_cns::{CircuitBreaker, GasCost};
 use hkask_ensemble::{
     ChatMessage, CircuitBreakerInferenceAdapter, GasGovernancePort, ImprovMode,
-    ImprovSessionConfig, InferencePortAdapter, SessionManager,
-    bootstrap_standing_session_with_store,
+    ImprovSessionConfig, InferencePortAdapter, bootstrap_standing_session_with_store,
 };
+use hkask_services::ServiceContext;
 use hkask_types::WebID;
-use hkask_types::event::NuEventSink;
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::{
     Arc,
@@ -21,18 +21,13 @@ use std::sync::{
 };
 use tokio::sync::RwLock;
 
-static SESSION_MANAGER: std::sync::OnceLock<Arc<RwLock<SessionManager>>> =
-    std::sync::OnceLock::new();
-static IMPROV_CLIENT: std::sync::OnceLock<Arc<CircuitBreakerInferenceAdapter>> =
-    std::sync::OnceLock::new();
-
 /// Adapter bridging `CyberneticsLoop` to the ensemble's `GasGovernancePort`.
 ///
 /// Provides synchronous access to the CyberneticsLoop's gas governance by
 /// using an atomic counter for `can_proceed` (approximate) and a fire-and-forget
 /// task spawn for `acquire` (actual budget consumption via async call).
 pub struct CyberneticsLoopGasAdapter {
-    loop_ref: Arc<RwLock<CyberneticsLoop>>,
+    loop_ref: Arc<RwLock<hkask_cns::CyberneticsLoop>>,
     agent: WebID,
     gas_used: AtomicU64,
     gas_cap: AtomicU64,
@@ -43,7 +38,7 @@ impl CyberneticsLoopGasAdapter {
     ///
     /// The `gas_cap` is initialized from the CyberneticsLoop's registered budget
     /// for the agent. If no budget is registered, defaults to u64::MAX (no limit).
-    pub fn new(loop_ref: Arc<RwLock<CyberneticsLoop>>, agent: WebID, cap: u64) -> Self {
+    pub fn new(loop_ref: Arc<RwLock<hkask_cns::CyberneticsLoop>>, agent: WebID, cap: u64) -> Self {
         Self {
             loop_ref,
             agent,
@@ -74,98 +69,32 @@ impl GasGovernancePort for CyberneticsLoopGasAdapter {
     }
 }
 
-static CYBERNETICS_LOOP: std::sync::OnceLock<Arc<RwLock<CyberneticsLoop>>> =
-    std::sync::OnceLock::new();
-
-fn get_cybernetics_loop() -> Arc<RwLock<CyberneticsLoop>> {
-    CYBERNETICS_LOOP
-        .get_or_init(|| {
-            let cns = Arc::new(RwLock::new(hkask_cns::CnsRuntime::default()));
-            let (dispatch_tx, _) = tokio::sync::mpsc::unbounded_channel();
-            let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-                hkask_storage::Database::in_memory()
-                    .expect("ensemble event db")
-                    .conn_arc(),
-            ));
-            Arc::new(RwLock::new(
-                CyberneticsLoop::new(cns, dispatch_tx).with_event_sink(event_sink),
-            ))
-        })
-        .clone()
-}
-
-/// Default gas cap for ensemble sessions (150k = same as GasBudgetConfig default)
-const ENSEMBLE_GAS_CAP: u64 = 150_000;
-
-pub fn get_session_manager() -> Arc<RwLock<SessionManager>> {
-    SESSION_MANAGER
-        .get_or_init(|| {
-            let webid = WebID::new();
-            let governance: Arc<dyn GasGovernancePort> = Arc::new(CyberneticsLoopGasAdapter::new(
-                get_cybernetics_loop(),
-                webid,
-                ENSEMBLE_GAS_CAP,
-            ));
-            let manager = SessionManager::new(webid).with_gas_governance(governance);
-            Arc::new(RwLock::new(manager))
-        })
-        .clone()
-}
-
-pub fn get_improv_client(
+/// Create an improv client from ServiceContext's inference port + circuit breaker.
+pub(crate) fn build_improv_client(
+    ctx: &ServiceContext,
     inference_port: Option<Arc<dyn InferencePort>>,
 ) -> Arc<CircuitBreakerInferenceAdapter> {
-    IMPROV_CLIENT
-        .get_or_init(|| {
-            let breaker: Arc<dyn CircuitBreakerPort> =
-                Arc::new(CircuitBreaker::default_for_inference("ensemble-inference"));
+    let breaker: Arc<dyn CircuitBreakerPort> =
+        Arc::new(CircuitBreaker::default_for_inference("ensemble-inference"));
 
-            match inference_port {
-                Some(port) => {
-                    let adapter = InferencePortAdapter::new(port);
-                    Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
-                }
-                None => {
-                    let ctx = hkask_services::InferenceContext::from_parts(
-                        None,
-                        "qwen3:8b",
-                        std::env::var("OKAPI_BASE_URL")
-                            .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string()),
-                    );
-                    let port = hkask_services::InferenceService::resolve_port(&ctx, "qwen3:8b")
-                        .expect("Failed to create Okapi inference");
-                    let adapter = InferencePortAdapter::new(port);
-                    Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
-                }
-            }
-        })
-        .clone()
+    match inference_port.or(ctx.inference_port.clone()) {
+        Some(port) => {
+            let adapter = InferencePortAdapter::new(port);
+            Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
+        }
+        None => {
+            let infer_ctx = hkask_services::InferenceContext::from(ctx);
+            let port = hkask_services::InferenceService::resolve_port(&infer_ctx, "qwen3:8b")
+                .expect("Failed to create Okapi inference");
+            let adapter = InferencePortAdapter::new(port);
+            Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
+        }
+    }
 }
 
-/// Open a StandingSessionStore from environment config, or in-memory as fallback.
-fn open_standing_session_store() -> Arc<hkask_storage::StandingSessionStore> {
-    let conn = match std::env::var("HKASK_DB_PATH")
-        .ok()
-        .zip(std::env::var("HKASK_DB_PASSPHRASE").ok())
-    {
-        Some((path, passphrase)) => hkask_storage::Database::open(&path, &passphrase)
-            .expect("Failed to open standing session database")
-            .conn_arc(),
-        None => hkask_storage::Database::in_memory()
-            .expect("in-memory standing session db")
-            .conn_arc(),
-    };
-    let store = hkask_storage::StandingSessionStore::new(conn);
-    store
-        .initialize_schema()
-        .expect("standing session schema init");
-    Arc::new(store)
-}
-
-/// Create chat session
-pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
-    hkask_services::EnsembleService::create_chat(&ctx, &session)
+pub async fn ensemble_chat_create(ctx: &ServiceContext, session: String) -> Result<String, String> {
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::create_chat(&ens_ctx, &session)
         .await
         .map_err(|e| e.to_string())?;
     Ok(format!("Chat session '{}' created", session))
@@ -173,13 +102,14 @@ pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
 
 /// Register bot in chat
 pub async fn ensemble_chat_register(
+    ctx: &ServiceContext,
     session: String,
     bot: String,
     role: String,
 ) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
     hkask_services::EnsembleService::register_participant(
-        &ctx,
+        &ens_ctx,
         &session,
         WebID::new(),
         &role,
@@ -195,9 +125,13 @@ pub async fn ensemble_chat_register(
 }
 
 /// Send message to chat
-pub async fn ensemble_chat_send(session: String, message: String) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
-    hkask_services::EnsembleService::send_message(&ctx, &session, WebID::new(), &message)
+pub async fn ensemble_chat_send(
+    ctx: &ServiceContext,
+    session: String,
+    message: String,
+) -> Result<String, String> {
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::send_message(&ens_ctx, &session, WebID::new(), &message)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -205,26 +139,27 @@ pub async fn ensemble_chat_send(session: String, message: String) -> Result<Stri
 }
 
 /// List chat sessions
-pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
-    hkask_services::EnsembleService::list_chat_sessions(&ctx)
+pub async fn ensemble_chat_list(ctx: &ServiceContext) -> Result<Vec<String>, String> {
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::list_chat_sessions(&ens_ctx)
         .await
         .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_improv_turn(
+    ctx: &ServiceContext,
     session_id: &str,
     user_message: &str,
     inference_port: Option<Arc<dyn InferencePort>>,
 ) -> Result<hkask_ensemble::ImprovTurn, String> {
-    let manager = get_session_manager();
+    let manager = ctx.session_manager.clone();
     let chat = {
         let manager_read = manager.read().await;
         manager_read.get_chat(session_id).await
     }
     .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
 
-    let client = get_improv_client(inference_port);
+    let client = build_improv_client(ctx, inference_port);
     let turn = {
         let chat_read = chat.read().await;
         chat_read
@@ -248,8 +183,11 @@ pub async fn ensemble_improv_turn(
     Ok(turn)
 }
 
-pub async fn ensemble_improv_config(session_id: &str) -> Result<ImprovSessionConfig, String> {
-    let manager = get_session_manager();
+pub async fn ensemble_improv_config(
+    ctx: &ServiceContext,
+    session_id: &str,
+) -> Result<ImprovSessionConfig, String> {
+    let manager = ctx.session_manager.clone();
     let chat = {
         let manager_read = manager.read().await;
         manager_read.get_chat(session_id).await
@@ -260,8 +198,12 @@ pub async fn ensemble_improv_config(session_id: &str) -> Result<ImprovSessionCon
     Ok(chat_read.improv_config().clone())
 }
 
-pub async fn ensemble_improv_set_threshold(session_id: &str, threshold: f64) -> Result<(), String> {
-    let manager = get_session_manager();
+pub async fn ensemble_improv_set_threshold(
+    ctx: &ServiceContext,
+    session_id: &str,
+    threshold: f64,
+) -> Result<(), String> {
+    let manager = ctx.session_manager.clone();
     let chat = {
         let manager_read = manager.read().await;
         manager_read.get_chat(session_id).await
@@ -273,8 +215,12 @@ pub async fn ensemble_improv_set_threshold(session_id: &str, threshold: f64) -> 
     Ok(())
 }
 
-pub async fn ensemble_improv_set_mode(session_id: &str, mode: ImprovMode) -> Result<(), String> {
-    let manager = get_session_manager();
+pub async fn ensemble_improv_set_mode(
+    ctx: &ServiceContext,
+    session_id: &str,
+    mode: ImprovMode,
+) -> Result<(), String> {
+    let manager = ctx.session_manager.clone();
     let chat = {
         let manager_read = manager.read().await;
         manager_read.get_chat(session_id).await
@@ -287,9 +233,10 @@ pub async fn ensemble_improv_set_mode(session_id: &str, mode: ImprovMode) -> Res
 }
 
 pub async fn ensemble_participants(
+    ctx: &ServiceContext,
     session_id: &str,
 ) -> Result<Vec<(String, String, String)>, String> {
-    let manager = get_session_manager();
+    let manager = ctx.session_manager.clone();
     let chat = {
         let manager_read = manager.read().await;
         manager_read.get_chat(session_id).await
@@ -312,31 +259,38 @@ pub async fn ensemble_participants(
     Ok(result)
 }
 
-pub async fn ensemble_deliberation_create(session: String) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
-    hkask_services::EnsembleService::create_deliberation(&ctx, &session)
+pub async fn ensemble_deliberation_create(
+    ctx: &ServiceContext,
+    session: String,
+) -> Result<String, String> {
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::create_deliberation(&ens_ctx, &session)
         .await
         .map_err(|e| e.to_string())?;
     Ok(format!("Deliberation session '{}' created", session))
 }
 
-pub async fn ensemble_deliberation_start(session: String) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
-    hkask_services::EnsembleService::start_deliberation(&ctx, &session)
+pub async fn ensemble_deliberation_start(
+    ctx: &ServiceContext,
+    session: String,
+) -> Result<String, String> {
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::start_deliberation(&ens_ctx, &session)
         .await
         .map_err(|e| e.to_string())?;
     Ok("Deliberation started".to_string())
 }
 
 pub async fn ensemble_deliberation_record(
+    ctx: &ServiceContext,
     session: String,
     _agent: String,
     content: String,
     confidence: f64,
 ) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
     hkask_services::EnsembleService::record_deliberation_response(
-        &ctx,
+        &ens_ctx,
         &session,
         WebID::new(),
         content,
@@ -348,18 +302,21 @@ pub async fn ensemble_deliberation_record(
     Ok("Response recorded".to_string())
 }
 
-pub async fn ensemble_deliberation_synthesize(session: String) -> Result<String, String> {
-    let ctx = hkask_services::EnsembleContext::from_parts(get_session_manager());
-    hkask_services::EnsembleService::synthesize_deliberation(&ctx, &session)
+pub async fn ensemble_deliberation_synthesize(
+    ctx: &ServiceContext,
+    session: String,
+) -> Result<String, String> {
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::synthesize_deliberation(&ens_ctx, &session)
         .await
         .map_err(|e| e.to_string())
 }
 
-pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
+pub async fn ensemble_deliberation_list(ctx: &ServiceContext) -> Result<Vec<String>, String> {
     // List deliberations is a thin delegation that doesn't normalize errors.
     // It stays as a direct SessionManager call because deleting this service
     // call wouldn't cause complexity to reappear in 8+ call sites.
-    let manager = get_session_manager();
+    let manager = ctx.session_manager.clone();
     let sessions = {
         let manager_read = manager.read().await;
         manager_read.list_deliberation_sessions().await
@@ -369,16 +326,18 @@ pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
 
 /// Bootstrap the standing ensemble session from a YAML manifest.
 pub fn ensemble_standing_start(
+    ctx: &ServiceContext,
     config_path: &std::path::Path,
 ) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
-    let store = open_standing_session_store();
+    let store = ctx.standing_session_store.clone();
     let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
 }
 
 /// Get the current standing session status.
-pub fn ensemble_standing_status()
--> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
+pub fn ensemble_standing_status(
+    ctx: &ServiceContext,
+) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
     let config_path = std::path::Path::new("registry/manifests/standing-ensemble-session.yaml");
     if !config_path.exists() {
         return Err(crate::errors::EnsembleError::SessionNotFound(
@@ -387,9 +346,23 @@ pub fn ensemble_standing_status()
         ));
     }
 
-    let store = open_standing_session_store();
+    let store = ctx.standing_session_store.clone();
     let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
+}
+
+/// Build a ServiceContext for standalone CLI ensemble commands.
+fn build_service_context() -> Result<hkask_services::ServiceContext, crate::errors::EnsembleError> {
+    let config = hkask_services::ServiceConfig::from_env().map_err(|e| {
+        crate::errors::EnsembleError::SessionNotFound(format!("Config error: {}", e))
+    })?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| {
+        crate::errors::EnsembleError::SessionNotFound(format!("Runtime error: {}", e))
+    })?;
+    rt.block_on(hkask_services::ServiceContext::build(config))
+        .map_err(|e| {
+            crate::errors::EnsembleError::SessionNotFound(format!("ServiceContext error: {}", e))
+        })
 }
 
 /// CLI handler for `kask ensemble` subcommand
@@ -398,58 +371,75 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
 
     match action {
         EnsembleAction::ChatCreate { session } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "{}",
                 block_on!(
                     rt,
-                    commands::ensemble_chat_create(session.clone()),
+                    commands::ensemble_chat_create(&ctx, session.clone()),
                     "Chat create failed"
                 )
             );
         }
         EnsembleAction::ChatRegister { session, bot, role } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "{}",
                 block_on!(
                     rt,
-                    commands::ensemble_chat_register(session.clone(), bot.clone(), role.clone(),),
+                    commands::ensemble_chat_register(
+                        &ctx,
+                        session.clone(),
+                        bot.clone(),
+                        role.clone(),
+                    ),
                     "Chat register failed"
                 )
             );
         }
         EnsembleAction::ChatSend { session, message } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "{}",
                 block_on!(
                     rt,
-                    commands::ensemble_chat_send(session.clone(), message.clone(),),
+                    commands::ensemble_chat_send(&ctx, session.clone(), message.clone(),),
                     "Chat send failed"
                 )
             );
         }
         EnsembleAction::ChatList => {
-            let sessions = block_on!(rt, commands::ensemble_chat_list(), "Chat list failed");
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
+            let sessions = block_on!(rt, commands::ensemble_chat_list(&ctx), "Chat list failed");
             println!("Active chat sessions:");
             for s in sessions {
                 println!("  - {}", s);
             }
         }
         EnsembleAction::DeliberationCreate { session } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "{}",
                 block_on!(
                     rt,
-                    commands::ensemble_deliberation_create(session.clone()),
+                    commands::ensemble_deliberation_create(&ctx, session.clone()),
                     "Deliberation create failed"
                 )
             );
         }
         EnsembleAction::DeliberationStart { session } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "{}",
                 block_on!(
                     rt,
-                    commands::ensemble_deliberation_start(session.clone()),
+                    commands::ensemble_deliberation_start(&ctx, session.clone()),
                     "Deliberation start failed"
                 )
             );
@@ -460,11 +450,14 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             content,
             confidence,
         } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "{}",
                 block_on!(
                     rt,
                     commands::ensemble_deliberation_record(
+                        &ctx,
                         session.clone(),
                         agent.clone(),
                         content.clone(),
@@ -475,19 +468,23 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             );
         }
         EnsembleAction::DeliberationSynthesize { session } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             println!(
                 "Synthesized response:\n{}",
                 block_on!(
                     rt,
-                    commands::ensemble_deliberation_synthesize(session.clone()),
+                    commands::ensemble_deliberation_synthesize(&ctx, session.clone()),
                     "Deliberation synthesize failed"
                 )
             );
         }
         EnsembleAction::DeliberationList => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             let sessions = block_on!(
                 rt,
-                commands::ensemble_deliberation_list(),
+                commands::ensemble_deliberation_list(&ctx),
                 "Deliberation list failed"
             );
             println!("Active deliberation sessions:");
@@ -496,8 +493,10 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             }
         }
         EnsembleAction::StandingStart { config } => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             let status = super::helpers::or_exit(
-                commands::ensemble_standing_start(&config),
+                commands::ensemble_standing_start(&ctx, &config),
                 "Standing session bootstrap failed",
             );
             println!("Standing session bootstrapped:");
@@ -506,8 +505,10 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             println!("  Initial messages: {}", status.message_count);
         }
         EnsembleAction::StandingStatus => {
+            let ctx =
+                super::helpers::or_exit(build_service_context(), "Failed to build service context");
             let status = super::helpers::or_exit(
-                commands::ensemble_standing_status(),
+                commands::ensemble_standing_status(&ctx),
                 "Standing status failed",
             );
             println!("Standing session status:");

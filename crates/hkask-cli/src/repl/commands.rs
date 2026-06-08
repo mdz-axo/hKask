@@ -234,10 +234,20 @@ pub(super) fn handle_slash_command(
         "dismiss" => handlers::handle_dismiss(arg1, rt),
         "metacognition" | "meta" => handlers::handle_metacognition(rt),
         "sovereignty" | "sov" => handlers::handle_sovereignty(),
-        "ensemble" | "ens" => handlers::handle_ensemble(arg1, arg2, &mut state.active_session, rt),
-        "into" | "i" => handlers::handle_into(arg1, &mut state.active_session, rt),
-        "filter" | "thresh" => handlers::handle_filter(arg1, &state.active_session, rt),
-        "mode" => handlers::handle_mode(arg1, &state.active_session, rt),
+        "ensemble" | "ens" => handlers::handle_ensemble(
+            arg1,
+            arg2,
+            &mut state.active_session,
+            &*state.service_context,
+            rt,
+        ),
+        "into" | "i" => {
+            handlers::handle_into(arg1, &mut state.active_session, &*state.service_context, rt)
+        }
+        "filter" | "thresh" => {
+            handlers::handle_filter(arg1, &state.active_session, &*state.service_context, rt)
+        }
+        "mode" => handlers::handle_mode(arg1, &state.active_session, &*state.service_context, rt),
         "ask" => handlers::handle_ask(arg1, arg2, rt, state),
         "invoke" | "inv" => handlers::handle_invoke(arg1, arg2, state, rt),
         "model" | "m" => handlers::handle_model(arg1, rt, state),

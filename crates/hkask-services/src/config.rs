@@ -86,6 +86,11 @@ pub struct ServiceConfig {
     /// Defaults to `db_passphrase` when not set.
     /// Ignored when `in_memory: true`.
     pub memory_passphrase: Option<String>,
+
+    /// Path to YAML agent definition directory.
+    ///
+    /// Defaults to `registry/bots` when not set.
+    pub registry_yaml_path: std::path::PathBuf,
 }
 
 impl ServiceConfig {
@@ -102,6 +107,9 @@ impl ServiceConfig {
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
+        let registry_yaml_path = std::path::PathBuf::from(
+            std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string()),
+        );
 
         // Resolve secrets from keystore. If keystore resolution fails,
         // fall back to empty secrets (in-memory mode will be used).
@@ -133,6 +141,7 @@ impl ServiceConfig {
             template_cache_path,
             memory_db_path,
             memory_passphrase: None,
+            registry_yaml_path,
         })
     }
 
@@ -153,6 +162,9 @@ impl ServiceConfig {
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
+        let registry_yaml_path = std::path::PathBuf::from(
+            std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string()),
+        );
 
         Self {
             db_path,
@@ -170,6 +182,7 @@ impl ServiceConfig {
             template_cache_path,
             memory_db_path,
             memory_passphrase: None,
+            registry_yaml_path,
         }
     }
 
@@ -193,6 +206,7 @@ impl ServiceConfig {
             template_cache_path: DEFAULT_TEMPLATE_CACHE_PATH.to_string(),
             memory_db_path: None,
             memory_passphrase: None,
+            registry_yaml_path: std::path::PathBuf::from("registry/bots"),
         }
     }
 

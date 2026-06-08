@@ -1,8 +1,11 @@
 //! REPL /into handler — enter/leave ensemble sessions
 
+use hkask_services::ServiceContext;
+
 pub(crate) fn handle_into(
     arg: &str,
     active_session: &mut Option<String>,
+    svc_ctx: &ServiceContext,
     rt: &tokio::runtime::Handle,
 ) {
     if arg.is_empty() {
@@ -23,7 +26,7 @@ pub(crate) fn handle_into(
     } else {
         let session = arg.trim().to_string();
         let exists = rt.block_on(async {
-            match crate::commands::ensemble_chat_list().await {
+            match crate::commands::ensemble_chat_list(svc_ctx).await {
                 Ok(sessions) => sessions.contains(&session),
                 Err(_) => false,
             }
@@ -31,8 +34,9 @@ pub(crate) fn handle_into(
 
         if exists {
             *active_session = Some(session.clone());
-            let config_result =
-                rt.block_on(async { crate::commands::ensemble_improv_config(&session).await });
+            let config_result = rt.block_on(async {
+                crate::commands::ensemble_improv_config(svc_ctx, &session).await
+            });
             match config_result {
                 Ok(config) => {
                     println!("  Entered ensemble session \x1b[33m{}\x1b[0m", session);

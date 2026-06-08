@@ -36,6 +36,7 @@ pub(crate) fn handle_ask(
             let manager_session = session.clone();
             rt.block_on(async {
                 let _ = crate::commands::ensemble_chat_send(
+                    &*state.service_context,
                     manager_session,
                     format!("[direct to {}] {}", arg1, arg2),
                 )

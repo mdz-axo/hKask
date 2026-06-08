@@ -1,8 +1,11 @@
 //! REPL /filter and /mode handlers — ensemble participation threshold and orchestration mode
 
+use hkask_services::ServiceContext;
+
 pub(crate) fn handle_filter(
     arg: &str,
     active_session: &Option<String>,
+    svc_ctx: &ServiceContext,
     rt: &tokio::runtime::Handle,
 ) {
     let session_id = match active_session {
@@ -16,8 +19,9 @@ pub(crate) fn handle_filter(
         }
     };
     if arg.is_empty() {
-        let config =
-            rt.block_on(async { crate::commands::ensemble_improv_config(&session_id).await });
+        let config = rt.block_on(async {
+            crate::commands::ensemble_improv_config(svc_ctx, &session_id).await
+        });
         match config {
             Ok(cfg) => {
                 println!(
@@ -32,8 +36,12 @@ pub(crate) fn handle_filter(
         match arg.parse::<f64>() {
             Ok(threshold) => {
                 rt.block_on(async {
-                    match crate::commands::ensemble_improv_set_threshold(&session_id, threshold)
-                        .await
+                    match crate::commands::ensemble_improv_set_threshold(
+                        svc_ctx,
+                        &session_id,
+                        threshold,
+                    )
+                    .await
                     {
                         Ok(()) => {
                             let clamped = threshold.clamp(0.0, 1.0);
@@ -62,7 +70,12 @@ pub(crate) fn handle_filter(
     println!();
 }
 
-pub(crate) fn handle_mode(arg: &str, active_session: &Option<String>, rt: &tokio::runtime::Handle) {
+pub(crate) fn handle_mode(
+    arg: &str,
+    active_session: &Option<String>,
+    svc_ctx: &ServiceContext,
+    rt: &tokio::runtime::Handle,
+) {
     let session_id = match active_session {
         Some(s) => s.clone(),
         None => {
@@ -74,8 +87,9 @@ pub(crate) fn handle_mode(arg: &str, active_session: &Option<String>, rt: &tokio
         }
     };
     if arg.is_empty() {
-        let config =
-            rt.block_on(async { crate::commands::ensemble_improv_config(&session_id).await });
+        let config = rt.block_on(async {
+            crate::commands::ensemble_improv_config(svc_ctx, &session_id).await
+        });
         match config {
             Ok(cfg) => {
                 println!("  Ensemble mode: \x1b[1m{}\x1b[0m", cfg.mode.as_str());
@@ -87,7 +101,12 @@ pub(crate) fn handle_mode(arg: &str, active_session: &Option<String>, rt: &tokio
         match hkask_ensemble::ImprovMode::parse_mode(arg.trim()) {
             Some(mode) => {
                 rt.block_on(async {
-                    match crate::commands::ensemble_improv_set_mode(&session_id, mode.clone()).await
+                    match crate::commands::ensemble_improv_set_mode(
+                        svc_ctx,
+                        &session_id,
+                        mode.clone(),
+                    )
+                    .await
                     {
                         Ok(()) => {
                             println!("  Ensemble mode set to \x1b[1m{}\x1b[0m", mode.as_str());

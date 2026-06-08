@@ -58,8 +58,9 @@ pub(crate) fn handle_status(
     println!("  Turns:      {}", state.session_history.turns.len());
     match &state.active_session {
         Some(session) => {
-            let config =
-                rt.block_on(async { crate::commands::ensemble_improv_config(session).await });
+            let config = rt.block_on(async {
+                crate::commands::ensemble_improv_config(&*state.service_context, session).await
+            });
             match config {
                 Ok(cfg) => {
                     println!(

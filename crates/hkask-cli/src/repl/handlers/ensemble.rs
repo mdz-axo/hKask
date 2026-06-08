@@ -1,15 +1,18 @@
 //! REPL /ensemble handler — multi-agent session management
 
+use hkask_services::ServiceContext;
+
 pub(crate) fn handle_ensemble(
     subcmd: &str,
     rest: &str,
     active_session: &mut Option<String>,
+    svc_ctx: &ServiceContext,
     rt: &tokio::runtime::Handle,
 ) {
     match subcmd {
         "sessions" | "list" | "" => {
             rt.block_on(async {
-                match crate::commands::ensemble_chat_list().await {
+                match crate::commands::ensemble_chat_list(svc_ctx).await {
                     Ok(sessions) => {
                         if sessions.is_empty() {
                             println!("  No active ensemble sessions.");
@@ -35,7 +38,8 @@ pub(crate) fn handle_ensemble(
             } else {
                 let session = rest.split_whitespace().next().unwrap_or(rest);
                 rt.block_on(async {
-                    match crate::commands::ensemble_chat_create(session.to_string()).await {
+                    match crate::commands::ensemble_chat_create(svc_ctx, session.to_string()).await
+                    {
                         Ok(msg) => println!("  \x1b[32m✓\x1b[0m {}", msg),
                         Err(e) => println!("  Error: {}", e),
                     }
@@ -50,6 +54,7 @@ pub(crate) fn handle_ensemble(
             } else {
                 rt.block_on(async {
                     match crate::commands::ensemble_chat_register(
+                        svc_ctx,
                         parts[0].to_string(),
                         parts[1].to_string(),
                         parts[2].to_string(),
@@ -78,6 +83,7 @@ pub(crate) fn handle_ensemble(
                         .unwrap_or_else(|| "custom".to_string());
                     rt.block_on(async {
                         match crate::commands::ensemble_chat_register(
+                            svc_ctx,
                             session.clone(),
                             bot.to_string(),
                             role,
@@ -99,7 +105,7 @@ pub(crate) fn handle_ensemble(
         "participants" | "who" => match &active_session {
             Some(session) => {
                 rt.block_on(async {
-                    match crate::commands::ensemble_participants(session).await {
+                    match crate::commands::ensemble_participants(svc_ctx, session).await {
                         Ok(participants) => {
                             if participants.is_empty() {
                                 println!("  No participants in session.");
@@ -130,6 +136,7 @@ pub(crate) fn handle_ensemble(
             } else {
                 rt.block_on(async {
                     match crate::commands::ensemble_chat_send(
+                        svc_ctx,
                         parts[0].to_string(),
                         parts[1].to_string(),
                     )
