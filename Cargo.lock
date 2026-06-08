@@ -1778,6 +1778,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-services"
+version = "0.23.0"
+dependencies = [
+ "hkask-agents",
+ "hkask-cns",
+ "hkask-ensemble",
+ "hkask-keystore",
+ "hkask-mcp",
+ "hkask-memory",
+ "hkask-storage",
+ "hkask-templates",
+ "hkask-types",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-storage"
 version = "0.23.0"
 dependencies = [

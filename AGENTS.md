@@ -28,6 +28,7 @@
 | `hkask-ensemble` | Multi-agent chat |
 | `hkask-keystore` | OS keychain, AES-256-GCM, master key derivation (HKDF-SHA256) |
 | `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
+| `hkask-services` | Shared service layer (CLI/API business logic deduplication) |
 | `hkask-cli` | CLI commands |
 | `hkask-mcp-doc-knowledge` | Document parsing and chunking MCP server (HTML/text extraction, multi-tier chunking) |
 | `hkask-mcp-markitdown` | Document format conversion and OCR MCP server (PDF/MD/HTML/TXT + vision OCR fallback) |
