@@ -8,6 +8,16 @@ description: Zoom out to give broader context or a higher-level perspective on u
 
 Go up a layer of abstraction. Provide a map of all relevant modules and callers, using the project's domain glossary vocabulary.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/zoom-out/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `zoom-out-context.j2` | KnowAct | Generate module map, caller graph, data flow summary, and key invariants |
+
+The SKILL.md (this file) teaches the Zed coding agent the context-expansion methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## What to Produce
 
 1. **Module map** — List the relevant modules and what each one owns, using domain terms from the project's glossary or architecture docs.

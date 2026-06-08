@@ -5,13 +5,18 @@
 //! Evaluation decisions (merge/revise/defer/discard) are driven by
 //! specification completeness alone — not by whether the code implements the spec.
 //!
-//! 10 tools following DDMVSS §6.3:
+//! The curation process includes the Writing Excellence 4-perspective test
+//! (Hopper/Lovelace/Schriver/Gentle) per WRITING_EXCELLENCE.md §3.
+//! Publication standard: 3 of 4 dimensions passing. 1 of 4 blocks publication.
+//!
+//! 11 tools following DDMVSS §6.3:
 //! - spec/goal/capture — Elicit user intent as binding requirement
 //! - spec/goal/decompose — Break goal into ordered sub-goals
 //! - spec/require/bind — Attach OCAP boundaries to a goal
 //! - spec/curate/evaluate — Assess specification artifact against collection coherence
 //! - spec/curate/reconcile — Resolve spec-domain tensions
 //! - spec/curate/cultivate — Grow specification collection toward coherence
+//! - spec/curate/writing-excellence — Assess document against Writing Excellence 4-perspective test
 //! - spec/graph/query — Query specification graph
 //! - spec/graph/validate — Validate spec-document coherence
 //! - spec/test/invariant — Create test traceability record linking test to spec requirement
@@ -43,7 +48,7 @@ use types::{
     GraphQueryRequest, GraphQueryResponse, GraphValidateRequest, GraphValidateResponse,
     RequireBindRequest, RequireBindResponse, TensionReport, TestClassification,
     TestInvariantRequest, TestInvariantResponse, TestTraceability, TestVerifyRequest,
-    TestVerifyResponse,
+    TestVerifyResponse, WritingExcellenceRequest, WritingExcellenceResponse,
 };
 
 // ── Server ───────────────────────────────────────────────────
@@ -355,7 +360,7 @@ impl SpecServer {
     }
 
     #[tool(
-        description = "Assess specification artifact against collection coherence. Evaluates spec-document completeness (internal consistency, cross-reference integrity, section coverage), not code-implementation status."
+        description = "Assess specification artifact against collection coherence. Evaluates spec-document completeness (internal consistency, cross-reference integrity, section coverage), not code-implementation status. When writing_excellence scores are provided, includes 4-perspective test results (Hopper/Lovelace/Schriver/Gentle) and accounts for publication standard (3 of 4 passing)."
     )]
     async fn spec_curate_evaluate(
         &self,
@@ -364,6 +369,7 @@ impl SpecServer {
             rationale_hint,
             capability_token,
             completeness_domain,
+            writing_excellence,
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_evaluate", &self.webid);
@@ -391,7 +397,19 @@ impl SpecServer {
         };
 
         let complete = spec.is_complete();
-        let decision = if complete {
+
+        // When Writing Excellence scores are provided, a document that fails
+        // the publication standard (1 of 4) is discarded regardless of
+        // spec completeness. Per WRITING_EXCELLENCE.md §3: passing only 1
+        // blocks publication.
+        let we_blocks = writing_excellence
+            .as_ref()
+            .map(|we| we.passes() <= 1)
+            .unwrap_or(false);
+
+        let decision = if we_blocks {
+            CurationDecision::Discard
+        } else if complete {
             CurationDecision::Merge
         } else if spec.goals.is_empty() {
             CurationDecision::Discard
@@ -404,7 +422,9 @@ impl SpecServer {
         let domain = completeness_domain.unwrap_or_default();
 
         let rationale = rationale_hint.unwrap_or_else(|| {
-            if complete {
+            if we_blocks {
+                "Writing Excellence: 1 or fewer dimensions pass — publication blocked".to_string()
+            } else if complete {
                 "All criteria satisfied".to_string()
             } else {
                 "Unsatisfied criteria remain".to_string()
@@ -434,6 +454,7 @@ impl SpecServer {
                 coherence_score: coherence,
                 specification_completeness: complete,
                 implementation_status,
+                writing_excellence,
             })
             .unwrap_or_default(),
         )
@@ -605,6 +626,54 @@ impl SpecServer {
                 spec_count: all_specs.len(),
                 categories_covered,
                 categories_missing,
+            })
+            .unwrap_or_default(),
+        )
+    }
+
+    #[tool(
+        description = "Assess a specification document against the Writing Excellence 4-perspective test (Hopper: accessibility, Lovelace: precision, Schriver: findability, Gentle: agent-correctness). Per WRITING_EXCELLENCE.md §3: 3 of 4 passing is the publication standard; 1 of 4 blocks publication."
+    )]
+    async fn spec_curate_writing_excellence(
+        &self,
+        Parameters(WritingExcellenceRequest {
+            spec_id,
+            scores,
+            notes: _,
+            capability_token,
+        }): Parameters<WritingExcellenceRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("spec_curate_writing_excellence", &self.webid);
+
+        validate_field!(span, "spec_id", &spec_id, 256);
+
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            &spec_id,
+            DelegationAction::Read,
+        ) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
+        if self.store.load(spec_id_parsed).is_err() {
+            return span.error(
+                McpErrorKind::NotFound,
+                McpToolError::not_found(format!("Spec not found: {}", spec_id)).to_json_string(),
+            );
+        }
+
+        let dimensions_passing = scores.passes();
+        let meets_standard = scores.meets_publication_standard();
+        let blocks = dimensions_passing <= 1;
+
+        span.ok_json(
+            serde_json::to_value(WritingExcellenceResponse {
+                spec_id,
+                dimensions_passing,
+                meets_publication_standard: meets_standard,
+                blocks_publication: blocks,
+                scores,
             })
             .unwrap_or_default(),
         )
@@ -1071,6 +1140,7 @@ mod tests {
                 criteria: None,
                 capability_token: None,
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1091,6 +1161,7 @@ mod tests {
                 criteria: None,
                 capability_token: Some("invalid-base64-token".to_string()),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1116,6 +1187,7 @@ mod tests {
                 criteria: Some(vec!["works".to_string()]),
                 capability_token: Some(token),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1141,6 +1213,7 @@ mod tests {
                 criteria: Some(vec!["criteria 1".to_string(), "criteria 2".to_string()]),
                 capability_token: Some(token),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(result.contains("captured"));
@@ -1208,6 +1281,7 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1248,6 +1322,7 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1287,6 +1362,7 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1331,6 +1407,7 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1378,6 +1455,7 @@ mod tests {
                 rationale_hint: None,
                 capability_token: Some(read_token),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1400,6 +1478,7 @@ mod tests {
                 rationale_hint: None,
                 capability_token: Some(read_token),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1426,6 +1505,7 @@ mod tests {
                 rationale_hint: Some("partial goals".to_string()),
                 capability_token: Some(read_token),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1933,6 +2013,7 @@ mod tests {
                 rationale_hint: None,
                 capability_token: Some(read_token),
                 completeness_domain: None,
+                writing_excellence: None,
             }))
             .await;
 

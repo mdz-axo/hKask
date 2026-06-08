@@ -2,7 +2,7 @@
 title: "hKask Curator Replicant — Canonical Human-Facing Agent"
 audience: [persona designers, curators, agents]
 last_updated: 2026-06-07
-version: "1.0.0"
+version: "1.1.0"
 status: "Active"
 domain: "Business"
 ddmvss_categories: [domain]

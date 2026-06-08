@@ -5,7 +5,7 @@ last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, composition]
+ddmvss_categories: [domain]
 ---
 
 # hLexicon Alignment Validation Report

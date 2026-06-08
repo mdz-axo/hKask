@@ -2,7 +2,7 @@
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "2.2.3"
+version: "2.2.4"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability]
@@ -92,14 +92,14 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 
 | Entity | Crate | Location | Description |
 |--------|-------|----------|-------------|
-| **AgentPod** | `hkask-agents` | `pod/mod.rs:82` | Agent lifecycle container |
-| **WebID** | `hkask-types` | `id.rs:164` | Deterministic identity (UUID v5) |
-| **DelegationToken** | `hkask-types` | `capability/mod.rs:283` | OCAP delegation token with caveats, HMAC-SHA256 signing |
-| **NuEvent** | `hkask-types` | `event.rs:16` | Cybernetic event primitive (observer → span → phase) |
-| **Goal** | `hkask-types` | `goal.rs:129` | DDMVSS goal specification |
-| **Spec** | `hkask-storage` | `spec_types.rs:199` | Minimum viable specification |
-| **AgentDefinition** | `hkask-types` | `agent_def.rs:127` | Declarative agent configuration |
-| **TemplateInvocation** | `hkask-types` | `template.rs:95` | Template rendering record |
+| **AgentPod** | `hkask-agents` | `pod/mod.rs:88` | Agent lifecycle container |
+| **WebID** | `hkask-types` | `id.rs:154` | Deterministic identity (UUID v5) |
+| **DelegationToken** | `hkask-types` | `capability/mod.rs:308` | OCAP delegation token with caveats, HMAC-SHA256 signing |
+| **NuEvent** | `hkask-types` | `event.rs:16` | Cybernetic event primitive (observer \u2192 span \u2192 phase) |
+| **Goal** | `hkask-types` | `goal.rs:159` | DDMVSS goal specification |
+| **Spec** | `hkask-storage` | `spec_types.rs:250` | Minimum viable specification |
+| **AgentDefinition** | `hkask-types` | `agent_def.rs:137` | Declarative agent configuration |
+| **TemplateInvocation** | `hkask-types` | not yet in code | Template rendering record |
 
 ### 3.2 Agent Taxonomy
 
@@ -145,7 +145,7 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `id` | `EventID` | Unique event identifier |
 | `timestamp` | `DateTime<Utc>` | Timestamp of event |
 | `observer_webid` | `WebID` | Emitting agent identity |
-| `span` | `SpanCategory` enum | Typed namespace (16 canonical + 5 hierarchical) |
+| `span` | `SpanNamespace` enum | Typed namespace (15 canonical + 5 hierarchical) |
 | `phase` | `Phase` enum | Sense / Compute / Compare / Act |
 | `observation` | `Value` | Observed state |
 | `regulation` | `Option<Value>` | Regulatory action taken |
@@ -154,7 +154,7 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `parent_event` | `Option<EventID>` | Parent event for chaining |
 | `visibility` | `String` | Data visibility classification ("private" by default) |
 
-**Span namespaces** — the 21 canonical `cns.*` namespaces are defined in [`PRINCIPLES.md` §1.4](PRINCIPLES.md#14-cybernetic-nervous-system-cns) (authoritative source) and in `hkask-types::event::CANONICAL_NAMESPACES`. The table below shows only the spans most relevant to ν-event construction; see the authoritative registry for the full list.
+**Span namespaces** — the 20 canonical `cns.*` namespaces (15 canonical + 5 hierarchical) are defined in [`PRINCIPLES.md` §1.4](PRINCIPLES.md#14-cybernetic-nervous-system-cns) (authoritative source) and in `hkask-types::event::CANONICAL_NAMESPACES` (code has 15 canonical; 5 hierarchical spans not yet in code). The table below shows only the spans most relevant to \u03bd-event construction; see the authoritative registry for the full list.
 
 | Variant | Namespace | Covers |
 |---------|-----------|--------|
@@ -179,7 +179,7 @@ The `NuEvent` struct is the fundamental observability primitive:
 
 ### 4.1 State Machine
 
-The pod lifecycle is a linear progression (`crates/hkask-agents/src/pod/types.rs:15`):
+The pod lifecycle is a linear progression (`crates/hkask-agents/src/pod/types.rs:13`):
 
 ```mermaid
 stateDiagram-v2
@@ -201,7 +201,7 @@ status: VERIFIED
 
 ### 4.2 Pod Composition
 
-`AgentPod` (`crates/hkask-agents/src/pod/mod.rs:82`):
+`AgentPod` (`crates/hkask-agents/src/pod/mod.rs:88`):
 
 | Component | Type | Purpose |
 |-----------|------|---------|
@@ -211,7 +211,7 @@ status: VERIFIED
 | State | `PodLifecycleState` | Populated → Registered → Activated → Deactivated |
 | Sovereignty | `SovereigntyChecker` | User data boundary enforcement |
 
-**Implementation:** `crates/hkask-agents/src/pod/mod.rs:82` (`AgentPod`), `pod/manager.rs` (`PodManager`), `pod/types.rs:15` (`PodLifecycleState`)
+**Implementation:** `crates/hkask-agents/src/pod/mod.rs:88` (`AgentPod`), `pod/manager.rs` (`PodManager`), `pod/types.rs:13` (`PodLifecycleState`)
 
 ### 4.3 Lifecycle Methods
 
@@ -229,13 +229,13 @@ status: VERIFIED
 
 ### 5.1 Single Capability Primitive
 
-All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:283`):[^miller-ocap]
+All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:308`):[^miller-ocap]
 
 | Property | Implementation |
 |----------|---------------|
 | **Signing** | HMAC-SHA256 with `subtle::ConstantTimeEq` |
 | **Scoping** | Resource + action pairs (`DelegationResource`, `DelegationAction`) |
-| **Caveats** | Expiration, operation, template, visibility (`Caveat` at `capability/mod.rs:240`) |
+| **Caveats** | Expiration, operation, template, visibility (`Caveat` \u2014 not yet in code, see TODO.md P2-06) |
 | **Attenuation** | Chains with max depth (default: 7, compile-time const `SYSTEM_MAX_ATTENUATION`) |
 | **Revocation** | Persistent set via `ocap:revoke` MCP tool (`mcp-servers/hkask-mcp-ocap/src/main.rs`) |
 | **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
@@ -244,11 +244,11 @@ All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mo
 
 | Type | Location | Purpose |
 |------|----------|---------|
-| `DelegationToken` | `capability/mod.rs:283` | Core OCAP delegation token with self-verification |
-| `DelegationTokenBuilder` | `capability/mod.rs:326` | Builder with caveats, attenuation, context nonce |
-| `DelegationResource` | `capability/mod.rs:175` | Resource enum (Tool, Template, Registry) |
-| `DelegationAction` | `capability/mod.rs:203` | Action enum (Read, Write, Execute) |
-| `Caveat` | `capability/mod.rs:240` | Expiration, operation, template, visibility restrictions |
+| `DelegationToken` | `capability/mod.rs:308` | Core OCAP delegation token with self-verification |
+| `DelegationTokenBuilder` | `capability/mod.rs:336` | Builder with caveats, attenuation, context nonce |
+| `DelegationResource` | `capability/mod.rs:170` | Resource enum (Tool, Template, Registry) |
+| `DelegationAction` | `capability/mod.rs:196` | Action enum (Read, Write, Execute) |
+| `Caveat` | not yet in code | Expiration, operation, template, visibility restrictions |
 | `OcapServer` (revocation set) | `mcp-servers/hkask-mcp-ocap/src/main.rs` | Persistent capability revocation |
 
 [^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
@@ -369,7 +369,7 @@ Legend: **✓** implemented · **~** partially · **✗** missing · **n/a** not
 
 ### 6.1 Server Inventory
 
-21 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `GovernedTool` (`crates/hkask-cns/src/governed_tool.rs:74`):
+21 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `GovernedTool` (`crates/hkask-cns/src/governed_tool.rs:80`):
 
 | MCP Server | Crate | LOC | Status | Loop | Domain |
 |-----------|-------|-----|--------|------|--------|

@@ -8,6 +8,19 @@ description: "Continuation prompt for session handoffs. Captures what was done, 
 
 Produce a structured handoff document that lets a fresh agent pick up exactly where the current session left off — no more, no less.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/handoff/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `handoff-compact.j2` | KnowAct | Compress session context into a structured summary |
+| `handoff-artifacts.j2` | KnowAct | Identify and catalog artifacts by path or URL reference |
+| `handoff-skills-suggest.j2` | KnowAct | Suggest relevant skills for the next agent session |
+| `handoff-compose.j2` | WordAct | Assemble final handoff document with redaction |
+
+The SKILL.md (this file) teaches the Zed coding agent the handoff methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## When to Use
 
 - Ending a session with unfinished work

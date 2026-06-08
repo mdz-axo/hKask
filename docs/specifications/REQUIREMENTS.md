@@ -2,7 +2,7 @@
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "1.2.0"
+version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -72,9 +72,9 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] 87 term-slots allocated across WordAct (28) / FlowDef (34) / KnowAct (25); 86 unique term strings (`transform` shared across two domains)
   - [x] Spec-curation terms (`specify`, `require`, `constrain`, `curate`, `elicit`, `reconcile`, `contextualise`, `cultivate`) defined
-  - [x] Terms referenced in template `lexicon_terms` field and enforced at registration by `ContractValidator`
-- **Implementation:** `hkask-types::lexicon` (`HLexicon`), `hkask-templates::hlexicon_source::load_workspace_lexicon`, `hkask-templates::contract_validator::ContractValidator`
-- **Tests:** `hkask-templates::hlexicon_source::tests::workspace_yaml_loads`
+  - [x] Terms referenced in template `lexicon_terms` field and enforced at registration by `ContractValidator` (not yet in code; see TODO.md P2-06)
+- **Implementation:** `hkask-types::lexicon` (`HLexicon`), `hkask-templates::lexicon::load_hlexicon_from_yaml`
+- **Tests:** `hkask-templates::lexicon` module tests
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -85,12 +85,12 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] `docs/architecture/reference/hKask-hLexicon.md` is the canonical source; its term tables define the vocabulary
   - [x] `registry/registries/hlexicon-workspace.yaml` is a committed, derived artifact with its own data lifecycle (customizable/extensible, unlike compiled Rust)
-  - [x] Derivation lives in Rust only — no new language toolchain: `hkask-templates::hlexicon_source` parses the markdown and renders the YAML
-  - [x] Regeneration is explicit and opt-in (`#[ignore]`d `regenerate_workspace_yaml` test); the YAML is never auto-overwritten
-  - [x] `load_workspace_lexicon()` loads the 86-term vocabulary from the committed YAML for validation
-  - [x] Consistency check `hlexicon_yaml_matches_markdown` rides `cargo test --workspace` and fails on drift, prompting the maintainer to regenerate or restore the markdown from git
-- **Implementation:** `hkask-templates::hlexicon_source` (`parse_markdown_catalog`, `render_workspace_yaml`, `load_workspace_lexicon`, `regenerate_workspace_yaml`), `registry/registries/hlexicon-workspace.yaml`
-- **Tests:** `hkask-templates::hlexicon_source::tests::{markdown_parses_to_expected_counts, hlexicon_yaml_matches_markdown, workspace_yaml_loads}` (consistency rides `cargo test --workspace`); `hkask-types::lexicon::tests::bootstrap_domains_match_catalog`
+  - [x] Derivation lives in Rust only \u2014 no new language toolchain: `hkask-templates::lexicon` parses the YAML for validation (markdown\u2192YAML derivation not yet in code; see TODO.md P2-06)
+  - [x] Regeneration is explicit and opt-in; the YAML is never auto-overwritten
+  - [x] `load_hlexicon_from_yaml()` loads the 86-term vocabulary from the committed YAML for validation
+  - [x] Consistency check pending broader test expansion (P0-02)
+- **Implementation:** `hkask-templates::lexicon` (`load_hlexicon_from_yaml`, `load_hlexicon_from_file`, `load_hlexicon_default`), `registry/registries/hlexicon-workspace.yaml`
+- **Tests:** `hkask-templates::lexicon` module tests; `hkask-types::lexicon::tests::bootstrap_domains_match_catalog`
 - **Status:** Implemented
 - **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge; markdown/YAML/Rust have distinct, intentional lifecycles
 
@@ -107,7 +107,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Resource + action scoping
   - [x] Caveats for additional restrictions
   - [x] Constant-time comparison via `subtle`
-- **Implementation:** `hkask-types::visibility::Capability`, `hkask-types::visibility::AccessEvaluator`
+- **Implementation:** `hkask-types::capability::DelegationToken`, `hkask-types::visibility::AccessControl` (note: `Capability` type alias and `AccessEvaluator` not yet in code; see TODO.md P2-06)
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
@@ -121,7 +121,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `Delegation` type with grantor/grantee/scope
   - [x] `DelegationStore` for persistent tracking
   - [x] `RevocationList` for revoked capabilities
-- **Implementation:** `hkask-types::visibility::Delegation`, `hkask-types::visibility::DelegationStore`, `hkask-types::visibility::RevocationList`
+- **Implementation:** `hkask-types::capability::DelegationToken` (attenuation via `attenuation_level` field; note: `Delegation`, `DelegationStore`, `RevocationList` types not yet in code; see TODO.md P2-06)
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
@@ -133,9 +133,9 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   21 MCP servers registered in workspace
   - [x] `McpRuntime` manages server lifecycle
-  - [x] `SecurityGateway` enforces OCAP before dispatch
-  - [x] Three transport options (in-process, stdio, HTTP)
-- **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-mcp::security::SecurityGateway`, `hkask-mcp::transport::*`
+  - [x] `GovernedTool` enforces OCAP before dispatch (`SecurityGateway` described in spec; see TODO.md P2-06)
+  - [x] Stdio transport via rmcp (in-process and HTTP transports deferred)
+- **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-cns::governed_tool::GovernedTool`
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge — implemented
@@ -264,8 +264,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Observability
 - **Text:** When a capability is invoked, I want a CNS span emitted, so I can monitor system behavior.
 - **Criteria:**
-  - [x] 10 span namespaces (Prompt, Tool, AgentPod, Connector, Pipeline, Energy, Review, Sovereignty, Goal, Spec)
-  - [x] `NuEvent` with phase (Observe/Regulate/Outcome)
+  - [x] 20 span namespaces (15 canonical + 5 hierarchical; see PRINCIPLES.md \u00a71.4)
+  - [x] `NuEvent` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
   - [x] `NuEventSink` trait for emission
 - **Implementation:** `hkask-types::event::Span`, `hkask-cns::runtime::CnsRuntime`
 - **Status:** Implemented
@@ -353,7 +353,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `SpecStore`, `SpecCurator`, `SpecObserver` traits
   - [x] `SqliteSpecStore` implementation
   - [x] `DefaultSpecCurator` implementation
-- **Implementation:** `hkask-mcp-spec` (819 LOC), `hkask-storage::spec_types` (trait), `hkask-agents::curator::spec_curator` (impl)
+- **Implementation:** `hkask-mcp-spec` (819 LOC), `hkask-storage::spec_types` (trait), `hkask-agents::curator_agent::spec_curator` (impl)
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -365,7 +365,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `CurationDecision` enum: Merge, Revise, Defer, Discard
   - [x] Rationale required for every decision
   - [x] `SpecCurationRecord` with coherence score
-- **Implementation:** `hkask-types::spec::SpecCurationRecord`, `hkask-types::curation` (CurationDecision)
+- **Implementation:** `hkask-storage::spec_types::SpecCurationRecord`, `hkask-types::curation` (CurationDecision)
 - **Status:** Implemented
 - **Curation:** Merge
 

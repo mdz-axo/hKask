@@ -10,6 +10,19 @@ A discipline for hard bugs. Skip phases only when explicitly justified.
 
 **Spec-anchored**: every diagnosis traces back to a functional requirement. If no requirement covers the symptom, that's a spec gap — call it out explicitly.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/diagnose/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `diagnose-loop.j2` | KnowAct | Build a feedback loop for the bug: evaluate repro strategies, select fastest deterministic signal |
+| `diagnose-hypothesise.j2` | KnowAct | Generate 3-5 ranked falsifiable hypotheses for the root cause |
+| `diagnose-instrument.j2` | KnowAct | Instrument code with targeted probes mapped to specific hypotheses |
+| `diagnose-fix.j2` | KnowAct | Apply fix with regression test, verify repro no longer reproduces |
+
+The SKILL.md (this file) teaches the Zed coding agent the diagnosis methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## Phase 0 — Spec Anchor
 
 Before building a feedback loop, anchor the diagnosis to functional requirements:

@@ -1505,10 +1505,10 @@ This section codifies testing practices as normative DDMVSS requirements. Full d
 | `constraint-forces` | Classify constraints by enforcement level (Prohibition→Hypothesis) | `.agents/skills/constraint-forces/SKILL.md` |
 | `pragmatic-cybernetics` | CNS feedback loop analysis, VSM mapping, variety engineering | `.agents/skills/pragmatic-cybernetics/SKILL.md` |
 | `pragmatic-semantics` | Epistemic discipline: IS/OUGHT, constraint forces, provenance | `.agents/skills/pragmatic-semantics/SKILL.md` |
-| `skill-translator` | Translate skills between format systems | `.agents/skills/skill-translator/SKILL.md` |
-| `skill-discovery` | Find, evaluate, and install skills from external sources | `.agents/skills/skill-discovery/SKILL.md` |
-| `skill-maintenance` | Audit skill corpus for staleness, coverage gaps, quality | `.agents/skills/skill-maintenance/SKILL.md` |
-| `skill-manager` | CRUD meta-skill for skill corpus management | `.agents/skills/skill-manager/SKILL.md` |
+| `skill-translator` | Translate agent skills into hKask's dual-layer architecture (registry crate + SKILL.md companion) | `.agents/skills/skill-translator/SKILL.md` |
+| `skill-discovery` | Find, evaluate, and install dual-layer skills (SKILL.md + registry templates) | `.agents/skills/skill-discovery/SKILL.md` |
+| `skill-maintenance` | Audit hKask's dual-layer skill architecture for staleness, coverage gaps, and quality degradation | `.agents/skills/skill-maintenance/SKILL.md` |
+| `skill-manager` | Dual-layer CRUD for the skill corpus across Zed agent and registry layers | `.agents/skills/skill-manager/SKILL.md` |
 
 ### 12.3 Category → Test Strategy Summary
 

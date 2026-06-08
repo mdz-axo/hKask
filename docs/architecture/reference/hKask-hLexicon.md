@@ -1,7 +1,7 @@
 ---
 title: "hKask hLexicon — Minimal Composition Vocabulary"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
+last_updated: 2026-06-07
 version: "0.23.0"
 status: "Active"
 domain: "Application"
@@ -14,28 +14,28 @@ ddmvss_categories: [domain]
 
 | Section | Description |
 |---------|-------------|
-| [Executive Summary](#executive-summary) | Overview of the 75-term minimal composition vocabulary |
-| [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-28-terms) | Speech act theory terms for LLM interactions (28 terms) |
-| [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-34-terms) | Workflow pattern terms for skill composition (34 terms) |
-| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-25-terms) | Enactive cognition terms for metacognition (25 terms) |
+| [Executive Summary](#executive-summary) | Overview of the 121-term minimal composition vocabulary |
+| [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-34-terms) | Speech act theory terms for LLM interactions (34 terms) |
+| [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-42-terms) | Workflow pattern terms for skill composition (42 terms) |
+| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-45-terms) | Enactive cognition terms for metacognition (45 terms) |
 | [Cross-Domain Composition Patterns](#cross-domain-composition-patterns) | How terms from different domains compose together |
 | [hLexicon Grammar](#hlexicon-grammar) | Formal grammar for term usage and validation |
 | [Academic Grounding References](#academic-grounding-references) | Academic sources for each domain |
-| [hLexicon Term Index](#hlexicon-term-index-87-terms) | Alphabetical index of all 87 terms |
+| [hLexicon Term Index](#hlexicon-term-index-121-terms) | Alphabetical index of all 121 terms |
 | [Expansion Capacity](#expansion-capacity) | Reserved term slots for domain extensions |
 | [Usage Examples](#usage-examples) | Practical template integration examples |
 | [References](#references) | Citations and references |
 
 ## Executive Summary
 
-**hLexicon** is the minimal vocabulary (75 terms allocated across 3 domains) for composing templates in the hKask system. It covers three domains:
+**hLexicon** is the minimal composition vocabulary (121 term-slots across 3 domains) for composing templates in the hKask system.
 
 1. **WordAct** — Language for prompting/LLM interactions (speech act theory)[^austin]
 2. **FlowDef** — Language for process/skill composition (workflow patterns)[^van-der-aalst]
 3. **KnowAct** — Language for cognition and metacognition (enactive cognition)[^varela]
 
 **Design Principles:**
-- **Minimal:** 75-term original allocation across 3 domains (currently 87 term-slots: 28 WordAct + 34 FlowDef + 25 KnowAct)
+- **Minimal:** 121 term-slots across 3 domains (34 WordAct + 42 FlowDef + 45 KnowAct)
 - **Composable:** Terms combine to express complex patterns
 - **Academic Grounding:** Based on established theory (Austin, Searle, van der Aalst, Varela)
 - **LLM-Optimized:** Terms selected for LLM comprehension and consistent interpretation
@@ -105,7 +105,7 @@ Requirement: [`REQ-DOM-004`](../../specifications/REQUIREMENTS.md).
 
 ---
 
-## Domain 1: WordAct — Prompting Language (28 terms)
+## Domain 1: WordAct — Prompting Language (34 terms)
 
 **Theoretical Basis:** Speech Act Theory (J.L. Austin, John Searle)[^austin][^searle]
 
@@ -174,9 +174,20 @@ Speech acts distinguish between:
 | `require` | State a non-negotiable condition | "Require: All outputs must be validated" |
 | `constrain` | Limit the solution space | "Constrain: Response time < 200ms" |
 
+### 1.7 Diagnostic Acts (6 terms) — Verifying and reproducing behavior
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `extract` | Pull specific structured data from a source | "Extract: Pull field values from the response" |
+| `gap` | Identify an uncovered requirement or missing capability | "Gap: No test for the error path" |
+| `reproduce` | Re-create a bug or behavior from a known procedure | "Reproduce: Run the failing input through the parser" |
+| `substitute` | Replace a term or reference with an equivalent | "Substitute: Replace deprecated API call" |
+| `validate` | Confirm an artifact meets defined criteria | "Validate: Check manifest against schema" |
+| `write` | Produce or persist content | "Write: Persist the compiled output" |
+
 ---
 
-## Domain 2: FlowDef — Process Flow Language (34 terms)
+## Domain 2: FlowDef — Process Flow Language (42 terms)
 
 **Theoretical Basis:** Workflow Patterns (Wil van der Aalst), Cascade Skill Manifests[^van-der-aalst]
 
@@ -251,9 +262,22 @@ Speech acts distinguish between:
 | `elicit` | Draw out latent goals or requirements | "elicit: Discover user's underlying intent" |
 | `reconcile` | Resolve conflicts between goals or requirements | "reconcile: Balance speed vs accuracy tradeoffs" |
 
+### 2.8 Skill Lifecycle (8 terms) — Artifact management and lifecycle operations
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `defer` | Postpone action pending future evidence | "defer: Skip non-critical fix until next release" |
+| `deprecate` | Mark for future removal while remaining functional | "deprecate: Old template format still parsed" |
+| `enforce` | Ensure a constraint or rule is obeyed | "enforce: Reject manifest with invalid template_type" |
+| `install` | Place an artifact into its operational location | "install: Copy skill templates to registry" |
+| `list` | Enumerate items in a collection | "list: Show all installed skills" |
+| `prune` | Remove an artifact from the corpus | "prune: Delete stale skill from registry" |
+| `retire` | Permanently remove a deprecated artifact | "retire: Remove deprecated template after migration" |
+| `search` | Look for candidates across available sources | "search: Find skills matching the capability gap" |
+
 ---
 
-## Domain 3: KnowAct — Cognition Language (25 terms)
+## Domain 3: KnowAct — Cognition Language (45 terms)
 
 **Theoretical Basis:** Enactive Cognition (Varela, Thompson),[^varela] Second-Order Cybernetics (von Foerster),[^von-foerster] Autopoiesis (Maturana)[^maturana]
 
@@ -308,6 +332,36 @@ Speech acts distinguish between:
 |------|------------|---------------|
 | `contextualise` | Situate an artifact within its meaningful environment | "contextualise: Place template in workflow context" |
 | `cultivate` | Nurture growth and coherence over time | "cultivate: Evolve template collection toward coherence" |
+
+### 3.6 Diagnostic & Regulatory Cognition (12 terms) — Analysis, observation, and variety regulation
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `amplify` | Increase regulatory or response variety | "amplify: Add more handlers for edge cases" |
+| `analyze` | Decompose into components for understanding | "analyze: Break down the error distribution" |
+| `attenuate` | Reduce system or disturbance variety | "attenuate: Filter noise from the signal" |
+| `compress` | Distill and reduce context volume | "compress: Summarize session into handoff" |
+| `instrument` | Add targeted observation points to a code path | "instrument: Add diagnostic log at branch point" |
+| `isolate` | Separate a concern or variable from its context | "isolate: Reproduce with single variable changed" |
+| `observe` | Watch and record system behavior without intervention | "observe: Monitor CNS span before hypothesising" |
+| `predict` | Forecast an outcome from current evidence | "predict: Hypothesis states a predicted outcome" |
+| `resolve` | Determine a winner or course from competing alternatives | "resolve: Pick highest-ranked hypothesis for testing" |
+| `score` | Assign a numeric assessment to an artifact | "score: Rate skill health on 0-1 scale" |
+| `synthesize` | Combine disparate elements into a coherent whole | "synthesize: Merge findings into root-cause narrative" |
+| `trace` | Follow a causal or provenance chain | "trace: Follow spec requirement back to test invariant" |
+
+### 3.7 Skill Management Cognition (8 terms) — Design, planning, and format translation
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `deepen` | Extract a smaller interface from a shallow module | "deepen: Collapse shallow module into deep seam" |
+| `design` | Define structure and interfaces of a component | "design: Specify the deepened module shape" |
+| `explore` | Search systematically for patterns or friction | "explore: Walk the codebase for coupling hotspots" |
+| `fix` | Apply a corrective change to resolve a defect | "fix: Patch the root cause, not the symptom" |
+| `map` | Produce a structured representation of component relationships | "map: Generate caller graph for the crate" |
+| `plan` | Define ordered steps toward a goal before execution | "plan: Extract requirements and prioritize by risk" |
+| `rank` | Order items by a comparative criterion | "rank: Sort hypotheses by falsifiability" |
+| `translate` | Convert from one representation or format to another | "translate: Adapt skill into dual-layer architecture" |
 
 ---
 
@@ -434,18 +488,18 @@ Terminology validation follows ISO principles for vocabulary management.[^iso704
 
 ---
 
-## hLexicon Term Index (87 terms)
+## hLexicon Term Index (121 terms)
 
-### WordAct (28)
-`query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`
+### WordAct (34)
+`query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`, `extract`, `gap`, `reproduce`, `substitute`, `validate`, `write`
 
-### FlowDef (34)
-`sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`
+### FlowDef (42)
+`sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`, `defer`, `deprecate`, `enforce`, `install`, `list`, `prune`, `retire`, `search`
 
-### KnowAct (25)
-`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`
+### KnowAct (45)
+`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`, `amplify`, `analyze`, `attenuate`, `compress`, `instrument`, `isolate`, `observe`, `predict`, `resolve`, `score`, `synthesize`, `trace`, `deepen`, `design`, `explore`, `fix`, `map`, `plan`, `rank`, `translate`
 
-**Total: 87 term-slots** (28 WordAct + 34 FlowDef + 25 KnowAct; `transform` appears in both WordAct and FlowDef, so 86 globally-unique strings). 12 over the original 75-term allocation — git evolution terms and spec-curation terms are essential for artifact management and participatory goal elicitation.
+**Total: 121 term-slots** (34 WordAct + 42 FlowDef + 45 KnowAct; `transform` appears in both WordAct and FlowDef, so 120 globally-unique strings).
 
 ---
 
@@ -531,4 +585,4 @@ Recommend adjustments: {{ regulate(pass_rate) }}
 
 ---
 
-*hLexicon v1.1 — 87 term-slots defined across 3 domains (28 WordAct + 34 FlowDef + 25 KnowAct), 1 unified composition substrate*
+*hLexicon v1.2 — 121 term-slots defined across 3 domains (34 WordAct + 42 FlowDef + 45 KnowAct), 1 unified composition substrate*

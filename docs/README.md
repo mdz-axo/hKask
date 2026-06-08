@@ -2,7 +2,7 @@
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
 last_updated: 2026-06-07
-version: "1.2.0"
+version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -75,6 +75,7 @@ for its category cluster.
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | interface | API and CLI documentation generation |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | composition | hLexicon functional role headers |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | domain | Canonical human-facing replicant |
+| [`hlexicon-validation-report.md`](architecture/hlexicon-validation-report.md) | domain | hLexicon alignment validation report |
 
 ---
 
@@ -91,6 +92,8 @@ for its category cluster.
 | [`DEPENDENCY_POLICY.md`](specifications/DEPENDENCY_POLICY.md) | lifecycle | Dependency governance |
 | [`DEPLOYMENT.md`](specifications/DEPLOYMENT.md) | lifecycle | Deployment guide |
 | [`CI-CD-GUIDE.md`](specifications/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation |
+| [`TESTING_STANDARDS.md`](specifications/TESTING_STANDARDS.md) | all | Testing protocol and classification |
+| [`test-program.md`](specifications/test-program.md) | all | Test program specification |
 
 ---
 
@@ -139,11 +142,7 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 |----------|--------|-------------|
 | [`hhh-alignment-research.md`](specifications/hhh-alignment-research.md) | domain, capability, observability, curation | HHH alignment mode for inference governance |
 
-> The `hhh-open-design-questions.md` companion document has been retired (HHH
-> mode implemented in v0.23.0; see [`crates/hkask-agents/src/hhh_gate.rs`](../crates/hkask-agents/src/hhh_gate.rs)
-> and [`crates/hkask-cli/src/repl/commands.rs`](../crates/hkask-cli/src/repl/commands.rs)
-> `/hhh` command). Recoverable from git history via
-> `git log --diff-filter=D -- docs/research/hhh-open-design-questions.md`.
+> The `hhh-open-design-questions.md` companion document has been retired. Recoverable from git history.
 
 ---
 

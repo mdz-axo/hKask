@@ -1,0 +1,121 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [classify, analyze, rank, resolve, synthesize]
+contract:
+  input:
+    skill_names: array
+    existing_bundles: array
+  output:
+    bundle_manifest: object
+    conflicts: array
+    complementarities: array
+  energy_cap: 6144
+  visibility: Shared
+
+---
+{# Template: skill-bundler/bundler-compose.j2 #}
+{# KnowAct — Compose multiple skills into a structured bundle manifest #}
+{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 6144
+thinking_budget = "full"
+
+You are a skill composition orchestrator. Given a set of skills, analyze them for conflicts, complementarities, and optimal ordering, then produce a structured bundle manifest.
+
+## Skills to Compose
+
+```json
+{{ skill_names | tojson }}
+```
+
+{% if existing_bundles %}
+## Existing Bundles (for smart match)
+
+```json
+{{ existing_bundles | tojson }}
+```
+{% endif %}
+
+## Composition Principles
+
+1. **Phase Separation**: Never place divergent and convergent skills in the same cascade phase.
+2. **Ordering Principle**: Default cascade order is Recognize → Act → Reflect.
+3. **Domain Complementarity**: Skills from different domains compose more safely than same-domain skills.
+4. **Conflict Resolution Hierarchy**: Domain separation → Phase separation → Specificity wins → Manifest override → User intent wins.
+5. **Convergence Criteria**: Every iterative composition must declare a convergence criterion. Default: coherence ≥ 0.7, drift < 0.5.
+6. **Depth and Term Limits**: Cascade depth ≤ 7, each skill ≤ 10 key terms, bundles ≤ ~30 unique terms.
+
+## Skill Polarity Classification
+
+| Polarity | Characteristic | Cascade Phase |
+|----------|---------------|---------------|
+| **Generative** | Explores possibilities, proposes alternatives | Pre-core |
+| **Evaluative** | Tests, critiques, validates | Post-core |
+| **Regulative** | Constrains, requires, monitors | Cross-phase |
+| **Procedural** | Sequences, synchronizes, routes | Backbone |
+
+## Anti-Patterns to Detect
+
+| Anti-Pattern | Detection | Resolution |
+|-------------|-----------|------------|
+| **Cancel-out** | Divergent + convergent in same phase | Move divergent to pre, convergent to post |
+| **Contradictory directives** | Multiple constraints for same target | Specificity wins; add reconciliation step |
+| **Ordering collision** | Same domain, same phase, same specificity | Explicit cascade order in manifest |
+| **Runaway feedback** | Skill A triggers Skill B triggers Skill A | Convergence criterion + depth limit |
+| **Scope creep** | Too many terms or skills | Decompose into sub-bundles |
+| **Dead letter** | No productive skill in the bundle | Require at least one productive skill |
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "bundle_manifest": {
+    "name": "<descriptive-name>",
+    "version": "1.0.0",
+    "skills": [
+      {
+        "name": "<skill-name>",
+        "polarity": "generative|evaluative|regulative|procedural",
+        "phase": "pre-core|core|post-core|cross-phase",
+        "cascade_order": 1
+      }
+    ],
+    "conflicts": [
+      {
+        "skills": ["<skill-a>", "<skill-b>"],
+        "resolution": "domain-separation|phase-separation|specificity-wins|manifest-override",
+        "rationale": "Why this resolution was chosen"
+      }
+    ],
+    "complementarities": [
+      {
+        "skills": ["<skill-a>", "<skill-b>"],
+        "leveraged": "How the complementarity is exploited"
+      }
+    ],
+    "convergence": {
+      "criterion": "Description of convergence condition",
+      "threshold": 0.7
+    }
+  },
+  "conflicts": [],
+  "complementarities": []
+}
+```
+
+## Constraints
+
+- Every skill must appear exactly once in the manifest.
+- Every detected conflict must have a resolution.
+- At least one productive (core-phase) skill must be present.
+- Cascade depth must not exceed 7.
+- No contradictory directives in the same cascade phase.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).

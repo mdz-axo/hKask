@@ -534,6 +534,60 @@ The coherence threshold (0.7) is a starting guess. The spec document states this
 
 ---
 
+## Documentation Alignment Open Questions (2026-06-07)
+
+*Questions surfaced during the v0.23.0 documentation alignment and consolidation effort.*
+
+### DA-1: Spec-document vs code-implementation boundary decision rule
+
+**DDMVSS Category:** Curation  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+The corrected DDMVSS establishes that spec-document completeness is orthogonal to code-implementation completeness. The boundary between "this spec is incomplete as a document" and "the code implementing this spec is incomplete" needs a clear decision rule. Proposed rule: a spec document is complete when it defines its category's goal structure, required interfaces, and cross-references, independent of whether any code satisfies it. This rule is consistent with the DDMVSS axiom `Spec-document completeness ⊥ Code-implementation completeness` added in DDMVSS.md v0.3.0.
+
+---
+
+### DA-2: Status file population
+
+**DDMVSS Category:** Capability, Observability  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+Producing real content for `docs/status/` files (MCP tools inventory, test inventory, Fowler audit, adversarial simplification inventory, PROJECT_STATUS) is substantive work. Each requires running analyses against the codebase. These are separate work items beyond the scope of documentation alignment. Tracked in `docs/plans/TODO.md` (P2-11 through P2-15).
+
+---
+
+### DA-3: hkask-agents build regression
+
+**DDMVSS Category:** Domain, Capability  
+**Status:** Resolved  
+**Opened:** 2026-06-07
+
+The `hkask-agents` crate previously had 5 compile errors (P2-06). These have been resolved. Code drift items (P2-06-D1 through P2-06-D9 in TODO.md) document types/references that exist in specs but not yet in code.
+
+---
+
+### DA-4: Spec server self-application
+
+**DDMVSS Category:** Curation  
+**Status:** Open (deferred, not blocked)  
+**Opened:** 2026-06-07
+
+The `hkask-mcp-spec` server can be used to capture and curate the specification corpus itself. There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
+
+---
+
+### DA-5: Coherence threshold calibration as spec-document gap
+
+**DDMVSS Category:** Curation  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+The curation coherence threshold is uncalibrated. This is a genuine underspecification in the Curation category's specification document — the spec should state the calibration method, not just the threshold value. Resolving this requires adding a calibration procedure section to `DDMVSS.md` §5.9 or `WRITING_EXCELLENCE.md`, then verifying via the Documentation Standards gate. Also tracked as FUT-013.
+
+---
+
 ## References
 
 [^ddmvss]: hKask Team. (2026). *DDMVSS — Domain-Driven Minimum Viable Specification Set*. `docs/architecture/DDMVSS.md`.

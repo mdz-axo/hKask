@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-05-28
-version: "1.1.0"
+last_updated: 2026-06-07
+version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, curation]

@@ -2,7 +2,7 @@
 title: "hKask Persistence & Lifecycle Specification"
 audience: [architects, database developers, DevOps engineers]
 last_updated: 2026-06-07
-version: "2.2.1"
+version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [persistence, lifecycle]
@@ -205,9 +205,9 @@ fn search(&self, query_vector: &[f32], limit: usize) -> Result<Vec<SimilarityRes
 ## 5. Specification Storage
 
 `SqliteSpecStore` (`spec_store.rs:12`) persists DDMVSS specifications:
-- Implements `SpecStore` trait (`hkask-types/src/spec.rs:314`)
+- Implements `SpecStore` trait (`hkask-storage/src/spec_types.rs:417`)
 - CRUD operations for `Spec` entities
-- `DefaultSpecCurator` (`hkask-agents/src/curator/spec_curator.rs`) — evaluate, reconcile, cultivate
+- `DefaultSpecCurator` (`hkask-agents/src/curator_agent/spec_curator.rs`) \u2014 evaluate, reconcile, cultivate
 
 ---
 

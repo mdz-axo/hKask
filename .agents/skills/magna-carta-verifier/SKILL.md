@@ -8,6 +8,18 @@ description: "Verifies that hKask's four Magna Carta principles (User Sovereignt
 
 Verifies that hKask's four Magna Carta principles are correctly implemented and enforced. Uses YAML manifests to declare assertions per principle and Jinja2 templates to render verification procedures, reports, and test cases.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/magna-carta-verifier/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `mc-verify-procedure.j2` | KnowAct | Render step-by-step verification procedure for each assertion |
+| `mc-verify-report.j2` | KnowAct | Synthesize verification results into a compliance report |
+| `mc-verify-testcase.j2` | KnowAct | Render Rust test case skeletons from assertion definitions |
+
+The SKILL.md (this file) teaches the Zed coding agent the sovereignty verification methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## Principles
 
 | # | Principle | Core Assertion |
@@ -66,9 +78,11 @@ assertions:
 
 ## Templates
 
-- `verification-procedure.md.j2` — Renders the verification procedure for each assertion
-- `verification-report.md.j2` — Renders findings, gaps, and status
-- `test-case.rs.j2` — Renders Rust test cases as code blocks in the report
+Runtime templates are in `registry/templates/magna-carta-verifier/` (see Registry Templates section above). Legacy template references preserved for documentation:
+
+- `mc-verify-procedure.j2` — Renders the verification procedure for each assertion
+- `mc-verify-report.j2` — Renders findings, gaps, and status
+- `mc-verify-testcase.j2` — Renders Rust test cases as code blocks in the report
 
 ## Resolution Process
 

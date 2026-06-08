@@ -20,17 +20,19 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ## 1. DDMVSS Category → Document Mapping
 
-| # | DDMVSS Category | Authoritative Document | Supporting References |
+The current directory layout (grouped by artifact type) serves the DDMVSS category topology because each authoritative spec document is named by its category cluster and the portal (`docs/README.md`) provides category-based navigation. The mapping below is the authoritative category→document→directory assignment.
+
+| # | DDMVSS Category | Authoritative Document | Directory | Supporting References |
 |---|----------------|----------------------|----------------------|
-| 1 | **Domain** | [`domain-and-capability.md`](../architecture/domain-and-capability.md) | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
-| 2 | **Capability** | [`domain-and-capability.md`](../architecture/domain-and-capability.md) | [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
-| 3 | **Interface** | [`interface-and-composition.md`](../architecture/interface-and-composition.md) | [`reference/utoipa-implementation.md`](../architecture/reference/utoipa-implementation.md), [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
-| 4 | **Composition** | [`interface-and-composition.md`](../architecture/interface-and-composition.md) | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
-| 5 | **Trust & Security** | [`trust-security-observability.md`](../architecture/trust-security-observability.md) | [`magna-carta.md`](../architecture/magna-carta.md) |
-| 6 | **Observability** | [`trust-security-observability.md`](../architecture/trust-security-observability.md) | — |
-| 7 | **Persistence** | [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md) | [`reference/hKask-erd.md`](../architecture/reference/hKask-erd.md), [`reference/registry-erd.md`](../architecture/reference/registry-erd.md), [`reference/subsystem-erds.md`](../architecture/reference/subsystem-erds.md) |
-| 8 | **Lifecycle** | [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md) | [`CI-CD-GUIDE.md`](CI-CD-GUIDE.md), [`DEPLOYMENT.md`](DEPLOYMENT.md) |
-| 9 | **Curation** | [`DDMVSS.md`](../architecture/DDMVSS.md) + [`WRITING_EXCELLENCE.md`](../specifications/WRITING_EXCELLENCE.md) | — |
+| 1 | **Domain** | [`domain-and-capability.md`](../architecture/domain-and-capability.md) | `architecture/` | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
+| 2 | **Capability** | [`domain-and-capability.md`](../architecture/domain-and-capability.md) | `architecture/` | [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
+| 3 | **Interface** | [`interface-and-composition.md`](../architecture/interface-and-composition.md) | `architecture/` | [`reference/utoipa-implementation.md`](../architecture/reference/utoipa-implementation.md), [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
+| 4 | **Composition** | [`interface-and-composition.md`](../architecture/interface-and-composition.md) | `architecture/` | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
+| 5 | **Trust & Security** | [`trust-security-observability.md`](../architecture/trust-security-observability.md) | `architecture/` | [`magna-carta.md`](../architecture/magna-carta.md) |
+| 6 | **Observability** | [`trust-security-observability.md`](../architecture/trust-security-observability.md) | `architecture/` | — |
+| 7 | **Persistence** | [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md) | `architecture/` | [`reference/hKask-erd.md`](../architecture/reference/hKask-erd.md), [`reference/registry-erd.md`](../architecture/reference/registry-erd.md), [`reference/subsystem-erds.md`](../architecture/reference/subsystem-erds.md) |
+| 8 | **Lifecycle** | [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md) | `architecture/` | [`CI-CD-GUIDE.md`](../specifications/CI-CD-GUIDE.md), [`DEPLOYMENT.md`](../specifications/DEPLOYMENT.md) |
+| 9 | **Curation** | [`DDMVSS.md`](../architecture/DDMVSS.md) + [`WRITING_EXCELLENCE.md`](../specifications/WRITING_EXCELLENCE.md) | `architecture/` + `specifications/` | — |
 
 ---
 
@@ -55,6 +57,8 @@ docs/
 │   ├── ADR-027-*.md                       # DECISION RECORD
 │   ├── ADR-030-*.md                       # DECISION RECORD (proposed)
 │   ├── ADR-031-*.md                       # DECISION RECORD
+│   ├── ADR-032-*.md                       # DECISION RECORD (draft)
+│   ├── ADR-033-*.md                       # DECISION RECORD (draft)
 │   ├── loop-architecture.md              # FRAMEWORK (6-loop authority model)
 │   └── reference/
 │       ├── hKask-erd.md                   # Diagram artifact
@@ -66,6 +70,7 @@ docs/
 │       ├── template-header-standard.md    # Format reference
 │       ├── hKask-Curator-persona.md       # Persona spec
 │       └── okapi-integration.md           # Okapi API contract
+│   ├── hlexicon-validation-report.md     # hLexicon compliance audit
 ├── specifications/
 │   ├── DDMVSS_SCAFFOLD.md                 # THIS FILE
 │   ├── REQUIREMENTS.md                    # Goal specs
@@ -75,12 +80,17 @@ docs/
 │   ├── DEPENDENCY_POLICY.md               # Dependency policy
 │   ├── ADR_TEMPLATE.md                    # ADR template
 │   ├── CI-CD-GUIDE.md                     # CI/CD guide
-│   └── DEPLOYMENT.md                      # Deployment guide
+│   ├── DEPLOYMENT.md                      # Deployment guide
+│   ├── TESTING_STANDARDS.md               # Testing protocol
+│   ├── test-program.md                    # Test program spec
+│   └── hhh-alignment-research.md          # HHH alignment research
 ├── plans/
 │   ├── TODO.md                            # Open work
 │   └── high-temp-templates.md             # Template design draft
 ├── status/                                 # Status files (planned, not yet populated)
 ├── user-guides/                           # User-facing guides
+│   ├── AGENT-POD-CREATION-GUIDE.md       # Pod creation guide
+│   └── COMMON-AGENT-PATTERNS.md          # Agent patterns reference
 ├── archive/                                # Archived documents (gitignored)
 ├── ci/                                     # CI verification scripts
 │   ├── check-links.sh                     # Link integrity checker

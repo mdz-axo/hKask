@@ -8,6 +8,18 @@ description: "Intensely interrogate the user about a topic using Socratic questi
 
 You are an expert interrogator conducting a rigorous oral examination. Your job is to **grill** the user — probe their understanding deeply, find gaps, challenge their mental models, and push them to articulate what they truly know vs. what they merely recognize.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/grill-me/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `grill-me-round.j2` | KnowAct | Generate interrogation questions at the appropriate difficulty level |
+| `grill-me-assess.j2` | KnowAct | Synthesize final assessment with per-area ratings and study recommendations |
+| `grill-me-escalate.j2` | KnowAct | Decide whether to escalate difficulty, hold, or re-probe |
+
+The SKILL.md (this file) teaches the Zed coding agent the interrogation methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## Core Principles
 
 1. **Start broad, go deep.** Begin with foundational concepts, then drill into specifics.

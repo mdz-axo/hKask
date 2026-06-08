@@ -2,7 +2,7 @@
 title: "hKask Interface & Composition Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "2.2.0"
+version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition]
@@ -170,13 +170,13 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 | MCP Runtime | `MCPRuntimePort` (`ports/mcp_runtime.rs`) | `hkask-agents` | Tool dispatch |
 | CNS Emit | `NuEventSink` (`event.rs`) | `hkask-types` | Cybernetic event emission |
 | CNS Emit | `CnsEmit` (`spans.rs`) | `hkask-cns` | Structured span emission |
-| Sovereignty | `SovereigntyPort` (`hkask-types/src/sovereignty.rs:374`) | `hkask-types` | User sovereignty enforcement |
+| Sovereignty | `SovereigntyPort` (`hkask-types/src/sovereignty.rs:229`) | `hkask-types` | User sovereignty enforcement |
 | Sovereignty (impl) | `SovereigntyChecker` (concrete) | `hkask-agents` | Production implementation |
 | Inference | `InferencePort` (`inference_port.rs`) | `hkask-templates` | LLM inference (Okapi) |
-| Spec Store | `SpecStore` (`spec.rs`) | `hkask-types` | Specification persistence |
-| Spec Observer | `SpecObserver` ⚠️ REMOVED (`spec.rs`) | `hkask-types` | Spec CNS spans — *removed in v0.21.x* |
-| Spec Curator | `SpecCurator` (`spec.rs`) | `hkask-types` | Curation evaluation |
-| Audit | `AuditLogPort` (`hkask-types/src/audit.rs:128`) | `hkask-types` | Audit trail persistence |
+| Spec Store | `SpecStore` (`spec_types.rs`) | `hkask-storage` | Specification persistence |
+| Spec Observer | `SpecObserver` \u26a0\ufe0f REMOVED (`spec_types.rs`) | `hkask-storage` | Spec CNS spans \u2014 *removed in v0.21.x* |
+| Spec Curator | `SpecCurator` (`spec_types.rs`) | `hkask-storage` | Curation evaluation |
+| Audit | `AuditLogPort` (`hkask-types/src/audit.rs`) | `hkask-types` | Audit trail persistence |
 | MCP Dispatch | `McpPort` (`ports.rs`) | `hkask-templates` | MCP tool invocation |
 | Metacognition | `MetacognitionLoop` (`curator_agent/metacognition.rs`) | `hkask-agents` | Curator health monitoring and metacognition |
 | Standing Session | `StandingSessionPort` (`ports/standing_session.rs`) | `hkask-agents` | Session state persistence |

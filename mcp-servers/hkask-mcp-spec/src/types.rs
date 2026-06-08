@@ -78,6 +78,77 @@ pub struct TestVerifyResponse {
     pub complete: bool,
 }
 
+// ── Writing Excellence assessment ───────────────────────────────
+
+/// Score for one Writing Excellence dimension (Hopper, Lovelace, Schriver, Gentle).
+/// Per WRITING_EXCELLENCE.md §3: 3 of 4 passing is the publication standard.
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
+pub struct WritingExcellenceScore {
+    /// Hopper test (Accessibility): Can a zero-context reader accomplish the task?
+    pub hopper: bool,
+    /// Lovelace test (Precision): Can a reader write a correct test from the spec alone?
+    pub lovelace: bool,
+    /// Schriver test (Findability): Can a reader find their answer within 30 seconds?
+    pub schriver: bool,
+    /// Gentle test (Agent-correctness): Would an AI agent consuming this doc behave correctly?
+    pub gentle: bool,
+}
+
+impl WritingExcellenceScore {
+    /// Number of dimensions passing.
+    pub fn passes(&self) -> usize {
+        let mut n = 0;
+        if self.hopper {
+            n += 1;
+        }
+        if self.lovelace {
+            n += 1;
+        }
+        if self.schriver {
+            n += 1;
+        }
+        if self.gentle {
+            n += 1;
+        }
+        n
+    }
+
+    /// Whether the document meets the publication standard (3 of 4).
+    pub fn meets_publication_standard(&self) -> bool {
+        self.passes() >= 3
+    }
+}
+
+/// Request for a Writing Excellence assessment on a specification document.
+/// Per WRITING_EXCELLENCE.md §3: the 4-perspective test is part of the
+/// DDMVSS curation process.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct WritingExcellenceRequest {
+    /// The spec ID to assess.
+    pub spec_id: String,
+    /// Assessor-provided scores for each dimension.
+    pub scores: WritingExcellenceScore,
+    /// Optional assessor notes explaining the scores.
+    pub notes: Option<String>,
+    /// OCAP capability token for authorization.
+    pub capability_token: Option<String>,
+}
+
+/// Response from spec/curate/writing-excellence.
+#[derive(Debug, Serialize)]
+pub struct WritingExcellenceResponse {
+    /// The spec ID that was assessed.
+    pub spec_id: String,
+    /// Number of dimensions passing (0–4).
+    pub dimensions_passing: usize,
+    /// Whether the document meets the publication standard (3 of 4).
+    pub meets_publication_standard: bool,
+    /// Whether the document is below minimum quality (1 of 4 blocks publication).
+    pub blocks_publication: bool,
+    /// The individual dimension scores.
+    pub scores: WritingExcellenceScore,
+}
+
 // ── Completeness domain ──────────────────────────────────────
 
 /// Domain of completeness assessment for curation decisions.
@@ -135,6 +206,10 @@ pub struct CurateEvaluateResponse {
     /// Implementation status, included only when CompletenessDomain::Implementation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub implementation_status: Option<String>,
+    /// Writing Excellence assessment (4-perspective test per WRITING_EXCELLENCE.md).
+    /// Included when the caller provides a writing_excellence assessment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub writing_excellence: Option<WritingExcellenceScore>,
 }
 
 #[derive(Debug, Serialize)]
@@ -223,6 +298,10 @@ pub struct CurateEvaluateRequest {
     pub rationale_hint: Option<String>,
     pub capability_token: Option<String>,
     pub completeness_domain: Option<CompletenessDomain>,
+    /// Writing Excellence 4-perspective assessment. When provided, the evaluation
+    /// includes Writing Excellence results in the response and the curation
+    /// decision accounts for publication standard (3 of 4 passing).
+    pub writing_excellence: Option<WritingExcellenceScore>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

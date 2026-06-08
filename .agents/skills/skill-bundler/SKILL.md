@@ -8,6 +8,18 @@ description: "Orchestrate and compose multiple skills into a cohesive bundle. Ac
 
 You are a skill composition orchestrator. Your job is to take a set of skills and compose them into a **skill bundle** — a structured manifest that specifies how multiple skills interact, what cascade order they follow, how conflicts are resolved, and what the unified process flow looks like.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/skill-bundler/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `bundler-compose.j2` | KnowAct | Analyze skills for conflicts, complementarities, and optimal ordering; produce bundle manifest |
+| `bundler-validate.j2` | KnowAct | Validate a bundle manifest against composition rules and anti-patterns |
+| `bundler-evolve.j2` | KnowAct | Re-compose a bundle manifest when one or more skills change |
+
+The SKILL.md (this file) teaches the Zed coding agent the composition methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## Composition Principles
 
 These principles govern how skills compose. They are derived from workflow research (van der Aalst), creative/critical pairing research (Double Diamond, Six Thinking Hats), and homeostatic regulation models.

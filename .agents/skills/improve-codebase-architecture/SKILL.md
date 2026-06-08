@@ -10,6 +10,18 @@ Surface architectural friction and propose **deepening opportunities** — refac
 
 Adapted from Matt Pocock's skill.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/improve-codebase-architecture/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `arch-explore.j2` | KnowAct | Explore codebase for architectural friction: shallow modules, tight coupling |
+| `arch-candidates.j2` | KnowAct | Present deepening candidates with recommendation strength |
+| `arch-deepen.j2` | KnowAct | Walk the design tree for a selected candidate, define deepened module shape |
+
+The SKILL.md (this file) teaches the Zed coding agent the architecture-improvement methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## Glossary
 
 Use these terms exactly. Consistent language is the point.

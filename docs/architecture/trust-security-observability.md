@@ -2,7 +2,7 @@
 title: "hKask Trust, Security & Observability Specification"
 audience: [architects, security engineers, developers]
 last_updated: 2026-06-07
-version: "2.2.1"
+version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [trust, observability]
@@ -33,7 +33,7 @@ hKask implements a **zero-trust, capability-based security model**:[^miller-robu
 
 ### 1.2 Single Capability Primitive
 
-All access control uses `CapabilityToken` (type alias for `DelegationToken`, `crates/hkask-types/src/capability/mod.rs:66`; struct at line 283):
+All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:308`; `CapabilityToken` type alias not yet in code):
 
 | Property | Implementation |
 |----------|---------------|
@@ -53,7 +53,7 @@ WebIDs derived from persona content via UUID v5:
 - Root authority from fixed `"hkask-root-authority"` persona
 - Namespace UUID: `686b6173-6b2d-7065-7273-6f6e612d6e73`
 
-**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:186`)
+**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:176`)
 
 ### 1.4 Encryption Stack
 
@@ -78,9 +78,9 @@ WebIDs derived from persona content via UUID v5:
 
 | Boundary | Enforcement | Implementation |
 |----------|------------|----------------|
-| MCP tool invocation | `GovernedTool` | `hkask-cns/src/governed_tool.rs:74` |
-| Template execution | `CapabilityAwareValidator` | `hkask-templates/src/capability_validator.rs:21` |
-| ACP message routing | `SovereigntyPort` | `hkask-agents/src/ports/sovereignty.rs:79` |
+| MCP tool invocation | `GovernedTool` | `hkask-cns/src/governed_tool.rs:80` |
+| Template execution | `CapabilityAwareValidator` | not yet in code (was `hkask-templates/src/capability_validator.rs:21`) |
+| ACP message routing | `SovereigntyPort` | `hkask-agents/src/sovereignty.rs` |
 | Memory storage | `MemoryStoragePort` | `hkask-agents/src/pod/context.rs:50` |
 | API requests | Capability in Authorization header | `hkask-api/src/lib.rs` |
 | Pod creation | Root capability required | `hkask-agents/src/pod/manager.rs:266` |
@@ -270,7 +270,7 @@ status: VERIFIED
 
 ### 4.2 Span Namespaces
 
-Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-106`). There are **21 canonical namespaces** (authoritative source: PRINCIPLES.md §1.4):
+Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:87-103`). There are **20 canonical namespaces** (15 canonical + 5 hierarchical; authoritative source: PRINCIPLES.md \u00a71.4):
 
 | Span | Variant | Covers |
 |------|---------|--------|
@@ -347,7 +347,7 @@ status: VERIFIED
 
 ### 4.5 CNS Health
 
-`CnsHealth` (`hkask-types/src/cns.rs:32`) provides aggregate status:
+`CnsHealth` (`hkask-types/src/cns.rs:97`) provides aggregate status:
 - `overall_deficit` — aggregate variety deficit
 - `critical_count` — number of critical alerts
 - `warning_count` — number of warning alerts

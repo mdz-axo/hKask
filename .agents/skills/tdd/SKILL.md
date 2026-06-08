@@ -8,6 +8,20 @@ description: "Test-driven development with red-green-refactor loop. Use when bui
 
 Adapted from Matt Pocock's TDD skill.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/tdd/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `tdd-plan.j2` | KnowAct | Plan TDD cycle: extract requirements from specs, prioritize by risk |
+| `tdd-tracer.j2` | KnowAct | Execute tracer bullet: write one failing test, then minimal code to pass |
+| `tdd-refactor.j2` | KnowAct | Refactor while GREEN: extract duplication, deepen modules |
+| `tdd-verify.j2` | KnowAct | Verify TDD cycle completion: tests pass, clippy clean, spec traceability |
+| `tdd-gap-check.j2` | KnowAct | Functional gap analysis: compare spec requirements against tested behaviors |
+
+The SKILL.md (this file) teaches the Zed coding agent the TDD methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## Philosophy
 
 **Core principle**: Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.

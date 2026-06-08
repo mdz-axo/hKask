@@ -62,6 +62,18 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/coding-guidelines/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `guidelines-assess.j2` | KnowAct | Assess a coding task against four behavioral principles before implementation |
+| `guidelines-apply.j2` | KnowAct | Generate constrained implementation directives from the assessment |
+| `guidelines-verify.j2` | KnowAct | Verify an implementation or diff against all four principles |
+
+The SKILL.md (this file) teaches the Zed coding agent the coding guidelines methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## When to Use
 
 - **Before implementing:** Run the assess step to surface assumptions and define success criteria.

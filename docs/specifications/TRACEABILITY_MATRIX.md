@@ -2,7 +2,7 @@
 title: "hKask Traceability Matrix"
 audience: [architects, developers, auditors]
 last_updated: 2026-06-07
-version: "1.2.0"
+version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -24,16 +24,16 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-DOM-001 | Bounded context identity | `hkask-types` | `id`, `event`, `agent_def` | `WebID`, `NuEvent`, `AgentDefinition` | — | ✅ Implemented |
 | REQ-DOM-002 | ν-event observability primitive | `hkask-types` | `event` | `NuEvent`, `Span`, `NuEventSink` | — | ✅ Implemented |
-| REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon`, `hlexicon_source`, `contract_validator` | `HLexicon`, `load_workspace_lexicon`, `ContractValidator` | `hlexicon_source::tests::workspace_yaml_loads` | ✅ Implemented |
-| REQ-DOM-004 | hLexicon single-source derivation (markdown → YAML, explicit regen, drift test) | `hkask-templates` | `hlexicon_source` | `parse_markdown_catalog`, `render_workspace_yaml`, `load_workspace_lexicon`, `regenerate_workspace_yaml` | `hlexicon_source::tests::{markdown_parses_to_expected_counts, hlexicon_yaml_matches_markdown, workspace_yaml_loads}` | ✅ Implemented |
+| REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon` | `HLexicon`, `load_hlexicon_from_yaml` | `hkask-templates::lexicon` module tests | \u2705 Implemented |
+| REQ-DOM-004 | hLexicon single-source derivation (markdown \u2192 YAML, explicit regen, drift test) | `hkask-templates` | `lexicon` | `load_hlexicon_from_yaml`, `load_hlexicon_default` | `hkask-templates::lexicon` module tests | \u2705 Implemented |
 
 ## Capability
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-CAP-001 | OCAP access control | `hkask-types` | `visibility` | `Capability`, `AccessEvaluator` | — | ✅ Implemented |
-| REQ-CAP-002 | Capability attenuation | `hkask-types` | `visibility` | `Delegation`, `DelegationStore`, `RevocationList` | — | ✅ Implemented |
-| REQ-CAP-003 | MCP tool surface | `hkask-mcp` | `runtime`, `security`, `transport` | `McpRuntime`, `SecurityGateway`, `McpTransport` | — | ✅ Implemented |
+| REQ-CAP-001 | OCAP access control | `hkask-types` | `capability`, `visibility` | `DelegationToken`, `AccessControl` | \u2014 | \u2705 Implemented |
+| REQ-CAP-002 | Capability attenuation | `hkask-types` | `capability` | `DelegationToken` (attenuation_level) | \u2014 | \u2705 Implemented |
+| REQ-CAP-003 | MCP tool surface | `hkask-mcp`, `hkask-cns` | `runtime`, `governed_tool` | `McpRuntime`, `GovernedTool` | \u2014 | \u2705 Implemented |
 | REQ-CAP-004 (ADR-029, P0-03) | Goal capability — owner-scoped authority via `&WebID`; owner/visibility checks co-located with every write; legal-transition enforcement | `hkask-types`, `hkask-storage` | `goal`, `goals` | `WebID`, `GoalState::can_transition_to`, `SqliteGoalRepository` | `goal::tests` (transitions), `goals::tests` (transition, owner-only delete) | ✅ Implemented |
 
 ## Interface
@@ -86,8 +86,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-CUR-001 | DDMVSS specification tools | `hkask-mcp-spec`, `hkask-types`, `hkask-storage` | `lib`, `spec`, `spec_store` | 8 MCP tools, `SpecStore`, `SqliteSpecStore` | — | ✅ Implemented |
-| REQ-CUR-002 | Curation decision gradient | `hkask-types` | `spec`, `curation` | `SpecCurationRecord`, `CurationDecision` | — | ✅ Implemented |
+| REQ-CUR-001 | DDMVSS specification tools | `hkask-mcp-spec`, `hkask-storage`, `hkask-agents` | `lib`, `spec_types`, `spec_store`, `curator_agent/spec_curator` | 8 MCP tools, `SpecStore`, `SqliteSpecStore`, `DefaultSpecCurator` | \u2014 | \u2705 Implemented |
+| REQ-CUR-002 | Curation decision gradient | `hkask-storage`, `hkask-types` | `spec_types`, `curation` | `SpecCurationRecord`, `CurationDecision` | \u2014 | \u2705 Implemented |
 
 ---
 

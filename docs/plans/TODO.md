@@ -2,7 +2,7 @@
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
 last_updated: 2026-06-07
-version: "1.6.0"
+version: "1.7.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -47,7 +47,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-03** | GPU acceleration (CUDA) | Infrastructure | Low | Optional |
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
-| **P2-06** | Resolve hkask-agents build regression (SovereigntyChecker, ConsentManager) | Dev | High | ⬜ Open | 5 compile errors in hkask-agents |
+| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved (cargo check passes); remaining code drift noted below |
 | **P2-07** | DDMVSS audit R4: Update §9.1 self-application matrix | Curator | Medium | ⬜ Open | 3 cells need :partial/:drift labels |
 | **P2-08** | DDMVSS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ⬜ Open | PRINCIPLES.md §1.4 is authoritative |
 | **P2-09** | DDMVSS audit R8: Add TemplateType vocabulary mapping to interface-and-composition.md | Curator | Medium | ⬜ Open | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct |
@@ -56,7 +56,21 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 21 MCP servers' tools | Dev | Medium | ⬜ Open | Audit all servers: tools, gas costs, credentials, per-tool detail |
 | **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ⬜ Open | Run test seam analysis per DDMVSS §12 and `docs/specifications/test-program.md` |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ⬜ Open | Pattern refactoring review across codebase |
-| **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ⬜ Open | Dead-code identification, unimplemented seams |
+| **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` \u2014 dead code and unwired seam inventory | Dev | Low | \u2b1c Open | Dead-code identification, unimplemented seams |
+
+**Code drift from spec alignment audit (2026-06-07):** The following spec references describe intended behavior but code has not yet caught up:
+
+| ID | Spec Reference | Code Status | Notes |
+|----|---------------|-------------|-------|
+| P2-06-D1 | 5 hierarchical CNS spans (`cns.hhh.gate`, `cns.hhh.persona`, `cns.cybernetics.backpressure`, `cns.memory.encode`, `cns.memory.budget`) | Not in `CANONICAL_NAMESPACES` | Listed in PRINCIPLES.md \u00a71.4 (authoritative) but not yet registered in code |
+| P2-06-D2 | `Caveat` struct (`capability/mod.rs:240`) | Not in code | Spec describes caveat restrictions; code uses `Vec<Caveat>` field in `DelegationTokenBuilder` but no `Caveat` type defined |
+| P2-06-D3 | `CapabilityToken` type alias | Not in code | Referenced in trust-security-observability.md; `DelegationToken` is the actual type |
+| P2-06-D4 | `ContractValidator` (`hkask-templates::contract_validator`) | Not in code | Spec describes lexicon-term enforcement at template registration |
+| P2-06-D5 | `CapabilityAwareValidator` (`hkask-templates/src/capability_validator.rs`) | Not in code | Spec describes OCAP enforcement point for template execution |
+| P2-06-D6 | `TemplateInvocation` struct (`template.rs:95`) | Not in code | Entity referenced in domain entity table |
+| P2-06-D7 | `SecurityGateway` struct | Not in code | Referenced in REQ-CAP-003; enforcement is via `GovernedTool` instead |
+| P2-06-D8 | `McpTransport` trait | Not in code | Referenced in REQ-CAP-003; rmcp handles transport internally |
+| P2-06-D9 | `parse_markdown_catalog`, `render_workspace_yaml`, `regenerate_workspace_yaml` functions | Not in code | Markdown\u2192YAML derivation not yet implemented; `load_hlexicon_from_yaml` loads YAML directly |
 
 ---
 

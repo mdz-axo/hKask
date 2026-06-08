@@ -63,6 +63,18 @@ hlexicon:
       definition: "State a non-negotiable condition"
     - term: constrain
       definition: "Limit the solution space"
+    - term: extract
+      definition: "Pull specific structured data from a source"
+    - term: gap
+      definition: "Identify an uncovered requirement or missing capability"
+    - term: reproduce
+      definition: "Re-create a bug or behavior from a known procedure"
+    - term: substitute
+      definition: "Replace a term or reference with an equivalent"
+    - term: validate
+      definition: "Confirm an artifact meets defined criteria"
+    - term: write
+      definition: "Produce or persist content"
   flowdef:
     - term: sequence
       definition: "Linear ordering"
@@ -130,6 +142,22 @@ hlexicon:
       definition: "Draw out latent goals or requirements"
     - term: reconcile
       definition: "Resolve conflicts between goals or requirements"
+    - term: defer
+      definition: "Postpone action pending future evidence"
+    - term: deprecate
+      definition: "Mark for future removal while remaining functional"
+    - term: enforce
+      definition: "Ensure a constraint or rule is obeyed"
+    - term: install
+      definition: "Place an artifact into its operational location"
+    - term: list
+      definition: "Enumerate items in a collection"
+    - term: prune
+      definition: "Remove an artifact from the corpus"
+    - term: retire
+      definition: "Permanently remove a deprecated artifact"
+    - term: search
+      definition: "Look for candidates across available sources"
   knowact:
     - term: recognize
       definition: "Identify pattern"
@@ -217,3 +245,43 @@ hlexicon:
       definition: "Systematic examination for violations and compliance"
     - term: apply
       definition: "Enforce constraints and guardrails on implementation"
+    - term: amplify
+      definition: "Increase regulatory or response variety"
+    - term: analyze
+      definition: "Decompose into components for understanding"
+    - term: attenuate
+      definition: "Reduce system or disturbance variety"
+    - term: compress
+      definition: "Distill and reduce context volume"
+    - term: deepen
+      definition: "Extract a smaller interface from a shallow module"
+    - term: design
+      definition: "Define structure and interfaces of a component"
+    - term: explore
+      definition: "Search systematically for patterns or friction"
+    - term: fix
+      definition: "Apply a corrective change to resolve a defect"
+    - term: instrument
+      definition: "Add targeted observation points to a code path"
+    - term: isolate
+      definition: "Separate a concern or variable from its context"
+    - term: map
+      definition: "Produce a structured representation of component relationships"
+    - term: observe
+      definition: "Watch and record system behavior without intervention"
+    - term: plan
+      definition: "Define ordered steps toward a goal before execution"
+    - term: predict
+      definition: "Forecast an outcome from current evidence"
+    - term: rank
+      definition: "Order items by a comparative criterion"
+    - term: resolve
+      definition: "Determine a winner or course from competing alternatives"
+    - term: score
+      definition: "Assign a numeric assessment to an artifact"
+    - term: synthesize
+      definition: "Combine disparate elements into a coherent whole"
+    - term: trace
+      definition: "Follow a causal or provenance chain"
+    - term: translate
+      definition: "Convert from one representation or format to another"
