@@ -2,7 +2,7 @@
 
 ## 1. Session Context
 
-Nine sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
+Ten sessions have completed the 9-task service layer extraction plan. All extraction, migration, infrastructure unification, verification, and documentation tasks are complete. This handoff covers all work done and the open questions that remain for future work.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
@@ -21,6 +21,8 @@ Nine sessions have completed work on the 9-task service layer extraction plan. T
 **Session 8** (Task 6e/6f/6g — all skipped via depth test): Applied depth test to spec.rs, goal.rs, and models.rs. All three fail the 8-call-site threshold. Task 6 is now complete (5 extracted, 4 skipped). Proceeding to Task 7.
 
 **Session 9** (Task 7b — Surface Assembly Migration): Migrated both API and CLI surfaces to compose `ServiceContext::build()` instead of their own independent assembly paths. Added `ApiState::from_service_context()` and refactored `ApiState::with_defaults()`. Migrated `kask serve` and `kask loops` to use `ServiceContext::build()`. Refactored `init_repl_state()` to use `ServiceContext::build()` for shared infrastructure. Deleted 4 API modules (loop_system, governed_tool, stores, ensemble) and ~460 lines of duplicated assembly code. 49 tests passing (46 service + 3 API).
+
+**Session 10** (Tasks 7c, 7d, 7f, 8, 9 — CAS investigation, secret audit, error mapping, verification, documentation): Closed F26 (CAS store write-through is dead code — 0 call sites; removed `define_store_cas!` macro, 6 `*_with_cas()` methods, `.with_cas()` builders from 6 stores). Audited secret resolution (all main paths flow through ServiceConfig; remaining direct keystore calls are by design). Unified 3 sovereignty API routes to use `ApiError::from` instead of `ApiError::Internal`. Full workspace verification passes. Updated test-inventory.md, architecture-master.md, wrote OPEN_QUESTIONS.md (F1–F26). 49 tests passing.
 
 ## 2. What Was Done
 
@@ -454,41 +456,54 @@ init_repl_state() uses ServiceContext::build() for shared infra ✅
 37. **`session_manager` added to ServiceContext.** Both CLI and API need SessionManager for ensemble operations. Enables `From<&ServiceContext> for EnsembleContext`. ServiceContext now has 20 fields.
 38. **All 5 context types now have `From<&ServiceContext>`.** InferenceContext (pre-existing), PodContext, SovereigntyContext, CuratorContext (escalation-only), EnsembleContext. This is the foundational step for Task 7b where surfaces will compose ServiceContext and derive their contexts.
 39. **Surface code now uses ServiceContext for assembly.** Both `ApiState` and `ReplState` compose `ServiceContext::build()` for shared infrastructure. `ApiState::from_service_context()` is the canonical constructor. `init_repl_state()` uses `ServiceContext::build()` internally. `kask serve` and `kask loops` both route through `ServiceContext::build()`. Old assembly code (`ApiState::new()`, `build_loop_system()`, `build_governed_mcp_tool()`, `build_ensemble_session()`, `Stores::init()`) has been deleted.
+40. **CAS store write-through is dead code.** 0 call sites for any `*_with_cas()` method or `.with_cas()` builder. The old `Stores::init()` was the only consumer and was deleted in Session 9. Removed `define_store_cas!` macro, 6 `*_with_cas()` methods, `.with_cas()` builders, and `cas_port` fields from 6 stores in `hkask-storage`. All 5 affected stores now use `define_store!`. `SqliteGoalRepository` also had hand-written CAS code removed. The read-only `git_cas_port` (used by API git routes, CLI git commands, MCP git server, CNS snapshot loop) is separate and untouched. F26 CLOSED.
+41. **Secret resolution audit: all main paths flow through ServiceConfig.** The 4 main assembly paths (API, serve, loops, REPL) all route through `ServiceConfig::from_env()` or `ServiceConfig::from_secrets()`. Remaining direct `hkask_keystore::resolve_*` calls are by design: (a) domain crate internals that MUST NOT depend on `hkask-services` (P1), (b) standalone CLI commands that don't need a full `ServiceContext`, (c) API route auth checks. No migration needed.
+42. **Sovereignty API routes now use `ApiError::from` instead of `ApiError::Internal`.** 3 routes (`get_status`, `grant_consent`, `check_access`) were wrapping `ServiceError` as `ApiError::Internal { message: e.to_string() }` instead of using the `From<ServiceError> for ApiError` adapter. This meant legitimate business errors (e.g., bad category) got 500 instead of 400. Now they use `.map_err(ApiError::from)?` like all other service-wired routes. F14 PARTIALLY ADDRESSED.
+43. **Remaining direct `ApiError::` constructions are legitimate surface concerns.** ~11 direct constructions remain in `api/routes/`: `BadRequest` for input parsing/validation, `Forbidden` for OCAP capability gates, `Unauthorized` for auth failures, `NotFound` for surface-only entities (standing sessions, bundles), `Internal` for infrastructure failures without ServiceError path (consolidation, episodic memory, git). These are NOT errors that should flow through ServiceError — they're HTTP-layer concerns.
 
 ## 6. What Remains
 
-### MEDIUM — Task 6: Extract remaining service modules
+**The original 9-task service layer extraction plan is COMPLETE.** All tasks (1–9) are done: 5 service modules extracted, 4 skipped via depth test, surface assembly migrated, CAS dead code removed, secret resolution audited, error mapping unified, full verification passed, and documentation updated.
 
-Apply the same pattern (lightweight context like `InferenceContext`/`CuratorContext`/`EnsembleContext`) for:
-- ~~`ensemble.rs`~~ — **DONE (Task 6a)**
-- ~~`pods.rs`~~ — **DONE (Task 6b)** (6 functions: parse_pod_id, get_pod_status, list_pods, create_pod, activate_pod, deactivate_pod)
-- ~~`memory.rs`~~ — **SKIPPED** — fails depth test (only 2 call sites with high divergence; episodic ops are P1 OCAP-gated; consolidation infrastructure belongs in Task 7)
-- ~~`sovereignty.rs`~~ — **DONE (Task 6d)** (9 public functions + 2 types: parse_data_category, get_boundary, requires_affirmative_consent, grant_consent, revoke_consent, has_consent, get_granted_categories, check_access, get_status + AccessCheck + SovereigntyStatus)
-- ~~`spec.rs`~~ — **SKIPPED** — fails depth test (4 meaningful call sites; API routes are stubs returning hardcoded values; CLI render/test-invariant/test-verify are surface-only; validate/cultivate have no API counterpart with real logic; capture logic is thin Spec construction that diverges CLI persists vs API returns)
-- ~~`goal.rs`~~ — **SKIPPED** — fails depth test (12 call sites across 6 operations, but CRUD operations are thin pass-throughs to repo methods; parsing helpers are too thin to justify a full service module; `open_repository()` infrastructure wiring belongs in Task 7)
-- ~~`models.rs`~~ — **SKIPPED** — already fully covered by `InferenceService::list_models/search_models`; no additional duplication to extract
+Remaining work is organized around open questions from `OPEN_QUESTIONS.md`. Priority order:
 
-### MEDIUM — Task 7: Infrastructure unification
+### HIGH — F9: Production memory stores use `in_memory_db()`
 
-- **7a** ~~Extract cross-cutting infrastructure~~ — **DONE (Session 8)**. Added `From<&ServiceContext>` for all 5 context types. Added `session_manager` to ServiceContext. Added `CuratorContext::from_service_context()` async method. 6 infrastructure tests.
-- **7b** ~~Surface assembly migration~~ — **DONE (Session 9)**. Both `ApiState` and `ReplState` now compose `ServiceContext::build()`. Added `ApiState::from_service_context()`, refactored `with_defaults()`, migrated `kask serve` and `kask loops`, refactored `init_repl_state()`. Deleted 4 API modules (~460 lines of duplicated assembly code). 3 new API tests.
-- **7c** — Add CAS write-through support to ServiceContext stores (F26). Current `ServiceContext::build()` stores don't have `.with_cas()` that the old API `Stores::init()` provided. Track as open question.
-- **7d** — Extract secret resolution from surface layers (partially done — `ServiceConfig::from_env()` already resolves ACP/MCP/DB secrets)
-- **7e** — ~~Extract CNS/Loop/EventSink wiring~~ — **DONE (absorbed into 7b)**. `ServiceContext::build()` now replaces all 4 independent assembly paths.
-- **7f** — Unify error mapping: `ServiceError` → CLI error enums and `ApiError`
+Episodic/semantic memory stores use `in_memory_db()` even when `config.in_memory: false`. Production deployments lose all memories on restart. This is a **P1 User Sovereignty** concern — the user configured persistent storage and got ephemeral.
 
-### MEDIUM — Task 8: Verification
+**Next action:** Add `memory_db_path` and `memory_passphrase` to `ServiceConfig`; wire file-backed DB construction when `in_memory: false`; add integration test verifying persistence across restart.
 
-- Depth test every module in `hkask-services`
-- Dependency direction verification (no circular deps)
-- `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
-- Deletion test: removing any service module should cause complexity to reappear in 8+ call sites
+### MEDIUM — F10: ServiceContext god-object (20 fields)
 
-### LOW — Task 9: Documentation
+Guard against further growth by grouping into sub-structs (`InfraContext`, `LoopContext`, `AgentContext`) and adding `#[non_exhaustive]`.
 
-- Update `docs/status/test-inventory.md`
-- Update `docs/architecture/hKask-architecture-master.md` with service layer section
-- Write `OPEN_QUESTIONS.md` for F1–F17
+**Next action:** Propose sub-struct grouping; validate no new fields added outside grouped sub-structs.
+
+### MEDIUM — F7: ServiceConfig vs environment variables
+
+`HKASK_DB_PATH` is read in 3 places. Should be resolved once in `ServiceConfig`.
+
+**Next action:** Consolidate all env-var reads into `ServiceConfig`.
+
+### MEDIUM — Deferred questions (no immediate action)
+
+| ID | Question | Note |
+|----|----------|------|
+| F2 | Session lifecycle across surfaces | Specify durability semantics first |
+| F3 | Unified authentication context | Define `AuthContext` struct in services |
+| F6 | REPL vs API state boundary | Write boundary table in architecture docs |
+| F17 | CuratorService standalone commands open DB each time | Wire through `ServiceContext::build()` or document independence |
+| F18 | EnsembleService standing session extraction | Needs surface-specific adapter design |
+| F19 | EnsembleService improv operation extraction | Needs inferencer abstraction |
+
+### LOW — Track-only questions
+
+| ID | Question |
+|----|----------|
+| F1 | Streaming response support |
+| F11 | InvalidPassphrase vs LoginFailed security |
+| F12 | ValidationError(String) too generic |
+| F16 | Embedding concern separation |
 
 ## 7. Open Questions (F1–F17)
 
@@ -507,7 +522,7 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 | F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track
 | F12 | ValidationError(String) too generic | LOW | Track
 | F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | CLOSED | **By design** — 1 MCP secret checker (top-level), 2 ACP secret checkers (MCP runtime adapter + PodManager). Same pattern in both surfaces. Not inconsistent.
-| F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | Planned for Task 7f
+| F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | **PARTIALLY ADDRESSED** — 3 sovereignty routes now use `ApiError::from`; remaining direct constructions are legitimate surface concerns (input validation, OCAP gates, auth checks) |
 | F15 | InferenceContext vs ServiceContext for service modules | CLOSED | Decided — lightweight context for surfaces, ServiceContext for full composition
 | F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later
 | F17 | CuratorService standalone commands still open DB each time | MEDIUM | Track — ReplState has escalation_queue; standalone kask curator commands could reuse it
@@ -519,19 +534,19 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 | F23 | Spec domain depth test result | CLOSED | Skipped — 4 call sites, API stubs, CLI surface-only ops, capture diverges (persist vs return)
 | F24 | Goal domain depth test result | CLOSED | Skipped — CRUD pass-throughs, thin parsing helpers, infrastructure wiring belongs in Task 7
 | F25 | Models domain depth test result | CLOSED | Skipped — fully covered by InferenceService, no additional duplication
-| F26 | ServiceContext stores lack CAS write-through | MEDIUM | Old API `Stores::init()` added `.with_cas()` to consent, goal, standing session stores. ServiceContext::build() does not. Per-mutation audit trails are lost in the new path. Needs investigation — may require adding CAS support to ServiceContext or making CAS a surface-level concern. |
+| F26 | ServiceContext stores lack CAS write-through | MEDIUM | **CLOSED (Session 10)** — CAS store write-through is dead code (0 call sites). Removed `define_store_cas!` macro, 6 `*_with_cas()` methods, `.with_cas()` builders, `cas_port` fields from 6 stores. Read-only `git_cas_port` for git operations remains alive. No ServiceContext field added (F10 preserved). |
 
 ## 8. Mandatory Skills for Next Session
 
 **Load these BEFORE writing any code:**
 
-1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Every new service extraction must follow this skill's process.
-2. **`coding-guidelines`** — Assess before implementing. Surgical changes only.
-3. **`tdd`** — Every new service operation gets a RED→GREEN→REFACTOR cycle with `// REQ:` tags.
-4. **`constraint-forces`** — Classify every design decision by force type before implementing.
-5. **`zoom-out`** — Use before touching error mapping or CAS write-through code.
-6. **`diagnose`** — If CAS or error mapping diverges after unification, use disciplined diagnosis.
-7. **`improve-codebase-architecture`** — F10 (ServiceContext god-object) may need sub-struct grouping. Use this skill to find the right decomposition.
+1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Any further service extraction (F18/F19) or ServiceContext restructuring (F10) must follow this skill's process.
+2. **`coding-guidelines`** — Assess before implementing. Surgical changes only. Every changed line must trace to the task.
+3. **`tdd`** — RED→GREEN→REFACTOR per behavior. Every new path gets a `// REQ:` tagged test.
+4. **`constraint-forces`** — Classify every design decision by force type. F9 is a P1 Prohibition (User Sovereignty); F10 is a Guardrail. Never silently relax.
+5. **`zoom-out`** — Use BEFORE touching ServiceContext structuring, memory store wiring, or session lifecycle code.
+6. **`improve-codebase-architecture`** — F10 (ServiceContext god-object) needs sub-struct grouping. Use this skill to find the right decomposition.
+7. **`diagnose`** — If memory persistence or ServiceContext refactoring introduces regressions, use the disciplined diagnosis loop.
 
 ## 9. Architectural Context for Continuation Agent
 

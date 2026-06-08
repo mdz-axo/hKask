@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
-version: "2.2.4"
+last_updated: 2026-06-08
+version: "2.2.5"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -39,6 +39,74 @@ The architecture is specified in four DDMVSS-aligned documents, each authoritati
 | [`PRINCIPLES.md`](PRINCIPLES.md) | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
 | [`loop-architecture.md`](loop-architecture.md) | 6-loop architecture — authority DAG, crate↔loop mapping, capability membranes |
 | [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, Magna Carta verification |
+
+---
+
+## Service Layer
+
+**Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
+
+### Dependency Direction
+
+```mermaid
+graph TD
+    CLI["hkask-cli"]
+    API["hkask-api"]
+    SVC["hkask-services"]
+    CLI --> SVC
+    API --> SVC
+    SVC --> AGENTS[hkask-agents]
+    SVC --> CNS[hkask-cns]
+    SVC --> MEM[hkask-memory]
+    SVC --> TEMPLATES[hkask-templates]
+    SVC --> TYPES[hkask-types]
+    SVC --> STORAGE[hkask-storage]
+```
+
+Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` (P1 Prohibition — out-of-process isolation).
+
+### ServiceContext Composition
+
+`ServiceContext::build(config)` assembles all shared infrastructure once at startup. Both surfaces compose it and add only presentation-specific fields:
+
+- `ReplState` = `ServiceContext` + REPL fields (prompt history, input state)
+- `ApiState` = `ServiceContext` + HTTP fields (router, OpenAPI spec)
+
+`ServiceContext::build()` replaces four independent assembly paths: `Stores::init`, `build_loop_system`, `build_governed_mcp_tool`, `build_ensemble_session`. Dependency order: DB → stores → CNS → loop system → governed tool → ACP/pods → inference port → memory adapters.
+
+### Surface vs Service Boundary
+
+| Concern | Owner | Examples |
+|---------|-------|----------|
+| Business logic normalization | `hkask-services` | Multi-step workflows, cross-crate orchestration, error normalization |
+| Input validation | Surface | CLI arg parsing, HTTP body schema, path params |
+| OCAP gates | Surface | `GovernedTool` membrane, capability checks before service call |
+| HTTP status mapping | `hkask-api` | `ServiceError → StatusCode` |
+| CLI formatting | `hkask-cli` | Table output, color, progress indicators |
+
+### Depth Test Results
+
+| Module | Public API | Call Sites (CLI+API) | Status |
+|--------|-----------|---------------------|--------|
+| `InferenceService` | 3 functions | 8+ | ✅ Pass |
+| `CuratorService` | 6 functions | 12+ | ✅ Pass |
+| `EnsembleService` | 8 functions | 16+ | ✅ Pass |
+| `PodService` | 6 functions | 12+ | ✅ Pass |
+| `SovereigntyService` | 9 functions + 2 types | 18+ | ✅ Pass |
+
+### Skipped Domains
+
+| Domain | Reason |
+|--------|--------|
+| memory | 2 call sites — insufficient depth |
+| spec | 4 call sites — insufficient depth |
+| goal | CRUD pass-throughs — no business logic to normalize |
+| models | Covered by `InferenceService` |
+
+### Key Constraints
+
+1. **MCP servers do NOT depend on `hkask-services`** — P1 Prohibition (out-of-process isolation). Service layer is in-process only.
+2. **Domain crates do NOT depend on `hkask-services`** — dependency direction is strictly surface → service → domain.
 
 ---
 

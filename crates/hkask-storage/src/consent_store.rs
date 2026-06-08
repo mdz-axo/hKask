@@ -5,7 +5,6 @@
 
 use crate::Store;
 use hkask_types::InfrastructureError;
-use hkask_types::ports::git_cas::RepoId;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -36,7 +35,7 @@ pub struct StoredConsentRecord {
     pub active: bool,
 }
 
-define_store_cas!(ConsentStore);
+define_store!(ConsentStore);
 
 impl ConsentStore {
     /// Initialize the consent_records table
@@ -81,23 +80,6 @@ impl ConsentStore {
             ],
         )?;
 
-        Ok(())
-    }
-
-    /// Store with CAS write-through: persists to SQLite, then writes to the Sovereignty repo.
-    pub async fn store_with_cas(
-        &self,
-        record: &StoredConsentRecord,
-    ) -> Result<(), ConsentStoreError> {
-        self.store(record)?;
-        if let Some(port) = &self.cas_port {
-            let bytes = serde_json::to_vec(record).map_err(|e| {
-                ConsentStoreError::Infra(InfrastructureError::Serialization(e.to_string()))
-            })?;
-            port.put_blob(&RepoId::Sovereignty, &bytes)
-                .await
-                .map_err(|e| ConsentStoreError::Infra(InfrastructureError::Io(e.to_string())))?;
-        }
         Ok(())
     }
 

@@ -101,10 +101,7 @@ async fn sovereignty_status(
     let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
     let webid_str = auth.webid.to_string();
 
-    let status =
-        SovereigntyService::get_status(&ctx, &webid_str).map_err(|e| ApiError::Internal {
-            message: e.to_string(),
-        })?;
+    let status = SovereigntyService::get_status(&ctx, &webid_str).map_err(ApiError::from)?;
 
     Ok(Json(SovereigntyStatusResponse {
         explicit_consent: status.explicit_consent,
@@ -139,11 +136,7 @@ async fn sovereignty_grant_consent(
 
     let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
 
-    SovereigntyService::grant_consent(&ctx, &webid_str, &category).map_err(|e| {
-        ApiError::Internal {
-            message: e.to_string(),
-        }
-    })?;
+    SovereigntyService::grant_consent(&ctx, &webid_str, &category).map_err(ApiError::from)?;
 
     let granted = SovereigntyService::get_granted_categories(&ctx, &webid_str).unwrap_or_default();
 
@@ -218,11 +211,8 @@ async fn sovereignty_check_access(
 
     let ctx = SovereigntyContext::from_parts(state.consent_manager.clone());
 
-    let access = SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(|e| {
-        ApiError::Internal {
-            message: e.to_string(),
-        }
-    })?;
+    let access =
+        SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(ApiError::from)?;
 
     // P1 Prohibition: The service returns classification + consent state;
     // the surface decides whether to grant or deny access.

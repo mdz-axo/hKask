@@ -1,6 +1,6 @@
-# Continuation Prompt — hKask Service Layer Extraction
+# Continuation Prompt — hKask Service Layer Post-Extraction
 
-**Session 10 — Tasks 7c/7d/7f, 8, 9**
+**Session 11 — Open Questions F9, F10, F7**
 
 ---
 
@@ -8,19 +8,19 @@
 
 **You MUST load these skills BEFORE writing any code. Do not skip this step.**
 
-1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Every structural change must follow its Phase 5/Phase 6 process.
-2. **`coding-guidelines`** — Think before coding. Surgical changes only. Every changed line must trace to the task.
+1. **`refactor-service-layer`** — Strangler fig process, deletion test, depth test, verification checklist. Any ServiceContext restructuring or further extraction must follow this skill.
+2. **`coding-guidelines`** — Think before coding. Surgical changes only. Every changed line traces to the task.
 3. **`tdd`** — RED→GREEN→REFACTOR per behavior. Every new path gets a `// REQ:` tagged test.
-4. **`constraint-forces`** — Classify every design decision by force type (Prohibition > Guardrail > Guideline > Evidence > Hypothesis). Never silently relax a Prohibition or Guardrail.
-5. **`zoom-out`** — Use BEFORE touching CAS write-through or error mapping code. Map call sites, dependencies, and surface-specific vs shared concerns.
-6. **`diagnose`** — If CAS or error mapping diverges after unification, use the disciplined diagnosis loop before trying to fix mismatches.
-7. **`improve-codebase-architecture`** — F10 (ServiceContext god-object) may need sub-struct grouping. Use this skill to find the right decomposition before adding more fields.
+4. **`constraint-forces`** — Classify every decision by force type. F9 is P1 (Prohibition); F10 is Guardrail. Never silently relax.
+5. **`zoom-out`** — Use BEFORE touching ServiceContext structuring, memory store wiring, or env-var consolidation.
+6. **`improve-codebase-architecture`** — Required for F10 sub-struct decomposition.
+7. **`diagnose`** — If memory persistence or ServiceContext refactoring introduces regressions, use the disciplined diagnosis loop.
 
 ---
 
 ## 1. Session Context
 
-This is **Session 10** of the hKask service layer extraction. Nine prior sessions completed:
+The 9-task service layer extraction plan is **COMPLETE** (Sessions 1–10). All 5 service modules are extracted and wired, surface assembly migrated, CAS dead code removed, secret resolution audited, error mapping unified, full verification passed, documentation updated.
 
 | Session | Tasks | Key Outcome |
 |---------|-------|-------------|
@@ -31,14 +31,17 @@ This is **Session 10** of the hKask service layer extraction. Nine prior session
 | 5 | 6a | `EnsembleService` (8 functions, 11 tests) — standing/improv excluded |
 | 6 | 6b | `PodService` (6 functions, 6 tests) — fixed CLI error-swallowing bug |
 | 7 | 6c-skipped, 6d | `SovereigntyService` (9 functions + 2 types, 13 tests) |
-| 8 | 6e/6f/6g-skipped, 7a | All three depth tests failed; added `From<&ServiceContext>` for all 5 context types |
-| 9 | 7b | **Surface assembly migration complete.** Both `ApiState` and `ReplState` compose `ServiceContext::build()`. Deleted 4 API modules (~460 lines). Fixed API CnsRuntime bug (disconnected instance → shared). 3 API tests added. |
+| 8 | 6e/6f/6g-skipped, 7a | Depth tests failed for 3 domains; added `From<&ServiceContext>` for all 5 contexts |
+| 9 | 7b | Surface assembly migration — both `ApiState` and `ReplState` compose `ServiceContext::build()`. Deleted ~460 lines of duplicated assembly code |
+| 10 | 7c/7d/7f, 8, 9 | CAS dead code removed, secret resolution audited, error mapping unified, full verification, documentation |
 
 **Current test count:** 49 tests (46 service-layer + 3 API). Workspace compiles clean with `clippy -D warnings`.
 
+This session shifts from the 9-task extraction plan to **addressing open questions** from `OPEN_QUESTIONS.md`, prioritized by force type and user impact.
+
 ---
 
-## 2. What Was Completed Through Session 9
+## 2. What Was Completed Through Session 10
 
 ### Task 6 — COMPLETE (5 extracted, 4 skipped)
 
@@ -49,30 +52,25 @@ This is **Session 10** of the hKask service layer extraction. Nine prior session
 | `ensemble.rs` | ✅ DONE | 8 | 11 | — |
 | `pods.rs` | ✅ DONE | 6 | 6 | — |
 | `sovereignty.rs` | ✅ DONE | 9 + 2 types | 13 | — |
-| `memory.rs` | ❌ SKIPPED | — | — | 2 call sites, P1 OCAP-gated |
-| `spec.rs` | ❌ SKIPPED | — | — | 4 sites, API stubs, surface-only ops |
-| `goal.rs` | ❌ SKIPPED | — | — | Thin CRUD pass-throughs |
-| `models.rs` | ❌ SKIPPED | — | — | Covered by InferenceService |
+| `memory.rs` | ⏭ SKIPPED | — | — | Depth test failed (2 sites, P1 OCAP-gated) |
+| `spec.rs` | ⏭ SKIPPED | — | — | Depth test failed (4 sites, API stubs) |
+| `goal.rs` | ⏭ SKIPPED | — | — | Depth test failed (CRUD pass-throughs) |
+| `models.rs` | ⏭ SKIPPED | — | — | Covered by InferenceService |
 
-### Task 7a — COMPLETE
+### Task 7 — COMPLETE (all sub-tasks done)
 
-Added `From<&ServiceContext>` impls for all 5 context types, `session_manager` field to ServiceContext, `CuratorContext::from_service_context()` async method, and 6 infrastructure tests.
+| Sub-task | Status | Key Change |
+|----------|--------|------------|
+| 7a | ✅ | `From<&ServiceContext>` for all 5 context types; `session_manager` added |
+| 7b | ✅ | Surface assembly migration; ~460 lines deleted; both surfaces compose `ServiceContext::build()` |
+| 7c | ✅ | CAS dead code removed; `define_store_cas!` macro deleted; 6 stores simplified |
+| 7d | ✅ | Secret resolution audit: all main paths through `ServiceConfig` |
+| 7e | ✅ | CNS/Loop/EventSink wiring absorbed into 7b |
+| 7f | ✅ | 3 sovereignty routes use `ApiError::from`; remaining direct constructions are legitimate |
 
-### Task 7b — COMPLETE
+### Tasks 8 & 9 — COMPLETE
 
-**Phase 1 — API surface:**
-- Added `ApiState::from_service_context(ctx, ensemble_inferencer)` — derives all shared fields from `ServiceContext`, initializes API-specific fields to defaults
-- Refactored `ApiState::with_defaults()` from 7-param sync → 0-param async using `ServiceContext::build()` + `from_service_context()`
-- Migrated `kask serve` to `ServiceContext::build(config).await` + `from_service_context()`
-- Deleted `ApiState::new()`, `with_ensemble_inferencer()`, 4 API module files (~460 lines total)
-- 3 new API tests
-
-**Phase 2 — CLI surface:**
-- Refactored `kask loops` from 113-line manual assembly → 44-line `ServiceContext::build()` call
-- Refactored `init_repl_state()` to use `ServiceContext::build()` for shared infra; CLI-specific concerns remain (inference, onboarding, per-agent memory, GovernedTool, HHH gate, gas budget)
-- ~183 lines of duplicated assembly eliminated
-
-**Key bug fix:** Old `ApiState::new()` created a **disconnected** 3rd `CnsRuntime` instance. New path clones from ServiceContext's shared `Arc<RwLock<CnsRuntime>>`, ensuring the API's `cns_runtime` shares state with the loop system's CNS.
+Full workspace verification passed. Documentation updated (test-inventory.md, architecture-master.md, OPEN_QUESTIONS.md).
 
 ---
 
@@ -117,69 +115,70 @@ All 5 context types derive via `From<&ServiceContext>`:
 
 ---
 
-## 4. What Remains
+## 4. What Remains — Open Questions
 
-### Task 7c — CAS Write-Through for ServiceContext Stores (F26) — MEDIUM
+Organized by priority. Read `OPEN_QUESTIONS.md` for full details on each.
 
-**Problem:** Old API `Stores::init()` added `.with_cas(git_cas_port)` to consent, goal, and standing session stores. `ServiceContext::build()` does not include CAS write-through. Per-mutation audit trails are lost in the new path.
+### HIGH — F9: Production memory stores use `in_memory_db()`
 
-**Investigation needed:**
-1. Read the CAS write-through methods in `hkask-storage`: `ConsentStore::store_with_cas()`, `SqliteGoalRepository::with_cas()`, `StandingSessionStore::save_stored_session_with_cas()`
-2. Determine whether CAS is a **shared concern** (should be in ServiceContext) or a **surface concern** (should be wired by surfaces after `ServiceContext::build()`)
-3. Find all call sites that use the `*_with_cas()` methods vs regular methods
+**Problem:** Episodic/semantic memory stores use `in_memory_db()` even when `config.in_memory: false`. Production deployments lose all memories on restart. This is a **P1 User Sovereignty Guardrail** — the user configured persistent storage and got ephemeral.
 
-**Possible outcomes:**
-- **Option A**: CAS is shared → Add `git_cas_port` field to ServiceContext; call `.with_cas()` during `build()`
-- **Option B**: CAS is surface-specific → Surfaces call `.with_cas()` on the stores they get from ServiceContext after construction (requires stores to be mutable or re-constructable)
-- **Option C**: CAS is deprecated → The old API path was the only consumer; remove `_with_cas` methods
+**Task:** Add `memory_db_path` and `memory_passphrase` to `ServiceConfig`; wire file-backed DB construction when `in_memory: false` in `ServiceContext::build()`; add integration test verifying persistence across restart.
 
-**Constraint:** If adding a field to ServiceContext, it must pass the depth test (8+ call sites). F10 already flags ServiceContext at 20 fields.
+**Strategy:**
+1. Zoom out on `ServiceContext::build()` memory store construction (lines ~228-250 in `context.rs`)
+2. Add two fields to `ServiceConfig`: `memory_db_path: Option<String>`, `memory_passphrase: Option<String>`
+3. In `ServiceContext::build()`, when `!config.in_memory`, construct file-backed DB for episodic/semantic stores using `memory_db_path` or derive from `db_path` (e.g., `hkask-memory-episodic.db`, `hkask-memory-semantic.db`)
+4. Write test: construct ServiceContext with `in_memory: false`, store a triple, drop ServiceContext, reconstruct, verify triple persists
+5. Verify: `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
 
-### Task 7d — Secret Resolution Extraction — MEDIUM
+**Constraint forces:**
+- F9 is a **P1 User Sovereignty Guardrail** — user configured persistent storage, got ephemeral
+- F10 is a **Guardrail** — adding `memory_db_path`/`memory_passphrase` grows ServiceConfig, not ServiceContext. ServiceContext stays at 20 fields
+- P6/P7 **Prohibition** — no `todo!` or `unimplemented!`
+- **Guideline** — memory DB path should default from `db_path` base (e.g., `hkask-memory-episodic.db` next to `hkask.db`) so no explicit config needed for standard deployments
 
-**Status:** Partially done — `ServiceConfig::from_env()` already resolves ACP/MCP/DB secrets from keystore.
+### MEDIUM — F10: ServiceContext god-object (20 fields)
 
-**Remaining:** Audit all surfaces for remaining `resolve_acp_secret()` / `resolve_capability_key()` / `resolve_mcp_secret()` calls that bypass `ServiceConfig`. Ensure every secret resolution goes through `ServiceConfig`.
+**Problem:** `ServiceContext` has 20 public `Arc` fields. Each new concern (memory persistence, session lifecycle, auth context) will add more. Guard against growth by grouping into sub-structs and adding `#[non_exhaustive]`.
 
-**Known remaining call sites:**
-- `crates/hkask-cli/src/commands/config.rs` — `resolve_mcp_secret()` called in `init_repl_state()` at line 108-109
-- Any other direct keystore calls in CLI or API
+**Task:** Propose sub-struct grouping; implement; verify no call sites break.
 
-### Task 7f — Error Mapping Unification — MEDIUM
+**Strategy:**
+1. Use `improve-codebase-architecture` skill to analyze ServiceContext usage patterns
+2. Group fields by domain concern:
+   - **InfraContext**: registry, mcp_runtime, mcp_dispatcher, capability_checker, config
+   - **LoopContext**: cns_runtime, cybernetics_loop, loop_system, dispatch, event_sink
+   - **AgentContext**: inference_port, episodic_storage, semantic_storage, escalation_queue, consent_manager, goal_repo, pod_manager, system_webid, standing_session_store, session_manager
+3. `ServiceContext` becomes: `pub infra: InfraContext`, `pub loops: LoopContext`, `pub agents: AgentContext`
+4. Update all `From<&ServiceContext>` impls to navigate sub-structs
+5. Update `ServiceContext::build()` to construct sub-structs
+6. Update both surfaces (`ApiState`, `ReplState`) to navigate sub-structs
+7. Verify: `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
 
-**Problem:** API has dual error paths:
-1. `From<ServiceError> for ApiError` adapter (in `api/error.rs` lines 353-465)
-2. 14 direct `ApiError` constructions in `api/routes/*.rs` that bypass ServiceError
+**Constraint forces:**
+- F10 is a **Guardrail** — measured boundary, user-overridable
+- **Prohibition (P1)** — do NOT add new fields during restructuring; only reorganize existing ones
+- **Guideline** — every `pub` field in a sub-struct needs 2+ consumers or it should stay flat
+- **Guideline** — sub-structs should be `#[non_exhaustive]` to prevent external construction
 
-**Goal:** Audit all `api/routes/*.rs` files for direct `ApiError::Internal`, `ApiError::NotFound`, etc. that should instead flow through `ServiceError` → `ApiError`. Add missing `From<ServiceError> for ApiError` arms if needed.
+**Warning:** This is the highest-risk task in this session. ServiceContext is used by 5 context types, 2 surfaces, and the `build()` function. A bad decomposition will break everything. **Do F9 first** (simpler, independent), then attempt F10 only if time permits.
 
-**CLI side:** CLI error adapters (`cli/errors.rs`) already have `From<ServiceError>` for `CuratorError`, `AgentError`, `EnsembleError`, `UserError`. Check for direct domain-error constructions that should flow through ServiceError.
+### MEDIUM — F7: ServiceConfig vs environment variables
 
-**Approach:**
-1. Grep `api/routes/*.rs` for `ApiError::` direct constructions
-2. Classify each: legitimate surface concern (e.g., HTTP status selection) vs. should-flow-through-ServiceError
-3. Add missing `From<ServiceError>` arms for domain errors that are now in ServiceError
-4. Verify: `cargo test -p hkask-api`
+**Problem:** `HKASK_DB_PATH` is read in 3 places: `ServiceConfig::from_env()`, `ServiceConfig::from_secrets()`, and `registry_db_path()` in `cli/commands/config.rs`. Should be resolved once.
 
-### Task 8 — Verification — MEDIUM
+**Task:** Consolidate all env-var reads into `ServiceConfig`; ensure `registry_db_path()` uses `ServiceConfig.db_path` or accepts it as a parameter.
 
-```
-[ ] Depth test every module in hkask-services
-[ ] Dependency direction check (no circular deps)
-[ ] cargo check --workspace
-[ ] cargo clippy --workspace -- -D warnings
-[ ] cargo test --workspace
-[ ] Deletion test for remaining modules (what breaks if a service module is removed?)
-[ ] No todo!/unimplemented! in hkask-services
-[ ] No MCP→services dependency (P1 preserved)
-[ ] Verify ServiceContext fields are all used by 2+ surfaces
-```
+**Strategy:**
+1. Grep all `std::env::var("HKASK_DB_PATH")` and `std::env::var("OKAPI_BASE_URL")` call sites
+2. For standalone CLI commands that don't have a `ServiceConfig`, add `db_path` parameter to functions like `open_registry_db()`, `open_spec_store()`, `open_sovereignty_store()`
+3. For main assembly paths, ensure they use `ServiceConfig.db_path` (already done)
+4. Verify: `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
 
-### Task 9 — Documentation — LOW
-
-- Update `docs/status/test-inventory.md` with 49+ test entries
-- Update `docs/architecture/hKask-architecture-master.md` with service layer section
-- Write `OPEN_QUESTIONS.md` for F1–F26
+**Constraint forces:**
+- F7 is a **Guideline** — best practice, relaxable with reason
+- **Prohibition (P1)** — standalone CLI commands must still work without a full `ServiceContext`; don't force them to construct one just to get `db_path`
 
 ---
 
@@ -191,153 +190,99 @@ These are non-negotiable. Classify every design decision by force type.
 |-----------|-------|-------------|
 | MCP servers do NOT depend on `hkask-services` | Prohibition (P1) | Never modify `mcp-servers/` code |
 | OCAP gates stay in domain crates / surfaces | Prohibition (P1) | Service layer never decides access |
-| Both old and new paths must work before deleting old | Prohibition (P3 Strangler Fig) | Add new path alongside, verify, then delete |
+| F9: User configured persistence, got ephemeral | Guardrail (P1 User Sovereignty) | Must fix — memory stores must respect `in_memory: false` |
+| F10: ServiceContext ≤ 20 fields | Guardrail | Any new field or restructuring needs strong justification |
 | No `todo!` or `unimplemented!` in `hkask-services` | Prohibition (P6/P7) | Write real code or return errors |
 | Dependency direction: CLI/API → services → domain | Guideline (P12) | Never the reverse |
 | One domain per commit | Guideline (P5) | One task at a time |
 | Depth test: 8+ call sites | Guideline | If not met, deepen or skip |
-| ServiceContext ≤ 20 fields | Guardrail (F10) | Any new field needs strong justification |
-| Surface context pattern | Guideline | Each service module has its own lightweight context |
 
 ---
 
 ## 6. Key Files to Read First
 
-| File | Why |
-|------|-----|
-| `HANDOFF.md` | Authoritative state — Sections 5 (39 decisions), 6 (what remains), 7 (F1–F26), 9 (architecture) |
-| `crates/hkask-services/src/context.rs` | `ServiceContext::build()` — 20 fields, ~380 lines |
-| `crates/hkask-services/src/config.rs` | `ServiceConfig` — 3 constructors, 8 defaults |
-| `crates/hkask-services/src/error.rs` | `ServiceError` — 31 variants across 9 domain groups |
-| `crates/hkask-api/src/error.rs` | `ApiError` + `From<ServiceError>` adapter (353-465) + 14+ direct domain `From` impls |
-| `crates/hkask-api/src/lib.rs` | `ApiState::from_service_context()` — shows current API wiring |
-| `crates/hkask-cli/src/errors.rs` | CLI `From<ServiceError>` adapters for 4 error enums |
-| `crates/hkask-cli/src/repl/init.rs` | `init_repl_state()` — shows current CLI wiring via ServiceContext |
-| `crates/hkask-cli/src/commands/config.rs` | `resolve_mcp_secret()` — potential remaining direct secret resolution |
-| `crates/hkask-storage/src/consent_store.rs` | `store_with_cas()` — CAS write-through pattern |
-| `crates/hkask-storage/src/goals.rs` | `with_cas()` — CAS builder pattern |
-| `crates/hkask-storage/src/standing_session.rs` | `save_stored_session_with_cas()` — CAS write-through |
+Read these IN ORDER before writing any code:
+
+1. **`HANDOFF.md`** — Authoritative project state, 43 key decisions, architectural context for all 5 service modules
+2. **`OPEN_QUESTIONS.md`** — Full F1–F26 status, priorities, next-actions
+3. **`crates/hkask-services/src/context.rs`** — ServiceContext::build() — the heart of the service layer
+4. **`crates/hkask-services/src/config.rs`** — ServiceConfig — where new config fields go
+5. **`crates/hkask-services/src/error.rs`** — ServiceError hierarchy
+6. **`crates/hkask-storage/src/store_macros.rs`** — Store macro definitions (recently cleaned up)
+7. **`docs/architecture/hKask-architecture-master.md`** — Architecture master doc (recently updated with service layer section)
 
 ---
 
 ## 7. Detailed Task Sequence
 
-### Recommended Order: 7c → 7d → 7f → 8 → 9
+### Recommended Order: F9 → F10 → F7
 
-**Task 7c should go first** because it may require changes to ServiceContext, which affects all downstream tasks.
+**F9 should go first** because it's the highest priority (P1 User Sovereignty), is self-contained (only touches ServiceConfig and ServiceContext::build() memory store construction), and doesn't depend on F10 restructuring. If F10 restructuring happens first, F9's changes would need to be rebased into the new structure — wasted work.
 
-### Task 7c — CAS Write-Through Investigation
+**F10 is the highest-risk task.** ServiceContext restructuring touches 5 context types, 2 surfaces, and the build function. Only attempt if F9 is complete and workspace is verified green.
 
-**Step 1: Zoom out on CAS usage**
-- Grep all `*_with_cas()` and `.with_cas()` call sites across the entire workspace
-- Determine: who calls these methods? How many call sites exist?
-- Classify: shared concern (both surfaces need it) vs. surface-specific (only API uses it)
+**F7 is the simplest task.** If F9 and F10 take the full session, F7 can be deferred to a future session.
 
-**Step 2: Assess F10 impact**
-- If CAS requires a new ServiceContext field, does it pass the depth test?
-- Can CAS be added without growing ServiceContext (e.g., by wiring it after `build()`)?
+### Task F9 — Production memory persistence
 
-**Step 3: Implement the chosen approach**
-- If CAS is shared: add to ServiceContext, write test, verify
-- If CAS is surface-specific: document how surfaces wire CAS after `ServiceContext::build()`
-- If CAS is unused: remove dead `_with_cas` methods from storage crate
+**Step 1: Zoom out on memory store construction**
+- Read `ServiceContext::build()` in `context.rs` — find where episodic_storage and semantic_storage are constructed
+- Read `ServiceConfig` fields — identify what exists vs what's needed
+- Read `MemoryLoopAdapter::in_memory_unchecked()` — understand what's used for in-memory mode
+
+**Step 2: Design ServiceConfig additions**
+- Add `memory_db_path: Option<String>` (defaults to `hkask-memory.db` derived from `db_path`)
+- Add `memory_passphrase: Option<String>` (defaults to `db_passphrase` if not set)
+- Update `from_env()`, `from_secrets()`, `in_memory()` constructors
+
+**Step 3: Wire file-backed memory stores**
+- In `ServiceContext::build()`, when `!config.in_memory`, construct file-backed DB for episodic/semantic stores
+- When `config.in_memory`, keep existing `in_memory_db()` behavior
+- Test: RED first — write test that expects memory to persist across ServiceContext instances
 
 **Step 4: Verify**
 - `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
 
-### Task 7d — Secret Resolution Extraction
+### Task F10 — ServiceContext sub-struct grouping (if time permits)
 
-**Step 1: Audit all keystore calls**
-- Grep `resolve_acp_secret`, `resolve_mcp_secret`, `resolve_db_passphrase`, `resolve_capability_key` across CLI and API
-- Identify any that bypass `ServiceConfig::from_env()` or `ServiceConfig::from_secrets()`
+**Step 1: Analyze ServiceContext usage**
+- Use `improve-codebase-architecture` skill
+- Map which fields are used together by each context type
+- Identify natural groupings
 
-**Step 2: Migrate remaining direct calls**
-- Move any remaining direct keystore calls to go through ServiceConfig
-- If CLI's `init_repl_state()` still has `resolve_mcp_secret()` at line 108, ensure it flows through `ServiceConfig`
+**Step 2: Propose sub-struct decomposition**
+- Write the proposed struct definitions
+- Count consumers for each field — ensure 2+ per sub-struct field
+- Check for circular dependencies between sub-structs
+
+**Step 3: Implement and verify**
+- Restructure `ServiceContext::build()` to construct sub-structs
+- Update all `From<&ServiceContext>` impls
+- Update both surfaces
+- Full workspace verification
+
+**Step 4: Add `#[non_exhaustive]`**
+- Add to `ServiceContext` and each sub-struct
+- Verify external code can't construct sub-structs directly
+
+### Task F7 — ServiceConfig env-var consolidation (if time permits)
+
+**Step 1: Audit all env-var reads**
+```bash
+grep -rn "env::var\|std::env::var" crates/hkask-cli/ crates/hkask-api/ crates/hkask-services/ --include="*.rs" | grep -i "hkask\|okapi"
+```
+
+**Step 2: Consolidate**
+- Ensure `from_env()` reads all env vars once
+- Ensure `from_secrets()` reads env vars (except secrets) once
+- Add `db_path` parameter to standalone CLI functions that need it
 
 **Step 3: Verify**
 - `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
 
-### Task 7f — Error Mapping Unification
-
-**Step 1: Audit API routes for direct ApiError construction**
-```bash
-grep -rn "ApiError::" crates/hkask-api/src/routes/ --include="*.rs"
-```
-- Classify each as: legitimate surface concern vs. should-flow-through-ServiceError
-- Count how many direct constructions exist (known: ~14)
-
-**Step 2: Audit CLI for direct error construction that should use ServiceError**
-```bash
-grep -rn "CuratorError::\|AgentError::\|EnsembleError::\|UserError::" crates/hkask-cli/src/commands/ --include="*.rs"
-```
-
-**Step 3: Add missing From<ServiceError> arms**
-- Only add arms that are actually needed by call sites
-- Don't add speculative arms "just in case"
-- Each new arm should trace to a specific call site that would benefit
-
-**Step 4: Verify**
-- `cargo test -p hkask-api && cargo test -p hkask-cli`
-
-### Task 8 — Verification
-
-**Depth test every service module:**
-
-| Module | Public Functions | Known Call Sites | Passes Depth Test? |
-|--------|-----------------|-------------------|---------------------|
-| `inference.rs` | 3 | CLI + API (8+ sites) | ✅ |
-| `curator.rs` | 6 | CLI + API (12+ sites) | ✅ |
-| `ensemble.rs` | 8 | CLI + API (16+ sites) | ✅ |
-| `pods.rs` | 6 | CLI + API (12+ sites) | ✅ |
-| `sovereignty.rs` | 9 + 2 types | CLI + API (18+ sites) | ✅ |
-
-**Dependency direction verification:**
-```bash
-# No circular deps: services should not depend on CLI or API
-grep -rn "hkask_cli\|hkask_api" crates/hkask-services/src/ --include="*.rs"
-# Should find nothing
-
-# MCP servers should not depend on services
-grep -rn "hkask_services" mcp-servers/ --include="*.rs"
-# Should find nothing
-```
-
-**Full workspace verification:**
-```bash
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
-cargo test --workspace
-```
-
-**No violations:**
-```bash
-grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/hkask-services/src/ --include="*.rs"
-grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/hkask-api/src/ --include="*.rs"
-```
-
-### Task 9 — Documentation
-
-**Step 1:** Update `docs/status/test-inventory.md` with 49+ test entries grouped by module:
-- InferenceService: 4 tests
-- CuratorService: 6 tests
-- EnsembleService: 11 tests
-- PodService: 6 tests
-- SovereigntyService: 13 tests
-- Infrastructure: 6 tests
-- API: 3 tests
-
-**Step 2:** Update `docs/architecture/hKask-architecture-master.md` with service layer section covering:
-- Architecture diagram (CLI/API → services → domain)
-- ServiceContext composition pattern
-- Surface-specific vs shared concerns boundary
-- Depth test results for all modules
-
-**Step 3:** Write `OPEN_QUESTIONS.md` for F1–F26 with current status, priority, and next-action for each.
-
 ---
 
-## 8. Key Decisions to Preserve (39+ Total)
+## 8. Key Decisions to Preserve (43+ Total)
 
 Read `HANDOFF.md` Section 5 for the full list. Most critical for this session:
 
@@ -346,11 +291,10 @@ Read `HANDOFF.md` Section 5 for the full list. Most critical for this session:
 | 2 | `ServiceContext::build()` is async | Guideline | All callers `.await` it |
 | 12 | Dependency direction: CLI/API → services → domain | Guideline | Never the reverse |
 | 39 | Surface code uses ServiceContext for assembly | Guideline (now Prohibition) | Both surfaces compose `ServiceContext::build()` |
-| 40 | API's `cns_runtime` shares state with loop system's CNS | Bug fix | Old `ApiState::new()` created a disconnected instance |
-| 41 | GovernedTool stays surface-specific | Guideline | Only CLI needs it. Fails depth test for ServiceContext |
-| 42 | CAS write-through not in ServiceContext stores | Open (F26) | May need to add or make surface-level |
-| 43 | F13 CapabilityChecker secrets are by design | CLOSED | 1 MCP + 2 ACP checkers, same pattern in both surfaces |
-| 44 | `with_defaults()` signature changed (0 params) | Guideline | No live callers existed |
+| 40 | CAS store write-through is dead code | Evidence (F26 CLOSED) | Removed from 6 stores; read-only `git_cas_port` untouched |
+| 41 | Secret resolution: all main paths through ServiceConfig | Evidence | Remaining direct calls are by design |
+| 42 | Sovereignty API routes use `ApiError::from` | Guideline | 3 routes fixed; remaining direct constructions are legitimate |
+| 43 | Remaining direct `ApiError::` constructions are surface concerns | Guideline | ~11 constructions for input validation, OCAP gates, auth |
 
 ---
 
@@ -358,11 +302,11 @@ Read `HANDOFF.md` Section 5 for the full list. Most critical for this session:
 
 1. **Adding fields to ServiceContext without depth justification** — F10 flags 20 fields as a god-object risk. Any new field needs 8+ consumer sites or a compelling alternative.
 2. **Breaking the build** — Every step must leave the workspace compiling and all tests passing.
-3. **Adding speculative `From` impls** — Only add `From<ServiceError>` arms that are actually needed by call sites.
-4. **Moving OCAP gates into service layer** — P1 Prohibition. Auth/capability checks stay in surfaces.
-5. **MCP servers depending on `hkask-services`** — P1 Prohibition. Never modify mcp-servers/.
-6. **Horizontal slicing** — Don't audit all routes then fix them all. One route → verify → next.
-7. **Treating CAS as shared without evidence** — If only the API ever used CAS write-through, it may be a surface concern. Verify call sites before adding to ServiceContext.
+3. **Treating F9 as a Guideline** — F9 is a **Guardrail** (P1 User Sovereignty). User configured persistence, got ephemeral. Must fix.
+4. **Restructuring ServiceContext without understanding all consumers** — F10 touches 5 context types, 2 surfaces, and build(). A bad decomposition cascades.
+5. **Forcing standalone CLI commands through ServiceContext** — P1: standalone commands should work without a full ServiceContext. Use parameters, not forced construction.
+6. **Horizontal slicing** — Don't audit all env vars then fix them all. One site → verify → next.
+7. **Adding speculative `From` impls** — Only add `From<ServiceError>` arms that are actually needed by call sites.
 
 ---
 
@@ -370,11 +314,16 @@ Read `HANDOFF.md` Section 5 for the full list. Most critical for this session:
 
 | ID | Question | Priority | Status |
 |----|----------|----------|--------|
-| F9 | Production memory stores use `in_memory_db()` | HIGH | Track — P1 User Sovereignty |
-| F10 | ServiceContext approaching god-object (20 fields) | MEDIUM | Guard with sub-structs; investigate grouping |
-| F26 | ServiceContext stores lack CAS write-through | MEDIUM | Needs investigation (Task 7c) |
-| F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | Planned for Task 7f |
-| F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | Track — may affect Task 7d |
+| F9 | Production memory stores use `in_memory_db()` | HIGH | **P1 User Sovereignty Guardrail** — must fix |
+| F10 | ServiceContext god-object (20 fields) | MEDIUM | Guard with sub-structs; investigate grouping |
+| F7 | ServiceConfig vs environment variables | MEDIUM | Track — consolidate env-var reads |
+| F2 | Session lifecycle across surfaces | MEDIUM | Deferred — specify durability semantics first |
+| F3 | Unified authentication context | MEDIUM | Deferred — define `AuthContext` struct |
+| F6 | REPL vs API state boundary | MEDIUM | Deferred — write boundary table |
+| F14 | Dual error mapping in API | MEDIUM | Partially addressed — remaining are legitimate |
+| F17 | CuratorService standalone commands open DB each time | MEDIUM | Track |
+| F18 | EnsembleService standing session extraction | MEDIUM | Deferred — needs adapter design |
+| F19 | EnsembleService improv operation extraction | MEDIUM | Deferred — needs inferencer abstraction |
 
 ---
 
@@ -388,8 +337,8 @@ cargo test -p hkask-services --lib
 cargo test -p hkask-api
 
 # After each step
-cargo check -p hkask-api       # or hkask-cli, hkask-services
-cargo test -p hkask-api        # or relevant crate
+cargo check -p hkask-services       # or hkask-cli, hkask-api
+cargo test -p hkask-services --lib    # or relevant crate
 cargo clippy -p hkask-services -- -D warnings
 
 # Full verification after each task completion
@@ -397,19 +346,17 @@ cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test
 
 # Check for violations
 grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/hkask-services/src/ --include="*.rs"
-grep -r "hkask_services" mcp-servers/ --include="*.rs"  # Should find nothing
+grep -rn "hkask_services" mcp-servers/ --include="*.rs"  # Should find nothing
 
-# CAS usage audit
-grep -rn "with_cas\|_with_cas" crates/ --include="*.rs"
+# Memory store audit
+grep -rn "in_memory_db\|MemoryLoopAdapter" crates/hkask-services/src/ --include="*.rs"
+grep -rn "in_memory_db\|MemoryLoopAdapter" crates/hkask-agents/src/ --include="*.rs"
 
-# Secret resolution audit
-grep -rn "resolve_acp_secret\|resolve_mcp_secret\|resolve_db_passphrase\|resolve_capability" crates/hkask-cli/ crates/hkask-api/ --include="*.rs"
+# Env-var audit
+grep -rn "env::var\|std::env::var" crates/hkask-cli/ crates/hkask-api/ crates/hkask-services/ --include="*.rs" | grep -i "hkask\|okapi"
 
-# API direct error construction audit
-grep -rn "ApiError::" crates/hkask-api/src/routes/ --include="*.rs"
-
-# Dependency direction check
-grep -rn "hkask_cli\|hkask_api" crates/hkask-services/src/ --include="*.rs"  # Should find nothing
+# ServiceContext consumer audit
+grep -rn "ServiceContext" crates/ --include="*.rs" | grep -v "test" | grep -v "doc" | wc -l
 ```
 
 ---

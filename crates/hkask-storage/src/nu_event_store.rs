@@ -2,7 +2,6 @@
 use crate::{Store, now_rfc3339};
 use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
-use hkask_types::ports::git_cas::RepoId;
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
 use thiserror::Error;
 
@@ -61,7 +60,7 @@ impl_from_serde_json!(NuEventError, Infra);
 /// and agent pod failures.
 const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &["energy", "variety", "agent_pod"];
 
-define_store_cas!(NuEventStore);
+define_store!(NuEventStore);
 
 impl NuEventStore {
     /// Replay events with exponentially decaying weights.
@@ -148,20 +147,6 @@ impl NuEventStore {
                 event.visibility,
             ],
         )?;
-        Ok(())
-    }
-
-    /// Insert with CAS write-through: persists to SQLite, then writes to the CnsAudit repo.
-    pub async fn insert_with_cas(&self, event: &NuEvent) -> Result<(), NuEventError> {
-        self.insert(event)?;
-        if let Some(port) = &self.cas_port {
-            let bytes = serde_json::to_vec(event).map_err(|e| {
-                NuEventError::Infra(InfrastructureError::Serialization(e.to_string()))
-            })?;
-            port.put_blob(&RepoId::CnsAudit, &bytes)
-                .await
-                .map_err(|e| NuEventError::Infra(InfrastructureError::Io(e.to_string())))?;
-        }
         Ok(())
     }
 

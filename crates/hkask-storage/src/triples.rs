@@ -6,7 +6,7 @@
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
-use hkask_types::ports::git_cas::{RepoId, TripleEntry};
+use hkask_types::ports::git_cas::TripleEntry;
 use hkask_types::{AccessControl, Confidence, InfrastructureError, TemporalBounds, Visibility};
 use serde_json::Value;
 use thiserror::Error;
@@ -77,7 +77,7 @@ impl Triple {
     }
 }
 
-define_store_cas!(TripleStore);
+define_store!(TripleStore);
 
 const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
 
@@ -100,21 +100,6 @@ impl TripleStore {
                 triple.access.owner_webid,
             ],
         )?;
-        Ok(())
-    }
-
-    /// Insert with CAS write-through: persists to SQLite, then writes to the Memory repo.
-    pub async fn insert_with_cas(&self, triple: &Triple) -> Result<(), TripleError> {
-        self.insert(triple)?;
-        if let Some(port) = &self.cas_port {
-            let entry = TripleEntry::from(triple);
-            let bytes = serde_json::to_vec(&entry).map_err(|e| {
-                TripleError::Infra(InfrastructureError::Serialization(e.to_string()))
-            })?;
-            port.put_blob(&RepoId::Memory, &bytes)
-                .await
-                .map_err(|e| TripleError::Infra(InfrastructureError::Io(e.to_string())))?;
-        }
         Ok(())
     }
 

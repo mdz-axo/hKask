@@ -9,7 +9,6 @@ use chrono::Utc;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
-use hkask_types::ports::git_cas::{GitCASPort, RepoId};
 
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
@@ -61,8 +60,6 @@ pub struct SqliteGoalRepository {
     pub(crate) conn: Arc<Mutex<Connection>>,
     /// Optional CNS telemetry sink for observability.
     telemetry: Option<Arc<dyn NuEventSink>>,
-    /// Optional CAS port for write-through.
-    cas_port: Option<Arc<dyn GitCASPort>>,
 }
 
 impl Store for SqliteGoalRepository {
@@ -83,7 +80,6 @@ impl SqliteGoalRepository {
         Self {
             conn,
             telemetry: None,
-            cas_port: None,
         }
     }
 
@@ -91,13 +87,6 @@ impl SqliteGoalRepository {
     #[must_use = "builder returns the configured repository"]
     pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.telemetry = Some(sink);
-        self
-    }
-
-    /// Attach a CAS port for write-through. Consumes and returns self.
-    #[must_use = "builder returns the configured repository"]
-    pub fn with_cas(mut self, port: Arc<dyn GitCASPort>) -> Self {
-        self.cas_port = Some(port);
         self
     }
 
@@ -252,25 +241,6 @@ impl SqliteGoalRepository {
             (goal.id, goal.webid, goal.text.clone(), goal.state, goal.visibility, goal.depth as i32, goal.created_at.to_rfc3339(), goal.display_name.clone()),
         )?;
 
-        Ok(goal)
-    }
-
-    /// Create a new goal with CAS write-through: persists to SQLite, then writes to the GoalsSpecs repo.
-    pub async fn create_goal_with_cas(
-        &self,
-        webid: &WebID,
-        text: &str,
-        visibility: Visibility,
-    ) -> Result<Goal> {
-        let goal = self.create_goal(webid, text, visibility)?;
-        if let Some(port) = &self.cas_port {
-            let bytes = serde_json::to_vec(&goal).map_err(|e| {
-                GoalRepositoryError::Infra(InfrastructureError::Serialization(e.to_string()))
-            })?;
-            port.put_blob(&RepoId::GoalsSpecs, &bytes)
-                .await
-                .map_err(|e| GoalRepositoryError::Infra(InfrastructureError::Io(e.to_string())))?;
-        }
         Ok(goal)
     }
 
