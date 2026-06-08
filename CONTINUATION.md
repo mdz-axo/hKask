@@ -1,57 +1,91 @@
-# CONTINUATION.md — hKask Service Layer Extraction Session 16+
+# CONTINUATION.md — hKask Service Layer Extraction Session 17+
 
 ## Quick Start
 
-Read `HANDOFF.md` in the project root for full context, file map, decision log, and session history.
+Read `HANDOFF.md` in the project root for full context, session history, file map, decision log, and honest assessment of remaining work.
 
 ---
 
 ## Where We Are
 
-**Build: clean.** Sessions 12–15 built the service layer foundation, created 2 service modules (GoalService, ConsolidationService), depth-tested 4 proposed modules (all shallow — rejected with documentation), filled ServiceContext gaps, wired 6 CLI commands through ServiceContext, and deleted dead code. Full workspace passes `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`.
+**Build: clean.** Sessions 12–16 built the service layer foundation, created 2 service modules (GoalService, ConsolidationService), depth-tested 4 proposed modules (all shallow — rejected), resolved the ensemble statics architectural decision (Option A), added `service_context: Arc<ServiceContext>` to ReplState, migrated ensemble CLI + all REPL ensemble handlers through ServiceContext, expanded ServiceContext with `acp_runtime` + `agent_registry_store`, and added `registry_yaml_path` to ServiceConfig. Full workspace passes `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`.
 
-**We are ~65% through.** The deep service module extractions are done. What remains is wiring the last CLI commands that bypass ServiceContext, resolving one architectural blocker (ensemble statics), and deleting the legacy helper functions that become dead after migration.
+**We are ~75% through.** The deep service module extractions are done. The ReplState keystone is in. The ensemble domain is fully migrated. What remains is wiring the last CLI commands that bypass ServiceContext, adding missing ServiceContext fields (user_store), migrating the DB-opening commands, refactoring onboarding, and deleting the legacy helper functions.
 
 ---
 
-## Honest Assessment: Remaining Work
+## Honest Assessment: ~55 Sites Across ~12 Files Still Bypass ServiceContext
 
-### What's LEFT (sites that still bypass ServiceContext or use legacy helpers)
+### Tier 1 — Mechanical `init_registry`/`resolve_*` replacements (~20 sites)
 
-| Category | File | Pattern | Sites | Complexity |
-|----------|------|---------|-------|------------|
-| **Ensemble CLI** | `commands/ensemble.rs` | 3 OnceLock statics + 8 `EnsembleContext::from_parts(get_session_manager())` + `open_standing_session_store()` + `from_parts()` for improv | ~12 | HIGH — needs architectural decision first |
-| **Agent CLI** | `commands/agent.rs` | `init_registry()` + `registry_yaml_path()` | 4 | MEDIUM — registry already in ServiceContext |
-| **Chat CLI** | `commands/chat.rs` | `init_registry()` / `init_registry_with_secrets()` + `from_parts()` + `resolve_acp_secret()` + `registry_yaml_path()` | ~5 | MEDIUM — registry + inference in ServiceContext |
-| **MCP CLI** | `commands/mcp.rs` | `create_mcp_dispatcher_with_servers()` | 1 | MEDIUM — mcp_runtime + mcp_dispatcher in ServiceContext |
-| **Models CLI** | `commands/models.rs` | `create_mcp_dispatcher_with_servers()` | 1 | MEDIUM — same |
-| **Web Search CLI** | `commands/web_search.rs` | `create_mcp_dispatcher_with_servers()` | 1 | MEDIUM — same |
-| **Git CLI** | `commands/git_cmd.rs` | `resolve_acp_secret()` | 4 | LOW — secret in ServiceConfig |
-| **CNS CLI** | `commands/cns.rs` | Creates own `CnsRuntime` standalone | ~3 | LOW — could use ServiceContext.cns_runtime |
-| **REPL handlers** | `repl/handlers/model.rs` | `InferenceContext::from_parts()` | 2 | LOW — blocked on ReplState holding ServiceContext |
-| **REPL hhh** | `repl/handlers/hhh.rs` | `InferenceContext::from_parts()` (gate port) | 1 | ✅ Legitimate — REPL-specific gate port |
-| **REPL init** | `repl/init.rs` | `InferenceContext::from_parts()` (pre-onboarding) | 2 | ✅ Legitimate — no ServiceContext available yet |
-| **API ensemble** | `routes/ensemble.rs` | 3 `session_manager` + 1 `standing_session_store` + 1 `mcp_runtime` | 5 | LOW — already in ServiceContext; shallow direct access |
-| **API pods** | `routes/pods.rs` | 1 `capability_checker.check_resource()` | 1 | ✅ Legitimate OCAP surface gate |
-| **API chat** | `routes/chat.rs` | 1 `from_parts()` fallback | 1 | ✅ Legitimate standalone fallback |
+These are the highest-value, lowest-risk targets. ServiceContext now has everything needed (`acp_runtime`, `agent_registry_store`, `config.registry_yaml_path`, `config.acp_secret`).
 
-### Dead code in `commands/config.rs` (deletable after migration)
+| File | Sites | Key Change |
+|------|-------|------------|
+| `commands/agent.rs` | 7 | `init_registry()` → `build_service_context()`, `registry_yaml_path()` → `ctx.config.registry_yaml_path` |
+| `commands/chat.rs` | 6 | `init_registry*()` → `build_service_context()`, `registry_yaml_path()` → `ctx.config.registry_yaml_path`, `resolve_acp_secret()` → `String::from_utf8_lossy(&ctx.config.acp_secret)` |
+| `commands/mcp.rs` | 1 | `create_mcp_dispatcher_with_servers()` → `build_service_context()` + `ctx.mcp_runtime` + start servers + `ctx.mcp_dispatcher` |
+| `commands/models.rs` | 1 | Same pattern as mcp.rs |
+| `commands/web_search.rs` | 1 | Same pattern as mcp.rs |
+| `commands/git_cmd.rs` | 4 | `resolve_acp_secret()` → `ctx.config.acp_secret` |
 
-| Function | Current callers | Delete when |
-|----------|----------------|-------------|
-| `registry_db_path()` | `init_registry_with_secrets()` | After agent/chat CLI use ServiceContext |
-| `registry_yaml_path()` | `agent.rs`, `chat.rs` (AgentRegistryLoader) | After agent/chat CLI use ServiceContext |
-| `resolve_acp_secret()` | `git_cmd.rs` (4), `chat.rs` (1), `init_registry()` | After git/chat CLI use ServiceContext |
-| `resolve_db_passphrase()` | `init_registry()` | After agent/chat CLI use ServiceContext |
-| `resolve_mcp_secret()` | `create_mcp_dispatcher()`, `create_mcp_dispatcher_with_servers()` | After mcp/models/web_search CLI use ServiceContext |
-| `create_disconnected_governed_dispatcher()` | `create_mcp_dispatcher()`, `create_mcp_dispatcher_with_servers()` | After all MCP dispatcher callers use ServiceContext |
-| `create_mcp_dispatcher()` | No direct callers (dead) | Immediately |
-| `create_mcp_dispatcher_with_servers()` | `mcp.rs`, `models.rs`, `web_search.rs` | After these 3 commands use ServiceContext |
-| `init_registry()` | `agent.rs` (3), `chat.rs` (1) | After agent/chat CLI use ServiceContext |
-| `init_registry_with_secrets()` | `chat.rs` (1) | After chat CLI uses ServiceContext |
-| `ResolvedSecrets` struct | `chat.rs`, `config.rs` | After chat CLI uses ServiceContext — may need to keep for onboarding |
+**Strategy:** For agent.rs, the `AgentRegistryLoader::new(registry_yaml_path(), acp, store, source)` call becomes `AgentRegistryLoader::new(ctx.config.registry_yaml_path.clone(), ctx.acp_runtime.clone(), ctx.agent_registry_store.clone(), Arc::new(FilesystemRegistrySource::new()))`. This eliminates 4 `init_registry()` calls.
 
-### Summary: ~28 remaining sites, ~10 dead functions, 1 architectural decision
+**Strategy:** For mcp/models/web_search, the MCP dispatcher commands create isolated `McpRuntime` instances that start servers, invoke tools, then shut down. The ServiceContext already has `mcp_runtime` and `mcp_dispatcher`, but its runtime may not have the required servers started. Two approaches:
+- **Option A (recommended):** Build a fresh ServiceContext for each command (same pattern as ensemble, curator, pod). Start the required servers on the ServiceContext's runtime. Use its `mcp_dispatcher` for invocation.
+- **Option B:** Keep `create_mcp_dispatcher_with_servers()` as a local helper in each command file.
+
+### Tier 2 — DB-opening commands + missing ServiceContext fields (~12 sites)
+
+These commands open their own databases or build infrastructure that should come from ServiceContext.
+
+| File | Sites | Key Change |
+|------|-------|------------|
+| `commands/helpers.rs` | 4 | `open_user_store()` → add `user_store` to ServiceContext |
+| `commands/user.rs` | 1 | Replace `open_user_store()` with `ctx.user_store` |
+| `git_archival.rs` | 4 | `registry_db_path()` + `resolve_db_passphrase()` + `Database::open` → ServiceContext's primary DB |
+| `commands/consolidation.rs` | 4 | Replace standalone pipeline with ServiceContext's `ConsolidationService` (already exists) |
+| `commands/compose.rs` | 2 | `Database::open` → ServiceContext's memory DB; `from_parts()` → `InferenceContext::from(ctx)` |
+| `commands/embed_corpus.rs` | 1 | `Database::open` → ServiceContext's memory DB |
+
+**ServiceContext gaps to fill first:**
+- `user_store: Arc<Mutex<UserStore>>` — needed by helpers.rs, user.rs
+- For consolidation/compose/embed_corpus: These open per-agent memory DBs. ServiceConfig already has `effective_memory_db_path()`. Consider adding a `build_per_agent_memory_db(agent_name)` method to ServiceContext that opens a memory DB using the same passphrase derivation.
+
+### Tier 3 — Onboarding refactoring (~15 sites)
+
+**This domain requires careful design, not mechanical migration.**
+
+Onboarding runs BEFORE ServiceContext exists — it's the bootstrap process. However, much of its complexity can be simplified:
+- Replace `init_registry()` / `init_registry_with_secrets()` with direct `AcpRuntime::new()` + `AgentRegistryStore::new()` calls (the same thing ServiceContext::build() does internally)
+- Replace `registry_db_path()` + `resolve_db_passphrase()` + `Database::open` with `ServiceConfig::from_env()` + `Database::open(&config.db_path, &config.db_passphrase)`
+- The key insight: onboarding doesn't need ServiceContext, but it shouldn't need the legacy `config.rs` helpers either. It should use `ServiceConfig` directly.
+
+### Tier 4 — REPL init residuals + legitimate `from_parts()` (~5 sites)
+
+| File | Sites | Assessment |
+|------|-------|------------|
+| `repl/init.rs` | 2 | `resolve_mcp_secret()` can use `ctx.config.mcp_secret` (already available since ServiceContext is built). Per-agent `Database::open` is REPL-specific — legitimate. |
+| `repl/handlers/hhh.rs` | 1 | `from_parts()` for gate port — legitimate (REPL-specific port, not shared) |
+| `commands/chat.rs` | 1 | `from_parts()` fallback — legitimate per Decision 5 |
+| `commands/compose.rs` | 1 | `from_parts()` standalone — legitimate per Decision 5 |
+
+### API residual (2 sites)
+
+| File | Sites | Assessment |
+|------|-------|-----------|
+| `routes/chat.rs` | 1 | `from_parts()` fallback — legitimate (Decision 5) |
+| `middleware/auth.rs` | 1 | `hkask_keystore::resolve_mcp_security_key()` — could use `state.service_context.config.mcp_secret` via extension |
+
+### Dead code deletion (after all tiers complete)
+
+After all migration is done, delete these from `config.rs`:
+- `registry_db_path()`, `registry_yaml_path()`, `resolve_acp_secret()`, `resolve_mcp_secret()`, `resolve_db_passphrase()`
+- `create_disconnected_governed_dispatcher()`, `create_mcp_dispatcher()`, `create_mcp_dispatcher_with_servers()`
+- `init_registry()`, `init_registry_with_secrets()`
+- Keep: `ResolvedSecrets` struct (still used by onboarding), `ServiceConfig::from_env()` patterns
+
+**Delete `create_mcp_dispatcher()` immediately** — it has zero callers outside config.rs.
 
 ---
 
@@ -64,77 +98,89 @@ Load these skills before any code changes:
 - **`coding-guidelines`** (surgical changes only)
 - **`constraint-forces`** (classify decisions)
 - **`zoom-out`** (map each domain before extracting)
-- **`tdd`** (any new service modules need tracer bullets)
+- **`tdd`** (any new ServiceContext fields or service methods need tracer bullets)
 
-### 1. Resolve ensemble global statics architecture decision
+### 1. Delete immediately-dead `create_mcp_dispatcher()` from config.rs
 
-The 3 `OnceLock` statics in `commands/ensemble.rs` provide cross-command session persistence.
+It has zero callers. Quick win.
 
-**Option A: Add `service_context: Arc<ServiceContext>` to ReplState** ⭐ RECOMMENDED
-- Pro: Unblocks ALL remaining REPL/ensemble work in one shot. REPL init already builds a ServiceContext at line 127 of `init.rs` — just store it.
-- Pro: `repl/handlers/model.rs` can use `InferenceContext::from(&*state.service_context)` instead of `from_parts()`.
-- Con: ReplState will temporarily hold some duplicated fields (inference_port, service_config) that also exist in ServiceContext. These can be removed later.
-- Implementation: Add `pub(crate) service_context: Arc<ServiceContext>` field to ReplState, populate from `ctx` in `init_repl_state()`, then wire ensemble and model handlers.
+### 2. Wire agent CLI through ServiceContext (7 sites)
 
-**Option B: Build ServiceContext once at CLI main, thread through dispatch**
-- Con: Requires signature changes across many `run_*` functions. `kask serve` already has its own ServiceContext. More surgical but higher blast radius.
+- Add `build_service_context()` helper to `commands/agent.rs`
+- Replace `init_registry()` with `build_service_context()`
+- Replace `registry_yaml_path()` with `ctx.config.registry_yaml_path.clone()`
+- Use `ctx.acp_runtime.clone()` instead of `init_registry()`-returned AcpRuntime
+- Use `ctx.agent_registry_store.clone()` instead of `init_registry()`-returned store
+- Verify: `cargo check -p hkask-cli`
 
-**Option C: Keep statics, document as intentional**
-- Con: Blocks ensemble CLI migration. Violates single assembly point principle. No forward progress on service layer for ensemble.
+### 3. Wire git CLI through ServiceContext (4 sites)
 
-**Decision criteria (constraint-forces):**
-- Option A is a **Guideline** — best practice, relaxable with reason.
-- Option C violates the **Guideline** that ServiceContext is the single assembly point.
-- The REPL already builds a ServiceContext — adding it to ReplState is zero-cost.
+- Add `build_service_context()` helper to `commands/git_cmd.rs`
+- Replace 4 `resolve_acp_secret()` with `ctx.config.acp_secret`
+- Verify: `cargo check -p hkask-cli`
 
-### 2. Wire ensemble CLI through ServiceContext (after decision)
+### 4. Wire MCP dispatcher commands through ServiceContext (3 files, 3 sites)
 
-Once Option A is chosen:
-- Replace 8 `EnsembleContext::from_parts(get_session_manager())` → `EnsembleContext::from(&*state.service_context)` in REPL paths, or `EnsembleContext::from(&build_service_context())` in non-REPL paths
-- Replace `SESSION_MANAGER` static: already in `service_context.session_manager`
-- Replace `CYBERNETICS_LOOP` static: already in `service_context.cybernetics_loop`
-- Replace `IMPROV_CLIENT` static: needs ServiceContext's inference port + circuit breaker
-- Replace `open_standing_session_store()` → `service_context.standing_session_store`
-- Delete dead `open_standing_session_store()` function from ensemble.rs
+- For `mcp.rs`, `models.rs`, `web_search.rs`: build ServiceContext, start required servers on its `mcp_runtime`, use its `mcp_dispatcher` + issue a capability token
+- Each command will need its own `build_service_context()` helper (same pattern as ensemble.rs)
+- Verify: `cargo check -p hkask-cli`
 
-### 3. Wire agent/chat CLI through ServiceContext
+### 5. Wire chat CLI through ServiceContext (6 sites)
 
-- `commands/agent.rs`: Replace `init_registry()` with `build_service_context()`. AgentRegistryLoader needs `registry_yaml_path()` — add to ServiceConfig or pass separately.
-- `commands/chat.rs`: Replace `init_registry()`/`init_registry_with_secrets()` with `build_service_context()`. Replace `resolve_acp_secret()` with `service_context.config.acp_secret`.
-- After migration: delete `init_registry()`, `init_registry_with_secrets()`, `registry_db_path()`, `resolve_acp_secret()`, `resolve_db_passphrase()` from config.rs (if no other callers remain).
+- This is the most complex Tier 1 command. It uses `init_registry*()`, `registry_yaml_path()`, `resolve_acp_secret()`, and `from_parts()`.
+- Replace registry init with `build_service_context()` + `ctx.acp_runtime` + `ctx.agent_registry_store`
+- Replace `resolve_acp_secret()` with `ctx.config.acp_secret`
+- Replace `from_parts()` with `InferenceContext::from(ctx)` (or keep as documented fallback)
+- Verify: `cargo check -p hkask-cli`
 
-### 4. Wire MCP dispatcher commands through ServiceContext
+### 6. Fill ServiceContext gaps + wire Tier 2 commands
 
-- `commands/mcp.rs`: Replace `create_mcp_dispatcher_with_servers()` with `build_service_context()` → use `service_context.mcp_dispatcher` + `service_context.mcp_runtime`
-- `commands/models.rs`: Same pattern
-- `commands/web_search.rs`: Same pattern
-- After migration: delete `create_mcp_dispatcher()`, `create_mcp_dispatcher_with_servers()`, `create_disconnected_governed_dispatcher()`, `resolve_mcp_secret()` from config.rs
+- Add `user_store: Arc<Mutex<UserStore>>` to ServiceContext::build()
+- Add `build_per_agent_memory_db()` method or helper for compose/embed_corpus/consolidation CLI
+- Wire `commands/consolidation.rs` through ServiceContext's ConsolidationService
+- Wire `commands/compose.rs` through ServiceContext
+- Wire `commands/embed_corpus.rs` through ServiceContext
+- Wire `commands/helpers.rs` → `ctx.user_store` (replaces `open_user_store()`)
+- Wire `git_archival.rs` through ServiceContext's primary DB connection
+- Verify: `cargo check -p hkask-cli`
 
-### 5. Wire git CLI and CNS CLI
+### 7. Refactor onboarding to use ServiceConfig directly
 
-- `commands/git_cmd.rs`: Replace 4 `resolve_acp_secret()` calls with ServiceContext-derived secret
-- `commands/cns.rs`: Replace standalone `CnsRuntime::with_threshold()` with `service_context.cns_runtime`
+- Replace `init_registry()` / `init_registry_with_secrets()` with direct AcpRuntime + AgentRegistryStore construction
+- Replace `registry_db_path()` + `resolve_db_passphrase()` + `Database::open` with ServiceConfig-derived paths
+- Replace `config::resolve_db_passphrase()` with `hkask_keystore::resolve_db_passphrase()` directly
+- Document remaining legitimate `hkask_keystore::*` calls as pre-ServiceContext bootstrap
+- Verify: `cargo check -p hkask-cli`
 
-### 6. Wire REPL model.rs through ServiceContext (after Option A)
+### 8. Wire REPL init residuals
 
-- `repl/handlers/model.rs`: 2 `InferenceContext::from_parts()` → `InferenceContext::from(&*state.service_context)`
+- Replace `crate::commands::config::resolve_mcp_secret()` in `repl/init.rs` with `ctx.config.mcp_secret`
+- Verify: `cargo check -p hkask-cli`
 
-### 7. Delete all dead code from config.rs
+### 9. Wire API auth middleware
 
-After all commands are wired through ServiceContext:
-- Delete: `registry_db_path()`, `registry_yaml_path()`, `resolve_acp_secret()`, `resolve_mcp_secret()`, `resolve_db_passphrase()`, `create_disconnected_governed_dispatcher()`, `create_mcp_dispatcher()`, `create_mcp_dispatcher_with_servers()`, `init_registry()`, `init_registry_with_secrets()`
-- Keep: `ResolvedSecrets` (may still be needed for onboarding), `ServiceConfig::from_env()` patterns
+- Replace `hkask_keystore::resolve_mcp_security_key()` with `state.service_context.config.mcp_secret`
+- Verify: `cargo check -p hkask-api`
 
-### 8. Verify API route coverage is complete
+### 10. Delete all dead code from config.rs
 
-All API routes should now be either:
-- ✅ Using service modules (GoalService, ConsolidationService, CuratorService, etc.)
-- ✅ Documented as shallow (templates, bundles, acp, mcp, cns, episodic)
-- ✅ Legitimate fallback/OCAP patterns (chat, pods)
+After all callers are migrated:
+- Delete: `registry_db_path`, `registry_yaml_path`, `resolve_acp_secret`, `resolve_mcp_secret`, `resolve_db_passphrase`, `create_disconnected_governed_dispatcher`, `create_mcp_dispatcher`, `create_mcp_dispatcher_with_servers`, `init_registry`, `init_registry_with_secrets`
+- Keep: `ResolvedSecrets` struct, `ServiceConfig::from_env()` patterns
+- Verify: `cargo check --workspace`
 
-No route should call `hkask_keystore::*`, `Database::open()`, or construct domain infrastructure directly.
+### 11. Remove duplicated ReplState fields
 
-### 9. Full workspace verification
+Now that `service_context` is in ReplState, these fields are redundant:
+- `cns` (use `service_context.cns_runtime`)
+- `cybernetics_loop` (use `service_context.cybernetics_loop`)
+- `loop_system` (use `service_context.loop_system`)
+- `dispatch` (use `service_context.dispatch`)
+- `service_config` (use `service_context.config`)
+
+This is a separate cleanup pass. Migrate each consumer one at a time. Don't rush this — it touches every REPL handler.
+
+### 12. Full workspace verification
 
 ```bash
 cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace
@@ -142,8 +188,9 @@ cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test
 
 Verify:
 - No `from_parts()` in API routes (except documented legitimate fallbacks)
-- No `open_*_store()` or `init_registry*` calls in any CLI command
-- No direct `hkask_keystore::*` calls outside `hkask-services` and `hkask-keystore`
+- No `open_*_store()` or `init_registry*` calls in any CLI command (except onboarding)
+- No direct `hkask_keystore::*` calls outside `hkask-services`, `hkask-keystore`, and `onboarding.rs`
+- No `Database::open` calls outside `hkask-services`, `hkask-storage`, and `onboarding.rs`
 - All dead code in `config.rs` deleted
 - Dependency direction: CLI → services → domain (no circular deps)
 
@@ -151,17 +198,17 @@ Verify:
 
 ## Strategy Notes
 
-**One domain per cycle.** Each CLI command group (ensemble, agent/chat, mcp-dispatcher, git/cns) gets its own wire → verify cycle. Never migrate two command groups in the same edit.
+**One domain per cycle.** Each CLI command group gets its own wire → verify cycle. Never migrate two command groups in the same edit.
 
-**The REPL ServiceContext addition is the keystone.** It unblocks ensemble, model handler, and future REPL work. Do it first, verify it, then cascade.
+**The agent.rs migration is the highest-value Tier 1 target.** It validates the new `acp_runtime` + `agent_registry_store` fields in ServiceContext. If the pattern works here, it works for chat.rs too.
 
-**AgentRegistryLoader is the tricky edge case.** It takes `registry_yaml_path()` as input, which is a filesystem path to YAML agent definitions. This is config, not infrastructure — it should come from `ServiceConfig` or be passed as a CLI argument. Don't create a service method for it; just thread the path through.
+**The MCP dispatcher commands have a subtle issue.** ServiceContext's `mcp_runtime` may not have the required servers started for standalone CLI commands. Solution: build a fresh ServiceContext (like ensemble does) and start the needed servers before using the dispatcher.
 
-**The MCP dispatcher commands have a subtle issue.** `create_mcp_dispatcher_with_servers()` creates a fresh `McpRuntime`, starts MCP servers on it, then creates a dispatcher. The ServiceContext's `mcp_runtime` already has servers started by `serve.rs` or REPL init. For standalone CLI commands (`kask mcp invoke`, `kask models list`), we need a standalone runtime with servers. Two options:
-1. Build a fresh ServiceContext for these commands (they already do this implicitly)
-2. Keep `create_mcp_dispatcher_with_servers()` as a standalone helper (it's not dead code — it creates isolated runtimes for one-shot commands)
+**Onboarding is NOT a standard migration.** Don't try to make it use ServiceContext — it's pre-ServiceContext by design. Instead, simplify it to use ServiceConfig + direct domain construction instead of the legacy config.rs helpers.
 
-**Be honest about what's a service module vs. a config path.** `registry_yaml_path()` is just a filesystem path derived from an env var. It doesn't need a service module. It needs to be accessible from ServiceConfig or passed as a parameter.
+**The consolidation CLI is the Tier 2 keystone.** The API already uses `ConsolidationService`. The CLI should too, instead of building the pipeline from scratch. This validates that the service module works for both surfaces.
+
+**Don't forget the `create_mcp_dispatcher()` dead code.** It has zero callers and should be deleted immediately as a quick win.
 
 ---
 
@@ -174,34 +221,18 @@ cargo test --workspace            # Full test suite
 cargo test -p hkask-services      # Service layer tests only
 cargo test -p hkask-api            # API tests only
 cargo test -p hkask-cli            # CLI tests only
-grep -rn 'from_parts\|open_registry_db\|open_consent_store\|init_registry\|create_mcp_dispatcher' crates/  # Find remaining legacy patterns
+grep -rn 'from_parts\|open_registry_db\|init_registry\|create_mcp_dispatcher\|resolve_acp_secret\|resolve_mcp_secret\|resolve_db_passphrase\|Database::open' crates/hkask-cli/src/ crates/hkask-api/src/  # Find remaining legacy patterns
 grep -rn 'hkask_keystore::' crates/hkask-api/src/ crates/hkask-cli/src/  # Find direct keystore access outside services
-grep -rn 'Database::open' crates/hkask-api/src/ crates/hkask-cli/src/  # Find direct DB opening outside services
 ```
 
 ---
 
-## Completed Work (Sessions 12–15)
+## Completed Work (Sessions 12–16)
 
-| Session | What | Files |
-|---------|------|-------|
+| Session | What | Key Files |
+|---------|------|-----------|
 | 12 | Audit | Full codebase audit of direct-access patterns |
 | 13 | Build fix + from_parts migration | `lib.rs`, `routes/*.rs`, `commands/curator.rs`, `commands/pod.rs`, `commands/sovereignty.rs`, `commands/goal.rs`, `commands/serve.rs`, `config.rs` |
-| 14 | GoalService + API audit | `hkask-services/src/goal.rs` (new), `routes/goal.rs` (wired), `commands/goal.rs` (wired), `lib.rs` (exports), audited `routes/cns.rs`, `routes/episodic.rs`, `routes/consolidation.rs`, `routes/spec.rs` |
-| 15 | Depth-tests + ConsolidationService + ServiceContext gaps | `hkask-services/src/consolidation.rs` (new), `routes/consolidation.rs` (wired), `routes/templates.rs`/`bundles.rs`/`acp.rs`/`mcp.rs` (depth-test docs), `context.rs` (sovereignty_boundary_store + spec_store), `error.rs` (Consolidation variant), `commands/sovereignty.rs` (wired), `commands/spec.rs` (wired), `commands/config.rs` (dead code deleted) |
-
-## Remaining Work Inventory
-
-| Priority | Task | Sites | Status |
-|----------|------|-------|--------|
-| 0 | Load skills (refactor-service-layer, coding-guidelines, constraint-forces, zoom-out, tdd) | — | Before any code |
-| 1 | Resolve ensemble statics decision (Option A recommended) | 12 (ensemble.rs) | Decision needed |
-| 2 | Add `service_context: Arc<ServiceContext>` to ReplState | 1 (init.rs) | Blocked on #1 |
-| 3 | Wire ensemble CLI through ServiceContext | 12 | Blocked on #2 |
-| 4 | Wire agent/chat CLI through ServiceContext | ~9 | Independent |
-| 5 | Wire MCP dispatcher commands through ServiceContext | 3 | Independent |
-| 6 | Wire git CLI + CNS CLI through ServiceContext | ~7 | Independent |
-| 7 | Wire REPL model.rs through ServiceContext | 2 | Blocked on #2 |
-| 8 | Delete dead code from config.rs | ~10 functions | After #3-#6 |
-| 9 | Verify API routes fully covered | — | After all above |
-| 10 | Full workspace verification | — | After all above |
+| 14 | GoalService + API audit | `hkask-services/src/goal.rs` (new), `routes/goal.rs` (wired), `commands/goal.rs` (wired), `lib.rs` (exports) |
+| 15 | Depth-tests + ConsolidationService + ServiceContext gaps | `hkask-services/src/consolidation.rs` (new), `routes/consolidation.rs` (wired), `context.rs` (sovereignty + spec stores), `commands/sovereignty.rs` (wired), `commands/spec.rs` (wired), `config.rs` (dead code deleted) |
+| 16 | ReplState keystone + Ensemble migration + ServiceContext expansion | `repl/mod.rs` (+service_context), `repl/init.rs` (Arc wrap), `repl/handlers/model.rs`, `repl/handlers/ensemble.rs`, `repl/handlers/into.rs`, `repl/handlers/ensemble_ops.rs`, `repl/handlers/status.rs`, `repl/handlers/ask.rs`, `repl/turn.rs`, `repl/commands.rs`, `commands/ensemble.rs` (no statics), `commands/serve.rs`, `services/context.rs` (+acp_runtime, +agent_registry_store), `services/config.rs` (+registry_yaml_path) |
