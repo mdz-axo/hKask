@@ -2,7 +2,7 @@
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
 last_updated: 2026-06-07
-version: "2.4.0"
+version: "2.5.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -153,7 +153,7 @@ Per [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §10.
 
 ### 6.1 Self-Application Precedent
 
-The `hkask-mcp-spec` server provides 10 DDMVSS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/bind`, `spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`, `spec/graph/query`, `spec/graph/validate`, `spec/test/invariant`, `spec/test/verify`) that can in principle be used to capture and curate the specification corpus itself. This self-application is a future opportunity, not blocked by any circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. For v0.23.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle.
+The `hkask-mcp-spec` server provides 11 DDMVSS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/bind`, `spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`, `spec/curate/writing-excellence`, `spec/graph/query`, `spec/graph/validate`, `spec/test/invariant`, `spec/test/verify`) that can in principle be used to capture and curate the specification corpus itself. This self-application is a future opportunity, not blocked by any circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. For v0.23.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle.
 
 ---
 

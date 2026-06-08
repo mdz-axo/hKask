@@ -381,7 +381,7 @@ Legend: **✓** implemented · **~** partially · **✗** missing · **n/a** not
 | cns | `hkask-mcp-cns` | 401 | ✅ Complete | L6 (Cybernetics) | Observability |
 | git | `hkask-mcp-git` | 308 | ✅ Complete | L4 (Communication) | Git CAS operations |
 | registry | `hkask-mcp-registry` | 294 | ✅ Complete | L1↔L5 (bridge) | Template registry |
-| spec | `hkask-mcp-spec` | 853 | ✅ Complete | L5 (Curation) | DDMVSS spec tools (8 tools) |
+| spec | `hkask-mcp-spec` | 853 | ✅ Complete | L5 (Curation) | DDMVSS spec tools (11 tools) |
 | goal | `hkask-mcp-goal` | 287 | ✅ Complete | L5 (Curation) | Goal coordination (OCAP-gated, CNS-observed) |
 | github | `hkask-mcp-github` | 451 | ✅ Complete | L4 (Communication) | GitHub API integration |
 | fmp | `hkask-mcp-fmp` | 367 | ✅ Complete | L4 (Communication) | Financial data (FMP) |
@@ -536,11 +536,11 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 
 | Domain | Description | Allocated Terms | Theoretical Basis |
 |--------|-------------|----------------|-------------------|
-| **WordAct** | Say — communication | 28 terms | Speech Act Theory (Austin, Searle) |
-| **FlowDef** | Do — process | 34 terms | Workflow Patterns (van der Aalst) |
-| **KnowAct** | Think — cognition | 25 terms | Enactive Cognition (Varela) |
+| **WordAct** | Say — communication | 34 terms | Speech Act Theory (Austin, Searle) |
+| **FlowDef** | Do — process | 42 terms | Workflow Patterns (van der Aalst) |
+| **KnowAct** | Think — cognition | 66 terms | Enactive Cognition (Varela) |
 
-**Total:** 87 term-slots (per the authoritative catalog [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md); spec-curation and git-evolution terms are included within the three domain allocations)
+**Total:** 142 term-slots (per the authoritative catalog [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md); `transform` and `compose` appear in two domains, so 140 globally-unique strings)
 
 **Full vocabulary catalog:** [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md)
 

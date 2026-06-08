@@ -2,7 +2,7 @@
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
 last_updated: 2026-06-07
-version: "1.4.0"
+version: "1.5.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition, capability, observability, curation, lifecycle]
@@ -115,7 +115,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (10 DDMVSS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
+**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (11 DDMVSS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
 
 **Rationale:** There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 

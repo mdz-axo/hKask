@@ -155,18 +155,13 @@ pub struct WritingExcellenceResponse {
 /// Specification: the spec document is internally complete.
 /// Implementation: the code that satisfies the spec is complete.
 /// These are orthogonal — a spec can be complete even if no code implements it.
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq, Default)]
 pub enum CompletenessDomain {
     /// The specification document is complete as a specification
+    #[default]
     Specification,
     /// The code that satisfies the specification is complete
     Implementation,
-}
-
-impl Default for CompletenessDomain {
-    fn default() -> Self {
-        CompletenessDomain::Specification
-    }
 }
 
 // ── Response types ───────────────────────────────────────────

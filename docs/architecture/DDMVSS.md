@@ -2,7 +2,7 @@
 title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "0.3.0"
+version: "0.3.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -579,22 +579,19 @@ cascade_rules:
   - rule: "Capability attenuation follows composition"
 
 template_types:
-  - type: Prompt
+  - type: WordAct
     domain: WordAct
     description: "Say — LLM prompt templates"
-  - type: Process
+  - type: FlowDef
     domain: FlowDef
     description: "Do — workflow/process templates"
-  - type: Cognition
+  - type: KnowAct
     domain: KnowAct
     description: "Think — reasoning/cognition templates"
-  - type: Specification
-    domain: FlowDef
-    description: "Define — specification authoring templates"
 
 focusing_assumptions:
   - id: FA-Co1
-    statement: "One registry, four template types as metadata tags"
+    statement: "One registry, three template types as metadata tags"
     rationale: "P1 — no trait without two consumers; C4 — repetition is missing primitive"
 
 completeness_checklist:
@@ -979,7 +976,7 @@ process_manifest: spec/manifests/mvss-compose.yaml
 The templates above are instantiated for hKask (domain anchor: `hkask`, bounded context: "Agentic AI tooling"). Key self-application observations:
 
 - **Domain spec:** hKask's hLexicon allocates 75 terms across WordAct/FlowDef/KnowAct + 9 spec-curation terms — matches FA-D1.
-- **Capability spec:** 21 MCP servers × 6 actions + `hkask-mcp-spec` (8 tools) + `hkask-mcp-replicant` (3 tools) = 117 capability grant slots; current implementation covers ~60%.
+- **Capability spec:** 21 MCP servers × 6 actions + `hkask-mcp-spec` (11 tools) + `hkask-mcp-replicant` (3 tools) = 120 capability grant slots; current implementation covers ~60%.
 - **Interface spec:** `kask` binary (CLI), `hkask-mcp` (MCP), `hkask-api` (HTTP) — all route through `hkask-agents` core. `kask spec` subcommands added.
 - **Composition spec:** Unified registry with `template_type` discriminator (WordAct, KnowAct, FlowDef) — matches FA-Co1.
 - **Trust spec:** `CapabilityToken` in `hkask-types` implements HMAC-SHA256 + attenuation — matches FA-T1. Curation authority bounded via `OCAPBoundary`.
@@ -994,7 +991,7 @@ The templates above are instantiated for hKask (domain anchor: `hkask`, bounded 
 3. ~~No `spec` resource in `CapabilityResource` enum~~ → Partially resolved via `Capability` type in `visibility.rs`
 4. ~~No `Validate` action in `CapabilityAction` enum~~ → Partially resolved via `AccessEvaluator`
 5. ~~Spec templates not yet registered in unified registry~~ → Deferred (OQ-7)
-6. ~~`hkask-mcp-spec` MCP server does not yet exist~~ → **Resolved:** Implemented at 819 LOC with 8 tools (`mcp-servers/hkask-mcp-spec/`)
+6. ~~`hkask-mcp-spec` MCP server does not yet exist~~ → **Resolved:** Implemented at 819 LOC with 11 tools (`mcp-servers/hkask-mcp-spec/`)
 
 ---
 
@@ -1075,6 +1072,7 @@ status: VERIFIED
 | `spec/curate/evaluate` | `{artifact_id, collection_id}` | `{decision, rationale}` | `curate`, `evaluate`, `contextualise` |
 | `spec/curate/reconcile` | `{artifact_ids[], conflicts[]}` | `{resolution, tensions_preserved[]}` | `reconcile`, `compose` |
 | `spec/curate/cultivate` | `{collection_id, time_horizon}` | `{growth_plan, coherence_score}` | `cultivate` |
+| `spec/curate/writing-excellence` | `{spec_id, scores, notes}` | `{dimensions_passing, meets_publication_standard, blocks_publication}` | `curate`, `evaluate` |
 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` |
 | `spec/graph/validate` | `{collection_id}` | `{violations[], suggestions[]}` | `evaluate`, `ground` |
 
@@ -1172,7 +1170,7 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 2. ~~**No `Spec` resource** in `CapabilityResource` enum~~ → Partially resolved via `Capability` type
 3. ~~**No `Validate` action** in `CapabilityAction` enum~~ → Partially resolved via `AccessEvaluator`
 4. **Spec templates not yet registered** in unified registry (`template_type: FlowDef`) → Deferred (OQ-7)
-5. ~~**`hkask-mcp-spec` MCP server does not yet exist**~~ → **Resolved:** 819 LOC, 8 tools implemented
+5. ~~**`hkask-mcp-spec` MCP server does not yet exist**~~ → **Resolved:** 819 LOC, 11 tools implemented
 6. **Curation decisions not gradient-evaluated** — `DefaultSpecCurator` implements `SpecCurator` trait but gradient evaluation needs integration testing
 
 **Next Steps:**
@@ -1365,7 +1363,7 @@ impl SpecStore for SqliteSpecStore {
 |-----------------|-----------------|--------|
 | Domain | Bounded context: "Specification authoring & validation". ν-events: `cns.spec.*` (capture, compose, validate, sign, curate). Entities: `Spec`, `GoalSpec`, `Criterion`, `SpecCurationRecord`. | **Pass** — all entities defined in §8 |
 | Capability | Verbs: `read_spec`, `amend_spec`, `compose_specs`, `sign_manifest`, `validate_completeness`, `delegate_access`, `curate_artifact`. All attenuatable except sign/publish/cultivate. | **Pass** — grant table in §7.2 |
-| Interface | MCP: `hkask-mcp-spec` (8 tools). CLI: `kask spec <subcommand>`. API: `POST /api/v1/specs/*`. All equivalent via `SpecStore` port. | **Pass** — three surfaces, one core |
+| Interface | MCP: `hkask-mcp-spec` (11 tools). CLI: `kask spec <subcommand>`. API: `POST /api/v1/specs/*`. All equivalent via `SpecStore` port. | **Pass** — three surfaces, one core |
 | Composition | Specs compose via `Spec.goals` aggregation. Registry stores spec templates with `template_type: FlowDef`. | **Pass** — unified registry |
 | Trust | OCAP tokens govern all spec ops. Manifests signed via `hkask-keystore` (`Ed25519SpecSigner`). Curation authority bounded via `OCAPBoundary`. Threat model in §7.1. | **:partial** — Ed25519SpecSigner implemented. `Spec.signed_by` populated at registration time. Capability tokens for spec ops via `CapabilityChecker::grant_spec()`. |
 | Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **:partial** — Span::Spec exists in code. General variety counter wired to algedonic system (CyberneticsLoop). SpecDriftAlert wired into Communication Loop (R13 resolved). Spec-specific variety counter not separately tracked. |

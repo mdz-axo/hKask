@@ -119,8 +119,8 @@ Capability tokens for test operations follow the same `DelegationToken` pattern 
 Test invariants compose via goal decomposition (DDMVSS §5.11 `mvss-compose` pattern):
 
 - A `GoalSpec` with sub-goals decomposes into individual invariants per sub-goal.
-- Registry stores test templates as `template_type: Process` (FlowDef domain).
-- The TDD workflow is itself a `SpecArtifact` with `template_type: Process`:
+- Registry stores test templates as `template_type: FlowDef`.
+- The TDD workflow is itself a `SpecArtifact` with `template_type: FlowDef`:
 
 ```yaml
 # registry/manifests/tdd-tracer-bullet.yaml
@@ -227,13 +227,13 @@ A test invariant that fails Curation is **documented**, not silently dropped. Th
 
 | Skill | Root Principle | DDMVSS Categories | hLexicon Terms |
 |-------|---------------|-------------------|----------------|
-| **TDD** | Vertical tracer-bullet discipline (RED→GREEN per behavior) | Domain (goal specification), Capability (tracer-bullet cycle), Curation (evaluate invariants) | `trace` (WordAct), `verify` (KnowAct) |
+| **TDD** | Vertical tracer-bullet discipline (RED→GREEN per behavior) | Domain (goal specification), Capability (tracer-bullet cycle), Curation (evaluate invariants) | `trace` (KnowAct), `verify` (KnowAct) |
 | **coding-guidelines** | Minimum code that solves the problem; no speculative features | Capability (minimal code constraint), Trust (no speculative features), Composition (surgical changes preserve seams) | `constrain` (WordAct), `require` (WordAct) |
-| **improve-codebase-architecture** | Deepen modules to create testable seams | Domain (module depth assessment), Composition (deepening refactor), Curation (deletion test as completeness) | `deepen` (FlowDef), `curate` (FlowDef) |
+| **improve-codebase-architecture** | Deepen modules to create testable seams | Domain (module depth assessment), Composition (deepening refactor), Curation (deletion test as completeness) | `deepen` (KnowAct), `curate` (FlowDef) |
 | **diagnose** | Root cause over symptoms; feedback loop construction; spec-anchored bug-to-requirement mapping | Domain (spec-anchored bug classification), Observability (feedback loop), Trust (root cause), Lifecycle (regression test as evolution gate), Curation (spec gap identification) | `diagnose` (KnowAct), `recognize` (KnowAct) |
 | **zoom-out** | Bounded context mapping for unfamiliar code | Domain (bounded context), Interface (seam identification) | `contextualise` (KnowAct), `elicit` (WordAct) |
 | **caveman** | Token-efficient communication | Composition (token-efficient encoding), Interface (minimal message surface) | `select` (FlowDef) |
-| **handoff** | Session continuity across agents | Lifecycle (session transfer), Curation (knowledge preservation) | `handoff` (FlowDef), `cultivate` (KnowAct) |
+| **handoff** | Session continuity across agents | Lifecycle (session transfer), Curation (knowledge preservation) | `handoff` (KnowAct), `cultivate` (KnowAct) |
 | **skill-bundler** | Compose multiple skills coherently | Composition (practice composition), Curation (coherence across skills) | `compose` (FlowDef), `reconcile` (FlowDef) |
 | **magna-carta-verifier** | Sovereignty compliance audit via YAML assertion manifests and Jinja2 verification templates | Trust (P1–P4 enforcement verification), Curation (assertion lifecycle) | `verify` (KnowAct), `audit` (KnowAct) |
 | **constraint-forces** | Classify constraints by enforcement level (Prohibition→Hypothesis); map to Magna Carta P1–P4 | Trust (constraint enforcement), Curation (conflict resolution) | `classify` (KnowAct), `resolve` (KnowAct) |
@@ -242,7 +242,7 @@ A test invariant that fails Curation is **documented**, not silently dropped. Th
 | **skill-translator** | Translate agent skills into hKask's dual-layer architecture (registry crate + SKILL.md companion) | Composition (cross-format composition), Curation (methodology preservation) | `translate` (KnowAct), `adapt` (KnowAct) |
 | **skill-discovery** | Find, evaluate, and install dual-layer skills (SKILL.md + registry templates); gap detection | Capability (skill lifecycle), Curation (quality evaluation) | `detect` (KnowAct), `evaluate` (KnowAct) |
 | **skill-maintenance** | Audit hKask's dual-layer skill architecture for staleness, coverage gaps, and quality degradation | Lifecycle (skill lifecycle states), Curation (health scoring, deprecation) | `audit` (KnowAct), `classify` (KnowAct) |
-| **skill-manager** | Dual-layer CRUD for the skill corpus across Zed agent and registry layers | Capability (skill operations), Curation (corpus management) | `validate` (KnowAct), `create` (KnowAct) |
+| **skill-manager** | Dual-layer CRUD for the skill corpus across Zed agent and registry layers | Capability (skill operations), Curation (corpus management) | `validate` (WordAct), `create` (WordAct) |
 
 ---
 

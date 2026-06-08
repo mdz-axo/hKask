@@ -2,7 +2,7 @@
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
 last_updated: 2026-06-07
-version: "0.6.0"
+version: "0.7.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -306,6 +306,17 @@ document types naturally emphasize different dimensions. Passing only 1 is
 poor quality and blocks publication. See `WRITING_EXCELLENCE.md` §3 for
 the full rubric, scoring guidance, and strongest-fit mappings per document
 type.
+
+Writing Excellence is integrated into the DDMVSS curation process via two
+mechanisms:
+
+1. **`spec/curate/writing-excellence`** — Standalone assessment tool that
+   evaluates a specification document against the 4-perspective test and
+   returns `meets_publication_standard` and `blocks_publication` flags.
+2. **`spec/curate/evaluate`** — When `writing_excellence` scores are provided
+   in the request, the curation decision accounts for the publication
+   standard. A document passing only 1 of 4 dimensions forces a `Discard`
+   decision regardless of spec completeness.
 
 ## 10. Verification checklist
 

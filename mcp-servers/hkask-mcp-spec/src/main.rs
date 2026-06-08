@@ -1034,7 +1034,8 @@ mod tests {
     use types::{
         CompletenessDomain, CurateCultivateRequest, CurateEvaluateRequest, CurateReconcileRequest,
         GoalCaptureRequest, GoalDecomposeRequest, GraphQueryRequest, GraphValidateRequest,
-        RequireBindRequest, TestInvariantRequest, TestVerifyRequest,
+        RequireBindRequest, TestInvariantRequest, TestVerifyRequest, WritingExcellenceRequest,
+        WritingExcellenceScore,
     };
 
     // ── In-memory SpecStore for testing ─────────────────────────────────
@@ -1140,7 +1141,6 @@ mod tests {
                 criteria: None,
                 capability_token: None,
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1161,7 +1161,6 @@ mod tests {
                 criteria: None,
                 capability_token: Some("invalid-base64-token".to_string()),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1187,7 +1186,6 @@ mod tests {
                 criteria: Some(vec!["works".to_string()]),
                 capability_token: Some(token),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(
@@ -1213,7 +1211,6 @@ mod tests {
                 criteria: Some(vec!["criteria 1".to_string(), "criteria 2".to_string()]),
                 capability_token: Some(token),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(result.contains("captured"));
@@ -1281,7 +1278,6 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1322,7 +1318,6 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1362,7 +1357,6 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1407,7 +1401,6 @@ mod tests {
                 criteria: None,
                 capability_token: Some(token.clone()),
                 completeness_domain: None,
-                writing_excellence: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -2052,6 +2045,7 @@ mod tests {
                 rationale_hint: None,
                 capability_token: Some(read_token),
                 completeness_domain: Some(CompletenessDomain::Implementation),
+                writing_excellence: None,
             }))
             .await;
 
@@ -2070,6 +2064,139 @@ mod tests {
         assert!(
             result.contains("merge"),
             "decision must be Merge (driven by spec completeness), got: {result}"
+        );
+    }
+
+    // ── Writing Excellence tests ────────────────────────────────────
+
+    // REQ: WE-001 — 3 of 4 passing meets publication standard
+    #[tokio::test]
+    async fn writing_excellence_meets_standard_3_of_4() {
+        let (server, store) = test_server_with_store();
+        let spec = Spec::new("we test spec", SpecCategory::Domain, DomainAnchor::Hkask);
+        store.save(&spec).expect("save spec");
+        let token = valid_token(&server, &spec.id.to_string(), DelegationAction::Read);
+
+        let result = server
+            .spec_curate_writing_excellence(Parameters(WritingExcellenceRequest {
+                spec_id: spec.id.to_string(),
+                scores: WritingExcellenceScore {
+                    hopper: true,
+                    lovelace: true,
+                    schriver: true,
+                    gentle: false,
+                },
+                notes: None,
+                capability_token: Some(token),
+            }))
+            .await;
+
+        assert!(
+            result.contains("\"meets_publication_standard\":true"),
+            "3 of 4 must meet publication standard, got: {result}"
+        );
+        assert!(
+            result.contains("\"blocks_publication\":false"),
+            "3 of 4 must not block publication, got: {result}"
+        );
+    }
+
+    // REQ: WE-002 — 1 of 4 passing blocks publication
+    #[tokio::test]
+    async fn writing_excellence_blocks_publication_1_of_4() {
+        let (server, store) = test_server_with_store();
+        let spec = Spec::new("we block spec", SpecCategory::Domain, DomainAnchor::Hkask);
+        store.save(&spec).expect("save spec");
+        let token = valid_token(&server, &spec.id.to_string(), DelegationAction::Read);
+
+        let result = server
+            .spec_curate_writing_excellence(Parameters(WritingExcellenceRequest {
+                spec_id: spec.id.to_string(),
+                scores: WritingExcellenceScore {
+                    hopper: true,
+                    lovelace: false,
+                    schriver: false,
+                    gentle: false,
+                },
+                notes: None,
+                capability_token: Some(token),
+            }))
+            .await;
+
+        assert!(
+            result.contains("\"blocks_publication\":true"),
+            "1 of 4 must block publication, got: {result}"
+        );
+        assert!(
+            result.contains("\"meets_publication_standard\":false"),
+            "1 of 4 must not meet publication standard, got: {result}"
+        );
+    }
+
+    // REQ: WE-003 — curate/evaluate with Writing Excellence 1 of 4 forces Discard
+    #[tokio::test]
+    async fn curate_evaluate_with_writing_excellence_blocks() {
+        let (server, store) = test_server_with_store();
+        let mut goal = GoalSpec::new("goal");
+        goal = goal.with_criterion("c1");
+        goal.criteria[0].mark_satisfied();
+        let spec =
+            Spec::new("complete spec", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        store.save(&spec).expect("save spec");
+        let read_token = valid_token(&server, &spec.id.to_string(), DelegationAction::Read);
+
+        // Even though spec is complete, 1 of 4 writing excellence forces Discard
+        let result = server
+            .spec_curate_evaluate(Parameters(CurateEvaluateRequest {
+                spec_id: spec.id.to_string(),
+                rationale_hint: None,
+                capability_token: Some(read_token),
+                completeness_domain: None,
+                writing_excellence: Some(WritingExcellenceScore {
+                    hopper: true,
+                    lovelace: false,
+                    schriver: false,
+                    gentle: false,
+                }),
+            }))
+            .await;
+
+        assert!(
+            result.contains("discard"),
+            "1 of 4 writing excellence must force Discard, got: {result}"
+        );
+        assert!(
+            !result.contains("merge"),
+            "1 of 4 writing excellence must not allow Merge, got: {result}"
+        );
+    }
+
+    // REQ: WE-004 — curate/evaluate without Writing Excellence is unchanged
+    #[tokio::test]
+    async fn curate_evaluate_without_writing_excellence_unchanged() {
+        let (server, store) = test_server_with_store();
+        let mut goal = GoalSpec::new("goal");
+        goal = goal.with_criterion("c1");
+        goal.criteria[0].mark_satisfied();
+        let spec =
+            Spec::new("complete spec", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        store.save(&spec).expect("save spec");
+        let read_token = valid_token(&server, &spec.id.to_string(), DelegationAction::Read);
+
+        // Without writing_excellence, a complete spec gets Merge (existing behavior)
+        let result = server
+            .spec_curate_evaluate(Parameters(CurateEvaluateRequest {
+                spec_id: spec.id.to_string(),
+                rationale_hint: None,
+                capability_token: Some(read_token),
+                completeness_domain: None,
+                writing_excellence: None,
+            }))
+            .await;
+
+        assert!(
+            result.contains("merge"),
+            "complete spec without writing_excellence must get Merge, got: {result}"
         );
     }
 }

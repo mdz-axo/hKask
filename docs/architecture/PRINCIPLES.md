@@ -124,8 +124,8 @@ status: VERIFIED
 
 **Implementation:**
 - Single registry (not three separate)
-- Template types: `Prompt`, `Process`, `Cognition`, `Specification`
-- hLexicon grounding (75 terms allocated across 3 domains)
+- Template types: `WordAct`, `FlowDef`, `KnowAct`
+- hLexicon grounding (142 term-slots across 3 domains)
 - Jinja2 rendering with LLM-based selection
 
 **Constraint:** Selection intelligence in Jinja2/LLM, not Rust code.

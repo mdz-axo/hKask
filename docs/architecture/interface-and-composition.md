@@ -294,12 +294,11 @@ status: VERIFIED
 
 | DDMVSS Term | Code Term (`TemplateType`) | Domain |
 |-------------|---------------------------|--------|
-| Prompt | `WordAct` | WordAct |
-| Process | `FlowDef` | FlowDef |
-| Cognition | `KnowAct` | KnowAct |
-| Specification | `FlowDef` | FlowDef |
+| WordAct | `WordAct` | WordAct |
+| FlowDef | `FlowDef` | FlowDef |
+| KnowAct | `KnowAct` | KnowAct |
 
-The `TemplateType::as_spec_name()` method bridges this vocabulary gap, returning the DDMVSS canonical name for each variant.
+The `TemplateType` enum variants (`WordAct`, `FlowDef`, `KnowAct`) are the canonical template type names, matching the hLexicon domain names directly.
 
 ### 3.4 Cascade Rules
 

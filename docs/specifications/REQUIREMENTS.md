@@ -179,7 +179,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Text:** When registering or discovering templates, I want a single registry, so I can avoid multi-registry complexity.
 - **Criteria:**
   - [x] `SqliteRegistry` with `template_type` discriminator
-  - [x] Four template types: Prompt, Process, Cognition, Specification
+  - [x] Three template types: WordAct, FlowDef, KnowAct
   - [x] Lexicon-term-based search
   - [x] Contract validation on registration
 - **Implementation:** `hkask-templates::SqliteRegistry`, `hkask-templates::contract_validator::ContractValidator`
