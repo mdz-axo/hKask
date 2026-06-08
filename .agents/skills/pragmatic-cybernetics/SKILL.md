@@ -110,6 +110,18 @@ When spec drift exceeds threshold:
 2. The Curator cannot regulate based on accurate information
 3. The correct response is to revise the spec, not to suppress the alert
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/pragmatic-cybernetics/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `cybernetics-analyze-loop.j2` | KnowAct | Analyze a feedback loop on 5 properties (polarity, delay, gain, closure, fidelity) |
+| `cybernetics-variety-check.j2` | KnowAct | Evaluate variety balance using Ashby's Law of Requisite Variety |
+| `cybernetics-vsm-map.j2` | KnowAct | Map hKask components to VSM S1–S5 and assess viability |
+
+The SKILL.md (this file) teaches the Zed coding agent the cybernetic reasoning framework. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## When to Use This Skill
 
 - **CNS alert fires:** Which cybernetic function failed? (Usually sensor, model, or feedback closure.)

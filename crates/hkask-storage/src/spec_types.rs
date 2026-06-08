@@ -112,6 +112,25 @@ pub enum DomainAnchor {
     Hkask,
 }
 
+/// Domain of completeness assessment.
+/// Specification completeness: the spec document is internally complete.
+/// Implementation completeness: the code that satisfies the spec is complete.
+/// These are orthogonal — a spec can be complete even if no code implements it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompletenessDomain {
+    Specification,
+    Implementation,
+}
+
+impl CompletenessDomain {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CompletenessDomain::Specification => "specification",
+            CompletenessDomain::Implementation => "implementation",
+        }
+    }
+}
+
 impl DomainAnchor {
     pub fn as_str(&self) -> &'static str {
         match self {

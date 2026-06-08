@@ -13,7 +13,7 @@ crate:
 templates:
   - id: improve-codebase-architecture/arch-explore
     path: arch-explore.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [detect, explore, classify, discriminate, orient]
     description: >
       Explore the codebase for architectural friction: shallow modules, tight

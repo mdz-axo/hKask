@@ -21,11 +21,6 @@ INTENTIONAL_PLACEHOLDERS=(
     "docs/ci/check-metadata.sh"     # Created in this refresh
     "docs/specifications/cns-protocol-reference.md"  # Deferred
     ".github/scripts/check_links.sh"                 # External CI
-    "status/PROJECT_STATUS.md"                       # Planned, not yet created
-    "status/mcp-tools-inventory.md"                  # Planned, not yet created
-    "status/test-inventory.md"                       # Planned, not yet created
-    "status/fowler-audit-status.md"                  # Planned, not yet created
-    "status/adversarial-simplification-inventory.md" # Planned, not yet created
 )
 
 echo "=== hKask Documentation Link Checker ==="

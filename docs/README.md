@@ -30,7 +30,6 @@ crate prefix `hkask-`, workspace v0.23.0.
 | [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative index to the four DDMVSS specification documents and reference artifacts |
 | [`architecture/DDMVSS.md`](architecture/DDMVSS.md) | The 9-category goal-group taxonomy and MVSDD methodology |
 | [`specifications/DDMVSS_SCAFFOLD.md`](specifications/DDMVSS_SCAFFOLD.md) | DDMVSS category → directory mapping and lifecycle policy |
-| [`status/PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | Single source of truth for build/test/metrics status |
 | [`plans/TODO.md`](plans/TODO.md) | Open work only |
 
 ---
@@ -54,13 +53,10 @@ for its category cluster.
 | ADR | DDMVSS | Decision | Status |
 |-----|--------|----------|--------|
 | [ADR-022](architecture/ADR-022-comprehensive-security-hardening.md) | trust | Comprehensive security hardening | Active |
-| ~~[ADR-023](archive/2026-06-07-documentation-refresh/ADR-023-master-key-derivation.md)~~ | trust | ~~Master key derivation via HKDF-SHA256~~ | **Archived** — superseded by [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) |
 | [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
 | [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
 | [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema | Active |
 | [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
-| ~~[ADR-028](archive/2026-06-07-documentation-refresh/ADR-028-acp-protocol-design.md)~~ | interface, composition | ~~ACP protocol design (JSON-RPC 2.0 over stdio)~~ | **Archived** — deferred (ACP transport layer removed) |
-| ~~[ADR-029](archive/2026-06-07-documentation-refresh/ADR-029-goal-capability-primitive.md)~~ | capability, trust | ~~Goal capability primitive — distinct typed token~~ | **Archived** — superseded (v0.23.0: `GoalCapabilityToken` removed; goals use `&WebID` owner scoping per [`domain-and-capability.md`](architecture/domain-and-capability.md)) |
 | [ADR-030](architecture/ADR-030-skill-bundler.md) | curation | Skill Bundler — meta-skill composition | Proposed |
 | [ADR-031](architecture/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
 | [ADR-032](architecture/ADR-032-mcp-gateway-membrane.md) | capability, trust | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) | Draft |
@@ -102,14 +98,7 @@ for its category cluster.
 
 | Document | DDMVSS | Description |
 |----------|--------|-------------|
-| `PROJECT_STATUS.md` | all | **Single source of truth** for metrics, build, test, DDMVSS completeness — *planned* |
-| `mcp-tools-inventory.md` | capability, interface | Complete catalog of all MCP tools by server with gas costs, credentials, and per-tool detail — *planned* |
-| `test-inventory.md` | observability, domain, capability | Test seam depth and behavioral coverage — *planned* |
-| ~~`mcp-server-audit.md`~~ | capability, observability | ~~MCP server audit~~ — **Archived 2026-06-07**; unique content merged into `mcp-tools-inventory.md` |
-| ~~`DDMVSS-AUDIT-2026-06-06.md`~~ | all | ~~DDMVSS semantic alignment audit~~ — **Archived 2026-06-07**; findings absorbed into [`DDMVSS_SCAFFOLD.md`](specifications/DDMVSS_SCAFFOLD.md) §4 and [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) |
-| ~~`refactor-sweep-2026-06-06.md`~~ | capability, interface, composition | ~~Refactor sweep T1–T7 report~~ — **Archived**; content captured in `fowler-audit-status.md` and `adversarial-simplification-inventory.md` |
-| `fowler-audit-status.md` | capability, interface, composition | Fowler pattern refactoring tracker — *planned* |
-| `adversarial-simplification-inventory.md` | capability, interface, composition | Dead code and unwired seam inventory — *planned* |
+| *(planned)* | all | *Status files are planned but not yet populated. Work items tracked in [`plans/TODO.md`](plans/TODO.md).* |
 
 ---
 

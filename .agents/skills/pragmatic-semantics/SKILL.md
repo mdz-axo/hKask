@@ -114,6 +114,18 @@ hKask's internal semantic paths:
 
 The semantic contract: each path carries a specific payload. If the Curator receives raw ν-events but no variety counters, the model is incomplete. If CNS fires but the Curator doesn't report it, the feedback loop is broken.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/pragmatic-semantics/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `semantics-classify-statement.j2` | KnowAct | Classify a statement on ontological and epistemic axes |
+| `semantics-provenance-trace.j2` | KnowAct | Trace provenance of a claim through hKask's data layers |
+| `semantics-conflict-resolve.j2` | KnowAct | Resolve conflict between statements using OT ranking |
+
+The SKILL.md (this file) teaches the Zed coding agent the epistemic discipline. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## When to Use This Skill
 
 - **"How do you know that?":** Trace provenance. Is it Directly Stated, Implicit, Inherited, or LLM-Assessed?

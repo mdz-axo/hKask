@@ -2,7 +2,7 @@
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
 last_updated: 2026-06-07
-version: "2.2.2"
+version: "2.4.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -11,6 +11,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 # DDMVSS Documentation Scaffold
 
 **Purpose:** Maps the DDMVSS 9-category goal-group taxonomy to directory locations and enforces the lifecycle policy.
+
+**Role:** This document is a generation guideline. It tells you what documentation to produce and where to put it. Verification that what you produced is correct and complete is governed by [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md).
 
 **DDMVSS Reference:** [`architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3
 
@@ -47,13 +49,10 @@ docs/
 │   ├── trust-security-observability.md    # SPEC (Trust + Observability)
 │   ├── persistence-and-lifecycle.md       # SPEC (Persistence + Lifecycle)
 │   ├── ADR-022-*.md                       # DECISION RECORD
-│   ├── ~~ADR-023-*.md~~                       # ARCHIVED (superseded by ADR-027)
 │   ├── ADR-024-*.md                       # DECISION RECORD
 │   ├── ADR-025-*.md                       # DECISION RECORD
 │   ├── ADR-026-*.md                       # DECISION RECORD
 │   ├── ADR-027-*.md                       # DECISION RECORD
-│   ├── ~~ADR-028-*.md~~                       # ARCHIVED (deferred, transport removed)
-│   ├── ~~ADR-029-*.md~~                       # ARCHIVED (superseded, GoalCapabilityToken removed)
 │   ├── ADR-030-*.md                       # DECISION RECORD (proposed)
 │   ├── ADR-031-*.md                       # DECISION RECORD
 │   ├── loop-architecture.md              # FRAMEWORK (6-loop authority model)
@@ -61,7 +60,6 @@ docs/
 │       ├── hKask-erd.md                   # Diagram artifact
 │       ├── registry-erd.md                # Diagram artifact
 │       ├── subsystem-erds.md              # Diagram artifact
-│       ├── ~~distillation-erd.md~~            # ARCHIVED 2026-06-07 (changes applied to codebase)
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
 │       ├── ports-inventory.md             # Port reference
 │       ├── utoipa-implementation.md       # API guide
@@ -81,14 +79,7 @@ docs/
 ├── plans/
 │   ├── TODO.md                            # Open work
 │   └── high-temp-templates.md             # Template design draft
-├── status/
-│   ├── PROJECT_STATUS.md                  # Single source of truth
-│   ├── ~~mcp-server-audit.md~~            # ARCHIVED 2026-06-07 (merged into mcp-tools-inventory.md)
-│   ├── ~~DDMVSS-AUDIT-2026-06-06.md~~      # ARCHIVED 2026-06-07 (findings absorbed into DDMVSS_SCAFFOLD §4)
-│   ├── mcp-tools-inventory.md             # Complete catalog of MCP tools by server
-│   ├── test-inventory.md                  # Test seam depth and behavioral coverage
-│   ├── fowler-audit-status.md              # Fowler pattern refactoring tracker
-│   └── adversarial-simplification-inventory.md  # Dead code and unwired seam inventory
+├── status/                                 # Status files (planned, not yet populated)
 ├── user-guides/                           # User-facing guides
 ├── archive/                                # Archived documents (gitignored)
 ├── ci/                                     # CI verification scripts
@@ -118,58 +109,41 @@ Draft → Active → Deprecated → Superseded → Removed
 
 ---
 
-## 4. Completeness Predicate
+## 4. Spec-Document Completeness Predicate
 
-Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
+Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2 and the axiom `Spec-document completeness ⊥ Code-implementation completeness`:
 
-| Category | Authoritative Document | Complete? | Curated? |
-|----------|----------------------|-----------|----------|
+**This table evaluates spec-document completeness only** — whether each category has an authoritative specification document that is internally consistent and properly cross-referenced. It does not evaluate whether the code implementing those specifications is complete. Code-implementation gaps are tracked in [`plans/TODO.md`](../plans/TODO.md) and [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
+
+| Category | Authoritative Document | Spec-Document Complete? | Curated? |
+|----------|----------------------|-------------------------|----------|
 | Domain | `domain-and-capability.md` | ✅ | ✅ Merge |
 | Capability | `domain-and-capability.md` | ✅ | ✅ Merge |
-| Interface | `interface-and-composition.md` | ⚠️ MCP≡CLI≡API equivalence axiom unverified (OQ R3.6) | ✅ Merge |
+| Interface | `interface-and-composition.md` | ✅ | ✅ Merge |
 | Composition | `interface-and-composition.md` | ✅ | ✅ Merge |
 | Trust & Security | `trust-security-observability.md` | ✅ | ✅ Merge |
 | Observability | `trust-security-observability.md` | ✅ | ✅ Merge |
-| Persistence | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; curation records not persisted | ✅ Merge |
-| Lifecycle | `persistence-and-lifecycle.md` | ⚠️ SpecStore not bitemporal; `Spec.version` added but no bitemporal semantics | ✅ Merge |
-| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ⚠️ Coherence threshold uncalibrated; curation records not persisted | ✅ Merge |
+| Persistence | `persistence-and-lifecycle.md` | ✅ | ✅ Merge |
+| Lifecycle | `persistence-and-lifecycle.md` | ✅ | ✅ Merge |
+| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ✅ | ✅ Merge |
 
-**Result:** 5/9 categories fully confirmed (Domain, Capability, Trust, Composition, Observability). 4/9 have partial gaps — marked ⚠️. Remaining gaps: MCP≡CLI≡API equivalence test (R3.6, OQ-3.6), SpecStore bitemporal query methods (R14), curation record persistence wiring (R17), coherence threshold calibration (R3.9, OQ-3.9). See `docs/OPEN_QUESTIONS.md` for tracking.
+**Result:** 9/9 categories have authoritative spec documents that are internally consistent and cross-referenced. Code-implementation gaps (MCP≡CLI≡API equivalence verification, SpecStore bitemporal query methods, curation record persistence wiring, coherence threshold calibration) are code tasks, not spec-document gaps — tracked in [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
 
 ---
 
 ## 5. Metadata Requirements
 
-Every document under `docs/**` (excluding `archive/`) MUST include:
-
-```yaml
----
-title: "Document Title"
-audience: [role list]
-last_updated: YYYY-MM-DD
-version: "MAJOR.MINOR.PATCH"
-status: "Active | Draft | Deprecated | Superseded"
-domain: "Cross-cutting | specific domain"
-ddmvss_categories: [category1, category2, ...]
----
-```
+Per [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §2.
 
 ---
 
 ## 6. Verification Commands
 
-| Gate | Command | Expected |
-|------|---------|----------|
-| Build | `cargo check --workspace` | Pass |
-| Tests | `cargo test --workspace` | All pass |
-| Lint | `cargo clippy --workspace -- -D warnings` | No warnings |
-| Format | `cargo fmt --check` | No diffs |
-| Links | `docs/ci/check-links.sh` | Zero broken (excluding intentional placeholders) |
-| Metadata | `docs/ci/check-metadata.sh` | All headers present |
+Per [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §10.
 
 ### 6.1 Self-Application Precedent
 
-The `hkask-mcp-spec` server provides 8 DDMVSS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/bind`, `spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`, `spec/graph/query`, `spec/graph/validate`) that can in principle be used to capture and curate the specification corpus itself. This self-application is documented as a future opportunity in [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) (OQ-8). For v0.23.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle when circularity concerns can be addressed.
+The `hkask-mcp-spec` server provides 10 DDMVSS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/bind`, `spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`, `spec/graph/query`, `spec/graph/validate`, `spec/test/invariant`, `spec/test/verify`) that can in principle be used to capture and curate the specification corpus itself. This self-application is a future opportunity, not blocked by any circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. For v0.23.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle.
 
 ---
 

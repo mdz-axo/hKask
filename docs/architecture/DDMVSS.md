@@ -1,8 +1,8 @@
 ---
 title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
 audience: [architects, developers, agents]
-last_updated: 2026-06-06
-version: "0.2.2"
+last_updated: 2026-06-07
+version: "0.3.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -14,6 +14,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **Axiom:** `Specification ≡ ⟨Goals, Plan⟩` — one vocabulary, two registers.
 **Axiom:** `Goal ≡ Requirement` — bidirectional equivalence.
+**Axiom:** `Spec-document completeness ⊥ Code-implementation completeness` — the DDMVSS governs specification documents and their composition; whether the code that implements those specifications is complete is an orthogonal concern. A spec document is complete when it defines its category's goal structure, required interfaces, and cross-references, independent of whether any code satisfies it. Code that diverges from its spec is a code bug, not a documentation problem.
 **Focusing simplification:** `MCP ≡ CLI ≡ API` — three surfaces, one functional core.
 **Design principle:** *Specifications are invitations to curate, not gates to govern.* Each spec defines a capability surface, not a constraint boundary.
 

@@ -115,9 +115,9 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (8 DDMVSS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
+**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (10 DDMVSS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
 
-**Rationale:** Self-application is philosophically appealing but introduces circularity that requires careful design. The spec tools work correctly on the existing corpus — that's sufficient for v0.21.0.
+**Rationale:** There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 
 ---
 
@@ -443,6 +443,46 @@ The canonical CNS span listing in `PRINCIPLES.md` §1.4 uses `cns.cybernetics.*`
 
 ---
 
+### FUT-010: MCP≡CLI≡API equivalence verification
+
+**DDMVSS Category:** Interface  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+The DDMVSS focusing assumption `MCP ≡ CLI ≡ API` is an axiom of the specification, not a verifiable property of the codebase. Whether the code currently satisfies this equivalence is a code-implementation question, not a spec-document question. The spec document (`interface-and-composition.md`) correctly states the axiom. Code-level verification that all three surfaces exercise the same capability set is tracked here as a code task.
+
+---
+
+### FUT-011: SpecStore bitemporal query methods
+
+**DDMVSS Category:** Persistence  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+The spec document (`persistence-and-lifecycle.md`) specifies bitemporal semantics for spec records. The code has `valid_from`/`valid_to` fields on `Spec` but no bitemporal query methods. This is a code-implementation gap, not a spec-document gap. The spec correctly describes the intended behavior.
+
+---
+
+### FUT-012: Curation record persistence wiring
+
+**DDMVSS Category:** Curation  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+`SqliteCurationRecordStore` exists for persisting curation decisions, but it is not wired into the `spec_curate_evaluate` call path. The spec document correctly describes the intended behavior. This is a code-implementation gap.
+
+---
+
+### FUT-013: Coherence threshold calibration
+
+**DDMVSS Category:** Curation  
+**Status:** Open  
+**Opened:** 2026-06-07
+
+The coherence threshold (0.7) is a starting guess. The spec document states this is uncalibrated. Calibration requires operational data from curation sessions. This is a genuine underspecification in the Curation category's spec — the spec should state the calibration method, not just the threshold value. Tracked as both a spec-document refinement and a code task.
+
+---
+
 ## Resolution Summary
 
 | OQ | Status | Decision | Date |
@@ -458,7 +498,7 @@ The canonical CNS span listing in `PRINCIPLES.md` §1.4 uses `cns.cybernetics.*`
 | OQ-9 | Resolved | Confirmed fully implemented | 2026-05-28 |
 | F6 | Resolved | GoalCapabilityToken removed; WebID-based owner scoping replaces token infrastructure | 2026-06-04 |
 
-**DDMVSS completeness:** 8/8 open questions resolved, 1 deferred with documented rationale. F6 resolved post-sprint.
+**DDMVSS completeness:** 8/8 open questions resolved, 1 deferred with documented rationale. F6 resolved post-sprint. Code-implementation gaps (FUT-010 through FUT-013) reclassified from spec-document gaps per the DDMVSS axiom `Spec-document completeness ⊥ Code-implementation completeness`.
 
 ---
 

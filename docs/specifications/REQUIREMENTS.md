@@ -138,7 +138,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-mcp::security::SecurityGateway`, `hkask-mcp::transport::*`
 - **Tests:** —
 - **Status:** Implemented
-- **Curation:** Merge — formerly listed as stubs, now implemented
+- **Curation:** Merge — implemented
 
 ---
 

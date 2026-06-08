@@ -229,7 +229,7 @@ status: VERIFIED
 
 ### 5.1 Single Capability Primitive
 
-All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:283`; backward-compatible alias `CapabilityToken` at line 66):[^miller-ocap]
+All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:283`):[^miller-ocap]
 
 | Property | Implementation |
 |----------|---------------|

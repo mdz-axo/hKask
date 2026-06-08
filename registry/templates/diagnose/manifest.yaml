@@ -20,7 +20,7 @@ templates:
 
   - id: diagnose/diagnose-hypothesise
     path: diagnose-hypothesise.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [infer, discriminate, rank, predict, evaluate]
     description: >
       Generate 3-5 ranked falsifiable hypotheses for the bug's root cause.

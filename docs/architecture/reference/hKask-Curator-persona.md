@@ -252,7 +252,7 @@ template_override:
 
 ## Migration from Existing Curator
 
-The Curator persona should be ported from the existing `kask` (formerly `stack-cli`) Curator implementation, following established refactoring patterns:[^fowler-refactor]
+The Curator persona should be ported from the existing `kask` Curator implementation, following established refactoring patterns:[^fowler-refactor]
 
 **Source Files:**
 - `crates/hkask-cli/src/commands/chat.rs` (Curator REPL)

@@ -78,6 +78,26 @@ pub struct TestVerifyResponse {
     pub complete: bool,
 }
 
+// ── Completeness domain ──────────────────────────────────────
+
+/// Domain of completeness assessment for curation decisions.
+/// Specification: the spec document is internally complete.
+/// Implementation: the code that satisfies the spec is complete.
+/// These are orthogonal — a spec can be complete even if no code implements it.
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
+pub enum CompletenessDomain {
+    /// The specification document is complete as a specification
+    Specification,
+    /// The code that satisfies the specification is complete
+    Implementation,
+}
+
+impl Default for CompletenessDomain {
+    fn default() -> Self {
+        CompletenessDomain::Specification
+    }
+}
+
 // ── Response types ───────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
@@ -110,6 +130,11 @@ pub struct CurateEvaluateResponse {
     pub decision: String,
     pub rationale: String,
     pub coherence_score: f64,
+    /// Whether the specification document is complete (all criteria satisfied)
+    pub specification_completeness: bool,
+    /// Implementation status, included only when CompletenessDomain::Implementation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub implementation_status: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -172,6 +197,7 @@ pub struct GoalCaptureRequest {
     pub domain_anchor: String,
     pub criteria: Option<Vec<String>>,
     pub capability_token: Option<String>,
+    pub completeness_domain: Option<CompletenessDomain>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -196,6 +222,7 @@ pub struct CurateEvaluateRequest {
     pub spec_id: String,
     pub rationale_hint: Option<String>,
     pub capability_token: Option<String>,
+    pub completeness_domain: Option<CompletenessDomain>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -209,6 +236,7 @@ pub struct CurateReconcileRequest {
 pub struct CurateCultivateRequest {
     pub coherence_threshold: Option<f64>,
     pub capability_token: Option<String>,
+    pub completeness_domain: Option<CompletenessDomain>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

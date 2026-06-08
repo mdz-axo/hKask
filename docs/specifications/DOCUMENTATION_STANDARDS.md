@@ -1,8 +1,8 @@
 ---
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
-last_updated: 2026-05-28
-version: "0.5.0"
+last_updated: 2026-06-07
+version: "0.6.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -43,6 +43,8 @@ is the operational quality standard that governs publication decisions.
 
 These biases are implemented through the metadata, diagram, citation,
 and writing excellence conventions below. Violations block publication.
+
+**Role:** This document is the verification gate. It tells you how to confirm that documentation is correct and complete. What to create and where to put it is governed by [`DDMVSS_SCAFFOLD.md`](DDMVSS_SCAFFOLD.md).
 
 ---
 
@@ -99,6 +101,8 @@ verified_date: 2026-05-24
 verified_against: docs/standards/DOCUMENTATION_STANDARDS.md; .gitignore; docs/archive/
 status: VERIFIED
 -->
+
+**Git history is the archive of record.** No archive index or migration guide is required. Superseded documents are removed from the active tree via lifecycle policy; their content is recoverable from git history. No active-tree document may include backward-compatibility references, migration notes, or `formerly`/`previously known as` annotations — git history serves this purpose permanently.
 
 Git history is the project's Architecture Repository[^archrepo]. Retired
 documents are recoverable through `git log --all --diff-filter=D -- <path>`
@@ -228,6 +232,8 @@ This ensures:
 - No duplication between crate-local docs and root docs.
 
 ### 6.2 What belongs where
+
+For the authoritative DDMVSS category → directory mapping, see [`DDMVSS_SCAFFOLD.md`](DDMVSS_SCAFFOLD.md) §2. The table below is a simplified content-type view:
 
 | Content | Location |
 |---------|----------|

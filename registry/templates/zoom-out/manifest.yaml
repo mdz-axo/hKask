@@ -13,7 +13,7 @@ crate:
 templates:
   - id: zoom-out/zoom-out-context
     path: zoom-out-context.j2
-    type: Cognition
+    type: KnowAct
     lexicon_terms: [orient, contextualise, map, classify, integrate]
     description: >
       Generate a module map, caller graph, data flow summary, boundary summary,

@@ -1,14 +1,19 @@
 //! hKask MCP Spec — Specification authoring, curation, and validation
 //!
+//! These tools curate specification documents and their composition.
+//! Spec-document completeness is orthogonal to code-implementation completeness.
+//! Evaluation decisions (merge/revise/defer/discard) are driven by
+//! specification completeness alone — not by whether the code implements the spec.
+//!
 //! 10 tools following DDMVSS §6.3:
 //! - spec/goal/capture — Elicit user intent as binding requirement
 //! - spec/goal/decompose — Break goal into ordered sub-goals
 //! - spec/require/bind — Attach OCAP boundaries to a goal
-//! - spec/curate/evaluate — Assess artifact against collection coherence
-//! - spec/curate/reconcile — Resolve goal tensions
-//! - spec/curate/cultivate — Grow collection toward coherence
+//! - spec/curate/evaluate — Assess specification artifact against collection coherence
+//! - spec/curate/reconcile — Resolve spec-domain tensions
+//! - spec/curate/cultivate — Grow specification collection toward coherence
 //! - spec/graph/query — Query specification graph
-//! - spec/graph/validate — Validate collection coherence
+//! - spec/graph/validate — Validate spec-document coherence
 //! - spec/test/invariant — Create test traceability record linking test to spec requirement
 //! - spec/test/verify — Verify test coverage for a seam or spec category
 
@@ -32,12 +37,13 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use std::sync::Arc;
 use types::{
-    CurateCultivateRequest, CurateCultivateResponse, CurateEvaluateRequest, CurateEvaluateResponse,
-    CurateReconcileRequest, CurateReconcileResponse, GoalCaptureRequest, GoalCaptureResponse,
-    GoalDecomposeRequest, GoalDecomposeResponse, GraphNodeResponse, GraphQueryRequest,
-    GraphQueryResponse, GraphValidateRequest, GraphValidateResponse, RequireBindRequest,
-    RequireBindResponse, TensionReport, TestClassification, TestInvariantRequest,
-    TestInvariantResponse, TestTraceability, TestVerifyRequest, TestVerifyResponse,
+    CompletenessDomain, CurateCultivateRequest, CurateCultivateResponse, CurateEvaluateRequest,
+    CurateEvaluateResponse, CurateReconcileRequest, CurateReconcileResponse, GoalCaptureRequest,
+    GoalCaptureResponse, GoalDecomposeRequest, GoalDecomposeResponse, GraphNodeResponse,
+    GraphQueryRequest, GraphQueryResponse, GraphValidateRequest, GraphValidateResponse,
+    RequireBindRequest, RequireBindResponse, TensionReport, TestClassification,
+    TestInvariantRequest, TestInvariantResponse, TestTraceability, TestVerifyRequest,
+    TestVerifyResponse,
 };
 
 // ── Server ───────────────────────────────────────────────────
@@ -59,6 +65,8 @@ impl std::fmt::Debug for SpecServer {
 }
 
 impl SpecServer {
+    /// Creates a new SpecServer. Evaluations default to Specification-domain
+    /// completeness unless the caller provides CompletenessDomain::Implementation.
     pub fn new(
         store: Arc<dyn SpecStore + Send + Sync>,
         webid: WebID,
@@ -125,7 +133,9 @@ impl SpecServer {
 
 #[tool_router(server_handler)]
 impl SpecServer {
-    #[tool(description = "Capture a goal as a binding specification requirement")]
+    #[tool(
+        description = "Capture a goal as a binding specification requirement in a spec document"
+    )]
     async fn spec_goal_capture(
         &self,
         Parameters(GoalCaptureRequest {
@@ -134,6 +144,7 @@ impl SpecServer {
             domain_anchor,
             criteria,
             capability_token,
+            completeness_domain: _,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_goal_capture", &self.webid);
@@ -176,7 +187,7 @@ impl SpecServer {
         )
     }
 
-    #[tool(description = "Decompose a goal into ordered sub-goals (max depth 7)")]
+    #[tool(description = "Decompose a specification goal into ordered sub-goals (max depth 7)")]
     async fn spec_goal_decompose(
         &self,
         Parameters(GoalDecomposeRequest {
@@ -249,7 +260,7 @@ impl SpecServer {
         )
     }
 
-    #[tool(description = "Bind OCAP boundaries to a goal as a constraint")]
+    #[tool(description = "Bind OCAP boundaries to a specification goal as a constraint")]
     async fn spec_require_bind(
         &self,
         Parameters(RequireBindRequest {
@@ -343,13 +354,16 @@ impl SpecServer {
         )
     }
 
-    #[tool(description = "Evaluate a specification for collection coherence (curation)")]
+    #[tool(
+        description = "Assess specification artifact against collection coherence. Evaluates spec-document completeness (internal consistency, cross-reference integrity, section coverage), not code-implementation status."
+    )]
     async fn spec_curate_evaluate(
         &self,
         Parameters(CurateEvaluateRequest {
             spec_id,
             rationale_hint,
             capability_token,
+            completeness_domain,
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_evaluate", &self.webid);
@@ -385,6 +399,10 @@ impl SpecServer {
             CurationDecision::Revise
         };
 
+        // Decision is driven by specification completeness alone,
+        // regardless of the completeness domain requested.
+        let domain = completeness_domain.unwrap_or_default();
+
         let rationale = rationale_hint.unwrap_or_else(|| {
             if complete {
                 "All criteria satisfied".to_string()
@@ -395,18 +413,35 @@ impl SpecServer {
 
         let coherence = spec.coherence();
 
+        // implementation_status is populated only when the caller
+        // requests Implementation-domain assessment — but it does
+        // not affect the curation decision.
+        let implementation_status = if domain == CompletenessDomain::Implementation {
+            Some(if complete {
+                "spec complete; implementation status unknown".to_string()
+            } else {
+                "spec incomplete; implementation status irrelevant".to_string()
+            })
+        } else {
+            None
+        };
+
         span.ok_json(
             serde_json::to_value(CurateEvaluateResponse {
                 spec_id,
                 decision: decision.to_string(),
                 rationale,
                 coherence_score: coherence,
+                specification_completeness: complete,
+                implementation_status,
             })
             .unwrap_or_default(),
         )
     }
 
-    #[tool(description = "Reconcile tensions between specifications without collapsing them")]
+    #[tool(
+        description = "Reconcile spec-domain tensions between specification documents without collapsing them"
+    )]
     async fn spec_curate_reconcile(
         &self,
         Parameters(CurateReconcileRequest {
@@ -416,6 +451,10 @@ impl SpecServer {
         }): Parameters<CurateReconcileRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_reconcile", &self.webid);
+
+        // This tool reconciles spec-domain tensions ("these two spec documents
+        // contradict each other"), not implementation-domain tensions ("the code
+        // doesn't match either spec"). Only spec-domain tensions are reconcilable.
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -507,12 +546,15 @@ impl SpecServer {
         )
     }
 
-    #[tool(description = "Cultivate the specification collection toward coherence")]
+    #[tool(
+        description = "Grow specification collection toward coherence. Suggestions target spec-document gaps (missing sections, unstated constraints), not code gaps."
+    )]
     async fn spec_curate_cultivate(
         &self,
         Parameters(CurateCultivateRequest {
             coherence_threshold,
             capability_token,
+            completeness_domain,
         }): Parameters<CurateCultivateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_cultivate", &self.webid);
@@ -526,6 +568,12 @@ impl SpecServer {
         }
 
         let threshold = coherence_threshold.unwrap_or(0.7);
+
+        // When domain is Specification (default), growth suggestions target
+        // spec-document gaps (missing sections, unstated constraints,
+        // unlinked cross-references), not code gaps.
+        let _domain = completeness_domain.unwrap_or_default();
+
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
@@ -562,7 +610,7 @@ impl SpecServer {
         )
     }
 
-    #[tool(description = "Query the specification graph by category or domain anchor")]
+    #[tool(description = "Query the specification document graph by category or domain anchor")]
     async fn spec_graph_query(
         &self,
         Parameters(GraphQueryRequest {
@@ -622,7 +670,7 @@ impl SpecServer {
     }
 
     #[tool(
-        description = "Validate the full specification collection for coherence and completeness"
+        description = "Validate specification collection for internal consistency and spec-document coherence, not code-implementation completeness"
     )]
     async fn spec_graph_validate(
         &self,
@@ -632,6 +680,9 @@ impl SpecServer {
         }): Parameters<GraphValidateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_graph_validate", &self.webid);
+
+        // Collection coherence validation checks that the specification graph
+        // is internally consistent — not that the codebase satisfies it.
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -757,7 +808,7 @@ impl SpecServer {
     }
 
     #[tool(
-        description = "Verify test coverage for a seam or spec category, returning gaps and debt"
+        description = "Verify test coverage for a specification seam or spec category, returning gaps and debt"
     )]
     async fn spec_test_verify(
         &self,
@@ -912,9 +963,9 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
     use types::{
-        CurateCultivateRequest, CurateEvaluateRequest, CurateReconcileRequest, GoalCaptureRequest,
-        GoalDecomposeRequest, GraphQueryRequest, GraphValidateRequest, RequireBindRequest,
-        TestInvariantRequest, TestVerifyRequest,
+        CompletenessDomain, CurateCultivateRequest, CurateEvaluateRequest, CurateReconcileRequest,
+        GoalCaptureRequest, GoalDecomposeRequest, GraphQueryRequest, GraphValidateRequest,
+        RequireBindRequest, TestInvariantRequest, TestVerifyRequest,
     };
 
     // ── In-memory SpecStore for testing ─────────────────────────────────
@@ -1019,6 +1070,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: None,
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1038,6 +1090,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some("invalid-base64-token".to_string()),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1062,6 +1115,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: Some(vec!["works".to_string()]),
                 capability_token: Some(token),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1086,6 +1140,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: Some(vec!["criteria 1".to_string(), "criteria 2".to_string()]),
                 capability_token: Some(token),
+                completeness_domain: None,
             }))
             .await;
         assert!(result.contains("captured"));
@@ -1152,6 +1207,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some(token.clone()),
+                completeness_domain: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1191,6 +1247,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some(token.clone()),
+                completeness_domain: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1229,6 +1286,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some(token.clone()),
+                completeness_domain: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1272,6 +1330,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some(token.clone()),
+                completeness_domain: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1318,6 +1377,7 @@ mod tests {
                 spec_id: spec.id.to_string(),
                 rationale_hint: None,
                 capability_token: Some(read_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1339,6 +1399,7 @@ mod tests {
                 spec_id: spec.id.to_string(),
                 rationale_hint: None,
                 capability_token: Some(read_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1364,6 +1425,7 @@ mod tests {
                 spec_id: spec.id.to_string(),
                 rationale_hint: Some("partial goals".to_string()),
                 capability_token: Some(read_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1443,6 +1505,7 @@ mod tests {
             .spec_curate_cultivate(Parameters(CurateCultivateRequest {
                 coherence_threshold: Some(0.7),
                 capability_token: Some(write_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1464,6 +1527,7 @@ mod tests {
             .spec_curate_cultivate(Parameters(CurateCultivateRequest {
                 coherence_threshold: Some(0.7),
                 capability_token: Some(write_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(
@@ -1656,6 +1720,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some(capture_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1700,6 +1765,7 @@ mod tests {
                 domain_anchor: "hkask".to_string(),
                 criteria: None,
                 capability_token: Some(capture_token),
+                completeness_domain: None,
             }))
             .await;
         assert!(capture_result.contains("captured"));
@@ -1838,6 +1904,91 @@ mod tests {
         assert!(
             result.contains("total_requirements") && result.contains("1"),
             "category filter must return only matching specs, got: {result}"
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CompletenessDomain
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // REQ: COMPLETENESS-DOMAIN-001 — Defaults to Specification when not provided
+    #[tokio::test]
+    async fn completeness_domain_defaults_to_specification() {
+        let (server, store) = test_server_with_store();
+
+        // Create a complete spec
+        let mut goal = GoalSpec::new("complete goal");
+        goal = goal.with_criterion("criterion 1");
+        goal.criteria[0].mark_satisfied();
+        let spec =
+            Spec::new("complete spec", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        store.save(&spec).expect("save spec");
+
+        let read_token = valid_token(&server, &spec.id.to_string(), DelegationAction::Read);
+
+        // Evaluate without specifying completeness_domain (should default to Specification)
+        let result = server
+            .spec_curate_evaluate(Parameters(CurateEvaluateRequest {
+                spec_id: spec.id.to_string(),
+                rationale_hint: None,
+                capability_token: Some(read_token),
+                completeness_domain: None,
+            }))
+            .await;
+
+        // When domain defaults to Specification:
+        // - implementation_status should be None (not populated for Specification domain)
+        // - specification_completeness should be true (spec is complete)
+        assert!(
+            result.contains("specification_completeness") && result.contains("true"),
+            "must report specification_completeness=true for complete spec, got: {result}"
+        );
+        assert!(
+            !result.contains("implementation_status"),
+            "implementation_status must be absent when domain is Specification (default), got: {result}"
+        );
+    }
+
+    // REQ: COMPLETENESS-DOMAIN-002 — Implementation domain includes implementation_status
+    #[tokio::test]
+    async fn completeness_domain_implementation_includes_status() {
+        let (server, store) = test_server_with_store();
+
+        // Create a complete spec
+        let mut goal = GoalSpec::new("complete goal");
+        goal = goal.with_criterion("criterion 1");
+        goal.criteria[0].mark_satisfied();
+        let spec =
+            Spec::new("complete spec", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        store.save(&spec).expect("save spec");
+
+        let read_token = valid_token(&server, &spec.id.to_string(), DelegationAction::Read);
+
+        // Evaluate with Implementation domain
+        let result = server
+            .spec_curate_evaluate(Parameters(CurateEvaluateRequest {
+                spec_id: spec.id.to_string(),
+                rationale_hint: None,
+                capability_token: Some(read_token),
+                completeness_domain: Some(CompletenessDomain::Implementation),
+            }))
+            .await;
+
+        // When domain is Implementation:
+        // - implementation_status should be present
+        // - specification_completeness should still be true
+        // - decision is still driven by specification completeness
+        assert!(
+            result.contains("specification_completeness") && result.contains("true"),
+            "must report specification_completeness=true, got: {result}"
+        );
+        assert!(
+            result.contains("implementation_status"),
+            "implementation_status must be present when domain is Implementation, got: {result}"
+        );
+        assert!(
+            result.contains("merge"),
+            "decision must be Merge (driven by spec completeness), got: {result}"
         );
     }
 }

@@ -75,6 +75,17 @@ The five forces map to the four Magna Carta principles as enforcement tiers:
 
 P1 is the only Prohibition-level principle. P2 and P4 are Guardrails because the user *can* override them through the consent mechanism — but the system never overrides them autonomously.
 
+## Registry Templates
+
+This skill's runtime templates live in `registry/templates/constraint-forces/`:
+
+| Template | Type | Purpose |
+|----------|------|--------|
+| `constraint-forces-classify.j2` | KnowAct | Classify a constraint into its force type and Magna Carta mapping |
+| `constraint-forces-resolve.j2` | KnowAct | Resolve a conflict between two constraints by force ranking |
+
+The SKILL.md (this file) teaches the Zed coding agent the classification methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.
+
 ## When to Use This Skill
 
 - **Deciding whether to relax a constraint:** Check its force rank. If Rank 1 or 2, do not relax without user consent.

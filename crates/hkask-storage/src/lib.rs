@@ -36,8 +36,8 @@ pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use spec_store::SqliteSpecStore;
 pub use spec_types::{
-    Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory, SpecCurationRecord,
-    SpecCurator, SpecError, SpecId, SpecStore,
+    CompletenessDomain, Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory,
+    SpecCurationRecord, SpecCurator, SpecError, SpecId, SpecStore,
 };
 
 pub use triples::{Triple, TripleError, TripleStore};
