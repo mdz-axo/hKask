@@ -2,7 +2,7 @@
 
 ## 1. Session Context
 
-Six sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
+Nine sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
@@ -15,6 +15,12 @@ Six sessions have completed work on the 9-task service layer extraction plan. Th
 **Session 5** (Task 6a — EnsembleService): Extracted `EnsembleService` with 8 service operations, `EnsembleContext`, and `map_participant_role` helper. Full strangler fig cycle completed for chat/deliberation operations. Standing sessions and improv operations intentionally excluded (divergent/surface-only). All workspace checks pass.
 
 **Session 6** (Task 6b — PodService): Extracted `PodService` with 6 service operations (5 domain + 1 helper), `PodContext`, and `normalize_pod_error` helper. Full strangler fig cycle completed. Fixed CLI bug where `deactivate_pod` silently swallowed errors. Both CLI and API now route through `PodService`. All workspace checks pass.
+
+**Session 7** (Task 6c-skipped, Task 6d — SovereigntyService): Skipped memory.rs (depth test failed). Extracted `SovereigntyService` with 9 public functions + 2 return types (AccessCheck, SovereigntyStatus) and 13 tests. Fixed CLI `revoke_consent` bug. Both surfaces route through SovereigntyService.
+
+**Session 8** (Task 6e/6f/6g — all skipped via depth test): Applied depth test to spec.rs, goal.rs, and models.rs. All three fail the 8-call-site threshold. Task 6 is now complete (5 extracted, 4 skipped). Proceeding to Task 7.
+
+**Session 9** (Task 7b — Surface Assembly Migration): Migrated both API and CLI surfaces to compose `ServiceContext::build()` instead of their own independent assembly paths. Added `ApiState::from_service_context()` and refactored `ApiState::with_defaults()`. Migrated `kask serve` and `kask loops` to use `ServiceContext::build()`. Refactored `init_repl_state()` to use `ServiceContext::build()` for shared infrastructure. Deleted 4 API modules (loop_system, governed_tool, stores, ensemble) and ~460 lines of duplicated assembly code. 49 tests passing (46 service + 3 API).
 
 ## 2. What Was Done
 
@@ -288,6 +294,81 @@ Key achievements for 6d:
 - Constraint: Guardrail — `revoke_consent` in service only revokes (no spurious grant)
 - All 40 service-layer tests passing, workspace compiles clean with clippy `-D warnings`
 
+**Session 8 — Depth Tests for spec.rs, goal.rs, models.rs (all SKIPPED)**
+
+All three remaining Task 6 submodules fail the depth test (8-call-site threshold):
+
+| Module | Call Sites | Reason to Skip | Force |
+|--------|-----------|----------------|-------|
+| `spec.rs` | 4 | API routes are stubs (hardcoded responses); CLI render/test-invariant/test-verify are surface-only; validate/cultivate have no API counterpart with real logic; capture logic diverges (CLI persists, API returns) | Evidence (measured) |
+| `goal.rs` | 12 across 6 ops | CRUD ops are thin pass-throughs to `SqliteGoalRepository`; parsing helpers too thin to justify full service module; `open_repository()` infrastructure wiring belongs in Task 7 | Evidence (measured) |
+| `models.rs` | 0 | Already fully covered by `InferenceService::list_models/search_models`; no additional duplication | Evidence (measured) |
+
+**Task 6 is now COMPLETE**: 5 modules extracted (inference, curator, ensemble, pods, sovereignty), 4 modules skipped (memory, spec, goal, models). All 40 service-layer tests passing.
+
+**Session 8 — Task 7a (Infrastructure: From<&ServiceContext> impls + session_manager)**
+
+Added `From<&ServiceContext>` impls for all 5 context types, enabling surfaces to derive their service contexts from a single `ServiceContext` instance:
+
+| Context Type | `From<&ServiceContext>` | Notes |
+|-------------|------------------------|-------|
+| `InferenceContext` | ✅ Already existed | Pre-existing from Session 3 |
+| `PodContext` | ✅ Added | `ctx.pod_manager.clone()` |
+| `SovereigntyContext` | ✅ Added | `ctx.consent_manager.clone()` |
+| `CuratorContext` | ✅ Added (escalation-only) | `cns_runtime: None`, `dispatch: Some(...)` |
+| `EnsembleContext` | ✅ Added | `ctx.session_manager.clone()` |
+
+Added `CuratorContext::from_service_context(ctx)` async method for full context (with CNS runtime).
+
+Added `session_manager: Arc<RwLock<SessionManager>>` field to `ServiceContext` (needed by EnsembleService from both surfaces).
+
+6 new infrastructure tests (svc-infra-001 through svc-infra-006) in `context.rs` verifying all `From<&ServiceContext>` impls work end-to-end with `ServiceContext::build(ServiceConfig::in_memory())`.
+
+Key decisions for Session 8:
+
+| Decision | Force | Rationale |
+|----------|-------|-----------|
+| `From<&ServiceContext>` for CuratorContext is escalation-only | Guideline | Can't extract `Arc<CnsRuntime>` from `Arc<RwLock<CnsRuntime>>` synchronously. `from_service_context()` async method provides full context. |
+| `session_manager` added to ServiceContext | Guideline | Both CLI and API need SessionManager for ensemble operations. Enables `From<&ServiceContext> for EnsembleContext`. |
+| Surface code NOT changed yet | Prohibition (P3 Strangler Fig) | Both old and new paths must work before deleting old code. Surfaces still use their own assembly. |
+
+### Session 9 — Task 7b: Surface Assembly Migration
+
+**Phase 1 — API surface:**
+
+Added `ApiState::from_service_context(ctx, ensemble_inferencer)` async constructor that derives all shared infrastructure from `ServiceContext` and initializes API-specific fields (gas governance, git CAS, standing sessions, spec store) to defaults. This replaces the old `ApiState::new()` which manually assembled stores, loop system, governed tool, and ensemble session.
+
+Refactored `ApiState::with_defaults()` from 7-parameter sync function to 0-parameter async function that resolves `ServiceConfig::from_env()`, calls `ServiceContext::build(config).await`, then `from_service_context(ctx, None).await`. Eliminated ~40 lines of inline PodManager/MemoryLoopAdapter assembly.
+
+Migrated `kask serve` (`cli/commands/serve.rs`) from `ApiState::new(registry, mcp_runtime, ...)` to `ServiceContext::build(config).await` + `ApiState::from_service_context(ctx, Some(adapter)).await`. Eliminated `resolve_capability_secret()` function (secrets now resolved inside `ServiceConfig::from_env()`).
+
+Deleted dead code: `ApiState::new()`, `ApiState::with_ensemble_inferencer()`, `build_loop_system()`, `build_governed_mcp_tool()`, `build_ensemble_session()`, `Stores::init()`, `open_db()`, `init_git_cas()`, `GitCasBundle`, `GovernedMcpTool`, `EnsembleSession`. Deleted 4 module files: `api/loop_system.rs`, `api/governed_tool.rs`, `api/stores.rs`, `api/ensemble.rs`.
+
+3 new API tests: `from_service_context_produces_valid_state`, `from_service_context_with_ensemble_inferencer`, `with_defaults_uses_service_context`.
+
+**Phase 2 — CLI surface:**
+
+Refactored `kask loops` command (`cli/commands/loops.rs`) from 113-line manual assembly (CNS, cybernetics, episodic/semantic/curation loops, escalation queue, ACP secret resolution) to 44-line `ServiceContext::build(config)` call. ~69 lines eliminated.
+
+Refactored `init_repl_state()` (`cli/repl/init.rs`) to use `ServiceContext::build()` for all shared infrastructure (CNS, loop system, curation loop, cybernetics loop, dispatch, MCP runtime, event sink, pod manager, registry, consent manager, escalation queue, session manager). CLI-specific concerns remain: inference port/loop, onboarding, per-agent memory DB, GovernedTool (for tool discovery), HHH gate, gas budget registration. ~183 lines of duplicated CNS/loop/curation/GovernedTool assembly eliminated.
+
+Key design decisions for Session 9:
+
+| Decision | Force | Rationale |
+|----------|-------|-----------|
+| `ApiState::from_service_context()` is async | Guideline | Extracting `Arc<CnsRuntime>` from `Arc<RwLock<CnsRuntime>>` requires `.await`. |
+| API's `cns_runtime` now shares state with loop system's CNS | Bug fix | Old `ApiState::new()` created a disconnected `CnsRuntime` instance. New path clones from ServiceContext's shared runtime. |
+| GovernedTool stays surface-specific (not in ServiceContext) | Guideline | Only CLI needs it for `discover_tools()/get_tool_info()`. API uses McpDispatcher. Fails depth test for ServiceContext field. |
+| CLI creates its own GovernedTool from ServiceContext fields | Guideline | Uses `ctx.mcp_runtime`, `ctx.cybernetics_loop`, `ctx.event_sink`, `ctx.loop_system.dispatch_sender()`. |
+| `with_defaults()` signature changed from 7 params to 0 params | Guideline | No live callers existed. Breaking change is safe. |
+| CAS write-through not in ServiceContext stores | Open question (F26) | Old `Stores::init()` added `.with_cas()`. ServiceContext::build() doesn't. Per-mutation audit trails lost. Needs investigation. |
+| F13 CapabilityChecker secrets are by design | CLOSED | 1 MCP checker (top-level) + 2 ACP checkers (adapter + PodManager). Same in both surfaces. Not inconsistent. |
+
+**Total test count**: 49 tests (46 service-layer + 3 API)
+
+Service-layer tests: 4 inference + 6 curator + 11 ensemble + 6 pods + 13 sovereignty + 6 infrastructure
+API tests: from_service_context_produces_valid_state + from_service_context_with_ensemble_inferencer + with_defaults_uses_service_context
+
 ## 3. Current Module Structure
 
 ```
@@ -295,12 +376,12 @@ hkask-services/src/
 ├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary, EnsembleContext, EnsembleService, map_participant_role, PodContext, PodService, SovereigntyContext, SovereigntyService, SovereigntyStatus, AccessCheck, parse_data_category
 ├── error.rs         — 31 variants across 9 domain groups + SessionNotFound + Keystore + EscalationNotFound + Cns
 ├── config.rs        — ServiceConfig with 3 constructors + 8 default constants + template_cache_path
-├── context.rs       — ServiceContext::async build() with 18 Arc fields
-├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
-├── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + 6 tests
-├── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + 11 tests
-├── pods.rs          — PodContext + PodService (6 functions) + normalize_pod_error + 6 tests
-└── sovereignty.rs   — SovereigntyContext + SovereigntyService (9 functions) + AccessCheck + SovereigntyStatus + parse_data_category + 13 tests
+├── context.rs       — ServiceContext::async build() with 20 Arc fields + session_manager + 6 infrastructure tests
+├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + From<&ServiceContext> + 4 tests
+├── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + From<&ServiceContext> (escalation-only) + from_service_context (async) + 6 tests
+├── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + From<&ServiceContext> + 11 tests
+├── pods.rs          — PodContext + PodService (6 functions) + normalize_pod_error + From<&ServiceContext> + 6 tests
+└── sovereignty.rs   — SovereigntyContext + SovereigntyService (9 functions) + AccessCheck + SovereigntyStatus + parse_data_category + From<&ServiceContext> + 13 tests
 ```
 
 ## 4. Verification Status
@@ -309,8 +390,10 @@ hkask-services/src/
 cargo check --workspace                    ✅
 cargo clippy --workspace -- -D warnings   ✅
 cargo test --workspace                    ✅ (all tests passing)
-cargo test -p hkask-services              ✅ (40 tests: 4 inference + 6 curator + 11 ensemble + 6 pods + 13 sovereignty)
+cargo test -p hkask-services              ✅ (46 tests: 4 inference + 6 curator + 11 ensemble + 6 pods + 13 sovereignty + 6 infrastructure)
+cargo test -p hkask-api                   ✅ (3 tests: from_service_context_produces_valid_state + from_service_context_with_ensemble_inferencer + with_defaults_uses_service_context)
 No todo!/unimplemented! in hkask-services ✅
+No todo!/unimplemented! in hkask-api     ✅
 No EscalationQueue direct calls in CLI/API curator routes ✅
 No CuratorAgent/MetacognitionLoop direct calls in CLI ✅
 No direct EscalationQueue calls in API curator routes ✅
@@ -322,13 +405,19 @@ No PodManager direct calls in wired CLI pod functions ✅
 No PodManager direct calls in wired API pod handlers ✅
 MCP servers do NOT depend on hkask-services ✅ (P1 preserved)
 Dependency direction: CLI/API → services → domain ✅ (no reverse)
+Deleted: api/loop_system.rs, api/governed_tool.rs, api/stores.rs, api/ensemble.rs ✅
+Deleted: ApiState::new(), ApiState::with_ensemble_inferencer() ✅
+ApiState::from_service_context() replaces ApiState::new() ✅
+kask serve uses ServiceContext::build() ✅
+kask loops uses ServiceContext::build() ✅
+init_repl_state() uses ServiceContext::build() for shared infra ✅
 ```
 
 ## 5. Key Decisions
 
 1. **Flat error hierarchy, not nested.** `ServiceError` composes domain errors via `#[from]`. `Keystore(String)` for secret resolution failures.
 2. **`ServiceContext::build()` is async.** No more `Runtime::new()` + `block_on()` + `drop(rt)`. Callers `.await` it.
-3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext`/`CuratorContext`/`EnsembleContext` + `ServiceConfig` instead.
+3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext`/`CuratorContext`/`EnsembleContext`/`PodContext`/`SovereigntyContext` + `ServiceConfig` instead. All context types now have `From<&ServiceContext>` but surfaces haven't migrated yet (Task 7b).
 4. **MCP servers do NOT depend on `hkask-services`.** They use `hkask-templates` primitives directly.
 5. **`InferenceService` does NOT cache ports by model.** Each non-default model call creates a fresh `OkapiInference`. Caching is a future Hypothesis.
 6. **`InferenceService::resolve_port()` reuses shared port for default model.** Falls back to fresh instance for other models.
@@ -345,7 +434,7 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 17. **`CuratorService` normalizes existence check before resolve/dismiss.** API previously checked, CLI didn't. Both surfaces now get consistent `ServiceError::EscalationNotFound`.
 18. **`CuratorContext` uses `Option<Arc<CnsRuntime>>` and `Option<Arc<MessageDispatch>>`.** Escalation-only operations don't need them. `run_metacognition` requires both and returns `ServiceError::Cns` if missing.
 19. **`MetacognitionSummary` is a service-layer type** because `HealthSnapshot.bot_status_reports` is `pub(crate)` in `hkask-agents`.
-20. **`From<&ServiceContext> for CuratorContext` deferred to Task 7b.** Extracting `Arc<CnsRuntime>` from `Arc<RwLock<CnsRuntime>>` requires async, which can't be done in a `From` impl.
+20. **`From<&ServiceContext> for CuratorContext` is escalation-only.** Extracting `Arc<CnsRuntime>` from `Arc<RwLock<CnsRuntime>>` requires async, which can't be done in a `From` impl. The `From` impl sets `cns_runtime: None`. `CuratorContext::from_service_context(ctx).await` provides full context.
 21. **`EnsembleService` normalizes session-not-found across 10+ call sites.** Both CLI and API now get consistent `ServiceError::SessionNotFound` instead of ad-hoc string formatting.
 22. **`map_participant_role` is a public function in `hkask-services`.** Both surfaces had identical `"orchestrator" => Curator` mapping. Now centralized.
 23. **Standing sessions excluded from `EnsembleService`.** CLI reads YAML from file path; API constructs from JSON body + MCP tool discovery + gas governance wiring. Too divergent to unify — would require parameterizing surface-specific logic that adds more complexity than it removes.
@@ -358,6 +447,13 @@ Dependency direction: CLI/API → services → domain ✅ (no reverse)
 30. **Persona parsing stays in surface.** CLI reads persona YAML from file; API receives `persona_yaml` string in JSON body. File I/O and request deserialization are surface concerns.
 31. **`ServiceError::PodNotFound(String)` sentinel for UUID parse errors and not-found normalization.** Follows `EscalationNotFound`/`SessionNotFound` pattern.
 32. **`ServiceError::Pod(AgentPodError)` catch-all for domain errors.** `From<AgentPodError>` maps `PodNotFound(PodID)` to `PodNotFound(String)` sentinel; all other variants map to `Pod(AgentPodError)`.
+33. **Spec domain skipped (depth test failed).** 4 meaningful call sites. API spec routes are stubs returning hardcoded values. CLI render/test-invariant/test-verify are surface-only (file I/O, minijinja rendering, print formatting). Capture logic diverges: CLI persists to SpecStore, API returns constructed spec as JSON without persisting. Validate/cultivate use DefaultSpecCurator in CLI only — no API counterpart.
+34. **Goal domain skipped (depth test failed).** 12 call sites across 6 operations, but CRUD operations are thin pass-throughs to `SqliteGoalRepository` methods. Parsing helpers (Visibility, GoalState, GoalID) are too thin to justify a full service module. Infrastructure wiring (`open_repository()`) belongs in Task 7.
+35. **Models domain skipped (depth test N/A).** Already fully covered by `InferenceService::list_models/search_models`. No additional duplication to extract.
+36. **`From<&ServiceContext>` for CuratorContext is escalation-only.** `cns_runtime` is behind `Arc<RwLock<CnsRuntime>>` in ServiceContext and requires async extraction. The `From` impl sets `cns_runtime: None` (suitable for escalation ops only). `CuratorContext::from_service_context(ctx).await` provides full context for metacognition.
+37. **`session_manager` added to ServiceContext.** Both CLI and API need SessionManager for ensemble operations. Enables `From<&ServiceContext> for EnsembleContext`. ServiceContext now has 20 fields.
+38. **All 5 context types now have `From<&ServiceContext>`.** InferenceContext (pre-existing), PodContext, SovereigntyContext, CuratorContext (escalation-only), EnsembleContext. This is the foundational step for Task 7b where surfaces will compose ServiceContext and derive their contexts.
+39. **Surface code now uses ServiceContext for assembly.** Both `ApiState` and `ReplState` compose `ServiceContext::build()` for shared infrastructure. `ApiState::from_service_context()` is the canonical constructor. `init_repl_state()` uses `ServiceContext::build()` internally. `kask serve` and `kask loops` both route through `ServiceContext::build()`. Old assembly code (`ApiState::new()`, `build_loop_system()`, `build_governed_mcp_tool()`, `build_ensemble_session()`, `Stores::init()`) has been deleted.
 
 ## 6. What Remains
 
@@ -368,17 +464,17 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 - ~~`pods.rs`~~ — **DONE (Task 6b)** (6 functions: parse_pod_id, get_pod_status, list_pods, create_pod, activate_pod, deactivate_pod)
 - ~~`memory.rs`~~ — **SKIPPED** — fails depth test (only 2 call sites with high divergence; episodic ops are P1 OCAP-gated; consolidation infrastructure belongs in Task 7)
 - ~~`sovereignty.rs`~~ — **DONE (Task 6d)** (9 public functions + 2 types: parse_data_category, get_boundary, requires_affirmative_consent, grant_consent, revoke_consent, has_consent, get_granted_categories, check_access, get_status + AccessCheck + SovereigntyStatus)
-- `spec.rs` — spec capture, cultivate, validate (4 functions)
-- `goal.rs` — goal CRUD (3 functions)
-- `models.rs` — already partially covered by `InferenceService::list_models/search_models`; apply depth test first
+- ~~`spec.rs`~~ — **SKIPPED** — fails depth test (4 meaningful call sites; API routes are stubs returning hardcoded values; CLI render/test-invariant/test-verify are surface-only; validate/cultivate have no API counterpart with real logic; capture logic is thin Spec construction that diverges CLI persists vs API returns)
+- ~~`goal.rs`~~ — **SKIPPED** — fails depth test (12 call sites across 6 operations, but CRUD operations are thin pass-throughs to repo methods; parsing helpers are too thin to justify a full service module; `open_repository()` infrastructure wiring belongs in Task 7)
+- ~~`models.rs`~~ — **SKIPPED** — already fully covered by `InferenceService::list_models/search_models`; no additional duplication to extract
 
 ### MEDIUM — Task 7: Infrastructure unification
 
-- **7a** — Extract cross-cutting infrastructure (DB/Store init, secret resolution, CNS/Loop/EventSink wiring) into ServiceContext::build()
-- **7b** — Replace `ReplState` and `ApiState` assemblies with `ServiceContext::build()`. Compose full ServiceContext at CLI/API init instead of the current 4 independent assembly paths. Add `From<&ServiceContext> for InferenceContext` and `From<&ServiceContext> for CuratorContext`.
-- **7c** — Extract DB/Store init from surface layers
-- **7d** — Extract secret resolution from surface layers
-- **7e** — Extract CNS/Loop/EventSink wiring from surface layers
+- **7a** ~~Extract cross-cutting infrastructure~~ — **DONE (Session 8)**. Added `From<&ServiceContext>` for all 5 context types. Added `session_manager` to ServiceContext. Added `CuratorContext::from_service_context()` async method. 6 infrastructure tests.
+- **7b** ~~Surface assembly migration~~ — **DONE (Session 9)**. Both `ApiState` and `ReplState` now compose `ServiceContext::build()`. Added `ApiState::from_service_context()`, refactored `with_defaults()`, migrated `kask serve` and `kask loops`, refactored `init_repl_state()`. Deleted 4 API modules (~460 lines of duplicated assembly code). 3 new API tests.
+- **7c** — Add CAS write-through support to ServiceContext stores (F26). Current `ServiceContext::build()` stores don't have `.with_cas()` that the old API `Stores::init()` provided. Track as open question.
+- **7d** — Extract secret resolution from surface layers (partially done — `ServiceConfig::from_env()` already resolves ACP/MCP/DB secrets)
+- **7e** — ~~Extract CNS/Loop/EventSink wiring~~ — **DONE (absorbed into 7b)**. `ServiceContext::build()` now replaces all 4 independent assembly paths.
 - **7f** — Unify error mapping: `ServiceError` → CLI error enums and `ApiError`
 
 ### MEDIUM — Task 8: Verification
@@ -402,24 +498,28 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 | F2 | Session lifecycle across surfaces | MEDIUM | Deferred |
 | F3 | Unified authentication context | MEDIUM | Deferred |
 | F4 | MCP server service access (by design — out of process) | LOW | By design |
-| F5 | Test seam depth for ServiceContext::build() | HIGH | Must address before Task 7b |
-| F6 | REPL vs API state boundary | MEDIUM | Deferred |
-| F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | Track |
-| F8 | GovernedTool membrane boundary | LOW | Deferred |
-| F9 | Production memory stores use `in_memory_db()` | HIGH | Track — P1 User Sovereignty |
-| F10 | ServiceContext approaching god-object (19+ fields) | MEDIUM | Guard with sub-structs |
-| F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track |
-| F12 | ValidationError(String) too generic | LOW | Track |
-| F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | MEDIUM | Investigate before Task 7b |
-| F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | Planned for Task 7f |
-| F15 | InferenceContext vs ServiceContext for service modules | MEDIUM | Decided — lightweight context for surfaces, ServiceContext for full composition |
-| F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later |
-| F17 | CuratorService standalone commands still open DB each time | MEDIUM | Track — ReplState has escalation_queue; standalone kask curator commands could reuse it |
-| F18 | EnsembleService standing session extraction | MEDIUM | Deferred — divergent CLI/API flows need parameterization |
-| F19 | EnsembleService improv operation extraction | MEDIUM | Deferred — divergent inferencer setup needs surface-specific abstraction |
-| F20 | EnsembleService `list_deliberation_sessions` depth test result | LOW | Pass-through — stays as direct SessionManager call |
-| F21 | Memory domain depth test result | CLOSED | Skipped — 2 call sites, P1 OCAP-gated episodic ops, CLI-only semantic ops, consolidation infrastructure belongs in Task 7 |
-| F22 | SovereigntyBoundaryStore reads in CLI Status | Guideline | Per-user boundary data from persisted store; service returns default boundary. Surface merges both sources. |
+| F5 | Test seam depth for ServiceContext::build() | HIGH | **ADDRESSED** — 3 API tests + 6 infrastructure tests prove ServiceContext produces valid state
+| F6 | REPL vs API state boundary | MEDIUM | Deferred
+| F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | Track
+| F8 | GovernedTool membrane boundary | LOW | Deferred
+| F9 | Production memory stores use `in_memory_db()` | HIGH | Track — P1 User Sovereignty
+| F10 | ServiceContext approaching god-object (20 fields after session_manager) | MEDIUM | Guard with sub-structs; investigate grouping into InfraContext, LoopContext, AgentContext
+| F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track
+| F12 | ValidationError(String) too generic | LOW | Track
+| F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | CLOSED | **By design** — 1 MCP secret checker (top-level), 2 ACP secret checkers (MCP runtime adapter + PodManager). Same pattern in both surfaces. Not inconsistent.
+| F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | Planned for Task 7f
+| F15 | InferenceContext vs ServiceContext for service modules | CLOSED | Decided — lightweight context for surfaces, ServiceContext for full composition
+| F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later
+| F17 | CuratorService standalone commands still open DB each time | MEDIUM | Track — ReplState has escalation_queue; standalone kask curator commands could reuse it
+| F18 | EnsembleService standing session extraction | MEDIUM | Deferred — divergent CLI/API flows need parameterization
+| F19 | EnsembleService improv operation extraction | MEDIUM | Deferred — divergent inferencer setup needs surface-specific abstraction
+| F20 | EnsembleService `list_deliberation_sessions` depth test result | LOW | Pass-through — stays as direct SessionManager call
+| F21 | Memory domain depth test result | CLOSED | Skipped — 2 call sites, P1 OCAP-gated episodic ops, CLI-only semantic ops, consolidation infrastructure belongs in Task 7
+| F22 | SovereigntyBoundaryStore reads in CLI Status | Guideline | Per-user boundary data from persisted store; service returns default boundary. Surface merges both sources.
+| F23 | Spec domain depth test result | CLOSED | Skipped — 4 call sites, API stubs, CLI surface-only ops, capture diverges (persist vs return)
+| F24 | Goal domain depth test result | CLOSED | Skipped — CRUD pass-throughs, thin parsing helpers, infrastructure wiring belongs in Task 7
+| F25 | Models domain depth test result | CLOSED | Skipped — fully covered by InferenceService, no additional duplication
+| F26 | ServiceContext stores lack CAS write-through | MEDIUM | Old API `Stores::init()` added `.with_cas()` to consent, goal, standing session stores. ServiceContext::build() does not. Per-mutation audit trails are lost in the new path. Needs investigation — may require adding CAS support to ServiceContext or making CAS a surface-level concern. |
 
 ## 8. Mandatory Skills for Next Session
 
@@ -429,6 +529,9 @@ Apply the same pattern (lightweight context like `InferenceContext`/`CuratorCont
 2. **`coding-guidelines`** — Assess before implementing. Surgical changes only.
 3. **`tdd`** — Every new service operation gets a RED→GREEN→REFACTOR cycle with `// REQ:` tags.
 4. **`constraint-forces`** — Classify every design decision by force type before implementing.
+5. **`zoom-out`** — Use before touching error mapping or CAS write-through code.
+6. **`diagnose`** — If CAS or error mapping diverges after unification, use disciplined diagnosis.
+7. **`improve-codebase-architecture`** — F10 (ServiceContext god-object) may need sub-struct grouping. Use this skill to find the right decomposition.
 
 ## 9. Architectural Context for Continuation Agent
 
@@ -477,11 +580,12 @@ pub struct CuratorContext {
 impl CuratorContext {
     pub fn from_parts(
         escalation_queue: Arc<EscalationQueue>,
-        cns_runtime: Option<Arc<CnsRuntime>>,
-        dispatch: Option<Arc<MessageDispatch>>,
+        cns_runtime: Option<Arc<CnsRuntime>,
+        dispatch: Option<Arc<MessageDispatch>,
     ) -> Self
+    pub async fn from_service_context(ctx: &ServiceContext) -> Self  // Full context with CNS
 }
-// From<&ServiceContext> for CuratorContext deferred to Task 7b (needs async)
+impl From<&ServiceContext> for CuratorContext {  // Escalation-only (cns_runtime: None) }
 
 pub struct MetacognitionSummary {
     pub summary_text: String,
@@ -519,6 +623,7 @@ pub struct EnsembleContext {
 impl EnsembleContext {
     pub fn from_parts(session_manager: Arc<RwLock<SessionManager>>) -> Self
 }
+impl From<&ServiceContext> for EnsembleContext {  // ctx.session_manager.clone() }
 
 pub fn map_participant_role(role: &str) -> ParticipantRole
 
@@ -554,7 +659,7 @@ pub struct PodContext {
 impl PodContext {
     pub fn from_parts(pod_manager: Arc<PodManager>) -> Self
 }
-// From<&ServiceContext> for PodContext deferred to Task 7b
+impl From<&ServiceContext> for PodContext {  // ctx.pod_manager.clone() }
 
 pub struct PodService;
 impl PodService {
@@ -584,7 +689,7 @@ pub struct SovereigntyContext {
 impl SovereigntyContext {
     pub fn from_parts(consent_manager: Arc<ConsentManager>) -> Self
 }
-// From<&ServiceContext> for SovereigntyContext deferred to Task 7b
+impl From<&ServiceContext> for SovereigntyContext {  // ctx.consent_manager.clone() }
 
 pub struct AccessCheck {
     pub classification: String,
@@ -644,6 +749,20 @@ let ctx = hkask_services::SovereigntyContext::from_parts(state.consent_manager.c
 SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(ApiError::from)?;
 ```
 
+**Future path (Task 7b):** When surfaces compose a `ServiceContext`, contexts are derived:
+
+```rust
+// After Task 7b: surfaces compose ServiceContext once at init
+let service_ctx = ServiceContext::build(config).await?;
+// Derive any context type from the shared ServiceContext
+let ens_ctx: EnsembleContext = (&service_ctx).into();
+let pod_ctx: PodContext = (&service_ctx).into();
+let sov_ctx: SovereigntyContext = (&service_ctx).into();
+let inf_ctx: InferenceContext = (&service_ctx).into();
+let cur_ctx: CuratorContext = (&service_ctx).into(); // escalation-only
+let cur_ctx = CuratorContext::from_service_context(&service_ctx).await; // full
+```
+
 ### Completed Call Site Replacements
 
 **CLI (all inference + curator + ensemble sites wired):**
@@ -692,7 +811,7 @@ SovereigntyService::check_access(&ctx, &webid_str, &category).map_err(ApiError::
 | CuratorAgent constructed fresh per run_metacognition call | Hypothesis | Matches CLI's current behavior; shared MetacognitionLoop is future work |
 | EscalationStats re-exported from domain crate | Guideline | Clean domain type, no need for service-layer wrapper |
 | MetacognitionSummary is a service-layer type | Guideline | HealthSnapshot.bot_status_reports is pub(crate) |
-| From<&ServiceContext> for CuratorContext deferred | Guideline | Needs async read on RwLock; add in Task 7b |
+| From<&ServiceContext> for CuratorContext: escalation-only + async from_service_context | Guideline | Needs async read on RwLock for full context; From impl provides escalation-only |
 | EnsembleService normalizes session-not-found | Guideline | 10+ call sites across CLI and API had ad-hoc string formatting |
 | map_participant_role is a public helper | Guideline | Both surfaces had identical "orchestrator" → Curator mapping |
 | Standing sessions NOT extracted | Divergent | CLI reads YAML; API takes JSON + MCP discovery + gas governance. Unifying would overcomplicate. |

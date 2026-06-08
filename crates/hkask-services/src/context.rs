@@ -27,6 +27,7 @@ use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasEstimator, GovernedTool, load_set_points,
 };
+use hkask_ensemble::session::SessionManager;
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
@@ -113,6 +114,9 @@ pub struct ServiceContext {
 
     /// Standing session store for ensemble persistence.
     pub standing_session_store: Arc<StandingSessionStore>,
+
+    /// Ensemble session manager for chat and deliberation coordination.
+    pub session_manager: Arc<RwLock<hkask_ensemble::session::SessionManager>>,
 
     /// Configuration used to build this context.
     pub config: ServiceConfig,
@@ -349,6 +353,9 @@ impl ServiceContext {
             SqliteRegistry::new_with_conn(primary_conn).map_err(ServiceError::Template)?,
         ));
 
+        // ── 10. Session manager for ensemble coordination ────────────────────
+        let session_manager = Arc::new(RwLock::new(SessionManager::new(system_webid)));
+
         Ok(Self {
             registry,
             mcp_runtime,
@@ -368,7 +375,120 @@ impl ServiceContext {
             system_webid,
             event_sink: cns_event_sink,
             standing_session_store,
+            session_manager,
             config,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{CuratorContext, InferenceContext, PodContext, SovereigntyContext};
+
+    /// Build a ServiceContext with in-memory config for testing.
+    async fn test_ctx() -> ServiceContext {
+        ServiceContext::build(crate::ServiceConfig::in_memory())
+            .await
+            .expect("ServiceContext::build should succeed with in_memory config")
+    }
+
+    // REQ: svc-infra-001 — InferenceContext derives from ServiceContext with shared port and config
+    #[tokio::test]
+    async fn inference_context_from_service_context() {
+        let ctx = test_ctx().await;
+        let inf_ctx: InferenceContext = (&ctx).into();
+        assert_eq!(
+            inf_ctx.default_model, ctx.config.default_model,
+            "default_model should match ServiceContext config"
+        );
+        assert_eq!(
+            inf_ctx.okapi_base_url, ctx.config.okapi_base_url,
+            "okapi_base_url should match ServiceContext config"
+        );
+        // in_memory config produces no inference port
+        assert!(
+            inf_ctx.shared_port.is_none(),
+            "in_memory config should have no shared inference port"
+        );
+    }
+
+    // REQ: svc-infra-002 — PodContext derives from ServiceContext with pod manager
+    #[tokio::test]
+    async fn pod_context_from_service_context() {
+        let ctx = test_ctx().await;
+        let pod_ctx: PodContext = (&ctx).into();
+        // Verify the PodManager is usable via the derived context
+        let pods = crate::PodService::list_pods(&pod_ctx).await;
+        assert!(
+            pods.is_ok(),
+            "PodService::list_pods via derived context should succeed"
+        );
+    }
+
+    // REQ: svc-infra-003 — SovereigntyContext derives from ServiceContext with consent manager
+    #[tokio::test]
+    async fn sovereignty_context_from_service_context() {
+        let ctx = test_ctx().await;
+        let sov_ctx: SovereigntyContext = (&ctx).into();
+        // Verify the ConsentManager is usable via the derived context
+        let status = crate::SovereigntyService::get_status(&sov_ctx, "test-user")
+            .expect("get_status should succeed");
+        assert!(
+            !status.explicit_consent,
+            "fresh context should have no explicit consent"
+        );
+    }
+
+    // REQ: svc-infra-004 — CuratorContext From provides escalation-only context
+    #[tokio::test]
+    async fn curator_context_from_service_context_escalation_only() {
+        let ctx = test_ctx().await;
+        let cur_ctx: CuratorContext = (&ctx).into();
+        assert!(
+            cur_ctx.cns_runtime.is_none(),
+            "From<&ServiceContext> should produce escalation-only context (no CNS)"
+        );
+        // Verify the escalation queue reference is correct by checking the
+        // CuratorContext has a non-None dispatch (escalation-only context)
+        assert!(
+            cur_ctx.dispatch.is_some(),
+            "From<&ServiceContext> should provide dispatch"
+        );
+        // Note: We don't call escalation_stats here because the in-memory DB
+        // doesn't have the EscalationQueue schema. That's tested in curator.rs
+        // with a properly initialized queue.
+    }
+
+    // REQ: svc-infra-005 — CuratorContext::from_service_context provides full context with CNS
+    #[tokio::test]
+    async fn curator_context_from_service_context_full() {
+        let ctx = test_ctx().await;
+        let cur_ctx = CuratorContext::from_service_context(&ctx).await;
+        assert!(
+            cur_ctx.cns_runtime.is_some(),
+            "from_service_context should provide CNS runtime"
+        );
+        assert!(
+            cur_ctx.dispatch.is_some(),
+            "from_service_context should provide dispatch"
+        );
+    }
+
+    // REQ: svc-infra-006 — EnsembleContext derives from ServiceContext with session manager
+    #[tokio::test]
+    async fn ensemble_context_from_service_context() {
+        let ctx = test_ctx().await;
+        let ens_ctx: crate::EnsembleContext = (&ctx).into();
+        // Verify the SessionManager is usable via the derived context
+        let sessions = crate::EnsembleService::list_chat_sessions(&ens_ctx).await;
+        assert!(
+            sessions.is_ok(),
+            "list_chat_sessions via derived context should succeed"
+        );
+        assert!(
+            sessions.unwrap().is_empty(),
+            "fresh context should have no chat sessions"
+        );
     }
 }

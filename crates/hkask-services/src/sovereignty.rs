@@ -53,6 +53,14 @@ impl SovereigntyContext {
     }
 }
 
+impl From<&crate::ServiceContext> for SovereigntyContext {
+    fn from(ctx: &crate::ServiceContext) -> Self {
+        Self {
+            consent_manager: ctx.consent_manager.clone(),
+        }
+    }
+}
+
 /// Parse a string into a `DataCategory`, normalizing common category names.
 ///
 /// Both CLI (`cli/helpers.rs`) and API (`routes/sovereignty.rs`) had identical

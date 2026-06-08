@@ -52,6 +52,14 @@ impl PodContext {
     }
 }
 
+impl From<&crate::ServiceContext> for PodContext {
+    fn from(ctx: &crate::ServiceContext) -> Self {
+        Self {
+            pod_manager: ctx.pod_manager.clone(),
+        }
+    }
+}
+
 /// Pod lifecycle service — create, activate, deactivate, and query agent pods.
 ///
 /// Use `PodService::get_pod_status()` etc. to delegate pod operations through

@@ -87,6 +87,40 @@ impl CuratorContext {
             dispatch,
         }
     }
+
+    /// Construct a full CuratorContext from a ServiceContext (async).
+    ///
+    /// This method extracts `Arc<CnsRuntime>` from the `RwLock`-guarded
+    /// `cns_runtime` field of `ServiceContext`. This requires an async read
+    /// lock, so it cannot be a `From` impl.
+    ///
+    /// Use this for operations that need CNS runtime (e.g., `run_metacognition`).
+    /// For escalation-only operations, use `CuratorContext::from(ctx)` which
+    /// sets `cns_runtime: None`.
+    pub async fn from_service_context(ctx: &crate::ServiceContext) -> Self {
+        let cns_runtime = Some(Arc::new(ctx.cns_runtime.read().await.clone()));
+        Self {
+            escalation_queue: ctx.escalation_queue.clone(),
+            cns_runtime,
+            dispatch: Some(ctx.dispatch.clone()),
+        }
+    }
+}
+
+impl From<&crate::ServiceContext> for CuratorContext {
+    /// Construct an escalation-only CuratorContext from a ServiceContext.
+    ///
+    /// Sets `cns_runtime: None` and `dispatch: Some(...)`. Suitable for
+    /// escalation operations (list, get, resolve, dismiss, stats) but NOT
+    /// for `run_metacognition` (which requires CNS runtime). For full context,
+    /// use `CuratorContext::from_service_context(ctx).await`.
+    fn from(ctx: &crate::ServiceContext) -> Self {
+        Self {
+            escalation_queue: ctx.escalation_queue.clone(),
+            cns_runtime: None,
+            dispatch: Some(ctx.dispatch.clone()),
+        }
+    }
 }
 
 /// Service-layer summary of a metacognition cycle.

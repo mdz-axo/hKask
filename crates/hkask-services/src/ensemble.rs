@@ -64,6 +64,14 @@ impl EnsembleContext {
     }
 }
 
+impl From<&crate::ServiceContext> for EnsembleContext {
+    fn from(ctx: &crate::ServiceContext) -> Self {
+        Self {
+            session_manager: ctx.session_manager.clone(),
+        }
+    }
+}
+
 /// Map a role string to a `ParticipantRole`.
 ///
 /// Normalizes the role mapping that was duplicated in both CLI and API:

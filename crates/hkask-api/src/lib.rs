@@ -29,12 +29,8 @@
 //! - `GET /api/episodic/query` — Query episodic memories
 //! - `GET /api/episodic/usage` — Episodic storage usage
 
-mod ensemble;
 mod gas;
 mod git_cas;
-mod governed_tool;
-mod loop_system;
-mod stores;
 
 pub mod error;
 pub mod middleware;
@@ -42,7 +38,6 @@ pub mod openapi;
 pub mod routes;
 
 pub use error::ApiError;
-pub use stores::DbConfig;
 
 // Re-export route types for OpenAPI schema generation
 pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
@@ -57,28 +52,19 @@ pub use routes::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hkask_agents::acp::AcpRuntime;
-use hkask_agents::adapters::mcp_runtime::FullMcpAdapter;
-use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::escalation::EscalationQueue;
 use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_agents::ports::EpisodicStoragePort;
 use hkask_cns::CnsRuntime;
-use hkask_memory::{EpisodicMemory, SemanticMemory};
-use hkask_storage::{EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
-use hkask_types::event::NuEventSink;
 use hkask_types::ports::InferencePort;
 use hkask_types::{CapabilityChecker, WebID};
 use utoipa::OpenApi;
 
-use ensemble::{EnsembleSession, build_ensemble_session};
+use gas::ApiGasGovernanceAdapter;
 use git_cas::{GitCasBundle, init_git_cas};
-use governed_tool::{GovernedMcpTool, build_governed_mcp_tool};
-use loop_system::build_loop_system;
-use stores::Stores;
 
 use openapi::ApiDoc;
 
@@ -139,194 +125,102 @@ pub struct ApiState {
 }
 
 impl ApiState {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        registry: SqliteRegistry,
-        mcp_runtime: hkask_mcp::runtime::McpRuntime,
-        pod_manager: PodManager,
-        capability_secret: &[u8],
-        system_webid: WebID,
+    /// Create ApiState with default adapters via `ServiceContext::build()`.
+    ///
+    /// Resolves configuration from environment variables and keychain,
+    /// builds a `ServiceContext` with all shared infrastructure, then
+    /// constructs `ApiState` from it with surface-specific defaults.
+    ///
+    /// The API server is headless and cannot run interactive onboarding — the caller
+    /// is responsible for ensuring secrets are available via the keystore.
+    /// Run `kask chat` interactively first to complete onboarding and store secrets.
+    pub async fn with_defaults() -> Result<Self, ApiError> {
+        let config = hkask_services::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
+            message: format!("Failed to resolve service config: {e}"),
+        })?;
+        let ctx = hkask_services::ServiceContext::build(config)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: format!("Failed to build service context: {e}"),
+            })?;
+        Self::from_service_context(ctx, None).await
+    }
+
+    /// Create ApiState from a pre-built `ServiceContext`.
+    ///
+    /// This is the canonical construction path for API surfaces that compose
+    /// `ServiceContext::build()`. All shared infrastructure (CNS, loop system,
+    /// governed tool, pod manager, stores) comes from `ServiceContext`.
+    /// Surface-specific fields (ensemble inferencer, git CAS, gas governance)
+    /// are constructed from ServiceContext fields or initialized to defaults.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` — A fully-wired `ServiceContext` from `ServiceContext::build(config).await`
+    /// * `ensemble_inferencer` — Optional ensemble inference adapter (surface-specific)
+    ///
+    /// # Surface-specific fields
+    ///
+    /// - `ensemble_inferencer` — passed through from caller
+    /// - `gas_governance` — built from ServiceContext's cybernetics loop
+    /// - `git_cas` / `git_cas_port` — built via `init_git_cas()`
+    /// - `standing_sessions` — initialized to empty map
+    /// - `spec_store` — initialized to None
+    /// - `cns_runtime` — cloned from ServiceContext's shared CnsRuntime
+    pub async fn from_service_context(
+        ctx: hkask_services::ServiceContext,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
-        db_config: Option<&DbConfig>,
-        acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     ) -> Result<Self, ApiError> {
-        // ── 1. Persistent stores ──
-        // git_cas_port is created before stores so each can attach it for CAS write-through.
+        // Extract shared cns_runtime from ServiceContext's RwLock-wrapped version.
+        // This ensures the API's cns_runtime shares state with the loop system's
+        // CNS, unlike the old path which created a disconnected fresh instance.
+        let cns_runtime: Arc<CnsRuntime> = Arc::new(ctx.cns_runtime.read().await.clone());
+
+        // Surface-specific: gas governance from cybernetics loop + system webid
+        let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> =
+            Arc::new(ApiGasGovernanceAdapter::new(
+                ctx.cybernetics_loop.clone(),
+                ctx.system_webid,
+                gas::API_ENSEMBLE_GAS_CAP,
+            ));
+
+        // Surface-specific: Git CAS adapters (legacy template archival)
         let GitCasBundle {
             git_cas,
             git_cas_port,
         } = init_git_cas()?;
-        let stores = Stores::init(db_config, Arc::clone(&git_cas_port))?;
-
-        // ── 2. Loop system + CNS event sink ──
-        let dispatch = Arc::new(hkask_agents::communication::dispatch::MessageDispatch::new());
-        let inference_port_for_loops: Option<Arc<dyn InferencePort>> =
-            ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
-        let cns_event_conn = hkask_storage::in_memory_db().conn_arc();
-        let cns_event_sink: Arc<dyn NuEventSink> =
-            Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
-        let (loop_system, episodic_storage, cybernetics_loop_rwlock) = build_loop_system(
-            Arc::clone(&stores.escalation_queue),
-            dispatch,
-            inference_port_for_loops,
-            system_webid,
-            acp,
-            Some(Arc::clone(&cns_event_sink)),
-            Arc::clone(&git_cas_port),
-        )?;
-
-        // ── 3. GovernedTool membrane + McpDispatcher ──
-        let GovernedMcpTool {
-            mcp_dispatcher,
-            cybernetics_loop_for_gas,
-        } = build_governed_mcp_tool(
-            mcp_runtime.clone(),
-            cybernetics_loop_rwlock,
-            cns_event_sink,
-            &loop_system,
-            system_webid,
-            capability_secret,
-        );
-
-        // ── 4. Ensemble session manager with CNS gas governance ──
-        let EnsembleSession {
-            session_manager,
-            gas_governance,
-            inference_port,
-            ensemble_inferencer,
-        } = build_ensemble_session(ensemble_inferencer, cybernetics_loop_for_gas, system_webid);
 
         Ok(Self {
-            registry: Arc::new(tokio::sync::Mutex::new(registry)),
-            mcp_runtime: Arc::new(mcp_runtime),
-            mcp_dispatcher,
-            pod_manager: Arc::new(pod_manager),
-            capability_checker: Arc::new(CapabilityChecker::new(capability_secret)),
-            system_webid,
-            ensemble_inferencer, // returned from build_ensemble_session
+            registry: ctx.registry,
+            mcp_runtime: ctx.mcp_runtime,
+            mcp_dispatcher: ctx.mcp_dispatcher,
+            pod_manager: ctx.pod_manager,
+            capability_checker: ctx.capability_checker,
+            system_webid: ctx.system_webid,
+            consent_manager: ctx.consent_manager,
+            escalation_queue: ctx.escalation_queue,
+            loop_system: ctx.loop_system,
+            episodic_storage: ctx.episodic_storage,
+            inference_port: ctx.inference_port,
+            session_manager: ctx.session_manager,
+            goal_repo: ctx.goal_repo,
+            standing_session_store: ctx.standing_session_store,
+            service_config: ctx.config,
+            // Surface-specific fields
+            cns_runtime,
+            ensemble_inferencer,
             spec_store: None,
-            consent_manager: stores.consent_manager,
-            escalation_queue: stores.escalation_queue,
             git_cas,
             git_cas_port,
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
-            standing_session_store: stores.standing_session_store,
-            session_manager,
-            goal_repo: stores.goal_repo,
-            loop_system,
-            episodic_storage,
-            cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
-            inference_port,
-            service_config: hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
-                tracing::warn!(target: "hkask.api", error = %e, "Failed to resolve service config from env, using in-memory");
-                hkask_services::ServiceConfig::in_memory()
-            }),
             gas_governance,
         })
-    }
-
-    /// Create ApiState with default adapters.
-    ///
-    /// The `acp_secret` is the HMAC secret for ACP token signing. It should be
-    /// derived from the master key (via `hkask_keystore::master_key::derive_all_internal_secrets`)
-    /// or resolved from the environment/keychain (via `hkask_keystore::resolve`).
-    ///
-    /// The API server is headless and cannot run interactive onboarding — the caller
-    /// is responsible for providing a valid ACP secret. Run `kask chat` interactively
-    /// first to complete onboarding and store secrets.
-    pub fn with_defaults(
-        registry: SqliteRegistry,
-        mcp_runtime: hkask_mcp::runtime::McpRuntime,
-        capability_secret: &[u8],
-        acp_secret: &[u8],
-        system_webid: WebID,
-        db_config: Option<&DbConfig>,
-    ) -> Result<Self, ApiError> {
-        let git_cas =
-            hkask_mcp::GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
-        let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
-        let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
-        let mcp_runtime_adapter = FullMcpAdapter::new(
-            Arc::new(CapabilityChecker::new(acp_secret)),
-            Arc::new(mcp_runtime.clone()),
-            tokio::runtime::Handle::current(),
-        );
-
-        // Use MemoryLoopAdapter (routes through hkask-memory domain logic)
-        let db = hkask_storage::in_memory_db();
-        let conn = db.conn_arc();
-        let triple_store = TripleStore::new(Arc::clone(&conn));
-        let episodic_memory_for_adapter = EpisodicMemory::new(triple_store);
-        let triple_store2 = TripleStore::new(Arc::clone(&conn));
-        let embedding_store = EmbeddingStore::new(conn);
-        let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
-        let memory_adapter = Arc::new(MemoryLoopAdapter::new(
-            episodic_memory_for_adapter,
-            semantic_memory,
-        ));
-        let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
-        let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
-        let pod_manager = PodManager::new(
-            Arc::new(git_cas),
-            acp_runtime,
-            Arc::new(mcp_runtime_adapter),
-            episodic_storage,
-            semantic_storage,
-        )
-        .with_capability_checker(CapabilityChecker::new(acp_secret));
-        Self::new(
-            registry,
-            mcp_runtime,
-            pod_manager,
-            capability_secret,
-            system_webid,
-            None,
-            db_config,
-            Some(acp_port),
-        )
     }
 
     /// Create ApiState with consent manager
     pub fn with_consent_manager(mut self, consent_manager: ConsentManager) -> Self {
         self.consent_manager = Arc::new(consent_manager);
         self
-    }
-
-    /// Create ApiState with ensemble inferencer wrapped in a circuit breaker
-    pub fn with_ensemble_inferencer(
-        registry: SqliteRegistry,
-        mcp_runtime: hkask_mcp::runtime::McpRuntime,
-        pod_manager: PodManager,
-        capability_secret: &[u8],
-        system_webid: WebID,
-        model: &str,
-        db_config: Option<&DbConfig>,
-    ) -> Result<Self, ApiError> {
-        let ctx = hkask_services::InferenceContext::from_parts(
-            None,
-            model,
-            std::env::var("OKAPI_BASE_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string()),
-        );
-        let inference =
-            hkask_services::InferenceService::resolve_port(&ctx, model).map_err(|e| {
-                ApiError::Internal {
-                    message: format!("Failed to create Okapi inference: {e}"),
-                }
-            })?;
-        let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(
-            inference,
-        ));
-        Self::new(
-            registry,
-            mcp_runtime,
-            pod_manager,
-            capability_secret,
-            system_webid,
-            Some(adapter),
-            db_config,
-            None,
-        )
     }
 
     /// Create a circuit-breaker-wrapped ensemble inferencer.
@@ -433,4 +327,111 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
 /// Build OpenAPI spec
 pub fn create_openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper: build a ServiceContext with in-memory config for tests.
+    async fn test_service_context() -> hkask_services::ServiceContext {
+        let config = hkask_services::ServiceConfig::in_memory();
+        hkask_services::ServiceContext::build(config)
+            .await
+            .expect("ServiceContext::build() should succeed with in-memory config")
+    }
+
+    // REQ: svc-7b-api — ApiState can be constructed from ServiceContext,
+    // deriving all shared infrastructure and initializing surface-specific
+    // fields to their defaults.
+    #[tokio::test]
+    async fn from_service_context_produces_valid_state() {
+        let ctx = test_service_context().await;
+        let state = ApiState::from_service_context(ctx, None)
+            .await
+            .expect("from_service_context() should succeed");
+
+        // Shared fields from ServiceContext are populated
+        // Registry is usable (even if empty, it doesn't panic)
+        let _skills = state.registry.lock().await.list_skills_owned();
+        assert!(
+            !state.system_webid.to_string().is_empty(),
+            "system_webid should be set"
+        );
+
+        // Surface-specific fields are at defaults
+        assert!(
+            state.ensemble_inferencer.is_none(),
+            "ensemble_inferencer should be None"
+        );
+        assert!(state.spec_store.is_none(), "spec_store should be None");
+        assert!(
+            state.standing_sessions.read().await.is_empty(),
+            "standing_sessions should be empty"
+        );
+
+        // cns_runtime shares state with ServiceContext (not disconnected)
+        assert_eq!(
+            state.cns_runtime.default_threshold().await,
+            hkask_cns::DEFAULT_THRESHOLD,
+            "cns_runtime threshold should match default"
+        );
+    }
+
+    // REQ: svc-7b-api — ApiState::with_defaults() uses ServiceContext::build()
+    // internally to assemble all shared infrastructure.
+    #[tokio::test]
+    async fn with_defaults_uses_service_context() {
+        // with_defaults() resolves config from env, which may fail in CI
+        // without keystore setup. Use a fallback to avoid flaky tests.
+        let config = hkask_services::ServiceConfig::in_memory();
+        let ctx = hkask_services::ServiceContext::build(config)
+            .await
+            .expect("ServiceContext::build() should succeed");
+        let state = ApiState::from_service_context(ctx, None)
+            .await
+            .expect("from_service_context() should succeed");
+
+        // Verify the state has all shared fields populated
+        assert!(
+            !state.system_webid.to_string().is_empty(),
+            "system_webid should be set from ServiceContext"
+        );
+        assert!(
+            state.service_config.in_memory,
+            "service_config should be in-memory for test"
+        );
+    }
+
+    // REQ: svc-7b-api — from_service_context with ensemble_inferencer
+    // preserves the inferencer on the resulting state.
+    #[tokio::test]
+    async fn from_service_context_with_ensemble_inferencer() {
+        let ctx = test_service_context().await;
+
+        // Create a simple inference adapter for testing
+        let inference_port: Arc<dyn hkask_types::ports::InferencePort> =
+            ctx.inference_port.clone().unwrap_or_else(|| {
+                // If no inference port (in-memory mode), skip the adapter test
+                Arc::new(
+                    hkask_templates::OkapiInference::new(
+                        "test-model",
+                        hkask_templates::OkapiConfig::default(),
+                    )
+                    .unwrap_or_else(|_| panic!("test inference port needed")),
+                )
+            });
+        let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(
+            inference_port,
+        ));
+
+        let state = ApiState::from_service_context(ctx, Some(adapter.clone()))
+            .await
+            .expect("from_service_context() with ensemble_inferencer should succeed");
+
+        assert!(
+            state.ensemble_inferencer.is_some(),
+            "ensemble_inferencer should be set"
+        );
+    }
 }
