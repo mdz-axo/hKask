@@ -130,7 +130,7 @@ pub fn get_improv_client(
                         None,
                         "qwen3:8b",
                         std::env::var("OKAPI_BASE_URL")
-                            .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string()),
+                            .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string()),
                     );
                     let port = hkask_services::InferenceService::resolve_port(&ctx, "qwen3:8b")
                         .expect("Failed to create Okapi inference");

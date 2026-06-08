@@ -7,7 +7,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub fn registry_db_path() -> String {
-    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string())
+    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| hkask_services::DEFAULT_DB_PATH.to_string())
 }
 
 pub(crate) fn registry_yaml_path() -> PathBuf {

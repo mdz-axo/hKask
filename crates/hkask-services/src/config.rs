@@ -10,9 +10,13 @@ use crate::error::ServiceError;
 // ── Default values ──────────────────────────────────────────────────────────
 // Centralized here so all three constructors share the same defaults.
 // Changing a default means changing it once.
+// Public so standalone CLI commands (without a ServiceConfig) can use the
+// same defaults instead of duplicating string literals.
 
-const DEFAULT_DB_PATH: &str = "hkask.db";
-const DEFAULT_OKAPI_BASE_URL: &str = "http://127.0.0.1:11435";
+/// Default path for the primary database file.
+pub const DEFAULT_DB_PATH: &str = "hkask.db";
+/// Default base URL for the Okapi inference server.
+pub const DEFAULT_OKAPI_BASE_URL: &str = "http://127.0.0.1:11435";
 const DEFAULT_GAS_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_MODEL: &str = "deepseek-v4-pro";
@@ -69,14 +73,27 @@ pub struct ServiceConfig {
 
     /// Path for the template cache (Git CAS storage).
     pub template_cache_path: String,
+
+    /// Path for the memory database (episodic + semantic stores).
+    ///
+    /// When `in_memory: false`, memory stores persist to this file.
+    /// Defaults to `{db_path}-memory.db` (e.g., `hkask.db` → `hkask-memory.db`)
+    /// when not explicitly set. Ignored when `in_memory: true`.
+    pub memory_db_path: Option<String>,
+
+    /// Passphrase for the memory database encryption.
+    ///
+    /// Defaults to `db_passphrase` when not set.
+    /// Ignored when `in_memory: true`.
+    pub memory_passphrase: Option<String>,
 }
 
 impl ServiceConfig {
     /// Resolve configuration from environment variables and keychain.
     ///
-    /// Reads `HKASK_DB_PATH` and `OKAPI_BASE_URL` from environment.
-    /// ACP and MCP secrets are resolved via `hkask_keystore`.
-    /// Falls back to defaults for missing values.
+    /// Reads `HKASK_DB_PATH`, `OKAPI_BASE_URL`, `HKASK_TEMPLATE_CACHE_PATH`,
+    /// and `HKASK_MEMORY_DB_PATH` from environment. ACP and MCP secrets are
+    /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
@@ -84,6 +101,7 @@ impl ServiceConfig {
             std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| DEFAULT_OKAPI_BASE_URL.to_string());
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
+        let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
 
         // Resolve secrets from keystore. If keystore resolution fails,
         // fall back to empty secrets (in-memory mode will be used).
@@ -113,6 +131,8 @@ impl ServiceConfig {
             gate_model: hkask_agents::hhh_gate::HHH_DEFAULT_GATE_MODEL.to_string(),
             agent_name: DEFAULT_AGENT_NAME.to_string(),
             template_cache_path,
+            memory_db_path,
+            memory_passphrase: None,
         })
     }
 
@@ -132,6 +152,7 @@ impl ServiceConfig {
             std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| DEFAULT_OKAPI_BASE_URL.to_string());
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
+        let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
 
         Self {
             db_path,
@@ -147,6 +168,8 @@ impl ServiceConfig {
             gate_model: hkask_agents::hhh_gate::HHH_DEFAULT_GATE_MODEL.to_string(),
             agent_name,
             template_cache_path,
+            memory_db_path,
+            memory_passphrase: None,
         }
     }
 
@@ -168,6 +191,71 @@ impl ServiceConfig {
             gate_model: hkask_agents::hhh_gate::HHH_DEFAULT_GATE_MODEL.to_string(),
             agent_name: TEST_AGENT_NAME.to_string(),
             template_cache_path: DEFAULT_TEMPLATE_CACHE_PATH.to_string(),
+            memory_db_path: None,
+            memory_passphrase: None,
         }
+    }
+
+    /// Returns the effective memory DB path when `in_memory: false`.
+    ///
+    /// If `memory_db_path` is explicitly set, returns that. Otherwise derives
+    /// from `db_path` by stripping the `.db` extension and appending
+    /// `-memory.db` (e.g., `hkask.db` → `hkask-memory.db`).
+    ///
+    /// Returns `None` when `in_memory: true` (memory stores are ephemeral).
+    pub fn effective_memory_db_path(&self) -> Option<String> {
+        if self.in_memory {
+            return None;
+        }
+        match &self.memory_db_path {
+            Some(path) => Some(path.clone()),
+            None => {
+                let base = self.db_path.trim_end_matches(".db");
+                Some(format!("{base}-memory.db"))
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ServiceConfig;
+
+    // REQ: svc-cfg-001 — effective_memory_db_path derives from db_path by default
+    #[test]
+    fn memory_db_path_derived_from_db_path() {
+        let mut config = ServiceConfig::in_memory();
+        config.in_memory = false;
+        config.db_path = "hkask.db".to_string();
+        assert_eq!(
+            config.effective_memory_db_path(),
+            Some("hkask-memory.db".to_string()),
+            "should derive memory path from db_path"
+        );
+    }
+
+    // REQ: svc-cfg-002 — effective_memory_db_path returns None when in_memory
+    #[test]
+    fn memory_db_path_none_when_in_memory() {
+        let config = ServiceConfig::in_memory();
+        assert_eq!(
+            config.effective_memory_db_path(),
+            None,
+            "in_memory config should return None for memory DB path"
+        );
+    }
+
+    // REQ: svc-cfg-003 — explicit memory_db_path overrides derivation
+    #[test]
+    fn memory_db_path_explicit_overrides_derivation() {
+        let mut config = ServiceConfig::in_memory();
+        config.in_memory = false;
+        config.db_path = "hkask.db".to_string();
+        config.memory_db_path = Some("/custom/memory.db".to_string());
+        assert_eq!(
+            config.effective_memory_db_path(),
+            Some("/custom/memory.db".to_string()),
+            "explicit path should override derivation"
+        );
     }
 }

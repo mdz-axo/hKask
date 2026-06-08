@@ -45,8 +45,8 @@ pub(super) fn init_repl_state(
 
     // Resolve okapi_base_url from env for InferenceService calls.
     // This is used before onboarding to create the initial inference port.
-    let okapi_base_url =
-        std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+    let okapi_base_url = std::env::var("OKAPI_BASE_URL")
+        .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string());
 
     // Initialize inference port once — reused across all chat turns.
     // Route through InferenceService so all surfaces share the same logic.

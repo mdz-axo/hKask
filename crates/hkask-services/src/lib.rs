@@ -29,6 +29,7 @@ pub mod pods;
 pub mod sovereignty;
 
 pub use config::ServiceConfig;
+pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
 pub use context::ServiceContext;
 pub use curator::{CuratorContext, CuratorService, MetacognitionSummary};
 pub use ensemble::{EnsembleContext, EnsembleService, map_participant_role};

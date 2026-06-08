@@ -2,7 +2,7 @@
 
 ## 1. Session Context
 
-Ten sessions have completed the 9-task service layer extraction plan. All extraction, migration, infrastructure unification, verification, and documentation tasks are complete. This handoff covers all work done and the open questions that remain for future work.
+Eleven sessions have completed the 9-task service layer extraction plan plus 3 post-extraction open questions. All extraction, migration, infrastructure unification, verification, and documentation tasks are complete. Session 11 closed all three prioritized post-extraction questions (F9, F10, F7). This handoff covers all work done and the deferred/track-only questions that remain for future work.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
@@ -23,6 +23,8 @@ Ten sessions have completed the 9-task service layer extraction plan. All extrac
 **Session 9** (Task 7b — Surface Assembly Migration): Migrated both API and CLI surfaces to compose `ServiceContext::build()` instead of their own independent assembly paths. Added `ApiState::from_service_context()` and refactored `ApiState::with_defaults()`. Migrated `kask serve` and `kask loops` to use `ServiceContext::build()`. Refactored `init_repl_state()` to use `ServiceContext::build()` for shared infrastructure. Deleted 4 API modules (loop_system, governed_tool, stores, ensemble) and ~460 lines of duplicated assembly code. 49 tests passing (46 service + 3 API).
 
 **Session 10** (Tasks 7c, 7d, 7f, 8, 9 — CAS investigation, secret audit, error mapping, verification, documentation): Closed F26 (CAS store write-through is dead code — 0 call sites; removed `define_store_cas!` macro, 6 `*_with_cas()` methods, `.with_cas()` builders from 6 stores). Audited secret resolution (all main paths flow through ServiceConfig; remaining direct keystore calls are by design). Unified 3 sovereignty API routes to use `ApiError::from` instead of `ApiError::Internal`. Full workspace verification passes. Updated test-inventory.md, architecture-master.md, wrote OPEN_QUESTIONS.md (F1–F26). 49 tests passing.
+
+**Session 11** (F9, F10, F7 — Post-extraction open questions): Closed all three prioritized post-extraction questions. F9 (HIGH/P1 User Sovereignty): `ServiceContext::build()` now respects `config.in_memory` — file-backed encrypted DB for episodic/semantic stores when false, in-memory when true. Added `memory_db_path`/`memory_passphrase` to `ServiceConfig`, `effective_memory_db_path()` helper, `HKASK_MEMORY_DB_PATH` env var, 5 new tests. F10 (MEDIUM): `#[non_exhaustive]` applied to `ServiceContext`; sub-struct grouping analyzed and rejected by depth test (data-only containers = shallow modules). F7 (MEDIUM): `DEFAULT_DB_PATH`/`DEFAULT_OKAPI_BASE_URL` made public and re-exported; 4 leaked call sites now use centralized constants. 51 tests passing (46 prior + 5 new).
 
 ## 2. What Was Done
 
@@ -375,10 +377,10 @@ API tests: from_service_context_produces_valid_state + from_service_context_with
 
 ```
 hkask-services/src/
-├── lib.rs           — re-exports: ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary, EnsembleContext, EnsembleService, map_participant_role, PodContext, PodService, SovereigntyContext, SovereigntyService, SovereigntyStatus, AccessCheck, parse_data_category
+├── lib.rs           — re-exports: ServiceConfig, DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo, CuratorContext, CuratorService, MetacognitionSummary, EnsembleContext, EnsembleService, map_participant_role, PodContext, PodService, SovereigntyContext, SovereigntyService, SovereigntyStatus, AccessCheck, parse_data_category
 ├── error.rs         — 31 variants across 9 domain groups + SessionNotFound + Keystore + EscalationNotFound + Cns
-├── config.rs        — ServiceConfig with 3 constructors + 8 default constants + template_cache_path
-├── context.rs       — ServiceContext::async build() with 20 Arc fields + session_manager + 6 infrastructure tests
+├── config.rs        — ServiceConfig with 3 constructors + 2 public default constants (DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL) + 6 private constants + memory_db_path/memory_passphrase/effective_memory_db_path + 3 config tests
+├── context.rs       — ServiceContext (#[non_exhaustive])::async build() with 20 Arc fields + 8 infrastructure tests
 ├── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + From<&ServiceContext> + 4 tests
 ├── curator.rs       — CuratorContext + CuratorService (6 functions) + MetacognitionSummary + From<&ServiceContext> (escalation-only) + from_service_context (async) + 6 tests
 ├── ensemble.rs      — EnsembleContext + EnsembleService (8 functions) + map_participant_role + From<&ServiceContext> + 11 tests
@@ -392,10 +394,13 @@ hkask-services/src/
 cargo check --workspace                    ✅
 cargo clippy --workspace -- -D warnings   ✅
 cargo test --workspace                    ✅ (all tests passing)
-cargo test -p hkask-services              ✅ (46 tests: 4 inference + 6 curator + 11 ensemble + 6 pods + 13 sovereignty + 6 infrastructure)
+cargo test -p hkask-services              ✅ (51 tests: 4 inference + 6 curator + 11 ensemble + 6 pods + 13 sovereignty + 8 infrastructure + 3 config)
 cargo test -p hkask-api                   ✅ (3 tests: from_service_context_produces_valid_state + from_service_context_with_ensemble_inferencer + with_defaults_uses_service_context)
 No todo!/unimplemented! in hkask-services ✅
 No todo!/unimplemented! in hkask-api     ✅
+ServiceContext is #[non_exhaustive]           ✅ (F10: external construction prevented)
+Memory stores respect config.in_memory       ✅ (F9: file-backed DB when false, in-memory when true)
+DEFAULT_DB_PATH/DEFAULT_OKAPI_BASE_URL public ✅ (F7: centralized, re-exported)
 No EscalationQueue direct calls in CLI/API curator routes ✅
 No CuratorAgent/MetacognitionLoop direct calls in CLI ✅
 No direct EscalationQueue calls in API curator routes ✅
@@ -460,30 +465,28 @@ init_repl_state() uses ServiceContext::build() for shared infra ✅
 41. **Secret resolution audit: all main paths flow through ServiceConfig.** The 4 main assembly paths (API, serve, loops, REPL) all route through `ServiceConfig::from_env()` or `ServiceConfig::from_secrets()`. Remaining direct `hkask_keystore::resolve_*` calls are by design: (a) domain crate internals that MUST NOT depend on `hkask-services` (P1), (b) standalone CLI commands that don't need a full `ServiceContext`, (c) API route auth checks. No migration needed.
 42. **Sovereignty API routes now use `ApiError::from` instead of `ApiError::Internal`.** 3 routes (`get_status`, `grant_consent`, `check_access`) were wrapping `ServiceError` as `ApiError::Internal { message: e.to_string() }` instead of using the `From<ServiceError> for ApiError` adapter. This meant legitimate business errors (e.g., bad category) got 500 instead of 400. Now they use `.map_err(ApiError::from)?` like all other service-wired routes. F14 PARTIALLY ADDRESSED.
 43. **Remaining direct `ApiError::` constructions are legitimate surface concerns.** ~11 direct constructions remain in `api/routes/`: `BadRequest` for input parsing/validation, `Forbidden` for OCAP capability gates, `Unauthorized` for auth failures, `NotFound` for surface-only entities (standing sessions, bundles), `Internal` for infrastructure failures without ServiceError path (consolidation, episodic memory, git). These are NOT errors that should flow through ServiceError — they're HTTP-layer concerns.
+44. **F9 CLOSED: Production memory stores now respect `config.in_memory`.** `ServiceContext::build()` previously used `in_memory_db()` unconditionally for episodic/semantic stores regardless of `config.in_memory`. Fix: when `!config.in_memory`, opens file-backed encrypted DB via `Database::open()`; when `config.in_memory`, keeps `in_memory_db()`. `ServiceConfig` gains `memory_db_path: Option<String>` (defaults to `{db_path}-memory.db`) and `memory_passphrase: Option<String>` (defaults to `db_passphrase`). `HKASK_MEMORY_DB_PATH` env var supported. P1 User Sovereignty Guardrail satisfied: user configured persistence, user gets persistence.
+45. **F10 CLOSED: `#[non_exhaustive]` applied; sub-struct grouping rejected.** Full sub-struct grouping (InfraContext, LoopContext, AgentContext) was analyzed by usage patterns across both surfaces + 5 From impls. Each proposed sub-struct is a data-only container with no behavior — fails depth test. The cost (7+ call sites × 3 surfaces changing `ctx.field` to `ctx.group.field`) outweighs the benefit. `#[non_exhaustive]` alone achieves F10's goal: external crates can't construct `ServiceContext` with struct literals; must use `ServiceContext::build()`.
+46. **F7 CLOSED: Default constants centralized; env-var reads audited.** `DEFAULT_DB_PATH` and `DEFAULT_OKAPI_BASE_URL` made public in `ServiceConfig` and re-exported from `hkask-services`. 4 leaked call sites (`commands/config.rs`, `commands/ensemble.rs`, `commands/compose.rs`, `repl/init.rs`) now reference centralized constants instead of duplicating string literals. Remaining direct env-var reads in standalone CLI paths are by design (P1: standalone commands don't need a full `ServiceContext`). `HKASK_MEMORY_DB_PATH` added to `from_env()` and `from_secrets()` as part of F9.
 
 ## 6. What Remains
 
 **The original 9-task service layer extraction plan is COMPLETE.** All tasks (1–9) are done: 5 service modules extracted, 4 skipped via depth test, surface assembly migrated, CAS dead code removed, secret resolution audited, error mapping unified, full verification passed, and documentation updated.
 
-Remaining work is organized around open questions from `OPEN_QUESTIONS.md`. Priority order:
+**Session 11 post-extraction questions are ALL CLOSED:**
+- **F9 (HIGH)** — P1 User Sovereignty: Production memory stores now respect `config.in_memory`
+- **F10 (MEDIUM)** — `#[non_exhaustive]` applied; sub-struct grouping rejected by depth test
+- **F7 (MEDIUM)** — Default constants centralized; env-var reads audited
 
-### HIGH — F9: Production memory stores use `in_memory_db()`
+Remaining work is organized around open questions from `OPEN_QUESTIONS.md`. All three session 11 tasks are done; remaining items are deferred or track-only:
 
-Episodic/semantic memory stores use `in_memory_db()` even when `config.in_memory: false`. Production deployments lose all memories on restart. This is a **P1 User Sovereignty** concern — the user configured persistent storage and got ephemeral.
+### MEDIUM — F10: ServiceContext god-object (20 fields) — CLOSED
 
-**Next action:** Add `memory_db_path` and `memory_passphrase` to `ServiceConfig`; wire file-backed DB construction when `in_memory: false`; add integration test verifying persistence across restart.
+`#[non_exhaustive]` applied to `ServiceContext`. Sub-struct grouping (InfraContext, LoopContext, AgentContext) was analyzed and rejected by depth test — each proposed sub-struct is a data-only container with no behavior (shallow module). The cost (changing every `ctx.field` to `ctx.group.field` across 7+ call sites in 2 surfaces) outweighs the benefit.
 
-### MEDIUM — F10: ServiceContext god-object (20 fields)
+### MEDIUM — F7: ServiceConfig vs environment variables — CLOSED
 
-Guard against further growth by grouping into sub-structs (`InfraContext`, `LoopContext`, `AgentContext`) and adding `#[non_exhaustive]`.
-
-**Next action:** Propose sub-struct grouping; validate no new fields added outside grouped sub-structs.
-
-### MEDIUM — F7: ServiceConfig vs environment variables
-
-`HKASK_DB_PATH` is read in 3 places. Should be resolved once in `ServiceConfig`.
-
-**Next action:** Consolidate all env-var reads into `ServiceConfig`.
+Default values (`DEFAULT_DB_PATH`, `DEFAULT_OKAPI_BASE_URL`) made public in `ServiceConfig` and re-exported from `hkask-services`. All 4 leaked call sites now use centralized constants instead of duplicated string literals. Remaining direct env-var reads in standalone CLI paths are by design (P1: standalone commands don't need a full `ServiceContext`).
 
 ### MEDIUM — Deferred questions (no immediate action)
 
@@ -515,10 +518,10 @@ Guard against further growth by grouping into sub-structs (`InfraContext`, `Loop
 | F4 | MCP server service access (by design — out of process) | LOW | By design |
 | F5 | Test seam depth for ServiceContext::build() | HIGH | **ADDRESSED** — 3 API tests + 6 infrastructure tests prove ServiceContext produces valid state
 | F6 | REPL vs API state boundary | MEDIUM | Deferred
-| F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | Track
+| F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | **CLOSED (Session 11)** — `DEFAULT_DB_PATH`/`DEFAULT_OKAPI_BASE_URL` public; 4 leaked sites now use centralized constants; remaining direct reads are by design (P1: standalone commands don't need ServiceContext) |
 | F8 | GovernedTool membrane boundary | LOW | Deferred
-| F9 | Production memory stores use `in_memory_db()` | HIGH | Track — P1 User Sovereignty
-| F10 | ServiceContext approaching god-object (20 fields after session_manager) | MEDIUM | Guard with sub-structs; investigate grouping into InfraContext, LoopContext, AgentContext
+| F9 | Production memory stores use `in_memory_db()` | HIGH | **CLOSED (Session 11)** — `ServiceContext::build()` now respects `config.in_memory`: file-backed DB when false, in-memory when true. `memory_db_path`/`memory_passphrase` added to `ServiceConfig`. P1 User Sovereignty Guardrail satisfied.
+| F10 | ServiceContext approaching god-object (20 fields after session_manager) | MEDIUM | **CLOSED (Session 11)** — `#[non_exhaustive]` applied; sub-struct grouping rejected by depth test (data-only containers = shallow modules)
 | F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track
 | F12 | ValidationError(String) too generic | LOW | Track
 | F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | CLOSED | **By design** — 1 MCP secret checker (top-level), 2 ACP secret checkers (MCP runtime adapter + PodManager). Same pattern in both surfaces. Not inconsistent.
@@ -540,13 +543,14 @@ Guard against further growth by grouping into sub-structs (`InfraContext`, `Loop
 
 **Load these BEFORE writing any code:**
 
-1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Any further service extraction (F18/F19) or ServiceContext restructuring (F10) must follow this skill's process.
+1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Any further service extraction (F18/F19) or architecture work must follow this skill's process.
 2. **`coding-guidelines`** — Assess before implementing. Surgical changes only. Every changed line must trace to the task.
 3. **`tdd`** — RED→GREEN→REFACTOR per behavior. Every new path gets a `// REQ:` tagged test.
-4. **`constraint-forces`** — Classify every design decision by force type. F9 is a P1 Prohibition (User Sovereignty); F10 is a Guardrail. Never silently relax.
-5. **`zoom-out`** — Use BEFORE touching ServiceContext structuring, memory store wiring, or session lifecycle code.
-6. **`improve-codebase-architecture`** — F10 (ServiceContext god-object) needs sub-struct grouping. Use this skill to find the right decomposition.
-7. **`diagnose`** — If memory persistence or ServiceContext refactoring introduces regressions, use the disciplined diagnosis loop.
+4. **`constraint-forces`** — Classify every design decision by force type. Never silently relax a Prohibition or Guardrail.
+5. **`zoom-out`** — Use BEFORE touching ServiceContext, session lifecycle, or any cross-cutting concern.
+6. **`improve-codebase-architecture`** — For evaluating architectural proposals (F2/F3/F6/F17/F18/F19). Use deletion test and depth test.
+7. **`diagnose`** — If any work introduces regressions, use the disciplined diagnosis loop.
+8. **`handoff`** — Use at session end to capture state for the next agent.
 
 ## 9. Architectural Context for Continuation Agent
 

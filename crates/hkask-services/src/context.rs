@@ -60,6 +60,10 @@ use crate::ServiceError;
 /// deployment-varying parameters (DB paths, secrets, thresholds, model names).
 /// The builder resolves the dependency graph canonically: stores → CNS →
 /// loop system → governed tool → session manager.
+///
+/// `#[non_exhaustive]` prevents external crates from constructing this struct
+/// with struct literal syntax — use `ServiceContext::build()` instead.
+#[non_exhaustive]
 pub struct ServiceContext {
     /// Template registry.
     pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
@@ -253,7 +257,20 @@ impl ServiceContext {
         };
 
         // Episodic + Semantic loops
-        let mem_db = in_memory_db();
+        // F9: Respect config.in_memory — use file-backed DB when persistence is configured.
+        // User Sovereignty Guardrail: user configured persistent storage, must get persistence.
+        let mem_db = if config.in_memory {
+            in_memory_db()
+        } else {
+            let path = config
+                .effective_memory_db_path()
+                .expect("effective_memory_db_path returns Some when !in_memory");
+            let passphrase = config
+                .memory_passphrase
+                .as_deref()
+                .unwrap_or(&config.db_passphrase);
+            Database::open(&path, passphrase)?
+        };
         let mem_conn = mem_db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&mem_conn));
         let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
@@ -490,5 +507,67 @@ mod tests {
             sessions.unwrap().is_empty(),
             "fresh context should have no chat sessions"
         );
+    }
+
+    // REQ: svc-infra-007 — Memory stores use file-backed DB when in_memory: false
+    //
+    // F9: User Sovereignty Guardrail — user configured persistent storage, got
+    // ephemeral. This test verifies the fix: when in_memory is false, memory
+    // stores persist to disk.
+    #[tokio::test]
+    async fn memory_stores_persist_when_not_in_memory() {
+        let dir = tempfile::tempdir().expect("tempdir should succeed");
+        let db_path = dir.path().join("hkask.db").to_string_lossy().into_owned();
+        let memory_db_path = dir
+            .path()
+            .join("hkask-memory.db")
+            .to_string_lossy()
+            .into_owned();
+
+        let mut config = crate::ServiceConfig::in_memory();
+        config.in_memory = false;
+        config.db_path = db_path.clone();
+        config.db_passphrase = "test-passphrase".to_string();
+        config.memory_db_path = Some(memory_db_path.clone());
+
+        let ctx = ServiceContext::build(config)
+            .await
+            .expect("ServiceContext::build should succeed with file-backed memory config");
+
+        // The primary assertion: a file must exist at memory_db_path.
+        // With the F9 bug (in_memory_db() regardless of config), no file exists.
+        assert!(
+            std::path::Path::new(&memory_db_path).exists(),
+            "memory DB file must exist on disk when in_memory: false — user configured persistence"
+        );
+
+        // Clean up: close context before temp dir is dropped
+        drop(ctx);
+    }
+
+    // REQ: svc-infra-008 — Memory stores use in_memory_db when in_memory: true
+    #[tokio::test]
+    async fn memory_stores_in_memory_when_config_says_in_memory() {
+        let dir = tempfile::tempdir().expect("tempdir should succeed");
+        let memory_db_path = dir
+            .path()
+            .join("hkask-memory.db")
+            .to_string_lossy()
+            .into_owned();
+
+        let mut config = crate::ServiceConfig::in_memory();
+        config.memory_db_path = Some(memory_db_path.clone());
+
+        let ctx = ServiceContext::build(config)
+            .await
+            .expect("ServiceContext::build should succeed with in_memory config");
+
+        // in_memory: true means NO file should be created at memory_db_path
+        assert!(
+            !std::path::Path::new(&memory_db_path).exists(),
+            "memory DB file must NOT exist when in_memory: true — ephemeral storage"
+        );
+
+        drop(ctx);
     }
 }

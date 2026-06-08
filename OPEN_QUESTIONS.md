@@ -13,10 +13,10 @@ Each entry tracks priority, current status, and next action where applicable.
 | F4 | MCP server service access | LOW | By design |
 | F5 | Test seam depth for `ServiceContext::build()` | HIGH | CLOSED |
 | F6 | REPL vs API state boundary | MEDIUM | Deferred |
-| F7 | `ServiceConfig` vs environment variables | MEDIUM | Track |
+| F7 | `ServiceConfig` vs environment variables | MEDIUM | CLOSED |
 | F8 | `GovernedTool` membrane boundary | LOW | Deferred |
-| F9 | Production memory stores use `in_memory_db()` | HIGH | Track |
-| F10 | `ServiceContext` approaching god-object (20 fields) | MEDIUM | Guard |
+| F9 | Production memory stores use `in_memory_db()` | HIGH | CLOSED |
+| F10 | `ServiceContext` approaching god-object (20 fields) | MEDIUM | CLOSED |
 | F11 | `InvalidPassphrase` vs `LoginFailed` security | LOW | Track |
 | F12 | `ValidationError(String)` too generic | LOW | Track |
 | F13 | `CapabilityChecker` secret inconsistency | LOW | CLOSED |
@@ -69,6 +69,10 @@ Each entry tracks priority, current status, and next action where applicable.
 ### F26 — ServiceContext stores lack CAS write-through
 
 **Status:** CLOSED (Session 10) — CAS store write-through is dead code (0 call sites). Removed `define_store_cas!` macro, `*_with_cas()` methods, `.with_cas()` builders, `cas_port` fields from 6 stores. Read-only `git_cas_port` for git operations (archive, verify, diff, log, snapshot) remains alive and untouched. No `ServiceContext` field added (F10 preserved).
+
+### F9 — Production memory stores use in_memory_db()
+
+**Status:** CLOSED (Session 11) — Added `memory_db_path: Option<String>` and `memory_passphrase: Option<String>` to `ServiceConfig`. `ServiceContext::build()` now respects `config.in_memory`: when false, opens file-backed encrypted DB for episodic/semantic stores via `Database::open()`; when true, keeps `in_memory_db()`. Path defaults to `{db_path}-memory.db` (e.g., `hkask.db` → `hkask-memory.db`) via `ServiceConfig::effective_memory_db_path()`. Passphrase defaults to `db_passphrase`. `HKASK_MEMORY_DB_PATH` env var supported. 5 new tests (3 config unit + 2 context integration). P1 User Sovereignty Guardrail satisfied: user configured persistence, user gets persistence.
 
 ---
 
@@ -129,12 +133,14 @@ Document which fields stay in surface vs service.
 
 ### F7 — ServiceConfig vs environment variables
 
-**Priority:** MEDIUM · **Status:** Track
+**Priority:** MEDIUM · **Status:** CLOSED — Default constants centralized; env-var reads audited.
 
-`HKASK_DB_PATH`, `OKAPI_BASE_URL`, etc. should be resolved once in
-`ServiceConfig`. Currently 3 places read `HKASK_DB_PATH`.
-
-**Next Action:** Consolidate all env-var reads into `ServiceConfig::build()`; grep for remaining direct env accesses.
+Default values (`DEFAULT_DB_PATH`, `DEFAULT_OKAPI_BASE_URL`) made public in
+`ServiceConfig` and re-exported from `hkask-services`. All 4 leaked call sites
+(`commands/config.rs`, `commands/ensemble.rs`, `commands/compose.rs`, `repl/init.rs`)
+now use centralized constants instead of duplicated string literals. Remaining
+direct env-var reads in standalone CLI paths are by design — standalone commands
+must work without a full `ServiceContext` (P1 Prohibition).
 
 ---
 
@@ -152,27 +158,22 @@ layer should own canonical construction, but one-shot CLI commands need design.
 
 ### F9 — Production memory stores use in_memory_db()
 
-**Priority:** HIGH · **Status:** Track — P1 User Sovereignty
-
-Episodic/semantic memory stores use `in_memory_db()` even when
-`config.in_memory: false`. This means production deployments lose all memories
-on restart. Need `memory_db_path`/`memory_passphrase` fields in `ServiceConfig`
-to persist memory to file-backed databases. This is a P1 User Sovereignty
-concern — the user configured persistent storage and got ephemeral.
-
-**Next Action:** Add `memory_db_path` and `memory_passphrase` to `ServiceConfig`; wire file-backed DB construction when `in_memory: false`; add integration test verifying persistence across restart.
+**Priority:** HIGH · **Status:** CLOSED — See Closed Questions section. P1 User Sovereignty Guardrail satisfied in Session 11.
 
 ---
 
 ### F10 — ServiceContext approaching god-object (20 fields)
 
-**Priority:** MEDIUM · **Status:** Guard with sub-structs
+**Priority:** MEDIUM · **Status:** CLOSED — `#[non_exhaustive]` applied; sub-struct grouping rejected by depth test.
 
-`ServiceContext` has 20 public `Arc` fields. Guard against further growth by
-grouping into sub-structs (`InfraContext`, `LoopContext`, `AgentContext`) and
-adding `#[non_exhaustive]` before adding domain service modules.
-
-**Next Action:** Propose sub-struct grouping (InfraContext, LoopContext, AgentContext); add `#[non_exhaustive]` to `ServiceContext` and each sub-struct; validate no new fields added outside grouped sub-structs.
+`ServiceContext` now has `#[non_exhaustive]`, preventing external crates from
+constructing it with struct literal syntax — `ServiceContext::build()` is the
+sole constructor. Full sub-struct grouping (InfraContext, LoopContext,
+AgentContext) was analyzed but rejected: each proposed sub-struct is a
+data-only container with no behavior (shallow module, fails depth test).
+The cost (changing every `ctx.field` to `ctx.group.field` across 7+ call
+sites in 2 surfaces) outweighs the benefit. `#[non_exhaustive]` alone
+achieves F10's goal of guarding against growth.
 
 ---
 

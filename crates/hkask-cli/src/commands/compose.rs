@@ -277,7 +277,7 @@ fn run_compose(
         &gen_model,
         match &okapi_url {
             Some(url) => url.as_str(),
-            None => "http://127.0.0.1:11435",
+            None => hkask_services::DEFAULT_OKAPI_BASE_URL,
         },
     );
     let inference = match hkask_services::InferenceService::resolve_port(&inference_ctx, &gen_model)
