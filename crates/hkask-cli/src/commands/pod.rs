@@ -1,7 +1,7 @@
 //! Pod management command handlers
 //
 //! Delegates pod lifecycle operations to `PodService` in `hkask-services`.
-//! All context is derived from `ServiceContext` via `PodContext::from(&*ctx)` —
+//! All context is derived from `ServiceContext` via `PodContext::from(&ctx)` —
 //! no mock PodManager construction or direct database access.
 
 use crate::block_on;

@@ -59,7 +59,7 @@ pub(crate) fn handle_status(
     match &state.active_session {
         Some(session) => {
             let config = rt.block_on(async {
-                crate::commands::ensemble_improv_config(&*state.service_context, session).await
+                crate::commands::ensemble_improv_config(&state.service_context, session).await
             });
             match config {
                 Ok(cfg) => {

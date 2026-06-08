@@ -3,7 +3,7 @@
 //! Implements the CLI display logic for data sovereignty management.
 //! Delegates consent/boundary operations to `SovereigntyService` and
 //! formats results for terminal output. All context is derived from
-//! `ServiceContext` via `SovereigntyContext::from(&*ctx)` — no direct
+//! `ServiceContext` via `SovereigntyContext::from(&ctx)` — no direct
 //! database access.
 
 use hkask_services::{SovereigntyContext, SovereigntyService, parse_data_category};

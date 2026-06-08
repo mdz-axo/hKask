@@ -433,7 +433,7 @@ impl ServiceContext {
             acp_runtime
                 .restore_from_storage(agents, tokens)
                 .await
-                .map_err(|e| ServiceError::Acp(e))?;
+                .map_err(ServiceError::Acp)?;
         };
 
         // ── 10. Session manager for ensemble coordination ────────────────────

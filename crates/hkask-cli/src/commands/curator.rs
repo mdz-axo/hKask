@@ -2,7 +2,7 @@
 //
 //! Routed through `CuratorService` for business logic consistency
 //! across CLI and API surfaces. All context is derived from `ServiceContext`
-//! via `CuratorContext::from(&*ctx)` — no direct database access.
+//! via `CuratorContext::from(&ctx)` — no direct database access.
 
 use hkask_services::{CuratorContext, CuratorService};
 

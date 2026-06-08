@@ -9,7 +9,7 @@ pub(crate) fn handle_model(
 ) {
     if arg1.is_empty() || arg1.eq_ignore_ascii_case("list") {
         if arg1.eq_ignore_ascii_case("list") {
-            let ctx = InferenceContext::from(&*state.service_context);
+            let ctx = InferenceContext::from(state.service_context.as_ref());
             let models = rt.block_on(InferenceService::search_models(&ctx, ""));
             match models {
                 Ok(models) if models.is_empty() => {
@@ -45,7 +45,7 @@ pub(crate) fn handle_model(
             );
         }
     } else {
-        let ctx = InferenceContext::from(&*state.service_context);
+        let ctx = InferenceContext::from(state.service_context.as_ref());
         match rt.block_on(InferenceService::search_models(&ctx, arg1)) {
             Ok(models) if models.is_empty() => {
                 state.current_model = arg1.to_string();
