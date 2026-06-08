@@ -2,7 +2,7 @@
 
 ## 1. Session Context
 
-Eleven sessions have completed the 9-task service layer extraction plan plus 3 post-extraction open questions. All extraction, migration, infrastructure unification, verification, and documentation tasks are complete. Session 11 closed all three prioritized post-extraction questions (F9, F10, F7). This handoff covers all work done and the deferred/track-only questions that remain for future work.
+Twelve sessions have completed the 9-task service layer extraction plan plus all post-extraction open questions. All extraction, migration, infrastructure unification, verification, and documentation tasks are complete. Session 11 closed three prioritized post-extraction questions (F9, F10, F7). Session 12 audited all remaining Tier 1 MEDIUM open questions (F2, F3, F6, F14, F17, F18, F19) — all resolved as "by design" via depth test and constraint analysis. No MEDIUM-priority open questions remain. This handoff covers all work done and the LOW/track-only questions that remain for future work.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
@@ -25,6 +25,8 @@ Eleven sessions have completed the 9-task service layer extraction plan plus 3 p
 **Session 10** (Tasks 7c, 7d, 7f, 8, 9 — CAS investigation, secret audit, error mapping, verification, documentation): Closed F26 (CAS store write-through is dead code — 0 call sites; removed `define_store_cas!` macro, 6 `*_with_cas()` methods, `.with_cas()` builders from 6 stores). Audited secret resolution (all main paths flow through ServiceConfig; remaining direct keystore calls are by design). Unified 3 sovereignty API routes to use `ApiError::from` instead of `ApiError::Internal`. Full workspace verification passes. Updated test-inventory.md, architecture-master.md, wrote OPEN_QUESTIONS.md (F1–F26). 49 tests passing.
 
 **Session 11** (F9, F10, F7 — Post-extraction open questions): Closed all three prioritized post-extraction questions. F9 (HIGH/P1 User Sovereignty): `ServiceContext::build()` now respects `config.in_memory` — file-backed encrypted DB for episodic/semantic stores when false, in-memory when true. Added `memory_db_path`/`memory_passphrase` to `ServiceConfig`, `effective_memory_db_path()` helper, `HKASK_MEMORY_DB_PATH` env var, 5 new tests. F10 (MEDIUM): `#[non_exhaustive]` applied to `ServiceContext`; sub-struct grouping analyzed and rejected by depth test (data-only containers = shallow modules). F7 (MEDIUM): `DEFAULT_DB_PATH`/`DEFAULT_OKAPI_BASE_URL` made public and re-exported; 4 leaked call sites now use centralized constants. 51 tests passing (46 prior + 5 new).
+
+**Session 12** (F2, F3, F6, F14, F17, F18, F19 — Tier 1 design audits): Audited all 7 remaining MEDIUM-priority open questions. Every question resolved as "by design" — no code extraction warranted. F2: CLI and API have fundamentally different session models; shared parts already extracted via EnsembleService. F3: Three surfaces have fundamentally different auth models; unified AuthContext would be shallow data-only container (fails depth test). F6: Boundary table documented; shared fields already in ServiceContext, surface-specific fields correctly placed. F14: All remaining direct ApiError constructions are legitimate HTTP-layer concerns. F17: Standalone CLI commands intentionally avoid ServiceContext (P1 Prohibition); single SQLite open per one-shot command is negligible. F18: CLI/API standing session divergence too wide; 2-line common logic too shallow to extract. F19: Improv operations are CLI-only with no API counterpart. 51 tests passing (unchanged — design session, no code changes).
 
 ## 2. What Was Done
 
@@ -473,82 +475,74 @@ init_repl_state() uses ServiceContext::build() for shared infra ✅
 
 **The original 9-task service layer extraction plan is COMPLETE.** All tasks (1–9) are done: 5 service modules extracted, 4 skipped via depth test, surface assembly migrated, CAS dead code removed, secret resolution audited, error mapping unified, full verification passed, and documentation updated.
 
-**Session 11 post-extraction questions are ALL CLOSED:**
+**All MEDIUM and HIGH open questions are now CLOSED.** Sessions 11–12 closed all 10 post-extraction questions:
 - **F9 (HIGH)** — P1 User Sovereignty: Production memory stores now respect `config.in_memory`
 - **F10 (MEDIUM)** — `#[non_exhaustive]` applied; sub-struct grouping rejected by depth test
 - **F7 (MEDIUM)** — Default constants centralized; env-var reads audited
+- **F2 (MEDIUM)** — By design: CLI and API have fundamentally different session models; shared parts already extracted
+- **F3 (MEDIUM)** — By design: Three surfaces have fundamentally different auth models; unified AuthContext fails depth test
+- **F6 (MEDIUM)** — Boundary table documented; shared fields in ServiceContext, surface-specific fields correctly placed
+- **F14 (MEDIUM)** — All remaining direct ApiError constructions are legitimate surface concerns
+- **F17 (MEDIUM)** — By design: P1 Prohibition protects standalone CLI pattern (no ServiceContext forced)
+- **F18 (MEDIUM)** — By design: CLI/API standing session divergence too wide; common logic too shallow to extract
+- **F19 (MEDIUM)** — By design: Improv operations are CLI-only with no API counterpart
 
-Remaining work is organized around open questions from `OPEN_QUESTIONS.md`. All three session 11 tasks are done; remaining items are deferred or track-only:
-
-### MEDIUM — F10: ServiceContext god-object (20 fields) — CLOSED
-
-`#[non_exhaustive]` applied to `ServiceContext`. Sub-struct grouping (InfraContext, LoopContext, AgentContext) was analyzed and rejected by depth test — each proposed sub-struct is a data-only container with no behavior (shallow module). The cost (changing every `ctx.field` to `ctx.group.field` across 7+ call sites in 2 surfaces) outweighs the benefit.
-
-### MEDIUM — F7: ServiceConfig vs environment variables — CLOSED
-
-Default values (`DEFAULT_DB_PATH`, `DEFAULT_OKAPI_BASE_URL`) made public in `ServiceConfig` and re-exported from `hkask-services`. All 4 leaked call sites now use centralized constants instead of duplicated string literals. Remaining direct env-var reads in standalone CLI paths are by design (P1: standalone commands don't need a full `ServiceContext`).
-
-### MEDIUM — Deferred questions (no immediate action)
-
-| ID | Question | Note |
-|----|----------|------|
-| F2 | Session lifecycle across surfaces | Specify durability semantics first |
-| F3 | Unified authentication context | Define `AuthContext` struct in services |
-| F6 | REPL vs API state boundary | Write boundary table in architecture docs |
-| F17 | CuratorService standalone commands open DB each time | Wire through `ServiceContext::build()` or document independence |
-| F18 | EnsembleService standing session extraction | Needs surface-specific adapter design |
-| F19 | EnsembleService improv operation extraction | Needs inferencer abstraction |
+**No further service layer extraction work is warranted.** Every candidate has been audited against the depth test and constraint forces. Remaining open questions are LOW priority or track-only:
 
 ### LOW — Track-only questions
 
-| ID | Question |
-|----|----------|
-| F1 | Streaming response support |
-| F11 | InvalidPassphrase vs LoginFailed security |
-| F12 | ValidationError(String) too generic |
-| F16 | Embedding concern separation |
+| ID | Question | Note |
+|----|----------|------|
+| F1 | Streaming response support | Implement when a surface requires streaming |
+| F8 | GovernedTool membrane boundary | Design GovernedToolFactory if 3+ surfaces need it |
+| F11 | InvalidPassphrase vs LoginFailed security | Unify or document distinction |
+| F12 | ValidationError(String) too generic | Replace with domain-specific variants |
+| F16 | Embedding concern separation | Evaluate OkapiEmbedding vs InferenceService |
+| F22 | SovereigntyBoundaryStore reads in CLI Status | Guideline: per-user boundary data from persisted store |
 
-## 7. Open Questions (F1–F17)
+## 7. Open Questions (F1–F26)
+
+**No MEDIUM or HIGH questions remain open.** All have been resolved through code changes or design audits.
 
 | ID | Question | Priority | Status |
 |----|----------|----------|--------|
 | F1 | Streaming response support | LOW | Deferred |
-| F2 | Session lifecycle across surfaces | MEDIUM | Deferred |
-| F3 | Unified authentication context | MEDIUM | Deferred |
+| F2 | Session lifecycle across surfaces | MEDIUM | **CLOSED (Session 12)** — By design: different session models; shared parts already extracted |
+| F3 | Unified authentication context | MEDIUM | **CLOSED (Session 12)** — By design: different auth models; unified AuthContext fails depth test |
 | F4 | MCP server service access (by design — out of process) | LOW | By design |
-| F5 | Test seam depth for ServiceContext::build() | HIGH | **ADDRESSED** — 3 API tests + 6 infrastructure tests prove ServiceContext produces valid state
-| F6 | REPL vs API state boundary | MEDIUM | Deferred
-| F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | **CLOSED (Session 11)** — `DEFAULT_DB_PATH`/`DEFAULT_OKAPI_BASE_URL` public; 4 leaked sites now use centralized constants; remaining direct reads are by design (P1: standalone commands don't need ServiceContext) |
-| F8 | GovernedTool membrane boundary | LOW | Deferred
-| F9 | Production memory stores use `in_memory_db()` | HIGH | **CLOSED (Session 11)** — `ServiceContext::build()` now respects `config.in_memory`: file-backed DB when false, in-memory when true. `memory_db_path`/`memory_passphrase` added to `ServiceConfig`. P1 User Sovereignty Guardrail satisfied.
-| F10 | ServiceContext approaching god-object (20 fields after session_manager) | MEDIUM | **CLOSED (Session 11)** — `#[non_exhaustive]` applied; sub-struct grouping rejected by depth test (data-only containers = shallow modules)
-| F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track
-| F12 | ValidationError(String) too generic | LOW | Track
-| F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | CLOSED | **By design** — 1 MCP secret checker (top-level), 2 ACP secret checkers (MCP runtime adapter + PodManager). Same pattern in both surfaces. Not inconsistent.
-| F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | **PARTIALLY ADDRESSED** — 3 sovereignty routes now use `ApiError::from`; remaining direct constructions are legitimate surface concerns (input validation, OCAP gates, auth checks) |
-| F15 | InferenceContext vs ServiceContext for service modules | CLOSED | Decided — lightweight context for surfaces, ServiceContext for full composition
-| F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later
-| F17 | CuratorService standalone commands still open DB each time | MEDIUM | Track — ReplState has escalation_queue; standalone kask curator commands could reuse it
-| F18 | EnsembleService standing session extraction | MEDIUM | Deferred — divergent CLI/API flows need parameterization
-| F19 | EnsembleService improv operation extraction | MEDIUM | Deferred — divergent inferencer setup needs surface-specific abstraction
-| F20 | EnsembleService `list_deliberation_sessions` depth test result | LOW | Pass-through — stays as direct SessionManager call
-| F21 | Memory domain depth test result | CLOSED | Skipped — 2 call sites, P1 OCAP-gated episodic ops, CLI-only semantic ops, consolidation infrastructure belongs in Task 7
-| F22 | SovereigntyBoundaryStore reads in CLI Status | Guideline | Per-user boundary data from persisted store; service returns default boundary. Surface merges both sources.
-| F23 | Spec domain depth test result | CLOSED | Skipped — 4 call sites, API stubs, CLI surface-only ops, capture diverges (persist vs return)
-| F24 | Goal domain depth test result | CLOSED | Skipped — CRUD pass-throughs, thin parsing helpers, infrastructure wiring belongs in Task 7
-| F25 | Models domain depth test result | CLOSED | Skipped — fully covered by InferenceService, no additional duplication
-| F26 | ServiceContext stores lack CAS write-through | MEDIUM | **CLOSED (Session 10)** — CAS store write-through is dead code (0 call sites). Removed `define_store_cas!` macro, 6 `*_with_cas()` methods, `.with_cas()` builders, `cas_port` fields from 6 stores. Read-only `git_cas_port` for git operations remains alive. No ServiceContext field added (F10 preserved). |
+| F5 | Test seam depth for ServiceContext::build() | HIGH | **CLOSED** — 3 API tests + 6 infrastructure tests |
+| F6 | REPL vs API state boundary | MEDIUM | **CLOSED (Session 12)** — Boundary table documented |
+| F7 | ServiceConfig vs environment variables | MEDIUM | **CLOSED (Session 11)** — Default constants centralized; env-var reads audited |
+| F8 | GovernedTool membrane boundary | LOW | Deferred |
+| F9 | Production memory stores use `in_memory_db()` | HIGH | **CLOSED (Session 11)** — P1 User Sovereignty Guardrail satisfied |
+| F10 | ServiceContext approaching god-object (20 fields) | MEDIUM | **CLOSED (Session 11)** — `#[non_exhaustive]`; sub-structs rejected by depth test |
+| F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track |
+| F12 | ValidationError(String) too generic | LOW | Track |
+| F13 | CapabilityChecker secret inconsistency | LOW | **CLOSED** — By design |
+| F14 | Dual error mapping in API | MEDIUM | **CLOSED (Session 12)** — All remaining direct constructions are legitimate surface concerns |
+| F15 | InferenceContext vs ServiceContext | LOW | **CLOSED** — Decided |
+| F16 | Embedding concern separation | LOW | Track |
+| F17 | CuratorService standalone commands open DB each time | MEDIUM | **CLOSED (Session 12)** — By design: P1 Prohibition protects standalone CLI pattern |
+| F18 | EnsembleService standing session extraction | MEDIUM | **CLOSED (Session 12)** — By design: divergence too wide; common logic too shallow |
+| F19 | EnsembleService improv operation extraction | MEDIUM | **CLOSED (Session 12)** — By design: CLI-only, no API counterpart |
+| F20 | EnsembleService `list_deliberation_sessions` | LOW | **CLOSED** — Pass-through |
+| F21 | Memory domain depth test result | LOW | **CLOSED** — Skipped |
+| F22 | SovereigntyBoundaryStore reads in CLI Status | Guideline | Per-user boundary data from persisted store |
+| F23 | Spec domain depth test result | LOW | **CLOSED** — Skipped |
+| F24 | Goal domain depth test result | LOW | **CLOSED** — Skipped |
+| F25 | Models domain depth test result | LOW | **CLOSED** — Skipped |
+| F26 | ServiceContext stores lack CAS write-through | MEDIUM | **CLOSED (Session 10)** — Dead code removed |
 
 ## 8. Mandatory Skills for Next Session
 
-**Load these BEFORE writing any code:**
+**The service layer extraction is complete. No further extraction work is warranted.** These skills remain useful for any future architecture work or new feature development that touches the service layer:
 
-1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Any further service extraction (F18/F19) or architecture work must follow this skill's process.
+1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test. Any future service extraction or architecture work must follow this skill's process.
 2. **`coding-guidelines`** — Assess before implementing. Surgical changes only. Every changed line must trace to the task.
 3. **`tdd`** — RED→GREEN→REFACTOR per behavior. Every new path gets a `// REQ:` tagged test.
 4. **`constraint-forces`** — Classify every design decision by force type. Never silently relax a Prohibition or Guardrail.
-5. **`zoom-out`** — Use BEFORE touching ServiceContext, session lifecycle, or any cross-cutting concern.
-6. **`improve-codebase-architecture`** — For evaluating architectural proposals (F2/F3/F6/F17/F18/F19). Use deletion test and depth test.
+5. **`zoom-out`** — Use BEFORE touching ServiceContext or any cross-cutting concern.
+6. **`improve-codebase-architecture`** — For evaluating architectural proposals. Use deletion test and depth test.
 7. **`diagnose`** — If any work introduces regressions, use the disciplined diagnosis loop.
 8. **`handoff`** — Use at session end to capture state for the next agent.
 

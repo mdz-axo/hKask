@@ -8,11 +8,11 @@ Each entry tracks priority, current status, and next action where applicable.
 | ID | Question | Priority | Status |
 |----|----------|----------|--------|
 | F1 | Streaming response support | LOW | Deferred |
-| F2 | Session lifecycle across surfaces | MEDIUM | Deferred |
-| F3 | Unified authentication context | MEDIUM | Deferred |
+| F2 | Session lifecycle across surfaces | MEDIUM | **CLOSED (Session 12)** |
+| F3 | Unified authentication context | MEDIUM | **CLOSED (Session 12)** |
 | F4 | MCP server service access | LOW | By design |
 | F5 | Test seam depth for `ServiceContext::build()` | HIGH | CLOSED |
-| F6 | REPL vs API state boundary | MEDIUM | Deferred |
+| F6 | REPL vs API state boundary | MEDIUM | **CLOSED (Session 12)** |
 | F7 | `ServiceConfig` vs environment variables | MEDIUM | CLOSED |
 | F8 | `GovernedTool` membrane boundary | LOW | Deferred |
 | F9 | Production memory stores use `in_memory_db()` | HIGH | CLOSED |
@@ -20,12 +20,12 @@ Each entry tracks priority, current status, and next action where applicable.
 | F11 | `InvalidPassphrase` vs `LoginFailed` security | LOW | Track |
 | F12 | `ValidationError(String)` too generic | LOW | Track |
 | F13 | `CapabilityChecker` secret inconsistency | LOW | CLOSED |
-| F14 | Dual error mapping in API | MEDIUM | Partially addressed |
+| F14 | Dual error mapping in API | MEDIUM | **CLOSED (Session 12)** |
 | F15 | `InferenceContext` vs `ServiceContext` | LOW | CLOSED |
 | F16 | Embedding concern separation | LOW | Track |
-| F17 | `CuratorService` standalone commands open DB each time | MEDIUM | Track |
-| F18 | `EnsembleService` standing session extraction | MEDIUM | Deferred |
-| F19 | `EnsembleService` improv operation extraction | MEDIUM | Deferred |
+| F17 | `CuratorService` standalone commands open DB each time | MEDIUM | **CLOSED (Session 12)** |
+| F18 | `EnsembleService` standing session extraction | MEDIUM | **CLOSED (Session 12)** |
+| F19 | `EnsembleService` improv operation extraction | MEDIUM | **CLOSED (Session 12)** |
 | F20 | `EnsembleService` `list_deliberation_sessions` depth test | LOW | Closed |
 | F21 | Memory domain depth test result | LOW | CLOSED |
 | F22 | `SovereigntyBoundaryStore` reads in CLI Status | Guideline | Per-user boundary data from persisted store |
@@ -74,6 +74,139 @@ Each entry tracks priority, current status, and next action where applicable.
 
 **Status:** CLOSED (Session 11) — Added `memory_db_path: Option<String>` and `memory_passphrase: Option<String>` to `ServiceConfig`. `ServiceContext::build()` now respects `config.in_memory`: when false, opens file-backed encrypted DB for episodic/semantic stores via `Database::open()`; when true, keeps `in_memory_db()`. Path defaults to `{db_path}-memory.db` (e.g., `hkask.db` → `hkask-memory.db`) via `ServiceConfig::effective_memory_db_path()`. Passphrase defaults to `db_passphrase`. `HKASK_MEMORY_DB_PATH` env var supported. 5 new tests (3 config unit + 2 context integration). P1 User Sovereignty Guardrail satisfied: user configured persistence, user gets persistence.
 
+### F2 — Session lifecycle across surfaces
+
+**Status:** CLOSED (Session 12) — By design. Audit confirmed CLI and API have fundamentally different session models; shared parts already extracted.
+
+**Audit findings:**
+
+| Aspect | CLI REPL | API |
+|--------|----------|-----|
+| Session scope | REPL process lifetime | HTTP request → standing session |
+| Session creation | `/ensemble` command → `active_session = Some(id)` | POST /api/ensemble/standing → insert into HashMap |
+| Session destruction | `/into` leaves, or REPL exits | DELETE or server restart |
+| Session persistence | None (in-memory) | StandingSessionStore for metadata, in-memory HashMap for live state |
+| Multi-session | Only one `active_session` at a time | Multiple standing sessions in HashMap |
+
+The shared session concern (SessionManager for ensemble chat/deliberation) is already
+unified via `EnsembleService`. The divergent concerns (`active_session` navigation vs
+`standing_sessions` management) are surface-specific and correctly placed. Migrating
+session state into `ServiceContext` would add surface-specific fields to a shared
+context — violating the F10 god-object guardrail. No durability spec needed because
+each surface's session lifecycle is self-contained.
+
+**Constraint forces:** Forcing `ServiceContext::build()` for standalone CLI session
+operations is a P1 Prohibition violation (standalone commands must work without full
+`ServiceContext`).
+
+### F3 — Unified authentication context
+
+**Status:** CLOSED (Session 12) — By design. Three surfaces have fundamentally different auth models; a unified `AuthContext` in `hkask-services` fails the depth test.
+
+**Audit findings:**
+
+| Surface | Auth Model | Identity Source | Capability Check |
+|---------|-----------|-----------------|------------------|
+| API | Cryptographic token verification | `Authorization: Bearer` → HMAC-SHA256 → `AuthContext { token, webid }` | `capability_checker.check_resource(&auth.token, ...)` |
+| CLI REPL | Trusted operator at terminal | `WebID::from_persona(agent_name)` — no token verification | No formal capability check (root access) |
+| CLI standalone | Trusted operator, direct DB access | DB passphrase from env/keychain | No auth layer at all |
+| MCP servers | Out-of-process, env var secrets | N/A (excluded by P1 design) | N/A |
+
+A service-layer `AuthContext { webid: WebID, token: Option<DelegationToken> }` would be
+a data-only container with no behavior — shallow module, fails depth test. The API's
+`AuthContext` is correctly placed in API middleware (depends on Axum `Extension`). The
+CLI doesn't need a formal auth layer. OCAP capability checks are a P1 Prohibition that
+must stay in domain crates/surfaces.
+
+**Depth test:** Delete API `AuthContext` → complexity reappears in 25+ route handlers.
+Delete proposed service-layer `AuthContext` → complexity vanishes (it has no behavior).
+
+### F6 — REPL vs API state boundary
+
+**Status:** CLOSED (Session 12) — Boundary table documented. Shared fields are already in `ServiceContext`; surface-specific fields are correctly placed.
+
+**Boundary table:**
+
+| Category | Shared (ServiceContext) | CLI-only | API-only |
+|----------|------------------------|----------|----------|
+| Infrastructure | registry, mcp_runtime, mcp_dispatcher, loop_system, cns_runtime, consent_manager, escalation_queue, session_manager, standing_session_store, goal_repo, service_config, system_webid, inference_port, episodic_storage, pod_manager, event_sink | — | capability_checker, git_cas, git_cas_port |
+| Inference | inference_port | inference_loop, gate_inference_port, hhh_*, governed_tool | ensemble_inferencer, gas_governance |
+| Memory | episodic_storage | semantic_storage, consolidation_service | — |
+| Session | session_manager, standing_session_store | active_session, session_history, current_model, current_agent | standing_sessions (live map) |
+| Persona/Manifest | — | persona_constraints, tool_prompt_section, manifest_executor, process_manifest, resolved_secrets | spec_store |
+
+Both surfaces derive from `ServiceContext::build()`. Surface-specific fields have no
+counterpart in the other surface. The boundary is clean — no extraction needed.
+
+### F14 — Dual error mapping in API
+
+**Status:** CLOSED (Session 12) — All remaining direct `ApiError::` constructions are legitimate surface concerns.
+
+**Audit of remaining direct constructions:**
+
+| Category | Variants | Justification |
+|----------|----------|---------------|
+| Input validation | `BadRequest` | Parsing: Visibility, GoalState, GoalID, UUID, field validation — HTTP-layer input concern |
+| OCAP capability | `Forbidden` | `check_resource(&auth.token, ...)` — P1 Prohibition, must stay in surface |
+| Auth failures | `Unauthorized` | Passphrase mismatch, missing auth — HTTP-layer auth concern |
+| Surface-only entities | `NotFound` | Standing sessions, bundles — don't exist in service layer |
+| Infrastructure | `Internal` | Consolidation DB open, episodic memory, git operations — surface-wired infrastructure without ServiceError path |
+
+None of these should flow through `ServiceError` — they're HTTP-layer concerns that
+have no service-layer counterpart.
+
+### F17 — CuratorService standalone commands open DB each time
+
+**Status:** CLOSED (Session 12) — By design. P1 Prohibition protects standalone CLI pattern.
+
+**Audit findings:**
+
+4 standalone `commands/curator.rs` functions each call `open_registry_db()` to create
+a fresh `EscalationQueue` + `CuratorContext`. The `commands/sovereignty.rs` `build_ctx()`
+similarly opens a fresh `ConsentStore` + `ConsentManager`.
+
+**Cost of forcing `ServiceContext::build()`:** Initializes entire dependency graph
+(registry, MCP runtime, CNS, loops, escalation queue, episodic/semantic stores,
+consent manager, goal repo, pod manager, capability checker, event sink, session
+manager). 90%+ of this infrastructure is unused by standalone commands.
+
+**Cost of current pattern:** 1 SQLite connection open per one-shot CLI invocation.
+Negligible for commands that run once and exit.
+
+**Constraint forces:** P1 Prohibition — "Standalone CLI commands work without
+`ServiceContext`". Forcing `ServiceContext::build()` for a `kask curator resolve <id>`
+invocation violates this principle. The single SQLite connection overhead is acceptable
+for one-shot commands.
+
+### F18 — EnsembleService standing session extraction
+
+**Status:** CLOSED (Session 12) — By design. Divergence between CLI and API standing session flows is wider than previously documented; common logic too shallow to extract.
+
+**Audit findings:**
+
+| Aspect | CLI | API |
+|--------|-----|-----|
+| Config source | YAML file on disk | JSON HTTP body |
+| MCP tool discovery | None | Yes (discover_tools + with_available_tools) |
+| Gas governance | None | Yes (with_gas_governance from CyberneticsLoop) |
+| Session persistence | No explicit persist call | Yes (persist_session + post_initial_messages) |
+| Session lifecycle | Bootstrap and forget | Start + store in HashMap + status queries |
+
+The common logic is 2 lines: `StandingSession::from_config(config)` + `.with_store(store)`.
+Too shallow to justify a service method (fails depth test). The real complexity is in
+surface-specific setup (tool discovery, gas governance, persistence, state management).
+
+### F19 — EnsembleService improv operation extraction
+
+**Status:** CLOSED (Session 12) — By design. Improv operations are CLI-only; no API counterpart exists. No duplication to extract.
+
+**Audit findings:**
+
+CLI has 4 improv operations: `improv_turn`, `improv_config`, `set_threshold`, `set_mode`.
+API has no improv endpoints. Moving these to `hkask-services` would be pass-through
+delegation with no error normalization benefit — the service function would just call
+through to `SessionManager`/`ChatSession` methods with no added logic.
+
 ---
 
 ## Open Questions
@@ -89,28 +222,6 @@ inference. The service layer needs a `ChatStream` result type that both surfaces
 
 ---
 
-### F2 — Session lifecycle across surfaces
-
-**Priority:** MEDIUM · **Status:** Deferred
-
-REPL `active_session` and API `standing_sessions` should migrate to
-`ServiceContext`, but durability semantics need specification.
-
-**Next Action:** Specify durability semantics (in-memory vs persisted, timeout policy) before migrating session state into `ServiceContext`.
-
----
-
-### F3 — Unified authentication context
-
-**Priority:** MEDIUM · **Status:** Deferred
-
-API `AuthContext`, CLI `ResolvedSecrets`, MCP env vars — need single
-`AuthContext` abstraction.
-
-**Next Action:** Define a unified `AuthContext` struct in `hkask-services` that all three surfaces construct from their respective sources.
-
----
-
 ### F4 — MCP server service access
 
 **Priority:** LOW · **Status:** By design
@@ -118,29 +229,6 @@ API `AuthContext`, CLI `ResolvedSecrets`, MCP env vars — need single
 MCP servers are separate processes and can't share `ServiceContext` by reference.
 They need shared primitives (`hkask-storage`, `hkask-keystore`,
 `InferenceService` factory pattern).
-
----
-
-### F6 — REPL vs API state boundary
-
-**Priority:** MEDIUM · **Status:** Deferred
-
-Document which fields stay in surface vs service.
-
-**Next Action:** Audit `ServiceContext` fields and surface-local state; write a boundary table in the architecture docs.
-
----
-
-### F7 — ServiceConfig vs environment variables
-
-**Priority:** MEDIUM · **Status:** CLOSED — Default constants centralized; env-var reads audited.
-
-Default values (`DEFAULT_DB_PATH`, `DEFAULT_OKAPI_BASE_URL`) made public in
-`ServiceConfig` and re-exported from `hkask-services`. All 4 leaked call sites
-(`commands/config.rs`, `commands/ensemble.rs`, `commands/compose.rs`, `repl/init.rs`)
-now use centralized constants instead of duplicated string literals. Remaining
-direct env-var reads in standalone CLI paths are by design — standalone commands
-must work without a full `ServiceContext` (P1 Prohibition).
 
 ---
 
@@ -153,27 +241,6 @@ REPL creates `GovernedTool` with shared `CyberneticsLoop`; API creates in
 layer should own canonical construction, but one-shot CLI commands need design.
 
 **Next Action:** Design a `GovernedToolFactory` in `hkask-services` that surfaces call; CLI one-shot path gets a disconnected variant.
-
----
-
-### F9 — Production memory stores use in_memory_db()
-
-**Priority:** HIGH · **Status:** CLOSED — See Closed Questions section. P1 User Sovereignty Guardrail satisfied in Session 11.
-
----
-
-### F10 — ServiceContext approaching god-object (20 fields)
-
-**Priority:** MEDIUM · **Status:** CLOSED — `#[non_exhaustive]` applied; sub-struct grouping rejected by depth test.
-
-`ServiceContext` now has `#[non_exhaustive]`, preventing external crates from
-constructing it with struct literal syntax — `ServiceContext::build()` is the
-sole constructor. Full sub-struct grouping (InfraContext, LoopContext,
-AgentContext) was analyzed but rejected: each proposed sub-struct is a
-data-only container with no behavior (shallow module, fails depth test).
-The cost (changing every `ctx.field` to `ctx.group.field` across 7+ call
-sites in 2 surfaces) outweighs the benefit. `#[non_exhaustive]` alone
-achieves F10's goal of guarding against growth.
 
 ---
 
@@ -200,19 +267,6 @@ or domain-specific variants.
 
 ---
 
-### F14 — Dual error mapping in API
-
-**Priority:** MEDIUM · **Status:** Partially addressed
-
-`hkask-api/src/error.rs` has 14 direct `From<DomainError>` impls PLUS the
-`From<ServiceError>` adapter. Each domain error is mapped to `ApiError` twice.
-3 sovereignty routes now use `ApiError::from`; remaining direct constructions
-are legitimate surface concerns (input validation, OCAP gates, auth checks).
-
-**Next Action:** Audit remaining direct `ApiError` constructions; convert any that are pure service-layer error propagations to `ApiError::from` via `ServiceError`.
-
----
-
 ### F16 — Embedding concern separation
 
 **Priority:** LOW · **Status:** Track
@@ -222,48 +276,6 @@ are legitimate surface concerns (input validation, OCAP gates, auth checks).
 coupled to Okapi config?
 
 **Next Action:** Evaluate whether `OkapiEmbedding` should call `InferenceService::embed()` or stay config-coupled; decide and document.
-
----
-
-### F17 — CuratorService standalone commands open DB each time
-
-**Priority:** MEDIUM · **Status:** Track
-
-`CuratorService` standalone CLI commands (sovereignty verify, etc.) open a
-new database connection on each invocation instead of reusing the one in
-`ServiceContext`.
-
-**Next Action:** Wire standalone commands through `ServiceContext::build()` path that shares the DB pool, or document why independent connections are acceptable.
-
----
-
-### F18 — EnsembleService standing session extraction
-
-**Priority:** MEDIUM · **Status:** Deferred
-
-Divergent CLI/API flows for standing session management make extraction into
-a unified service method non-trivial.
-
-**Next Action:** Map CLI vs API session creation differences; design a unified `ensure_standing_session()` service method that accepts a surface-specific adapter.
-
----
-
-### F19 — EnsembleService improv operation extraction
-
-**Priority:** MEDIUM · **Status:** Deferred
-
-Divergent inferencer setup between CLI and API improv paths blocks a single
-service method.
-
-**Next Action:** Abstract inferencer construction behind a trait or factory; then extract `run_improv()` into `EnsembleService`.
-
----
-
-### F20 — EnsembleService list_deliberation_sessions depth test
-
-**Priority:** LOW · **Status:** Pass-through
-
-Stays as direct `SessionManager` call — too thin to warrant a service method.
 
 ---
 
