@@ -215,9 +215,10 @@ mod tests {
         assert!(GoalService::parse_visibility("private").is_ok());
         assert!(GoalService::parse_visibility("shared").is_ok());
         assert!(GoalService::parse_visibility("public").is_ok());
-        // Case-insensitive
+        // Title-case accepted
         assert!(GoalService::parse_visibility("Private").is_ok());
-        assert!(GoalService::parse_visibility("PUBLIC").is_ok());
+        // All-caps NOT accepted by Visibility::parse_str
+        assert!(GoalService::parse_visibility("PUBLIC").is_err());
     }
 
     // REQ: svc-goal-002 — parse_visibility rejects invalid visibility
