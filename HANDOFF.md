@@ -2,11 +2,13 @@
 
 ## 1. Session Context
 
-Two sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
+Three sessions have completed work on the 9-task service layer extraction plan. This handoff covers all work done so far and what remains.
 
 **Session 1** (Tasks 1–3): Created the `hkask-services` crate skeleton, extracted `ServiceError`, `ServiceConfig`, and `ServiceContext`. Left 3 clippy errors and no tests.
 
-**Session 2** (Re-audit + Fixes + Task 4 start): Activated all 5 mandatory skills (`refactor-service-layer`, `improve-codebase-architecture`, `coding-guidelines`, `constraint-forces`, `zoom-out`, `tdd`). Ran full Phase 0→1→2 re-audit, found 4 MUST FIX bugs. Fixed all 4 plus 4 SHOULD FIX items. Created `InferenceService` module with 3 public functions and 4 tests. Did NOT wire CLI or API surfaces yet — that's the next step.
+**Session 2** (Re-audit + Fixes + Task 4 start): Activated all 5 mandatory skills. Ran full Phase 0→1→2 re-audit, found 4 MUST FIX bugs. Fixed all 4 plus 4 SHOULD FIX items. Created `InferenceService` module with 3 public functions and 4 tests. Did NOT wire CLI or API surfaces.
+
+**Session 3** (Task 4 completion — Phases 4c–4f): Wired all CLI (8 sites) and API (4 sites) to call InferenceService. Introduced `InferenceContext` as a lightweight alternative to `ServiceContext` for surface layers. Removed all `OkapiConfig::local_dev()` and `OkapiInference::new()` calls from CLI and API inference sites. All workspace checks pass: `cargo check`, `cargo clippy -D warnings`, `cargo test`.
 
 ## 2. What Was Done
 
@@ -60,34 +62,70 @@ Created `hkask-services/src/inference.rs` with:
 - `ModelInfo` struct with `From<OkapiModelEntry>` conversion
 - 4 unit tests (all passing)
 
-**NOT yet done:** Wiring CLI and API surfaces to use InferenceService (Phases 4c–4f of the strangler fig).
+### Session 3 — InferenceService Wiring (Task 4, Phases 4c–4f)
+
+**Key Design Decision: InferenceContext**
+
+Introduced `InferenceContext` as a lightweight struct containing only the 3 fields needed for inference: `shared_port`, `default_model`, `okapi_base_url`. This avoids requiring a full `ServiceContext` (which opens databases and starts loops) at call sites that only need inference port resolution.
+
+- `InferenceContext::from_parts(shared_port, default_model, okapi_base_url)` — for CLI/API surfaces that construct from their own state
+- `From<&ServiceContext> for InferenceContext` — for future use when ServiceContext is fully composed (Task 7b)
+- Changed `InferenceService` method signatures from `&ServiceContext` to `&InferenceContext`
+
+**CLI Wiring (8 sites across 7 files):**
+
+| File | What Changed |
+|------|-------------|
+| `cli/repl/init.rs` | Default + gate inference ports via `InferenceService::resolve_port()`. Added `ServiceConfig` construction from onboarding secrets. Removed `OkapiConfig::local_dev()`. |
+| `cli/repl/mod.rs` | Replaced `okapi_config: OkapiConfig` with `service_config: ServiceConfig` in `ReplState`. |
+| `cli/repl/handlers/hhh.rs` | Gate model switch via `InferenceService::resolve_port()` using `state.service_config`. Removed `OkapiInference::new()`. |
+| `cli/repl/handlers/model.rs` | Model listing/search via `InferenceService::search_models()` using `state.service_config`. Uses `ModelInfo` fields instead of `OkapiModelEntry.details`. |
+| `cli/commands/chat.rs` | Fallback inference port via `InferenceService::resolve_port()`. Removed `OkapiConfig::local_dev()` + `OkapiInference::new()`. |
+| `cli/commands/compose.rs` | Generation inference port via `InferenceService::resolve_port()`. Kept `OkapiConfig` for embedding (different concern). Removed `OkapiInference::new()`. |
+| `cli/commands/ensemble.rs` | Ensemble improv inference via `InferenceService::resolve_port()`. Removed `OkapiInference::new()`. |
+
+**API Wiring (4 sites across 3 files):**
+
+| File | What Changed |
+|------|-------------|
+| `api/lib.rs` | Added `service_config: ServiceConfig` to `ApiState`. `with_ensemble_inferencer()` uses `InferenceService::resolve_port()`. |
+| `api/routes/chat.rs` | Fallback inference via `InferenceService::resolve_port()` using `state.service_config`. |
+| `api/routes/models.rs` | `list_models` and `search_models` via `InferenceService::list_models()` / `search_models()`. Uses `ModelInfo` fields directly. |
+
+**Intentionally NOT replaced (by design):**
+- `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
+- `cli/commands/embed_corpus.rs:191-197` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
+- `api/routes/models.rs` — `ApiState`'s own `OkapiConfig` usages removed
+- MCP server call sites (P1 Prohibition — out of process)
 
 ## 3. Current Module Structure
 
 ```
 hkask-services/src/
-├── lib.rs           — re-exports ServiceConfig, ServiceContext, ServiceError, InferenceService, ModelInfo
+├── lib.rs           — re-exports ServiceConfig, ServiceContext, ServiceError, InferenceContext, InferenceService, ModelInfo
 ├── error.rs         — 31 variants across 9 domain groups + Keystore
 ├── config.rs        — ServiceConfig with 3 constructors + 8 default constants + template_cache_path
 ├── context.rs       — ServiceContext::async build() with 18 Arc fields
-└── inference.rs     — InferenceService (3 functions) + ModelInfo struct
+└── inference.rs     — InferenceContext + InferenceService (3 functions) + ModelInfo struct + 4 tests
 ```
 
 ## 4. Verification Status
 
 ```
-cargo check --workspace  ✅
-cargo clippy --workspace -- -D warnings  ✅
-cargo test --workspace  ✅
-cargo test -p hkask-services  ✅ (4 tests passing)
-No todo!/unimplemented! in hkask-services  ✅
+cargo check --workspace                    ✅
+cargo clippy --workspace -- -D warnings   ✅
+cargo test --workspace                    ✅ (all 4 hkask-services tests passing)
+cargo test -p hkask-services             ✅ (4 tests)
+No todo!/unimplemented! in hkask-services ✅
+No OkapiConfig::local_dev() in CLI or API ✅ (only in embedding uses + ServiceContext::build)
+No OkapiInference::new() in CLI or API   ✅ (only in ServiceContext::build + MCP servers)
 ```
 
 ## 5. Key Decisions
 
 1. **Flat error hierarchy, not nested.** `ServiceError` composes domain errors via `#[from]`. `Keystore(String)` for secret resolution failures.
 2. **`ServiceContext::build()` is async.** No more `Runtime::new()` + `block_on()` + `drop(rt)`. Callers `.await` it.
-3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`.
+3. **Strangler fig: build alongside, don't replace yet.** Neither `ReplState` nor `ApiState` compose `ServiceContext`. They use `InferenceContext` + `ServiceConfig` instead.
 4. **MCP servers do NOT depend on `hkask-services`.** They use `hkask-templates` primitives directly.
 5. **`InferenceService` does NOT cache ports by model.** Each non-default model call creates a fresh `OkapiInference`. Caching is a future Hypothesis.
 6. **`InferenceService::resolve_port()` reuses shared port for default model.** Falls back to fresh instance for other models.
@@ -97,49 +135,12 @@ No todo!/unimplemented! in hkask-services  ✅
 10. **CNS event sink uses `primary_conn`** for production persistence, not `in_memory_db()`.
 11. **Template cache path is configurable** via `HKASK_TEMPLATE_CACHE_PATH` or `ServiceConfig.template_cache_path`.
 12. **Dependency direction: CLI/API → services → domain crates.** Never the reverse.
+13. **`InferenceContext` is the surface-facing type.** CLI and API use `InferenceContext::from_parts()` to avoid building a full `ServiceContext`. `From<&ServiceContext>` impl added for future use when `ServiceContext` is composed (Task 7b).
+14. **`ReplState` stores `ServiceConfig` instead of `OkapiConfig`.** The `service_config` field provides `okapi_base_url`, `default_model`, and `gate_model` for `InferenceContext` construction.
+15. **`ApiState` stores `ServiceConfig`** initialized from `ServiceConfig::from_env()` at construction time.
+16. **`embed_corpus.rs` and `compose.rs` embedding paths keep `OkapiConfig`.** `InferenceService` handles inference ports only, not embedding. `OkapiEmbedding` is a separate concern.
 
 ## 6. What Remains
-
-### IMMEDIATE — Task 4 Completion (InferenceService Wiring)
-
-**Phase 4c — Wire CLI to call InferenceService** (strangler fig: call service alongside existing code)
-
-Replace these call sites with `InferenceService::resolve_port()`:
-
-| File | Current Code | Replacement |
-|------|-------------|-------------|
-| `cli/repl/init.rs:51-63` | `OkapiConfig::local_dev()` + `OkapiInference::new()` | `InferenceService::resolve_port(&ctx, &config.default_model)` |
-| `cli/repl/init.rs:77-81` | `OkapiInference::new()` for gate port | `InferenceService::resolve_port(&ctx, &config.gate_model)` |
-| `cli/commands/chat.rs:210-220` | `OkapiConfig::local_dev()` + `OkapiInference::new()` fallback | `InferenceService::resolve_port(&ctx, model)` |
-| `cli/commands/compose.rs:121-127, 275-284` | `OkapiConfig::local_dev()` + `OkapiInference::new()` | `InferenceService::resolve_port(&ctx, model)` |
-| `cli/commands/embed_corpus.rs:191-197` | `OkapiConfig::local_dev()` + `OkapiInference::new()` | `InferenceService::resolve_port(&ctx, model)` |
-| `cli/commands/ensemble.rs:130-140` | `OkapiInference::new()` for improv | `InferenceService::resolve_port(&ctx, model)` |
-| `cli/repl/handlers/hhh.rs:55-65` | `OkapiInference::new()` for gate model switch | `InferenceService::resolve_port(&ctx, model)` |
-
-**Phase 4d — Wire API to call InferenceService**
-
-| File | Current Code | Replacement |
-|------|-------------|-------------|
-| `api/lib.rs:298-308` | `OkapiInference::new()` in `ApiState` init | `InferenceService::resolve_port(&ctx, model)` |
-| `api/routes/chat.rs:78-88` | `OkapiConfig::local_dev()` + `OkapiInference::new()` fallback | `InferenceService::resolve_port(&ctx, model)` |
-| `api/routes/models.rs:81-91` | `OkapiConfig::local_dev()` + `list_okapi_models()` | `InferenceService::list_models(&ctx).await` |
-| `api/routes/models.rs:124-134` | `OkapiConfig::local_dev()` + `search_okapi_models()` | `InferenceService::search_models(&ctx, query).await` |
-
-**Phase 4e — Delete duplication from both surfaces**
-
-After both CLI and API delegate to InferenceService, remove the now-unused `OkapiConfig::local_dev()` calls from the affected files. Keep `OkapiConfig::default()` for any remaining direct uses.
-
-**Phase 4f — Verify**
-
-```bash
-cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace
-```
-
-**NOTE:** `ServiceContext` is not yet composed by `ReplState` or `ApiState`. The CLI/API wiring in 4c/4d will need to either:
-- (a) Create a `ServiceContext` in the CLI/API init and pass it through, OR
-- (b) Create just the needed parts (inference port) inline and migrate to full `ServiceContext` composition in Task 7b.
-
-Option (b) is more surgical and follows the strangler fig pattern. The CLI/API keep their existing init paths for now, but the `OkapiInference::new()` calls get replaced with `InferenceService` method calls. The `ServiceContext` composition happens later in Task 7b.
 
 ### HIGH — Task 5: Extract CuratorService (proof of concept)
 
@@ -153,9 +154,38 @@ Create `hkask-services/src/curator.rs` with `CuratorService` (6 functions):
 
 Full strangler fig cycle: RED→GREEN→wire CLI→wire API→delete duplication→verify.
 
-### MEDIUM — Tasks 6–9: Remaining services, infrastructure, verification, docs
+### MEDIUM — Task 6: Extract remaining service modules
 
-See HANDOFF.md section 5 from previous session for full details.
+Apply the same pattern (InferenceContext-style lightweight context or ServiceContext) for:
+- `models.rs` — already partially covered by InferenceService::list_models/search_models, but may need a ModelsService for richer queries
+- `ensemble.rs` — ensemble session CRUD
+- `pods.rs` — pod lifecycle
+- `memory.rs` — episodic/semantic storage ports
+- `sovereignty.rs` — consent and verification
+- `spec.rs` — spec capture, cultivate, validate
+- `goal.rs` — goal CRUD
+
+### MEDIUM — Task 7: Infrastructure unification
+
+- **7a** — Extract cross-cutting infrastructure (DB/Store init, secret resolution, CNS/Loop/EventSink wiring) into ServiceContext::build()
+- **7b** — Replace `ReplState` and `ApiState` assemblies with `ServiceContext::build()`. Compose full ServiceContext at CLI/API init instead of the current 4 independent assembly paths.
+- **7c** — Extract DB/Store init from surface layers
+- **7d** — Extract secret resolution from surface layers
+- **7e** — Extract CNS/Loop/EventSink wiring from surface layers
+- **7f** — Unify error mapping: `ServiceError` → CLI error enums and `ApiError`
+
+### MEDIUM — Task 8: Verification
+
+- Depth test every module in `hkask-services`
+- Dependency direction verification (no circular deps)
+- `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace`
+- Deletion test: removing any service module should cause complexity to reappear in 8+ call sites
+
+### LOW — Task 9: Documentation
+
+- Update `docs/status/test-inventory.md`
+- Update `docs/architecture/hKask-architecture-master.md` with service layer section
+- Write `OPEN_QUESTIONS.md` for F1–F14
 
 ## 7. Open Questions (F1–F14)
 
@@ -170,32 +200,45 @@ See HANDOFF.md section 5 from previous session for full details.
 | F7 | ServiceConfig vs environment variables (3 places read HKASK_DB_PATH) | MEDIUM | Track |
 | F8 | GovernedTool membrane boundary | LOW | Deferred |
 | F9 | Production memory stores use `in_memory_db()` | HIGH | Track — P1 User Sovereignty |
-| F10 | ServiceContext approaching god-object (19 fields) | MEDIUM | Guard with sub-structs |
+| F10 | ServiceContext approaching god-object (19+ fields) | MEDIUM | Guard with sub-structs |
 | F11 | InvalidPassphrase vs LoginFailed security concern | LOW | Track |
 | F12 | ValidationError(String) too generic | LOW | Track |
 | F13 | CapabilityChecker secret inconsistency (3 checkers, 2 secrets) | MEDIUM | Investigate before Task 7b |
 | F14 | Dual error mapping in API (14 direct + ServiceError adapter) | MEDIUM | Planned for Task 7f |
+| F15 | InferenceContext vs ServiceContext for service modules | MEDIUM | Decided — InferenceContext for surfaces, ServiceContext for full composition |
+| F16 | Embedding concern separation (OkapiEmbedding still uses OkapiConfig) | LOW | Track — embedding may get its own EmbeddingService later |
 
 ## 8. Mandatory Skills for Next Session
 
 **Load these BEFORE writing any code:**
 
-1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Phase 4c–4f wiring and deletion must follow this skill's process.
+1. **`refactor-service-layer`** — The strangler fig process, deletion test, depth test, and verification checklist. Every new service extraction must follow this skill's process.
 2. **`coding-guidelines`** — Assess before implementing. Surgical changes only.
 3. **`tdd`** — Every new service operation gets a RED→GREEN→REFACTOR cycle with `// REQ:` tags.
 
 ## 9. Architectural Context for Continuation Agent
 
-### InferenceService Design (already implemented)
+### InferenceService Design (implemented + wired)
 
 ```rust
-// inference.rs — 3 public functions, all take &ServiceContext
-pub struct InferenceService;
+// inference.rs — InferenceContext + InferenceService (3 public functions)
+pub struct InferenceContext {
+    pub shared_port: Option<Arc<dyn InferencePort>>,
+    pub default_model: String,
+    pub okapi_base_url: String,
+}
 
+impl InferenceContext {
+    pub fn from_parts(shared_port, default_model, okapi_base_url) -> Self
+}
+
+impl From<&ServiceContext> for InferenceContext { ... }
+
+pub struct InferenceService;
 impl InferenceService {
-    pub fn resolve_port(ctx: &ServiceContext, model: &str) -> Result<Arc<dyn InferencePort>, ServiceError>
-    pub async fn list_models(ctx: &ServiceContext) -> Result<Vec<ModelInfo>, ServiceError>
-    pub async fn search_models(ctx: &ServiceContext, query: &str) -> Result<Vec<ModelInfo>, ServiceError>
+    pub fn resolve_port(ctx: &InferenceContext, model: &str) -> Result<Arc<dyn InferencePort>, ServiceError>
+    pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError>
+    pub async fn search_models(ctx: &InferenceContext, query: &str) -> Result<Vec<ModelInfo>, ServiceError>
 }
 
 pub struct ModelInfo {
@@ -237,49 +280,55 @@ pub struct ServiceConfig {
 }
 ```
 
-### Strangler Fig Wiring Strategy
+### Surface Wiring Pattern
 
-The wiring approach for Phases 4c/4d is:
-- CLI and API do NOT yet compose `ServiceContext`. They keep their existing init paths.
-- In CLI call sites: replace `OkapiConfig::local_dev()` + `OkapiInference::new(model, config)` with `InferenceService::resolve_port(&ctx, model)` where `ctx` is a `ServiceContext` constructed via `ServiceContext::build(config).await`.
-- In API call sites: same pattern, but using the existing `ApiState` infrastructure to access a `ServiceContext`.
-- This means the CLI and API will need a `ServiceContext` instance. The simplest approach is to construct one alongside the existing state and use it only for `InferenceService` calls.
-- The full `ServiceContext` composition (replacing `ReplState` and `ApiState`) happens in Task 7b.
+CLI and API surfaces construct an `InferenceContext` from their own state:
 
-### Call Site Inventory (CLI, 7 sites)
+```rust
+// CLI (from ReplState)
+let ctx = InferenceContext::from_parts(
+    Some(state.inference_port.clone()),
+    &state.service_config.default_model,
+    &state.service_config.okapi_base_url,
+);
 
-1. **`cli/repl/init.rs:51-63`** — Initial inference port creation for default model
-2. **`cli/repl/init.rs:77-81`** — Gate model inference port creation
-3. **`cli/commands/chat.rs:210-220`** — Fallback inference port for chat
-4. **`cli/commands/compose.rs:121-127`** — Compose command inference port (config)
-5. **`cli/commands/compose.rs:275-284`** — Compose command inference port (creation)
-6. **`cli/commands/embed_corpus.rs:191-197`** — Embed command inference port
-7. **`cli/commands/ensemble.rs:130-140`** — Ensemble improv inference port
-8. **`cli/repl/handlers/hhh.rs:55-65`** — HHH gate model switch (uses existing `state.okapi_config`)
+// API (from ApiState)
+let ctx = InferenceContext::from_parts(
+    state.inference_port.clone(),
+    &state.service_config.default_model,
+    &state.service_config.okapi_base_url,
+);
 
-### Call Site Inventory (API, 4 sites)
-
-1. **`api/lib.rs:298-308`** — `ApiState::with_ensemble_inferencer()` creates inference port
-2. **`api/routes/chat.rs:78-88`** — Fallback inference port in chat handler
-3. **`api/routes/models.rs:81-91`** — `list_models` route
-4. **`api/routes/models.rs:124-134`** — `search_models` route
-
-### MCP Server Call Sites (DO NOT REPLACE — by design)
-
-1. **`hkask-mcp-inference/src/tools.rs:113-117`** — Uses `OkapiConfig::default()` directly
-2. **`hkask-mcp-markitdown/src/tools.rs:114-124`** — Uses `self.okapi_config` directly
-3. **`hkask-mcp-replicant/src/tools.rs:129-138`** — Uses `self.okapi_base_url` directly
-
-### Phase 1 RDF Triples (Key Duplicated Operations)
-
-For reference, the Phase 1 audit found these 17 duplicated operations. The InferenceService addresses operation #17 (inference_port_creation).
-
+// Standalone commands (from env or args)
+let ctx = InferenceContext::from_parts(
+    None,
+    model_name,
+    okapi_base_url,
+);
 ```
-(17 inference_port_creation) (duplicates-in) [cli/repl/init.rs, cli/commands/chat.rs, cli/commands/compose.rs, cli/commands/embed_corpus.rs, cli/commands/ensemble.rs, cli/repl/handlers/hhh.rs, api/lib.rs, api/routes/chat.rs, api/routes/models.rs×2, hkask-services/context.rs])
-(17 inference_port_creation) (returns) (Arc<dyn InferencePort> × Arc<dyn InferencePort> × Arc<dyn InferencePort>)
-(17 inference_port_creation) (divergence) (divergent)
-(17 inference_port_creation) (owns) (11 call sites → hkask-services/inference)
-```
+
+This pattern will extend to future service modules. Each service module that needs context from the surface will define its own lightweight context struct (e.g., `CuratorContext`), and the surface will construct it from its state.
+
+### Completed Call Site Replacements
+
+**CLI (all inference port sites wired):**
+1. `cli/repl/init.rs` — Default + gate inference ports → `InferenceService::resolve_port()`
+2. `cli/repl/handlers/hhh.rs` — Gate model switch → `InferenceService::resolve_port()`
+3. `cli/repl/handlers/model.rs` — Model listing/search → `InferenceService::search_models()`
+4. `cli/commands/chat.rs` — Fallback inference port → `InferenceService::resolve_port()`
+5. `cli/commands/compose.rs:275-284` — Generation inference → `InferenceService::resolve_port()`
+6. `cli/commands/ensemble.rs:130-140` — Ensemble improv → `InferenceService::resolve_port()`
+
+**API (all inference/model sites wired):**
+1. `api/lib.rs` — `with_ensemble_inferencer()` → `InferenceService::resolve_port()`
+2. `api/routes/chat.rs` — Fallback inference → `InferenceService::resolve_port()`
+3. `api/routes/models.rs` — `list_models` → `InferenceService::list_models()`
+4. `api/routes/models.rs` — `search_models` → `InferenceService::search_models()`
+
+**Intentionally NOT replaced (by design):**
+- `cli/commands/compose.rs:121-127` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
+- `cli/commands/embed_corpus.rs:191-197` — `OkapiConfig` for `OkapiEmbedding` (embedding, not inference)
+- MCP server call sites (P1 Prohibition — out of process)
 
 ### Constraint Forces (Key Decisions for InferenceService)
 
@@ -290,3 +339,7 @@ For reference, the Phase 1 audit found these 17 duplicated operations. The Infer
 | resolve_port reuses shared port for default model | Guideline | Best practice, normalizes behavior across surfaces |
 | list_models/search_models use direct Okapi (not MCP dispatch) | Prohibition | MCP is out-of-process; service layer must not depend on it |
 | ModelInfo is a service-layer type, not OkapiModelEntry | Guideline | Surface adapters translate to their own types |
+| InferenceContext is the surface-facing type (not ServiceContext) | Guideline | Surfaces shouldn't need to build full ServiceContext for inference calls; full composition deferred to Task 7b |
+| ReplState stores ServiceConfig (not OkapiConfig) | Guideline | ServiceConfig provides all needed fields for InferenceContext construction |
+
+*ℏKask - A Minimal Viable Container for Agents — v0.23.0*
