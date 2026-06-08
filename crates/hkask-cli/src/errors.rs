@@ -194,3 +194,70 @@ impl<T> From<PoisonError<T>> for UserError {
         UserError::Infra(hkask_types::InfrastructureError::LockPoisoned)
     }
 }
+
+// ── Service layer adapters ──────────────────────────────────────────────
+// These `From<ServiceError>` impls allow CLI command functions that call
+// service operations to propagate errors with `?`. As service operations
+// are extracted, these adapters ensure seamless error conversion.
+
+impl From<hkask_services::ServiceError> for CuratorError {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        use hkask_services::ServiceError as SE;
+        match e {
+            SE::EscalationNotFound(id) => CuratorError::EscalationNotFound(id),
+            SE::Escalation(err) => CuratorError::Escalation(err),
+            SE::Metacognition(err) => CuratorError::Metacognition(err),
+            SE::Infra(err) => CuratorError::Registry(RegistryError::Infra(err)),
+            SE::Storage(err) => {
+                CuratorError::Registry(RegistryError::DatabaseError(err.to_string()))
+            }
+            other => CuratorError::Registry(RegistryError::DatabaseError(other.to_string())),
+        }
+    }
+}
+
+impl From<hkask_services::ServiceError> for AgentError {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        use hkask_services::ServiceError as SE;
+        match e {
+            SE::AgentNotFound(name) => AgentError::NotFound(name),
+            SE::InvalidAgentType(t) => AgentError::InvalidType(t),
+            SE::AgentRegistrationFailed(msg) => AgentError::RegistrationFailed(msg),
+            SE::Acp(err) => AgentError::RegistrationFailed(err.to_string()),
+            SE::AgentRegistry(err) => AgentError::RegistryLoader(err),
+            SE::AgentRegistryStore(err) => AgentError::RegistrationFailed(err.to_string()),
+            SE::Infra(err) => AgentError::Registry(RegistryError::Infra(err)),
+            other => AgentError::RegistrationFailed(other.to_string()),
+        }
+    }
+}
+
+impl From<hkask_services::ServiceError> for EnsembleError {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        use hkask_services::ServiceError as SE;
+        match e {
+            SE::SessionNotFound(id) => EnsembleError::SessionNotFound(id),
+            SE::StandingSession(err) => EnsembleError::Standing(err),
+            other => EnsembleError::Standing(hkask_ensemble::StandingSessionError::Bootstrap(
+                other.to_string(),
+            )),
+        }
+    }
+}
+
+impl From<hkask_services::ServiceError> for UserError {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        use hkask_services::ServiceError as SE;
+        match e {
+            SE::UserNotFound(id) => UserError::NotFound(id),
+            SE::LoginFailed(msg) => UserError::LoginFailed(msg),
+            SE::InvalidPassphrase(msg) => UserError::InvalidPassphrase(msg),
+            SE::ValidationError(msg) => UserError::ValidationError(msg),
+            SE::UserStore(err) => UserError::Store(err),
+            SE::Infra(err) => UserError::Infra(err),
+            other => UserError::Infra(hkask_types::InfrastructureError::Database(
+                other.to_string(),
+            )),
+        }
+    }
+}

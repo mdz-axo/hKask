@@ -341,3 +341,98 @@ impl From<hkask_types::ports::RegistryError> for ApiError {
         }
     }
 }
+
+// ── Service layer adapter ────────────────────────────────────────────────
+// Allows API route handlers to propagate ServiceError with `?`.
+// Each ServiceError variant maps to the appropriate HTTP status code.
+
+impl From<hkask_services::ServiceError> for ApiError {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        use hkask_services::ServiceError as SE;
+        match e {
+            // ── Not Found variants ──────────────────────────────────────────
+            SE::EscalationNotFound(id) => ApiError::NotFound {
+                resource: "escalation".into(),
+                id,
+            },
+            SE::AgentNotFound(name) => ApiError::NotFound {
+                resource: "agent".into(),
+                id: name,
+            },
+            SE::UserNotFound(name) => ApiError::NotFound {
+                resource: "user".into(),
+                id: name,
+            },
+            SE::SessionNotFound(id) => ApiError::NotFound {
+                resource: "session".into(),
+                id,
+            },
+
+            // ── Unauthorized / Forbidden ───────────────────────────────────
+            SE::LoginFailed(_) => ApiError::Unauthorized {
+                reason: "Invalid credentials".into(),
+            },
+            SE::Acp(hkask_agents::acp::AcpError::CapabilityDenied(webid, perm)) => {
+                ApiError::Forbidden {
+                    reason: format!("Agent {} lacks permission: {}", webid, perm),
+                }
+            }
+            SE::Acp(hkask_agents::acp::AcpError::AgentNotFound(webid)) => ApiError::NotFound {
+                resource: "agent".into(),
+                id: webid.to_string(),
+            },
+            SE::Acp(hkask_agents::acp::AcpError::AgentAlreadyRegistered(webid)) => {
+                ApiError::Conflict {
+                    message: format!("Agent already registered: {}", webid),
+                }
+            }
+            SE::Acp(_) => ApiError::Forbidden {
+                reason: "Capability denied".into(),
+            },
+            SE::SovereigntyStore(hkask_storage::SovereigntyStoreError::UuidParse(msg)) => {
+                ApiError::BadRequest { message: msg }
+            }
+
+            // ── Bad Request ─────────────────────────────────────────────────
+            SE::InvalidAgentType(msg) => ApiError::BadRequest { message: msg },
+            SE::InvalidPassphrase(msg) => ApiError::BadRequest {
+                message: format!("Invalid passphrase: {}", msg),
+            },
+            SE::ValidationError(msg) => ApiError::BadRequest { message: msg },
+
+            // ── Conflict ────────────────────────────────────────────────────
+            SE::AgentRegistrationFailed(msg) => ApiError::Conflict { message: msg },
+
+            // ── Domain errors with structured mapping ──────────────────────
+            SE::Escalation(hkask_agents::EscalationError::NotFound(id)) => ApiError::NotFound {
+                resource: "escalation".into(),
+                id,
+            },
+            SE::Escalation(_) => ApiError::Internal {
+                message: e.to_string(),
+            },
+            SE::AgentRegistryStore(err) => ApiError::from(err),
+            SE::GoalRepo(err) => ApiError::from(err),
+            SE::Triple(err) => ApiError::from(err),
+            SE::ConsentStore(err) => ApiError::from(err),
+            SE::UserStore(err) => ApiError::from(err),
+            SE::StandingSessionStore(err) => ApiError::from(err),
+            SE::Consent(err) => ApiError::from(err),
+            SE::Spec(err) => ApiError::Internal {
+                message: err.to_string(),
+            },
+            SE::Template(err) => ApiError::from(err),
+            SE::NuEvent(err) => ApiError::Internal {
+                message: err.to_string(),
+            },
+
+            // ── Internal errors (catch-all) ─────────────────────────────────
+            SE::Infra(err) => ApiError::Internal {
+                message: err.to_string(),
+            },
+            other => ApiError::Internal {
+                message: other.to_string(),
+            },
+        }
+    }
+}
