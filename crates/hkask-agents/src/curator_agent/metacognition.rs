@@ -247,39 +247,35 @@ impl MetacognitionLoop {
     }
     /// Generate a system state summary for posting to standing session
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
-        let mut summary = String::new();
-        summary.push_str("## Metacognition Update\n\n");
-        summary.push_str(&format!(
-            "**Timestamp:** {}\n",
+        use std::fmt::Write;
+        let mut s = String::new();
+        let _ = writeln!(s, "## Metacognition Update\n");
+        let _ = writeln!(
+            s,
+            "**Timestamp:** {}",
             snapshot.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
-        ));
-        summary.push_str(&format!("**CNS Health:** {}\n", snapshot.cns_health));
-        summary.push_str(&format!(
-            "**Critical Alerts:** {}\n",
-            snapshot.critical_alerts
-        ));
-        summary.push_str(&format!("**Total Alerts:** {}\n\n", snapshot.total_alerts));
-
+        );
+        let _ = writeln!(s, "**CNS Health:** {}", snapshot.cns_health);
+        let _ = writeln!(s, "**Critical Alerts:** {}", snapshot.critical_alerts);
+        let _ = writeln!(s, "**Total Alerts:** {}\n", snapshot.total_alerts);
         if !snapshot.variety_counters.is_empty() {
-            summary.push_str("### Variety Counters\n");
+            let _ = writeln!(s, "### Variety Counters");
             for (domain, variety) in &snapshot.variety_counters {
-                summary.push_str(&format!("- {}: {}\n", domain, variety));
+                let _ = writeln!(s, "- {}: {}", domain, variety);
             }
-            summary.push('\n');
+            s.push('\n');
         }
-
         if !snapshot.bot_status_reports.is_empty() {
-            summary.push_str("### Bot Status\n");
+            let _ = writeln!(s, "### Bot Status");
             for report in &snapshot.bot_status_reports {
-                summary.push_str(&format!("- **{}**: {}", report.bot_name, report.status));
+                let _ = write!(s, "- **{}**: {}", report.bot_name, report.status);
                 if !report.issues.is_empty() {
-                    summary.push_str(&format!(" ({})", report.issues.join(", ")));
+                    let _ = write!(s, " ({})", report.issues.join(", "));
                 }
-                summary.push('\n');
+                s.push('\n');
             }
         }
-
-        summary
+        s
     }
 
     // Curator metacognition: evaluate, coach, direct
@@ -387,44 +383,27 @@ impl MetacognitionLoop {
     // regulation mechanism. This does NOT bypass the Communication Loop because
     // the queue is not a loop-to-loop message channel.
     async fn act_on_escalate(&self, action: &LoopAction) -> Option<EscalationEntry> {
-        let metric = action
-            .parameters
-            .get("metric")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-
+        let metric = Self::param_str(action, "metric", "");
         match metric {
             "critical_alerts" => {
-                let count = action
-                    .parameters
-                    .get("count")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as usize;
-
+                let count = Self::param_u64(action, "count", 0) as usize;
                 warn!(
-                    target: "curator.metacognition",
+                    target: MC_TARGET,
                     critical_alerts = count,
                     threshold = self.config.thresholds.critical_alerts,
                     "Critical alert count exceeds threshold"
                 );
-
-                let error_context = format!(
-                    "Critical alert count ({}) exceeds threshold ({})",
-                    count, self.config.thresholds.critical_alerts
-                );
-
                 Some(EscalationEntry::pending(
                     format!("System has {} critical alerts", count),
                     0.3,
-                    error_context,
+                    format!(
+                        "Critical alert count ({}) exceeds threshold ({})",
+                        count, self.config.thresholds.critical_alerts
+                    ),
                 ))
             }
             "bot_failures" => {
-                let count = action
-                    .parameters
-                    .get("failed_count")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as usize;
+                let count = Self::param_u64(action, "failed_count", 0) as usize;
                 let bot_names: Vec<String> = action
                     .parameters
                     .get("bot_names")
@@ -435,29 +414,20 @@ impl MetacognitionLoop {
                             .collect()
                     })
                     .unwrap_or_default();
-
                 warn!(
-                    target: "curator.metacognition",
+                    target: MC_TARGET,
                     failed_bots = count,
                     threshold = self.config.thresholds.bot_failures,
                     "Bot failure count exceeds threshold"
                 );
-
-                let error_context =
-                    format!("{} bots in critical state: {}", count, bot_names.join(", "));
-
                 Some(EscalationEntry::pending(
                     format!("{} bots require attention", count),
                     0.4,
-                    error_context,
+                    format!("{} bots in critical state: {}", count, bot_names.join(", ")),
                 ))
             }
             _ => {
-                warn!(
-                    target: "curator.metacognition",
-                    metric = %metric,
-                    "Unknown escalation metric in MetacognitionLoop act()"
-                );
+                warn!(target: MC_TARGET, metric = %metric, "Unknown escalation metric");
                 None
             }
         }
@@ -466,47 +436,14 @@ impl MetacognitionLoop {
     /// Log an unhandled action type (no-op).
     fn act_on_no_action(&self, action: &LoopAction) {
         info!(
-            target: "curator.metacognition",
+            target: MC_TARGET,
             action_type = ?action.action_type,
             "Unhandled action type in MetacognitionLoop act()"
         );
     }
 
     // Explicit 4-stage cycle: sense → compare → compute → act
-
-    /// **Sense stage** (sense → compare → compute → act):
-    /// Read CNS health, variety counters, critical alerts, and bot status
-    /// reports. Produces afferent signals for variety deficit, critical alert
-    /// count, and bot failure count. Builds and stores a HealthSnapshot for
-    /// use by compare/compute/act phases.
-    pub async fn sense(&self) -> Vec<Signal> {
-        <Self as HkaskLoop>::sense(self).await
-    }
-
-    /// **Compare stage** (sense → compare → compute → act):
-    /// Evaluate variety deficit vs threshold, critical alert count vs
-    /// threshold, and bot failure count vs threshold. Detects deviations
-    /// from set-points in the sensed signals.
-    pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
-        <Self as HkaskLoop>::compare(self, signals).await
-    }
-
-    /// **Compute stage** (sense → compare → compute → act):
-    /// Map deviations to regulatory actions. Variety deficit above threshold
-    /// → Calibrate (threshold adjustment). Critical alerts above threshold
-    /// → Escalate (human review). Bot failures above threshold → Escalate
-    /// (bot attention).
-    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
-        <Self as HkaskLoop>::compute(self, deviations).await
-    }
-
-    /// **Act stage** (sense → compare → compute → act):
-    /// Execute regulatory actions by issuing CuratorDirectives and posting
-    /// escalations. Calibrate → issue CalibrateThreshold directive. Escalate
-    /// → write escalation entries to the queue (individually or batched).
-    pub async fn act(&self, actions: &[LoopAction]) {
-        <Self as HkaskLoop>::act(self, actions).await
-    }
+    // Delegation methods removed — HkaskLoop trait impl provides tick().
 }
 
 // HkaskLoop — sense → compare → compute → act
@@ -523,16 +460,10 @@ impl HkaskLoop for MetacognitionLoop {
         Some(hkask_types::loops::dispatch::WorkerKind::Metacognition)
     }
 
-    /// Sense: read CNS health, variety counters, critical alerts, and bot status.
-    ///
-    /// Produces `Signal`s for metrics that the metacognition loop monitors:
-    /// - `variety_deficit` — total deficit across all domains vs threshold
-    /// - `critical_alerts` — count of critical CNS alerts vs threshold
-    /// - `bot_failures` — count of bots in Critical health vs threshold
-    ///
-    /// Also builds and stores a `HealthSnapshot` for use by compute/act phases.
+    /// Sense: read CNS health, variety counters, alerts, and bot status.
+    /// Builds and stores a HealthSnapshot.
     async fn sense(&self) -> Vec<Signal> {
-        info!(target: "curator.metacognition", "Starting metacognition sense phase");
+        info!(target: MC_TARGET, "Starting metacognition sense phase");
 
         let cns_health = self.context.cns().health().await;
         let cns_health_str = format_health_status(&cns_health);
@@ -553,7 +484,7 @@ impl HkaskLoop for MetacognitionLoop {
                 total_variety_deficit += deficit;
                 if deficit > self.config.thresholds.variety_deficit {
                     warn!(
-                        target: "curator.metacognition",
+                        target: MC_TARGET,
                         domain = %domain,
                         variety = variety,
                         deficit = deficit,
@@ -580,14 +511,14 @@ impl HkaskLoop for MetacognitionLoop {
         for alert in &alerts {
             match alert.severity {
                 EscalationSeverity::Warning => warn!(
-                    target: "curator.metacognition",
+                    target: MC_TARGET,
                     trigger = ?alert.trigger,
                     value = alert.value,
                     threshold = alert.threshold,
                     "Escalation policy: warning condition detected"
                 ),
                 EscalationSeverity::Critical => warn!(
-                    target: "curator.metacognition",
+                    target: MC_TARGET,
                     trigger = ?alert.trigger,
                     value = alert.value,
                     threshold = alert.threshold,
@@ -611,42 +542,31 @@ impl HkaskLoop for MetacognitionLoop {
         let _ = self.last_snapshot_tx.send_replace(Some(snapshot));
 
         // Produce afferent signals
-        let signals = vec![
-            // Variety deficit: act when total_deficit > threshold (strict >)
+        let lid = LoopId::Curation;
+        let t = &self.config.thresholds;
+        vec![
             Signal::new(
-                LoopId::Curation,
+                lid,
                 SignalMetric::MetacognitionVarietyDeficit,
                 total_variety_deficit as f64,
-                self.config.thresholds.variety_deficit as f64,
+                t.variety_deficit as f64,
             ),
-            // Critical alerts: act when count >= threshold.
-            // Use threshold - 0.5 as set-point so that count == threshold
-            // produces an AboveSetPoint deviation.
             Signal::new(
-                LoopId::Curation,
+                lid,
                 SignalMetric::MetacognitionCriticalAlerts,
                 critical_alerts.len() as f64,
-                self.config.thresholds.critical_alerts as f64 - 0.5,
+                t.critical_alerts as f64 - 0.5,
             ),
-            // Bot failures: act when count >= threshold.
-            // Same threshold - 0.5 technique as critical_alerts.
             Signal::new(
-                LoopId::Curation,
+                lid,
                 SignalMetric::MetacognitionBotFailures,
                 failed_bot_count as f64,
-                self.config.thresholds.bot_failures as f64 - 0.5,
+                t.bot_failures as f64 - 0.5,
             ),
-        ];
-
-        signals
+        ]
     }
 
-    /// Compute: produce `LoopAction`s for detected deviations.
-    ///
-    /// Maps deviations to regulatory actions:
-    /// - `metacognition_variety_deficit` AboveSetPoint → Calibrate action (threshold adjustment)
-    /// - `metacognition_critical_alerts` AboveSetPoint → Escalate action (human review)
-    /// - `metacognition_bot_failures` AboveSetPoint → Escalate action (bot attention)
+    /// Compute: map deviations to regulatory actions.
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
@@ -718,17 +638,7 @@ impl HkaskLoop for MetacognitionLoop {
         actions
     }
 
-    /// Act: execute regulatory actions by issuing CuratorDirectives and
-    /// posting escalations.
-    ///
-    /// For each `LoopAction`:
-    /// - `Calibrate` → issue `CuratorDirective::CalibrateThreshold`,
-    ///   collect escalation entry for batch processing
-    /// - `Escalate` → collect escalation entry for batch processing
-    ///
-    /// After processing all actions, escalation entries are written to the
-    /// queue either individually (if below `max_concurrent_escalations`)
-    /// or as a single consolidated `EscalationBatch` (if at/above threshold).
+    /// Act: issue CuratorDirectives and post escalations (batched if above threshold).
     async fn act(&self, actions: &[LoopAction]) {
         let mut escalation_entries: Vec<EscalationEntry> = Vec::new();
 
@@ -755,7 +665,7 @@ impl HkaskLoop for MetacognitionLoop {
             let batch = EscalationBatch::new(escalation_entries, "consolidated", threshold);
             let summary = batch.summary();
             info!(
-                target: "curator.metacognition",
+                target: MC_TARGET,
                 batch_id = %batch.id,
                 entry_count = batch.entries.len(),
                 threshold,
@@ -774,7 +684,7 @@ impl HkaskLoop for MetacognitionLoop {
                 format!("Consolidated batch: {} escalation(s)", batch.entries.len()),
             ) {
                 warn!(
-                    target: "curator.metacognition",
+                    target: MC_TARGET,
                     error = %e,
                     "Failed to add consolidated escalation batch"
                 );
@@ -790,7 +700,7 @@ impl HkaskLoop for MetacognitionLoop {
                     entry.error_context,
                 ) {
                     warn!(
-                        target: "curator.metacognition",
+                        target: MC_TARGET,
                         error = %e,
                         "Failed to add escalation"
                     );

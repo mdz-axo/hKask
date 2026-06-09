@@ -67,12 +67,12 @@ See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) for the exhaustiv
 | P2-11 | `PROJECT_STATUS.md` populated with build/test/clippy results | ✅ Done |
 | **#4** | Wire `ContractValidator::validate_terms()` into template registration path | ✅ Done |
 | **#5** | Implement `parse_markdown_catalog` / `render_workspace_yaml` / `regenerate_workspace_yaml` | ✅ Done |
+| **#6** | Add bitemporal query methods to `SqliteSpecStore` (FUT-011) | ✅ Done |
 
 ## Remaining (from HANDOFF.md)
 
 | # | Task | Priority |
 |---|------|----------|
-| 6 | Add bitemporal query methods to `SqliteSpecStore` (FUT-011) | Medium |
 | 7 | Calibrate coherence threshold (FUT-013) | Medium |
 | 8 | Populate Fowler audit and adversarial simplification inventories (P2-14/P2-15) | Low |
 

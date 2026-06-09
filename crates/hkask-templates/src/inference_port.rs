@@ -1,31 +1,81 @@
-//! Okapi LLM inference port for high-temperature templates
-//
+//! Okapi LLM inference port
+//!
 //! `InferencePort` trait lives in hkask-types (port membrane).
 //! This module provides `OkapiInference` — the concrete implementation.
 
-use crate::okapi_config::{OkapiConfig, validate_prompt};
+use crate::okapi_config::{validate_prompt, OkapiConfig};
 use futures_util::StreamExt;
-use hkask_types::LLMParameters;
 use hkask_types::cns::RetryConfig;
 use hkask_types::ports::{
     CircuitBreakerPort, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
-    InferenceUsage, TokenProb, TokenProbability,
+    InferenceUsage, StructuredToolCall, TokenProb, TokenProbability,
 };
+use hkask_types::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, warn};
 
-/// Okapi-backed inference implementation
 pub struct OkapiInference {
     model: String,
     config: OkapiConfig,
     retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
-    /// Circuit breaker for resilience
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
-    /// Prompt cache for skipping redundant LLM calls
     prompt_cache: Option<Arc<crate::prompt_cache::PromptCache>>,
 }
+
+// ── Private helpers ────────────────────────────────────────────────────────
+
+/// Map Okapi raw tool calls to `StructuredToolCall`
+fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
+    calls
+        .iter()
+        .map(|tc| {
+            let (server, tool) = tc
+                .function
+                .name
+                .split_once('/')
+                .map(|(s, t)| (s.to_string(), t.to_string()))
+                .unwrap_or_else(|| (String::new(), tc.function.name.clone()));
+            StructuredToolCall {
+                server,
+                tool,
+                args: tc.function.arguments.clone(),
+                call_id: tc.id.clone(),
+            }
+        })
+        .collect()
+}
+
+/// Build an `OkapiRequest` from LLM parameters
+fn build_request(
+    model: &str,
+    prompt: &str,
+    images: Option<Vec<String>>,
+    params: &LLMParameters,
+    stream: Option<bool>,
+    n_probs: Option<i32>,
+) -> OkapiRequest {
+    OkapiRequest {
+        model: model.to_string(),
+        messages: vec![Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+            images,
+        }],
+        temperature: params.temperature,
+        top_p: params.top_p,
+        top_k: params.top_k as i32,
+        frequency_penalty: params.frequency_penalty,
+        presence_penalty: params.presence_penalty,
+        max_tokens: params.max_tokens as i32,
+        seed: params.seed,
+        n_probs,
+        stream,
+    }
+}
+
+// ── OkapiInference core ────────────────────────────────────────────────────
 
 impl OkapiInference {
     pub fn new(model: &str, config: OkapiConfig) -> Result<Self, InferenceError> {
@@ -33,7 +83,6 @@ impl OkapiInference {
             .build_client()
             .map(Arc::new)
             .map_err(|e| InferenceError::Connection(e.to_string()))?;
-
         Ok(Self {
             model: model.to_string(),
             retry_config: RetryConfig::default(),
@@ -44,23 +93,15 @@ impl OkapiInference {
         })
     }
 
-    /// Execute HTTP request to Okapi API
     async fn execute_request(
         &self,
         request: OkapiRequest,
     ) -> Result<InferenceResult, InferenceError> {
-        // Check circuit breaker before request
         if let Some(ref cb) = self.circuit_breaker
             && !cb.allow_request()
         {
-            tracing::debug!(
-                target: "cns.inference",
-                model = %self.model,
-                "Circuit breaker open, rejecting request"
-            );
-            return Err(InferenceError::Connection(
-                "Circuit breaker is open".to_string(),
-            ));
+            tracing::debug!(target: "cns.inference", model = %self.model, "Circuit breaker open");
+            return Err(InferenceError::Connection("Circuit breaker is open".into()));
         }
 
         let mut req = self
@@ -68,7 +109,6 @@ impl OkapiInference {
             .post(format!("{}/api/generate", self.config.base_url))
             .json(&request);
 
-        // Add authorization header if configured
         if let Some(auth_header) = self.config.get_authorization_header() {
             req = req.header("Authorization", auth_header);
         }
@@ -81,37 +121,30 @@ impl OkapiInference {
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
-
-            // Record failure in circuit breaker
             if let Some(ref cb) = self.circuit_breaker {
                 cb.record_failure();
             }
-
-            // Check if retryable
-            if self.retry_config.is_retryable_status(status.as_u16()) {
-                return Err(InferenceError::Connection(format!(
-                    "Retryable status {}: {}",
-                    status, error_text
-                )));
-            }
-
             return Err(InferenceError::Connection(format!(
-                "Okapi API returned status {}: {}",
-                status, error_text
+                "{}Okapi status {}: {}",
+                if self.retry_config.is_retryable_status(status.as_u16()) {
+                    "Retryable "
+                } else {
+                    ""
+                },
+                status,
+                error_text,
             )));
         }
 
         let okapi_response: OkapiResponse = response
             .json()
             .await
-            .map_err(|e| InferenceError::Json(format!("Okapi JSON parse error: {}", e)))?;
+            .map_err(|e| InferenceError::Json(format!("Okapi JSON parse: {}", e)))?;
 
-        let choice = okapi_response
-            .choices
-            .first()
-            .ok_or_else(|| InferenceError::Generation("Empty response from Okapi".to_string()))?;
+        let choice = okapi_response.choices.first().ok_or_else(|| {
+            InferenceError::Generation("Empty response from Okapi".to_string())
+        })?;
 
-        // Extract token probabilities if available
         let token_probabilities = choice.token_probs.as_ref().map(|probs| {
             probs
                 .iter()
@@ -121,41 +154,20 @@ impl OkapiInference {
                     top_k: p
                         .top_k
                         .iter()
-                        .map(|tk| TokenProb {
-                            token: tk.token.clone(),
-                            prob: tk.prob,
-                        })
+                        .map(|tk| TokenProb { token: tk.token.clone(), prob: tk.prob })
                         .collect(),
                 })
                 .collect()
         });
 
-        // Record success in circuit breaker
         if let Some(ref cb) = self.circuit_breaker {
             cb.record_success();
         }
 
-        // Extract structured tool calls if present (native function calling)
         let tool_calls = choice
             .tool_calls
             .as_ref()
-            .map(|calls| {
-                calls
-                    .iter()
-                    .map(|tc| hkask_types::ports::StructuredToolCall {
-                        server: tc.function.name.split('/').next().unwrap_or("").to_string(),
-                        tool: tc
-                            .function
-                            .name
-                            .split('/')
-                            .nth(1)
-                            .unwrap_or(&tc.function.name)
-                            .to_string(),
-                        args: tc.function.arguments.clone(),
-                        call_id: tc.id.clone(),
-                    })
-                    .collect()
-            })
+            .map(|calls| map_tool_calls(calls))
             .unwrap_or_default();
 
         Ok(InferenceResult {
@@ -172,37 +184,33 @@ impl OkapiInference {
         })
     }
 
-    /// Execute request with retry logic
     async fn execute_with_retry(
         &self,
         request: OkapiRequest,
     ) -> Result<InferenceResult, InferenceError> {
         let mut last_error = None;
-
         for attempt in 0..=self.retry_config.max_retries {
             match self.execute_request(request.clone()).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
                     last_error = Some(e);
-
                     if attempt < self.retry_config.max_retries {
                         let delay_ms = self.retry_config.delay_for_attempt(attempt);
                         warn!(
                             target: "hkask.inference",
-                            attempt = %attempt,
-                            delay_ms = %delay_ms,
-                            error = ?last_error,
-                            "Retryable error, waiting before retry"
+                            %attempt, %delay_ms, error = ?last_error,
+                            "Retryable error, waiting"
                         );
                         tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                     }
                 }
             }
         }
-
         Err(last_error.expect("retry loop always records the last error"))
     }
 }
+
+// ── InferencePort impl ─────────────────────────────────────────────────────
 
 impl InferencePort for OkapiInference {
     fn generate(
@@ -215,73 +223,32 @@ impl InferencePort for OkapiInference {
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
         Box::pin(async move {
-            // Validate input
             validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
-            // Check prompt cache before API call
+            // Cache check
             if let Some(ref cache) = self.prompt_cache {
-                let cache_key = crate::prompt_cache::PromptCache::generate_key(
+                let ck = crate::prompt_cache::PromptCache::generate_key(
                     &prompt,
                     &self.model,
                     &parameters,
                 );
-                match cache.get(&cache_key) {
-                    Ok(result) => {
-                        info!(
-                            target: "hkask.inference",
-                            model = %result.model,
-                            cache_key = %cache_key,
-                            "Cache hit - returning cached result"
-                        );
-                        return Ok(result);
-                    }
-                    Err(crate::prompt_cache::CacheError::Miss) => {
-                        // Cache miss, proceed with API call
-                    }
-                    Err(e) => {
-                        warn!(
-                            target: "hkask.inference",
-                            error = %e,
-                            "Cache lookup error, proceeding with API call"
-                        );
-                    }
+                if let Ok(result) = cache.get(&ck) {
+                    info!(target: "hkask.inference", model = %result.model, cache_key = %ck, "Cache hit");
+                    return Ok(result);
                 }
             }
 
-            let request = OkapiRequest {
-                model: self.model.clone(),
-                messages: vec![Message {
-                    role: "user".to_string(),
-                    content: prompt.clone(),
-                    images: None,
-                }],
-                temperature: parameters.temperature,
-                top_p: parameters.top_p,
-                top_k: parameters.top_k as i32,
-                frequency_penalty: parameters.frequency_penalty,
-                presence_penalty: parameters.presence_penalty,
-                max_tokens: parameters.max_tokens as i32,
-                seed: parameters.seed,
-                n_probs: Some(5),
-                stream: None,
-            };
-
+            let request = build_request(&self.model, &prompt, None, &parameters, None, Some(5));
             let result = self.execute_with_retry(request).await?;
 
-            // Cache the successful result
+            // Cache store
             if let Some(ref cache) = self.prompt_cache {
-                let cache_key = crate::prompt_cache::PromptCache::generate_key(
+                let ck = crate::prompt_cache::PromptCache::generate_key(
                     &prompt,
                     &self.model,
                     &parameters,
                 );
-                if let Err(e) = cache.put(&cache_key, &prompt, &self.model, &result) {
-                    warn!(
-                        target: "hkask.inference",
-                        error = %e,
-                        "Failed to cache inference result"
-                    );
-                }
+                let _ = cache.put(&ck, &prompt, &self.model, &result);
             }
 
             info!(
@@ -291,15 +258,10 @@ impl InferencePort for OkapiInference {
                 finish_reason = %result.finish_reason,
                 "Inference completed"
             );
-
             Ok(result)
         })
     }
 
-    /// Stream inference output from Okapi via SSE.
-    ///
-    /// Sends the request with `stream: true` and parses Server-Sent Events
-    /// (OpenAI-compatible format) into `InferenceStreamChunk` items.
     fn generate_stream(
         &self,
         prompt: &str,
@@ -326,31 +288,10 @@ impl InferencePort for OkapiInference {
         let parameters = parameters.clone();
         let model_override = model_override.map(|s| s.to_string());
         Box::pin(async move {
-            // Validate input
             validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
-
             let model_id = model_override.unwrap_or_else(|| self.model.clone());
-
-            let request = OkapiRequest {
-                model: model_id.clone(),
-                messages: vec![Message {
-                    role: "user".to_string(),
-                    content: prompt.clone(),
-                    images: None,
-                }],
-                temperature: parameters.temperature,
-                top_p: parameters.top_p,
-                top_k: parameters.top_k as i32,
-                frequency_penalty: parameters.frequency_penalty,
-                presence_penalty: parameters.presence_penalty,
-                max_tokens: parameters.max_tokens as i32,
-                seed: parameters.seed,
-                n_probs: Some(5),
-                stream: None,
-            };
-
+            let request = build_request(&model_id, &prompt, None, &parameters, None, Some(5));
             let result = self.execute_with_retry(request).await?;
-
             info!(
                 target: "hkask.inference",
                 model = %result.model,
@@ -358,18 +299,15 @@ impl InferencePort for OkapiInference {
                 finish_reason = %result.finish_reason,
                 "Inference with model completed"
             );
-
             Ok(result)
         })
     }
 }
 
-// Direct impl (not part of InferencePort trait)
+// ── Direct impl (not part of InferencePort trait) ──────────────────────────
+
 impl OkapiInference {
-    /// Stream inference output from Okapi via SSE, with optional model override.
-    ///
-    /// Sends the request with `stream: true` and parses Server-Sent Events
-    /// (OpenAI-compatible format) into `InferenceStreamChunk` items.
+    /// Stream inference with optional model override (SSE parsing).
     pub fn generate_stream_with_model(
         &self,
         prompt: &str,
@@ -393,38 +331,20 @@ impl OkapiInference {
 
         Box::pin(
             futures_util::stream::once(async move {
-                // Build and send the streaming request
-                let request = OkapiRequest {
-                    model: model_id.clone(),
-                    messages: vec![Message {
-                        role: "user".to_string(),
-                        content: prompt.clone(),
-                        images: None,
-                    }],
-                    temperature: parameters.temperature,
-                    top_p: parameters.top_p,
-                    top_k: parameters.top_k as i32,
-                    frequency_penalty: parameters.frequency_penalty,
-                    presence_penalty: parameters.presence_penalty,
-                    max_tokens: parameters.max_tokens as i32,
-                    seed: parameters.seed,
-                    n_probs: None,
-                    stream: Some(true),
-                };
+                let request = build_request(
+                    &model_id, &prompt, None, &parameters, Some(true), None,
+                );
 
                 let mut req = client
                     .post(format!("{}/api/generate", base_url))
                     .json(&request);
-
                 if let Some(ref header) = auth_header {
                     req = req.header("Authorization", header);
                 }
 
-                let response = match req
-                    .send()
-                    .await
-                    .map_err(|e| InferenceError::Connection(e.to_string()))
-                {
+                let response = match req.send().await.map_err(|e| {
+                    InferenceError::Connection(e.to_string())
+                }) {
                     Ok(r) => r,
                     Err(e) => return vec![Err(e)],
                 };
@@ -433,17 +353,14 @@ impl OkapiInference {
                 if !status.is_success() {
                     let error_text = response.text().await.unwrap_or_default();
                     return vec![Err(InferenceError::Connection(format!(
-                        "Okapi streaming returned status {}: {}",
+                        "Okapi streaming status {}: {}",
                         status, error_text
                     )))];
                 }
 
-                // Read the full SSE/NDJSON response and parse into chunks.
-                let body = match response
-                    .text()
-                    .await
-                    .map_err(|e| InferenceError::Connection(e.to_string()))
-                {
+                let body = match response.text().await.map_err(|e| {
+                    InferenceError::Connection(e.to_string())
+                }) {
                     Ok(b) => b,
                     Err(e) => return vec![Err(e)],
                 };
@@ -454,13 +371,11 @@ impl OkapiInference {
                     if line.is_empty() || line == "data: [DONE]" {
                         continue;
                     }
-                    // Strip "data: " prefix if present (SSE format)
                     let json_str = line.strip_prefix("data: ").unwrap_or(line);
                     let chunk: StreamChunk = match serde_json::from_str(json_str) {
                         Ok(c) => c,
                         Err(_) => continue,
                     };
-
                     let choice = match chunk.choices.first() {
                         Some(c) => c,
                         None => continue,
@@ -468,35 +383,11 @@ impl OkapiInference {
 
                     let text_delta = choice.delta.content.clone().unwrap_or_default();
                     let finish_reason = choice.finish_reason.clone();
-
                     let tool_calls = choice
                         .tool_calls
                         .as_ref()
-                        .map(|calls| {
-                            calls
-                                .iter()
-                                .map(|tc| hkask_types::ports::StructuredToolCall {
-                                    server: tc
-                                        .function
-                                        .name
-                                        .split('/')
-                                        .next()
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    tool: tc
-                                        .function
-                                        .name
-                                        .split('/')
-                                        .nth(1)
-                                        .unwrap_or(&tc.function.name)
-                                        .to_string(),
-                                    args: tc.function.arguments.clone(),
-                                    call_id: tc.id.clone(),
-                                })
-                                .collect()
-                        })
+                        .map(|calls| map_tool_calls(calls))
                         .unwrap_or_default();
-
                     let usage = chunk.usage.map(|u| InferenceUsage {
                         prompt_tokens: u.prompt_tokens,
                         completion_tokens: u.completion_tokens,
@@ -516,7 +407,6 @@ impl OkapiInference {
                     }));
                 }
 
-                // If no chunks parsed, return empty final chunk
                 if chunks.is_empty() {
                     chunks.push(Ok(InferenceStreamChunk {
                         text_delta: String::new(),
@@ -534,13 +424,7 @@ impl OkapiInference {
         )
     }
 
-    /// Generate text from images (vision/multimodal) via Okapi.
-    ///
-    /// Sends base64-encoded images along with a text prompt to a vision-capable
-    /// model. Not part of the `InferencePort` trait — this is a direct method
-    /// for multimodal inference that doesn't fit the text-only trait signature.
-    ///
-    /// Falls back to `fallback_model` if the primary model fails.
+    /// Vision/multimodal inference via Okapi. Falls back to `fallback_model` on failure.
     pub async fn generate_vision(
         &self,
         prompt: &str,
@@ -550,7 +434,6 @@ impl OkapiInference {
         parameters: &LLMParameters,
     ) -> Result<InferenceResult, InferenceError> {
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
-
         if images.is_empty() {
             return Err(InferenceError::Generation(
                 "No images provided for vision inference".to_string(),
@@ -560,24 +443,8 @@ impl OkapiInference {
         let model_id = model_override
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.model.clone());
-
-        let request = OkapiRequest {
-            model: model_id.clone(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-                images: Some(images.to_vec()),
-            }],
-            temperature: parameters.temperature,
-            top_p: parameters.top_p,
-            top_k: parameters.top_k as i32,
-            frequency_penalty: parameters.frequency_penalty,
-            presence_penalty: parameters.presence_penalty,
-            max_tokens: parameters.max_tokens as i32,
-            seed: parameters.seed,
-            n_probs: Some(5),
-            stream: None,
-        };
+        let request =
+            build_request(&model_id, prompt, Some(images.to_vec()), parameters, None, Some(5));
 
         match self.execute_with_retry(request).await {
             Ok(result) => {
@@ -591,38 +458,23 @@ impl OkapiInference {
                 Ok(result)
             }
             Err(primary_err) => {
-                if let Some(fallback) = fallback_model {
-                    if fallback != model_id {
-                        warn!(
-                            target: "hkask.inference",
-                            primary_model = %model_id,
-                            fallback_model = %fallback,
-                            error = %primary_err,
-                            "Primary vision model failed, attempting failover"
-                        );
-
-                        let fallback_request = OkapiRequest {
-                            model: fallback.to_string(),
-                            messages: vec![Message {
-                                role: "user".to_string(),
-                                content: prompt.to_string(),
-                                images: Some(images.to_vec()),
-                            }],
-                            temperature: parameters.temperature,
-                            top_p: parameters.top_p,
-                            top_k: parameters.top_k as i32,
-                            frequency_penalty: parameters.frequency_penalty,
-                            presence_penalty: parameters.presence_penalty,
-                            max_tokens: parameters.max_tokens as i32,
-                            seed: parameters.seed,
-                            n_probs: Some(5),
-                            stream: None,
-                        };
-
-                        self.execute_with_retry(fallback_request).await
-                    } else {
-                        Err(primary_err)
-                    }
+                if let Some(fallback) = fallback_model
+                    && fallback != model_id
+                {
+                    warn!(
+                        target: "hkask.inference",
+                        %model_id, fallback_model = %fallback, error = %primary_err,
+                        "Primary vision model failed, failover"
+                    );
+                    let fb_req = build_request(
+                        fallback,
+                        prompt,
+                        Some(images.to_vec()),
+                        parameters,
+                        None,
+                        Some(5),
+                    );
+                    self.execute_with_retry(fb_req).await
                 } else {
                     Err(primary_err)
                 }
@@ -631,9 +483,8 @@ impl OkapiInference {
     }
 }
 
-// Okapi wire-format types (private)
+// ── Okapi wire-format types (private) ──────────────────────────────────────
 
-/// Okapi API request structure
 #[derive(Debug, Clone, Serialize)]
 struct OkapiRequest {
     model: String,
@@ -645,14 +496,11 @@ struct OkapiRequest {
     presence_penalty: f32,
     max_tokens: i32,
     seed: Option<u64>,
-    /// Number of top token probabilities to return
     n_probs: Option<i32>,
-    /// Enable streaming (SSE) response from the server
     #[serde(default, skip_serializing_if = "Option::is_none")]
     stream: Option<bool>,
 }
 
-/// Okapi API response structure
 #[derive(Debug, Deserialize)]
 struct OkapiResponse {
     model: String,
@@ -660,20 +508,16 @@ struct OkapiResponse {
     usage: OkapiUsage,
 }
 
-/// Okapi API choice structure
 #[derive(Debug, Deserialize)]
 struct Choice {
     message: Message,
     finish_reason: String,
-    /// Token probabilities if requested
     #[serde(default, rename = "token_probs")]
     token_probs: Option<Vec<RawTokenProb>>,
-    /// Structured tool calls from native function calling
     #[serde(default)]
     tool_calls: Option<Vec<RawToolCall>>,
 }
 
-/// Wire-format token usage from Okapi API
 #[derive(Debug, Deserialize)]
 struct OkapiUsage {
     prompt_tokens: u32,
@@ -681,7 +525,6 @@ struct OkapiUsage {
     total_tokens: u32,
 }
 
-/// Raw token probability from Okapi API
 #[derive(Debug, Deserialize)]
 struct RawTokenProb {
     token: String,
@@ -696,40 +539,31 @@ struct RawTokenProbTopK {
     prob: f64,
 }
 
-/// Wire-format tool call from Okapi API (OpenAI-compatible function calling)
 #[derive(Debug, Deserialize)]
 struct RawToolCall {
-    /// Unique identifier for the tool call (e.g., "call_abc123")
     id: Option<String>,
-    /// The function call details
     #[serde(rename = "function")]
     function: RawFunctionCall,
 }
 
-/// Wire-format function call within a tool call
 #[derive(Debug, Deserialize)]
 struct RawFunctionCall {
-    /// The function name, which may be "server/tool" or just "tool"
     name: String,
-    /// The JSON arguments for the function call
     #[serde(default)]
     arguments: serde_json::Value,
 }
 
-/// Okapi API message structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Message {
     role: String,
     content: String,
-    /// Base64-encoded images for multimodal/vision requests.
-    /// Ollama's chat API accepts `images` per-message.
+    /// Base64-encoded images for multimodal/vision requests (Ollama chat API `images` field).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     images: Option<Vec<String>>,
 }
 
-// ── SSE streaming response types ──────────────────────────────────────────
+// ── SSE streaming response types ───────────────────────────────────────────
 
-/// SSE chunk from Okapi streaming endpoint (OpenAI-compatible format).
 #[derive(Debug, Deserialize)]
 struct StreamChunk {
     choices: Vec<StreamChoice>,
@@ -738,7 +572,6 @@ struct StreamChunk {
     usage: Option<OkapiUsage>,
 }
 
-/// A single choice within a streaming chunk.
 #[derive(Debug, Deserialize)]
 struct StreamChoice {
     delta: StreamDelta,
@@ -747,7 +580,6 @@ struct StreamChoice {
     tool_calls: Option<Vec<RawToolCall>>,
 }
 
-/// Content delta within a streaming chunk.
 #[derive(Debug, Deserialize)]
 struct StreamDelta {
     #[serde(default)]

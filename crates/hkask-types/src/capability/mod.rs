@@ -9,45 +9,20 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 /// Capability-domain alias for SYSTEM_MAX_RECURSION.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
-/// Verified authentication context — the caller's identity and capability token.
-///
-/// Carries the verified `DelegationToken` and `WebID` of the caller. When
-/// provided to service operations, the service uses this identity to derive
-/// operation-specific capability tokens (via `CapabilityChecker::grant_*`)
-/// instead of minting ad-hoc system-level tokens from config secrets.
-///
-/// This type lives in the domain crate because it represents a verified
-/// identity boundary — not a surface-specific concern. Both API (via
-/// middleware verification) and CLI (via keystore secret resolution) produce
-/// `AuthContext` through different mechanisms but arrive at the same type.
+/// Verified authentication context — caller's identity and capability token.
+/// Both API (middleware verification) and CLI (keystore resolution) produce this type.
 #[derive(Debug, Clone)]
 pub struct AuthContext {
-    /// The verified capability token.
     pub token: super::DelegationToken,
-    /// The WebID of the token holder.
     pub webid: super::WebID,
 }
 
-/// F-SYN-010: typed attenuation level (newtype wrapper around `u8`).
-///
-/// The inner `u8` is a *system constant* — the absolute maximum is
-/// `SYSTEM_MAX_RECURSION = 7` (see FUT-001 for the open question of
-/// whether this is a hard constant or a configurable cap). The
-/// `new()` constructor enforces the cap; `get()` and `as_u8()` are
-/// the only ways to read the inner value.
-///
-/// New code should use this type instead of raw `u8` for attenuation
-/// levels. Existing fields (`DelegationToken.attenuation_level`,
-/// `DelegationToken.max_attenuation`) still use `u8` for
-/// serde-stability and cross-crate compatibility; migrating them
-/// is a separate PR (one finding per PR).
+/// Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AttenuationLevel(u8);
 
 impl AttenuationLevel {
-    /// Construct an `AttenuationLevel` from a raw `u8`, enforcing the
-    /// system cap. Returns `Err` for any value `> SYSTEM_MAX_RECURSION`.
     pub fn new(level: u8) -> Result<Self, AttenuationError> {
         if level > SYSTEM_MAX_RECURSION {
             Err(AttenuationError::ExceedsSystemMax {
@@ -58,20 +33,13 @@ impl AttenuationLevel {
             Ok(Self(level))
         }
     }
-
-    /// Construct without checking the cap. **For internal use only**
-    /// (e.g. deserialisation paths that trust the wire format).
-    /// Prefer `new()` for new code.
+    /// Unchecked construction — for deserialisation paths that trust the wire format.
     pub fn unchecked(level: u8) -> Self {
         Self(level)
     }
-
-    /// The inner value, as a `u8`.
     pub fn as_u8(&self) -> u8 {
         self.0
     }
-
-    /// The system-wide maximum attenuation level.
     pub const fn max() -> u8 {
         SYSTEM_MAX_RECURSION
     }
@@ -83,10 +51,8 @@ impl std::fmt::Display for AttenuationLevel {
     }
 }
 
-/// Errors from [`AttenuationLevel::new`].
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AttenuationError {
-    /// The supplied level exceeds the system cap (`SYSTEM_MAX_RECURSION = 7`).
     #[error("attenuation level {level} exceeds system maximum {max}")]
     ExceedsSystemMax { level: u8, max: u8 },
 }
@@ -121,10 +87,8 @@ fn wid(w: &WebID) -> String {
     w.to_string()
 }
 
-/// Parsed colon-separated capability string (e.g. `"tool:inference:call"`).
-/// Single source of truth — all parsing must use [`CapabilitySpec::parse`].
-/// 2-part: `"resource:action"` → `resource_id = full string`
-/// 3-part: `"resource:domain:action"` → `resource_id = domain`
+/// Parsed colon-separated capability spec (e.g. `"tool:inference:call"`).
+/// 2-part: `"resource:action"` → `resource_id = full string`. 3-part: `"resource:domain:action"` → `resource_id = domain`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapabilitySpec {
     pub resource: DelegationResource,
@@ -133,37 +97,22 @@ pub struct CapabilitySpec {
 }
 
 impl CapabilitySpec {
-    /// Parse a colon-separated capability string into its typed components.
-    ///
-    /// Accepted formats:
-    /// - `"resource:action"` (2 parts) — `resource_id` is the full string
-    /// - `"resource:domain:action"` (3 parts) — `resource_id` is the domain
-    ///
-    /// Unknown action names fall back to `DelegationAction::Execute`.
-    /// The `"memory"` prefix is accepted as an alias for `DelegationResource::Registry`.
+    /// Parse `"resource:action"` (2 parts) or `"resource:domain:action"` (3 parts).
+    /// Unknown actions fall back to `Execute`. `"memory"` alias → `Registry`.
     pub fn parse(capability: &str) -> Result<Self, CapabilityParseError> {
         let parts: Vec<&str> = capability.split(':').collect();
-
         if parts.len() < 2 || parts.len() > 3 {
             return Err(CapabilityParseError::InvalidFormat(capability.to_string()));
         }
-
         let resource = DelegationResource::parse_str(parts[0])
             .ok_or_else(|| CapabilityParseError::UnknownResource(parts[0].to_string()))?;
-
-        // For 3-part capabilities (resource:domain:action), the resource_id is the domain.
-        // For 2-part capabilities (resource:action), the resource_id is the full string.
         let resource_id = if parts.len() == 3 {
             parts[1].to_string()
         } else {
             capability.to_string()
         };
-
-        let action_str = parts
-            .last()
-            .expect("split always produces at least one element");
-        let action = DelegationAction::parse_str(action_str).unwrap_or(DelegationAction::Execute);
-
+        let action =
+            DelegationAction::parse_str(parts.last().unwrap()).unwrap_or(DelegationAction::Execute);
         Ok(Self {
             resource,
             resource_id,
@@ -192,17 +141,16 @@ pub enum DelegationResource {
 impl DelegationResource {
     pub fn as_str(&self) -> &'static str {
         match self {
-            DelegationResource::Tool => "tool",
-            DelegationResource::Template => "template",
-            DelegationResource::Registry => "registry",
+            Self::Tool => "tool",
+            Self::Template => "template",
+            Self::Registry => "registry",
         }
     }
-
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.split(':').next() {
-            Some("tool") => Some(DelegationResource::Tool),
-            Some("template") => Some(DelegationResource::Template),
-            Some("registry") | Some("memory") => Some(DelegationResource::Registry),
+            Some("tool") => Some(Self::Tool),
+            Some("template") => Some(Self::Template),
+            Some("registry") | Some("memory") => Some(Self::Registry),
             _ => None,
         }
     }
@@ -218,50 +166,30 @@ pub enum DelegationAction {
 impl DelegationAction {
     pub fn as_str(&self) -> &'static str {
         match self {
-            DelegationAction::Read => "read",
-            DelegationAction::Write => "write",
-            DelegationAction::Execute => "execute",
+            Self::Read => "read",
+            Self::Write => "write",
+            Self::Execute => "execute",
         }
     }
-
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "read" => Some(DelegationAction::Read),
-            "write" => Some(DelegationAction::Write),
-            "execute" => Some(DelegationAction::Execute),
+            "read" => Some(Self::Read),
+            "write" => Some(Self::Write),
+            "execute" => Some(Self::Execute),
             _ => None,
         }
     }
-
-    /// Whether this action permits write-level access.
-    ///
-    /// Only `Write` and `Execute` grant write-level authority.
-    /// `Read` tokens are read-only and must be rejected for store operations.
+    /// `Write` and `Execute` grant write-level; `Read` is read-only.
     pub fn permits_write(&self) -> bool {
-        !matches!(self, DelegationAction::Read)
+        !matches!(self, Self::Read)
     }
-
-    /// Whether this action permits read-level access.
-    ///
-    /// `Read` and `Execute` grant read authority; `Write` also implies read.
+    /// All three actions grant read authority.
     pub fn permits_read(&self) -> bool {
-        matches!(
-            self,
-            DelegationAction::Read | DelegationAction::Execute | DelegationAction::Write
-        )
+        matches!(self, Self::Read | Self::Execute | Self::Write)
     }
 }
 
-/// Derive the capability shorthand for an MCP server ID.
-///
-/// Maps `hkask-mcp-<domain>` to `tool:<domain>:execute`.
-/// For example, `hkask-mcp-cns` → `tool:cns:execute`.
-///
-/// This bridges the MCP namespace (server IDs) and the OCAP capability namespace.
-/// Agent definitions declare capabilities like `tool:cns:emit`, and this function
-/// derives what capability is required to use tools from a given server.
-///
-/// Returns `None` if the server ID doesn't follow the `hkask-mcp-` convention.
+/// Derive capability shorthand from MCP server ID: `hkask-mcp-<domain>` → `tool:<domain>:execute`. Returns `None` if not `hkask-mcp-` prefix.
 pub fn capability_from_server_id(server_id: &str) -> Option<String> {
     server_id
         .strip_prefix("hkask-mcp-")
@@ -269,22 +197,8 @@ pub fn capability_from_server_id(server_id: &str) -> Option<String> {
 }
 
 /// Check whether a token's capability covers a required capability.
-///
-/// Two capabilities match if they share the same resource type and domain,
-/// and the token's action level is sufficient for the required action:
-///
-/// - `tool:cns:execute` covers `tool:cns:execute` (exact match)
-/// - `tool:cns:execute` covers `tool:cns:write` (same domain, execute ≥ write)
-/// - `tool:cns:execute` covers `tool:cns:read` (execute ≥ read)
-/// - `tool:cns:read` does **not** cover `tool:cns:execute` (read ≱ execute)
-/// - `tool:cns:write` covers `tool:cns:read` (write ≥ read) but not `tool:cns:execute`
-/// - `tool:cns:execute` does **not** cover `tool:semantic:execute` (different domain)
-///
-/// Note: Unknown action strings in capability specs default to `Execute`.
-/// For example, `"tool:cns:emit"` parses as `{resource: Tool, resource_id: "cns", action: Execute}`.
-///
-/// If either string cannot be parsed as a capability spec, falls back to exact
-/// string comparison.
+/// Action hierarchy: Execute ≥ Write ≥ Read. Different domain → no match.
+/// Unknown actions fall back to `Execute`. Falls back to exact string compare on parse failure.
 pub fn capabilities_match(token_capability: &str, required_capability: &str) -> bool {
     let token_spec = match CapabilitySpec::parse(token_capability) {
         Ok(s) => s,
@@ -348,7 +262,7 @@ struct SigningPayload {
     caveats: Vec<Caveat>,
 }
 
-/// Builder for constructing delegation tokens. Each method returns Self.
+/// Builder for constructing delegation tokens.
 pub struct DelegationTokenBuilder {
     resource: DelegationResource,
     resource_id: String,
@@ -470,7 +384,6 @@ impl DelegationToken {
         hex::encode(hasher.finalize())
     }
 
-    /// HMAC-SHA256.
     fn sign_payload(payload: &SigningPayload, secret: &[u8]) -> String {
         let mut builder = hmac_ops::HmacBuilder::new(secret);
         builder.update(payload.id.as_bytes());
@@ -487,8 +400,7 @@ impl DelegationToken {
         builder.finalize_hex()
     }
 
-    /// Constant-time comparison to prevent timing attacks.
-    /// Also aliased as `verify_cryptographic` for paxos-verify compatibility.
+    /// Constant-time HMAC verification. Also aliased as `verify_cryptographic`.
     pub fn verify(&self, secret: &[u8]) -> bool {
         let payload = SigningPayload {
             id: self.id.clone(),
@@ -510,29 +422,23 @@ impl DelegationToken {
             .map(|exp| current_time > exp)
             .unwrap_or(false)
     }
-
     pub fn holder(&self) -> WebID {
         self.delegated_to
     }
-
     pub fn issuer(&self) -> WebID {
         self.delegated_from
     }
 
     pub fn to_base64(&self) -> Result<String, serde_json::Error> {
-        let json = serde_json::to_string(self)?;
-        Ok(b64(json.as_bytes()))
+        Ok(b64(serde_json::to_string(self)?.as_bytes()))
     }
-
     pub fn from_base64(encoded: &str) -> Result<Self, String> {
         serde_json::from_slice(&de64(encoded)?).map_err(|e| e.to_string())
     }
-
     pub fn can_attenuate(&self) -> bool {
         self.attenuation_level < self.max_attenuation
     }
-
-    /// 1-hour expiry from `current_time`.
+    /// Attenuate with 1-hour expiry from `current_time`.
     pub fn attenuate(
         &self,
         new_to: WebID,
@@ -579,7 +485,6 @@ impl DelegationToken {
         Some(builder.sign(secret))
     }
 
-    /// Check if this token is valid for a given resource and action
     pub fn is_valid_for(
         &self,
         resource: DelegationResource,
@@ -588,36 +493,22 @@ impl DelegationToken {
     ) -> bool {
         self.resource == resource && self.resource_id == resource_id && self.action == action
     }
-
-    /// Check if this token grants access to a resource type (regardless of specific ID)
     pub fn grants_resource(&self, resource: DelegationResource) -> bool {
         self.resource == resource
     }
-
-    /// Validate context nonce matches expected execution context
     pub fn validate_context_nonce(&self, expected_context: &str) -> bool {
-        // Context nonce must start with expected context (allows attenuation chain)
         self.context_nonce.starts_with(expected_context)
     }
-
-    /// Get the root context nonce (before any attenuation)
+    /// Extract root nonce from attenuation chain (`"root-attenuated-uuid-..."`).
     pub fn root_context_nonce(&self) -> &str {
-        // Extract root nonce from attenuation chain (format: "root-attenuated-uuid-attenuated-uuid...")
         self.context_nonce
             .split("-attenuated-")
             .next()
             .unwrap_or(&self.context_nonce)
     }
 
-    /// Verify attenuation chain from root nonce to expected level
-    ///
-    /// Returns true if:
-    /// - Root nonce matches expected_root
-    /// - attenuation_level <= expected_level
-    /// - max_attenuation does not exceed SYSTEM_MAX_ATTENUATION
-    /// - Nonce format is valid (root-attenuated-uuid-attenuated-uuid...)
+    /// Verify attenuation chain: root nonce matches, level ≤ expected, max ≤ SYSTEM_MAX_ATTENUATION.
     pub fn verify_attenuation_chain(&self, expected_root: &str, expected_level: u8) -> bool {
-        // Reject tokens whose self-attested max_attenuation exceeds the system limit
         if self.max_attenuation > SYSTEM_MAX_ATTENUATION {
             return false;
         }
@@ -636,56 +527,23 @@ impl DelegationToken {
         self.attenuation_level <= expected_level
     }
 
-    /// Verify capability cryptographically (for distributed/Paxos verification)
-    ///
-    /// This method enables cross-machine capability verification without a central authority.
-    /// Each machine can verify capabilities independently using the shared secret.
-    ///
-    /// # Arguments
-    /// * `secret` — Shared HMAC secret (distributed via secure channel)
-    ///
-    /// # Returns
-    /// * `true` — Signature is valid
-    /// * `false` — Signature invalid or tampered
+    /// Cryptographic verification for distributed/Paxos use.
     pub fn verify_cryptographic(&self, secret: &[u8]) -> bool {
         self.verify(secret)
     }
-
-    /// Add a caveat to this capability token
-    ///
-    /// Caveats are additive restrictions on the capability. Each caveat
-    /// adds a new constraint that must be satisfied for the capability to be valid.
-    ///
-    /// # Arguments
-    /// * `caveat` — The caveat to add
-    /// * `secret` — Secret key for re-signing the token
-    ///
-    /// # Returns
-    /// A new `DelegationToken` with the caveat added and re-signed
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
     }
-
-    /// Check if token has a specific caveat type
     pub fn has_caveat_type(&self, caveat_type: &str) -> bool {
         self.caveats.iter().any(|c| c.caveat_id == caveat_type)
     }
-
-    /// Get caveat data for a specific caveat type
     pub fn get_caveat_data(&self, caveat_type: &str) -> Option<&str> {
         self.caveats
             .iter()
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
     }
-
-    /// Get capability fingerprint for CRDT merge operations
-    ///
-    /// Returns a unique fingerprint that can be used for CRDT conflict resolution
-    /// when capabilities are replicated across machines.
-    ///
-    /// # Returns
-    /// Fingerprint string suitable for CRDT merge comparison
+    /// CRDT fingerprint for merge operations.
     pub fn fingerprint(&self) -> String {
         format!(
             "{}:{}:{}:{}:{}:{}",
@@ -697,34 +555,13 @@ impl DelegationToken {
             self.attenuation_level
         )
     }
-
-    /// Whether this token authorizes write-level operations.
-    ///
-    /// Convenience wrapper that delegates to `DelegationAction::permits_write()`.
-    /// Use this instead of directly inspecting `token.action` — it encapsulates
-    /// the OCAP policy that `Read` tokens cannot mutate state.
     pub fn allows_write(&self) -> bool {
         self.action.permits_write()
     }
-
-    /// Whether this token authorizes read-level operations.
-    ///
-    /// Convenience wrapper that delegates to `DelegationAction::permits_read()`.
     pub fn allows_read(&self) -> bool {
         self.action.permits_read()
     }
-
-    /// Check if this capability is compatible with another (for CRDT merge)
-    ///
-    /// Two capabilities are compatible if they have the same resource, action,
-    /// and delegated_to, regardless of signature or attenuation level.
-    ///
-    /// # Arguments
-    /// * `other` — Other capability to compare
-    ///
-    /// # Returns
-    /// * `true` — Capabilities are compatible (can be merged in CRDT)
-    /// * `false` — Capabilities are incompatible
+    /// Check CRDT merge compatibility: same resource, action, and delegated_to.
     pub fn is_compatible_with(&self, other: &DelegationToken) -> bool {
         self.resource == other.resource
             && self.resource_id == other.resource_id
@@ -733,12 +570,5 @@ impl DelegationToken {
     }
 }
 
-/// Type alias for spec-code alignment.
-///
-/// DDMVSS and trust-security-observability.md reference `CapabilityToken`.
-/// This alias preserves the spec vocabulary while the code uses `DelegationToken`
-/// as the canonical name (changed during implementation for semantic clarity).
-///
-/// FocusingAssumption FA-T2: This alias exists solely for spec-code alignment.
-/// All new code should use `DelegationToken` directly.
+/// Type alias for spec-code alignment (`CapabilityToken`). Prefer `DelegationToken` directly.
 pub type CapabilityToken = DelegationToken;

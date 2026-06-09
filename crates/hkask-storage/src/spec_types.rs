@@ -101,6 +101,15 @@ pub enum DomainAnchor {
 
 str_enum!(DomainAnchor { Okapi => "okapi", Hkask => "hkask" });
 
+/// Domain of completeness assessment — spec vs implementation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompletenessDomain {
+    Specification,
+    Implementation,
+}
+
+str_enum!(CompletenessDomain { Specification => "specification", Implementation => "implementation" });
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Criterion {
     pub description: String,
@@ -184,18 +193,11 @@ impl GoalSpec {
     }
 }
 
-/// Drift report comparing a spec's declared verbs against actual registered tools.
-///
-/// Produced by `Spec::drift()`. High drift indicates the spec is out of sync
-/// with the runtime tool inventory — either declaring verbs that no tool
-/// implements, or missing verbs that tools provide.
+/// Jaccard drift report: declared vs registered verb sets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DriftReport {
-    /// Jaccard distance between declared and registered verbs (0.0 = no drift, 1.0 = full drift).
     pub drift_magnitude: f64,
-    /// Verbs the spec declares but no registered tool provides.
     pub missing_verbs: Vec<String>,
-    /// Verbs that registered tools provide but the spec doesn't declare.
     pub extra_verbs: Vec<String>,
 }
 
@@ -205,29 +207,13 @@ pub struct Spec {
     pub name: String,
     pub category: SpecCategory,
     pub domain_anchor: DomainAnchor,
-    /// Verbs this spec declares as required capabilities.
-    /// Compared against registered tool verbs by `drift()` to detect spec drift.
     pub declared_verbs: Vec<String>,
     pub goals: Vec<GoalSpec>,
-    /// Git SHA of the last modification to this spec's manifest.
-    /// Enables version tracking per DDMVSS §5.8 (Lifecycle category).
-    /// Set to `None` for specs created programmatically without a manifest.
     pub version: Option<String>,
-    /// Ed25519 signature over the canonical JSON of this spec.
-    /// Produced by `Ed25519SpecSigner::sign_spec()` during spec registration.
-    /// Verified by `Ed25519SpecSigner::verify_spec()` before spec consumption.
-    /// DDMVSS §7 (Trust): specs are curated, not governed — the signature
-    /// authenticates the spec's provenance, not its authority.
     pub signature: Option<String>,
     pub signed_by: Option<WebID>,
     pub created_at: DateTime<Utc>,
-    /// Valid-from time for bitemporal semantics (DDMVSS §5.7 Persistence).
-    /// When the fact described by this spec became true in the domain.
-    /// `None` means valid since creation (`created_at`).
     pub valid_from: Option<DateTime<Utc>>,
-    /// Valid-to time for bitemporal semantics (DDMVSS §5.7 Persistence).
-    /// When the fact described by this spec ceased to be true in the domain.
-    /// `None` means still currently valid.
     pub valid_to: Option<DateTime<Utc>>,
 }
 
@@ -249,56 +235,39 @@ impl Spec {
         }
     }
 
-    /// Add a declared verb to this spec.
     pub fn with_declared_verb(mut self, verb: &str) -> Self {
         self.declared_verbs.push(verb.to_string());
         self
     }
-
-    /// Set the version (Git SHA) for this spec.
     pub fn with_version(mut self, sha: &str) -> Self {
         self.version = Some(sha.to_string());
         self
     }
-
-    /// Set the Ed25519 signature for this spec.
     pub fn with_signature(mut self, sig: &str) -> Self {
         self.signature = Some(sig.to_string());
         self
     }
-
-    /// Set the valid-from time for bitemporal semantics.
     pub fn with_valid_from(mut self, dt: DateTime<Utc>) -> Self {
         self.valid_from = Some(dt);
         self
     }
-
-    /// Set the valid-to time for bitemporal semantics.
     pub fn with_valid_to(mut self, dt: DateTime<Utc>) -> Self {
         self.valid_to = Some(dt);
         self
     }
 
-    /// Compute drift between this spec's declared verbs and the actual registered tools.
-    ///
-    /// Returns a `DriftReport` with the Jaccard distance and the mismatched verbs.
-    /// `registered_verbs` is provided by the caller (typically from MCP runtime)
-    /// to avoid coupling `Spec` to the MCP runtime.
+    /// Compute Jaccard drift between declared verbs and registered tools.
     pub fn drift(&self, registered_verbs: &[String]) -> DriftReport {
         let declared: HashSet<String> = self.declared_verbs.iter().cloned().collect();
         let registered: HashSet<String> = registered_verbs.iter().cloned().collect();
-
         let missing: Vec<String> = declared.difference(&registered).cloned().collect();
         let extra: Vec<String> = registered.difference(&declared).cloned().collect();
-
         let union_size = declared.union(&registered).count();
         let drift_magnitude = if union_size == 0 {
             0.0
         } else {
-            let intersection_size = declared.intersection(&registered).count();
-            1.0 - (intersection_size as f64 / union_size as f64)
+            1.0 - (declared.intersection(&registered).count() as f64 / union_size as f64)
         };
-
         DriftReport {
             drift_magnitude: drift_magnitude.clamp(0.0, 1.0),
             missing_verbs: missing,
@@ -373,6 +342,36 @@ pub trait SpecStore {
     fn delete(&self, id: SpecId) -> Result<(), SpecError>;
     fn list_all(&self) -> Result<Vec<Spec>, SpecError>;
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
+
+    /// List specs valid at a given point in time (valid-from ≤ dt ≤ valid-to, or valid-to IS NULL).
+    ///
+    /// Bitemporal query: selects specs whose valid-time window contains `at`,
+    /// excluding specs whose `valid_to` has passed. Specs with `valid_to IS NULL`
+    /// are still considered valid.
+    /// DDMVSS §11 #2: SpecStore bitemporal semantics.
+    fn list_valid_at(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
+
+    /// List specs whose valid-time window overlaps with [from, to].
+    ///
+    /// Includes specs where `valid_from ≤ to` AND (`valid_to ≥ from` OR `valid_to IS NULL`).
+    /// Specs with neither `valid_from` nor `valid_to` set are not included (no temporal window).
+    fn list_valid_in_range(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<Spec>, SpecError>;
+
+    /// List specs created (recorded) since the given timestamp (transaction-time query).
+    ///
+    /// Uses `created_at` as the transaction-time — when the spec was first recorded
+    /// in the system, distinct from when it became valid in the domain (valid_from).
+    fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
+
+    /// Set the valid-to timestamp on a spec (expire it from the valid-time dimension).
+    ///
+    /// Does not delete the spec — marks it as no longer valid from the given time.
+    /// The record remains available for historical queries via `list_valid_in_range`.
+    fn expire(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError>;
 }
 
 pub trait SpecCurator {

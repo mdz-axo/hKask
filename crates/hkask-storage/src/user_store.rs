@@ -1,19 +1,16 @@
-//! UserStore — Human user identity and authentication storage
-//!
-//! This module provides:
-//! - User registration with encrypted PII
-//! - Replicant identity management
-//! - Passphrase-based authentication using Argon2id
-//! - Session management
+//! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
 
 use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession, WebID};
+use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
 use rand::RngCore;
 use rusqlite::params;
 use thiserror::Error;
 use zeroize::Zeroizing;
+
+const REPLICANT_COLUMNS: &str = "replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
+const SESSION_COLUMNS: &str = "session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active";
 
 #[derive(Error, Debug)]
 pub enum UserStoreError {
@@ -41,6 +38,32 @@ impl_from_rusqlite!(UserStoreError, Infra);
 pub type UserResult<T> = std::result::Result<T, UserStoreError>;
 
 define_store!(UserStore);
+
+fn replicant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReplicantIdentity> {
+    Ok(ReplicantIdentity {
+        replicant_name: row.get(0)?,
+        user_id: row.get(1)?,
+        replicant_webid: row.get(2)?,
+        first_name_enc: row.get(3)?,
+        last_name_enc: row.get(4)?,
+        persona_yaml: row.get(5)?,
+        is_primary: row.get::<_, i64>(6)? != 0,
+        created_at: row.get(7)?,
+        last_login: row.get(8)?,
+    })
+}
+
+fn session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserSession> {
+    Ok(UserSession {
+        session_id: row.get(0)?,
+        replicant_name: row.get(1)?,
+        replicant_webid: row.get(2)?,
+        user_id: row.get(3)?,
+        session_key_salt: row.get(4)?,
+        expires_at: row.get(5)?,
+        last_active: row.get(6)?,
+    })
+}
 
 impl UserStore {
     pub fn initialize_schema(&self) -> UserResult<()> {
@@ -142,23 +165,11 @@ impl UserStore {
 
     pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
-             FROM user_sessions WHERE session_id = ?1",
-        )?;
-
-        match stmt.query_row(params![session_id], |row| {
-            Ok(UserSession {
-                session_id: row.get(0)?,
-                replicant_name: row.get(1)?,
-                replicant_webid: row.get::<_, WebID>(2)?,
-                user_id: row.get::<_, UserID>(3)?,
-                session_key_salt: row.get(4)?,
-                expires_at: row.get(5)?,
-                last_active: row.get(6)?,
-            })
-        }) {
-            Ok(session) => Ok(Some(session)),
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {SESSION_COLUMNS} FROM user_sessions WHERE session_id = ?1"
+        ))?;
+        match stmt.query_row(params![session_id], session_from_row) {
+            Ok(s) => Ok(Some(s)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(UserStoreError::from(e)),
         }
@@ -166,52 +177,23 @@ impl UserStore {
 
     pub fn list_sessions(&self, replicant_name: &str) -> UserResult<Vec<UserSession>> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
-             FROM user_sessions WHERE replicant_name = ?1 ORDER BY last_active DESC",
-        )?;
-
-        let sessions = collect_rows!(
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {SESSION_COLUMNS} FROM user_sessions WHERE replicant_name = ?1 ORDER BY last_active DESC"
+        ))?;
+        Ok(collect_rows!(
             stmt,
             params![replicant_name],
-            |row: &rusqlite::Row<'_>| -> rusqlite::Result<UserSession> {
-                Ok(UserSession {
-                    session_id: row.get(0)?,
-                    replicant_name: row.get(1)?,
-                    replicant_webid: row.get::<_, WebID>(2)?,
-                    user_id: row.get::<_, UserID>(3)?,
-                    session_key_salt: row.get(4)?,
-                    expires_at: row.get(5)?,
-                    last_active: row.get(6)?,
-                })
-            }
-        );
-
-        Ok(sessions)
+            session_from_row
+        ))
     }
 
     pub fn get_replicant(&self, replicant_name: &str) -> UserResult<Option<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
-                    persona_yaml, is_primary, created_at, last_login
-             FROM replicant_identities WHERE replicant_name = ?1",
-        )?;
-
-        match stmt.query_row(params![replicant_name], |row| {
-            Ok(ReplicantIdentity {
-                replicant_name: row.get(0)?,
-                user_id: row.get::<_, UserID>(1)?,
-                replicant_webid: row.get::<_, WebID>(2)?,
-                first_name_enc: row.get(3)?,
-                last_name_enc: row.get(4)?,
-                persona_yaml: row.get(5)?,
-                is_primary: row.get::<_, i64>(6)? != 0,
-                created_at: row.get(7)?,
-                last_login: row.get(8)?,
-            })
-        }) {
-            Ok(identity) => Ok(Some(identity)),
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE replicant_name = ?1"
+        ))?;
+        match stmt.query_row(params![replicant_name], replicant_from_row) {
+            Ok(i) => Ok(Some(i)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(UserStoreError::from(e)),
         }
@@ -241,31 +223,10 @@ impl UserStore {
 
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
-                    persona_yaml, is_primary, created_at, last_login
-             FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC",
-        )?;
-
-        let replicants = collect_rows!(
-            stmt,
-            params![user_id],
-            |row: &rusqlite::Row<'_>| -> rusqlite::Result<ReplicantIdentity> {
-                Ok(ReplicantIdentity {
-                    replicant_name: row.get(0)?,
-                    user_id: row.get::<_, UserID>(1)?,
-                    replicant_webid: row.get::<_, WebID>(2)?,
-                    first_name_enc: row.get(3)?,
-                    last_name_enc: row.get(4)?,
-                    persona_yaml: row.get(5)?,
-                    is_primary: row.get::<_, i64>(6)? != 0,
-                    created_at: row.get(7)?,
-                    last_login: row.get(8)?,
-                })
-            }
-        );
-
-        Ok(replicants)
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC"
+        ))?;
+        Ok(collect_rows!(stmt, params![user_id], replicant_from_row))
     }
 
     fn create_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {

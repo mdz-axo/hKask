@@ -318,7 +318,7 @@ impl SqliteGoalRepository {
                         let raw: String = row.get(4)?;
                         chrono::DateTime::parse_from_rfc3339(&raw)
                             .map(|dt| dt.with_timezone(&Utc))
-                            .map_err(|_| corrupt_column(4, &raw))?
+                            .unwrap_or_else(|_| Utc::now())
                     },
                 })
             }
@@ -361,7 +361,7 @@ impl SqliteGoalRepository {
         let mut stmt = conn.prepare(&format!(
             "SELECT {GOAL_COLUMNS} FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC"
         ))?;
-        collect_rows!(stmt, [parent_id], Self::goal_from_row).map_err(Into::into)
+        Ok(collect_rows!(stmt, [parent_id], Self::goal_from_row))
     }
 
     pub fn delete_goal(&self, goal_id: GoalID) -> Result<()> {
@@ -452,6 +452,6 @@ impl SqliteGoalRepository {
         let mut stmt = conn.prepare(
             "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals ORDER BY quarantined_at DESC",
         )?;
-        collect_rows!(stmt, [], Self::quarantined_from_row).map_err(Into::into)
+        Ok(collect_rows!(stmt, [], Self::quarantined_from_row))
     }
 }

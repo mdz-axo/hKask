@@ -24,7 +24,7 @@ pub mod event;
 pub mod goal;
 pub mod id;
 pub mod identity;
-pub mod inference_config;
+
 pub mod lexicon;
 pub mod loops;
 pub mod ports;
@@ -69,7 +69,6 @@ pub use id::{
 pub use identity::{
     HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserSession,
 };
-pub use inference_config::InferenceConfig;
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, DispatchTarget,

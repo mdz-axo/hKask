@@ -28,6 +28,68 @@ fn tokens_to_words(tokens: usize) -> usize {
     ((tokens as f64) * 1.33) as usize
 }
 
+/// Compute (max_words, min_words) from (max_tokens, overlap_tokens) with defaults.
+fn chunk_word_bounds(max_tokens: Option<usize>, overlap_tokens: Option<usize>) -> (usize, usize) {
+    let max_w = tokens_to_words(max_tokens.unwrap_or(512));
+    let min_w = tokens_to_words(overlap_tokens.unwrap_or(64)).max(max_w / 4);
+    (max_w, min_w)
+}
+
+/// Serialize (entity_ref, text) pair vec into json.
+fn serialize_passages(passages: Vec<(String, String)>) -> Vec<serde_json::Value> {
+    passages
+        .into_iter()
+        .map(|(entity_ref, passage_text)| json!({"entity_ref": entity_ref, "text": passage_text}))
+        .collect()
+}
+
+/// Validate a non-empty field; returns `(span, field_value)` or early-returns error JSON.
+macro_rules! validate_non_empty {
+    ($span:expr, $kind:expr, $field_name:expr, $value:expr) => {
+        if $value.is_empty() {
+            return $span.error(
+                $kind,
+                McpToolError::invalid_argument(concat!($field_name, " must not be empty"))
+                    .to_json_string(),
+            );
+        }
+    };
+}
+
+/// Detect document format from extension. Returns (format_name, supported, note).
+fn detect_format(path: &str) -> (&'static str, bool, Option<&'static str>) {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    match ext.as_str() {
+        "md" | "markdown" => ("markdown", true, None),
+        "html" | "htm" => ("html", true, None),
+        "txt" => ("plain", true, None),
+        "pdf" => (
+            "pdf",
+            false,
+            Some("Use markitdown_convert for PDF text extraction + OCR"),
+        ),
+        _ => ("unknown", false, None),
+    }
+}
+
+/// Strip YAML frontmatter (delimited by ---) from content.
+fn strip_frontmatter(content: &str) -> String {
+    if content.starts_with("---") {
+        content
+            .splitn(3, "---")
+            .nth(2)
+            .unwrap_or(content)
+            .trim()
+            .to_string()
+    } else {
+        content.to_string()
+    }
+}
+
 /// Strip HTML tags and extract visible text content.
 ///
 /// Removes script/style elements entirely, preserves word boundaries
@@ -257,27 +319,16 @@ impl DocKnowledgeServer {
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_chunk", &self.webid);
 
-        if text.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("text must not be empty").to_json_string(),
-            );
-        }
-
-        if entity_ref_prefix.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("entity_ref_prefix must not be empty")
-                    .to_json_string(),
-            );
-        }
-
+        validate_non_empty!(span, McpErrorKind::InvalidArgument, "text", text);
+        validate_non_empty!(
+            span,
+            McpErrorKind::InvalidArgument,
+            "entity_ref_prefix",
+            entity_ref_prefix
+        );
         validate_field!(span, "entity_ref_prefix", &entity_ref_prefix, 256);
 
-        let max_tok = max_tokens.unwrap_or(512);
-        let overlap_tok = overlap_tokens.unwrap_or(64);
-        let max_words = tokens_to_words(max_tok);
-        let min_words = tokens_to_words(overlap_tok).max(max_words / 4);
+        let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
         let boundary = ".!? ".to_string();
 
         let processed = if strip_gutenberg.unwrap_or(false) {
@@ -295,21 +346,13 @@ impl DocKnowledgeServer {
         );
 
         let total_passages = passages.len();
-        let serialized: Vec<serde_json::Value> = passages
-            .into_iter()
-            .map(|(entity_ref, passage_text)| {
-                json!({
-                    "entity_ref": entity_ref,
-                    "text": passage_text,
-                })
-            })
-            .collect();
+        let serialized = serialize_passages(passages);
 
         span.ok_json(json!({
             "total_passages": total_passages,
             "passages": serialized,
-            "max_tokens": max_tok,
-            "overlap_tokens": overlap_tok,
+            "max_tokens": max_tokens.unwrap_or(512),
+            "overlap_tokens": overlap_tokens.unwrap_or(64),
             "max_words": max_words,
             "min_words": min_words,
             "sentence_boundary": boundary,
@@ -324,36 +367,10 @@ impl DocKnowledgeServer {
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_detect_format", &self.webid);
 
-        if path.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("path must not be empty").to_json_string(),
-            );
-        }
+        validate_non_empty!(span, McpErrorKind::InvalidArgument, "path", path);
 
-        let ext = std::path::Path::new(&path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let (format, supported, note) = match ext.as_str() {
-            "md" | "markdown" => ("markdown", true, None),
-            "html" | "htm" => ("html", true, None),
-            "txt" => ("plain", true, None),
-            "pdf" => (
-                "pdf",
-                false,
-                Some("Use markitdown_convert for PDF text extraction + OCR"),
-            ),
-            _ => ("unknown", false, None),
-        };
-
-        let mut result = json!({
-            "format": format,
-            "path": path,
-            "supported": supported,
-        });
+        let (format, supported, note) = detect_format(&path);
+        let mut result = json!({"format": format, "path": path, "supported": supported});
         if let Some(note) = note {
             result["note"] = json!(note);
         }
@@ -368,24 +385,9 @@ impl DocKnowledgeServer {
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_extract_markdown", &self.webid);
 
-        if content.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("content must not be empty").to_json_string(),
-            );
-        }
+        validate_non_empty!(span, McpErrorKind::InvalidArgument, "content", content);
 
-        // Split on --- frontmatter
-        let text = if content.starts_with("---") {
-            content
-                .splitn(3, "---")
-                .nth(2)
-                .unwrap_or(&content)
-                .trim()
-                .to_string()
-        } else {
-            content.clone()
-        };
+        let text = strip_frontmatter(&content);
 
         // Extract image refs: ![alt](url)
         let mut images = Vec::new();
@@ -429,12 +431,7 @@ impl DocKnowledgeServer {
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_extract_html", &self.webid);
 
-        if content.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("content must not be empty").to_json_string(),
-            );
-        }
+        validate_non_empty!(span, McpErrorKind::InvalidArgument, "content", content);
 
         let text = strip_html(&content);
 
@@ -456,42 +453,19 @@ impl DocKnowledgeServer {
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_parse", &self.webid);
 
-        if path.is_empty() {
+        validate_non_empty!(span, McpErrorKind::InvalidArgument, "path", path);
+
+        let (format, _, _) = detect_format(&path);
+        if format == "pdf" {
             return span.error(
                 McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("path must not be empty").to_json_string(),
+                McpToolError::invalid_argument(format!(
+                    "PDF is not supported by doc_knowledge_parse. Use markitdown_convert for PDF text extraction (with OCR fallback for scanned PDFs), then pass the extracted text to doc_knowledge_chunk. Path: '{}'",
+                    path
+                )).to_json_string(),
             );
         }
-
-        // Detect format
-        let ext = std::path::Path::new(&path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let (format, supported) = match ext.as_str() {
-            "md" | "markdown" => ("markdown", true),
-            "html" | "htm" => ("html", true),
-            "txt" => ("plain", true),
-            "pdf" => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
-                        "PDF is not supported by doc_knowledge_parse. Use markitdown_convert for PDF text extraction (with OCR fallback for scanned PDFs), then pass the extracted text to doc_knowledge_chunk. Path: '{}'",
-                        path
-                    ))
-                    .to_json_string(),
-                );
-                // Compiler needs a value for match type; unreachable after return
-            }
-            _ => ("unknown", false),
-        };
-
-        // Suppress unused-mut-requirement: pdf returns early, supported is always true here
-        let _ = supported;
-
-        if !supported {
+        if format == "unknown" {
             return span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(format!(
@@ -512,73 +486,36 @@ impl DocKnowledgeServer {
             }
         };
 
-        // Extract text based on format
         let text = match format {
-            "markdown" => {
-                if content.starts_with("---") {
-                    content
-                        .splitn(3, "---")
-                        .nth(2)
-                        .unwrap_or(&content)
-                        .trim()
-                        .to_string()
-                } else {
-                    content
-                }
-            }
+            "markdown" => strip_frontmatter(&content),
             "html" => strip_html(&content),
             _ => content,
         };
 
-        // Multi-tier chunking
-        let coarse_max = coarse_max_tokens.unwrap_or(2048);
-        let medium_max = medium_max_tokens.unwrap_or(512);
-        let fine_max = fine_max_tokens.unwrap_or(128);
-
         let entity_base = path.replace(['/', '\\', '.', ' '], "_");
+        let boundary = ".!? ";
 
-        let coarse = SemanticMemory::chunk_text(
-            &text,
-            &format!("{}:coarse", entity_base),
-            tokens_to_words(coarse_max / 4),
-            tokens_to_words(coarse_max),
-            ".!? ",
-        );
-
-        let medium = SemanticMemory::chunk_text(
-            &text,
-            &format!("{}:medium", entity_base),
-            tokens_to_words(medium_max / 4),
-            tokens_to_words(medium_max),
-            ".!? ",
-        );
-
-        let fine = SemanticMemory::chunk_text(
-            &text,
-            &format!("{}:fine", entity_base),
-            tokens_to_words(fine_max / 4),
-            tokens_to_words(fine_max),
-            ".!? ",
-        );
-
-        let serialize_passages = |passages: Vec<(String, String)>| -> Vec<serde_json::Value> {
-            passages
-                .into_iter()
-                .map(|(entity_ref, passage_text)| {
-                    json!({
-                        "entity_ref": entity_ref,
-                        "text": passage_text,
-                    })
-                })
-                .collect()
+        let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| {
+            let max_w = tokens_to_words(max_tok.unwrap_or(default));
+            SemanticMemory::chunk_text(
+                &text,
+                &format!("{}:{tier}", entity_base),
+                max_w / 4,
+                max_w,
+                boundary,
+            )
         };
+
+        let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
+        let medium = chunk_tier("medium", medium_max_tokens, 512);
+        let fine = chunk_tier("fine", fine_max_tokens, 128);
 
         span.ok_json(json!({
             "format": format,
             "path": path,
-            "coarse_max_tokens": coarse_max,
-            "medium_max_tokens": medium_max,
-            "fine_max_tokens": fine_max,
+            "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
+            "medium_max_tokens": medium_max_tokens.unwrap_or(512),
+            "fine_max_tokens": fine_max_tokens.unwrap_or(128),
             "coarse": serialize_passages(coarse),
             "medium": serialize_passages(medium),
             "fine": serialize_passages(fine),

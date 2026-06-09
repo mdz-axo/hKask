@@ -175,6 +175,20 @@ where
     })
 }
 
+/// Handle the result of `spawn_db`: maps Ok(Ok) → span.ok_json, Ok(Err)/Err → span.internal_error.
+macro_rules! handle_db_result {
+    ($span:expr, $result:expr, $ok:expr) => {
+        match $result {
+            Ok(Ok(v)) => {
+                let v: serde_json::Value = $ok(v);
+                $span.ok_json(v)
+            }
+            Ok(Err(e)) => $span.internal_error(serde_json::json!({"error": e.to_string()})),
+            Err(e) => $span.internal_error(serde_json::json!({"error": format!("Task error: {}", e)})),
+        }
+    };
+}
+
 #[tool_router(server_handler)]
 impl RssServer {
     #[tool(description = "Subscribe to an RSS/Atom feed (Google Reader stream model)")]
@@ -246,15 +260,7 @@ impl RssServer {
             }))
         }).await;
 
-        match result {
-            Ok(Ok(v)) => span.ok_json(v),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(span, result, |v| v);
     }
 
     #[tool(description = "Unsubscribe from a feed (stream_id e.g. 'feed/http://...')")]
@@ -271,19 +277,11 @@ impl RssServer {
         })
         .await;
 
-        match result {
-            Ok(Ok(removed)) => span.ok_json(serde_json::json!({
-                "stream_id": stream_id,
-                "unsubscribed": removed > 0,
-                "removed": removed,
-            })),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(
+            span,
+            result,
+            |removed| serde_json::json!({"stream_id": stream_id, "unsubscribed": removed > 0, "removed": removed})
+        );
     }
 
     #[tool(description = "List subscriptions, optionally filtered by folder")]
@@ -294,19 +292,11 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_list_subscriptions", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| list_subscriptions(conn, folder.as_deref())).await;
-
-        match result {
-            Ok(Ok(subs)) => span.ok_json(serde_json::json!({
-                "count": subs.len(),
-                "subscriptions": subs,
-            })),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(
+            span,
+            result,
+            |subs| serde_json::json!({"count": subs.len(), "subscriptions": subs})
+        );
     }
 
     #[tool(description = "Fetch/sync new entries from a feed (supports ETag/Last-Modified)")]
@@ -391,19 +381,11 @@ impl RssServer {
         })
         .await;
 
-        match result {
-            Ok(Ok(new_count)) => span.ok_json(serde_json::json!({
-                "stream_id": sid2,
-                "new_entries": new_count,
-                "fetched": true,
-            })),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(
+            span,
+            result,
+            |new_count| serde_json::json!({"stream_id": sid2, "new_entries": new_count, "fetched": true})
+        );
     }
 
     #[tool(
@@ -444,38 +426,21 @@ impl RssServer {
         })
         .await;
 
-        match result {
-            Ok(Ok(mut entries)) => {
-                let has_more = entries.len() > limit;
-                if has_more {
-                    entries.truncate(limit);
-                }
-                let next_token = if has_more {
-                    let cont = Continuation {
-                        offset: offset + limit,
-                        stream_id: stream_id.clone(),
-                    };
-                    Some(
-                        base64::engine::general_purpose::STANDARD
-                            .encode(serde_json::to_vec(&cont).unwrap_or_default()),
-                    )
-                } else {
-                    None
-                };
-                span.ok_json(serde_json::json!({
-                    "stream_id": stream_id,
-                    "entries": entries,
-                    "count": entries.len(),
-                    "continuation_token": next_token,
-                }))
+        handle_db_result!(span, result, |mut entries| {
+            let has_more = entries.len() > limit;
+            if has_more {
+                entries.truncate(limit);
             }
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+            let next_token = has_more.then(|| {
+                let cont = Continuation {
+                    offset: offset + limit,
+                    stream_id: stream_id.clone(),
+                };
+                base64::engine::general_purpose::STANDARD
+                    .encode(serde_json::to_vec(&cont).unwrap_or_default())
+            });
+            serde_json::json!({"stream_id": stream_id, "entries": entries, "count": entries.len(), "continuation_token": next_token})
+        });
     }
 
     #[tool(description = "Mark all entries in a stream as read")]
@@ -487,19 +452,11 @@ impl RssServer {
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| mark_stream_read(conn, &sid)).await;
-
-        match result {
-            Ok(Ok(marked)) => span.ok_json(serde_json::json!({
-                "stream_id": stream_id,
-                "marked_read": marked,
-            })),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(
+            span,
+            result,
+            |marked| serde_json::json!({"stream_id": stream_id, "marked_read": marked})
+        );
     }
 
     #[tool(description = "Get unread count for a stream")]
@@ -511,19 +468,11 @@ impl RssServer {
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| count_entries(conn, &sid, true)).await;
-
-        match result {
-            Ok(Ok(count)) => span.ok_json(serde_json::json!({
-                "stream_id": stream_id,
-                "unread_count": count,
-            })),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(
+            span,
+            result,
+            |count| serde_json::json!({"stream_id": stream_id, "unread_count": count})
+        );
     }
 
     #[tool(description = "Full-text search across feed entries")]
@@ -536,20 +485,11 @@ impl RssServer {
         let db = self.db.clone();
         let q = query.clone();
         let result = spawn_db(db, move |conn| search_entries(conn, &q, limit)).await;
-
-        match result {
-            Ok(Ok(results)) => span.ok_json(serde_json::json!({
-                "query": query,
-                "results": results,
-                "count": results.len(),
-            })),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(
+            span,
+            result,
+            |results| serde_json::json!({"query": query, "results": results, "count": results.len()})
+        );
     }
 
     #[tool(description = "Export subscriptions as OPML 2.0")]
@@ -557,16 +497,7 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_export_opml", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, export_opml).await;
-
-        match result {
-            Ok(Ok(opml)) => span.ok_json(serde_json::json!({"opml": opml})),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(span, result, |opml| serde_json::json!({"opml": opml}));
     }
 
     #[tool(description = "Import subscriptions from OPML content")]
@@ -577,16 +508,7 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_import_opml", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| import_opml(conn, &opml_content)).await;
-
-        match result {
-            Ok(Ok(v)) => span.ok_json(v),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(span, result, |v| v);
     }
 
     #[tool(description = "Discover RSS/Atom feeds from a URL via HTML link autodiscovery")]
@@ -618,15 +540,6 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_edit_tag", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| edit_tags(conn, &req)).await;
-
-        match result {
-            Ok(Ok(v)) => span.ok_json(v),
-            Ok(Err(e)) => span.internal_error(serde_json::json!({
-                "error": e.to_string(),
-            })),
-            Err(e) => span.internal_error(serde_json::json!({
-                "error": format!("Task error: {}", e),
-            })),
-        }
+        handle_db_result!(span, result, |v| v);
     }
 }

@@ -68,13 +68,7 @@ pub struct TokenProb {
     pub prob: f64,
 }
 
-/// Compute confidence score from token probabilities.
-///
-/// Formula: avg(prob) × (1 - sqrt(variance))
-///
-/// Higher average probability with lower variance yields higher confidence.
-/// Lives in hkask-types alongside `TokenProbability` so all crates can use
-/// it without creating sideways dependencies in the Authority DAG.
+/// Confidence = avg(prob) × (1 - sqrt(variance)). Higher avg + lower variance = higher confidence.
 pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
     if probs.is_empty() {
         return 0.0;
@@ -91,21 +85,12 @@ pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
     avg_prob * (1.0 - variance.sqrt())
 }
 
-/// Structured tool call from a model response.
-///
-/// When a model supports native function calling (OpenAI, Anthropic, Gemini),
-/// it returns structured tool call data rather than embedded text directives.
-/// This type captures that structured data so the system can route it
-/// through the Communication Loop without fragile text parsing.
+/// Structured tool call from a model response (OpenAI/Anthropic/Gemini native function calling).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StructuredToolCall {
-    /// The MCP server ID (e.g., "hkask-mcp-inference")
     pub server: String,
-    /// The tool name (e.g., "inference_generate")
     pub tool: String,
-    /// The JSON arguments for the tool call
     pub args: serde_json::Value,
-    /// Optional call ID from the model (for multi-turn tool use)
     pub call_id: Option<String>,
 }
 
@@ -117,32 +102,20 @@ pub struct InferenceResult {
     pub usage: InferenceUsage,
     pub finish_reason: String,
     pub token_probabilities: Option<Vec<TokenProbability>>,
-    /// Structured tool calls from models that support native function calling.
-    ///
-    /// When `finish_reason == "tool_calls"`, this vector contains the parsed
-    /// tool call data. When `finish_reason == "stop"`, this is empty and
-    /// the `text` field contains the response.
-    ///
-    /// For models that don't support native function calling, this is always
-    /// empty — the fallback `parse_tool_calls()` function in `tool_augmented`
-    /// handles `<<tool:...>>` text directives instead.
+    /// Populated when `finish_reason == "tool_calls"`. For models without native function calling,
+    /// always empty — `parse_tool_calls()` in `tool_augmented` handles `<<tool:...>>` fallback.
     #[serde(default)]
     pub tool_calls: Vec<StructuredToolCall>,
 }
 
-/// LLM invocation boundary.
-///
-/// Uses `Pin<Box<dyn Future>>` return types (not `async_trait`) to keep
-/// the trait object-safe and make boxing visible.
-/// Impls: `OkapiInference` (hkask-templates), `Arc<dyn InferencePort>` (backward compat)
+/// LLM invocation boundary. Uses `Pin<Box<dyn Future>>` (not `async_trait`) for object-safety.
+/// Impls: `OkapiInference` (hkask-templates), `Arc<dyn InferencePort>` (blanket).
 pub trait InferencePort: Send + Sync {
     fn generate(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
-    >;
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>>;
 
     /// Falls back to `generate()` when `model_override` is `None`.
     fn generate_with_model(
@@ -150,9 +123,7 @@ pub trait InferencePort: Send + Sync {
         prompt: &str,
         parameters: &LLMParameters,
         _model_override: Option<&str>,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         self.generate(prompt, parameters)
     }
 
@@ -161,13 +132,8 @@ pub trait InferencePort: Send + Sync {
         prompt: &str,
         parameters: &LLMParameters,
         n: usize,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<Output = Result<Vec<InferenceResult>, InferenceError>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<InferenceResult>, InferenceError>> + Send + '_>>
+    {
         use futures_util::future::join_all;
         let futures: Vec<_> = (0..n).map(|_| self.generate(prompt, parameters)).collect();
         Box::pin(async move {
@@ -176,68 +142,29 @@ pub trait InferencePort: Send + Sync {
         })
     }
 
-    /// Stream inference output as chunks of text arrive.
-    ///
-    /// Returns a `Stream` of `InferenceStreamChunk` items. Each chunk carries
-    /// a text delta (partial output) and optionally a finish reason. The final
-    /// chunk has `finish_reason: Some(...)` and carries the usage stats.
-    ///
-    /// Default implementation: yields a single chunk containing the complete
-    /// result from `generate()`. Implementors override this when the backend
-    /// supports server-sent events (SSE) or chunked transfer.
+    /// Stream inference chunks. Default: yields single chunk from `generate()`. Override for SSE/streaming backends.
     fn generate_stream(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-    ) -> std::pin::Pin<
-        Box<
-            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
         let future = self.generate(prompt, parameters);
         Box::pin(futures_util::stream::once(async move {
-            let result = future.await?;
-            Ok(InferenceStreamChunk {
-                text_delta: result.text,
-                model: result.model,
-                finish_reason: Some(result.finish_reason),
-                usage: Some(result.usage),
-                tool_calls: result.tool_calls,
-            })
+            Ok(InferenceStreamChunk::from(future.await?))
         }))
     }
 
-    /// Stream inference output with optional model override.
-    ///
-    /// Falls back to `generate_stream()` when `model_override` is `None`.
+    /// Stream with optional model override. Falls back to `generate_stream()` when `model_override` is `None`.
     fn generate_stream_with_model(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
         if model_override.is_some() {
-            // Default: fall back to generate() + single-chunk stream.
-            // Implementors that support streaming with model override should
-            // override this method.
             let future = self.generate_with_model(prompt, parameters, model_override);
             Box::pin(futures_util::stream::once(async move {
-                let result = future.await?;
-                Ok(InferenceStreamChunk {
-                    text_delta: result.text,
-                    model: result.model,
-                    finish_reason: Some(result.finish_reason),
-                    usage: Some(result.usage),
-                    tool_calls: result.tool_calls,
-                })
+                Ok(InferenceStreamChunk::from(future.await?))
             }))
         } else {
             self.generate_stream(prompt, parameters)
@@ -245,22 +172,26 @@ pub trait InferencePort: Send + Sync {
     }
 }
 
-/// A single chunk of streaming inference output.
-///
-/// Text deltas arrive incrementally. The final chunk has `finish_reason` set
-/// and carries the complete usage stats and tool calls.
+/// A single chunk of streaming inference output. Final chunk has `finish_reason` + `usage`.
 #[derive(Debug, Clone)]
 pub struct InferenceStreamChunk {
-    /// Text delta since the last chunk.
     pub text_delta: String,
-    /// Model that produced this chunk.
     pub model: String,
-    /// Finish reason (`Some` on the final chunk, `None` for intermediate).
     pub finish_reason: Option<String>,
-    /// Token usage (present on the final chunk).
     pub usage: Option<InferenceUsage>,
-    /// Structured tool calls (present on the final chunk when finish_reason is "tool_calls").
     pub tool_calls: Vec<StructuredToolCall>,
+}
+
+impl From<InferenceResult> for InferenceStreamChunk {
+    fn from(r: InferenceResult) -> Self {
+        Self {
+            text_delta: r.text,
+            model: r.model,
+            finish_reason: Some(r.finish_reason),
+            usage: Some(r.usage),
+            tool_calls: r.tool_calls,
+        }
+    }
 }
 
 /// Blanket impl — enables `InferenceLoop<Arc<dyn InferencePort>>` default type param.
@@ -271,7 +202,7 @@ impl InferencePort for Arc<dyn InferencePort> {
         p: &str,
         pa: &LLMParameters,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        (**self).generate(p, pa)
+        self.as_ref().generate(p, pa)
     }
     fn generate_with_model(
         &self,
@@ -279,7 +210,7 @@ impl InferencePort for Arc<dyn InferencePort> {
         pa: &LLMParameters,
         m: Option<&str>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        (**self).generate_with_model(p, pa, m)
+        self.as_ref().generate_with_model(p, pa, m)
     }
     fn generate_n(
         &self,
@@ -288,14 +219,14 @@ impl InferencePort for Arc<dyn InferencePort> {
         n: usize,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<InferenceResult>, InferenceError>> + Send + '_>>
     {
-        (**self).generate_n(p, pa, n)
+        self.as_ref().generate_n(p, pa, n)
     }
     fn generate_stream(
         &self,
         p: &str,
         pa: &LLMParameters,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        (**self).generate_stream(p, pa)
+        self.as_ref().generate_stream(p, pa)
     }
     fn generate_stream_with_model(
         &self,
@@ -303,13 +234,11 @@ impl InferencePort for Arc<dyn InferencePort> {
         pa: &LLMParameters,
         m: Option<&str>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        (**self).generate_stream_with_model(p, pa, m)
+        self.as_ref().generate_stream_with_model(p, pa, m)
     }
 }
 
 /// Unified registry entry covering all template types with cascade metadata.
-/// Moved to hkask-types so downstream crates can do R4 capability checks
-/// without depending on hkask-templates.
 #[derive(Debug, Clone)]
 pub struct RegistryEntry {
     pub id: String,
@@ -324,10 +253,8 @@ pub struct RegistryEntry {
 }
 
 impl RegistryEntry {
-    /// Returns validation warnings. Empty vec = valid. Does not reject the entry.
     pub fn validate(&self) -> Vec<String> {
         let mut warnings = Vec::new();
-
         if self.id.is_empty() {
             warnings.push("entry id is empty".into());
         }
@@ -337,41 +264,20 @@ impl RegistryEntry {
         if self.name.is_empty() {
             warnings.push(format!("entry '{}' has empty name", self.id));
         }
-
-        // Matroshka enforcement: cascade_level must be < matroshka_limit
-        // for the template to be invocable. If equal, nesting is exhausted.
         if self.cascade_level >= self.matroshka_limit {
             warnings.push(format!(
                 "entry '{}' cascade_level ({}) >= matroshka_limit ({}) — nesting exhausted",
                 self.id, self.cascade_level, self.matroshka_limit
             ));
         }
-
         warnings
     }
-
-    /// `true` when `cascade_level < matroshka_limit`.
     pub fn can_nest(&self) -> bool {
         self.cascade_level < self.matroshka_limit
     }
 }
 
-/// Named composition of WordAct, KnowAct, and FlowDef templates.
-///
-/// Note: `cascade_order` was removed in 2026-06-06. The field was persisted
-/// to the `skill_cascade_order` SQLite table but no runtime cascade executor
-/// read it — `ManifestExecutor` orders steps by `BundleManifestStep.ordinal`.
-/// P6 ("Delete stubs, don't publish them") applies. Execution ordering is
-/// declared per-bundle in the YAML, not per-skill in the registry.
-//
-/// Skill directory zone — identifies where a skill was discovered on disk.
-///
-/// Two-zone model (src→dist pattern):
-/// - `Private` zone (`.agents/skills/`) — source of truth, author's working copies
-/// - `Public` zone (`skills/`) — export surface, generated by `kask skill publish`
-///
-/// The public zone is a build artifact, never hand-edited.
-/// This eliminates bidirectional sync — only one-way export exists.
+/// Two-zone model: Private (`.agents/skills/` source), Public (`skills/` build artifact).
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
 )]
@@ -385,20 +291,17 @@ pub enum SkillZone {
 impl SkillZone {
     pub fn as_str(&self) -> &'static str {
         match self {
-            SkillZone::Private => "private",
-            SkillZone::Public => "public",
+            Self::Private => "private",
+            Self::Public => "public",
         }
     }
-
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "private" | "Private" => Some(SkillZone::Private),
-            "public" | "Public" => Some(SkillZone::Public),
+            "private" | "Private" => Some(Self::Private),
+            "public" | "Public" => Some(Self::Public),
             _ => None,
         }
     }
-
-    /// Filesystem directory for this zone.
     pub fn directory(&self) -> &'static str {
         match self {
             Self::Private => ".agents/skills",
@@ -445,7 +348,7 @@ impl Skill {
         }
     }
 
-    /// Builder: set a `Option<String>` field from a `&str`.
+    /// Builders with `Option<String>` from `&str`.
     pub fn with_word_act(mut self, v: &str) -> Self {
         self.word_act = Some(v.to_string());
         self
@@ -482,22 +385,14 @@ impl Skill {
         self
     }
 
-    /// Qualified ID for collision-free public sharing.
-    ///
-    /// Returns `<namespace>--<id>` if namespace is set, otherwise just `id`.
-    /// Double-dash separator is intentional: it's unambiguous for filesystem
-    /// directory names and parseable by `parse_qualified_id`.
+    /// Qualified ID: `<namespace>--<id>` if namespace set, else just `id`. Double-dash is unambiguous for filesystem dirs.
     pub fn qualified_id(&self) -> String {
         match &self.namespace {
             Some(ns) => format!("{}--{}", ns, self.id),
             None => self.id.clone(),
         }
     }
-
-    /// Parse a qualified ID (`<namespace>--<id>`) into its components.
-    ///
-    /// Returns `(namespace, id)` if the double-dash separator is found,
-    /// or `None` if the string is not a qualified ID.
+    /// Parse `<namespace>--<id>` into `(namespace, id)`. Returns `None` if not a qualified ID.
     pub fn parse_qualified_id(qualified: &str) -> Option<(String, String)> {
         let parts: Vec<&str> = qualified.splitn(2, "--").collect();
         if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {

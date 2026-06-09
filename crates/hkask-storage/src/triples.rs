@@ -1,7 +1,4 @@
-//! Uni-temporal triples storage
-//!
-//! Uses `entity/attribute/value` naming (aligned with hKask schema conventions)
-//! and `valid_from`/`valid_to` for temporal tracking.
+//! Uni-temporal triples — entity/attribute/value with valid_from/valid_to.
 
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
@@ -48,30 +45,22 @@ impl Triple {
         }
     }
 
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_confidence(mut self, confidence: impl Into<Confidence>) -> Self {
-        self.confidence = confidence.into();
+    pub fn with_confidence(mut self, c: impl Into<Confidence>) -> Self {
+        self.confidence = c.into();
+        self
+    }
+    pub fn with_perspective(mut self, p: WebID) -> Self {
+        self.access = self.access.with_perspective(p);
+        self
+    }
+    pub fn with_visibility(mut self, v: Visibility) -> Self {
+        self.access = self.access.with_visibility(v);
         self
     }
 
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_perspective(mut self, perspective: WebID) -> Self {
-        self.access = self.access.with_perspective(perspective);
-        self
-    }
-
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_visibility(mut self, visibility: Visibility) -> Self {
-        self.access = self.access.with_visibility(visibility);
-        self
-    }
-
-    /// Is this an episodic (perspective-bound) triple?
     pub fn is_episodic(&self) -> bool {
         self.access.is_episodic()
     }
-
-    /// Is this a semantic (shared, perspective-free) triple?
     pub fn is_semantic(&self) -> bool {
         self.access.is_semantic()
     }
@@ -82,7 +71,6 @@ define_store!(TripleStore);
 const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
 
 impl TripleStore {
-    /// Insert a triple
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -103,7 +91,6 @@ impl TripleStore {
         Ok(())
     }
 
-    /// Query triples by entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -117,7 +104,6 @@ impl TripleStore {
         ))
     }
 
-    /// Query triples by entity and attribute
     pub fn query_by_entity_attribute(
         &self,
         entity: &str,
@@ -135,7 +121,6 @@ impl TripleStore {
         ))
     }
 
-    /// Query all triples for a perspective (episodic memories)
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -149,7 +134,7 @@ impl TripleStore {
         ))
     }
 
-    /// Update a triple's value (closes current version, inserts new)
+    /// Update a triple's value (close current version, insert new).
     pub fn update(
         &self,
         id: &TripleID,
@@ -205,7 +190,6 @@ impl TripleStore {
         Ok(())
     }
 
-    /// Get a single triple by ID (must be current: valid_to IS NULL)
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -220,10 +204,7 @@ impl TripleStore {
         Ok(triples.into_iter().next())
     }
 
-    /// Query semantic triples (perspective IS NULL) with lowest confidence,
-    /// ordered by confidence ascending then valid_from ascending, limited to `limit`.
-    ///
-    /// Used by `SemanticMemory::lowest_confidence_triples()` for budget enforcement.
+    /// Semantic triples with lowest confidence, ordered ASC. Used by consolidation.
     pub fn query_semantic_lowest_confidence(
         &self,
         limit: usize,
@@ -243,11 +224,7 @@ impl TripleStore {
         ))
     }
 
-    /// Count semantic triples with confidence at or below a threshold.
-    ///
-    /// Used by `SemanticMemory::low_confidence_count()` for the consolidation
-    /// trigger: triples at or below the threshold are candidates for review
-    /// and deletion.
+    /// Count semantic triples below confidence threshold. Used by consolidation.
     pub fn count_semantic_below_confidence(&self, threshold: f64) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -258,11 +235,7 @@ impl TripleStore {
         Ok(count as usize)
     }
 
-    /// Query semantic triples with confidence at or below a threshold,
-    /// ordered by confidence ascending then valid_from ascending, limited to `limit`.
-    ///
-    /// Used by `SemanticMemory::low_confidence_triples()` for the consolidation
-    /// trigger.
+    /// Semantic triples below confidence threshold, ordered ASC. Used by consolidation.
     pub fn query_semantic_below_confidence(
         &self,
         threshold: f64,
@@ -294,10 +267,7 @@ impl TripleStore {
         Ok(count as usize)
     }
 
-    /// Count semantic triples for a given entity (perspective IS NULL, valid_to IS NULL).
-    ///
-    /// Used by `SemanticMemory::triple_count_for_entity()` to count only
-    /// shared/semantic triples, excluding episodic (perspective IS NOT NULL).
+    /// Count semantic triples for a given entity.
     pub fn count_semantic_by_entity(&self, entity: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -308,10 +278,7 @@ impl TripleStore {
         Ok(count as usize)
     }
 
-    /// Count triples for a given perspective (episodic, valid_to IS NULL).
-    ///
-    /// Used by `EpisodicMemory::storage_usage()` for budget enforcement
-    /// without loading all triples into memory.
+    /// Count triples for a given perspective (episodic).
     pub fn count_by_perspective(&self, perspective: &WebID) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -322,12 +289,7 @@ impl TripleStore {
         Ok(count as usize)
     }
 
-    /// Close a triple by setting its `valid_to` timestamp (soft-delete).
-    ///
-    /// Used by consolidation to mark episodic triples as expired after
-    /// they have been promoted to semantic memory. The triple remains in
-    /// the store for audit but is excluded from all current queries
-    /// (which filter on `valid_to IS NULL`).
+    /// Soft-delete: set valid_to to close a triple.
     pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -338,22 +300,14 @@ impl TripleStore {
         Ok(())
     }
 
-    /// Delete a triple by ID.
-    ///
-    /// Used by `SemanticMemory::delete_triple()` for budget enforcement.
-    /// Unlike update (which sets `valid_to`), this removes the row entirely.
+    /// Hard-delete a triple row entirely.
     pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute("DELETE FROM triples WHERE id = ?1", rusqlite::params![id])?;
         Ok(())
     }
 
-    /// Map a database row to a TripleRow using FromSql impls.
-    ///
-    /// This eliminates the manual `String → parse()` boilerplate for
-    /// ID types, WebID, and Visibility (Fowler C3 + C1).
-    /// Timestamps remain as Strings because DateTime<Utc> can't have
-    /// FromSql/ToSql impls here (orphan rule).
+    /// Row → TripleRow: FromSql for IDs/WebID/Visibility. Timestamps stay String (orphan rule).
     fn row_to_triple_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TripleRow> {
         Ok(TripleRow {
             id: row.get(0)?,
@@ -369,11 +323,7 @@ impl TripleStore {
         })
     }
 
-    /// Convert a TripleRow into a domain Triple.
-    ///
-    /// Uses FromSql impls for ID types, WebID, and Visibility.
-    /// Timestamp parsing and JSON deserialization happen here since
-    /// DateTime<Utc> can't have FromSql in this crate (orphan rule).
+    /// TripleRow → Triple: parse timestamps + JSON value (orphan rule).
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {
         let value: Value = serde_json::from_str(&row.value)?;
         let valid_from = DateTime::parse_from_rfc3339(&row.valid_from)
@@ -399,10 +349,7 @@ impl TripleStore {
     }
 }
 
-/// Convert a domain Triple into a serializable TripleEntry for CAS write-through.
-///
-/// This is a lossy conversion — access control details beyond perspective and
-/// visibility are flattened for CAS storage.
+/// Triple → TripleEntry: lossy (flattens access control for CAS storage).
 impl From<&Triple> for TripleEntry {
     fn from(t: &Triple) -> Self {
         Self {

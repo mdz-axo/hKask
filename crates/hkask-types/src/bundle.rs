@@ -33,7 +33,7 @@ macro_rules! enum_str_ops {
 
 // Enums
 
-/// Skill polarity — the cybernetic role a skill plays in a bundle
+/// Skill polarity — cybernetic role in a bundle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum SkillPolarity {
@@ -58,7 +58,7 @@ impl SkillPolarity {
     }
 }
 
-/// Conflict type — what kind of conflict exists between two skills
+/// What kind of conflict exists between two skills
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ConflictType {
@@ -75,7 +75,7 @@ enum_str_ops!(ConflictType, {
     ResourceContention => ("ResourceContention", "resource_contention"),
 });
 
-/// Conflict resolution strategy — how to resolve a declared conflict
+/// How to resolve a declared conflict
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ConflictResolution {
@@ -94,7 +94,7 @@ enum_str_ops!(ConflictResolution, {
     UserIntent => ("UserIntent", "user_intent"),
 });
 
-/// Complementarity type — how two skills enhance each other
+/// How two skills enhance each other
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ComplementarityType {
@@ -179,18 +179,12 @@ pub struct BundleManifestStep {
 
 // Config sub-structs — mirror existing manifest YAML fields
 
-/// Convergence configuration — controls when iterative steps stop improving.
-///
-/// Loaded from manifest YAML but not yet enforced by ManifestExecutor.
-/// The executor currently only processes `steps`; convergence gating is a future wiring target.
+/// Loaded from manifest YAML. Not yet enforced by ManifestExecutor (future wiring target).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ConvergenceConfig {
-    /// Minimum quality improvement to continue iterating
     pub threshold: f64,
-    /// Maximum number of iterations before forcing convergence
     pub max_iterations: u32,
-    /// Action when convergence is not reached (e.g. "invoke_child_manifest")
     pub on_not_reached: String,
 }
 
@@ -208,13 +202,10 @@ impl Default for ConvergenceConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GasConfig {
-    /// Total gas cap for the entire bundle
     pub cap: u32,
-    /// Cost per token (fractional, stored as fixed-point)
     pub cost_per_token: f64,
     /// Alert when this fraction of gas is consumed (0.0–1.0)
     pub alert_threshold: f64,
-    /// Whether the cap is a hard limit (abort on exceed)
     pub hard_limit: bool,
 }
 
@@ -229,20 +220,14 @@ impl Default for GasConfig {
     }
 }
 
-/// Error handling configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
-/// The executor currently only processes `steps`; error handling policies are a future wiring target.
+/// Error handling configuration. Loaded from manifest YAML, future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ErrorHandlingConfig {
-    /// Action on gas exceeded ("abort" | "degrade")
     pub on_gas_exceeded: String,
-    /// Action on timeout ("retry" | "abort")
     pub on_timeout: String,
-    /// Maximum retry attempts
     pub max_retries: u32,
-    /// Backoff interval between retries (seconds)
     pub retry_backoff_seconds: u32,
-    /// Action on validation failure ("abort" | "skip")
     pub on_validation_failure: String,
 }
 
@@ -258,18 +243,13 @@ impl Default for ErrorHandlingConfig {
     }
 }
 
-/// OCAP (Object Capability) configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
-/// The executor currently only processes `steps`; OCAP enforcement is a future wiring target.
+/// OCAP configuration. Loaded from manifest YAML, future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct OcapConfig {
-    /// Whether a delegation chain is required
     pub delegation_chain_required: bool,
-    /// Signature algorithm (e.g. "ed25519")
     pub signature_algorithm: String,
-    /// How long capabilities remain valid (seconds)
     pub capability_expiry_seconds: u32,
-    /// Whether capabilities are scoped to this template
     pub template_scoped: bool,
 }
 
@@ -284,20 +264,14 @@ impl Default for OcapConfig {
     }
 }
 
-/// CNS (Cybernetic Nervous System) monitoring configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
-/// The executor currently only processes `steps`; CNS span emission is handled by GovernedTool at runtime.
+/// CNS monitoring configuration. Loaded from manifest YAML, spans handled by GovernedTool at runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CnsConfig {
-    /// Whether to emit CNS spans during execution
     pub emit_spans: bool,
-    /// Span namespace (e.g. "cns.prompt.bundle-id")
     pub span_namespace: String,
-    /// Whether to track variety counters
     pub variety_monitoring: bool,
-    /// Variety deficit threshold that triggers algedonic escalation
     pub algedonic_threshold: u32,
-    /// Where to escalate when algedonic threshold is breached
     pub escalation_target: String,
 }
 
@@ -313,22 +287,15 @@ impl Default for CnsConfig {
     }
 }
 
-/// Audit trail configuration — loaded from manifest YAML but not yet enforced by ManifestExecutor.
-/// The executor currently only processes `steps`; audit logging is a future wiring target.
+/// Audit trail configuration. Loaded from manifest YAML, future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AuditConfig {
-    /// Whether audit logging is enabled
     pub enabled: bool,
-    /// Log level ("info" | "debug" | "warn" | "error")
     pub log_level: String,
-    /// Whether to include step inputs in audit records
     pub include_input: bool,
-    /// Whether to include step outputs in audit records
     pub include_output: bool,
-    /// Whether to include gas cost in audit records
     pub include_gas_cost: bool,
-    /// Whether to include CNS events in audit records
     pub include_cns_events: bool,
 }
 
@@ -347,12 +314,7 @@ impl Default for AuditConfig {
 
 // Top-level BundleManifest
 
-/// BundleManifest — a composed bundle of skills with declared conflicts,
-/// complementarities, and a cascade of execution steps.
-///
-/// This is the top-level type for the skill-bundler feature. It brings together
-/// multiple skills, declares how they interact (conflicts and complementarities),
-/// and defines an ordered cascade of steps with associated configuration.
+/// Composed bundle of skills with declared conflicts, complementarities, and cascade steps.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BundleManifest {
     pub id: String,
@@ -371,47 +333,30 @@ pub struct BundleManifest {
     pub ocap: OcapConfig,
     pub cns: CnsConfig,
     pub audit: AuditConfig,
-    /// Functional role of this manifest (e.g. "knowact", "process").
-    ///
-    /// Set from the `manifest.functional_role` YAML field. Present in most
-    /// manifests but optional for backward compatibility.
     #[serde(default)]
     pub functional_role: Option<String>,
-    /// Manifest-level inputs (parameter declarations).
     #[serde(default)]
     pub inputs: Option<serde_json::Value>,
-    /// Principles or behavioral constraints.
     #[serde(default)]
     pub principles: Option<serde_json::Value>,
 }
 
 impl BundleManifest {
-    /// Validate the bundle manifest against hKask constraints.
-    ///
-    /// Returns a list of validation warnings. An empty list means the manifest
-    /// is valid. Warnings are non-fatal issues; errors are violations of
-    /// hard constraints.
     pub fn validate(&self) -> ValidationResult {
         let mut errors: Vec<String> = Vec::new();
         let mut warnings: Vec<String> = Vec::new();
-
-        // P7: Minimum 2 skills in a bundle
         if self.skills.len() < 2 {
             errors.push(format!(
                 "Bundle must have at least 2 skills, found {}",
                 self.skills.len()
             ));
         }
-
-        // P6: Cascade depth ≤ 7 (matroshka limit)
         if self.steps.len() > 7 {
             errors.push(format!(
                 "Cascade depth exceeds matroshka limit ({} steps, max 7)",
                 self.steps.len()
             ));
         }
-
-        // P7: Each skill ≤ 10 hLexicon terms
         for skill in &self.skills {
             if skill.lexicon_terms.len() > 10 {
                 errors.push(format!(
@@ -421,8 +366,6 @@ impl BundleManifest {
                 ));
             }
         }
-
-        // P7: Bundle ≤ 30 unique terms
         let all_terms: std::collections::HashSet<&str> = self
             .skills
             .iter()
@@ -430,11 +373,10 @@ impl BundleManifest {
             .collect();
         if all_terms.len() > 30 {
             warnings.push(format!(
-                "Bundle has {} unique lexicon terms (recommended max 30) — consider decomposing into sub-bundles",
+                "Bundle has {} unique lexicon terms (recommended max 30)",
                 all_terms.len()
             ));
         }
-
         // P1: No divergent + convergent in the same phase
         let pre_skills: Vec<&SkillPolarity> = self
             .steps
@@ -458,24 +400,20 @@ impl BundleManifest {
                     .map(|sk| &sk.polarity)
             })
             .collect();
-
-        let has_divergent_pre = pre_skills.iter().any(|p| p.is_divergent());
-        let has_convergent_pre = pre_skills.iter().any(|p| p.is_convergent());
-        let has_divergent_core = core_skills.iter().any(|p| p.is_divergent());
-        let has_convergent_core = core_skills.iter().any(|p| p.is_convergent());
-
-        if has_divergent_pre && has_convergent_pre {
+        if pre_skills.iter().any(|p| p.is_divergent())
+            && pre_skills.iter().any(|p| p.is_convergent())
+        {
             errors.push(
                 "P1 violation: divergent and convergent skills in same Pre phase".to_string(),
             );
         }
-        if has_divergent_core && has_convergent_core {
+        if core_skills.iter().any(|p| p.is_divergent())
+            && core_skills.iter().any(|p| p.is_convergent())
+        {
             errors.push(
                 "P1 violation: divergent and convergent skills in same Core phase".to_string(),
             );
         }
-
-        // Validate conflict skill references exist in the bundle
         let skill_ids: std::collections::HashSet<&str> =
             self.skills.iter().map(|s| s.id.as_str()).collect();
         for conflict in &self.conflicts {
@@ -494,8 +432,6 @@ impl BundleManifest {
                 ));
             }
         }
-
-        // Validate complementarity skill references exist in the bundle
         for comp in &self.complementarities {
             for skill_id in &comp.skills {
                 if !skill_ids.contains(skill_id.as_str()) {
@@ -512,62 +448,45 @@ impl BundleManifest {
                 ));
             }
         }
-
-        // Validate step ordinals are sequential starting from 1
         let mut ordinals: Vec<u32> = self.steps.iter().map(|s| s.ordinal).collect();
         ordinals.sort();
         for (i, expected) in ordinals.iter().enumerate() {
-            let ordinal = (i as u32) + 1;
-            if *expected != ordinal {
+            if *expected != (i as u32) + 1 {
                 errors.push(format!(
-                    "Step ordinals are not sequential: expected {}, found {}",
-                    ordinal, expected
+                    "Step ordinals not sequential: expected {}, found {}",
+                    (i as u32) + 1,
+                    expected
                 ));
                 break;
             }
         }
-
-        // Validate version is semver-like
         if !self.version.contains('.') {
             warnings.push(format!(
                 "Version '{}' does not follow semantic versioning",
                 self.version
             ));
         }
-
-        // Validate content hashes are present
         for skill in &self.skills {
             if skill.content_hash.is_empty() {
-                warnings.push(format!(
-                    "Skill '{}' has empty content_hash — evolution tracking will not work",
-                    skill.id
-                ));
+                warnings.push(format!("Skill '{}' has empty content_hash", skill.id));
             }
         }
-
         ValidationResult { errors, warnings }
     }
-
-    /// Compute the total gas budget by summing all step gas caps.
     pub fn total_step_gas(&self) -> u32 {
         self.steps.iter().map(|s| s.gas_cap).sum()
     }
-
-    /// Find skills by cascade phase.
     pub fn skills_in_phase(&self, phase: CascadePhase) -> Vec<&BundleSkill> {
         self.steps
             .iter()
             .filter(|s| s.phase == phase)
             .filter_map(|step| {
-                // Try to match step to a skill by ID in description
                 self.skills
                     .iter()
                     .find(|sk| step.description.contains(&sk.id))
             })
             .collect()
     }
-
-    /// Get all skill IDs in this bundle.
     pub fn skill_ids(&self) -> Vec<String> {
         self.skills.iter().map(|s| s.id.clone()).collect()
     }
@@ -584,7 +503,6 @@ impl ValidationResult {
     pub fn is_valid(&self) -> bool {
         self.errors.is_empty()
     }
-
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
@@ -592,17 +510,12 @@ impl ValidationResult {
 
 // CNS Span Namespaces
 
-/// CNS span namespaces for bundle composition operations.
-/// These follow the hKask CNS naming convention: `cns.prompt.<operation>`.
-#[allow(dead_code)] // reserved for CNS span wiring
+/// CNS span namespaces for bundle composition operations (`cns.prompt.<operation>`).
+#[allow(dead_code)]
 pub(crate) mod cns_spans {
-    /// Span namespace for bundle composition operations.
     pub const COMPOSE: &str = "cns.prompt.skill-bundler.compose";
-    /// Span namespace for bundle application.
     pub const APPLY: &str = "cns.prompt.skill-bundler.apply";
-    /// Span namespace for bundle evolution.
     pub const EVOLVE: &str = "cns.prompt.skill-bundler.evolve";
-    /// Span namespace for bundle validation.
     pub const VALIDATE: &str = "cns.prompt.skill-bundler.validate";
 }
 

@@ -1,6 +1,5 @@
 //! hKask Service Layer — shared startup infrastructure and domain operations.
 
-pub mod agent;
 pub mod archival;
 pub mod chat;
 pub mod compose;
@@ -16,7 +15,6 @@ pub mod spec;
 pub mod user;
 pub mod verification;
 
-pub use agent::{AgentReceipt, AgentService};
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use chat::{ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage};
 pub use compose::{

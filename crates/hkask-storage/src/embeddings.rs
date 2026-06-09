@@ -1,20 +1,12 @@
-//! Embedding store — vector storage and KNN similarity search via sqlite-vec
+//! Embedding store — sqlite-vec backed KNN similarity search.
 //!
-//! Stores embedding vectors in two tables:
-//! - `embeddings`: metadata (entity_ref, model, dimensions, created_at)
-//! - `vec_embeddings`: sqlite-vec virtual table for KNN search
-//!
-//! The `vec_embeddings` table provides O(log n) approximate nearest neighbor
-//! search using the sqlite-vec extension. The `embeddings` table provides
-//! the join key and metadata.
-//!
-//! **Spec Reference:** Architecture v0.21.0 §2.3, sqlite-vec integration
+//! Two tables: `embeddings` (metadata) + `vec_embeddings` (vec0 virtual table).
 
 use crate::Store;
 use crate::lock_helpers::lock_mutex;
 use hkask_types::InfrastructureError;
 
-/// Stored embedding record with metadata
+/// Stored embedding record.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StoredEmbedding {
     pub id: String,
@@ -51,15 +43,10 @@ impl From<rusqlite::Error> for EmbeddingError {
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
-/// Default embedding dimension (must match `vec_embeddings` schema)
+/// Default embedding dimension (must match `vec_embeddings` schema).
 const DEFAULT_DIM: usize = 384;
 
-/// EmbeddingStore — sqlite-vec backed embedding storage
-///
-/// Stores and queries embedding vectors using sqlite-vec's `vec0` virtual
-/// table for KNN similarity search. Each embedding is identified by its
-/// `entity_ref` (typically a triple ID) and indexed for fast nearest-neighbor
-/// retrieval.
+/// EmbeddingStore — sqlite-vec backed embedding storage.
 pub struct EmbeddingStore {
     conn: Arc<Mutex<Connection>>,
     dim: usize,
@@ -78,7 +65,6 @@ impl Store for EmbeddingStore {
 }
 
 impl EmbeddingStore {
-    /// Create a new EmbeddingStore sharing an existing database connection.
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             conn,
@@ -87,17 +73,11 @@ impl EmbeddingStore {
     }
 
     /// Create with a custom embedding dimension.
-    ///
-    /// Must match the dimension declared in the `vec_embeddings` schema.
-    /// Use only if you've overridden `HKASK_EMBEDDING_DIM` at database creation.
     pub fn with_dim(conn: Arc<Mutex<Connection>>, dim: usize) -> Self {
         Self { conn, dim }
     }
 
-    /// Encode a float vector as a compact binary blob for sqlite-vec.
-    ///
-    /// sqlite-vec expects `float[N]` vectors as a byte blob in native-endian
-    /// f32 layout. This is the standard encoding for the `vec0` virtual table.
+    /// Encode f32 vector as binary blob for sqlite-vec.
     fn encode_vector(vector: &[f32]) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(vector.len() * 4);
         for &f in vector {
@@ -106,7 +86,7 @@ impl EmbeddingStore {
         bytes
     }
 
-    /// Decode a binary blob back into a float vector.
+    /// Decode binary blob back into f32 vector.
     fn decode_vector(blob: &[u8], expected_dim: usize) -> Result<Vec<f32>, EmbeddingError> {
         if blob.len() != expected_dim * 4 {
             return Err(EmbeddingError::DimensionMismatch {
@@ -124,7 +104,7 @@ impl EmbeddingStore {
         Ok(vector)
     }
 
-    /// Validate vector dimension matches configured dimension.
+    /// Validate vector dimension.
     fn validate_dim(&self, vector: &[f32]) -> Result<(), EmbeddingError> {
         if vector.len() != self.dim {
             return Err(EmbeddingError::DimensionMismatch {
@@ -137,11 +117,7 @@ impl EmbeddingStore {
 }
 
 impl EmbeddingStore {
-    /// Store an embedding vector indexed by entity reference.
-    ///
-    /// Inserts into both the `embeddings` metadata table and the
-    /// `vec_embeddings` virtual table in a single transaction.
-    /// Returns the generated embedding ID.
+    /// Store embedding in both tables (single transaction). Returns the embedding ID.
     pub fn store(
         &self,
         entity_ref: &str,
@@ -228,11 +204,7 @@ impl EmbeddingStore {
         }
     }
 
-    /// Search for the K nearest neighbors of a query vector.
-    ///
-    /// Uses sqlite-vec's KNN query: `WHERE embedding MATCH ? ORDER BY distance LIMIT ?`.
-    /// Results are joined with the `embeddings` metadata table to produce
-    /// `StoredEmbedding` records.
+    /// KNN search using sqlite-vec MATCH operator.
     pub fn search(
         &self,
         query_vector: &[f32],
@@ -278,10 +250,7 @@ impl EmbeddingStore {
         Ok(results)
     }
 
-    /// Delete an embedding by entity reference.
-    ///
-    /// Removes from both the `embeddings` metadata table and the
-    /// `vec_embeddings` virtual table in a single transaction.
+    /// Delete embedding from both tables (single transaction).
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
 
@@ -339,10 +308,7 @@ impl EmbeddingStore {
         Ok(count as usize)
     }
 
-    /// Query all entity_refs matching a prefix.
-    ///
-    /// Uses SQL LIKE with the prefix + '%' pattern.
-    /// Efficient when the `idx_embeddings_entity_ref` index exists.
+    /// Query entity_refs matching a prefix.
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
 

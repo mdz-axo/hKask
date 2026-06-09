@@ -29,6 +29,8 @@ use tokio::sync::{RwLock, mpsc};
 
 use crate::curator::context::CuratorContext;
 
+const CUR_TARGET: &str = "curation.loop";
+
 /// Curation Loop — pure regulatory observer.
 ///
 /// Reads from the NuEvent store and produces `CuratorDirective`s through
@@ -99,10 +101,6 @@ impl CurationLoop {
         (loop_instance, inbox_tx)
     }
 
-    /// Create a Curation Loop with a consolidation port.
-    ///
-    /// When episodic budget pressure triggers escalation, the consolidation
-    /// bridge will fire to migrate episodic triples into semantic memory.
     pub fn with_consolidation(
         curator_handle: CuratorHandle,
         context: Arc<CuratorContext>,
@@ -119,11 +117,6 @@ impl CurationLoop {
     }
 
     /// Set the curation confidence gate for metacognitive evaluation.
-    ///
-    /// When set, `act()` calls `evaluate_confidence_internal()` during the
-    /// regulation cycle. If confidence is in the transition zone (0.3 < R̄ < 0.8),
-    /// a `SeekMoreEvidence` directive is issued through Cybernetics.
-    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_confidence_gate(mut self, gate: CurationConfidenceGate) -> Self {
         self.confidence_gate = Some(Mutex::new(gate));
         self
@@ -153,20 +146,20 @@ impl CurationLoop {
                     self.last_review_ms
                         .store(cursor_ms as u64, Ordering::Relaxed);
                     tracing::info!(
-                        target: "curation.loop",
+                        target: CUR_TARGET,
                         cursor_ms = cursor_ms,
                         "Restored curation review cursor from persistence"
                     );
                 }
                 Ok(None) => {
                     tracing::info!(
-                        target: "curation.loop",
+                        target: CUR_TARGET,
                         "No persisted cursor found — starting from epoch"
                     );
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "curation.loop",
+                        target: CUR_TARGET,
                         error = %e,
                         "Failed to load persisted curation cursor — starting from epoch"
                     );
@@ -175,59 +168,14 @@ impl CurationLoop {
         }
     }
 
-    /// Evaluate curation confidence using the ARL confidence gate.
-    ///
-    /// Two call paths exist:
-    /// 1. **External gate** — pass a `&mut CurationConfidenceGate` directly.
-    /// 2. **Internal gate** — if `with_confidence_gate()` was called, use
-    ///    `evaluate_confidence_internal()` which locks the `Mutex`-wrapped gate.
-    ///
-    /// If the gate is in the transition zone (0.3 < R̄ < 0.8), returns a
-    /// `CuratorDirective::SeekMoreEvidence` with the channel identified by
-    /// sensitivity analysis as the most impactful to verify.
-    ///
-    /// This is the IP-3 metacognitive bridge: CurationConfidenceGate produces
-    /// a `ConfidenceDecision::SeekMoreEvidence`, which is translated into a
-    /// `CuratorDirective` and routed through Cybernetics to Inference.
-    pub fn evaluate_confidence(
-        &self,
-        gate: &mut CurationConfidenceGate,
-        context: &str,
-    ) -> Option<CuratorDirective> {
-        let decision = gate.decide();
-        let r_bar = gate.confidence();
-
-        match decision {
-            ConfidenceDecision::SeekMoreEvidence => {
-                // Sensitivity analysis: which channel to verify?
-                let sensitivities = gate.sensitivity_analysis();
-                let top_channel = sensitivities
-                    .first()
-                    .map(|(name, _)| name.as_str())
-                    .unwrap_or("unknown");
-
-                Some(CuratorDirective::SeekMoreEvidence {
-                    context: context.to_string(),
-                    channel: top_channel.to_string(),
-                    confidence: format!("{r_bar:.3}"),
-                })
-            }
-            _ => None, // Proceed or Suppress — no directive needed
-        }
-    }
-
     /// Evaluate curation confidence using the internal gate (Mutex-protected).
-    ///
-    /// Called from `act()` where `&self` is available but `&mut self` is not.
-    /// Returns `None` if the internal gate was not configured via `with_confidence_gate()`,
-    /// or if the gate is poisoned (lock failure).
     pub fn evaluate_confidence_internal(&self, context: &str) -> Option<CuratorDirective> {
         let gate = self.confidence_gate.as_ref()?;
         let mut guard = match gate.lock() {
             Ok(g) => g,
             Err(e) => {
                 tracing::warn!(
-                    target: "curation.loop",
+                    target: CUR_TARGET,
                     error = %e,
                     "CurationConfidenceGate mutex poisoned — skipping confidence evaluation"
                 );
@@ -256,39 +204,7 @@ impl CurationLoop {
     }
 
     // Explicit 4-stage cycle: sense → compare → compute → act
-
-    /// **Sense stage** (sense → compare → compute → act):
-    /// Read NuEvent stream for curation-relevant events and read CurationPort
-    /// confidence values. Produces afferent signals for algedonic event count,
-    /// pending escalations, consolidation candidates, and goal state transitions.
-    pub async fn sense(&self) -> Vec<Signal> {
-        <Self as HkaskLoop>::sense(self).await
-    }
-
-    /// **Compare stage** (sense → compare → compute → act):
-    /// Evaluate confidence vs threshold via CurationConfidenceGate.
-    /// Detects deviations from set-points in sensed signals (algedonic count,
-    /// escalation count, consolidation candidates, goal stale/expired counts).
-    pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
-        <Self as HkaskLoop>::compare(self, signals).await
-    }
-
-    /// **Compute stage** (sense → compare → compute → act):
-    /// Determine if a CuratorDirective is needed and which one. Produces
-    /// Escalate actions when algedonic events or pending escalations exceed
-    /// their set-points.
-    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
-        <Self as HkaskLoop>::compute(self, deviations).await
-    }
-
-    /// **Act stage** (sense → compare → compute → act):
-    /// Issue the directive via MessageDispatch. Converts LoopActions to
-    /// CuratorDirectives and issues them through the dispatch with DAMPEN
-    /// filtering. Fires the consolidation bridge when budget pressure
-    /// requires it.
-    pub async fn act(&self, actions: &[LoopAction]) {
-        <Self as HkaskLoop>::act(self, actions).await
-    }
+    // Delegation methods removed — HkaskLoop trait impl provides tick().
 }
 
 #[async_trait::async_trait]
@@ -298,17 +214,7 @@ impl HkaskLoop for CurationLoop {
     }
 
     /// Sense: read algedonic-significant NuEvents from the persistent store.
-    ///
-    /// Per Fowler's Gateway pattern: Curation reads from the NuEvent store
-    /// (the canonical alerts log), not from live CNS state. This makes Curation
-    /// a deliberative reviewer, not a real-time monitor.
-    ///
     /// Falls back to live CNS reads if no NuEvent store is configured.
-    ///
-    /// Produces signals for:
-    /// - Algedonic event count (from NuEvent store)
-    /// - Escalation queue size
-    /// - Goal stale/expired count (from inter-loop GoalTransition messages)
     async fn sense(&self) -> Vec<Signal> {
         // Primary: Read from NuEvent store using cursor-based algedonic review
         let since_ms = self.last_review_ms.load(Ordering::Relaxed);
@@ -330,14 +236,14 @@ impl HkaskLoop for CurationLoop {
                             store.persist_cursor("curation_last_review_ms", new_cursor as i64)
                         {
                             tracing::warn!(
-                                target: "curation.loop",
+                                target: CUR_TARGET,
                                 error = %e,
                                 "Failed to persist curation review cursor"
                             );
                         }
                     }
                     tracing::info!(
-                        target: "curation.loop",
+                        target: CUR_TARGET,
                         since = %since.to_rfc3339(),
                         event_count = count,
                         "Curation read algedonic events from NuEvent store"
@@ -346,7 +252,7 @@ impl HkaskLoop for CurationLoop {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "curation.loop",
+                        target: CUR_TARGET,
                         error = %e,
                         "Failed to query NuEvent store, falling back to live CNS reads"
                     );
@@ -392,7 +298,7 @@ impl HkaskLoop for CurationLoop {
                         "stale" => {
                             goal_stale_count += 1;
                             tracing::debug!(
-                                target: "curation.loop",
+                                target: CUR_TARGET,
                                 goal_id = %goal_id,
                                 to_state = %to_state,
                                 "Goal stale transition received"
@@ -401,7 +307,7 @@ impl HkaskLoop for CurationLoop {
                         "expired" => {
                             goal_expired_count += 1;
                             tracing::debug!(
-                                target: "curation.loop",
+                                target: CUR_TARGET,
                                 goal_id = %goal_id,
                                 to_state = %to_state,
                                 "Goal expired transition received"
@@ -409,7 +315,7 @@ impl HkaskLoop for CurationLoop {
                         }
                         _ => {
                             tracing::trace!(
-                                target: "curation.loop",
+                                target: CUR_TARGET,
                                 goal_id = %goal_id,
                                 to_state = %to_state,
                                 "Goal transition received (non-stale)"
@@ -424,7 +330,7 @@ impl HkaskLoop for CurationLoop {
                     } => {
                         spec_drift_alert_count += 1;
                         tracing::warn!(
-                            target: "curation.loop",
+                            target: CUR_TARGET,
                             spec_id = %spec_id,
                             drift_magnitude = drift_magnitude,
                             "Spec drift alert received from DefaultSpecCurator"
@@ -432,7 +338,7 @@ impl HkaskLoop for CurationLoop {
                     }
                     _ => {
                         tracing::trace!(
-                            target: "curation.loop",
+                            target: CUR_TARGET,
                             payload_type = ?msg.payload,
                             "Ignoring non-curation payload in CurationLoop inbox"
                         );
@@ -441,52 +347,21 @@ impl HkaskLoop for CurationLoop {
             }
         }
 
+        let s = |metric, value: u64| Signal::new(LoopId::Curation, metric, value as f64, 0.0);
         vec![
-            Signal::new(
-                LoopId::Curation,
-                SignalMetric::AlgedonicEvents,
-                algedonic_count as f64,
-                0.0, // set-point: zero algedonic events is healthy
-            ),
-            Signal::new(
-                LoopId::Curation,
-                SignalMetric::PendingEscalations,
-                pending_escalations as f64,
-                0.0, // set-point: zero pending escalations is healthy
-            ),
-            Signal::new(
-                LoopId::Curation,
+            s(SignalMetric::AlgedonicEvents, algedonic_count),
+            s(SignalMetric::PendingEscalations, pending_escalations as u64),
+            s(
                 SignalMetric::ConsolidationCandidates,
-                consolidation_candidates as f64,
-                0.0, // set-point: zero pending consolidation candidates is healthy
+                consolidation_candidates as u64,
             ),
-            Signal::new(
-                LoopId::Curation,
-                SignalMetric::GoalStaleCount,
-                goal_stale_count as f64,
-                0.0, // set-point: zero stale goals is healthy
-            ),
-            Signal::new(
-                LoopId::Curation,
-                SignalMetric::GoalExpiredCount,
-                goal_expired_count as f64,
-                0.0, // set-point: zero expired goals is healthy
-            ),
-            Signal::new(
-                LoopId::Curation,
-                SignalMetric::SpecDriftAlertCount,
-                spec_drift_alert_count as f64,
-                0.0, // set-point: zero spec drift alerts is healthy
-            ),
+            s(SignalMetric::GoalStaleCount, goal_stale_count),
+            s(SignalMetric::GoalExpiredCount, goal_expired_count),
+            s(SignalMetric::SpecDriftAlertCount, spec_drift_alert_count),
         ]
     }
 
     /// Compute: produce CuratorDirectives as LoopActions.
-    ///
-    /// Now that Curation reads from the NuEvent store (not live CNS),
-    /// the signals are algedonic_event_count and pending_escalations.
-    /// When algedonic events exceed zero, Curation produces escalation directives.
-    /// When pending_escalations exist, Curation processes them.
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
@@ -522,14 +397,10 @@ impl HkaskLoop for CurationLoop {
     }
 
     /// Act: issue directives through CuratorContext with DAMPEN filtering.
-    ///
-    /// Converts `LoopAction`s to `CuratorDirective`s and issues them
-    /// through the dispatch. Dampening is applied automatically by
-    /// `CuratorContext::issue_directive()`.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
             tracing::info!(
-                target: "curation.loop",
+                target: CUR_TARGET,
                 action_type = ?action.action_type,
                 target_loop = %action.target,
                 "Curation Loop regulatory action"
@@ -548,7 +419,7 @@ impl HkaskLoop for CurationLoop {
                         .and_then(|v| v.as_u64())
                         .unwrap_or(0);
                     tracing::warn!(
-                        target: "curation.loop",
+                        target: CUR_TARGET,
                         count = count,
                         "Algedonic events exceeded threshold — Curation reviewing"
                     );
@@ -564,13 +435,13 @@ impl HkaskLoop for CurationLoop {
                     match self.context.escalation_queue().list_pending() {
                         Ok(entries) if !entries.is_empty() => {
                             tracing::warn!(
-                                target: "curation.loop",
+                                target: CUR_TARGET,
                                 count = entries.len(),
                                 "Processing pending escalations"
                             );
                             for entry in &entries {
                                 tracing::info!(
-                                    target: "curation.loop",
+                                    target: CUR_TARGET,
                                     escalation_id = %entry.id,
                                     confidence = entry.confidence,
                                     "Reviewing escalation entry"
@@ -587,7 +458,7 @@ impl HkaskLoop for CurationLoop {
                                     self.context.issue_directive(directive).await
                                 {
                                     tracing::info!(
-                                        target: "curation.loop",
+                                        target: CUR_TARGET,
                                         trace_id = %trace_id,
                                         escalation_id = %entry.id,
                                         "Issued OverrideGasBudget directive for escalated bot"
@@ -611,7 +482,7 @@ impl HkaskLoop for CurationLoop {
                                 ) {
                                     Ok(outcome) if outcome.consolidated_count > 0 => {
                                         tracing::info!(
-                                            target: "curation.loop",
+                                            target: CUR_TARGET,
                                             consolidated = outcome.consolidated_count,
                                             failed = outcome.failed_count,
                                             "Consolidation bridge fired for escalated system"
@@ -620,7 +491,7 @@ impl HkaskLoop for CurationLoop {
                                     Ok(_) => {}
                                     Err(e) => {
                                         tracing::warn!(
-                                            target: "curation.loop",
+                                            target: CUR_TARGET,
                                             error = %e,
                                             "Consolidation bridge failed"
                                         );
@@ -631,7 +502,7 @@ impl HkaskLoop for CurationLoop {
                         Ok(_) => {}
                         Err(e) => {
                             tracing::error!(
-                                target: "curation.loop",
+                                target: CUR_TARGET,
                                 error = %e,
                                 "Failed to list pending escalations"
                             );
@@ -651,7 +522,7 @@ impl HkaskLoop for CurationLoop {
                 && let Some(trace_id) = self.context.issue_directive(directive).await
             {
                 tracing::info!(
-                    target: "curation.loop",
+                    target: CUR_TARGET,
                     trace_id = %trace_id,
                     "Directive issued through dispatch"
                 );
@@ -666,7 +537,7 @@ impl HkaskLoop for CurationLoop {
             && let Some(trace_id) = self.context.issue_directive(directive).await
         {
             tracing::info!(
-                target: "curation.loop",
+                target: CUR_TARGET,
                 trace_id = %trace_id,
                 "Confidence gate directive issued through dispatch"
             );

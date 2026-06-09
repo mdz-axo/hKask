@@ -2,6 +2,23 @@
 
 use super::types::*;
 
+/// Emit `"...\n"` markers between non-consecutive lines in `indices`.
+fn join_with_ellipsis(lines: &[&str], indices: &[usize]) -> String {
+    let mut result = String::new();
+    let mut last_idx: Option<usize> = None;
+    for &idx in indices {
+        if let Some(li) = last_idx
+            && idx > li + 1
+        {
+            result.push_str("...\n");
+        }
+        result.push_str(lines[idx]);
+        result.push('\n');
+        last_idx = Some(idx);
+    }
+    result.trim_end().to_string()
+}
+
 /// Compute the line budget for compression given the input size and profile.
 ///
 /// Returns `(budget, is_passthrough)` — if `is_passthrough`, the algorithm
@@ -144,20 +161,7 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
             scored.into_iter().take(budget).map(|(i, _, _)| i).collect();
         selected_indices.sort_unstable();
 
-        let mut result = String::new();
-        let mut last_idx: Option<usize> = None;
-        for idx in selected_indices {
-            if let Some(li) = last_idx
-                && idx > li + 1
-            {
-                result.push_str("...\n");
-            }
-            result.push_str(lines[idx]);
-            result.push('\n');
-            last_idx = Some(idx);
-        }
-
-        result.trim_end().to_string()
+        join_with_ellipsis(&lines, &selected_indices)
     }
 }
 
@@ -279,20 +283,7 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
 
         let mut selected_indices: Vec<usize> = selected_indices.into_iter().collect();
         selected_indices.sort_unstable();
-        let mut result = String::new();
-        let mut last_idx: Option<usize> = None;
-        for idx in selected_indices {
-            if let Some(li) = last_idx
-                && idx > li + 1
-            {
-                result.push_str("...\n");
-            }
-            result.push_str(lines[idx]);
-            result.push('\n');
-            last_idx = Some(idx);
-        }
-
-        result.trim_end().to_string()
+        join_with_ellipsis(&lines, &selected_indices)
     }
 }
 
@@ -396,4 +387,3 @@ pub fn classify_tool(tool_name: &str) -> ContextCategory {
         ContextCategory::Unknown
     }
 }
-

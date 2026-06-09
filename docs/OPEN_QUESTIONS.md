@@ -456,10 +456,17 @@ The DDMVSS focusing assumption `MCP ≡ CLI ≡ API` is an axiom of the specific
 ### FUT-011: SpecStore bitemporal query methods
 
 **DDMVSS Category:** Persistence  
-**Status:** Open  
-**Opened:** 2026-06-07
+**Status:** Resolved  
+**Opened:** 2026-06-07  
+**Resolved:** 2026-06-08
 
-The spec document (`persistence-and-lifecycle.md`) specifies bitemporal semantics for spec records. The code has `valid_from`/`valid_to` fields on `Spec` but no bitemporal query methods. This is a code-implementation gap, not a spec-document gap. The spec correctly describes the intended behavior.
+Added 4 bitemporal query methods to `SpecStore` trait + `SqliteSpecStore` impl:
+- `list_valid_at(at)` — specs valid at a point in time
+- `list_valid_in_range(from, to)` — specs with valid-time window overlap
+- `list_since(since)` — specs recorded since a given timestamp (transaction-time)
+- `expire(id, valid_to)` — set valid_to to expire a spec
+
+Also added `recorded_at` column to `spec_curation_records` table and `list_curation_records_since(since)` method to `SqliteCurationRecordStore` (transaction-time query for curation audit trail). 6 tests verify all methods.
 
 ---
 
@@ -509,7 +516,7 @@ The coherence threshold (0.7) is a starting guess. The spec document states this
 | # | Item | Category | Status | DDMVSS §11 Ref |
 |---|------|----------|--------|---------------|
 | R3.1 | Span::Spec variant gap | Observability | **Resolved** (added in audit) | Audit R1 |
-| R3.2 | SpecStore bitemporal semantics | Persistence | **Resolved** (partial) — valid_from/valid_to fields and columns exist. No recorded_at or bitemporal query methods yet. | DDMVSS §11 #2 |
+| R3.2 | SpecStore bitemporal semantics | Persistence | **Resolved** — 4 bitemporal query methods + recorded_at column + list_curation_records_since. 6 tests. Updated 2026-06-08 | DDMVSS §11 #2 |
 | R3.3 | Spec signing (Ed25519) | Trust | **Resolved** — Ed25519SpecSigner implemented | DDMVSS §11 #3 |
 | R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | **Resolved** — CapabilityChecker::grant_spec() implemented | DDMVSS §11 #4 |
 | R3.5 | hLexicon spec-curation terms bootstrapping | Domain | **Resolved** (partially bootstrapped) | Audit §2.3 |
