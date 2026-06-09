@@ -50,9 +50,9 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `docs/status/spec-code-drift.yaml` and `docs/status/curation-decisions.yaml` |
 | **P2-07** | DDMVSS audit R4: Update §9.1 self-application matrix | Curator | Medium | ✅ Complete | Trust → Pass, Observability → Pass, Persistence/Lifecycle/Curation → :partial. Updated 2026-06-08 |
 | **P2-08** | DDMVSS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | PRINCIPLES.md §1.4 is authoritative; 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
-| **P2-09** | DDMVSS audit R8: Add TemplateType vocabulary mapping to interface-and-composition.md | Curator | Medium | ⬜ Open | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct |
-| **P2-10** | DDMVSS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ⬜ Open | 10 items from DDMVSS §11 R3 |
-| **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ⬜ Open | Requires current `cargo check`, `cargo test`, `cargo clippy` results |
+| **P2-09** | DDMVSS audit R8: Add TemplateType vocabulary mapping to interface-and-composition.md | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
+| **P2-10** | DDMVSS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 DDMVSS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
+| **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
 | **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 21 MCP servers' tools | Dev | Medium | ✅ Complete | 21 servers, 119 tools, gas costs, credentials, per-server detail |
 | **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ⬜ Open | Pattern refactoring review across codebase |

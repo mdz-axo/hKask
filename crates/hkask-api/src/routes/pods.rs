@@ -1,16 +1,11 @@
-//! Pod lifecycle management routes
-//!
-//! Delegates pod lifecycle operations to `PodService` in `hkask-services`.
-//! Surface concerns (auth/capability checks, request/response DTOs) stay
-//! here. Business logic (UUID parsing, error normalization) moves to the
-//! service layer.
+//! Pod lifecycle management routes — call PodManager directly.
 
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::{Json, routing::Router};
 use hkask_agents::pod::AgentPersona;
-use hkask_services::{PodContext, PodService};
 use hkask_types::DelegationResource;
+use uuid::Uuid;
 
 use crate::ApiError;
 use crate::ApiState;
@@ -18,7 +13,6 @@ use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// Create pod request
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodRequest {
     pub template: String,
@@ -26,13 +20,11 @@ pub struct CreatePodRequest {
     pub name: Option<String>,
 }
 
-/// Create pod response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodResponse {
     pub pod_id: String,
 }
 
-/// Pod status response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PodStatusResponse {
     pub pod_id: String,
@@ -44,13 +36,11 @@ pub struct PodStatusResponse {
     pub created_at: i64,
 }
 
-/// List pods response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ListPodsResponse {
     pub pods: Vec<PodStatusResponse>,
 }
 
-/// Create pods router
 pub fn pods_router() -> Router<ApiState> {
     Router::new()
         .route("/api/pods", axum::routing::get(list_pods))
@@ -63,11 +53,27 @@ pub fn pods_router() -> Router<ApiState> {
         .route("/api/pods/:id/status", axum::routing::get(pod_status))
 }
 
-/// List all pods
-async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
-    let ctx = PodContext::from(&*state.service_context);
-    let pod_statuses = PodService::list_pods(&ctx).await.unwrap_or_default();
+fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
+    use hkask_agents::pod::PodID;
+    Uuid::parse_str(id)
+        .map(PodID::from_uuid)
+        .map_err(|e| ApiError::BadRequest {
+            message: format!("Invalid pod ID: {e}"),
+        })
+}
 
+fn map_pod_err(e: hkask_agents::pod::AgentPodError) -> ApiError {
+    match &e {
+        hkask_agents::pod::AgentPodError::PodNotFound(id) => ApiError::NotFound {
+            message: format!("Pod {id} not found"),
+        },
+        _ => ApiError::from(e),
+    }
+}
+
+async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
+    let pm = &state.service_context.pod_manager;
+    let pod_statuses = pm.list_pods().await.unwrap_or_default();
     let pods: Vec<PodStatusResponse> = pod_statuses
         .into_iter()
         .map(|s| PodStatusResponse {
@@ -80,86 +86,79 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
             created_at: s.created_at,
         })
         .collect();
-
     Json(ListPodsResponse { pods })
 }
 
-/// Create a new pod
-///
-/// Auth/capability check is a surface concern — the service layer does not
-/// enforce who can create pods.
 async fn create_pod(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ApiError> {
-    // Surface concern: capability check stays in the API
-    let has_capability = state.service_context.capability_checker.check_resource(
+    let has = state.service_context.capability_checker.check_resource(
         &auth.token,
         &auth.webid,
         DelegationResource::Tool,
     );
-
-    if !has_capability {
+    if !has {
         return Err(ApiError::Forbidden {
-            reason: "Insufficient capability to create pods".to_string(),
+            reason: "Insufficient capability to create pods".into(),
         });
     }
-
-    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
-        tracing::warn!("Invalid persona YAML: {}", e);
-        ApiError::BadRequest {
-            message: format!("Invalid persona YAML: {}", e),
-        }
+    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ApiError::BadRequest {
+        message: format!("Invalid persona YAML: {e}"),
     })?;
-
-    let ctx = PodContext::from(&*state.service_context);
-    let pod_id = PodService::create_pod(&ctx, &req.template, &persona, req.name)
+    let pm = &state.service_context.pod_manager;
+    let pod_id = pm
+        .create_pod(&req.template, &persona, req.name)
         .await
-        .map_err(ApiError::from)?;
-
-    Ok(Json(CreatePodResponse { pod_id }))
+        .map_err(map_pod_err)?;
+    Ok(Json(CreatePodResponse {
+        pod_id: pod_id.to_string(),
+    }))
 }
 
-/// Activate a pod
 async fn activate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    let ctx = PodContext::from(&*state.service_context);
-    PodService::activate_pod(&ctx, &id)
+    let pid = parse_pod_id(&id)?;
+    state
+        .service_context
+        .pod_manager
+        .activate_pod(&pid)
         .await
-        .map_err(ApiError::from)?;
-
+        .map_err(map_pod_err)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Deactivate a pod
 async fn deactivate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    let ctx = PodContext::from(&*state.service_context);
-    PodService::deactivate_pod(&ctx, &id)
+    let pid = parse_pod_id(&id)?;
+    state
+        .service_context
+        .pod_manager
+        .deactivate_pod(&pid)
         .await
-        .map_err(ApiError::from)?;
-
+        .map_err(map_pod_err)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Get pod status
 async fn pod_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ApiError> {
-    let ctx = PodContext::from(&*state.service_context);
-    let status = PodService::get_pod_status(&ctx, &id)
+    let pid = parse_pod_id(&id)?;
+    let status = state
+        .service_context
+        .pod_manager
+        .get_pod_status(&pid)
         .await
-        .map_err(ApiError::from)?;
-
+        .map_err(map_pod_err)?;
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,
         name: status.name,

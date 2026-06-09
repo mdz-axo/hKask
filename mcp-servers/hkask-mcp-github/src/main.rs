@@ -187,14 +187,13 @@ impl GithubServer {
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("github_get_repo", &self.webid);
-        if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_owner_repo(&owner, &repo).map_err(|e| McpToolError::new(e.kind, e.message))?;
         let url = github_api_url(&owner, &repo, "");
-        match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => span.ok_json(extract_repo_summary(&v)),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(
+            api_get(&self.client, "GitHub", &url)
+                .await
+                .map(|v| extract_repo_summary(&v)),
+        )
     }
 
     #[tool(description = "List issues in a repository")]

@@ -298,3 +298,12 @@ impl From<&GasBudget> for AgentGasStatus {
     }
 }
 
+/// Gas budget error — returned when gas operations fail.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum GasError {
+    #[error("Gas budget exceeded: {requested}, remaining {remaining}")]
+    BudgetExceeded {
+        requested: GasCost,
+        remaining: GasCost,
+    },
+}

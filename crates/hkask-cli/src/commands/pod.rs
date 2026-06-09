@@ -1,92 +1,98 @@
-//! Pod management command handlers
-//
-//! Delegates pod lifecycle operations to `PodService` in `hkask-services`.
-//! All context is derived from `ServiceContext` via `PodContext::from(&ctx)` —
-//! no mock PodManager construction or direct database access.
+//! Pod management command handlers — call PodManager directly.
+
+use std::sync::Arc;
 
 use crate::block_on;
 use crate::cli::PodAction;
-use hkask_agents::pod::AgentPersona;
-use hkask_services::{PodContext, PodService};
-use std::path::PathBuf;
+use hkask_agents::pod::{AgentPersona, AgentPodError, PodID, PodManager, PodStatus};
+use uuid::Uuid;
 
-/// Build a ServiceContext for pod subcommands.
-async fn build_service_context() -> Result<hkask_services::ServiceContext, String> {
-    let config = hkask_services::ServiceConfig::from_env()
-        .map_err(|e| format!("Failed to resolve service config: {}", e))?;
-    hkask_services::ServiceContext::build(config)
-        .await
-        .map_err(|e| format!("Failed to build service context: {}", e))
+fn parse_pod_id(id: &str) -> Result<PodID, AgentPodError> {
+    Uuid::parse_str(id)
+        .map(PodID::from_uuid)
+        .map_err(|_| AgentPodError::PodNotFound(PodID::from_uuid(Uuid::nil())))
 }
 
-/// Get pod status
-pub async fn get_pod_status(pod_id: &str) -> Result<hkask_agents::pod::PodStatus, String> {
-    let ctx = build_service_context().await?;
-    let pod_ctx = PodContext::from(&ctx);
-    PodService::get_pod_status(&pod_ctx, pod_id)
-        .await
-        .map_err(|e| e.to_string())
+fn normalize_pod_error(e: AgentPodError) -> String {
+    match &e {
+        AgentPodError::PodNotFound(id) => format!("Pod {} not found", id),
+        _ => e.to_string(),
+    }
 }
 
-/// List all pods
-pub async fn list_pods() -> Result<Vec<hkask_agents::pod::PodStatus>, String> {
-    let ctx = build_service_context().await?;
-    let pod_ctx = PodContext::from(&ctx);
-    PodService::list_pods(&pod_ctx)
-        .await
-        .map_err(|e| e.to_string())
+async fn build_pod_manager() -> Result<Arc<PodManager>, String> {
+    let config = hkask_services::ServiceConfig::from_env().map_err(|e| format!("Config: {e}"))?;
+    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| format!("DB: {e}"))?;
+    let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
+    let mcp = Arc::new(hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
+        Arc::new(hkask_types::CapabilityChecker::new(&config.acp_secret)),
+        Arc::new(hkask_mcp::runtime::McpRuntime::new()),
+        tokio::runtime::Handle::current(),
+    ));
+    let git = Arc::new(hkask_mcp::GitCasAdapter::from_path(
+        std::path::PathBuf::from(&config.template_cache_path),
+    ));
+
+    // Minimal memory for pod creation
+    let mem_db = hkask_storage::in_memory_db();
+    let mem_conn = mem_db.conn_arc();
+    let adapter = Arc::new(
+        hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter::new(
+            hkask_memory::EpisodicMemory::new(hkask_storage::TripleStore::new(Arc::clone(
+                &mem_conn,
+            ))),
+            hkask_memory::SemanticMemory::new(
+                hkask_storage::TripleStore::new(Arc::clone(&mem_conn)),
+                hkask_storage::EmbeddingStore::new(Arc::clone(&mem_conn)),
+            ),
+        ),
+    );
+    let epi: Arc<dyn hkask_agents::ports::EpisodicStoragePort> = adapter.clone();
+    let sem: Arc<dyn hkask_agents::ports::SemanticStoragePort> = epi.clone();
+
+    Ok(Arc::new(PodManager::new(git, acp, mcp, epi, sem)))
 }
 
-/// Create pod from template crate
+pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
+    let pm = build_pod_manager().await?;
+    let id = parse_pod_id(pod_id).map_err(normalize_pod_error)?;
+    pm.get_pod_status(&id).await.map_err(normalize_pod_error)
+}
+
+pub async fn list_pods() -> Result<Vec<PodStatus>, String> {
+    let pm = build_pod_manager().await?;
+    pm.list_pods().await.map_err(normalize_pod_error)
+}
+
 pub async fn create_pod(
-    template_name: &str,
-    persona_path: &PathBuf,
-    pod_name: Option<&str>,
+    template: &str,
+    persona_path: &std::path::PathBuf,
+    name: Option<&str>,
 ) -> Result<String, String> {
-    let yaml_content = std::fs::read_to_string(persona_path)
-        .map_err(|e| format!("Failed to read persona file: {}", e))?;
-
-    let persona = AgentPersona::from_yaml(&yaml_content)
-        .map_err(|e| format!("Invalid persona YAML: {}", e))?;
-
-    let ctx = build_service_context().await?;
-    let pod_ctx = PodContext::from(&ctx);
-    PodService::create_pod(
-        &pod_ctx,
-        template_name,
-        &persona,
-        pod_name.map(String::from),
-    )
-    .await
-    .map_err(|e| e.to_string())
+    let yaml = std::fs::read_to_string(persona_path).map_err(|e| format!("Read persona: {e}"))?;
+    let persona = AgentPersona::from_yaml(&yaml).map_err(|e| format!("Invalid persona: {e}"))?;
+    let pm = build_pod_manager().await?;
+    pm.create_pod(template, &persona, name.map(String::from))
+        .await
+        .map(|id| id.to_string())
+        .map_err(normalize_pod_error)
 }
 
-/// Activate pod
 pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = build_service_context().await?;
-    let pod_ctx = PodContext::from(&ctx);
-    PodService::activate_pod(&pod_ctx, pod_id)
-        .await
-        .map_err(|e| e.to_string())
+    let pm = build_pod_manager().await?;
+    let id = parse_pod_id(pod_id).map_err(normalize_pod_error)?;
+    pm.activate_pod(&id).await.map_err(normalize_pod_error)
 }
 
-/// Deactivate pod
-///
-/// Note: Previous CLI code swallowed deactivation errors with `let _ = ...`.
-/// The service layer now propagates errors consistently — both CLI and API
-/// receive proper `PodNotFound` or `Pod(AgentPodError)` on failure.
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = build_service_context().await?;
-    let pod_ctx = PodContext::from(&ctx);
-    PodService::deactivate_pod(&pod_ctx, pod_id)
-        .await
-        .map_err(|e| e.to_string())
+    let pm = build_pod_manager().await?;
+    let id = parse_pod_id(pod_id).map_err(normalize_pod_error)?;
+    pm.deactivate_pod(&id).await.map_err(normalize_pod_error)
 }
 
-/// CLI handler for `kask pod` subcommand
 pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
     use crate::commands;
-
     match action {
         PodAction::Create {
             template,
@@ -153,7 +159,7 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
                     }
                 }
             }
-            Err(e) => eprintln!("Pod listing unavailable: {}", e),
+            Err(e) => eprintln!("Pod listing unavailable: {e}"),
         },
     }
 }

@@ -154,6 +154,14 @@ impl ToolSpanGuard {
         self.ok(McpToolOutput::new(value).to_json_string())
     }
 
+    /// Consume a `Result<Value, McpToolError>` — ok→`ok_json`, err→`error(…)`.
+    pub fn finish(self, result: Result<Value, McpToolError>) -> String {
+        match result {
+            Ok(value) => self.ok_json(value),
+            Err(e) => self.error(e.kind, e.to_json_string()),
+        }
+    }
+
     /// Produces McpToolError wire format so clients can distinguish errors from successes.
     pub fn internal_error(self, value: Value) -> String {
         let message = match value {

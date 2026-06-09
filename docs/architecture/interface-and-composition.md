@@ -1,7 +1,7 @@
 ---
 title: "hKask Interface & Composition Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
@@ -290,15 +290,17 @@ status: VERIFIED
 | **FlowDef** | FlowDef | Workflow & specification templates — "Do / Define" | Sequence, composition, spec-curation terms |
 | **KnowAct** | KnowAct | Reasoning templates — "Think" | Analysis, evaluation terms |
 
-**DDMVSS Vocabulary Mapping.** The DDMVSS specification (§5.4) uses a different vocabulary for template types. The mapping between DDMVSS terms and code terms is:
+**DDMVSS Vocabulary Mapping.** The DDMVSS specification uses a conceptual vocabulary (Prompt, Process, Cognition) for template types, while the code uses operational names (WordAct, FlowDef, KnowAct). The mapping is:
 
-| DDMVSS Term | Code Term (`TemplateType`) | Domain |
-|-------------|---------------------------|--------|
-| WordAct | `WordAct` | WordAct |
-| FlowDef | `FlowDef` | FlowDef |
-| KnowAct | `KnowAct` | KnowAct |
+| DDMVSS / Spec Term | Code Term (`TemplateType`) | Domain |
+|--------------------|---------------------------|--------|
+| **Prompt** | `WordAct` | WordAct |
+| **Process** | `FlowDef` | FlowDef |
+| **Cognition** | `KnowAct` | KnowAct |
 
-The `TemplateType` enum variants (`WordAct`, `FlowDef`, `KnowAct`) are the canonical template type names, matching the hLexicon domain names directly.
+The `TemplateType::as_spec_name()` method (`crates/hkask-types/src/lexicon.rs:86`) encodes this mapping: `WordAct → "Prompt"`, `FlowDef → "Process"`, `KnowAct → "Cognition"`. The DDMVSS `Specification` template type has no code counterpart yet — specs are authored as YAML manifests within FlowDef templates.
+
+When authoring spec documents, use the DDMVSS spec names (Prompt, Process, Cognition). When writing code, use the `TemplateType` enum variants (WordAct, FlowDef, KnowAct). The code variant names match the hLexicon domain names directly.
 
 ### 3.4 Cascade Rules
 
