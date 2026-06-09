@@ -236,25 +236,14 @@ pub struct LoopAction {
     pub target: LoopId,
     pub action_type: ActionType,
     pub parameters: serde_json::Value,
-    pub priority: MessagePriority,
 }
 
 impl LoopAction {
     pub fn new(target: LoopId, action_type: ActionType, parameters: serde_json::Value) -> Self {
-        let priority = match &action_type {
-            ActionType::Throttle => MessagePriority::Warning,
-            ActionType::Escalate => MessagePriority::Critical,
-            ActionType::Calibrate => MessagePriority::Info,
-            ActionType::CircuitBreak => MessagePriority::Critical,
-            ActionType::AdjustEnergyBudget => MessagePriority::Warning,
-            ActionType::OverrideEnergyBudget => MessagePriority::Critical,
-            ActionType::ReplenishBudget => MessagePriority::Info,
-        };
         Self {
             target,
             action_type,
             parameters,
-            priority,
         }
     }
 }
