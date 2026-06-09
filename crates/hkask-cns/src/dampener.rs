@@ -24,7 +24,7 @@
 //!    suppressed. This prevents repeated identical directives.
 //!
 //! 2. **Override cooldown** — After any metacognitive override
-//!    (`override_gas_budget`, `seek_more_evidence`) passes the fingerprint
+//!    (`override_energy_budget`, `seek_more_evidence`) passes the fingerprint
 //!    dedup, ALL subsequent overrides are suppressed for the cooldown period
 //!    (default 120s), regardless of type or target. This prevents override
 //!    oscillation: a different override targeting a different agent cannot
@@ -44,7 +44,7 @@ pub(crate) const DEFAULT_DAMPEN_WINDOW: Duration = Duration::from_secs(60);
 
 /// Metacognitive override dampening window: 300 seconds.
 ///
-/// Metacognitive overrides (`OverrideGasBudget`, `SeekMoreEvidence`) represent
+/// Metacognitive overrides (`OverrideEnergyBudget`, `SeekMoreEvidence`) represent
 /// higher-order reflective interventions and are dampened at a longer window
 /// to prevent premature re-issuance while still allowing genuine re-triggering.
 pub(crate) const METACOGNITIVE_DAMPEN_WINDOW: Duration = Duration::from_secs(300);
@@ -63,7 +63,7 @@ pub(crate) const DEFAULT_OVERRIDE_COOLDOWN: Duration = Duration::from_secs(120);
 /// second arrives within the dampening window.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct DirectiveFingerprint {
-    /// The directive variant name (e.g., "calibrate_threshold", "override_gas_budget").
+    /// The directive variant name (e.g., "calibrate_threshold", "override_energy_budget").
     variant: String,
     /// The target agent (if applicable).
     target: Option<WebID>,

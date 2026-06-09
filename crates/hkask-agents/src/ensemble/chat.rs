@@ -36,7 +36,7 @@ pub enum DegradationLevel {
 
 /// Gas budget configuration from standing-ensemble-session.yaml
 #[derive(Debug, Clone)]
-pub struct GasBudgetConfig {
+pub struct EnergyBudgetConfig {
     pub session_cap: u64,
     pub per_message_cost: u64,
     pub alert_threshold: f64,
@@ -45,7 +45,7 @@ pub struct GasBudgetConfig {
     pub curator_allocation: u64,
 }
 
-impl GasBudgetConfig {
+impl EnergyBudgetConfig {
     /// Default session capacity (total gas units per session).
     pub const DEFAULT_SESSION_CAP: u64 = 150_000;
     /// Default gas cost per message.
@@ -58,7 +58,7 @@ impl GasBudgetConfig {
     pub const DEFAULT_CURATOR_ALLOCATION: u64 = 25_000;
 }
 
-impl Default for GasBudgetConfig {
+impl Default for EnergyBudgetConfig {
     fn default() -> Self {
         Self {
             session_cap: Self::DEFAULT_SESSION_CAP,
@@ -71,7 +71,7 @@ impl Default for GasBudgetConfig {
     }
 }
 
-impl GasBudgetConfig {
+impl EnergyBudgetConfig {
     /// Parse from the `gas` section of standing-ensemble-session.yaml
     pub fn from_yaml_gas(gas: &serde_json::Value) -> Self {
         fn yaml_u64(gas: &Value, key: &str, d: u64) -> u64 {
@@ -167,7 +167,7 @@ pub struct EnsembleChat {
     template_registry: Option<Arc<dyn RegistryIndex + Send + Sync>>,
     improv_config: ImprovSessionConfig,
     event_sink: Option<Arc<dyn NuEventSink + Send + Sync>>,
-    gas_budget: Option<GasBudgetConfig>,
+    energy_budget: Option<EnergyBudgetConfig>,
     gas_used: u64,
     dedup: crate::ensemble::chat_dedup::ChatDedup,
     gas_governance: Option<Arc<dyn crate::ensemble::ports::GasGovernancePort>>,
@@ -195,7 +195,7 @@ impl EnsembleChat {
             template_registry: None,
             improv_config: ImprovSessionConfig::default(),
             event_sink: None,
-            gas_budget: None,
+            energy_budget: None,
             gas_used: 0,
             dedup: crate::ensemble::chat_dedup::ChatDedup::new(),
             gas_governance: None,
@@ -228,8 +228,8 @@ impl EnsembleChat {
         self.template_registry = Some(registry);
         self
     }
-    pub fn with_gas_budget(mut self, config: GasBudgetConfig) -> Self {
-        self.gas_budget = Some(config);
+    pub fn with_energy_budget(mut self, config: EnergyBudgetConfig) -> Self {
+        self.energy_budget = Some(config);
         self
     }
     pub fn with_gas_governance(mut self, port: Arc<dyn crate::ensemble::ports::GasGovernancePort>) -> Self {
@@ -295,7 +295,7 @@ impl EnsembleChat {
 
     /// Returns `(can_proceed, level)`. Hard-limit checks if cost exceeds cap.
     pub fn can_proceed_with_gas(&self, additional_cost: u64) -> (bool, DegradationLevel) {
-        match &self.gas_budget {
+        match &self.energy_budget {
             Some(budget) => {
                 let new_total = self.gas_used + additional_cost;
                 let level = budget.degradation_level(new_total);
@@ -310,13 +310,13 @@ impl EnsembleChat {
     pub fn consume_gas(&mut self, cost: u64) {
         self.gas_used += cost;
         let level = self
-            .gas_budget
+            .energy_budget
             .as_ref()
             .map(|b| b.degradation_level(self.gas_used))
             .unwrap_or(DegradationLevel::Normal);
 
         if level != DegradationLevel::Normal {
-            if let Some(ref budget) = self.gas_budget {
+            if let Some(ref budget) = self.energy_budget {
                 tracing::warn!(
                     target: "cns.gas",
                     gas_used = self.gas_used,
@@ -332,7 +332,7 @@ impl EnsembleChat {
                 Phase::Compute,
                 json!({
                     "gas_used": self.gas_used,
-                    "session_cap": self.gas_budget.as_ref().map(|b| b.session_cap).unwrap_or(0),
+                    "session_cap": self.energy_budget.as_ref().map(|b| b.session_cap).unwrap_or(0),
                     "degradation_level": format!("{:?}", level),
                 }),
             );
@@ -345,8 +345,8 @@ impl EnsembleChat {
     }
 
     /// Get gas budget config if set
-    pub fn gas_budget(&self) -> Option<&GasBudgetConfig> {
-        self.gas_budget.as_ref()
+    pub fn energy_budget(&self) -> Option<&EnergyBudgetConfig> {
+        self.energy_budget.as_ref()
     }
 
     /// Register a bot participant in the chat
@@ -361,7 +361,7 @@ impl EnsembleChat {
             self.emit_span(message.from, "cns.ensemble.chat", "dedup_rejected", Phase::Compute, json!({"from": message.from.to_string(), "content_len": message.content.len(), "dedup_rejected": true}));
             return;
         }
-        if let Some(ref budget) = self.gas_budget {
+        if let Some(ref budget) = self.energy_budget {
             let cost = budget.per_message_cost;
             let (can_proceed, level) = self.can_proceed_with_gas(cost);
             if !can_proceed {
@@ -376,7 +376,7 @@ impl EnsembleChat {
         }
         if let Some(ref governance) = self.gas_governance {
             let cost = self
-                .gas_budget
+                .energy_budget
                 .as_ref()
                 .map(|b| b.per_message_cost)
                 .unwrap_or(0);
@@ -495,7 +495,7 @@ impl EnsembleChat {
         inference_client: &Arc<C>,
         user_message: &str,
     ) -> Result<ImprovTurn, ImprovError<C::Error>> {
-        if let Some(ref budget) = self.gas_budget {
+        if let Some(ref budget) = self.energy_budget {
             let (can_proceed, level) = self.can_proceed_with_gas(budget.per_message_cost);
             if !can_proceed {
                 tracing::warn!(target: "cns.gas", gas_used = self.gas_used, session_cap = budget.session_cap, "Gas budget exceeded — improv turn rejected");
@@ -512,7 +512,7 @@ impl EnsembleChat {
         }
         if let Some(ref governance) = self.gas_governance {
             let cost = self
-                .gas_budget
+                .energy_budget
                 .as_ref()
                 .map(|b| b.per_message_cost)
                 .unwrap_or(0);

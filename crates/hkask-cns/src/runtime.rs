@@ -7,7 +7,7 @@
 use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
-use crate::energy::{AgentGasStatus, GasBudget, GasCost};
+use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 use crate::variety::VarietyMonitor;
 use crate::variety::VarietyTracker;
 
@@ -25,7 +25,7 @@ use tracing;
 struct CnsState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: VarietyMonitor,
-    gas_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, GasBudget>>>,
+    energy_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, EnergyBudget>>>,
 }
 
 impl CnsState {
@@ -34,11 +34,11 @@ impl CnsState {
             AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
         ));
         let tracker = VarietyMonitor::new();
-        let gas_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let energy_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             algedonic,
             tracker,
-            gas_budgets,
+            energy_budgets,
         }
     }
 }
@@ -236,9 +236,9 @@ impl CnsRuntime {
     /// Register a gas budget for an agent.
     ///
     /// Called during agent pod creation so the CNS can track and replenish budgets.
-    pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
+    pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let state = self.state.read().await;
-        let mut budgets = state.gas_budgets.write().await;
+        let mut budgets = state.energy_budgets.write().await;
         budgets.insert(agent, budget);
     }
 
@@ -246,9 +246,9 @@ impl CnsRuntime {
     ///
     /// Returns the new remaining gas after replenishment, or 0 if the agent
     /// has no registered budget.
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) -> GasCost {
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) -> EnergyCost {
         let state = self.state.read().await;
-        let mut budgets = state.gas_budgets.write().await;
+        let mut budgets = state.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
             let remaining = budget.remaining;
@@ -261,7 +261,7 @@ impl CnsRuntime {
             );
             remaining
         } else {
-            GasCost::ZERO
+            EnergyCost::ZERO
         }
     }
 
@@ -269,10 +269,10 @@ impl CnsRuntime {
     ///
     /// Returns `None` if the agent has no registered budget.
     /// Used by the `cns_energy` MCP tool.
-    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
+    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
         let state = self.state.read().await;
-        let budgets = state.gas_budgets.read().await;
-        budgets.get(agent).map(AgentGasStatus::from)
+        let budgets = state.energy_budgets.read().await;
+        budgets.get(agent).map(AgentEnergyStatus::from)
     }
 }
 

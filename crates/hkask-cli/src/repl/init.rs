@@ -11,7 +11,7 @@ use hkask_agents::HhhConfig;
 use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
 use hkask_agents::hhh_gate;
-use hkask_cns::{CompositeGasEstimator, GasBudget, GasCost, GovernedTool};
+use hkask_cns::{CompositeGasEstimator, EnergyBudget, EnergyCost, GovernedTool};
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_memory::ConsolidationService;
 use hkask_services::{InferenceContext, InferenceService};
@@ -67,7 +67,7 @@ pub(super) fn init_repl_state(
     // Wrap the inference port in an InferenceLoop for CNS observability.
     let inference_loop = Arc::new(
         InferenceLoop::new()
-            .with_gas_budget(10_000, 10_000)
+            .with_energy_budget(10_000, 10_000)
             .with_model(initial_model_str),
     );
 
@@ -171,10 +171,10 @@ pub(super) fn init_repl_state(
         ctx.cybernetics_loop
             .read()
             .await
-            .register_gas_budget(
+            .register_energy_budget(
                 agent_webid,
-                GasBudget::new(GasCost(10_000))
-                    .with_replenish_rate(GasCost(1_000))
+                EnergyBudget::new(EnergyCost(10_000))
+                    .with_replenish_rate(EnergyCost(1_000))
                     .with_alert_threshold(0.8)
                     .with_hard_limit(true),
             )

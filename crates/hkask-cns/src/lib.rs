@@ -10,7 +10,7 @@ pub mod composite_gas_estimator; // Composite routing: inference → token-based
 pub mod cybernetics_loop; // Loop 6
 pub(crate) mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — gas budget (replaces energy budget)
-pub mod gas_budget_management; // Loop 6 — gas budget registration/reservation/settlement
+pub mod energy_budget_management; // Loop 6 — gas budget registration/reservation/settlement
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator; // Loop 6 → Inference gas estimation
 
@@ -25,10 +25,10 @@ pub use circuit_breaker::CircuitBreaker;
 pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::CyberneticsLoop;
 pub use energy::{
-    AgentGasStatus, DEFAULT_GAS_ALERT_THRESHOLD, GasBudget, GasCost, GasError, QueueDepth,
+    AgentEnergyStatus, DEFAULT_GAS_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyError, QueueDepth,
     RBarThreshold,
 };
-pub use gas_budget_management::GasBudgetManager;
+pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_tool::{GasEstimator, GovernedTool};
 pub use hkask_types::allosteric::{
     AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function,

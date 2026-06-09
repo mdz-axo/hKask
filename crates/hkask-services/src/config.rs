@@ -17,7 +17,7 @@ use crate::error::ServiceError;
 pub const DEFAULT_DB_PATH: &str = "hkask.db";
 /// Default base URL for the Okapi inference server.
 pub const DEFAULT_OKAPI_BASE_URL: &str = "http://127.0.0.1:11435";
-const DEFAULT_GAS_BUDGET_CAP: u64 = 10_000;
+const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_MODEL: &str = "deepseek-v4-pro";
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";
@@ -70,7 +70,7 @@ pub struct ServiceConfig {
     pub cns_threshold: u64,
 
     /// Gas budget cap per session (units).
-    pub gas_budget_cap: u64,
+    pub energy_budget_cap: u64,
 
     /// Gas replenish rate per turn (units).
     pub gas_replenish_rate: u64,
@@ -148,7 +148,7 @@ impl ServiceConfig {
             mcp_secret: mcp_secret_vec,
             okapi_base_url,
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
-            gas_budget_cap: DEFAULT_GAS_BUDGET_CAP,
+            energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
             default_model: DEFAULT_MODEL.to_string(),
@@ -189,7 +189,7 @@ impl ServiceConfig {
             mcp_secret: mcp_secret.into_bytes(),
             okapi_base_url,
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
-            gas_budget_cap: DEFAULT_GAS_BUDGET_CAP,
+            energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
             default_model: DEFAULT_MODEL.to_string(),
@@ -213,7 +213,7 @@ impl ServiceConfig {
             mcp_secret: vec![0u8; 32],
             okapi_base_url: DEFAULT_OKAPI_BASE_URL.to_string(),
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
-            gas_budget_cap: DEFAULT_GAS_BUDGET_CAP,
+            energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,
             default_model: DEFAULT_MODEL.to_string(),

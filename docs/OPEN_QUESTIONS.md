@@ -5,7 +5,7 @@ last_updated: 2026-06-08
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [interface, composition, capability, observability, curation, lifecycle]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # hKask Open Questions and Underspecified Aspects

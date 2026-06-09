@@ -21,7 +21,7 @@ use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
 /// Consolidation Bridge — Episodic → Semantic
 ///
 /// Curation-directed one-way operation. Called from `CurationLoop::act()`
-/// when a `CuratorDirective::OverrideGasBudget` or equivalent consolidation
+/// when a `CuratorDirective::OverrideEnergyBudget` or equivalent consolidation
 /// trigger fires.
 pub struct ConsolidationBridge {
     episodic: Arc<EpisodicMemory>,

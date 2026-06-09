@@ -67,12 +67,12 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // Tick the LoopSystem to run sense→compare→compute→act for
     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
     // CNS variety and gas budgets, producing regulatory actions
-    // (Throttle, AdjustGasBudget, Escalate, Calibrate).
+    // (Throttle, AdjustEnergyBudget, Escalate, Calibrate).
     rt.block_on(state.service_context.loop_system.tick());
 
     // Drain the MessageDispatch for regulatory actions produced
     // by the loop cycle. Surface Throttle, Calibrate, Escalate,
-    // AdjustGasBudget, and CircuitBreak actions as REPL notices.
+    // AdjustEnergyBudget, and CircuitBreak actions as REPL notices.
     loop {
         let msg = rt.block_on(state.service_context.dispatch.receive());
         match msg {
@@ -89,7 +89,7 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
                             .unwrap_or("unknown");
                         println!("  \x1b[33m\u{26a0} CNS: Throttle — {}\x1b[0m", reason);
                     }
-                    "adjust_gas_budget" => {
+                    "adjust_energy_budget" => {
                         let ratio = parameters
                             .get("remaining_ratio")
                             .and_then(|v| v.as_f64())

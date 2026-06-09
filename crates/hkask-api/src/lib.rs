@@ -29,7 +29,7 @@
 //! - `GET /api/episodic/query` — Query episodic memories
 //! - `GET /api/episodic/usage` — Episodic storage usage
 
-mod gas;
+mod energy;
 mod git_cas;
 
 pub mod error;

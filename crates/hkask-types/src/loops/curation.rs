@@ -97,9 +97,9 @@ pub enum CuratorDirective {
     /// Override gas budget beyond Cybernetics set-points.
     ///
     /// This is the Curation-level metacognitive override. Cybernetics
-    /// uses `ActionType::AdjustGasBudget` for automatic within-bounds
-    /// regulation. Curation uses `OverrideGasBudget` to exceed bounds.
-    OverrideGasBudget {
+    /// uses `ActionType::AdjustEnergyBudget` for automatic within-bounds
+    /// regulation. Curation uses `OverrideEnergyBudget` to exceed bounds.
+    OverrideEnergyBudget {
         agent: WebID,
         new_budget: u64,
     },
@@ -132,7 +132,7 @@ pub enum CuratorDirective {
     /// Clear a Curation override on an agent's gas budget.
     ///
     /// Removes the agent from the active-overrides registry so that
-    /// normal replenishment resumes. This is the inverse of `OverrideGasBudget`.
+    /// normal replenishment resumes. This is the inverse of `OverrideEnergyBudget`.
     ClearOverride {
         agent: WebID,
     },
@@ -144,7 +144,7 @@ impl CuratorDirective {
         match self {
             CuratorDirective::CalibrateThreshold { .. } => "calibrate_threshold",
             CuratorDirective::UpdateCapabilities { .. } => "update_capabilities",
-            CuratorDirective::OverrideGasBudget { .. } => "override_gas_budget",
+            CuratorDirective::OverrideEnergyBudget { .. } => "override_energy_budget",
             CuratorDirective::SeekMoreEvidence { .. } => "seek_more_evidence",
             CuratorDirective::ReplenishBudget { .. } => "replenish_budget",
             CuratorDirective::ClearOverride { .. } => "clear_override",
@@ -159,7 +159,7 @@ impl CuratorDirective {
         match self {
             CuratorDirective::CalibrateThreshold { .. } => None,
             CuratorDirective::UpdateCapabilities { agent, .. } => Some(*agent),
-            CuratorDirective::OverrideGasBudget { agent, .. } => Some(*agent),
+            CuratorDirective::OverrideEnergyBudget { agent, .. } => Some(*agent),
             CuratorDirective::SeekMoreEvidence { .. } => None,
             CuratorDirective::ReplenishBudget { agent, .. } => Some(*agent),
             CuratorDirective::ClearOverride { agent } => Some(*agent),
@@ -175,7 +175,7 @@ impl CuratorDirective {
     pub fn is_metacognitive(&self) -> bool {
         matches!(
             self,
-            CuratorDirective::OverrideGasBudget { .. } | CuratorDirective::SeekMoreEvidence { .. }
+            CuratorDirective::OverrideEnergyBudget { .. } | CuratorDirective::SeekMoreEvidence { .. }
         )
     }
 }

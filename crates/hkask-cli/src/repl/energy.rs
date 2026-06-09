@@ -8,7 +8,7 @@
 //! can_proceed → reserve → settle → sync sequences in the main REPL loop.
 
 use hkask_agents::InferenceLoop;
-use hkask_cns::{CyberneticsLoop, GasCost};
+use hkask_cns::{CyberneticsLoop, EnergyCost};
 use hkask_types::WebID;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -45,7 +45,7 @@ impl GasGuard {
             cybernetics_loop
                 .read()
                 .await
-                .can_proceed(webid, GasCost(heuristic))
+                .can_proceed(webid, EnergyCost(heuristic))
                 .await
         });
         if !can {
@@ -55,7 +55,7 @@ impl GasGuard {
             cybernetics_loop
                 .read()
                 .await
-                .reserve_gas(webid, GasCost(heuristic))
+                .reserve_gas(webid, EnergyCost(heuristic))
                 .await
         });
         Some(Self {
@@ -104,7 +104,7 @@ impl GasGuard {
             self.cybernetics_loop
                 .read()
                 .await
-                .settle_gas(&self.webid, GasCost(self.heuristic), GasCost(actual))
+                .settle_gas(&self.webid, EnergyCost(self.heuristic), EnergyCost(actual))
                 .await
         });
         self.sync();

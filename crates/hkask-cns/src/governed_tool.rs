@@ -23,7 +23,7 @@
 //! gas leaks from over-estimation.
 
 use crate::cybernetics_loop::CyberneticsLoop;
-use crate::energy::GasCost;
+use crate::energy::EnergyCost;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::capability::{
@@ -187,7 +187,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         }
 
         // Step 2: Reserve gas budget (hold-settle pattern)
-        let estimated_cost = GasCost(estimated_cost);
+        let estimated_cost = EnergyCost(estimated_cost);
         let loop6 = self.cybernetics.read().await;
         if !loop6.can_proceed(&self.agent, estimated_cost).await {
             debug!(
@@ -197,7 +197,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 estimated_cost = estimated_cost.0,
                 "Tool invocation rejected — gas budget exceeded"
             );
-            return Err(ToolPortError::GasBudgetExceeded(format!(
+            return Err(ToolPortError::EnergyBudgetExceeded(format!(
                 "Gas budget exceeded for agent {:?}, tool {}, estimated cost {}",
                 self.agent, tool, estimated_cost.0
             )));
@@ -212,7 +212,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 estimated_cost = estimated_cost.0,
                 "Failed to reserve gas for tool invocation"
             );
-            return Err(ToolPortError::GasBudgetExceeded(format!(
+            return Err(ToolPortError::EnergyBudgetExceeded(format!(
                 "Gas reservation failed for agent {:?}, tool {}, estimated cost {}",
                 self.agent, tool, estimated_cost.0
             )));
@@ -258,7 +258,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         };
         let loop6 = self.cybernetics.read().await;
         if let Err(e) = loop6
-            .settle_gas(&self.agent, estimated_cost, GasCost(actual_cost))
+            .settle_gas(&self.agent, estimated_cost, EnergyCost(actual_cost))
             .await
         {
             warn!(

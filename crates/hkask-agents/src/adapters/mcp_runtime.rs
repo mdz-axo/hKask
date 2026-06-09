@@ -240,9 +240,9 @@ impl MCPRuntimePort for FullMcpAdapter {
                     action: msg,
                 })
             }
-            Err(hkask_types::ports::ToolPortError::GasBudgetExceeded(msg)) => {
+            Err(hkask_types::ports::ToolPortError::EnergyBudgetExceeded(msg)) => {
                 Err(McpError::InvocationFailed(Box::new(
-                    hkask_types::ports::ToolPortError::GasBudgetExceeded(msg),
+                    hkask_types::ports::ToolPortError::EnergyBudgetExceeded(msg),
                 )))
             }
         }

@@ -33,7 +33,7 @@ use hkask_agents::curator_agent::metacognition::MetacognitionError;
 use hkask_agents::pod::AgentPodError;
 use hkask_agents::registry_loader::RegistryLoaderError;
 use hkask_cns::AllostericError;
-use hkask_cns::GasError;
+use hkask_cns::EnergyError;
 use hkask_agents::ensemble::StandingSessionError;
 use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
 use hkask_storage::{
@@ -171,7 +171,7 @@ pub enum ServiceError {
 
     /// Upstream gas budget error.
     #[error(transparent)]
-    Gas(#[from] GasError),
+    Gas(#[from] EnergyError),
 
     // ── Ensemble domain ─────────────────────────────────────────────────
     /// Ensemble session not found.

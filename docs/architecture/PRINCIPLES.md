@@ -5,7 +5,7 @@ last_updated: 2026-06-09
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 

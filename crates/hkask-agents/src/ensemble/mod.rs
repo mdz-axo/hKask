@@ -16,7 +16,7 @@ pub mod standing_session;
 // Re-export commonly used types
 pub use adapters::{CircuitBreakerInferenceAdapter, InferencePortAdapter};
 pub use chat::{
-    ChatMessage, ChatParticipant, DegradationLevel, EnsembleChat, EnsembleError, GasBudgetConfig,
+    ChatMessage, ChatParticipant, DegradationLevel, EnsembleChat, EnsembleError, EnergyBudgetConfig,
     ParticipantRole,
 };
 pub use chat_dedup::{ChatDedup, dedup_messages, message_hash};

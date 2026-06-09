@@ -24,15 +24,15 @@ pub use hkask_types::cns::{QueueDepth, RBarThreshold};
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
 )]
-pub struct GasCost(pub u64);
+pub struct EnergyCost(pub u64);
 
-impl GasCost {
+impl EnergyCost {
     /// Zero gas cost — used for free/internal operations.
-    pub const ZERO: GasCost = GasCost(0);
+    pub const ZERO: EnergyCost = EnergyCost(0);
 
     /// Create a gas cost from a raw `u64`.
     pub fn from_raw(value: u64) -> Self {
-        GasCost(value)
+        EnergyCost(value)
     }
 
     /// Return the raw `u64` value.
@@ -41,32 +41,32 @@ impl GasCost {
     }
 }
 
-impl From<u64> for GasCost {
+impl From<u64> for EnergyCost {
     fn from(value: u64) -> Self {
-        GasCost(value)
+        EnergyCost(value)
     }
 }
 
-impl From<GasCost> for u64 {
-    fn from(cost: GasCost) -> Self {
+impl From<EnergyCost> for u64 {
+    fn from(cost: EnergyCost) -> Self {
         cost.0
     }
 }
 
-impl Deref for GasCost {
+impl Deref for EnergyCost {
     type Target = u64;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for GasCost {
+impl DerefMut for EnergyCost {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl fmt::Display for GasCost {
+impl fmt::Display for EnergyCost {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} gas", self.0)
     }
@@ -89,14 +89,14 @@ const fn default_priority() -> f64 {
 /// Gas replenishes periodically via `replenish()`, called by the
 /// Cybernetics Loop on its regulation cycle.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GasBudget {
+pub struct EnergyBudget {
     /// Maximum gas capacity.
-    pub cap: GasCost,
+    pub cap: EnergyCost,
     /// Currently available gas.
-    pub remaining: GasCost,
+    pub remaining: EnergyCost,
     /// Gas units replenished per replenishment cycle.
     /// Set to 0 to disable automatic replenishment (one-shot budget).
-    pub replenish_rate: GasCost,
+    pub replenish_rate: EnergyCost,
     /// Alert threshold as a ratio (0.0–1.0). Alert when usage ≥ threshold.
     pub alert_threshold: f64,
     /// Whether to hard-reject when budget is exhausted.
@@ -105,7 +105,7 @@ pub struct GasBudget {
     /// Amount reserved by in-flight operations (hold-settle pattern).
     /// Gas that has been reserved but not yet settled.
     #[serde(default)]
-    pub reserved: GasCost,
+    pub reserved: EnergyCost,
     /// Priority weight for replenishment scaling (0.0–1.0).
     /// Higher priority agents receive a larger share of replenishment.
     /// Defaults to 1.0 (full replenishment).
@@ -113,18 +113,18 @@ pub struct GasBudget {
     pub priority: f64,
 }
 
-impl GasBudget {
+impl EnergyBudget {
     /// Create a new gas budget with the given cap.
     ///
     /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_GAS_ALERT_THRESHOLD, hard_limit = true.
-    pub fn new(cap: GasCost) -> Self {
+    pub fn new(cap: EnergyCost) -> Self {
         let cap_raw = cap.0;
         Self {
             remaining: cap,
-            replenish_rate: GasCost(cap_raw / 10),
+            replenish_rate: EnergyCost(cap_raw / 10),
             alert_threshold: DEFAULT_GAS_ALERT_THRESHOLD,
             hard_limit: true,
-            reserved: GasCost::ZERO,
+            reserved: EnergyCost::ZERO,
             priority: 1.0,
             cap,
         }
@@ -135,11 +135,11 @@ impl GasBudget {
     /// Useful for agents that should never be throttled. The budget still
     /// tracks usage for observability but never hard-rejects.
     pub fn unlimited() -> Self {
-        Self::new(GasCost(u64::MAX)).with_hard_limit(false)
+        Self::new(EnergyCost(u64::MAX)).with_hard_limit(false)
     }
 
     /// Set the replenishment rate (gas units per cycle).
-    pub fn with_replenish_rate(mut self, rate: GasCost) -> Self {
+    pub fn with_replenish_rate(mut self, rate: EnergyCost) -> Self {
         self.replenish_rate = rate;
         self
     }
@@ -159,14 +159,14 @@ impl GasBudget {
     /// Check whether an operation costing `gas` can proceed.
     ///
     /// Returns `true` if the gas fits within available (remaining - reserved) budget.
-    pub fn can_proceed(&self, gas: GasCost) -> bool {
+    pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let available = self.available();
         gas.0 <= available.0 || !self.hard_limit
     }
 
     /// Available gas = remaining - reserved.
-    pub fn available(&self) -> GasCost {
-        GasCost(self.remaining.0.saturating_sub(self.reserved.0))
+    pub fn available(&self) -> EnergyCost {
+        EnergyCost(self.remaining.0.saturating_sub(self.reserved.0))
     }
 
     /// Reserve gas for an in-flight operation (hold-settle pattern).
@@ -174,15 +174,15 @@ impl GasBudget {
     /// Returns `Ok(reserved)` if gas was reserved, `Err` if insufficient.
     /// Reserved gas is deducted from available but not from remaining until
     /// `settle()` is called.
-    pub fn reserve(&mut self, gas: GasCost) -> Result<GasCost, GasError> {
+    pub fn reserve(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         let available = self.available();
         if self.hard_limit && gas.0 > available.0 {
-            return Err(GasError::BudgetExceeded {
+            return Err(EnergyError::BudgetExceeded {
                 requested: gas,
                 remaining: available,
             });
         }
-        self.reserved = GasCost(self.reserved.0.saturating_add(gas.0));
+        self.reserved = EnergyCost(self.reserved.0.saturating_add(gas.0));
         Ok(gas)
     }
 
@@ -197,20 +197,20 @@ impl GasBudget {
     /// remaining as well.
     pub fn settle(
         &mut self,
-        reserved_gas: GasCost,
-        actual_gas: GasCost,
-    ) -> Result<GasCost, GasError> {
+        reserved_gas: EnergyCost,
+        actual_gas: EnergyCost,
+    ) -> Result<EnergyCost, EnergyError> {
         // Remove the reservation
-        self.reserved = GasCost(self.reserved.0.saturating_sub(reserved_gas.0));
+        self.reserved = EnergyCost(self.reserved.0.saturating_sub(reserved_gas.0));
 
         // Deduct actual cost from remaining
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
-            return Err(GasError::BudgetExceeded {
+            return Err(EnergyError::BudgetExceeded {
                 requested: actual_gas,
                 remaining: self.remaining,
             });
         }
-        self.remaining = GasCost(self.remaining.0.saturating_sub(actual_gas.0));
+        self.remaining = EnergyCost(self.remaining.0.saturating_sub(actual_gas.0));
         Ok(actual_gas)
     }
 
@@ -218,14 +218,14 @@ impl GasBudget {
     ///
     /// For operations where the cost is known exactly at call time
     /// (no hold-settle needed).
-    pub fn consume(&mut self, gas: GasCost) -> Result<GasCost, GasError> {
+    pub fn consume(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         if self.hard_limit && gas.0 > self.remaining.0 {
-            return Err(GasError::BudgetExceeded {
+            return Err(EnergyError::BudgetExceeded {
                 requested: gas,
                 remaining: self.remaining,
             });
         }
-        self.remaining = GasCost(self.remaining.0.saturating_sub(gas.0));
+        self.remaining = EnergyCost(self.remaining.0.saturating_sub(gas.0));
         Ok(gas)
     }
 
@@ -235,13 +235,13 @@ impl GasBudget {
     /// Never exceeds cap.
     pub fn replenish(&mut self) {
         if self.replenish_rate.0 > 0 {
-            self.remaining = GasCost((self.remaining.0 + self.replenish_rate.0).min(self.cap.0));
+            self.remaining = EnergyCost((self.remaining.0 + self.replenish_rate.0).min(self.cap.0));
         }
     }
 
     /// Replenish gas budget by a specific amount (used by CuratorDirective::ReplenishBudget).
-    pub fn replenish_by(&mut self, amount: GasCost) {
-        self.remaining = GasCost((self.remaining.0 + amount.0).min(self.cap.0));
+    pub fn replenish_by(&mut self, amount: EnergyCost) {
+        self.remaining = EnergyCost((self.remaining.0 + amount.0).min(self.cap.0));
     }
 
     /// Replenish gas budget by `amount * priority`, weighted by the given priority.
@@ -249,12 +249,12 @@ impl GasBudget {
     /// The effective replenishment is `(amount * priority).round()`, never exceeding cap.
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
     /// low-priority directives still have effect).
-    pub fn replenish_by_weighted(&mut self, amount: GasCost, priority: f64) -> GasCost {
+    pub fn replenish_by_weighted(&mut self, amount: EnergyCost, priority: f64) -> EnergyCost {
         let scaled = (amount.0 as f64 * priority.clamp(0.0, 1.0)).round() as u64;
         let effective = scaled.max(1);
         let before = self.remaining.0;
-        self.remaining = GasCost((self.remaining.0 + effective).min(self.cap.0));
-        GasCost(self.remaining.0 - before)
+        self.remaining = EnergyCost((self.remaining.0 + effective).min(self.cap.0));
+        EnergyCost(self.remaining.0 - before)
     }
 
     /// Usage ratio: 0.0 = full budget, 1.0 = empty.
@@ -267,15 +267,15 @@ impl GasBudget {
 ///
 /// Returned by `CyberneticsLoop::agent_gas_status()` and `CnsRuntime::agent_gas_status()`
 /// for use by the `cns_energy` MCP tool and InferenceLoop gas sync.
-pub struct AgentGasStatus {
+pub struct AgentEnergyStatus {
     /// Maximum gas capacity.
-    pub cap: GasCost,
+    pub cap: EnergyCost,
     /// Currently available gas (total remaining, including reserved).
-    pub remaining: GasCost,
+    pub remaining: EnergyCost,
     /// Gas reserved by in-flight operations.
-    pub reserved: GasCost,
+    pub reserved: EnergyCost,
     /// Available gas = remaining - reserved.
-    pub available: GasCost,
+    pub available: EnergyCost,
     /// Usage ratio: 0.0 = full budget, 1.0 = empty.
     pub usage_ratio: f64,
     /// Whether the agent will be hard-rejected on exhaustion.
@@ -284,8 +284,8 @@ pub struct AgentGasStatus {
     pub alert_threshold: f64,
 }
 
-impl From<&GasBudget> for AgentGasStatus {
-    fn from(budget: &GasBudget) -> Self {
+impl From<&EnergyBudget> for AgentEnergyStatus {
+    fn from(budget: &EnergyBudget) -> Self {
         Self {
             cap: budget.cap,
             remaining: budget.remaining,
@@ -300,10 +300,10 @@ impl From<&GasBudget> for AgentGasStatus {
 
 /// Gas budget error — returned when gas operations fail.
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum GasError {
+pub enum EnergyError {
     #[error("Gas budget exceeded: {requested}, remaining {remaining}")]
     BudgetExceeded {
-        requested: GasCost,
-        remaining: GasCost,
+        requested: EnergyCost,
+        remaining: EnergyCost,
     },
 }

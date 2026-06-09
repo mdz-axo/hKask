@@ -250,8 +250,8 @@ impl LoopAction {
             ActionType::Escalate => MessagePriority::Critical,
             ActionType::Calibrate => MessagePriority::Info,
             ActionType::CircuitBreak => MessagePriority::Critical,
-            ActionType::AdjustGasBudget => MessagePriority::Warning,
-            ActionType::OverrideGasBudget => MessagePriority::Critical,
+            ActionType::AdjustEnergyBudget => MessagePriority::Warning,
+            ActionType::OverrideEnergyBudget => MessagePriority::Critical,
             ActionType::ReplenishBudget => MessagePriority::Info,
         };
         Self {
@@ -276,15 +276,15 @@ pub enum ActionType {
     CircuitBreak,
     /// Adjust energy budget within set-point bounds (Cybernetics automatic regulation)
     ///
-    /// This is a *weaker* capability than `OverrideGasBudget`.
+    /// This is a *weaker* capability than `OverrideEnergyBudget`.
     /// Cybernetics can adjust within its set-point range.
     /// Only Curation can override set-points themselves.
-    AdjustGasBudget,
+    AdjustEnergyBudget,
     /// Override energy budget beyond set-point bounds (Curation metacognitive override)
     ///
-    /// This is a *stronger* capability than `AdjustGasBudget`.
+    /// This is a *stronger* capability than `AdjustEnergyBudget`.
     /// Only Curation can issue this — it can exceed Cybernetics' set-point range.
-    OverrideGasBudget,
+    OverrideEnergyBudget,
     /// Replenish an agent's gas budget (Curation directive)
     ///
     /// Used when an agent has exhausted its budget but should continue.

@@ -77,8 +77,8 @@ kask sovereignty verify                    # Magna Carta compliance
 | Topic | Location |
 |-------|----------|
 | Architecture master | `docs/architecture/hKask-architecture-master.md` |
-| Principles (P1-P8, C1-C8) | `docs/architecture/PRINCIPLES.md` |
-| DDMVSS Specification | `docs/architecture/DDMVSS.md` |
+| Principles (P1-P9) | `docs/architecture/PRINCIPLES.md` |
+| MDS Specification | `docs/architecture/MDS.md` |
 | Test Program | `docs/specifications/test-program.md` |
 | Test Inventory | `docs/status/test-inventory.md` |
 | CNS spans (canonical) | `docs/architecture/PRINCIPLES.md` §1.4 |

@@ -105,8 +105,8 @@ impl McpPort for McpDispatcher {
                         ToolPortError::CapabilityDenied(msg) => {
                             TemplateError::CapabilityDenied(msg)
                         }
-                        ToolPortError::GasBudgetExceeded(msg) => {
-                            TemplateError::Mcp(Box::new(ToolPortError::GasBudgetExceeded(msg)))
+                        ToolPortError::EnergyBudgetExceeded(msg) => {
+                            TemplateError::Mcp(Box::new(ToolPortError::EnergyBudgetExceeded(msg)))
                         }
                         ToolPortError::NotFound(msg) => {
                             TemplateError::Mcp(Box::new(ToolPortError::NotFound(msg)))

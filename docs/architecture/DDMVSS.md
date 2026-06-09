@@ -1,14 +1,16 @@
 ---
-title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
+title: "DDMVSS — Domain-Driven Minimum Viable Specification Set [SUPERSEDED]"
 audience: [architects, developers, agents]
-last_updated: 2026-06-08
+last_updated: 2026-06-09
 version: "0.3.1"
-status: "Active"
+status: "Superseded by MDS.md"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
 ---
 
-# DDMVSS — Domain-Driven Minimum Viable Specification Set
+# DDMVSS — Domain-Driven Minimum Viable Specification Set [SUPERSEDED]
+
+> ⚠️ **This document has been superseded by [`MDS.md`](MDS.md)** — Minimal Domain Specification (v0.27.0). DDMVSS had 9 categories and 9 tools. MDS has 5 categories and 6 tools. All new specification work should use MDS. This document is retained for historical reference.
 
 **Purpose:** The smallest set of specifications that fully defines an MVP for a domain-anchored system, plus the methodology (MVSDD) that produces it.
 

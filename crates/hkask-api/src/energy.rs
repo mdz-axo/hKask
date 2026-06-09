@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use hkask_cns::{CyberneticsLoop, GasCost};
+use hkask_cns::{CyberneticsLoop, EnergyCost};
 use hkask_types::WebID;
 
 /// Default gas cap for API ensemble sessions (150k = same as CLI default).
@@ -57,7 +57,7 @@ impl hkask_agents::ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             handle.spawn(async move {
                 let loop_read = loop_ref.read().await;
-                let _ = loop_read.acquire_budget(&agent, GasCost(gas)).await;
+                let _ = loop_read.acquire_budget(&agent, EnergyCost(gas)).await;
             });
         }
     }

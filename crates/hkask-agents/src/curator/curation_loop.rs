@@ -377,14 +377,14 @@ impl HkaskLoop for CurationLoop {
                             // Issue directives for high-confidence escalations
                             // (adjust gas budgets for the associated bot)
                             for entry in entries.iter().filter(|e| e.confidence > 0.5) {
-                                let directive = CuratorDirective::OverrideGasBudget {
+                                let directive = CuratorDirective::OverrideEnergyBudget {
                                     agent: entry.bot_id.into(),
                                     new_budget: 5000,
                                 };
                                 if let Some(trace_id) =
                                     self.context.issue_directive(directive).await
                                 {
-                                    tracing::info!(target: CUR_TARGET, trace_id = %trace_id, escalation_id = %entry.id, "Issued OverrideGasBudget directive for escalated bot");
+                                    tracing::info!(target: CUR_TARGET, trace_id = %trace_id, escalation_id = %entry.id, "Issued OverrideEnergyBudget directive for escalated bot");
                                 }
                             }
                             if let Some(consolidation) = &self.consolidation {

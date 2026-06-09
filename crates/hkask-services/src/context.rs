@@ -313,7 +313,7 @@ impl ServiceContext {
                 Ok(inference) => {
                     let port: Arc<dyn InferencePort> = Arc::new(inference);
                     let inference_loop = hkask_agents::InferenceLoop::new()
-                        .with_gas_budget(config.gas_budget_cap, config.gas_replenish_rate)
+                        .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
                         .with_model(&config.default_model);
                     loop_system.register_loop(Arc::new(inference_loop)).await;
                     Some(port)

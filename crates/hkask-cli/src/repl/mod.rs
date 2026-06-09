@@ -11,7 +11,7 @@ mod builtin_servers;
 mod cns_display;
 mod commands;
 pub(crate) mod display;
-mod gas;
+mod energy;
 mod handlers;
 mod helper;
 mod hhh_loop;

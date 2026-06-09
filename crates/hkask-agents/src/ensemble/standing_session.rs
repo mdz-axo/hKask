@@ -1,6 +1,6 @@
 //! Standing Ensemble Session — Bootstrap and lifecycle management.
 
-use crate::ensemble::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
+use crate::ensemble::chat::{ChatMessage, ChatParticipant, EnsembleChat, EnergyBudgetConfig, ParticipantRole};
 use hkask_types::NuEventSink;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::now_rfc3339;
@@ -49,9 +49,9 @@ pub struct GasSection {
 }
 
 impl GasSection {
-    pub fn to_config(&self) -> GasBudgetConfig {
-        let d = GasBudgetConfig::default();
-        GasBudgetConfig {
+    pub fn to_config(&self) -> EnergyBudgetConfig {
+        let d = EnergyBudgetConfig::default();
+        EnergyBudgetConfig {
             session_cap: self.session_cap.unwrap_or(d.session_cap),
             per_message_cost: self.per_message_cost.unwrap_or(d.per_message_cost),
             alert_threshold: self.alert_threshold.unwrap_or(d.alert_threshold),
@@ -187,8 +187,8 @@ impl StandingSession {
         self
     }
 
-    pub fn with_gas_budget(mut self, config: GasBudgetConfig) -> Self {
-        self.chat = self.chat.with_gas_budget(config);
+    pub fn with_energy_budget(mut self, config: EnergyBudgetConfig) -> Self {
+        self.chat = self.chat.with_energy_budget(config);
         self
     }
 
@@ -369,7 +369,7 @@ pub fn bootstrap_standing_session(path: &Path) -> Result<StandingSession, Standi
     let config = load_standing_session_config(path)?;
     let mut session = StandingSession::from_config(config.clone());
     if let Some(ref gas) = config.gas {
-        session = session.with_gas_budget(gas.to_config());
+        session = session.with_energy_budget(gas.to_config());
     }
     session.post_initial_messages(&config);
     Ok(session)
@@ -389,7 +389,7 @@ pub fn bootstrap_standing_session_with_store(
 
     // Wire gas budget from YAML if present
     if let Some(ref gas) = config.gas {
-        session = session.with_gas_budget(gas.to_config());
+        session = session.with_energy_budget(gas.to_config());
     }
 
     if session_exists {

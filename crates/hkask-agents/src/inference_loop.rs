@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Gas budget set-point: when gas remaining drops below this ratio,
-/// the loop self-throttles via `AdjustGasBudget`.
+/// the loop self-throttles via `AdjustEnergyBudget`.
 const GAS_SET_POINT: f64 = 0.2;
 
 /// Inference Loop — owns gas budget and model selection state.
@@ -27,7 +27,7 @@ const GAS_SET_POINT: f64 = 0.2;
 /// from Cybernetics' global tracking) and tracks the active inference model.
 ///
 /// When the circuit breaker is open or gas is depleted, the loop produces
-/// `Throttle`/`AdjustGasBudget` actions targeting itself (self-throttle).
+/// `Throttle`/`AdjustEnergyBudget` actions targeting itself (self-throttle).
 /// When the model is unavailable, it produces `Calibrate` to signal that
 /// model selection is needed.
 pub struct InferenceLoop {
@@ -71,7 +71,7 @@ impl InferenceLoop {
     ///
     /// `cap` is the total gas allocation; `remaining` is the current balance.
     /// Both are stored so that `sense()` can emit the gas-remaining ratio.
-    pub fn with_gas_budget(mut self, cap: u64, remaining: u64) -> Self {
+    pub fn with_energy_budget(mut self, cap: u64, remaining: u64) -> Self {
         self.gas_cap = cap;
         self.gas_remaining = Arc::new(AtomicU64::new(remaining));
         self
@@ -102,7 +102,7 @@ impl InferenceLoop {
     /// Read-only accessor for the L1 domain metric.
     ///
     /// Returns `(remaining, cap)` — the loop's token budget state as a
-    /// sense signal. The L6 budget (CyberneticsLoop's GasBudget) is the
+    /// sense signal. The L6 budget (CyberneticsLoop's EnergyBudget) is the
     /// authoritative regulator; this counter is a read-only mirror.
     pub fn token_usage(&self) -> (u64, u64) {
         (self.gas_remaining.load(Ordering::Relaxed), self.gas_cap)
@@ -147,7 +147,7 @@ impl InferenceLoop {
     /// **Compute stage** (sense → compare → compute → act):
     /// Determine model selection / gas allocation based on deviations.
     /// Circuit breaker open or inference unavailable → Throttle. Gas below
-    /// set-point → AdjustGasBudget (self-throttle). Model unavailable →
+    /// set-point → AdjustEnergyBudget (self-throttle). Model unavailable →
     /// Calibrate (signal model selection needed).
     pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         <Self as HkaskLoop>::compute(self, deviations).await
@@ -238,7 +238,7 @@ impl HkaskLoop for InferenceLoop {
     /// Handles:
     /// - Circuit breaker open → `Throttle`
     /// - Inference unavailable → `Throttle`
-    /// - Gas below set-point → `AdjustGasBudget` (self-throttle)
+    /// - Gas below set-point → `AdjustEnergyBudget` (self-throttle)
     /// - Model unavailable → `Calibrate` (signal model selection needed)
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
@@ -274,7 +274,7 @@ impl HkaskLoop for InferenceLoop {
                 {
                     actions.push(LoopAction::new(
                         LoopId::Inference,
-                        ActionType::AdjustGasBudget,
+                        ActionType::AdjustEnergyBudget,
                         serde_json::json!({
                             "reason": "gas_below_set_point",
                             "remaining_ratio": dev.signal.value,
@@ -308,7 +308,7 @@ impl HkaskLoop for InferenceLoop {
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
             match action.action_type {
-                ActionType::AdjustGasBudget => {
+                ActionType::AdjustEnergyBudget => {
                     tracing::warn!(
                         target: "cns.inference",
                         action_type = ?action.action_type,
@@ -344,7 +344,7 @@ impl HkaskLoop for InferenceLoop {
                     regulation_type: match action.action_type {
                         ActionType::Throttle => "throttle",
                         ActionType::Calibrate => "calibrate",
-                        ActionType::AdjustGasBudget => "adjust_gas_budget",
+                        ActionType::AdjustEnergyBudget => "adjust_energy_budget",
                         _ => continue, // Skip non-routable actions
                     }
                     .to_string(),

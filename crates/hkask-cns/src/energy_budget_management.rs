@@ -7,18 +7,18 @@
 //!
 //! # Gas Budget Lifecycle
 //!
-//! 1. **Register** — `register_gas_budget()` creates a budget for an agent
+//! 1. **Register** — `register_energy_budget()` creates a budget for an agent
 //! 2. **Reserve** — `reserve_gas()` holds budget for estimated cost
 //! 3. **Settle** — `settle_gas()` adjusts to actual cost, refunds difference
 //! 4. **Replenish** — `replenish_all_budgets()` / `replenish_agent_budget()` restore capacity
 //!
 //! # Metacognitive Override
 //!
-//! Curation can override an agent's budget via `apply_override_gas_budget()`.
+//! Curation can override an agent's budget via `apply_override_energy_budget()`.
 //! Overridden agents are skipped during `replenish_all_budgets()` to preserve
 //! the Curation directive. `apply_clear_override()` resumes normal replenishment.
 
-use crate::energy::{AgentGasStatus, GasBudget, GasCost, GasError};
+use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost, EnergyError};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use tokio::sync::RwLock;
 
 /// Record of an active Curation override on an agent's gas budget.
 ///
-/// When Curation issues an `OverrideGasBudget` directive, the override is
+/// When Curation issues an `OverrideEnergyBudget` directive, the override is
 /// recorded here so that `replenish_all_budgets()` does not overwrite it
 /// on the next regulation cycle. This preserves the metacognitive override
 /// mechanism — the core safety feature that lets Curation exceed
@@ -43,29 +43,29 @@ struct OverrideRecord {
 /// Owns the gas budget map and active override tracking. Extracted from
 /// `CyberneticsLoop` to concentrate gas budget logic and allow direct access
 /// from `GovernedTool` without going through the full loop.
-pub struct GasBudgetManager {
-    gas_budgets: Arc<RwLock<HashMap<WebID, GasBudget>>>,
+pub struct EnergyBudgetManager {
+    energy_budgets: Arc<RwLock<HashMap<WebID, EnergyBudget>>>,
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
 }
 
-impl Default for GasBudgetManager {
+impl Default for EnergyBudgetManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GasBudgetManager {
-    /// Create a new `GasBudgetManager` with empty budget and override maps.
+impl EnergyBudgetManager {
+    /// Create a new `EnergyBudgetManager` with empty budget and override maps.
     pub fn new() -> Self {
         Self {
-            gas_budgets: Arc::new(RwLock::new(HashMap::new())),
+            energy_budgets: Arc::new(RwLock::new(HashMap::new())),
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// Register a gas budget for an agent.
-    pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
-        let mut budgets = self.gas_budgets.write().await;
+    pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
+        let mut budgets = self.energy_budgets.write().await;
         budgets.insert(agent, budget);
     }
 
@@ -73,8 +73,8 @@ impl GasBudgetManager {
     ///
     /// Returns `true` if the agent has no registered budget (soft limit)
     /// or if the budget has sufficient remaining capacity.
-    pub async fn can_proceed(&self, agent: &WebID, gas: GasCost) -> bool {
-        let budgets = self.gas_budgets.read().await;
+    pub async fn can_proceed(&self, agent: &WebID, gas: EnergyCost) -> bool {
+        let budgets = self.energy_budgets.read().await;
         if let Some(budget) = budgets.get(agent) {
             budget.can_proceed(gas)
         } else {
@@ -84,19 +84,19 @@ impl GasBudgetManager {
     }
 
     /// Returns `None` if agent has no registered budget.
-    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
-        let budgets = self.gas_budgets.read().await;
-        budgets.get(agent).map(AgentGasStatus::from)
+    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
+        let budgets = self.energy_budgets.read().await;
+        budgets.get(agent).map(AgentEnergyStatus::from)
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call `settle_gas()` after.
-    pub async fn reserve_gas(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
-        let mut budgets = self.gas_budgets.write().await;
+    pub async fn reserve_gas(&self, agent: &WebID, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+        let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.reserve(gas)
         } else {
             // No budget registered — allow by default (soft limit)
-            Ok(GasCost::ZERO)
+            Ok(EnergyCost::ZERO)
         }
     }
 
@@ -104,33 +104,33 @@ impl GasBudgetManager {
     pub async fn settle_gas(
         &self,
         agent: &WebID,
-        reserved_gas: GasCost,
-        actual_gas: GasCost,
-    ) -> Result<GasCost, GasError> {
-        let mut budgets = self.gas_budgets.write().await;
+        reserved_gas: EnergyCost,
+        actual_gas: EnergyCost,
+    ) -> Result<EnergyCost, EnergyError> {
+        let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.settle(reserved_gas, actual_gas)
         } else {
             // No budget registered — cost is 0 (soft limit)
-            Ok(GasCost::ZERO)
+            Ok(EnergyCost::ZERO)
         }
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
-    pub async fn acquire_budget(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
-        let mut budgets = self.gas_budgets.write().await;
+    pub async fn acquire_budget(&self, agent: &WebID, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+        let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.consume(gas)
         } else {
             // No budget registered — cost is 0 (soft limit)
-            Ok(GasCost::ZERO)
+            Ok(EnergyCost::ZERO)
         }
     }
 
     /// Replenish all registered budgets, skipping agents with active Curation overrides.
     pub async fn replenish_all_budgets(&self) {
         let budget_ids: Vec<WebID> = {
-            let budgets = self.gas_budgets.read().await;
+            let budgets = self.energy_budgets.read().await;
             budgets.keys().cloned().collect()
         };
         let overrides = self.active_overrides.read().await;
@@ -140,13 +140,13 @@ impl GasBudgetManager {
                 continue;
             }
             let replenished = {
-                let mut budgets = self.gas_budgets.write().await;
+                let mut budgets = self.energy_budgets.write().await;
                 if let Some(budget) = budgets.get_mut(&agent) {
                     let rate = budget.replenish_rate;
                     budget.replenish();
                     rate
                 } else {
-                    GasCost::ZERO
+                    EnergyCost::ZERO
                 }
             };
             if replenished.0 > 0 {
@@ -161,8 +161,8 @@ impl GasBudgetManager {
     }
 
     /// Used by `CuratorDirective::ReplenishBudget`.
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) {
-        let mut budgets = self.gas_budgets.write().await;
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) {
+        let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
             tracing::info!(
@@ -176,10 +176,10 @@ impl GasBudgetManager {
     }
 
     /// Metacognitive override — recorded in active_overrides so replenish skips this agent.
-    pub async fn apply_override_gas_budget(&self, agent: WebID, new_budget: GasCost) {
+    pub async fn apply_override_energy_budget(&self, agent: WebID, new_budget: EnergyCost) {
         // Default TTL of 0 means override persists until explicitly cleared
         let ttl_secs: u64 = 0;
-        let mut budgets = self.gas_budgets.write().await;
+        let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(&agent) {
             // Override can set budget above or below set-points
             budget.cap = new_budget;
@@ -188,15 +188,15 @@ impl GasBudgetManager {
                 target: "cns.cybernetics",
                 agent = %agent,
                 new_budget = %new_budget,
-                "Applied OverrideGasBudget directive from Curation (set-point override)"
+                "Applied OverrideEnergyBudget directive from Curation (set-point override)"
             );
         } else {
-            budgets.insert(agent, GasBudget::new(new_budget));
+            budgets.insert(agent, EnergyBudget::new(new_budget));
             tracing::warn!(
                 target: "cns.cybernetics",
                 agent = %agent,
                 new_budget = %new_budget,
-                "Registered new gas budget from OverrideGasBudget directive"
+                "Registered new gas budget from OverrideEnergyBudget directive"
             );
         }
         drop(budgets);
@@ -233,16 +233,16 @@ impl GasBudgetManager {
     pub async fn apply_replenish_budget(
         &self,
         agent: WebID,
-        amount: GasCost,
+        amount: EnergyCost,
         priority: Option<f64>,
     ) {
-        let mut budgets = self.gas_budgets.write().await;
+        let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(&agent) {
             let replenished = if let Some(p) = priority {
                 budget.replenish_by_weighted(amount, p)
             } else {
                 budget.replenish_by(amount);
-                GasCost(amount.0.min(budget.cap.0 - budget.remaining.0))
+                EnergyCost(amount.0.min(budget.cap.0 - budget.remaining.0))
             };
             drop(budgets);
             tracing::info!(
@@ -280,8 +280,8 @@ impl GasBudgetManager {
 
     /// Iterate over gas budgets to produce energy signals.
     /// Returns `(remaining, cap)` for each registered agent.
-    pub async fn energy_ratios(&self) -> Vec<(GasCost, GasCost)> {
-        let budgets = self.gas_budgets.read().await;
+    pub async fn energy_ratios(&self) -> Vec<(EnergyCost, EnergyCost)> {
+        let budgets = self.energy_budgets.read().await;
         budgets
             .values()
             .map(|budget| (budget.remaining, budget.cap))

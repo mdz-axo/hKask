@@ -578,7 +578,7 @@ pub enum ToolPortError {
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
     #[error("Gas budget exceeded: {0}")]
-    GasBudgetExceeded(String),
+    EnergyBudgetExceeded(String),
     #[error("Tool not found: {0}")]
     NotFound(String),
     #[error("Tool invocation failed: {0}")]
