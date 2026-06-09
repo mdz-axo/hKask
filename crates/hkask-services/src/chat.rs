@@ -80,20 +80,41 @@ pub struct ChatRequest {
     pub auth_context: Option<AuthContext>,
 }
 
+/// Prepared chat context — the result of prompt composition before inference.
+///
+/// Returned by `ChatService::prepare_chat()` so that CLI/API surfaces can
+/// stream inference output incrementally while still using the service layer
+/// for agent lookup, prompt composition, and semantic recall.
+pub struct PreparedChat {
+    /// The full prompt ready for inference (system + semantic context + user input).
+    pub prompt: String,
+    /// The resolved model name.
+    pub model: String,
+    /// The agent's WebID (for episodic storage).
+    pub agent_webid: WebID,
+    /// Capability token for memory operations.
+    pub capability_token: DelegationToken,
+    /// The resolved inference port.
+    pub inference_port: Arc<dyn InferencePort>,
+    /// The resolved episodic storage port.
+    pub episodic_port: Arc<dyn EpisodicStoragePort>,
+    /// The agent name (for episodic storage).
+    pub agent_name: String,
+}
+
 /// Chat service — encapsulates the full chat turn pipeline.
 pub struct ChatService;
 
 impl ChatService {
-    /// Execute a single chat turn: agent lookup → prompt composition →
-    /// semantic recall → inference → episodic storage.
+    /// Prepare a chat turn without executing inference.
     ///
-    /// Uses `ServiceContext` for shared infrastructure (inference port,
-    /// memory ports, ACP runtime, agent registry). When the context's
-    /// inference_port is `None`, creates a fresh port via InferenceService.
-    pub async fn chat(
+    /// Does agent lookup, prompt composition, semantic recall,
+    /// and resolves the inference port. Returns a `PreparedChat`
+    /// that the caller can use to stream inference output.
+    pub async fn prepare_chat(
         ctx: &ServiceContext,
-        req: ChatRequest,
-    ) -> Result<ChatResponse, ServiceError> {
+        req: &ChatRequest,
+    ) -> Result<PreparedChat, ServiceError> {
         let name = req.agent_name.as_deref().unwrap_or("Curator");
 
         // Load agent registry to find the agent definition
@@ -113,15 +134,15 @@ impl ChatService {
         };
 
         // Append tool-call format instructions
-        if let Some(section) = req.tool_section
+        if let Some(ref section) = req.tool_section
             && !section.is_empty()
         {
-            system_prompt.push_str(&section);
+            system_prompt.push_str(section);
         }
 
         // Append HHH alignment suffix when active
-        if let Some(suffix) = req.system_prompt_suffix {
-            system_prompt.push_str(&suffix);
+        if let Some(ref suffix) = req.system_prompt_suffix {
+            system_prompt.push_str(suffix);
         }
 
         // Determine agent kind and default model
@@ -137,7 +158,11 @@ impl ChatService {
             hkask_types::AgentKind::Bot => "deepseek-v4-flash",
             hkask_types::AgentKind::Replicant => "deepseek-v4-pro",
         };
-        let model = req.model_override.as_deref().unwrap_or(default_model);
+        let model = req
+            .model_override
+            .as_deref()
+            .unwrap_or(default_model)
+            .to_string();
 
         // Resolve inference port — prefer override, then shared port from ServiceContext
         let inference: Arc<dyn InferencePort> =
@@ -146,8 +171,8 @@ impl ChatService {
                 (None, Some(port)) => Arc::clone(port),
                 (None, None) => {
                     let inf_ctx =
-                        InferenceContext::from_parts(None, model, &ctx.config.okapi_base_url);
-                    InferenceService::resolve_port(&inf_ctx, model)
+                        InferenceContext::from_parts(None, &model, &ctx.config.okapi_base_url);
+                    InferenceService::resolve_port(&inf_ctx, &model)
                         .map_err(|e| ServiceError::Inference(e.to_string()))?
                 }
             };
@@ -156,11 +181,6 @@ impl ChatService {
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
         // Create capability token for memory operations.
-        // Both authenticated (API) and anonymous (CLI) paths use the same
-        // CapabilityChecker (backed by mcp_secret) so tokens are verifiable by
-        // the same authority. When the caller provides a verified AuthContext,
-        // the token reflects the caller's identity; otherwise the system WebID
-        // is used as the delegator.
         let capability_token = ctx.capability_checker.grant_registry(
             DelegationAction::Execute,
             req.auth_context
@@ -172,6 +192,7 @@ impl ChatService {
         // Recall relevant knowledge from semantic memory
         let semantic_port: Arc<dyn SemanticStoragePort> = req
             .semantic_storage_override
+            .clone()
             .unwrap_or_else(|| ctx.semantic_storage.clone());
         let semantic_context = Self::recall_semantic(&semantic_port, &req.input, &capability_token);
 
@@ -186,6 +207,38 @@ impl ChatService {
             None => format!("{}\n\nUser: {}", system_prompt, req.input),
         };
 
+        // Resolve episodic storage port
+        let episodic_port: Arc<dyn EpisodicStoragePort> = req
+            .episodic_storage_override
+            .clone()
+            .unwrap_or_else(|| ctx.episodic_storage.clone());
+
+        Ok(PreparedChat {
+            prompt: full_prompt,
+            model,
+            agent_webid,
+            capability_token,
+            inference_port: inference,
+            episodic_port,
+            agent_name: name.to_string(),
+        })
+    }
+
+    /// Execute a single chat turn: agent lookup → prompt composition →
+    /// semantic recall → inference → episodic storage.
+    ///
+    /// Uses `ServiceContext` for shared infrastructure (inference port,
+    /// memory ports, ACP runtime, agent registry). When the context's
+    /// inference_port is `None`, creates a fresh port via InferenceService.
+    ///
+    /// For streaming, use `prepare_chat()` + `generate_stream_with_model()`
+    /// directly on the inference port.
+    pub async fn chat(
+        ctx: &ServiceContext,
+        req: ChatRequest,
+    ) -> Result<ChatResponse, ServiceError> {
+        let prepared = Self::prepare_chat(ctx, &req).await?;
+
         // Execute inference
         let params = LLMParameters {
             temperature: 0.7,
@@ -197,22 +250,20 @@ impl ChatService {
             seed: None,
         };
 
-        let result = inference
-            .generate_with_model(&full_prompt, &params, Some(model))
+        let result = prepared
+            .inference_port
+            .generate_with_model(&prepared.prompt, &params, Some(&prepared.model))
             .await
             .map_err(|e| ServiceError::Inference(e.to_string()))?;
 
         // Store the exchange as episodic triple
-        let episodic_port: Arc<dyn EpisodicStoragePort> = req
-            .episodic_storage_override
-            .unwrap_or_else(|| ctx.episodic_storage.clone());
         Self::store_episodic(
-            &episodic_port,
+            &prepared.episodic_port,
             &req.input,
             &result.text,
-            agent_webid,
-            &capability_token,
-            name,
+            prepared.agent_webid,
+            &prepared.capability_token,
+            &prepared.agent_name,
         );
 
         Ok(ChatResponse {
@@ -228,7 +279,7 @@ impl ChatService {
     }
 
     /// Recall semantic memory triples relevant to the input.
-    fn recall_semantic(
+    pub fn recall_semantic(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         input: &str,
         token: &DelegationToken,
@@ -252,7 +303,7 @@ impl ChatService {
     }
 
     /// Store the chat exchange as an episodic triple.
-    fn store_episodic(
+    pub fn store_episodic(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         input: &str,
         response: &str,

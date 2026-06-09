@@ -1297,6 +1297,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs",
+ "futures-util",
  "hex",
  "hkask-agents",
  "hkask-api",

@@ -164,7 +164,11 @@ pub(super) fn single_agent_turn(
             (base_input, None)
         };
 
-    let chat_response = rt.block_on(crate::commands::chat_with_agent(
+    // Stream the response incrementally
+    print!("{}: ", state.current_agent);
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    let chat_response = rt.block_on(crate::commands::chat_with_agent_streaming(
         &effective_input,
         Some(&state.current_agent),
         Some(&state.current_model),
@@ -303,7 +307,8 @@ pub(super) fn single_agent_turn(
     final_response =
         hhh_gate::apply_persona_filter(&final_response, state.persona_constraints.as_ref());
 
-    println!("{}: {}\n", state.current_agent, final_response);
+    // Streaming already printed the agent label and text deltas.
+    // Record the (possibly persona-filtered) response in session history.
     state
         .session_history
         .record(&state.current_agent, &final_response);

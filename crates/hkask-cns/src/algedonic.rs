@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn manager_check_produces_alert() {
         let mut manager = AlgedonicManager::new(100, 10);
-        let mut tracker = VarietyTracker::new();
+        let tracker = VarietyTracker::new();
         // No increments → variety = 0, deficit = 10 - 0 = 10
         let alert = manager.check(&tracker, "test_domain");
         assert!(alert.is_some());

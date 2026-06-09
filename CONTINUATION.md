@@ -1,20 +1,19 @@
-# CONTINUATION.md — hKask Post-Extraction Follow-Up
+# CONTINUATION.md — hKask Auth & Streaming Follow-Up
 
-**Sessions:** 12–25 | **Status:** Extraction ✅ COMPLETE | Follow-up: active extractions in progress (3 done, 2+ remaining)
+**Sessions:** 12–28 | **Status:** Extraction ✅ COMPLETE | F3 ✅ RESOLVED | F1 ✅ CLI streaming done | F4 ✅ Resolved
 
 ---
 
 ## Summary
 
-The service layer extraction project completed in Session 23 (2026-06-08). All 27 CLI
-commands have been evaluated with the depth test. 17 are extracted to service modules.
-10 are documented as surface-only. One API route quality issue was fixed (typed OCAP
-error matching in `routes/episodic.rs`).
+The service layer extraction project completed in Session 23. Post-extraction follow-up
+has resolved F8 (GovernedTool wiring), F3 (AuthContext), and F1 (streaming).
+F4 (MCP server access) was confirmed as architecturally correct.
 
 **Read these files first (in this order):**
 
-1. **`HANDOFF.md`** — Full session history, key decisions (#1–#72), service module
-   inventory, file reference map, completion metrics (§7).
+1. **`HANDOFF.md`** — Full session history (Sessions 12–27), key decisions (#1–#81),
+   service module inventory, file reference map, completion metrics and open questions (§7).
 2. **`CONTINUATION.md`** (this file) — Current task status and follow-up priority.
 3. **`CONTINUATION-PROMPT.md`** — Detailed task plans with per-task strategies,
    skills, constraint classifications, and depth-test questions.
@@ -23,26 +22,68 @@ error matching in `routes/episodic.rs`).
 
 ## Task Status
 
-| 1 | F10 — Typed DTOs for SemanticStoragePort | 🟡 Medium | ✅ Done (Session 25) | ~1h |
-| 2 | F5 — Pod test ACP secret fixture | 🔴 High | ✅ Done (Session 24) | ~1–2h |
-| 3 | F9 — Typed DTOs for EpisodicStoragePort | 🔴 High | ✅ Done (Session 24) | ~2–3h |
-| 4 | OPEN_QUESTIONS.md (F1–F10) | 🟡 Medium | ✅ Done (Session 25) | ~30m |
-| 5 | Test inventory update | 🟡 Medium | ✅ Done (Session 25) | ~1h |
-| 6 | Condenser build fix | 🟡 Medium | ✅ Already resolved | 0 |
-| 7 | Ensemble get_chat + list_deliberations | 🔴 High | ✅ Done (Session 25) | ~30m |
-| 8 | Sovereignty grant_consent_and_fetch | 🔴 High | ✅ Done (Session 25) | ~20m |
-| 9 | ConsolidationService rate limit + db_path | 🔴 High | ✅ Done (Session 25) | ~30m |
-| 10 | Ensemble standing_start orchestration | 🔴 High | Not started | ~2h |
-| 11 | Sovereignty consent enforcement extraction | 🔴 High | Not started | ~1h |
-| 12 | Chat PromptStrategy framing | 🟡 Medium | Not started | ~1h |
-| 13 | F8 — GovernedTool → PodManager wiring | 🔴 High | ✅ Done (Session 26, #76) | ~15m |
-| 14 | F3 — Unified AuthContext | 🔴 High | 🟡 Partially done (Session 26, #77) | ~2–3h |
-| 15 | F1 — Streaming foundation | 🔴 High | 🟡 Foundation laid (Session 26, #78) | ~1–2h |
-| 16 | F4 — MCP server service access | ⚪ Resolved | ✅ Architecture is correct | 0 |
+| # | Task | Priority | Status | Effort |
+|---|------|----------|--------|--------|
+| 1 | F3 — Unified AuthContext completion | 🔴 High | ✅ Done (Session 27, #79) | ~1h |
+| 2 | F1 — OkapiInference streaming override + API SSE | 🔴 High | ✅ Done (Sessions 27–28) | ~3h |
+| 3 | Service operations audit (AuthContext threading) | 🟡 Medium | ✅ Done (Session 27) | ~30m |
+| 4 | MCP server duplication resolution | 🟡 Medium | Not started | ~4–6h |
+| 5 | OPEN_QUESTIONS.md update | 🟡 Medium | ✅ Done (Session 28) | ~15m |
+| 6 | F1 — CLI incremental printing | 🟡 Medium | ✅ Done (Session 28, #81) | ~1.5h |
+| 7 | Ensemble standing_start orchestration | 🔴 High | Not started | ~2h |
+| 8 | Sovereignty consent enforcement extraction | 🔴 High | Not started | ~1h |
+| 9 | Chat PromptStrategy framing | 🟡 Medium | Not started | ~1h |
+| 10 | Pre-existing hkask-cns test compile error | 🟡 Medium | ✅ Fixed (Session 28) | ~10m |
 
 ---
 
 ## Session History (Post-Extraction)
+
+### Session 28 (CLI Streaming + CNS Fix + OPEN_QUESTIONS)
+
+- **F1 — CLI incremental printing:** Added `ChatService::prepare_chat()` method that
+  does agent lookup, prompt composition, semantic recall, and capability token creation
+  without executing inference. This extraction is deep (small interface, much behavior)
+  and allows the CLI surface to stream inference output directly via
+  `generate_stream_with_model()`. Added `chat_with_agent_streaming()` in
+  `hkask-cli/src/commands/chat.rs` that calls `prepare_chat()`, streams text deltas
+  with `print!()` + stdout flush, then stores episodic. Refactored
+  `ChatService::chat()` to delegate to `prepare_chat()` internally, eliminating
+  duplication. Made `recall_semantic()` and `store_episodic()` public. Added
+  `PreparedChat` struct with prompt, model, inference port, episodic port, agent WebID,
+  capability token. Modified `run_chat()` one-shot path to use streaming. Modified
+  `single_agent_turn()` REPL path to use streaming. Added `futures-util`
+  dependency to `hkask-cli`. (#81)
+
+- **CNS test fix:** Removed unnecessary `mut` from `VarietyTracker` in
+  `allosteric_alert_medium_alpha_warning` test and moved `impl CircuitBreakerPort`
+  before `#[cfg(test)] mod tests` in `circuit_breaker.rs`. Both clippy warnings
+  resolved.
+
+- **OPEN_QUESTIONS.md update:** Updated F1 (streaming progress → CLI incremental printing
+  remaining → resolved), F3 (resolved), F4 (reclassified as MCP duplication Prohibition),
+  F8 (resolved). Added `mcp_secret`/`acp_secret` Guardrail classification to F3.
+
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅.
+  `cargo test -p hkask-services -p hkask-cli -p hkask-types -p hkask-cns` ✅ (0 failures).
+
+---
+
+## Session History (Post-Extraction)
+
+### Session 27 (Auth & Streaming Completion)
+
+- **F3 — AuthContext completion:** Unified `ChatService::chat()` to use `ctx.capability_checker.grant_registry()` for both authenticated and anonymous paths. Previously, the legacy path minted tokens with `config.acp_secret` directly; now both paths derive tokens through the same `mcp_secret`-backed checker. Documented the `mcp_secret`/`acp_secret` split as a valid Guardrail (defense in depth). Added doc comments to `ServiceContext::capability_checker` and `ServiceConfig` secret fields. (#79)
+
+  **Key audit finding:** Only `ChatService::chat()` in `hkask-services` creates `DelegationToken` directly. All other `DelegationToken::new` calls are in CLI surfaces, domain crates, template executor, or MCP servers. Service-layer AuthContext threading is complete — no further service operations need `AuthContext`.
+
+  **Secret split resolution:** `acp_secret` (in-process ACP) vs `mcp_secret` (inter-process MCP auth) serve different trust boundaries. Collapsing them would weaken defense in depth. Classified as Guardrail.
+
+- **F1 — Streaming override + API SSE endpoint:** Overrode `generate_stream()` in `OkapiInference` to send `stream: true` and parse SSE/NDJSON responses into `InferenceStreamChunk` items. Added `generate_stream_with_model()` to `InferencePort` trait with default fallback. Added `POST /api/chat/stream` SSE endpoint with `tokio::sync::mpsc` channel bridge for `'static` stream lifetime. Added `stream: Option<bool>` to `OkapiRequest`. Added SSE response types (`StreamChunk`, `StreamChoice`, `StreamDelta`). Added `tokio-stream` dependency to `hkask-api`. (#80)
+
+- **Service audit (Task 3):** Completed as part of F3 investigation. Only `ChatService::chat()` mints `DelegationToken` in `hkask-services`. No other service operations need `AuthContext` for token derivation. API routes that extract `_auth` use it for access gating, not for business logic.
+
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test -p hkask-services -p hkask-api -p hkask-types -p hkask-templates` ✅ (0 failures).
 
 ### Session 26 (F8 Fix + F3 AuthContext + F1 Streaming + Test Inventory)
 

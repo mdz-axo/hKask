@@ -57,7 +57,7 @@ pub use agent::{agent_register, agent_unregister, bot_list, bot_status};
 pub use hkask_services::AgentReceipt;
 
 // Re-exports from chat
-pub use chat::{ChatResponse, TokenUsage, chat_with_agent};
+pub use chat::{ChatResponse, TokenUsage, chat_with_agent, chat_with_agent_streaming};
 
 // Re-exports from curator
 pub use curator::{curator_dismiss, curator_escalations, curator_metacognition, curator_resolve};

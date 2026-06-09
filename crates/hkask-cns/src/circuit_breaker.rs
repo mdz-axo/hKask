@@ -170,6 +170,24 @@ impl CircuitBreaker {
     }
 }
 
+impl CircuitBreakerPort for CircuitBreaker {
+    fn allow_request(&self) -> bool {
+        CircuitBreaker::allow_request(self)
+    }
+
+    fn record_success(&self) {
+        CircuitBreaker::record_success(self)
+    }
+
+    fn record_failure(&self) {
+        CircuitBreaker::record_failure(self)
+    }
+
+    fn state(&self) -> CircuitState {
+        CircuitBreaker::state(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,23 +294,5 @@ mod tests {
         cb.allow_request(); // Transitions to HalfOpen
         assert_eq!(cb.state(), CircuitState::HalfOpen);
         assert!(cb.allow_request()); // HalfOpen allows
-    }
-}
-
-impl CircuitBreakerPort for CircuitBreaker {
-    fn allow_request(&self) -> bool {
-        CircuitBreaker::allow_request(self)
-    }
-
-    fn record_success(&self) {
-        CircuitBreaker::record_success(self)
-    }
-
-    fn record_failure(&self) {
-        CircuitBreaker::record_failure(self)
-    }
-
-    fn state(&self) -> CircuitState {
-        CircuitBreaker::state(self)
     }
 }

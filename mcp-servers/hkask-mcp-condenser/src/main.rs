@@ -34,6 +34,14 @@ use std::sync::{Arc, Mutex};
 use engine::CondenserEngine;
 use types::*;
 
+/// System prompt for the thread-summary inference request.
+const THREAD_SUMMARY_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \
+     preserve technical details (file paths, error messages, decisions) while \
+     eliminating verbosity. Use bullet points. Be concise.";
+
+/// Context window size passed to the inference engine for thread summarization.
+const THREAD_SUMMARY_NUM_CTX: u32 = 8192;
+
 pub struct CondenserServer {
     webid: WebID,
     engine: Mutex<CondenserEngine>,
@@ -161,13 +169,12 @@ impl CondenserServer {
         Parameters(ClassifyRequest { tool_name }): Parameters<ClassifyRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("condenser_classify", &self.webid);
-        let category = classify_tool(&tool_name);
         let engine = self.engine.lock().unwrap();
-        let algo = engine.registry.select(category);
+        let (category, algorithm) = engine.classify(&tool_name);
         span.ok_json(serde_json::json!({
             "tool_name": tool_name,
             "category": category.label(),
-            "algorithm": algo.name(),
+            "algorithm": algorithm,
         }))
     }
 
@@ -260,25 +267,13 @@ impl CondenserServer {
         let summarization_prompt =
             inference::build_summarization_prompt(&conversation_text, &current_query);
 
-        let chat_request = serde_json::json!({
-            "model": self.inference_model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a context condensation assistant. Produce structured summaries that preserve technical details (file paths, error messages, decisions) while eliminating verbosity. Use bullet points. Be concise."
-                },
-                {
-                    "role": "user",
-                    "content": summarization_prompt
-                }
-            ],
-            "stream": false,
-            "think": false,
-            "options": {
-                "num_ctx": 8192,
-                "num_predict": max_tok
-            }
-        });
+        let chat_request = inference::build_chat_request(
+            &self.inference_model,
+            &summarization_prompt,
+            THREAD_SUMMARY_SYSTEM_PROMPT,
+            THREAD_SUMMARY_NUM_CTX,
+            max_tok,
+        );
 
         let url = format!("{}/api/chat", inference_url.trim_end_matches('/'));
 
@@ -291,7 +286,7 @@ impl CondenserServer {
         // Extract and validate the summary content
         let summary = match inference::extract_summary(&resp_body) {
             Ok(s) => s,
-            Err((kind, err)) => return span.error(kind, err.to_json_string()),
+            Err(e) => return span.error(McpErrorKind::Internal, e.to_json_string()),
         };
 
         let result =

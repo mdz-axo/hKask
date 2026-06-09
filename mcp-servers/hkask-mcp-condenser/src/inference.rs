@@ -4,7 +4,6 @@
 //! verified without a live inference endpoint.
 
 use hkask_mcp::server::McpToolError;
-use hkask_types::McpErrorKind;
 
 use crate::types::ThreadSummaryOutput;
 
@@ -41,26 +40,19 @@ pub fn build_summarization_prompt(conversation_text: &str, current_query: &str) 
 /// Validate and extract summary content from an inference response.
 ///
 /// Returns `Ok(summary)` if the response contains non-empty `message.content`.
-/// Returns `Err(McpToolError)` with appropriate error kind if:
-/// - `message` field is missing
-/// - `message.content` field is missing
-/// - `message.content` is empty or whitespace-only
-pub fn extract_summary(
-    resp_body: &serde_json::Value,
-) -> Result<String, (McpErrorKind, McpToolError)> {
+/// Returns `Err(McpToolError)` if the field is missing or the content is empty/whitespace-only.
+pub fn extract_summary(resp_body: &serde_json::Value) -> Result<String, McpToolError> {
     match resp_body
         .get("message")
         .and_then(|m| m.get("content"))
         .and_then(|c| c.as_str())
     {
         Some(content) if !content.trim().is_empty() => Ok(content.to_string()),
-        Some(_) => Err((
-            McpErrorKind::Internal,
-            McpToolError::internal("Inference engine returned an empty summary"),
+        Some(_) => Err(McpToolError::internal(
+            "Inference engine returned an empty summary",
         )),
-        None => Err((
-            McpErrorKind::Internal,
-            McpToolError::internal("Inference engine response missing message.content field"),
+        None => Err(McpToolError::internal(
+            "Inference engine response missing message.content field",
         )),
     }
 }
@@ -68,6 +60,32 @@ pub fn extract_summary(
 /// Approximate token count using whitespace splitting.
 pub fn approx_token_count(text: &str) -> usize {
     text.split_whitespace().count()
+}
+
+/// Build the JSON body for an `/api/chat` inference request.
+///
+/// Pure function — no HTTP, no async. Testable in isolation. The caller
+/// (`condenser_thread_summary`) is responsible for sending the request.
+pub fn build_chat_request(
+    model: &str,
+    summarization_prompt: &str,
+    system_prompt: &str,
+    num_ctx: u32,
+    max_predict: u32,
+) -> serde_json::Value {
+    serde_json::json!({
+        "model": model,
+        "messages": [
+            {"role": "system",  "content": system_prompt},
+            {"role": "user",    "content": summarization_prompt}
+        ],
+        "stream": false,
+        "think":  false,
+        "options": {
+            "num_ctx":     num_ctx,
+            "num_predict": max_predict
+        }
+    })
 }
 
 /// Build a `ThreadSummaryOutput` from extracted data.
@@ -89,6 +107,7 @@ pub fn build_summary_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_types::McpErrorKind;
     use serde_json::json;
 
     // ── format_conversation_text ──
@@ -141,9 +160,8 @@ mod tests {
     #[test]
     fn extract_summary_missing_message() {
         let resp = json!({"choices": []});
-        let result = extract_summary(&resp);
-        let (kind, err) = result.unwrap_err();
-        assert_eq!(kind, McpErrorKind::Internal);
+        let err = extract_summary(&resp).unwrap_err();
+        assert_eq!(err.kind, McpErrorKind::Internal);
         assert!(err.to_json_string().contains("missing message.content"));
     }
 
@@ -151,9 +169,8 @@ mod tests {
     #[test]
     fn extract_summary_missing_content() {
         let resp = json!({"message": {"role": "assistant"}});
-        let result = extract_summary(&resp);
-        let (kind, err) = result.unwrap_err();
-        assert_eq!(kind, McpErrorKind::Internal);
+        let err = extract_summary(&resp).unwrap_err();
+        assert_eq!(err.kind, McpErrorKind::Internal);
         assert!(err.to_json_string().contains("missing message.content"));
     }
 
@@ -161,9 +178,8 @@ mod tests {
     #[test]
     fn extract_summary_empty_content() {
         let resp = json!({"message": {"content": ""}});
-        let result = extract_summary(&resp);
-        let (kind, err) = result.unwrap_err();
-        assert_eq!(kind, McpErrorKind::Internal);
+        let err = extract_summary(&resp).unwrap_err();
+        assert_eq!(err.kind, McpErrorKind::Internal);
         assert!(err.to_json_string().contains("empty summary"));
     }
 
@@ -190,6 +206,43 @@ mod tests {
         assert_eq!(approx_token_count("hello world"), 2);
         assert_eq!(approx_token_count(""), 0);
         assert_eq!(approx_token_count("   "), 0);
+    }
+
+    // ── build_chat_request ──
+
+    // REQ: build_chat_request sets model, stream=false, think=false
+    #[test]
+    fn build_chat_request_top_level_fields() {
+        let req = build_chat_request("qwen3:8b", "summarize this", "be concise", 8192, 500);
+        assert_eq!(req["model"], "qwen3:8b");
+        assert_eq!(req["stream"], false);
+        assert_eq!(req["think"], false);
+    }
+
+    // REQ: build_chat_request places system prompt as first message
+    #[test]
+    fn build_chat_request_system_message_first() {
+        let req = build_chat_request("m", "user prompt", "system prompt", 4096, 200);
+        let msgs = req["messages"].as_array().unwrap();
+        assert_eq!(msgs[0]["role"], "system");
+        assert_eq!(msgs[0]["content"], "system prompt");
+    }
+
+    // REQ: build_chat_request places summarization prompt as second message
+    #[test]
+    fn build_chat_request_user_message_second() {
+        let req = build_chat_request("m", "user prompt", "sys", 4096, 200);
+        let msgs = req["messages"].as_array().unwrap();
+        assert_eq!(msgs[1]["role"], "user");
+        assert_eq!(msgs[1]["content"], "user prompt");
+    }
+
+    // REQ: build_chat_request sets num_ctx and num_predict in options
+    #[test]
+    fn build_chat_request_options() {
+        let req = build_chat_request("m", "p", "s", 8192, 500);
+        assert_eq!(req["options"]["num_ctx"], 8192);
+        assert_eq!(req["options"]["num_predict"], 500);
     }
 
     // ── build_summarization_prompt ──

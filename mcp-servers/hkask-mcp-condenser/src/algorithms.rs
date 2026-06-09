@@ -59,21 +59,7 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
             }
         }
 
-        let mut result = filtered.join("\n");
-        if result.lines().count() > budget {
-            let result_lines: Vec<&str> = result.lines().collect();
-            let head = &result_lines[..head_count.min(result_lines.len())];
-            let tail_start = result_lines.len().saturating_sub(tail_count);
-            let tail = &result_lines[tail_start.min(head_count)..];
-            let mut final_lines = head.to_vec();
-            if tail_start > head_count {
-                final_lines.push("...");
-                final_lines.extend_from_slice(tail);
-            }
-            result = final_lines.join("\n");
-        }
-
-        result
+        filtered.join("\n")
     }
 }
 
@@ -258,7 +244,8 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
             .take(20)
             .collect();
 
-        let mut selected_indices: Vec<usize> = Vec::new();
+        let mut selected_indices: std::collections::HashSet<usize> =
+            std::collections::HashSet::new();
         let mut selected_lines: Vec<&str> = Vec::new();
 
         while selected_indices.len() < budget {
@@ -283,13 +270,14 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
 
             match best_idx {
                 Some(idx) => {
-                    selected_indices.push(idx);
+                    selected_indices.insert(idx);
                     selected_lines.push(lines[idx]);
                 }
                 None => break,
             }
         }
 
+        let mut selected_indices: Vec<usize> = selected_indices.into_iter().collect();
         selected_indices.sort_unstable();
         let mut result = String::new();
         let mut last_idx: Option<usize> = None;
@@ -844,7 +832,7 @@ mod tests {
     #[test]
     fn compute_budget_respects_max_lines() {
         // 1000-line input with Heavy (max 30): budget capped at 30
-        let (budget, passthrough) = compute_budget(1000, Profile::Heavy);
+        let (budget, _passthrough) = compute_budget(1000, Profile::Heavy);
         assert_eq!(budget, 30); // min(100, 30, 1000)
     }
 }

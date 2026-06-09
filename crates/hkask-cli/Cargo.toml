@@ -38,6 +38,7 @@ zeroize.workspace = true
 rand.workspace = true
 hex.workspace = true
 anyhow.workspace = true
+futures-util.workspace = true
 rustyline = "18.0.0"
 dirs = "6"
 rpassword = "7"

@@ -2,17 +2,19 @@
 //!
 //! No async, no MCP dependencies, no HTTP. This module owns compression
 //! dispatch, profile management, and cumulative statistics.
+//!
+//! The `AlgorithmRegistry` is constructed once at startup and is immutable.
+//! `CondenserEngine` holds only mutable state: profile and stats.
 
-use crate::algorithms::AlgorithmRegistry;
+use crate::algorithms::{AlgorithmRegistry, classify_tool};
 use crate::types::*;
 
+// G4: profile is the single source of truth; stats.current_profile is always derived from it.
 pub struct CondenserEngine {
     pub(crate) registry: AlgorithmRegistry,
     profile: Profile,
     pub stats: CondenserStats,
 }
-
-// G4: profile is the single source of truth; stats.current_profile is always derived from it.
 
 impl CondenserEngine {
     pub fn new() -> Self {
@@ -26,6 +28,18 @@ impl CondenserEngine {
     #[cfg(test)]
     pub fn profile(&self) -> Profile {
         self.profile
+    }
+
+    /// Resolve a tool name to its category and the algorithm that handles it.
+    ///
+    /// D3: single call site for the classify→select path. `condenser_classify`
+    /// delegates here instead of calling `classify_tool` + `registry.select` directly.
+    /// Returns an owned `String` for the algorithm name so callers can hold the
+    /// result across a mutable borrow of `self`.
+    pub fn classify(&self, tool_name: &str) -> (ContextCategory, String) {
+        let cat = classify_tool(tool_name);
+        let algo = self.registry.select(cat);
+        (cat, algo.name().to_string())
     }
 
     pub fn compress(
@@ -244,5 +258,34 @@ mod tests {
         let result = engine.compress("git_status", &input, None);
         assert_eq!(result.compressed_bytes, result.content.len());
         assert_eq!(result.original_bytes, input.len());
+    }
+
+    // REQ: CondenserEngine.classify returns correct category and algorithm for a known tool
+    #[test]
+    fn engine_classify_shell_tool() {
+        let engine = CondenserEngine::new();
+        let (cat, algo) = engine.classify("git_status");
+        assert_eq!(cat, ContextCategory::ShellCommand);
+        assert_eq!(algo, "rtk_style");
+    }
+
+    // REQ: CondenserEngine.classify returns Unknown + saliency_rank for unrecognized tool
+    #[test]
+    fn engine_classify_unknown_tool() {
+        let engine = CondenserEngine::new();
+        let (cat, algo) = engine.classify("custom_mystery_tool");
+        assert_eq!(cat, ContextCategory::Unknown);
+        // Unknown is in SaliencyRankAlgorithm::default_for
+        assert_eq!(algo, "saliency_rank");
+    }
+
+    // REQ: CondenserEngine.classify result matches what compress uses internally
+    #[test]
+    fn engine_classify_consistent_with_compress() {
+        let mut engine = CondenserEngine::new();
+        let (cat, algo_name) = engine.classify("pytest_run");
+        let result = engine.compress("pytest_run", "some test output", None);
+        assert_eq!(result.category, cat.label());
+        assert_eq!(result.algorithm, algo_name);
     }
 }

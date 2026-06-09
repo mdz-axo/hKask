@@ -231,9 +231,6 @@ impl std::str::FromStr for ContextCategory {
     }
 }
 
-// Moved to algorithms.rs — re-export preserves existing call sites
-pub use crate::algorithms::classify_tool;
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CompressedOutput {
     pub content: String,

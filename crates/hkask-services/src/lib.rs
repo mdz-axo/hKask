@@ -42,7 +42,7 @@ pub mod verification;
 
 pub use agent::{AgentReceipt, AgentService};
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
-pub use chat::{ChatRequest, ChatResponse, ChatService, TokenUsage};
+pub use chat::{ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage};
 pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,

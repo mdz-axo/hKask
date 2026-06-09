@@ -53,6 +53,18 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 - **Condenser build fix:** Already resolved — `cargo build -p hkask-mcp-condenser` and `cargo clippy -p hkask-mcp-condenser` both pass. `ToolSpanGuard::internal_error` was not renamed.
 - **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test --workspace` ✅ (all 0 failures, 138 hkask-services tests, 51 condenser tests).
 
+### Session 27 (Auth & Streaming Completion)
+
+- **F3 — AuthContext completion:** Unified `ChatService::chat()` to use `ctx.capability_checker.grant_registry()` for both authenticated (API) and anonymous (CLI) paths. Previously, the legacy path minted tokens with `config.acp_secret` directly; now both paths derive tokens through the same `mcp_secret`-backed checker. When `AuthContext` is provided, the caller's WebID is the delegator; when absent, `ctx.system_webid` is used. Removed `DelegationResource` import from `chat.rs` (no longer needed). Documented the `mcp_secret`/`acp_secret` split in `ServiceConfig` as a valid Guardrail (defense in depth — in-process vs inter-process HMAC keys serve different trust boundaries). Added doc comments to `ServiceContext::capability_checker` clarifying it uses `mcp_secret`. (#79)
+
+  **Audit finding:** Only `ChatService::chat()` in `hkask-services` creates `DelegationToken` directly. All other `DelegationToken::new` calls are in CLI surfaces (`invoke.rs`, `tool_augmented.rs`), domain crates (`AgentPod::new`, `CapabilityChecker::grant_*` factories), template executor, or MCP servers. Service-layer AuthContext threading is complete.
+
+  **Secret split resolution:** `acp_secret` (in-process ACP: `AcpRuntime`, `PodManager`, `FullMcpAdapter`, `ManifestExecutor`, CLI tool invocation) vs `mcp_secret` (inter-process: API auth middleware, `ServiceContext::capability_checker`, `McpDispatcher`). These serve different trust boundaries. Collapsing them would weaken defense in depth. Classified as **Guardrail** — measured boundary, user-overridable with informed consent.
+
+- **F1 — Streaming override + API SSE endpoint:** Overrode `generate_stream()` in `OkapiInference` to send `stream: true` and parse SSE/NDJSON responses into `InferenceStreamChunk` items. Added `generate_stream_with_model()` to `InferencePort` trait (with default fallback to single-chunk from `generate_with_model`) and blanket `Arc<dyn InferencePort>` impl. Added `POST /api/chat/stream` SSE endpoint that calls `generate_stream_with_model()` and yields `InferenceStreamChunk` items as SSE `data:` events via a `tokio::sync::mpsc` channel bridge (satisfies `'static` bound for the SSE response). Added `stream: Option<bool>` to `OkapiRequest`. Added SSE streaming response types (`StreamChunk`, `StreamChoice`, `StreamDelta`). Added `tokio-stream` dependency to `hkask-api`. Remaining: CLI incremental printing. (#80)
+
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test -p hkask-services -p hkask-api -p hkask-types -p hkask-templates` ✅ (0 failures). Pre-existing `hkask-cns` test compile error (mutable gate variable) — unrelated.
+
 ### Session 26 (Condenser Test+Debug+Gap Closure)
 - **Test suite created:** 53 tests (was 0) covering types (13), algorithms (23), engine (12). Every test has `// REQ:` tag per P8.
 - **Bug fix — classify_tool priority inversion:** `classify_tool()` checked ShellCommand substrings first; "run" in "pytest_run" caused wrong classification. Fixed: more-specific categories (TestOutput, BuildOutput) checked before ShellCommand catch-all. Then refactored to two-phase: token-split exact match → substring heuristic fallback.
@@ -257,6 +269,10 @@ documented as surface-only. See §7 (Project Complete) for final metrics.
 
 81. **`ConsolidationService::check_rate_limit` + `db_path_for_agent` extracted from API route.** Rate limiter (AtomicU64 epoch seconds, 30s minimum interval) and per-agent DB path template (`hkask-memory-agent-{webid}.db`) moved from `crates/hkask-api/src/routes/consolidation.rs` to `ConsolidationService`. Both CLI and API now share the same rate limit and path convention. `ServiceError::RateLimited` variant added for rate-limit errors.
 
+82. **`ChatService::prepare_chat()` extracted for streaming support.** The chat pipeline was split into `prepare_chat()` (agent lookup, prompt composition, semantic recall, capability token, inference port resolution) and the inference step. `ChatService::chat()` now delegates to `prepare_chat()` internally. This allows CLI and API surfaces to stream inference output by calling `prepare_chat()` and then `generate_stream_with_model()` directly on the inference port. Streaming is a surface concern — no `ChatService::chat_stream()` method was added. `recall_semantic()` and `store_episodic()` made public for surface consumption. `PreparedChat` struct carries prompt, model, inference port, episodic port, agent WebID, capability token, and agent name.
+
+83. **MCP server duplication classified as parity-test candidates (option c).** Zoom-out analysis of goal, replicant, and spec MCP servers revealed that all three fall under parity tests, not domain-crate extraction. Goal: both delegate to `SqliteGoalRepository`; duplication is surface-specific validation. Replicant: P1 Prohibition against `PodService`/`InferenceService`; duplication is intentional per architecture. Spec: 8 of 11 tools are MCP-only (OCAP, Writing Excellence, test traceability); 3 partially-duplicated tools use same domain types. F4 resolved — no domain-crate extraction needed.
+
 ---
 
 ## 5. Remaining Legitimate Legacy Patterns (Do NOT Migrate)
@@ -297,7 +313,7 @@ documented as surface-only. See §7 (Project Complete) for final metrics.
 | `crates/hkask-cli/src/onboarding.rs` | Onboarding CLI | ✅ Delegates to OnboardingService (377 lines, was 639) |
 | `crates/hkask-cli/src/commands/agent.rs` | Agent CLI | ✅ Delegates to AgentService |
 | `crates/hkask-cli/src/commands/user.rs` | User CLI | ✅ Delegates to UserService |
-| `crates/hkask-cli/src/commands/chat.rs` | Chat CLI | ✅ Delegates to ChatService |
+| `crates/hkask-cli/src/commands/chat.rs` | Chat CLI | ✅ Delegates to ChatService; streaming via `chat_with_agent_streaming()` + `ChatService::prepare_chat()` |
 | `crates/hkask-cli/src/commands/spec.rs` | Spec CLI | ✅ Delegates to SpecService |
 | `crates/hkask-cli/src/commands/compose.rs` | Compose CLI | ✅ Delegates to ComposeService (121 lines, was 378) |
 | `crates/hkask-cli/src/commands/ensemble.rs` | Ensemble CLI | ✅ Delegates improv ops to EnsembleService |
@@ -361,10 +377,10 @@ between CLI, API, and MCP surfaces. Key capabilities:
 
 | ID | Topic | Status |
 |----|-------|--------|
-| F1 | Streaming responses | 🟡 Foundation laid (Session 26, #78) — `InferencePort::generate_stream()` + `InferenceStreamChunk`; remaining: OkapiInference override + surface endpoints |
+| F1 | Streaming responses | ✅ Resolved (Sessions 27–28, #80–#81) — CLI incremental printing via `ChatService::prepare_chat()` + `generate_stream_with_model()` |
 | F2 | Session lifecycle across surfaces | Deferred — sessions are CLI-local currently |
-| F3 | Unified authentication context | 🟡 Partially resolved (Session 26, #77) — `AuthContext` in `hkask-types`, threaded through ChatRequest; remaining: all service ops + collapse `mcp_secret`/`acp_secret` |
-| F4 | MCP server service access | ✅ Resolved — MCP servers are correctly separate; called through inference tool-calling, not services |
+| F3 | Unified authentication context | ✅ Resolved (Session 27, #79) — `ChatService` uses unified `capability_checker`; `mcp_secret`/`acp_secret` split documented as Guardrail |
+| F4 | MCP server duplication | ✅ Resolved (Session 28) — All three servers classified as parity-test candidates; no domain-crate extraction needed |
 | F5 | Test seam depth (C8) | ✅ Resolved (Session 24) — PodManager::new_mock() uses deterministic test ACP secret |
 | F6 | REPL vs API state boundary | Resolved — ServiceContext bridges both |
 | F7 | ServiceConfig vs environment variables | Resolved — ServiceConfig::from_env() resolves from both |
