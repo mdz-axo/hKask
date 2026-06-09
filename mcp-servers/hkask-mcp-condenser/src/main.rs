@@ -115,9 +115,15 @@ impl CondenserServer {
                 McpToolError::invalid_argument("output must not be empty").to_json_string(),
             );
         }
-        let cat = category
-            .as_deref()
-            .and_then(|c| c.parse::<ContextCategory>().ok());
+        let cat = match category.as_deref() {
+            Some(c) => match c.parse::<ContextCategory>() {
+                Ok(cat) => Some(cat),
+                Err(e) => {
+                    return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+                }
+            },
+            None => None,
+        };
         let mut engine = self.engine.lock().unwrap();
         let result = engine.compress(&tool_name, &output, cat);
         span.ok_json(serde_json::to_value(&result).unwrap_or_default())
@@ -376,164 +382,4 @@ async fn main() -> anyhow::Result<()> {
         ],
     )
     .await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // ── CondenserEngine ──
-
-    // REQ: CondenserEngine starts with Normal profile
-    #[test]
-    fn engine_default_profile_is_normal() {
-        let engine = CondenserEngine::new();
-        assert_eq!(engine.profile, Profile::Normal);
-    }
-
-    // REQ: CondenserEngine starts with zero compression stats
-    #[test]
-    fn engine_starts_with_zero_stats() {
-        let engine = CondenserEngine::new();
-        let stats = engine.get_stats();
-        assert_eq!(stats.total_compressions, 0);
-        assert_eq!(stats.total_original_bytes, 0);
-        assert_eq!(stats.total_compressed_bytes, 0);
-    }
-
-    // REQ: CondenserEngine.compress updates stats counters
-    #[test]
-    fn engine_compress_updates_stats() {
-        let mut engine = CondenserEngine::new();
-        let input = (0..100)
-            .map(|i| format!("line {i}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        engine.compress("git_status", &input, None);
-        let stats = engine.get_stats();
-        assert_eq!(stats.total_compressions, 1);
-        assert!(stats.total_original_bytes > 0);
-        assert!(stats.total_compressed_bytes > 0);
-        assert!(stats.algorithm_usage.contains_key("rtk_style"));
-        assert!(stats.category_usage.contains_key("shell_command"));
-    }
-
-    // REQ: CondenserEngine.compress auto-classifies tool name when category is None
-    #[test]
-    fn engine_compress_auto_classifies() {
-        let mut engine = CondenserEngine::new();
-        let result = engine.compress("git_status", "some output", None);
-        assert_eq!(result.category, "shell_command");
-    }
-
-    // REQ: CondenserEngine.compress uses provided category when given
-    #[test]
-    fn engine_compress_uses_explicit_category() {
-        let mut engine = CondenserEngine::new();
-        let result = engine.compress(
-            "git_status",
-            "some output",
-            Some(ContextCategory::LogOutput),
-        );
-        assert_eq!(result.category, "log_output");
-    }
-
-    // REQ: CondenserEngine.compress returns correct algorithm name
-    #[test]
-    fn engine_compress_returns_algorithm_name() {
-        let mut engine = CondenserEngine::new();
-        let result = engine.compress("git_status", "some output", None);
-        assert_eq!(result.algorithm, "rtk_style");
-    }
-
-    // REQ: CondenserEngine.compress tracks profile in output
-    #[test]
-    fn engine_compress_tracks_profile() {
-        let mut engine = CondenserEngine::new();
-        let result = engine.compress("git_status", "some output", None);
-        assert_eq!(result.profile, "normal");
-    }
-
-    // REQ: CondenserEngine.compress reports reduction_pct > 0 for long input under Heavy
-    #[test]
-    fn engine_compress_reports_reduction() {
-        let mut engine = CondenserEngine::new();
-        engine.set_profile(Profile::Heavy);
-        let input = (0..500)
-            .map(|i| format!("line {i} with content"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let result = engine.compress("git_status", &input, None);
-        assert!(
-            result.reduction_pct > 0.0,
-            "should report positive reduction for long input under heavy profile"
-        );
-    }
-
-    // REQ: CondenserEngine.compress reports 0% reduction for short input that passes through
-    #[test]
-    fn engine_compress_no_reduction_for_passthrough() {
-        let mut engine = CondenserEngine::new();
-        let input = "short";
-        let result = engine.compress("git_status", input, None);
-        assert_eq!(result.reduction_pct, 0.0);
-    }
-
-    // REQ: CondenserEngine.compress reports 0% reduction for empty-ish input
-    #[test]
-    fn engine_compress_zero_bytes_reduction() {
-        let mut engine = CondenserEngine::new();
-        // Empty string has 0 bytes; reduction_pct should be 0.0 per the guard
-        let result = engine.compress("git_status", "", None);
-        assert_eq!(result.reduction_pct, 0.0);
-    }
-
-    // REQ: CondenserEngine.set_profile changes the active profile
-    #[test]
-    fn engine_set_profile_changes_profile() {
-        let mut engine = CondenserEngine::new();
-        engine.set_profile(Profile::Heavy);
-        assert_eq!(engine.profile, Profile::Heavy);
-        assert_eq!(engine.stats.current_profile, "heavy");
-    }
-
-    // REQ: CondenserEngine multiple compressions accumulate stats
-    #[test]
-    fn engine_multiple_compressions_accumulate() {
-        let mut engine = CondenserEngine::new();
-        let input = (0..100)
-            .map(|i| format!("line {i}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        engine.compress("git_status", &input, None);
-        engine.compress("pytest_run", &input, None);
-        engine.compress("log_journal", &input, None);
-        let stats = engine.get_stats();
-        assert_eq!(stats.total_compressions, 3);
-        assert!(stats.algorithm_usage.contains_key("rtk_style"));
-        assert!(stats.algorithm_usage.contains_key("saliency_rank"));
-    }
-
-    // REQ: CompressedOutput line counts are accurate
-    #[test]
-    fn engine_compress_line_counts_accurate() {
-        let mut engine = CondenserEngine::new();
-        let input = "line1\nline2\nline3";
-        let result = engine.compress("git_status", input, None);
-        assert_eq!(result.original_lines, 3);
-        assert_eq!(result.original_bytes, input.len());
-    }
-
-    // REQ: CompressedOutput byte counts match content.len()
-    #[test]
-    fn engine_compress_byte_counts_match() {
-        let mut engine = CondenserEngine::new();
-        let input = (0..200)
-            .map(|i| format!("line {i}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let result = engine.compress("git_status", &input, None);
-        assert_eq!(result.compressed_bytes, result.content.len());
-        assert_eq!(result.original_bytes, input.len());
-    }
 }

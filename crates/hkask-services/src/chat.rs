@@ -13,8 +13,7 @@ use hkask_agents::ports::{
 };
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
-    AuthContext, Confidence, DelegationAction, DelegationResource, DelegationToken, LLMParameters,
-    WebID,
+    AuthContext, Confidence, DelegationAction, DelegationToken, LLMParameters, WebID,
 };
 
 use crate::error::ServiceError;
@@ -156,25 +155,19 @@ impl ChatService {
         // Derive WebID for the agent
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
-        // Create capability token for memory operations
-        // When the caller provides a verified AuthContext, use the caller's identity
-        // to derive operation-specific tokens via CapabilityChecker. Otherwise,
-        // fall back to the legacy system-level token from config secrets.
-        let capability_token = match &req.auth_context {
-            Some(auth) => ctx.capability_checker.grant_registry(
-                DelegationAction::Execute,
-                auth.webid,
-                agent_webid,
-            ),
-            None => DelegationToken::new(
-                DelegationResource::Registry,
-                "memory".to_string(),
-                DelegationAction::Execute,
-                WebID::new(), // system
-                agent_webid,
-                &ctx.config.acp_secret,
-            ),
-        };
+        // Create capability token for memory operations.
+        // Both authenticated (API) and anonymous (CLI) paths use the same
+        // CapabilityChecker (backed by mcp_secret) so tokens are verifiable by
+        // the same authority. When the caller provides a verified AuthContext,
+        // the token reflects the caller's identity; otherwise the system WebID
+        // is used as the delegator.
+        let capability_token = ctx.capability_checker.grant_registry(
+            DelegationAction::Execute,
+            req.auth_context
+                .as_ref()
+                .map_or(ctx.system_webid, |a| a.webid),
+            agent_webid,
+        );
 
         // Recall relevant knowledge from semantic memory
         let semantic_port: Arc<dyn SemanticStoragePort> = req

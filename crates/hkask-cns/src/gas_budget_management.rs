@@ -404,10 +404,10 @@ mod tests {
             budgets.get_mut(&agent).unwrap().remaining = GasCost(100);
         }
 
-        // Now replenishment should work
+        // Now replenishment should work (rate = cap/10 = 100)
         manager.replenish_all_budgets().await;
         let status = manager.agent_gas_status(&agent).await.unwrap();
-        assert!(status.remaining.0 > 100); // Replenished
+        assert_eq!(status.remaining, GasCost(200)); // 100 remaining + 100 replenish
     }
 
     #[tokio::test]
@@ -465,5 +465,34 @@ mod tests {
         let agent = WebID::new();
         assert!(a.agent_gas_status(&agent).await.is_none());
         assert!(b.agent_gas_status(&agent).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn expire_overrides_removes_expired_ttl() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+
+        // Apply override — TTL = 0 means persists until cleared (not expired)
+        manager.apply_override_gas_budget(agent, GasCost(200)).await;
+        manager.expire_overrides().await;
+        // TTL=0 override should still be present
+        {
+            let budgets = manager.gas_budgets.write().await;
+            let budget = budgets.get(&agent).unwrap();
+            assert_eq!(budget.remaining, GasCost(200));
+        }
+
+        // Clear it so replenishment resumes
+        manager.apply_clear_override(agent).await;
+        {
+            let mut budgets = manager.gas_budgets.write().await;
+            budgets.get_mut(&agent).unwrap().remaining = GasCost(100);
+        }
+        manager.replenish_all_budgets().await;
+        let status = manager.agent_gas_status(&agent).await.unwrap();
+        assert_eq!(status.remaining, GasCost(200)); // 100 + 100 replenish
     }
 }

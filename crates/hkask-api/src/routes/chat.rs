@@ -3,13 +3,23 @@
 //! The `POST /api/chat` endpoint accepts an optional `model` field that
 //! switches the LLM used for inference. Use `GET /api/models` to discover
 //! valid model identifiers.
+//!
+//! The `POST /api/chat/stream` endpoint streams inference output as SSE events.
 
 use axum::extract::Extension;
-use axum::{Json, extract::State, routing::Router};
+use axum::{
+    Json,
+    extract::State,
+    response::sse::{Event, Sse},
+    routing::Router,
+};
+use std::convert::Infallible;
 
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
+use hkask_types::LLMParameters;
+use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -44,7 +54,9 @@ pub struct ChatResponse {
 
 /// Create chat router
 pub fn chat_router() -> Router<ApiState> {
-    Router::new().route("/api/chat", axum::routing::post(chat))
+    Router::new()
+        .route("/api/chat", axum::routing::post(chat))
+        .route("/api/chat/stream", axum::routing::post(chat_stream))
 }
 
 /// Chat with the Curator or a specified agent.
@@ -110,4 +122,109 @@ async fn chat(
             .unwrap_or_else(|| strategy.name().to_string()),
         model: model.to_string(),
     })
+}
+
+/// Stream chat inference output as Server-Sent Events.
+///
+/// Accepts the same `ChatRequest` as `/api/chat` but streams the inference
+/// output as SSE `data:` events. Each event carries a JSON object with
+/// `text_delta`, `model`, and optionally `finish_reason`. The final event
+/// has `finish_reason: "stop"` and includes `usage` stats.
+///
+/// This is a surface-layer endpoint — it bypasses ChatService's full
+/// pipeline (memory recall, episodic storage) and calls the inference port
+/// directly for streaming. Use `/api/chat` for the full pipeline with
+/// memory integration.
+#[utoipa::path(
+    post,
+    path = "/api/chat/stream",
+    tag = "chat",
+    request_body = ChatRequest,
+    responses(
+        (status = 200, description = "SSE stream of chat chunks", content_type = "text/event-stream"),
+        (status = 400, description = "Invalid request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
+async fn chat_stream(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+    Json(req): Json<ChatRequest>,
+) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
+    let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
+    let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
+
+    let prompt = match &req.template_id {
+        Some(id) => format!("[template: {}] {}", id, req.input),
+        None => strategy.frame(&req.input).to_string(),
+    };
+
+    let params = LLMParameters {
+        temperature: 0.7,
+        top_p: 0.9,
+        top_k: 40,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+        max_tokens: 512,
+        seed: None,
+    };
+
+    let inference = state.service_context.inference_port.clone();
+
+    // Use a channel to bridge the borrowed inference stream into a 'static
+    // stream for the SSE response. A spawned task owns the Arc and sends
+    // chunks through the channel.
+    let (tx, rx): (tokio::sync::mpsc::Sender<Result<Event, Infallible>>, _) =
+        tokio::sync::mpsc::channel(32);
+
+    match inference {
+        Some(port) => {
+            tokio::spawn(async move {
+                let mut stream =
+                    port.generate_stream_with_model(&prompt, &params, Some(&model_str));
+                use futures_util::StreamExt;
+                while let Some(chunk_result) = stream.next().await {
+                    let event = match chunk_result {
+                        Ok(chunk) => {
+                            let data = serde_json::json!({
+                                "text_delta": chunk.text_delta,
+                                "model": chunk.model,
+                                "finish_reason": chunk.finish_reason,
+                                "usage": chunk.usage.map(|u| serde_json::json!({
+                                    "prompt_tokens": u.prompt_tokens,
+                                    "completion_tokens": u.completion_tokens,
+                                    "total_tokens": u.total_tokens,
+                                })),
+                                "tool_calls": if chunk.tool_calls.is_empty() { None } else { Some(serde_json::json!(chunk.tool_calls)) },
+                            });
+                            Event::default().data(data.to_string())
+                        }
+                        Err(e) => Event::default().data(
+                            serde_json::json!({
+                                "error": e.to_string(),
+                            })
+                            .to_string(),
+                        ),
+                    };
+                    if tx.send(Ok(event)).await.is_err() {
+                        break; // receiver dropped
+                    }
+                }
+            });
+        }
+        None => {
+            let _ = tx
+                .send(Ok(Event::default().data(
+                    serde_json::json!({
+                        "error": "Inference unavailable — no model loaded",
+                    })
+                    .to_string(),
+                )))
+                .await;
+        }
+    }
+
+    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+    Sse::new(Box::pin(stream)).keep_alive(axum::response::sse::KeepAlive::default())
 }

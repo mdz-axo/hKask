@@ -174,57 +174,6 @@ mod tests {
         assert_eq!(parsed, ContextCategory::Unknown);
     }
 
-    // REQ: classify_tool maps known tool name substrings to correct categories
-    #[test]
-    fn classify_tool_shell_variants() {
-        assert_eq!(classify_tool("git_status"), ContextCategory::ShellCommand);
-        assert_eq!(classify_tool("docker_ps"), ContextCategory::ShellCommand);
-        assert_eq!(classify_tool("npm_install"), ContextCategory::ShellCommand);
-        assert_eq!(classify_tool("shell_exec"), ContextCategory::ShellCommand);
-        assert_eq!(classify_tool("bash_run"), ContextCategory::ShellCommand);
-    }
-
-    // REQ: classify_tool maps test/build/file/chat/json/log tools; more-specific categories take precedence over ShellCommand
-    #[test]
-    fn classify_tool_all_categories() {
-        assert_eq!(classify_tool("pytest_run"), ContextCategory::TestOutput);
-        assert_eq!(classify_tool("build_compile"), ContextCategory::BuildOutput);
-        assert_eq!(classify_tool("file_read"), ContextCategory::FileContents);
-        assert_eq!(
-            classify_tool("chat_conversation"),
-            ContextCategory::ConversationHistory
-        );
-        assert_eq!(classify_tool("json_api"), ContextCategory::StructuredData);
-        assert_eq!(classify_tool("log_journal"), ContextCategory::LogOutput);
-    }
-
-    // REQ: classify_tool maps unrecognized names to Unknown
-    #[test]
-    fn classify_tool_unknown_fallback() {
-        assert_eq!(classify_tool("custom_tool"), ContextCategory::Unknown);
-    }
-
-    // REQ: classify_tool is case-insensitive
-    #[test]
-    fn classify_tool_case_insensitive() {
-        assert_eq!(classify_tool("GIT_STATUS"), ContextCategory::ShellCommand);
-        assert_eq!(classify_tool("Docker_Run"), ContextCategory::ShellCommand);
-    }
-
-    // REQ: classify_tool splits on _ and - for token matching (Phase 1)
-    #[test]
-    fn classify_tool_splits_on_separators() {
-        assert_eq!(classify_tool("pytest-run"), ContextCategory::TestOutput);
-        assert_eq!(classify_tool("build-compile"), ContextCategory::BuildOutput);
-        assert_eq!(classify_tool("git-status"), ContextCategory::ShellCommand);
-    }
-
-    // REQ: classify_tool Phase 1 matches first token, so "cargo_test" → ShellCommand (cargo first)
-    #[test]
-    fn classify_tool_first_token_wins() {
-        assert_eq!(classify_tool("cargo_test"), ContextCategory::ShellCommand);
-    }
-
     // REQ: CondenserStats defaults to normal profile and zero counters
     #[test]
     fn condenser_stats_default() {
@@ -282,54 +231,8 @@ impl std::str::FromStr for ContextCategory {
     }
 }
 
-pub fn classify_tool(tool_name: &str) -> ContextCategory {
-    let lower = tool_name.to_lowercase();
-    let parts: Vec<&str> = lower.split('_').chain(lower.split('-')).collect();
-
-    // Phase 1: known tool name prefixes — exact, no false positives
-    for part in &parts {
-        match *part {
-            "git" | "docker" | "cargo" | "npm" | "shell" | "bash" | "exec" | "run" => {
-                return ContextCategory::ShellCommand;
-            }
-            "test" | "pytest" | "spec" => return ContextCategory::TestOutput,
-            "build" | "compile" | "make" => return ContextCategory::BuildOutput,
-            "chat" | "conversation" | "message" => return ContextCategory::ConversationHistory,
-            "log" | "journal" | "trace" => return ContextCategory::LogOutput,
-            "json" | "api" | "query" => return ContextCategory::StructuredData,
-            "file" | "read" | "cat" => return ContextCategory::FileContents,
-            _ => {}
-        }
-    }
-
-    // Phase 2: substring heuristic for compound/unknown tool names
-    if lower.contains("git")
-        || lower.contains("docker")
-        || lower.contains("cargo")
-        || lower.contains("npm")
-        || lower.contains("shell")
-        || lower.contains("exec")
-        || lower.contains("run")
-        || lower.contains("bash")
-    {
-        ContextCategory::ShellCommand
-    } else if lower.contains("test") || lower.contains("pytest") || lower.contains("spec") {
-        ContextCategory::TestOutput
-    } else if lower.contains("build") || lower.contains("compile") || lower.contains("make") {
-        ContextCategory::BuildOutput
-    } else if lower.contains("chat") || lower.contains("conversation") || lower.contains("message")
-    {
-        ContextCategory::ConversationHistory
-    } else if lower.contains("log") || lower.contains("journal") || lower.contains("trace") {
-        ContextCategory::LogOutput
-    } else if lower.contains("json") || lower.contains("api") || lower.contains("query") {
-        ContextCategory::StructuredData
-    } else if lower.contains("file") || lower.contains("read") || lower.contains("cat") {
-        ContextCategory::FileContents
-    } else {
-        ContextCategory::Unknown
-    }
-}
+// Moved to algorithms.rs — re-export preserves existing call sites
+pub use crate::algorithms::classify_tool;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CompressedOutput {

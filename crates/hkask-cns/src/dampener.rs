@@ -313,4 +313,22 @@ mod tests {
                 .await
         );
     }
+
+    #[tokio::test]
+    async fn directive_allowed_after_window_expires() {
+        // Use a very short window for test speed
+        let dampener = Dampener::with_window(Duration::from_millis(50));
+        let dir = CuratorDirective::CalibrateThreshold {
+            domain: "test".to_string(),
+            new_threshold: 42,
+        };
+        // First: not dampened
+        assert!(!dampener.should_dampen_directive(&dir).await);
+        // Second: dampened (within window)
+        assert!(dampener.should_dampen_directive(&dir).await);
+        // Wait for window to expire
+        tokio::time::sleep(Duration::from_millis(80)).await;
+        // After window: not dampened again
+        assert!(!dampener.should_dampen_directive(&dir).await);
+    }
 }

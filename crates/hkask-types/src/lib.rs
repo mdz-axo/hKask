@@ -84,9 +84,9 @@ pub use ports::git_cas::{
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
     ConsolidationRequest, DepletionSignal, EmbeddingGenerationError, InferenceError, InferencePort,
-    InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex,
-    SessionRecord, SessionStoreError, Skill, SkillRegistryIndex, SkillZone, StructuredToolCall,
-    TokenProb, TokenProbability, ToolInfo, ToolPort, ToolPortError,
+    InferenceResult, InferenceStreamChunk, InferenceUsage, MessageRecord, RegistryEntry,
+    RegistryError, RegistryIndex, SessionRecord, SessionStoreError, Skill, SkillRegistryIndex,
+    SkillZone, StructuredToolCall, TokenProb, TokenProbability, ToolInfo, ToolPort, ToolPortError,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};

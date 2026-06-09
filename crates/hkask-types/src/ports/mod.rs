@@ -170,6 +170,92 @@ pub trait InferencePort: Send + Sync {
             results.into_iter().collect()
         })
     }
+
+    /// Stream inference output as chunks of text arrive.
+    ///
+    /// Returns a `Stream` of `InferenceStreamChunk` items. Each chunk carries
+    /// a text delta (partial output) and optionally a finish reason. The final
+    /// chunk has `finish_reason: Some(...)` and carries the usage stats.
+    ///
+    /// Default implementation: yields a single chunk containing the complete
+    /// result from `generate()`. Implementors override this when the backend
+    /// supports server-sent events (SSE) or chunked transfer.
+    fn generate_stream(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+    ) -> std::pin::Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        let future = self.generate(prompt, parameters);
+        Box::pin(futures_util::stream::once(async move {
+            let result = future.await?;
+            Ok(InferenceStreamChunk {
+                text_delta: result.text,
+                model: result.model,
+                finish_reason: Some(result.finish_reason),
+                usage: Some(result.usage),
+                tool_calls: result.tool_calls,
+            })
+        }))
+    }
+
+    /// Stream inference output with optional model override.
+    ///
+    /// Falls back to `generate_stream()` when `model_override` is `None`.
+    fn generate_stream_with_model(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        if model_override.is_some() {
+            // Default: fall back to generate() + single-chunk stream.
+            // Implementors that support streaming with model override should
+            // override this method.
+            let future = self.generate_with_model(prompt, parameters, model_override);
+            Box::pin(futures_util::stream::once(async move {
+                let result = future.await?;
+                Ok(InferenceStreamChunk {
+                    text_delta: result.text,
+                    model: result.model,
+                    finish_reason: Some(result.finish_reason),
+                    usage: Some(result.usage),
+                    tool_calls: result.tool_calls,
+                })
+            }))
+        } else {
+            self.generate_stream(prompt, parameters)
+        }
+    }
+}
+
+/// A single chunk of streaming inference output.
+///
+/// Text deltas arrive incrementally. The final chunk has `finish_reason` set
+/// and carries the complete usage stats and tool calls.
+#[derive(Debug, Clone)]
+pub struct InferenceStreamChunk {
+    /// Text delta since the last chunk.
+    pub text_delta: String,
+    /// Model that produced this chunk.
+    pub model: String,
+    /// Finish reason (`Some` on the final chunk, `None` for intermediate).
+    pub finish_reason: Option<String>,
+    /// Token usage (present on the final chunk).
+    pub usage: Option<InferenceUsage>,
+    /// Structured tool calls (present on the final chunk when finish_reason is "tool_calls").
+    pub tool_calls: Vec<StructuredToolCall>,
 }
 
 /// Blanket impl — enables `InferenceLoop<Arc<dyn InferencePort>>` default type param.
@@ -209,6 +295,35 @@ impl InferencePort for Arc<dyn InferencePort> {
         >,
     > {
         (**self).generate_n(prompt, parameters, n)
+    }
+
+    fn generate_stream(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+    ) -> std::pin::Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        (**self).generate_stream(prompt, parameters)
+    }
+
+    fn generate_stream_with_model(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        (**self).generate_stream_with_model(prompt, parameters, model_override)
     }
 }
 
@@ -656,4 +771,60 @@ pub enum EmbeddingGenerationError {
     EmptyResponse,
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Minimal InferencePort impl that returns a fixed result.
+    struct MockInference;
+
+    impl InferencePort for MockInference {
+        fn generate(
+            &self,
+            _prompt: &str,
+            _parameters: &crate::template::LLMParameters,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = Result<InferenceResult, InferenceError>>
+                    + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(std::future::ready(Ok(InferenceResult {
+                text: "hello".to_string(),
+                model: "test".to_string(),
+                usage: InferenceUsage {
+                    prompt_tokens: 1,
+                    completion_tokens: 1,
+                    total_tokens: 2,
+                },
+                finish_reason: "stop".to_string(),
+                token_probabilities: None,
+                tool_calls: vec![],
+            })))
+        }
+    }
+
+    // REQ: generate_stream default yields single chunk from generate()
+    #[tokio::test]
+    async fn generate_stream_default_yields_single_chunk() {
+        use futures_util::StreamExt;
+
+        let port = MockInference;
+        let params = crate::template::LLMParameters::default();
+        let mut stream = port.generate_stream("test", &params);
+
+        let chunk = stream.next().await.expect("stream should yield one chunk");
+        let chunk = chunk.expect("chunk should be Ok");
+        assert_eq!(chunk.text_delta, "hello");
+        assert_eq!(chunk.model, "test");
+        assert_eq!(chunk.finish_reason, Some("stop".to_string()));
+        assert!(chunk.usage.is_some());
+        assert!(chunk.tool_calls.is_empty());
+
+        // Stream should be exhausted after the single chunk
+        assert!(stream.next().await.is_none());
+    }
 }

@@ -245,11 +245,17 @@ documented as surface-only. See §7 (Project Complete) for final metrics.
 
 75. **`RecalledSemantic` typed DTO replaces `Vec<serde_json::Value>` from `SemanticStoragePort::recall_semantic`.** The port trait now returns `Result<Vec<RecalledSemantic>, MemoryError>`. `RecalledSemantic` uses domain types (`Confidence`, `Visibility`) and omits the `perspective` field because semantic triples are perspective-free by definition (consolidated from episodic, shared/public knowledge). This eliminates the fragile `.get("value").and_then(|v| v.as_str())` destructuring in `ChatService::recall_semantic`. The type lives in `hkask-agents/src/ports/memory_storage.rs` (domain crate, not services) because it's the return type of a port trait. `triple_to_json` deleted — no remaining callers after F10. Depth test passes: deleting `RecalledSemantic` would force N callers to duplicate the field mapping.
 
-76. **`EnsembleService::get_chat` + `list_deliberations` replace direct `session_manager` access in API routes.** Previously `ensemble.rs` routes `get_chat` and `list_deliberations` read `state.service_context.session_manager` directly, bypassing `EnsembleService`. Now both go through `EnsembleService` with consistent `ServiceError::SessionNotFound` error handling.
+76. **GovernedTool wired to PodManager in ServiceContext::build().** The `GovernedTool` membrane (gas budget, variety tracking, CNS spans) was created at L386-393 and wired to `McpDispatcher` at L394-398, but NOT to `PodManager`. This meant `PodContext::invoke_tool()` fell through to the raw `mcp_runtime` path, bypassing CNS governance for pod-initiated tool calls. Fixed by adding `.with_governed_tool(governed_tool.clone())` to the `PodManager::new(...)` chain. F8 is resolved — the service layer never touches `GovernedTool` directly; governance is mediated through `PodContext` and `McpDispatcher`. (#76)
 
-77. **`SovereigntyService::grant_consent_and_fetch` combines grant + re-fetch.** The API route `sovereignty_grant_consent` previously called `grant_consent` then `get_granted_categories` separately. Combined into single service method `grant_consent_and_fetch` that atomically grants and returns updated categories.
+77. **`AuthContext` unified across API and service layer.** The API's `AuthContext` (trapped in `hkask-api/src/middleware/auth.rs`) is now a type alias for the domain-level `AuthContext` in `hkask-types/src/capability/mod.rs`. `AuthContext` carries `token: DelegationToken` and `webid: WebID`. `ChatRequest` now accepts `auth_context: Option<AuthContext>`. When provided, `ChatService::chat()` uses `CapabilityChecker::grant_registry()` to derive operation-specific tokens from the caller's verified identity. When absent (CLI), falls back to the legacy system-level token from config secrets. The API chat route extracts `AuthContext` from middleware-verified request extensions and passes it through. F3 partially resolved — the unified type exists and is threaded through the primary service; remaining work is to thread it through all service operations and collapse the `mcp_secret`/`acp_secret` split. (#77)
 
-78. **`ConsolidationService::check_rate_limit` + `db_path_for_agent` extracted from API route.** Rate limiter (AtomicU64 epoch seconds, 30s minimum interval) and per-agent DB path template (`hkask-memory-agent-{webid}.db`) moved from `crates/hkask-api/src/routes/consolidation.rs` to `ConsolidationService`. Both CLI and API now share the same rate limit and path convention. `ServiceError::RateLimited` variant added for rate-limit errors.
+78. **`generate_stream()` added to `InferencePort` with default implementation.** The trait now has a streaming method that returns `Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>>`. `InferenceStreamChunk` carries `text_delta`, `model`, `finish_reason: Option<String>`, `usage: Option<InferenceUsage>`, and `tool_calls`. The default implementation yields a single chunk from `generate()`. Implementors override this when the backend supports SSE. The blanket `Arc<dyn InferencePort>` impl delegates to the inner type. F1 foundation is laid — surfaces can now call `generate_stream()` for incremental output; the `OkapiInference` override and surface-specific streaming endpoints are the remaining work. (#78)
+
+79. **`EnsembleService::get_chat` + `list_deliberations` replace direct `session_manager` access in API routes.** Previously `ensemble.rs` routes `get_chat` and `list_deliberations` read `state.service_context.session_manager` directly, bypassing `EnsembleService`. Now both go through `EnsembleService` with consistent `ServiceError::SessionNotFound` error handling.
+
+80. **`SovereigntyService::grant_consent_and_fetch` combines grant + re-fetch.** The API route `sovereignty_grant_consent` previously called `grant_consent` then `get_granted_categories` separately. Combined into single service method `grant_consent_and_fetch` that atomically grants and returns updated categories.
+
+81. **`ConsolidationService::check_rate_limit` + `db_path_for_agent` extracted from API route.** Rate limiter (AtomicU64 epoch seconds, 30s minimum interval) and per-agent DB path template (`hkask-memory-agent-{webid}.db`) moved from `crates/hkask-api/src/routes/consolidation.rs` to `ConsolidationService`. Both CLI and API now share the same rate limit and path convention. `ServiceError::RateLimited` variant added for rate-limit errors.
 
 ---
 
@@ -333,6 +339,8 @@ above as surface-only.
 | API routes with typed OCAP matching | 1 (episodic.rs — fixed Session 23) |
 | Service-layer tests | 138 (was 70+; 4 pod tests now pass after F5 fix) |
 | Port traits with typed return DTOs | 2 (EpisodicStoragePort — RecalledEpisode, SemanticStoragePort — RecalledSemantic) |
+| Unified domain types | AuthContext (hkask-types), InferenceStreamChunk (hkask-types) |
+| GovernedTool wiring fix | PodManager now routes through CNS governance (#76) |
 | Files deleted | 2 (registration.rs, git_archival.rs) |
 | Type relocations | ResolvedSecrets, SignInOutcome, CorpusConfig, Manifest/Assertion/VerificationReport, SkillInfo/SkillPublishResult |
 | Completion date | 2026-06-08 (Session 23) |
@@ -353,14 +361,14 @@ between CLI, API, and MCP surfaces. Key capabilities:
 
 | ID | Topic | Status |
 |----|-------|--------|
-| F1 | Streaming responses | Deferred — service layer returns complete results |
+| F1 | Streaming responses | 🟡 Foundation laid (Session 26, #78) — `InferencePort::generate_stream()` + `InferenceStreamChunk`; remaining: OkapiInference override + surface endpoints |
 | F2 | Session lifecycle across surfaces | Deferred — sessions are CLI-local currently |
-| F3 | Unified authentication context | Deferred — API uses HTTP auth, CLI uses keystore |
-| F4 | MCP server service access | Deferred — MCP servers use domain primitives, not services |
+| F3 | Unified authentication context | 🟡 Partially resolved (Session 26, #77) — `AuthContext` in `hkask-types`, threaded through ChatRequest; remaining: all service ops + collapse `mcp_secret`/`acp_secret` |
+| F4 | MCP server service access | ✅ Resolved — MCP servers are correctly separate; called through inference tool-calling, not services |
 | F5 | Test seam depth (C8) | ✅ Resolved (Session 24) — PodManager::new_mock() uses deterministic test ACP secret |
 | F6 | REPL vs API state boundary | Resolved — ServiceContext bridges both |
 | F7 | ServiceConfig vs environment variables | Resolved — ServiceConfig::from_env() resolves from both |
-| F8 | GovernedTool membrane boundary | Deferred — inference governance stays in hkask-cns |
+| F8 | GovernedTool membrane boundary | ✅ Resolved (Session 26, #76) — GovernedTool wired to PodManager; service layer never touches it |
 | F9 | `serde_json::Value` from EpisodicStoragePort.recall | ✅ Resolved (Session 24) — RecalledEpisode typed DTO replaces untyped Values |
 | F10 | `serde_json::Value` from SemanticStoragePort.recall | ✅ Resolved (Session 25) — RecalledSemantic typed DTO replaces untyped Values; triple_to_json deleted |
 

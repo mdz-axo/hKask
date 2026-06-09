@@ -414,13 +414,30 @@ mod tests {
     }
 
     #[test]
-    fn cns_health_unhealthy_when_critical_alerts() {
+    fn cns_health_healthy_when_only_info_alerts() {
         let mut manager = AlgedonicManager::new(100, 10);
         let tracker = VarietyTracker::new();
         // deficit = 10, threshold = 100 → Info, not critical
         manager.check(&tracker, "test");
         let health = cns_health_check(&manager);
-        assert!(health.healthy); // No critical alerts yet
+        assert!(health.healthy);
+        assert_eq!(health.warning_count, 0);
+        assert_eq!(health.critical_count, 0);
+    }
+
+    #[test]
+    fn cns_health_unhealthy_when_critical_alerts() {
+        let mut manager = AlgedonicManager::new(100, 10);
+        let tracker = VarietyTracker::new();
+        // deficit = 10, expected variety = 10, but check with high threshold to force critical
+        // Use a very low threshold so even a small deficit exceeds it
+        manager.check(&tracker, "test"); // deficit = 10, threshold = 100 → Info
+        // Manually trigger a critical scenario: create manager with threshold = 5
+        let mut crit_manager = AlgedonicManager::new(5, 10);
+        crit_manager.check(&tracker, "critical_domain"); // deficit = 10, threshold = 5 → Critical
+        let health = cns_health_check(&crit_manager);
+        assert!(!health.healthy);
+        assert_eq!(health.critical_count, 1);
     }
 
     // ── AlertSeverity ───────────────────────────────────────────────────
@@ -433,5 +450,78 @@ mod tests {
         assert!(matches!(info.severity, AlertSeverity::Info));
         assert!(matches!(warning.severity, AlertSeverity::Warning));
         assert!(matches!(critical.severity, AlertSeverity::Critical));
+    }
+
+    // ── Allosteric (MWC sigmoid) alert path ──────────────────────────────
+
+    #[test]
+    fn allosteric_alert_high_alpha_critical() {
+        let mut gate = AllostericGate::new(&AllostericGateConfig {
+            name: "test".to_string(),
+            base_l: 10.0,
+            c: 0.1,
+            n: 3,
+            threshold: 0.5,
+            tau: std::time::Duration::from_secs(1),
+            hysteresis: 1.0,
+        });
+        // High alpha (deficit/threshold = 3.0). With hysteresis=1.0 and prev_r_bar=0,
+        // L_eff is amplified, so R̄ may be in the Warning or Critical range.
+        gate.set_alpha(3.0);
+        let alert = RuntimeAlert::new_allosteric("test", 300, 100, &gate);
+        // R̄ should be elevated (Warning or Critical) — exact value depends on MWC dynamics
+        assert!(matches!(
+            alert.severity,
+            AlertSeverity::Warning | AlertSeverity::Critical
+        ));
+        assert!(alert.r_bar > 0.0); // R-bar is populated by gate
+    }
+
+    #[test]
+    fn allosteric_alert_low_alpha_info() {
+        let mut gate = AllostericGate::new(&AllostericGateConfig {
+            name: "test".to_string(),
+            base_l: 10.0,
+            c: 0.1,
+            n: 3,
+            threshold: 0.5,
+            tau: std::time::Duration::from_secs(1),
+            hysteresis: 1.0,
+        });
+        // Low α (deficit/threshold = 0.1) → R̄ should be low → Info
+        gate.set_alpha(0.1);
+        let alert = RuntimeAlert::new_allosteric("test", 10, 100, &gate);
+        assert_eq!(alert.severity, AlertSeverity::Info);
+    }
+
+    #[test]
+    fn allosteric_alert_medium_alpha_warning() {
+        let mut gate = AllostericGate::new(&AllostericGateConfig {
+            name: "test".to_string(),
+            base_l: 10.0,
+            c: 0.1,
+            n: 3,
+            threshold: 0.5,
+            tau: std::time::Duration::from_secs(1),
+            hysteresis: 1.0,
+        });
+        // Medium α (0.7) → R̄ in transition zone → Warning
+        gate.set_alpha(0.7);
+        let alert = RuntimeAlert::new_allosteric("test", 70, 100, &gate);
+        // Warning if 0.3 < R̄ < 0.8, could be Warning or Info depending on gate
+        assert!(matches!(
+            alert.severity,
+            AlertSeverity::Warning | AlertSeverity::Info
+        ));
+    }
+
+    #[test]
+    fn allosteric_manager_check_uses_gate() {
+        let mut manager = AlgedonicManager::new(100, 10).with_default_allosteric();
+        let tracker = VarietyTracker::new();
+        // deficit = 10, threshold = 100 → α = 0.1 → low → Info
+        let alert = manager.check(&tracker, "test");
+        assert!(alert.is_some());
+        assert!(alert.unwrap().r_bar >= 0.0); // R̄ populated by gate
     }
 }

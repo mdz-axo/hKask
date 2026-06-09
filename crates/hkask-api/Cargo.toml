@@ -28,5 +28,6 @@ async-stream.workspace = true
 futures-util.workspace = true
 tracing.workspace = true
 tokio.workspace = true
+tokio-stream = "0.1"
 uuid.workspace = true
 chrono.workspace = true

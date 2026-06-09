@@ -110,6 +110,10 @@ pub struct ServiceContext {
     pub pod_manager: Arc<PodManager>,
 
     /// Capability checker for OCAP verification.
+    ///
+    /// Backed by `config.mcp_secret` — the inter-process HMAC key. Use this
+    /// checker to derive tokens for any service operation that needs a verifiable
+    /// capability token (e.g., `ChatService::chat()` memory access tokens).
     pub capability_checker: Arc<hkask_types::CapabilityChecker>,
 
     /// System WebID for signing capabilities.

@@ -35,15 +35,23 @@ error matching in `routes/episodic.rs`).
 | 10 | Ensemble standing_start orchestration | 🔴 High | Not started | ~2h |
 | 11 | Sovereignty consent enforcement extraction | 🔴 High | Not started | ~1h |
 | 12 | Chat PromptStrategy framing | 🟡 Medium | Not started | ~1h |
+| 13 | F8 — GovernedTool → PodManager wiring | 🔴 High | ✅ Done (Session 26, #76) | ~15m |
+| 14 | F3 — Unified AuthContext | 🔴 High | 🟡 Partially done (Session 26, #77) | ~2–3h |
+| 15 | F1 — Streaming foundation | 🔴 High | 🟡 Foundation laid (Session 26, #78) | ~1–2h |
+| 16 | F4 — MCP server service access | ⚪ Resolved | ✅ Architecture is correct | 0 |
 
 ---
 
 ## Session History (Post-Extraction)
 
-### Session 26 (Test Inventory Update)
+### Session 26 (F8 Fix + F3 AuthContext + F1 Streaming + Test Inventory)
 
-- **Test inventory update:** Refreshed `docs/status/test-inventory.md` with actual test counts. Fixed per-module header discrepancies (EnsembleService 18→17, SovereigntyService 14→13, GoalService 14→13, CuratorService 8→6, PodService 7→6). Removed non-existent test entries (`parse_data_category` from EnsembleService, `invalid_uuid_returns_pod_not_found` from SovereigntyService). Updated condenser section from 35→53 tests with individual algorithm/type test entries replacing grouped ranges. Added 2 new `classify_tool` tests (priority inversion fix, separator splitting). Updated summary total 192→210. Clarified `hkask-agents` doc test status (1 ignored, 2 passing).
-- **Verification:** `cargo check --workspace` ✅. `cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings` ✅. `cargo test --workspace` ✅ (0 failures).
+- **F8 — GovernedTool wiring fix:** Added `.with_governed_tool(governed_tool.clone())` to `PodManager::new(...)` chain in `ServiceContext::build()`. Previously, `PodContext::invoke_tool()` fell through to the raw `mcp_runtime` path, bypassing CNS governance (gas budget, variety tracking, spans) for pod-initiated tool calls. (#76)
+- **F3 — Unified AuthContext:** Moved `AuthContext` from `hkask-api` to `hkask-types/src/capability/mod.rs` as the domain type. API's `AuthContext` is now a type alias. Added `auth_context: Option<AuthContext>` to `ChatRequest`. When provided, `ChatService::chat()` uses `CapabilityChecker::grant_registry()` from the caller's identity; when absent (CLI), falls back to legacy system-level token. API chat route now extracts `AuthContext` from middleware extensions and passes it through. Remaining: thread through all service operations, collapse `mcp_secret`/`acp_secret` split. (#77)
+- **F1 — Streaming foundation:** Added `generate_stream()` to `InferencePort` with default implementation yielding a single chunk from `generate()`. Defined `InferenceStreamChunk` (text_delta, model, finish_reason, usage, tool_calls). Added blanket `Arc<dyn InferencePort>` impl. Test verifies default yields exactly one chunk. Remaining: `OkapiInference` override for SSE, surface-specific streaming endpoints. (#78)
+- **F4 — MCP server access resolved:** MCP servers are correctly separate — called through inference tool-calling, not through the service layer. Architecture is sound.
+- **Test inventory update:** Refreshed `docs/status/test-inventory.md` with actual test counts. Fixed per-module headers, condenser 35→53, summary 192→210.
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test --workspace` ✅ (0 failures, 1 new hkask-types test).
 
 ### Session 25 (F10 Typed DTOs + OPEN_QUESTIONS.md)
 

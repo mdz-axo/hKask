@@ -41,10 +41,26 @@ pub struct ServiceConfig {
     /// Passphrase for encrypted database access.
     pub db_passphrase: String,
 
-    /// HMAC secret for ACP token signing.
+    /// HMAC secret for ACP token signing (in-process agent capability policy).
+    ///
+    /// Used by AcpRuntime, PodManager, FullMcpAdapter, ManifestExecutor, and
+    /// CLI tool invocation. Tokens signed with this secret are verified within
+    /// the same process by the ACP runtime.
+    ///
+    /// Guardrail: This secret is intentionally separate from `mcp_secret` to
+    /// maintain defense in depth — in-process capability tokens and inter-process
+    /// MCP auth tokens use independent HMAC keys so compromising one boundary
+    /// does not compromise the other.
     pub acp_secret: Vec<u8>,
 
-    /// MCP capability secret for tool invocation authorization.
+    /// HMAC secret for MCP protocol authorization (inter-process).
+    ///
+    /// Used by API auth middleware (`AuthService`), `ServiceContext`'s
+    /// `capability_checker`, and `McpDispatcher`. Tokens signed with this
+    /// secret are verified by external MCP servers and API callers.
+    ///
+    /// Guardrail: See `acp_secret` for the rationale for keeping these secrets
+    /// independent.
     pub mcp_secret: Vec<u8>,
 
     /// Base URL for Okapi inference server.

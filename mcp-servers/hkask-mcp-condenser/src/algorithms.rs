@@ -2,12 +2,22 @@
 
 use super::types::*;
 
+/// Compute the line budget for compression given the input size and profile.
+///
+/// Returns `(budget, is_passthrough)` — if `is_passthrough`, the algorithm
+/// should return the input unchanged.
+pub(crate) fn compute_budget(lines: usize, profile: Profile) -> (usize, bool) {
+    let max_lines = profile.max_lines().unwrap_or(usize::MAX);
+    let target_lines = ((lines as f64) * profile.retention_pct()).max(1.0).round() as usize;
+    let budget = target_lines.min(max_lines).min(lines);
+    (budget, budget >= lines)
+}
+
 pub trait CondenserAlgorithm: Send + Sync {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn default_for(&self) -> &[ContextCategory];
     fn compress(&self, input: &str, profile: Profile, category: ContextCategory) -> String;
-    fn handles(&self, category: ContextCategory) -> bool;
 }
 
 pub struct RtkStyleAlgorithm;
@@ -26,22 +36,10 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
             ContextCategory::BuildOutput,
         ]
     }
-    fn handles(&self, category: ContextCategory) -> bool {
-        matches!(
-            category,
-            ContextCategory::ShellCommand
-                | ContextCategory::TestOutput
-                | ContextCategory::BuildOutput
-        )
-    }
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
-        let max_lines = profile.max_lines().unwrap_or(usize::MAX);
-        let retention = profile.retention_pct();
-        let target_lines = ((lines.len() as f64) * retention).max(1.0).round() as usize;
-        let budget = target_lines.min(max_lines).min(lines.len());
-
-        if budget >= lines.len() {
+        let (budget, passthrough) = compute_budget(lines.len(), profile);
+        if passthrough {
             return input.to_string();
         }
 
@@ -139,23 +137,10 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
             ContextCategory::Unknown,
         ]
     }
-    fn handles(&self, category: ContextCategory) -> bool {
-        matches!(
-            category,
-            ContextCategory::ConversationHistory
-                | ContextCategory::LogOutput
-                | ContextCategory::Unknown
-        )
-    }
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
-        let max_lines = profile.max_lines().unwrap_or(usize::MAX);
-        let target_lines = ((lines.len() as f64) * profile.retention_pct())
-            .max(1.0)
-            .round() as usize;
-        let budget = target_lines.min(max_lines).min(lines.len());
-
-        if budget >= lines.len() {
+        let (budget, passthrough) = compute_budget(lines.len(), profile);
+        if passthrough {
             return input.to_string();
         }
 
@@ -251,21 +236,10 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
             ContextCategory::StructuredData,
         ]
     }
-    fn handles(&self, category: ContextCategory) -> bool {
-        matches!(
-            category,
-            ContextCategory::FileContents | ContextCategory::StructuredData
-        )
-    }
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
-        let max_lines = profile.max_lines().unwrap_or(usize::MAX);
-        let target_lines = ((lines.len() as f64) * profile.retention_pct())
-            .max(1.0)
-            .round() as usize;
-        let budget = target_lines.min(max_lines).min(lines.len());
-
-        if budget >= lines.len() {
+        let (budget, passthrough) = compute_budget(lines.len(), profile);
+        if passthrough {
             return input.to_string();
         }
 
@@ -354,11 +328,6 @@ impl AlgorithmRegistry {
                 return algo.as_ref();
             }
         }
-        for algo in &self.algorithms {
-            if algo.handles(category) {
-                return algo.as_ref();
-            }
-        }
         self.algorithms
             .last()
             .expect("at least one algorithm")
@@ -376,6 +345,67 @@ impl AlgorithmRegistry {
                 })
             })
             .collect()
+    }
+}
+
+/// Classify a tool name into a `ContextCategory` based on keyword matching.
+///
+/// Phase 1 splits on `_` and `-` and matches exact tokens against known prefixes.
+/// Phase 2 falls back to substring matching for compound names without separators.
+pub fn classify_tool(tool_name: &str) -> ContextCategory {
+    let lower = tool_name.to_lowercase();
+    let parts: Vec<&str> = lower.split('_').chain(lower.split('-')).collect();
+
+    // Phase 1: known tool name prefixes — exact, no false positives
+    for part in &parts {
+        match *part {
+            "git" | "docker" | "cargo" | "npm" | "shell" | "bash" | "exec" | "run" => {
+                return ContextCategory::ShellCommand;
+            }
+            "test" | "pytest" | "spec" => return ContextCategory::TestOutput,
+            "build" | "compile" | "make" => return ContextCategory::BuildOutput,
+            "chat" | "conversation" | "message" => return ContextCategory::ConversationHistory,
+            "log" | "journal" | "trace" => return ContextCategory::LogOutput,
+            "json" | "api" | "query" => return ContextCategory::StructuredData,
+            "file" | "read" | "cat" => return ContextCategory::FileContents,
+            _ => {}
+        }
+    }
+
+    // Phase 2: substring heuristic for compound/unknown tool names
+    //
+    // Tradeoff: substring matching produces false positives. E.g. "logistics"
+    // contains "log" → LogOutput, "catalog" contains "cat" → FileContents.
+    // This is acceptable because Phase 2 only fires when Phase 1 (exact token
+    // matching) fails, so the tool name is already non-standard. The alternative
+    // (word-boundary matching) would miss compound names like "gitlog" that
+    // lack separators. If false positives become a problem, add word-boundary
+    // checks (\b) for the shortest keywords (log, cat, run, api).
+    if lower.contains("git")
+        || lower.contains("docker")
+        || lower.contains("cargo")
+        || lower.contains("npm")
+        || lower.contains("shell")
+        || lower.contains("exec")
+        || lower.contains("run")
+        || lower.contains("bash")
+    {
+        ContextCategory::ShellCommand
+    } else if lower.contains("test") || lower.contains("pytest") || lower.contains("spec") {
+        ContextCategory::TestOutput
+    } else if lower.contains("build") || lower.contains("compile") || lower.contains("make") {
+        ContextCategory::BuildOutput
+    } else if lower.contains("chat") || lower.contains("conversation") || lower.contains("message")
+    {
+        ContextCategory::ConversationHistory
+    } else if lower.contains("log") || lower.contains("journal") || lower.contains("trace") {
+        ContextCategory::LogOutput
+    } else if lower.contains("json") || lower.contains("api") || lower.contains("query") {
+        ContextCategory::StructuredData
+    } else if lower.contains("file") || lower.contains("read") || lower.contains("cat") {
+        ContextCategory::FileContents
+    } else {
+        ContextCategory::Unknown
     }
 }
 
@@ -468,6 +498,67 @@ mod tests {
         assert!(names.contains(&"rtk_style"));
         assert!(names.contains(&"saliency_rank"));
         assert!(names.contains(&"flashrank"));
+    }
+
+    // ── classify_tool ──
+
+    // REQ: classify_tool maps known tool name substrings to correct categories
+    #[test]
+    fn classify_tool_shell_variants() {
+        assert_eq!(classify_tool("git_status"), ContextCategory::ShellCommand);
+        assert_eq!(classify_tool("docker_ps"), ContextCategory::ShellCommand);
+        assert_eq!(classify_tool("npm_install"), ContextCategory::ShellCommand);
+        assert_eq!(classify_tool("shell_exec"), ContextCategory::ShellCommand);
+        assert_eq!(classify_tool("bash_run"), ContextCategory::ShellCommand);
+    }
+
+    // REQ: classify_tool maps test/build/file/chat/json/log tools; more-specific categories take precedence over ShellCommand
+    #[test]
+    fn classify_tool_all_categories() {
+        assert_eq!(classify_tool("pytest_run"), ContextCategory::TestOutput);
+        assert_eq!(classify_tool("build_compile"), ContextCategory::BuildOutput);
+        assert_eq!(classify_tool("file_read"), ContextCategory::FileContents);
+        assert_eq!(
+            classify_tool("chat_conversation"),
+            ContextCategory::ConversationHistory
+        );
+        assert_eq!(classify_tool("json_api"), ContextCategory::StructuredData);
+        assert_eq!(classify_tool("log_journal"), ContextCategory::LogOutput);
+    }
+
+    // REQ: classify_tool maps unrecognized names to Unknown
+    #[test]
+    fn classify_tool_unknown_fallback() {
+        assert_eq!(classify_tool("custom_tool"), ContextCategory::Unknown);
+    }
+
+    // REQ: classify_tool is case-insensitive
+    #[test]
+    fn classify_tool_case_insensitive() {
+        assert_eq!(classify_tool("GIT_STATUS"), ContextCategory::ShellCommand);
+        assert_eq!(classify_tool("Docker_Run"), ContextCategory::ShellCommand);
+    }
+
+    // REQ: classify_tool splits on _ and - for token matching (Phase 1)
+    #[test]
+    fn classify_tool_splits_on_separators() {
+        assert_eq!(classify_tool("pytest-run"), ContextCategory::TestOutput);
+        assert_eq!(classify_tool("build-compile"), ContextCategory::BuildOutput);
+        assert_eq!(classify_tool("git-status"), ContextCategory::ShellCommand);
+    }
+
+    // REQ: classify_tool Phase 1 matches first token, so "cargo_test" -> ShellCommand (cargo first)
+    #[test]
+    fn classify_tool_first_token_wins() {
+        assert_eq!(classify_tool("cargo_test"), ContextCategory::ShellCommand);
+    }
+
+    // REQ: classify_tool Phase 2 matches substrings for compound names without separators
+    #[test]
+    fn classify_tool_phase2_compound_names() {
+        // No _ or - separator, but contains known keyword as substring
+        assert_eq!(classify_tool("gitlog"), ContextCategory::ShellCommand); // contains "git"
+        assert_eq!(classify_tool("dockerrun"), ContextCategory::ShellCommand); // contains "docker"
     }
 
     // ── RtkStyleAlgorithm ──
@@ -718,23 +809,42 @@ mod tests {
         }
     }
 
-    // REQ: handles() is consistent with default_for() for each algorithm
+    // -- compute_budget -----------------------------------------------
+
     #[test]
-    fn handles_consistent_with_default_for() {
-        let algos: Vec<Box<dyn CondenserAlgorithm>> = vec![
-            Box::new(RtkStyleAlgorithm),
-            Box::new(SaliencyRankAlgorithm),
-            Box::new(FlashrankAlgorithm),
-        ];
-        for algo in &algos {
-            for cat in algo.default_for() {
-                assert!(
-                    algo.handles(*cat),
-                    "{} claims default_for {:?} but doesn't handle it",
-                    algo.name(),
-                    cat
-                );
-            }
-        }
+    fn compute_budget_heavy_short_input() {
+        // Heavy: 10% retention, max 30 lines
+        let (budget, passthrough) = compute_budget(100, Profile::Heavy);
+        assert_eq!(budget, 10); // 100 * 0.10 = 10
+        assert!(!passthrough);
+    }
+
+    #[test]
+    fn compute_budget_normal_short_input() {
+        // Normal: 20% retention, max 80 lines
+        let (budget, passthrough) = compute_budget(50, Profile::Normal);
+        assert_eq!(budget, 10); // 50 * 0.20 = 10
+        assert!(!passthrough);
+    }
+
+    #[test]
+    fn compute_budget_light_passthrough() {
+        // Light: 95% retention, no max. 2-line input: 2 * 0.95 rounds to 2
+        let (budget, passthrough) = compute_budget(2, Profile::Light);
+        assert!(passthrough);
+    }
+
+    #[test]
+    fn compute_budget_minimum_one_line() {
+        // 1-line input: 1 * 0.10 = 0.1 -> max(1.0) -> round = 1 -> budget = 1 = lines.len()
+        let (budget, passthrough) = compute_budget(1, Profile::Heavy);
+        assert!(passthrough); // budget = 1 = lines.len() -> passthrough
+    }
+
+    #[test]
+    fn compute_budget_respects_max_lines() {
+        // 1000-line input with Heavy (max 30): budget capped at 30
+        let (budget, passthrough) = compute_budget(1000, Profile::Heavy);
+        assert_eq!(budget, 30); // min(100, 30, 1000)
     }
 }

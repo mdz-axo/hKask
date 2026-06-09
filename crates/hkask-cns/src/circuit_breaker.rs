@@ -135,7 +135,9 @@ impl CircuitBreaker {
     pub fn record_failure(&self) {
         let failure_count = self.failure_count.fetch_add(1, Ordering::Relaxed) + 1;
 
-        // Store nanoseconds since creation as the failure timestamp
+        // Store nanoseconds since creation as the failure timestamp.
+        // `as_nanos()` returns u128; the `as u64` truncation is safe because
+        // u64 overflow at 2^64 nanos ≈ 584 years after creation.
         let elapsed_nanos = Instant::now().duration_since(self.created_at).as_nanos() as u64;
         self.last_failure_time
             .store(elapsed_nanos, Ordering::Relaxed);
