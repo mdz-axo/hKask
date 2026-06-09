@@ -113,35 +113,3 @@ pub fn load_hlexicon_default() -> Result<HLexicon, String> {
 
     load_hlexicon_from_file(&path)
 }
-
-/// Parse the canonical hLexicon markdown file into an intermediate catalog structure.
-///
-/// FocusingAssumption FA-Co1: Minimal stub — full implementation deferred.
-/// This function will parse the term tables from `hKask-hLexicon.md` and
-/// produce a structured catalog that `render_workspace_yaml` can convert to YAML.
-pub fn parse_markdown_catalog(_markdown: &str) -> Result<Vec<LexiconTerm>, String> {
-    todo!(
-        "spec_ahead: parse_markdown_catalog — markdown-to-YAML derivation pipeline not yet implemented. See hKask-hLexicon.md and FocusingAssumption FA-Co1."
-    )
-}
-
-/// Render a workspace YAML string from a catalog of lexicon terms.
-///
-/// FocusingAssumption FA-Co1: Minimal stub — full implementation deferred.
-/// This function will serialize the catalog terms into the `hlexicon-workspace.yaml`
-/// format that `load_hlexicon_from_yaml` parses.
-pub fn render_workspace_yaml(_terms: &[LexiconTerm]) -> Result<String, String> {
-    todo!(
-        "spec_ahead: render_workspace_yaml — markdown-to-YAML derivation pipeline not yet implemented. See hKask-hLexicon.md and FocusingAssumption FA-Co1."
-    )
-}
-
-/// Regenerate `hlexicon-workspace.yaml` from the canonical markdown source.
-///
-/// FocusingAssumption FA-Co1: Minimal stub — full implementation deferred.
-/// This is the top-level pipeline: parse_markdown_catalog → render_workspace_yaml → write to disk.
-pub fn regenerate_workspace_yaml(_markdown: &str) -> Result<String, String> {
-    todo!(
-        "spec_ahead: regenerate_workspace_yaml — markdown-to-YAML derivation pipeline not yet implemented. See hKask-hLexicon.md and FocusingAssumption FA-Co1."
-    )
-}
