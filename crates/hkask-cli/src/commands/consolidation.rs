@@ -1,6 +1,6 @@
 //! Consolidation command — user-triggered episodic→semantic consolidation
 
-use hkask_services::ConsolidationService;
+use hkask_services::consolidation;
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
@@ -43,7 +43,7 @@ pub fn run(
     // Passphrase verification using ConsolidationService.
     if agent.is_some() {
         if let Some(provided) = passphrase {
-            match ConsolidationService::verify_passphrase(provided) {
+            match consolidation::verify_passphrase(provided) {
                 Ok(_) => {}
                 Err(_) => {
                     eprintln!("Error: Passphrase verification failed");
@@ -63,7 +63,7 @@ pub fn run(
         max_semantic_triples,
     };
 
-    match ConsolidationService::consolidate(&perspective, &db_passphrase, &db_path, request) {
+    match consolidation::consolidate(&perspective, &db_passphrase, &db_path, request) {
         Ok(outcome) => {
             println!("Consolidation complete:");
             println!("  Consolidated: {}", outcome.consolidated_count);

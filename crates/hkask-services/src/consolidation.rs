@@ -25,108 +25,68 @@ const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
 /// one global gate, not per-user. For a single-user headless system, this is sufficient.
 static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
 
-/// Consolidation service — passphrase verification and pipeline execution.
-///
-/// This service owns the infrastructure assembly that precedes consolidation:
-/// verifying the master passphrase, opening the per-agent memory DB, and
-/// constructing the episodic→semantic pipeline. Surfaces call
-/// `ConsolidationService::verify_passphrase()` then `consolidate()`.
-pub struct ConsolidationService;
-
-impl ConsolidationService {
-    /// Check the consolidation rate limit.
-    ///
-    /// Returns `Ok(())` if enough time has elapsed since the last consolidation.
-    /// Returns `Err(ServiceError::RateLimited)` if called too soon.
-    ///
-    /// # REQ: svc-consolidation-003 — check_rate_limit enforces minimum interval
-    pub fn check_rate_limit() -> Result<(), ServiceError> {
-        let now_secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
-        if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
-            let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
-            return Err(ServiceError::RateLimited(format!(
-                "Rate limited: try again in {}s",
-                remaining
-            )));
-        }
-        LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
-        Ok(())
+pub fn check_rate_limit() -> Result<(), ServiceError> {
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
+    if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
+        let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
+        return Err(ServiceError::RateLimited(format!(
+            "Rate limited: try again in {}s",
+            remaining
+        )));
     }
+    LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
+    Ok(())
+}
 
-    /// Build the per-agent memory DB path for a given WebID.
-    ///
-    /// The convention is `hkask-memory-agent-{webid}.db`. This is a domain
-    /// convention that should not be duplicated in surfaces.
-    ///
-    /// # REQ: svc-consolidation-004 — db_path_for_agent returns per-agent DB path
-    pub fn db_path_for_agent(webid: &WebID) -> String {
-        format!("hkask-memory-agent-{}.db", webid)
-    }
-    /// Verify a master passphrase against the stored DB passphrase.
-    ///
-    /// Derives internal secrets from the supplied passphrase via Argon2id +
-    /// HKDF-SHA256 and compares the capability_key against the resolved DB
-    /// passphrase. Returns the verified DB passphrase string on success.
-    ///
-    /// # REQ: svc-consolidation-001 — verify_passphrase rejects invalid passphrase
-    pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
-        let expected = hkask_keystore::resolve_db_passphrase()
-            .map_err(|_| ServiceError::Keystore("Server passphrase not configured".into()))?;
-        let expected_str = String::from_utf8_lossy(&expected).to_string();
-        let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
-        if secrets.capability_key != expected_str {
-            return Err(ServiceError::InvalidPassphrase(
-                "Passphrase verification failed".into(),
-            ));
-        }
-        Ok(expected_str)
-    }
-
-    /// Execute consolidation for an agent's episodic→semantic memory.
-    ///
-    /// Opens the per-agent memory DB at `db_path`, constructs the consolidation
-    /// pipeline (EpisodicMemory → ConsolidationBridge → SemanticMemory), and
-    /// executes the consolidation with the given parameters.
-    ///
-    /// `db_path` is the per-agent memory DB path (e.g., `hkask-memory-curator.db`).
-    /// Surfaces derive this differently: CLI uses agent name; API uses WebID.
-    ///
-    /// # REQ: svc-consolidation-002 — consolidate runs pipeline and returns outcome
-    pub fn consolidate(
-        webid: &WebID,
-        db_passphrase: &str,
-        db_path: &str,
-        request: ConsolidationRequest,
-    ) -> Result<ConsolidationOutcome, ServiceError> {
-        let db = Database::open(db_path, db_passphrase)?;
-
-        let conn = db.conn_arc();
-        let ts1 = TripleStore::new(Arc::clone(&conn));
-        let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
-        let ts2 = TripleStore::new(Arc::clone(&conn));
-        let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
-        let semantic_memory = Arc::new(SemanticMemory::new(ts2, embedding_store));
-        let bridge = Arc::new(ConsolidationBridge::new(
-            Arc::clone(&episodic_memory),
-            Arc::clone(&semantic_memory),
+pub fn db_path_for_agent(webid: &WebID) -> String {
+    format!("hkask-memory-agent-{}.db", webid)
+}
+pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
+    let expected = hkask_keystore::resolve_db_passphrase()
+        .map_err(|_| ServiceError::Keystore("Server passphrase not configured".into()))?;
+    let expected_str = String::from_utf8_lossy(&expected).to_string();
+    let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
+    if secrets.capability_key != expected_str {
+        return Err(ServiceError::InvalidPassphrase(
+            "Passphrase verification failed".into(),
         ));
-        let handle = CuratorHandle::system();
-        let token = handle.issue_consolidation_token();
-        let domain_service =
-            hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
-
-        let outcome = domain_service
-            .consolidate(webid, request)
-            .map_err(ServiceError::Consolidation)?;
-
-        Ok(ConsolidationOutcome {
-            consolidated_count: outcome.consolidated_count,
-            deleted_count: outcome.deleted_count,
-            failed_count: outcome.failed_count,
-        })
     }
+    Ok(expected_str)
+}
+
+pub fn consolidate(
+    webid: &WebID,
+    db_passphrase: &str,
+    db_path: &str,
+    request: ConsolidationRequest,
+) -> Result<ConsolidationOutcome, ServiceError> {
+    let db = Database::open(db_path, db_passphrase)?;
+
+    let conn = db.conn_arc();
+    let ts1 = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
+    let ts2 = TripleStore::new(Arc::clone(&conn));
+    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
+    let semantic_memory = Arc::new(SemanticMemory::new(ts2, embedding_store));
+    let bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let handle = CuratorHandle::system();
+    let token = handle.issue_consolidation_token();
+    let domain_service = hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
+
+    let outcome = domain_service
+        .consolidate(webid, request)
+        .map_err(ServiceError::Consolidation)?;
+
+    Ok(ConsolidationOutcome {
+        consolidated_count: outcome.consolidated_count,
+        deleted_count: outcome.deleted_count,
+        failed_count: outcome.failed_count,
+    })
 }

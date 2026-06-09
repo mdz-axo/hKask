@@ -8,7 +8,7 @@
 //! - `ensemble_improv` — Prepare an improvisation turn prompt for external inference
 //! - `ensemble_a2a` — Structure an A2A message for dispatch
 
-use hkask_ensemble::{
+use hkask_agents::ensemble::{
     ChatMessage, ChatParticipant, ParticipantRole, StandingSession, bootstrap_standing_session,
 };
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};

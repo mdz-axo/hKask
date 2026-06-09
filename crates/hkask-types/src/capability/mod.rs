@@ -61,7 +61,7 @@ pub(crate) mod hmac_ops;
 pub mod verification;
 
 pub mod tokens;
-pub use tokens::{ConsolidationToken, IssuerVerification};
+pub use tokens::ConsolidationToken;
 
 pub use verification::{
     CapabilityChecker, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER,

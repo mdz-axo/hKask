@@ -81,7 +81,7 @@ pub struct ApiState {
     /// Ensemble inferencer (optional — for ensemble inference) — surface-specific
     pub ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     /// Spec store for DDMVSS specifications — surface-specific
-    pub spec_store: Option<Arc<dyn hkask_storage::SpecStore + Send + Sync>>,
+    pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
     /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
     pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
@@ -186,10 +186,7 @@ impl ApiState {
     }
 
     /// Set the spec store for DDMVSS specifications
-    pub fn with_spec_store(
-        mut self,
-        store: Arc<dyn hkask_storage::SpecStore + Send + Sync>,
-    ) -> Self {
+    pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
         self.spec_store = Some(store);
         self
     }
@@ -254,4 +251,3 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
 pub fn create_openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
-

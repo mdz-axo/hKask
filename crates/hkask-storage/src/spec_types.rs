@@ -336,58 +336,6 @@ impl SpecCurationRecord {
     }
 }
 
-pub trait SpecStore {
-    fn load(&self, id: SpecId) -> Result<Spec, SpecError>;
-    fn save(&self, spec: &Spec) -> Result<(), SpecError>;
-    fn delete(&self, id: SpecId) -> Result<(), SpecError>;
-    fn list_all(&self) -> Result<Vec<Spec>, SpecError>;
-    fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
-
-    /// List specs valid at a given point in time (valid-from ≤ dt ≤ valid-to, or valid-to IS NULL).
-    ///
-    /// Bitemporal query: selects specs whose valid-time window contains `at`,
-    /// excluding specs whose `valid_to` has passed. Specs with `valid_to IS NULL`
-    /// are still considered valid.
-    /// DDMVSS §11 #2: SpecStore bitemporal semantics.
-    fn list_valid_at(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
-
-    /// List specs whose valid-time window overlaps with [from, to].
-    ///
-    /// Includes specs where `valid_from ≤ to` AND (`valid_to ≥ from` OR `valid_to IS NULL`).
-    /// Specs with neither `valid_from` nor `valid_to` set are not included (no temporal window).
-    fn list_valid_in_range(
-        &self,
-        from: DateTime<Utc>,
-        to: DateTime<Utc>,
-    ) -> Result<Vec<Spec>, SpecError>;
-
-    /// List specs created (recorded) since the given timestamp (transaction-time query).
-    ///
-    /// Uses `created_at` as the transaction-time — when the spec was first recorded
-    /// in the system, distinct from when it became valid in the domain (valid_from).
-    fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
-
-    /// Set the valid-to timestamp on a spec (expire it from the valid-time dimension).
-    ///
-    /// Does not delete the spec — marks it as no longer valid from the given time.
-    /// The record remains available for historical queries via `list_valid_in_range`.
-    fn expire(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError>;
-}
-
-pub trait SpecCurator {
-    fn evaluate(
-        &self,
-        spec: &Spec,
-        registered_verbs: &[String],
-    ) -> Result<SpecCurationRecord, SpecError>;
-    fn reconcile(
-        &self,
-        specs: &[Spec],
-        registered_verbs: &[String],
-    ) -> Result<Vec<SpecCurationRecord>, SpecError>;
-    fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError>;
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum SpecError {
     #[error("Spec not found: {0}")]

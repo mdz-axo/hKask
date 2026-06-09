@@ -4,7 +4,7 @@
 //! decisions (DDMVSS §5.9, audit remediation R17).
 
 use crate::Store;
-use crate::spec_types::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecId, SpecStore};
+use crate::spec_types::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecId};
 use chrono::{DateTime, Utc};
 use hkask_types::InfrastructureError;
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
@@ -178,9 +178,9 @@ impl SqliteCurationRecordStore {
     }
 }
 
-// ── SpecStore trait impl ─────────────────────────────────────────────────
+// ── SqliteSpecStore inherent methods ──────────────────────────────────────
 
-impl SpecStore for SqliteSpecStore {
+impl SqliteSpecStore {
     fn load(&self, id: SpecId) -> Result<Spec, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE id = ?1")?;

@@ -21,13 +21,13 @@ use hkask_agents::LoopSystem;
 use hkask_agents::communication::MessageDispatch;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator_agent::CuratorAgent;
+use hkask_agents::ensemble::session::SessionManager;
 use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasEstimator, GovernedTool, load_set_points,
 };
-use hkask_agents::ensemble::session::SessionManager;
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
@@ -145,6 +145,58 @@ pub struct ServiceContext {
 
     /// Configuration used to build this context.
     pub config: ServiceConfig,
+}
+
+/// Open an escalation queue from config.
+pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQueue>, ServiceError> {
+    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    Ok(Arc::new(EscalationQueue::new(db.conn_arc())?))
+}
+
+/// Open a spec store from config.
+pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, ServiceError> {
+    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    let store = SqliteSpecStore::new(db.conn_arc());
+    store.init_schema().map_err(ServiceError::Spec)?;
+    Ok(store)
+}
+
+/// Open a consent manager from config.
+pub fn open_consent_manager(
+    config: &ServiceConfig,
+) -> Result<(Arc<ConsentManager>, SovereigntyBoundaryStore), ServiceError> {
+    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    let conn = db.conn_arc();
+    let consent_store = ConsentStore::new(Arc::clone(&conn));
+    consent_store
+        .initialize_schema()
+        .map_err(ServiceError::ConsentStore)?;
+    let cm = Arc::new(ConsentManager::new(consent_store));
+    let sovereignty_boundary_store = SovereigntyBoundaryStore::new(conn);
+    sovereignty_boundary_store
+        .initialize_schema()
+        .map_err(ServiceError::SovereigntyStore)?;
+    Ok((cm, sovereignty_boundary_store))
+}
+
+/// Build an ACP runtime + agent registry store from config.
+pub fn open_agent_registry(
+    config: &ServiceConfig,
+) -> Result<
+    (
+        Arc<hkask_agents::AcpRuntime>,
+        hkask_storage::AgentRegistryStore,
+    ),
+    ServiceError,
+> {
+    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    let conn = db.conn_arc();
+    let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
+    let store = hkask_storage::AgentRegistryStore::new(conn);
+    store
+        .initialize_schema()
+        .map_err(ServiceError::AgentRegistryStore)?;
+    Ok((acp, store))
 }
 
 impl ServiceContext {

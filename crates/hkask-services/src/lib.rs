@@ -21,7 +21,6 @@ pub use compose::{
 };
 pub use config::ServiceConfig;
 pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
-pub use consolidation::ConsolidationService;
 pub use context::ServiceContext;
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedResult, EmbedService, EmbeddingConfig, FoundationalRule,

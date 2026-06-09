@@ -133,7 +133,7 @@ impl Registry {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
         }
 
-        // Validate terms against canonical hLexicon vocabulary
+        // Delegate term validation to ContractValidator (FA-C1)
         if let Some(ref lexicon) = self.hlexicon {
             let unknown = lexicon.validate(&entry.lexicon_terms);
             if !unknown.is_empty() {

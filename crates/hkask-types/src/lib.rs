@@ -60,7 +60,10 @@ pub use capability::{
 };
 pub use cns::{CircuitState, CnsHealth, QueueDepth, RBarThreshold};
 pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};
-pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
+pub use error::{
+    CapabilityDenied, DimensionMismatch, GitError, HkaskError, InfrastructureError, McpErrorKind,
+    NotFound,
+};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
 pub use id::{

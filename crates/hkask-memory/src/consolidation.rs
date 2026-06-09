@@ -15,7 +15,7 @@ use crate::episodic::EpisodicMemory;
 use crate::semantic::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::WebID;
-use hkask_types::capability::tokens::{ConsolidationToken, IssuerVerification};
+use hkask_types::capability::tokens::ConsolidationToken;
 use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
 
 /// Consolidation Bridge — Episodic → Semantic

@@ -176,6 +176,14 @@ impl HkaskError {
         InfrastructureError::LockPoisoned.into()
     }
 
+    pub fn not_found_typed(entity_type: &'static str, id: impl Into<String>) -> Self {
+        InfrastructureError::NotFound(format!("{} not found: {}", entity_type, id.into())).into()
+    }
+
+    pub fn capability_denied(reason: impl Into<String>) -> Self {
+        HkaskError::CapabilityDenied(reason.into())
+    }
+
     /// Check if error is retryable
     pub fn is_retryable(&self) -> bool {
         false
@@ -217,6 +225,51 @@ pub enum GitError {
 
     #[error("Git error: {0}")]
     Git(String),
+}
+
+// Canonical domain error types — shared across all crates.
+// Domain enums delegate to these rather than duplicating variants.
+
+/// A resource was not found. Canonical across 17+ crates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NotFound {
+    pub entity_type: &'static str,
+    pub id: String,
+}
+
+impl std::fmt::Display for NotFound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} not found: {}", self.entity_type, self.id)
+    }
+}
+
+/// Capability denied — shared across 5+ crates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapabilityDenied {
+    pub reason: String,
+}
+
+impl std::fmt::Display for CapabilityDenied {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "capability denied: {}", self.reason)
+    }
+}
+
+/// Embedding dimension mismatch — duplicated across 2 crates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DimensionMismatch {
+    pub expected: usize,
+    pub actual: usize,
+}
+
+impl std::fmt::Display for DimensionMismatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "dimension mismatch: expected {}, got {}",
+            self.expected, self.actual
+        )
+    }
 }
 
 // Conversions from common error types

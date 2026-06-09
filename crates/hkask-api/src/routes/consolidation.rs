@@ -1,7 +1,7 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
 use axum::{Extension, Json, extract::State};
-use hkask_services::ConsolidationService;
+use hkask_services::consolidation;
 use hkask_types::WebID;
 use hkask_types::ports::ConsolidationRequest;
 use serde::{Deserialize, Serialize};
@@ -63,7 +63,7 @@ async fn consolidate(
 ) -> Result<Json<ConsolidateResponse>, ApiError> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
-    ConsolidationService::check_rate_limit().map_err(|e| match e {
+    consolidation::check_rate_limit().map_err(|e| match e {
         hkask_services::ServiceError::RateLimited(msg) => ApiError::BadRequest { message: msg },
         _ => ApiError::Internal {
             message: e.to_string(),
@@ -79,25 +79,24 @@ async fn consolidate(
         })?;
 
     // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
-    let db_passphrase =
-        ConsolidationService::verify_passphrase(&req.passphrase).map_err(|e| match e {
-            hkask_services::ServiceError::InvalidPassphrase(_) => {
-                tracing::warn!(
-                    target: "api.consolidation",
-                    agent_webid = %req.agent_webid,
-                    "Consolidation rejected: passphrase mismatch"
-                );
-                ApiError::Unauthorized {
-                    reason: "Invalid passphrase".to_string(),
-                }
+    let db_passphrase = consolidation::verify_passphrase(&req.passphrase).map_err(|e| match e {
+        hkask_services::ServiceError::InvalidPassphrase(_) => {
+            tracing::warn!(
+                target: "api.consolidation",
+                agent_webid = %req.agent_webid,
+                "Consolidation rejected: passphrase mismatch"
+            );
+            ApiError::Unauthorized {
+                reason: "Invalid passphrase".to_string(),
             }
-            hkask_services::ServiceError::Keystore(_) => ApiError::Internal {
-                message: "Server passphrase not configured".to_string(),
-            },
-            other => ApiError::Internal {
-                message: other.to_string(),
-            },
-        })?;
+        }
+        hkask_services::ServiceError::Keystore(_) => ApiError::Internal {
+            message: "Server passphrase not configured".to_string(),
+        },
+        other => ApiError::Internal {
+            message: other.to_string(),
+        },
+    })?;
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {
@@ -107,9 +106,9 @@ async fn consolidate(
     };
 
     // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
-    let db_path = ConsolidationService::db_path_for_agent(&webid);
+    let db_path = consolidation::db_path_for_agent(&webid);
     let outcome =
-        ConsolidationService::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)
+        consolidation::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)
             .map_err(|e| ApiError::Internal {
                 message: e.to_string(),
             })?;
