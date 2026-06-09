@@ -55,8 +55,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
 | **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 21 MCP servers' tools | Dev | Medium | ✅ Complete | 21 servers, 119 tools, gas costs, credentials, per-server detail |
 | **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
-| **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ⬜ Open | Pattern refactoring review across codebase |
-| **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` \u2014 dead code and unwired seam inventory | Dev | Low | \u2b1c Open | Dead-code identification, unimplemented seams |
+| **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete | 6 Fowler patterns identified (2 applied, 4 open-low). Created 2026-06-08 |
+| **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
 
 **Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`docs/status/spec-code-drift.yaml`](../status/spec-code-drift.yaml) and [`docs/status/curation-decisions.yaml`](../status/curation-decisions.yaml). Summary of resolutions:
 

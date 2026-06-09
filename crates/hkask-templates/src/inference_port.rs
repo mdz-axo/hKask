@@ -46,7 +46,6 @@ fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
         .collect()
 }
 
-/// Build an `OkapiRequest` from LLM parameters
 fn build_request(
     model: &str,
     prompt: &str,
@@ -101,21 +100,17 @@ impl OkapiInference {
             tracing::debug!(target: "cns.inference", model = %self.model, "Circuit breaker open");
             return Err(InferenceError::Connection("Circuit breaker is open".into()));
         }
-
         let mut req = self
             .client
             .post(format!("{}/api/generate", self.config.base_url))
             .json(&request);
-
         if let Some(auth_header) = self.config.get_authorization_header() {
             req = req.header("Authorization", auth_header);
         }
-
         let response = req
             .send()
             .await
             .map_err(|e| InferenceError::Connection(e.to_string()))?;
-
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
@@ -130,20 +125,17 @@ impl OkapiInference {
                     ""
                 },
                 status,
-                error_text,
+                error_text
             )));
         }
-
         let okapi_response: OkapiResponse = response
             .json()
             .await
             .map_err(|e| InferenceError::Json(format!("Okapi JSON parse: {}", e)))?;
-
         let choice = okapi_response
             .choices
             .first()
             .ok_or_else(|| InferenceError::Generation("Empty response from Okapi".to_string()))?;
-
         let token_probabilities = choice.token_probs.as_ref().map(|probs| {
             probs
                 .iter()
@@ -161,17 +153,14 @@ impl OkapiInference {
                 })
                 .collect()
         });
-
         if let Some(ref cb) = self.circuit_breaker {
             cb.record_success();
         }
-
         let tool_calls = choice
             .tool_calls
             .as_ref()
             .map(|calls| map_tool_calls(calls))
             .unwrap_or_default();
-
         Ok(InferenceResult {
             text: choice.message.content.clone(),
             model: okapi_response.model.clone(),

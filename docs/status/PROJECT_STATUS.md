@@ -69,12 +69,11 @@ See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) for the exhaustiv
 | **#5** | Implement `parse_markdown_catalog` / `render_workspace_yaml` / `regenerate_workspace_yaml` | ✅ Done |
 | **#6** | Add bitemporal query methods to `SqliteSpecStore` (FUT-011) | ✅ Done |
 | **#7** | Calibrate coherence threshold (FUT-013) | ✅ Done |
+| **#8** | Populate Fowler audit and adversarial simplification inventories (P2-14/P2-15) | ✅ Done |
 
-## Remaining (from HANDOFF.md)
+## All Handoff Items Complete 🎉
 
-| # | Task | Priority |
-|---|------|----------|
-| 8 | Populate Fowler audit and adversarial simplification inventories (P2-14/P2-15) | Low |
+All 8 items from the HANDOFF.md session record have been resolved. The full P2 list is now complete (P2-01 through P2-15, all ✅).
 
 ---
 

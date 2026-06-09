@@ -268,7 +268,6 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), UserErr
         })?;
     println!("Replicant: {}", identity.replicant_name);
     println!("  User ID: {}", identity.user_id);
-    println!("  Email: {}", identity.email);
     println!("  Created: {}", identity.created_at);
     if identity.is_primary {
         println!("  Primary: yes");

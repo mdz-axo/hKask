@@ -26,11 +26,8 @@
 //! No sideways edges. Authority flows downward.
 
 pub mod curation;
-pub mod cybernetics;
 pub mod dispatch;
 pub mod episodic;
-pub mod inference;
-pub mod semantic;
 
 pub use curation::{CuratorDirective, CuratorHandle};
 pub use dispatch::{

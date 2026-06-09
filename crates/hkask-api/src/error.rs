@@ -1,14 +1,10 @@
-//! API error type with Axum IntoResponse implementation
-//!
-//! Replaces the hand-built `(StatusCode, Json(ErrorResponse{...}))` tuples
-//! that were repeated identically across every route handler (Fowler C5).
-//!
-//! Each variant maps to an appropriate HTTP status code. The `IntoResponse`
-//! impl converts these into the JSON format expected by API clients.
+//! API error type with Axum IntoResponse — maps to HTTP status codes per variant.
 
-use axum::Json;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use hkask_storage::{
     AgentRegistryError, ConsentStoreError, GoalRepositoryError, NuEventError,
     SovereigntyStoreError, StandingSessionError, TripleError, UserStoreError,
@@ -16,27 +12,45 @@ use hkask_storage::{
 use hkask_types::InfrastructureError;
 use serde::Serialize;
 
-/// Unified API error type.
-///
-/// Each variant maps to an appropriate HTTP status code and carries
-/// a human-readable error message. The `IntoResponse` impl converts
-/// these into the JSON format expected by clients.
 #[derive(Debug)]
 pub enum ApiError {
-    /// The requested resource was not found (404)
     NotFound { resource: String, id: String },
-    /// The request was unauthorized (401)
     Unauthorized { reason: String },
-    /// The request was forbidden (403)
     Forbidden { reason: String },
-    /// The request was malformed (400)
     BadRequest { message: String },
-    /// A conflict occurred (409)
     Conflict { message: String },
-    /// The service is temporarily unavailable (503)
     ServiceUnavailable { reason: String },
-    /// An internal server error occurred (500)
     Internal { message: String },
+}
+
+impl ApiError {
+    fn status_and_message(self) -> (StatusCode, String) {
+        match self {
+            ApiError::NotFound { resource, id } => {
+                (StatusCode::NOT_FOUND, format!("{resource} not found: {id}"))
+            }
+            ApiError::Unauthorized { reason } => {
+                (StatusCode::UNAUTHORIZED, format!("Unauthorized: {reason}"))
+            }
+            ApiError::Forbidden { reason } => {
+                (StatusCode::FORBIDDEN, format!("Forbidden: {reason}"))
+            }
+            ApiError::BadRequest { message } => {
+                (StatusCode::BAD_REQUEST, format!("Bad request: {message}"))
+            }
+            ApiError::Conflict { message } => {
+                (StatusCode::CONFLICT, format!("Conflict: {message}"))
+            }
+            ApiError::ServiceUnavailable { reason } => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                format!("Service unavailable: {reason}"),
+            ),
+            ApiError::Internal { message } => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Internal error: {message}"),
+            ),
+        }
+    }
 }
 
 impl std::fmt::Display for ApiError {
@@ -55,8 +69,6 @@ impl std::fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
-/// JSON error response body — mirrors the existing `ErrorResponse` struct
-/// for backward compatibility with API clients.
 #[derive(Serialize)]
 struct ErrorBody {
     error: String,
@@ -64,17 +76,7 @@ struct ErrorBody {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
-            ApiError::NotFound { resource, id } => {
-                (StatusCode::NOT_FOUND, format!("{resource} not found: {id}"))
-            }
-            ApiError::Unauthorized { reason } => (StatusCode::UNAUTHORIZED, reason),
-            ApiError::Forbidden { reason } => (StatusCode::FORBIDDEN, reason),
-            ApiError::BadRequest { message } => (StatusCode::BAD_REQUEST, message),
-            ApiError::Conflict { message } => (StatusCode::CONFLICT, message),
-            ApiError::ServiceUnavailable { reason } => (StatusCode::SERVICE_UNAVAILABLE, reason),
-            ApiError::Internal { message } => (StatusCode::INTERNAL_SERVER_ERROR, message),
-        };
+        let (status, message) = self.status_and_message();
         (status, Json(ErrorBody { error: message })).into_response()
     }
 }
@@ -233,7 +235,7 @@ impl From<InfrastructureError> for ApiError {
     }
 }
 
-// ── Agent error conversions ────────────────────────────────────────────
+// ── Agent/crate error conversions ────────────────────────────────────
 
 impl From<hkask_agents::ConsentError> for ApiError {
     fn from(e: hkask_agents::ConsentError) -> Self {
@@ -346,15 +348,12 @@ impl From<hkask_types::ports::RegistryError> for ApiError {
     }
 }
 
-// ── Service layer adapter ────────────────────────────────────────────────
-// Allows API route handlers to propagate ServiceError with `?`.
-// Each ServiceError variant maps to the appropriate HTTP status code.
+// ── Service layer adapter ────────────────────────────────────────────
 
 impl From<hkask_services::ServiceError> for ApiError {
     fn from(e: hkask_services::ServiceError) -> Self {
         use hkask_services::ServiceError as SE;
         match e {
-            // ── Not Found variants ──────────────────────────────────────────
             SE::EscalationNotFound(id) => ApiError::NotFound {
                 resource: "escalation".into(),
                 id,
@@ -375,8 +374,6 @@ impl From<hkask_services::ServiceError> for ApiError {
                 resource: "pod".into(),
                 id,
             },
-
-            // ── Unauthorized / Forbidden ───────────────────────────────────
             SE::LoginFailed(_) => ApiError::Unauthorized {
                 reason: "Invalid credentials".into(),
             },
@@ -400,18 +397,12 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::SovereigntyStore(hkask_storage::SovereigntyStoreError::UuidParse(msg)) => {
                 ApiError::BadRequest { message: msg }
             }
-
-            // ── Bad Request ─────────────────────────────────────────────────
             SE::InvalidAgentType(msg) => ApiError::BadRequest { message: msg },
             SE::InvalidPassphrase(msg) => ApiError::BadRequest {
                 message: format!("Invalid passphrase: {}", msg),
             },
             SE::ValidationError(msg) => ApiError::BadRequest { message: msg },
-
-            // ── Conflict ────────────────────────────────────────────────────
             SE::AgentRegistrationFailed(msg) => ApiError::Conflict { message: msg },
-
-            // ── Domain errors with structured mapping ──────────────────────
             SE::Escalation(hkask_agents::EscalationError::NotFound(id)) => ApiError::NotFound {
                 resource: "escalation".into(),
                 id,
@@ -437,12 +428,12 @@ impl From<hkask_services::ServiceError> for ApiError {
                 ApiError::BadRequest {
                     message: format!("Invalid persona: {}", msg),
                 }
-            },
+            }
             SE::Pod(hkask_agents::pod::AgentPodError::InvalidStateTransition(from, to)) => {
                 ApiError::Conflict {
                     message: format!("Invalid pod state transition: {} -> {}", from, to),
                 }
-            },
+            }
             SE::Pod(_) => ApiError::Internal {
                 message: e.to_string(),
             },
@@ -450,11 +441,7 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::NuEvent(err) => ApiError::Internal {
                 message: err.to_string(),
             },
-
-            // ── Service Unavailable (infrastructure not ready) ──────────────
             SE::Keystore(msg) => ApiError::ServiceUnavailable { reason: msg },
-
-            // ── Internal errors (catch-all) ─────────────────────────────────
             SE::Infra(err) => ApiError::Internal {
                 message: err.to_string(),
             },

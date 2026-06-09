@@ -28,14 +28,13 @@ type SkillRow = (
 type TemplateRow = (String, TemplateType, String, String, String, u32, u32);
 
 fn parse_template_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TemplateRow> {
-    let id: String = row.get(0)?;
     let tt_str: String = row.get(1)?;
-    let template_type = TemplateType::parse_str(&tt_str).ok_or_else(|| {
+    let tt = TemplateType::parse_str(&tt_str).ok_or_else(|| {
         rusqlite::Error::ToSqlConversionFailure(format!("Unknown template type: {}", tt_str).into())
     })?;
     Ok((
-        id,
-        template_type,
+        row.get(0)?,
+        tt,
         row.get(2)?,
         row.get(3)?,
         row.get(4)?,
@@ -44,20 +43,16 @@ fn parse_template_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TemplateRow> 
     ))
 }
 
-/// Run a single-column lookup query, collecting results.
 fn query_column(conn: &Connection, sql: &str, id: &str) -> Result<Vec<String>> {
-    let terms: Vec<String> = conn
-        .prepare(sql)
-        .map_err(|e| {
-            TemplateError::Database(InfrastructureError::Database(format!("Prepare: {}", e)))
-        })?
+    let db_err = |ctx: &str, e| {
+        TemplateError::Database(InfrastructureError::Database(format!("{ctx}: {e}")))
+    };
+    conn.prepare(sql)
+        .map_err(|e| db_err("Prepare", e))?
         .query_map(params![id], |row| row.get(0))
-        .map_err(|e| {
-            TemplateError::Database(InfrastructureError::Database(format!("Query: {}", e)))
-        })?
+        .map_err(|e| db_err("Query", e))?
         .filter_map(|r| r.ok())
-        .collect();
-    Ok(terms)
+        .collect()
 }
 
 // ── SqliteRegistry ─────────────────────────────────────────────────────────
@@ -97,55 +92,24 @@ impl SqliteRegistry {
     }
 
     fn init_schema(&mut self) -> Result<()> {
-        self.conn.lock().unwrap().execute_batch(
-            "CREATE TABLE IF NOT EXISTS templates (
-                id TEXT PRIMARY KEY, template_type TEXT NOT NULL, name TEXT NOT NULL DEFAULT '',
-                description TEXT, source_path TEXT NOT NULL,
-                cascade_level INTEGER NOT NULL DEFAULT 0, matroshka_limit INTEGER NOT NULL DEFAULT 7,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS lexicon_terms (
-                template_id TEXT NOT NULL, term TEXT NOT NULL,
-                PRIMARY KEY (template_id, term), FOREIGN KEY (template_id) REFERENCES templates(id)
-            );
-            CREATE TABLE IF NOT EXISTS template_capabilities (
-                template_id TEXT NOT NULL, capability TEXT NOT NULL,
-                PRIMARY KEY (template_id, capability), FOREIGN KEY (template_id) REFERENCES templates(id)
-            );
-            CREATE TABLE IF NOT EXISTS provenance (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, template_id TEXT NOT NULL,
-                git_sha TEXT NOT NULL, modified_by TEXT NOT NULL,
-                modified_at DATETIME DEFAULT CURRENT_TIMESTAMP, branch TEXT, commit_message TEXT,
-                FOREIGN KEY (template_id) REFERENCES templates(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_templates_type ON templates(template_type);
-            CREATE INDEX IF NOT EXISTS idx_lexicon_terms ON lexicon_terms(term);
-            CREATE INDEX IF NOT EXISTS idx_provenance_template ON provenance(template_id);
-            CREATE INDEX IF NOT EXISTS idx_template_capabilities ON template_capabilities(capability);
-            CREATE TABLE IF NOT EXISTS skills (
-                id TEXT PRIMARY KEY, domain TEXT NOT NULL, word_act TEXT, flow_def TEXT,
-                know_act TEXT, polarity TEXT, content_hash TEXT,
-                visibility TEXT NOT NULL DEFAULT 'private', zone TEXT NOT NULL DEFAULT 'private',
-                namespace TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_skills_domain ON skills(domain);
-            CREATE INDEX IF NOT EXISTS idx_skills_visibility ON skills(visibility);
-            CREATE TABLE IF NOT EXISTS bundles (
-                id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL,
-                version TEXT NOT NULL, editor TEXT NOT NULL DEFAULT 'curator-or-human-admin',
-                visibility TEXT NOT NULL DEFAULT 'Private', manifest_json TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS bundle_skills (
-                bundle_id TEXT NOT NULL, skill_id TEXT NOT NULL, polarity TEXT,
-                manifest_ref TEXT, content_hash TEXT, position INTEGER NOT NULL,
-                PRIMARY KEY (bundle_id, skill_id), FOREIGN KEY (bundle_id) REFERENCES bundles(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_bundles_visibility ON bundles(visibility);
-            CREATE INDEX IF NOT EXISTS idx_bundle_skills_bundle ON bundle_skills(bundle_id);
-            CREATE INDEX IF NOT EXISTS idx_bundle_skills_skill ON bundle_skills(skill_id);",
-        )
-        .map_err(|e| TemplateError::Manifest(format!("Schema init: {}", e)))?;
+        self.conn.lock().unwrap().execute_batch(concat!(
+            "CREATE TABLE IF NOT EXISTS templates(id TEXT PRIMARY KEY, template_type TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', description TEXT, source_path TEXT NOT NULL, cascade_level INTEGER NOT NULL DEFAULT 0, matroshka_limit INTEGER NOT NULL DEFAULT 7, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);",
+            "CREATE TABLE IF NOT EXISTS lexicon_terms(template_id TEXT NOT NULL, term TEXT NOT NULL, PRIMARY KEY(template_id, term), FOREIGN KEY(template_id) REFERENCES templates(id));",
+            "CREATE TABLE IF NOT EXISTS template_capabilities(template_id TEXT NOT NULL, capability TEXT NOT NULL, PRIMARY KEY(template_id, capability), FOREIGN KEY(template_id) REFERENCES templates(id));",
+            "CREATE TABLE IF NOT EXISTS provenance(id INTEGER PRIMARY KEY AUTOINCREMENT, template_id TEXT NOT NULL, git_sha TEXT NOT NULL, modified_by TEXT NOT NULL, modified_at DATETIME DEFAULT CURRENT_TIMESTAMP, branch TEXT, commit_message TEXT, FOREIGN KEY(template_id) REFERENCES templates(id));",
+            "CREATE INDEX IF NOT EXISTS idx_templates_type ON templates(template_type);",
+            "CREATE INDEX IF NOT EXISTS idx_lexicon_terms ON lexicon_terms(term);",
+            "CREATE INDEX IF NOT EXISTS idx_provenance_template ON provenance(template_id);",
+            "CREATE INDEX IF NOT EXISTS idx_template_capabilities ON template_capabilities(capability);",
+            "CREATE TABLE IF NOT EXISTS skills(id TEXT PRIMARY KEY, domain TEXT NOT NULL, word_act TEXT, flow_def TEXT, know_act TEXT, polarity TEXT, content_hash TEXT, visibility TEXT NOT NULL DEFAULT 'private', zone TEXT NOT NULL DEFAULT 'private', namespace TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);",
+            "CREATE INDEX IF NOT EXISTS idx_skills_domain ON skills(domain);",
+            "CREATE INDEX IF NOT EXISTS idx_skills_visibility ON skills(visibility);",
+            "CREATE TABLE IF NOT EXISTS bundles(id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL, version TEXT NOT NULL, editor TEXT NOT NULL DEFAULT 'curator-or-human-admin', visibility TEXT NOT NULL DEFAULT 'Private', manifest_json TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);",
+            "CREATE TABLE IF NOT EXISTS bundle_skills(bundle_id TEXT NOT NULL, skill_id TEXT NOT NULL, polarity TEXT, manifest_ref TEXT, content_hash TEXT, position INTEGER NOT NULL, PRIMARY KEY(bundle_id, skill_id), FOREIGN KEY(bundle_id) REFERENCES bundles(id));",
+            "CREATE INDEX IF NOT EXISTS idx_bundles_visibility ON bundles(visibility);",
+            "CREATE INDEX IF NOT EXISTS idx_bundle_skills_bundle ON bundle_skills(bundle_id);",
+            "CREATE INDEX IF NOT EXISTS idx_bundle_skills_skill ON bundle_skills(skill_id);",
+        )).map_err(|e| TemplateError::Manifest(format!("Schema init: {}", e)))?;
         Ok(())
     }
 
@@ -158,9 +122,8 @@ impl SqliteRegistry {
             tracing::warn!(target: "hkask.templates", "{}", warning);
         }
         if let Some(ref lexicon) = self.hlexicon {
-            let validator =
-                ContractValidator::with_lexicon(lexicon).with_mode(ValidationMode::Warn);
-            validator
+            ContractValidator::with_lexicon(lexicon)
+                .with_mode(ValidationMode::Warn)
                 .validate_terms(&entry.id, &entry.lexicon_terms)
                 .0?;
         }
@@ -169,32 +132,31 @@ impl SqliteRegistry {
             .transaction()
             .map_err(|e| TemplateError::Manifest(format!("Transaction: {}", e)))?;
         tx.execute(
-            "INSERT OR REPLACE INTO templates (id, template_type, name, description, source_path, cascade_level, matroshka_limit, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)",
+            "INSERT OR REPLACE INTO templates (id, template_type, name, description, source_path, cascade_level, matroshka_limit, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)",
             params![entry.id, entry.template_type.as_str(), entry.name, entry.description, entry.source_path, entry.cascade_level, entry.matroshka_limit],
         ).map_err(|e| TemplateError::Manifest(format!("Insert: {}", e)))?;
-        for (table, items) in [
-            ("lexicon_terms", &entry.lexicon_terms),
-            ("template_capabilities", &entry.required_capabilities),
+        for (table, col, items) in [
+            ("lexicon_terms", "term", &entry.lexicon_terms),
+            (
+                "template_capabilities",
+                "capability",
+                &entry.required_capabilities,
+            ),
         ] {
             tx.execute(
                 &format!("DELETE FROM {} WHERE template_id = ?1", table),
                 params![entry.id],
             )
-            .map_err(|e| TemplateError::Manifest(format!("Delete {}: {}", table, e)))?;
+            .map_err(|e| TemplateError::Manifest(format!("Delete {col}: {}", e)))?;
             for item in items {
                 tx.execute(
                     &format!(
                         "INSERT INTO {} (template_id, {}) VALUES (?1, ?2)",
-                        table,
-                        match table {
-                            "lexicon_terms" => "term",
-                            _ => "capability",
-                        }
+                        table, col
                     ),
                     params![entry.id, item],
                 )
-                .map_err(|e| TemplateError::Manifest(format!("Insert {}: {}", table, e)))?;
+                .map_err(|e| TemplateError::Manifest(format!("Insert {col}: {}", e)))?;
             }
         }
         tx.commit()
@@ -205,41 +167,41 @@ impl SqliteRegistry {
     fn row_to_entry(
         conn: &Connection,
         id: &str,
-        template_type: TemplateType,
+        tt: TemplateType,
         name: String,
-        description: String,
-        source_path: String,
-        cascade_level: u32,
-        matroshka_limit: u32,
+        desc: String,
+        sp: String,
+        cl: u32,
+        ml: u32,
     ) -> Result<RegistryEntry> {
-        let lexicon_terms = query_column(
-            conn,
-            "SELECT term FROM lexicon_terms WHERE template_id = ?1",
-            id,
-        )?;
-        let required_capabilities = query_column(
-            conn,
-            "SELECT capability FROM template_capabilities WHERE template_id = ?1",
-            id,
-        )?;
         Ok(RegistryEntry {
             id: id.to_string(),
-            template_type,
+            template_type: tt,
             name,
-            lexicon_terms,
-            description,
-            source_path,
-            required_capabilities,
-            cascade_level,
-            matroshka_limit,
+            description: desc,
+            source_path: sp,
+            lexicon_terms: query_column(
+                conn,
+                "SELECT term FROM lexicon_terms WHERE template_id = ?1",
+                id,
+            )?,
+            required_capabilities: query_column(
+                conn,
+                "SELECT capability FROM template_capabilities WHERE template_id = ?1",
+                id,
+            )?,
+            cascade_level: cl,
+            matroshka_limit: ml,
         })
     }
 
     pub fn get_entry(&self, id: &str) -> Result<RegistryEntry> {
         let conn = self.conn.lock().unwrap();
         let row = conn
-            .prepare("SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE id = ?1")
-            .map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Prepare: {}", e))))?
+            .prepare(Self::_T_SELECT)
+            .map_err(|e| {
+                TemplateError::Database(InfrastructureError::Database(format!("Prepare: {}", e)))
+            })?
             .query_row(params![id], parse_template_row)
             .map_err(|e| TemplateError::NotFound(format!("Template '{}': {}", id, e)))?;
         Self::row_to_entry(&conn, &row.0, row.1, row.2, row.3, row.4, row.5, row.6)
@@ -247,16 +209,12 @@ impl SqliteRegistry {
 
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn
-            .prepare("SELECT t.id, t.template_type, t.name, t.description, t.source_path, t.cascade_level, t.matroshka_limit FROM templates t JOIN lexicon_terms l ON t.id = l.template_id WHERE l.term = ?1")
-            .map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Prepare: {}", e))))?;
-        let rows: Vec<TemplateRow> = stmt
-            .query_map(params![term], parse_template_row)
-            .map_err(|e| {
-                TemplateError::Database(InfrastructureError::Database(format!("Query: {}", e)))
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
+        let rows: Vec<TemplateRow> = conn
+    			.prepare("SELECT t.id, t.template_type, t.name, t.description, t.source_path, t.cascade_level, t.matroshka_limit FROM templates t JOIN lexicon_terms l ON t.id = l.template_id WHERE l.term = ?1")
+    			.map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Prepare: {}", e))))?
+    			.query_map(params![term], parse_template_row)
+    			.map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Query: {}", e))))?
+    			.filter_map(|r| r.ok()).collect();
         let mut results = Vec::new();
         for (id, tt, name, desc, sp, cl, ml) in rows {
             results.push(Self::row_to_entry(&conn, &id, tt, name, desc, sp, cl, ml)?);
@@ -273,6 +231,8 @@ impl SqliteRegistry {
             })
             .unwrap_or(0) as usize
     }
+
+    const _T_SELECT: &str = "SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE id = ?1";
 }
 
 // ── RegistryIndex ──────────────────────────────────────────────────────────
@@ -284,22 +244,28 @@ impl RegistryIndex for SqliteRegistry {
             Err(_) => return Vec::new(),
         };
         let sql = "SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates";
-        let sql = match &domain_hint {
-            Some(_) => format!("{} WHERE template_type = ?1", sql),
-            None => sql.to_string(),
+        let (query_sql, query_params): (&str, &[rusqlite::types::Value]) = match &domain_hint {
+            Some(tt) => (
+                &format!("{sql} WHERE template_type = ?1"),
+                &[rusqlite::types::Value::Text(tt.as_str().to_string())][..],
+            ),
+            None => (sql, &[]),
         };
-
-        let mut stmt = match conn.prepare(&sql) {
+        let mut stmt = match conn.prepare(query_sql) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
         };
-        let rows: Vec<TemplateRow> = match &domain_hint {
-            Some(tt) => stmt.query_map(params![tt.as_str()], parse_template_row),
-            None => stmt.query_map([], parse_template_row),
-        }
-        .map(|rows| rows.filter_map(|r| r.ok()).collect())
-        .unwrap_or_default();
-
+        let rows: Vec<TemplateRow> = stmt
+            .query_map(
+                rusqlite::params_from_iter(
+                    query_params
+                        .iter()
+                        .map(|v| v as &dyn rusqlite::types::ToSql),
+                ),
+                parse_template_row,
+            )
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default();
         rows.into_iter()
             .filter_map(|(id, tt, name, desc, sp, cl, ml)| {
                 Self::row_to_entry(&conn, &id, tt, name, desc, sp, cl, ml).ok()
@@ -367,22 +333,14 @@ impl BundleRegistryIndex for SqliteRegistry {
     fn register_bundle(&mut self, bundle: BundleManifest) {
         let manifest_json = serde_json::to_string(&bundle).unwrap_or_else(|_| "{}".into());
         let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)",
-            params![bundle.id, bundle.name, bundle.description, bundle.version, bundle.editor, bundle.visibility.as_str(), manifest_json],
-        ).map_err(|e| TemplateError::Manifest(format!("Insert bundle: {}", e))).ok();
+        conn.execute("INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)", params![bundle.id, bundle.name, bundle.description, bundle.version, bundle.editor, bundle.visibility.as_str(), manifest_json]).map_err(|e| TemplateError::Manifest(format!("Insert bundle: {}", e))).ok();
         conn.execute(
             "DELETE FROM bundle_skills WHERE bundle_id = ?1",
             params![bundle.id],
         )
         .ok();
         for (position, skill) in bundle.skills.iter().enumerate() {
-            conn.execute(
-                "INSERT INTO bundle_skills (bundle_id, skill_id, polarity, manifest_ref, content_hash, position)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![bundle.id, skill.id, Some(skill.polarity.as_str()), skill.manifest_ref, skill.content_hash, position as i64],
-            ).ok();
+            conn.execute("INSERT INTO bundle_skills (bundle_id, skill_id, polarity, manifest_ref, content_hash, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![bundle.id, skill.id, Some(skill.polarity.as_str()), skill.manifest_ref, skill.content_hash, position as i64]).ok();
         }
     }
 
@@ -474,20 +432,10 @@ impl SqliteRegistry {
     }
 
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
-        let conn = self.conn.lock().unwrap();
-        conn.query_row(
-            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE id = ?1",
-            params![id],
-            |row| Ok((
-                row.get::<_, String>(0)?, row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?, row.get::<_, Option<String>>(3)?,
-                row.get::<_, Option<String>>(4)?, row.get::<_, Option<String>>(5)?,
-                row.get::<_, Option<String>>(6)?, row.get::<_, String>(7)?,
-                row.get::<_, String>(8)?, row.get::<_, Option<String>>(9)?,
-            )),
-        ).ok().and_then(|(id, ds, wa, fd, ka, ps, ch, vs, zs, ns)| {
-            Self::row_to_skill(id, ds, wa, fd, ka, ps, ch, vs, zs, ns)
-        })
+        self.conn.lock().unwrap().query_row(
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE id = ?1", params![id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?)),
+        ).ok().and_then(|(id, ds, wa, fd, ka, ps, ch, vs, zs, ns)| Self::row_to_skill(id, ds, wa, fd, ka, ps, ch, vs, zs, ns))
     }
 
     fn query_skills(&self, sql: &str, params: &[rusqlite::types::Value]) -> Vec<Skill> {
