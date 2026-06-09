@@ -10,8 +10,8 @@ use serde_json::Value;
 /// and all other tools to TableEnergyEstimator.
 ///
 /// This is the production estimator — it should be the default for all
-/// GovernedTool instances. Inference calls (server == "hkask-mcp-inference")
-/// use token-based estimation; everything else uses the per-server table.
+/// GovernedTool instances. Inference calls use token-based estimation;
+/// everything else uses the per-server table.
 pub struct CompositeEnergyEstimator {
     inference: InferenceEnergyEstimator,
     table: TableEnergyEstimator,
@@ -26,7 +26,7 @@ impl CompositeEnergyEstimator {
         }
     }
 
-    /// The inference server identifier used for routing.
+    /// The inference routing key used for energy estimation.
     pub const INFERENCE_SERVER: &'static str = "hkask-mcp-inference";
 }
 

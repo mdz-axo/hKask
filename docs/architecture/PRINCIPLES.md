@@ -26,7 +26,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>21 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>10 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -66,32 +66,21 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Twenty-one MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Ten MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (21 Total):**
+**Implementation (10 Total):**
 
-**Enabled (21):**
-- `hkask-mcp-inference` — Okapi LLM inference
+**Enabled (10):**
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Search, scrape, extract
-- `hkask-mcp-ocap` — Capability management (Cybernetics, L6)
-- `hkask-mcp-keystore` — OS keychain (Cybernetics, L6)
-- `hkask-mcp-cns` — CNS operations
-- `hkask-mcp-git` — Git CAS
-- `hkask-mcp-registry` — Registry operations (cross-loop bridge, L1↔L5)
 - `hkask-mcp-spec` — MDS spec capture
-- `hkask-mcp-goal` — Goal coordination
-- `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — FMP integration
 - `hkask-mcp-telnyx` — Telnyx integration
 - `hkask-mcp-fal` — FAL integration
 - `hkask-mcp-rss-reader` — RSS feeds
-- `hkask-mcp-ensemble` — Multi-agent chat coordination
-- `hkask-mcp-episodic` — Episodic memory (private, perspective-bound)
-- `hkask-mcp-semantic` — Semantic memory (public, shared)
-- `hkask-mcp-replicant` — Replicant chat (MCP bridge for external integrations)
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
 - `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
+- `hkask-mcp-memory` — Semantic + episodic memory (merged: episodic → semantic consolidation)
 
 **Constraint:** All MCP servers are `hkask-*` crates — no external MCP dependencies.
 

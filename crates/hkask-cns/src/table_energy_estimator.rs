@@ -11,7 +11,7 @@
 //! | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 //! | External | web, fmp, telnyx, rss-reader | 20-50 | Network I/O |
 //! | Heavy | fal | 100 | GPU compute |
-//! | Inference | hkask-mcp-inference | 0 | Token-based estimator |
+//! | Inference | (routed via InferenceEnergyEstimator) | 0 | Token-based estimator |
 //
 //! Unknown servers default to 10. Use `CompositeEnergyEstimator` for production.
 
@@ -68,7 +68,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 /// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 /// | External API | web, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
 /// | Heavy external | fal | 100 | GPU compute, expensive |
-/// | Inference | hkask-mcp-inference | 0 (table) | Handled by `InferenceEnergyEstimator` |
+/// | Inference | (routed via InferenceEnergyEstimator) | 0 (table) | Handled by `InferenceEnergyEstimator` |
 ///
 /// Inference uses a token-based cost model (`InferenceEnergyEstimator`):
 /// `prompt_chars / 4 + max_tokens`. This reflects that LLM compute scales

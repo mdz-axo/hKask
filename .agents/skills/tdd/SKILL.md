@@ -36,13 +36,15 @@ Every tracer bullet starts from a specification requirement, not from intuition.
 
 **Traceability chain**: `spec/goal/capture` → `Spec` objects → `GoalSpec.criteria` → `// REQ:` comment → test → implementation.
 
-The TDD process queries the specification system before planning. Requirements come from structured `Spec` and `GoalSpec` objects — not from LLM interpretation of markdown. This makes spec anchoring mechanically verifiable:
+The TDD process queries the specification infrastructure before planning. Requirements come from structured `Spec` and `GoalSpec` objects — not from LLM interpretation of markdown. All five MDS §3 tools are available via the `hkask-mcp-spec` MCP server:
 
-- `spec/goal/capture` creates a new specification with auto-inferred MDS category and criteria seeding
-- `spec/graph/coherence` checks collection coherence and identifies missing categories (MDS §3: tool 5)
-- `spec/require/writing-quality` gates spec readability before testing (MDS §3: tool 3)
-- `spec/graph/query` retrieves specs by MDS category and domain anchor (MDS §3: tool 4 — aspirational, not yet implemented)
-- Curation decisions (Accept/Revise/Reject) are external to the spec server — the Curator or human makes them (MDS §2)
+- `spec/goal/capture` — creates a new specification with auto-inferred MDS category and criteria seeding
+- `spec/goal/decompose` — breaks a goal into ordered sub-goals with dependencies
+- `spec/graph/query` — queries specs by text match across name, goals, and category, returning graph nodes/edges/paths
+- `spec/graph/coherence` — computes collection coherence, identifies missing categories and incomplete specs
+- `spec/require/writing-quality` — gates spec readability before testing
+
+These tools are also exposed via the HTTP API (`/api/specs` routes). Curation decisions (Accept/Revise/Reject) are external to the spec server — the Curator or human makes them (MDS §2).
 
 If no specification exists for the feature, use `spec/goal/capture` to create one before planning tests. A feature without a spec cannot be spec-anchored.
 
@@ -109,7 +111,7 @@ Before writing any code:
 
 Ask: "Which MDS categories does this change touch? What should the public interface look like? Which requirements are most critical to test?"
 
-**Spec resolution:** Before writing any test plan, query the specification system for requirements in the relevant MDS category (Domain, Composition, Trust, Lifecycle, or Curation). Curation decisions (Accept/Revise/Reject) are made externally by the Curator or human per MDS §2. Only plan tracer bullets for specs with `Accept` curation decisions.
+**Spec resolution:** Before writing any test plan, query the spec infrastructure for requirements in the relevant MDS category. Use `spec/graph/query` (via the `hkask-mcp-spec` MCP server) to retrieve structured requirements. Use `spec/graph/coherence` to verify collection health. Curation decisions (Accept/Revise/Reject) are made externally by the Curator or human per MDS §2. Only plan tracer bullets for specs with `Accept` curation decisions.
 
 **You can't test everything.** Focus on requirements in the change scope, prioritized by risk.
 
@@ -170,12 +172,12 @@ cargo check -p <crate>          # Type-check
 
 After verification, compare tested behaviors against specification requirements:
 
-1. **Query the specification system** with the MDS categories in scope to retrieve all relevant specs (via `spec/graph/query` when implemented; currently review `Spec` objects from `spec/goal/capture` outputs)
+1. **Call `spec/graph/query`** via the `hkask-mcp-spec` MCP server to retrieve all specs in scope
 2. **For each spec**, check `is_complete()` — if false, the spec has unsatisfied criteria that may need tracer bullets
 3. **Gaps** — spec requirements with no matching `// REQ:` tag — must be addressed:
    - Write a tracer bullet for the gap, OR
    - Document the gap in `OPEN_QUESTIONS.md` with a deferral rationale
-4. **Check collection coherence** via `spec/graph/coherence` to identify missing MDS categories
+4. **Call `spec/graph/coherence`** to check overall collection coherence and identify missing MDS categories
 
 This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
 

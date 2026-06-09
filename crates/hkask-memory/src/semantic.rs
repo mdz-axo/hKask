@@ -395,8 +395,8 @@ impl SemanticMemory {
     // low_confidence_count, low_confidence_triples) are `pub` rather than
     // `pub(crate)` because they are needed by:
     //   1. `ConsolidationService` (in this crate) for user-triggered cleanup
-    //   2. `hkask-mcp-semantic` MCP server (external crate) for the
-    //      `semantic_consolidate` tool
+    //   2. `hkask-mcp-memory` MCP server (external crate) for the
+    //      `semantic_count` and `episodic_consolidate_status` tools
     //
     // This is safe because these are data operations, not authority operations.
     // Semantic triples are shared/public knowledge (visibility: Shared,

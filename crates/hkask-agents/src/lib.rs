@@ -15,7 +15,6 @@
 
 pub mod acp; // Loop 6 (Cybernetics: ACP is access control)
 pub mod adapters;
-pub mod communication; // Loop 4
 pub mod consent; // Loop 6
 pub mod curator; // Loop 5
 pub mod curator_agent; // Loop 5
@@ -33,7 +32,6 @@ pub mod sovereignty; // Loop 6 (sovereignty enforcement)
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 
-pub use communication::MessageDispatch;
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::curation_gate::CurationConfidenceGate;

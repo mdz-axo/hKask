@@ -252,32 +252,21 @@ MCP servers are operational units that reside within the loop architecture. Each
 
 1. **Domain authority** — the loop whose primary state the server reads or writes. A server that reads/writes the prompt queue, the fact store, or the message queue belongs to the loop that owns that state, not to a loop that merely observes it.
 2. **Authoritative transform** — the loop whose core transform the server performs. Inference servers (LLM calls), condensation servers (context windowing), and curation servers (MDS spec capture) belong to the loop whose function they embody.
-3. **Membrane containment** — a server shall not span two loops whose capability membranes (§4) forbid the cross-loop authority. Servers that legitimately touch multiple loops (e.g. `hkask-mcp-registry` for template discovery + skill composition) shall be marked as a *bridge* with the loops it connects explicitly named.
+3. **Membrane containment** — a server shall not span two loops whose capability membranes (§4) forbid the cross-loop authority. Servers that legitimately touch multiple loops (e.g. `hkask-mcp-memory` for episodic + semantic store bridging) shall be marked as a *bridge* with the loops it connects explicitly named.
 4. **No anchoring by call site** — the assignment is determined by what the server *governs*, not by which loop happens to invoke it. A web I/O server invoked from the Inference loop is still a Communication-loop server, because the authority is routing, not inference.
 
 **Per-server assignments:**
 
 | MCP Server | Loop | Rationale |
 |-----------|------|----------|
-| `hkask-mcp-inference` | L1 (Inference) | Okapi LLM inference — the Inference loop's core transform |
 | `hkask-mcp-condenser` | L2 (Episodic) | Context condensation operates on the active conversation window (episodic boundary) |
-| `hkask-mcp-episodic` | L2 (Episodic) | Episodic memory storage and retrieval |
-| `hkask-mcp-semantic` | L2b (Semantic) | Semantic (shared) memory storage and retrieval |
+| `hkask-mcp-memory` | L2↔L2b (bridge) | Combined episodic + semantic memory storage and retrieval. Bridges episodic (L2) and semantic (L2b) loops. |
 | `hkask-mcp-web` | L4 (Communication) | External I/O dispatch — Communication routes web requests |
-| `hkask-mcp-git` | L4 (Communication) | Git CAS operations — Communication routes archival I/O |
-| `hkask-mcp-github` | L4 (Communication) | GitHub API — Communication routes external integrations |
 | `hkask-mcp-fmp` | L4 (Communication) | FMP financial data — Communication routes external integrations |
 | `hkask-mcp-telnyx` | L4 (Communication) | Telnyx SMS/voice — Communication routes external integrations |
 | `hkask-mcp-fal` | L4 (Communication) | FAL media generation — Communication routes external integrations |
-| `hkask-mcp-ensemble` | L4 (Communication) | Multi-agent chat coordination — Communication routes agent messages |
 | `hkask-mcp-rss-reader` | L2 (Episodic) | RSS feeds are consumed into episodic memory |
-| `hkask-mcp-registry` | L1↔L5 (bridge) | Cross-loop bridge: template discovery (Inference, L1) + skill/bundle composition (Curation, L5) |
 | `hkask-mcp-spec` | L5 (Curation) | MDS spec capture — Curation governs specification authoring |
-| `hkask-mcp-goal` | L5 (Curation) | Goal coordination — Curation governs goal prioritization |
-| `hkask-mcp-replicant` | L5 (Curation) | Replicant chat — Curation manages agent persona |
-| `hkask-mcp-ocap` | L6 (Cybernetics) | OCAP enforcement is authority governance — Cybernetics regulates capability membranes |
-| `hkask-mcp-keystore` | L6 (Cybernetics) | Key management and encryption are sovereignty/authority concerns — Cybernetics regulates |
-| `hkask-mcp-cns` | L6 (Cybernetics) | CNS operations — Cybernetics IS the self-regulation loop |
 | `hkask-mcp-doc-knowledge` | L2 (Episodic) | Document parsing and chunking — feeds parsed documents into the episodic boundary |
 | `hkask-mcp-markitdown` | L2 (Episodic) | Document format conversion and OCR — ingests converted content into the episodic boundary |
 
@@ -506,11 +495,11 @@ when an agent's budget is exhausted, the operation is rejected by Cybernetics.
 
 | Tier | Servers | Cost | Rationale |
 |------|---------|------|----------|
-| Internal | ocap, keystore, cns, registry | 1-5 | In-process, negligible compute |
-| Local I/O | spec, git, goal | 5 | Local filesystem I/O |
-| Moderate | condenser | 10 | Some computation + local I/O |
+| Internal | memory | 1-5 | Local SQLite storage, in-process |
+| Local I/O | spec | 5 | Local filesystem I/O |
+| Moderate | condenser, doc-knowledge, markitdown | 10 | Some computation + local I/O |
 | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-| External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
+| External API | web, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
 | Heavy external | fal | 100 | GPU compute, expensive |
 | Inference | hkask-mcp-inference | token-based | LLM compute, scales with tokens |
 

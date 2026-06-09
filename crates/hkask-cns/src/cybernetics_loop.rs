@@ -37,11 +37,10 @@ use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
     ActionType, CuratorDirective, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId,
-    LoopMessage, LoopPayload, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
+    RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
 
 /// The Cybernetics Loop — homeostatic self-regulation.
@@ -56,63 +55,34 @@ pub struct CyberneticsLoop {
     set_points: SetPoints,
     /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
-    dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    inbox: Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>,
     dampener: Arc<Dampener>,
     /// When present, algedonic alerts are persisted to NuEventStore for restart durability.
     event_sink: Option<Arc<dyn NuEventSink>>,
-    /// Lock-free counter written by CommunicationLoop, read by sense(). Relaxed ordering.
-    communication_queue_depth: Option<Arc<AtomicU64>>,
-    /// Direct alerts channel: Cybernetics → Curation (strangler fig — alongside dispatch_tx).
-    /// When set, RuntimeAlert is sent on this channel concurrently with the legacy
-    /// LoopMessage::AlgedonicAlert path. Once CurationLoop migrates, the legacy path is removed.
+    /// Direct alerts channel: Cybernetics → Curation.
     alerts_tx: Option<mpsc::UnboundedSender<RuntimeAlert>>,
-    /// Direct tool consumption channel: GovernedTool → Cybernetics (strangler fig).
-    /// When set, ToolConsumptionEvents are drained during process_inbox() alongside
-    /// the legacy LoopMessage inbox.
+    /// Direct tool consumption channel: GovernedTool → Cybernetics.
     tool_consumption_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<ToolConsumptionEvent>>>>,
     /// Direct curator directive channel: Curation → Cybernetics.
-    /// When set, CuratorDirectives are drained during process_inbox() instead of
-    /// going through the legacy LoopMessage dispatch path.
     curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
 }
 
 impl CyberneticsLoop {
-    pub fn new(
-        cns: Arc<RwLock<CnsRuntime>>,
-        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    ) -> Self {
-        let (_, dead_rx) = mpsc::unbounded_channel();
-        Self::build(cns, SetPoints::default(), dispatch_tx, dead_rx)
+    pub fn new(cns: Arc<RwLock<CnsRuntime>>) -> Self {
+        Self::build(cns, SetPoints::default())
     }
 
-    pub fn with_set_points(
-        cns: Arc<RwLock<CnsRuntime>>,
-        set_points: SetPoints,
-        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    ) -> Self {
-        let (_, dead_rx) = mpsc::unbounded_channel();
-        Self::build(cns, set_points, dispatch_tx, dead_rx)
+    pub fn with_set_points(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
+        Self::build(cns, set_points)
     }
 
-    /// Shared struct init. `inbox` is dead (no sender) when called from `new()`/
-    /// `with_set_points()`; use `with_inbox()` for a live inbox.
-    fn build(
-        cns: Arc<RwLock<CnsRuntime>>,
-        set_points: SetPoints,
-        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-        inbox: mpsc::UnboundedReceiver<LoopMessage>,
-    ) -> Self {
+    fn build(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
         Self {
             cns,
             energy_budget_manager: EnergyBudgetManager::new(),
             set_points,
             max_iterations: DEFAULT_MAX_ITERATIONS,
-            dispatch_tx,
-            inbox: Arc::new(RwLock::new(inbox)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
-            communication_queue_depth: None,
             alerts_tx: None,
             tool_consumption_rx: None,
             curator_directive_rx: None,
@@ -126,18 +96,7 @@ impl CyberneticsLoop {
         self
     }
 
-    /// Lock-free counter written by CommunicationLoop, read by sense(). Relaxed ordering.
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_communication_queue_depth(mut self, counter: Arc<AtomicU64>) -> Self {
-        self.communication_queue_depth = Some(counter);
-        self
-    }
-
     /// Wire the direct alerts channel for Cybernetics → Curation RuntimeAlert delivery.
-    ///
-    /// When set, `act()` sends a `RuntimeAlert` on this channel concurrently with the
-    /// legacy `LoopMessage::AlgedonicAlert` through `dispatch_tx`. This is the strangler
-    /// fig pattern — both pathways operate until CurationLoop is fully migrated.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_alerts_channel(mut self, tx: mpsc::UnboundedSender<RuntimeAlert>) -> Self {
         self.alerts_tx = Some(tx);
@@ -169,18 +128,6 @@ impl CyberneticsLoop {
     ) -> Self {
         self.curator_directive_rx = Some(Arc::new(RwLock::new(rx)));
         self
-    }
-
-    /// Returns `(loop_instance, inbox_sender)`. Register sender with Communication Loop.
-    pub fn with_inbox(
-        cns: Arc<RwLock<CnsRuntime>>,
-        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
-        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel();
-        (
-            Self::build(cns, SetPoints::default(), dispatch_tx, inbox_rx),
-            inbox_tx,
-        )
     }
 
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
@@ -239,37 +186,9 @@ impl CyberneticsLoop {
             .await;
     }
 
-    pub fn dispatch_sender(&self) -> mpsc::UnboundedSender<LoopMessage> {
-        self.dispatch_tx.clone()
-    }
-
     /// Called during sense() so directives are applied before computing actions.
     pub async fn process_inbox(&self) {
-        let mut inbox = self.inbox.write().await;
-        let mut processed = 0;
-        while let Ok(msg) = inbox.try_recv() {
-            processed += 1;
-            match &msg.payload {
-                LoopPayload::CurationDirective(directive) => {
-                    self.handle_curation_directive(directive.clone()).await;
-                }
-                LoopPayload::AlgedonicAlert {
-                    current,
-                    threshold,
-                    deficit,
-                } => {
-                    self.handle_algedonic_alert(*current, *threshold, *deficit);
-                }
-                _ => {
-                    tracing::debug!(target: "cns.cybernetics", payload_type = ?msg.payload, "Ignoring non-directive payload in CyberneticsLoop inbox")
-                }
-            }
-        }
-        if processed > 0 {
-            tracing::info!(target: "cns.cybernetics", processed = processed, "Processed inbox messages");
-        }
-
-        // Strangler fig: drain direct curator directive channel.
+        // Drain direct curator directive channel.
         if let Some(ref rx) = self.curator_directive_rx {
             let mut cd_rx = rx.write().await;
             let mut cd_processed = 0;
@@ -282,7 +201,7 @@ impl CyberneticsLoop {
             }
         }
 
-        // Strangler fig: drain direct tool consumption channel.
+        // Drain direct tool consumption channel.
         if let Some(ref rx) = self.tool_consumption_rx {
             let mut tc_rx = rx.write().await;
             let mut tc_processed = 0;
@@ -410,16 +329,6 @@ impl CyberneticsLoop {
             }
         }
     }
-
-    fn handle_algedonic_alert(&self, current: u64, threshold: u64, deficit: u64) {
-        tracing::info!(
-            target: "cns.cybernetics",
-            current = current,
-            threshold = threshold,
-            deficit = deficit,
-            "Received algedonic alert in CyberneticsLoop inbox"
-        );
-    }
 }
 
 #[async_trait::async_trait]
@@ -457,19 +366,6 @@ impl HkaskLoop for CyberneticsLoop {
             self.set_points.variety_max_deficit,
         ));
         drop(cns);
-
-        // Communication queue depth signal (if shared counter is wired)
-        if let Some(ref counter) = self.communication_queue_depth {
-            let depth = counter.load(Ordering::Relaxed);
-            signals.push(Signal::new(
-                LoopId::Cybernetics,
-                SignalMetric::CommunicationQueueDepth,
-                depth as f64,
-                self.set_points
-                    .communication_backpressure_threshold
-                    .as_raw(),
-            ));
-        }
 
         signals
     }
@@ -553,37 +449,8 @@ impl HkaskLoop for CyberneticsLoop {
         for action in actions {
             tracing::info!(target: "cns.cybernetics", action_type = ?action.action_type, target_loop = %action.target, "Cybernetics Loop efferent signal");
             let target_id = action.target;
-            let directive_type = match action.action_type {
-                ActionType::Throttle => "throttle",
-                ActionType::Escalate => "escalate",
-                ActionType::Calibrate => "calibrate",
-                ActionType::CircuitBreak => "circuit_break",
-                ActionType::AdjustEnergyBudget => "adjust_energy_budget",
-                ActionType::OverrideEnergyBudget => "override_energy_budget",
-                ActionType::ReplenishBudget => "replenish_budget",
-            };
-            let payload =
-                if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
-                    let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
-                    LoopPayload::AlgedonicAlert {
-                        current: deficit,
-                        threshold,
-                        deficit,
-                    }
-                } else {
-                    LoopPayload::CyberneticsRegulation {
-                        regulation_type: directive_type.to_string(),
-                        target: WebID::new(),
-                        parameters: action.parameters.clone(),
-                    }
-                };
-            let msg = LoopMessage::new(action.priority, LoopId::Cybernetics, payload)
-                .with_target(LoopId::Curation);
-            if let Err(e) = self.dispatch_tx.send(msg) {
-                tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to dispatch LoopAction — Communication Loop may be closed");
-            }
 
-            // Strangler fig: also send RuntimeAlert on direct channel when available.
+            // Send RuntimeAlert on direct alerts channel when Escalate + Curation target.
             if action.action_type == ActionType::Escalate
                 && target_id == LoopId::Curation
                 && let Some(ref alerts_tx) = self.alerts_tx

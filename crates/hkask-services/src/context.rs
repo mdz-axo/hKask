@@ -18,7 +18,6 @@ use tokio::sync::RwLock;
 use hkask_agents::CuratorContext;
 use hkask_agents::EscalationQueue;
 use hkask_agents::LoopSystem;
-use hkask_agents::communication::MessageDispatch;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_agents::ensemble::session::SessionManager;
@@ -90,9 +89,6 @@ pub struct ServiceContext {
 
     /// Loop system for 6-loop regulation.
     pub loop_system: Arc<LoopSystem>,
-
-    /// Message dispatch for inter-loop communication.
-    pub dispatch: Arc<MessageDispatch>,
 
     /// Inference port for model invocation.
     pub inference_port: Option<Arc<dyn InferencePort>>,
@@ -286,13 +282,9 @@ impl ServiceContext {
             Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
 
         // ── 5. Loop system ──────────────────────────────────────────────────
-        let dispatch = Arc::new(MessageDispatch::new());
-        let loop_system = Arc::new(LoopSystem::new(Arc::clone(&dispatch)));
-        let dispatch_sender = loop_system.dispatch_sender();
+        let loop_system = Arc::new(LoopSystem::new());
 
-        // Strangler fig: direct alerts channel Cybernetics → Curation.
-        // Sits alongside the legacy dispatch_tx → CommunicationLoop pathway.
-        // When CurationLoop is fully migrated, the legacy pathway is removed.
+        // Direct alerts channel Cybernetics → Curation.
         let (alerts_tx, alerts_rx) = tokio::sync::mpsc::unbounded_channel::<RuntimeAlert>();
 
         // Strangler fig: direct tool consumption channel GovernedTool → Cybernetics.
@@ -308,16 +300,12 @@ impl ServiceContext {
 
         // Cybernetics loop
         let set_points = load_set_points();
-        let cybernetics_loop = CyberneticsLoop::with_set_points(
-            Arc::clone(&cns_runtime),
-            set_points,
-            dispatch_sender.clone(),
-        )
-        .with_event_sink(Arc::clone(&cns_event_sink))
-        .with_communication_queue_depth(loop_system.communication_queue_depth_counter())
-        .with_alerts_channel(alerts_tx)
-        .with_tool_consumption_channel(tool_consumption_rx)
-        .with_curator_directive_channel(curator_directive_rx);
+        let cybernetics_loop =
+            CyberneticsLoop::with_set_points(Arc::clone(&cns_runtime), set_points)
+                .with_event_sink(Arc::clone(&cns_event_sink))
+                .with_alerts_channel(alerts_tx)
+                .with_tool_consumption_channel(tool_consumption_rx)
+                .with_curator_directive_channel(curator_directive_rx);
         let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
 
         loop_system
@@ -521,7 +509,6 @@ impl ServiceContext {
             cns: cns_svc,
             cybernetics_loop,
             loop_system,
-            dispatch,
             inference_port,
             episodic_storage,
             semantic_storage,

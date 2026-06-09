@@ -27,10 +27,9 @@ Three surfaces expose consolidation:
 2. **API** (`POST /api/consolidate`) — headless, network-accessible
 3. **Chat** (`/consolidate run`) — single-user, interactive
 
-Two MCP servers provide memory operations but **cannot perform consolidation**:
+One MCP server provides memory operations but **cannot perform consolidation**:
 
-4. **MCP Episodic** (`hkask-mcp-episodic`) — episodic store/recall only; read-only consolidation status
-5. **MCP Semantic** (`hkask-mcp-semantic`) — semantic store/recall/embed/search only
+4. **MCP Memory** (`hkask-mcp-memory`) — combined episodic store/recall + semantic store/recall/embed/search; read-only consolidation status
 
 The CLI, API, and Chat need explicit user authorization since they are directly user-facing. MCP servers are OCAP-gated and do not expose consolidation because they lack both stores.
 
@@ -60,12 +59,11 @@ This is the same derivation chain used during onboarding to store the DB encrypt
 | CLI | `--passphrase` flag, derives capability_key, compares | `hkask-memory-{agent}.db` | ✅ Full (episodic→semantic + cleanup) |
 | API | `passphrase` field in request body, derives capability_key, compares | `hkask-memory-{agent}.db` | ✅ Full (episodic→semantic + cleanup) |
 | Chat | No passphrase (single-user REPL, already authenticated) | `hkask-memory-{agent}.db` | ✅ Full (episodic→semantic + cleanup) |
-| MCP Episodic | OCAP GovernedTool membrane | `hkask-memory-{agent}.db` | ❌ Read-only status |
-| MCP Semantic | OCAP GovernedTool membrane | `hkask-memory-{agent}.db` | ❌ No consolidation tool |
+| MCP Memory | OCAP GovernedTool membrane | `hkask-memory-{agent}.db` | ❌ No consolidation tool |
 
 All three consolidation surfaces (CLI, API, Chat) build `ConsolidationService` from the agent's per-agent memory DB (`hkask-memory-{agent}.db`) using the same pattern: open DB → `EpisodicMemory` + `SemanticMemory` → `ConsolidationBridge` → `ConsolidationService`.
 
-Both MCP servers connect to the same per-agent memory DB via `HKASK_MEMORY_DB`, but each only has access to one memory type (EpisodicMemory or SemanticMemory), so they cannot perform cross-store consolidation.
+The MCP memory server connects to the same per-agent memory DB via `HKASK_MEMORY_DB` and has access to both memory types (EpisodicMemory and SemanticMemory), but does not expose a consolidation tool — consolidation remains a surface-level operation restricted to CLI, API, and Chat.
 
 ### Rate Limiting
 
@@ -77,7 +75,7 @@ The API endpoint enforces a coarse-grained rate limit (30-second minimum interva
 
 2. **Threat model: shared-database vs single-user.** In single-user deployments (the default), the Curator's REPL session is already the authorized user — no passphrase needed for `/consolidate`. In shared-database deployments, the API endpoint is the attack surface: rate limiting + passphrase verification prevent both unauthorized and DoS attacks.
 
-3. **Consolidation requires both stores.** Episodic→semantic promotion reads from EpisodicMemory and writes to SemanticMemory. Individual MCP servers only have one store, so consolidation is structurally impossible there. This is correct — MCP tools are scoped to their domain.
+3. **Consolidation requires both stores and surface authorization.** Episodic→semantic promotion reads from EpisodicMemory and writes to SemanticMemory. `hkask-mcp-memory` has access to both stores but intentionally does not expose a consolidation tool — consolidation is restricted to CLI, API, and Chat surfaces where user authorization can be verified.
 
 4. **Argon2id is intentionally expensive.** The ~100ms derivation cost is a feature, not a bug — it prevents brute-force attacks on the passphrase. Rate limiting prevents this cost from being weaponized as a CPU DoS vector.
 

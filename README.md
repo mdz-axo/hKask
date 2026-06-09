@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 21 MCP servers + Okapi |
+| 2 | **Essential Tools** | 10 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -61,30 +61,20 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (19 crates)
-- `hkask-mcp-inference` — Okapi-backed LLM inference
+### MCP Servers (10 crates)
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Web search, scrape
-- `hkask-mcp-ocap` — Capability management (Cybernetics, L6)
-- `hkask-mcp-keystore` — Keystore operations (Cybernetics, L6)
-- `hkask-mcp-cns` — CNS operations
-- `hkask-mcp-git` — Git CAS
-- `hkask-mcp-registry` — Registry operations (cross-loop bridge, L1↔L5)
 - `hkask-mcp-spec` — DDMVSS spec capture
-- `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — Financial data (FMP)
 - `hkask-mcp-telnyx` — Communications (Telnyx)
 - `hkask-mcp-fal` — Media generation (FAL)
 - `hkask-mcp-rss-reader` — RSS feed reader
-- `hkask-mcp-goal` — Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API
-- `hkask-mcp-ensemble` — Multi-agent chat coordination
-- `hkask-mcp-episodic` — Episodic memory (private, perspective-bound)
-- `hkask-mcp-semantic` — Semantic memory (public, shared)
-- `hkask-mcp-replicant` — Replicant chat (MCP bridge for external integrations)
+- `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
+- `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
+- `hkask-mcp-memory` — Semantic + episodic memory (merged: episodic → semantic consolidation)
 
 **Converted to templates** (not MCP servers):
 - `spandrel` → `templates/spandrel/` (graph analysis)
-- `doc-knowledge` → `templates/doc-knowledge/` (document extraction)
 
 ---
 
@@ -96,7 +86,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | **MCP Server LOC (Rust)** | ~4,890 |
 | **Test Files** | 36 |
 | **Core Crates** | 11 (all complete) |
-| **MCP Servers** | 19 (all complete) |
+| **MCP Servers** | 10 (all complete) |
 | **Build/Clippy/Fmt** | All passing |
 
 ---
@@ -126,30 +116,25 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] Comprehensive security hardening (ADR-022)
 - [x] Test coverage across core crates
 
-### Phase 5: Okapi Integration Hardening ✓
-- [x] `hkask-mcp-inference` — Okapi-backed LLM inference
-
-### Phase 6: Ensemble & CNS Integration ✓
+### Phase 5: CNS & Ensemble Integration ✓
 - [x] `hkask-cns` — outcome ingestion, `cns.*` span emission, variety counters
 - [x] `hkask-ensemble` — multi-agent chat, confidence escalation
 
-### Phase 7: CLI/API Commands ✓
+### Phase 6: CLI/API Commands ✓
 - [x] `hkask-mcp` — MCP runtime, dispatch, security
 - [x] `hkask-api` — axum + utoipa, 12 route groups
 - [x] `hkask-cli` — 14 subcommand groups + `/model` slash command
 
-### Phase 8: Documentation Refresh ✓
+### Phase 7: Documentation Refresh ✓
 - [x] DDMVSS-aligned architecture documentation (9/9 categories)
 - [x] 94 documents archived, 36 active documents curated
 
 ### In Progress
 - [x] Context condensation in condenser MCP server (7 tools, 51 tests)
-- [ ] Memory consolidation bridge (episodic → semantic)
 - [ ] Integration tests for inference pipeline
 - [ ] `hkask-storage` trait mismatches (goals.rs)
 
 ### Upcoming
-- [ ] Remaining MCP server implementations
 - [ ] Seed templates (prompt/process/cognition)
 - [ ] Curator instantiation
 - [ ] Success criterion test (16 items from master spec)
@@ -166,7 +151,7 @@ hKask is "done" when a single user can:
 4. Observe ≥3 subsystem-curator bots spawn at startup
 5. Trigger ensemble session with ≥2 subsystem-curators deliberating
 6. Invoke any operation through CLI or HTTP API with identical behavior
-Invoke any tool from 21 MCP set; observe routing
+Invoke any tool from 10 MCP set; observe routing
 8. Compose two tools via process template
 9. Record episodic memory with confidence
 10. Retrieve memory; observe `as-of` query returns historical state

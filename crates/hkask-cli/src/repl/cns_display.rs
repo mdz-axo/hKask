@@ -1,15 +1,13 @@
-//! CNS variety sensing, algedonic alerts, and dispatch drain for the REPL.
+//! CNS variety sensing, algedonic alerts, and loop system tick for the REPL.
 //!
 //! After each inference turn, the CNS is updated with prompt variety data,
-//! algedonic alerts are surfaced, the LoopSystem is ticked, and regulatory
-//! actions from the dispatch queue are displayed.
-
-use hkask_types::loops::LoopPayload;
+//! algedonic alerts are surfaced, and the LoopSystem is ticked.
+//! Regulatory actions are visible via `tracing` output (cns.cybernetics target).
 
 use super::ReplState;
 
 /// Update CNS variety counters, check algedonic alerts, tick the LoopSystem,
-/// and drain regulatory actions for display.
+/// and display regulatory actions from tracing output.
 pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio::runtime::Handle) {
     // CNS variety sensing: decompose the prompt and increment
     // variety counters for depth, structure, and topic domains.
@@ -67,64 +65,7 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // Tick the LoopSystem to run sense→compare→compute→act for
     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
     // CNS variety and energy budgets, producing regulatory actions
-    // (Throttle, AdjustEnergyBudget, Escalate, Calibrate).
+    // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible
+    // through tracing output (cns.cybernetics target).
     rt.block_on(state.service_context.loop_system.tick());
-
-    // Drain the MessageDispatch for regulatory actions produced
-    // by the loop cycle. Surface Throttle, Calibrate, Escalate,
-    // AdjustEnergyBudget, and CircuitBreak actions as REPL notices.
-    loop {
-        let msg = rt.block_on(state.service_context.dispatch.receive());
-        match msg {
-            Some(msg) => match &msg.payload {
-                LoopPayload::CyberneticsRegulation {
-                    regulation_type,
-                    parameters,
-                    ..
-                } => match regulation_type.as_str() {
-                    "throttle" => {
-                        let reason = parameters
-                            .get("reason")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown");
-                        println!("  \x1b[33m\u{26a0} CNS: Throttle — {}\x1b[0m", reason);
-                    }
-                    "adjust_energy_budget" => {
-                        let ratio = parameters
-                            .get("remaining_ratio")
-                            .and_then(|v| v.as_f64())
-                            .map(|r| format!("{:.0}%", r * 100.0))
-                            .unwrap_or_else(|| "?".to_string());
-                        println!(
-                            "  \x1b[33m\u{26a0} CNS: Gas budget adjusted — remaining {}\x1b[0m",
-                            ratio
-                        );
-                    }
-                    "circuit_break" => {
-                        println!("  \x1b[31m\u{2717} CNS: Circuit breaker opened\x1b[0m");
-                    }
-                    "calibrate" => {
-                        let reason = parameters
-                            .get("reason")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown");
-                        println!("  \x1b[36m\u{21bb} CNS: Calibrate — {}\x1b[0m", reason);
-                    }
-                    other => {
-                        println!("  \x1b[2mCNS: {}\x1b[0m", other);
-                    }
-                },
-                LoopPayload::AlgedonicAlert {
-                    current, threshold, ..
-                } => {
-                    println!(
-                        "  \x1b[31m\u{26a0} CNS: Algedonic escalation (deficit: {}/{})\x1b[0m",
-                        current, threshold
-                    );
-                }
-                _ => { /* other payload types — not displayed */ }
-            },
-            None => break,
-        }
-    }
 }

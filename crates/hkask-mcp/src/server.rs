@@ -9,15 +9,12 @@
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     run_stdio_server(
-//!         "hkask-mcp-github",
+//!         "hkask-mcp-web",
 //!         env!("CARGO_PKG_VERSION"),
 //!         |ctx: ServerContext| {
-//!             let token = ctx.credentials.get("HKASK_GITHUB_TOKEN")
-//!                 .expect("credential checked by run_stdio_server")
-//!                 .clone();
-//!             Ok(GithubServer::new(token))
+//!             Ok(WebServer::new(ctx.webid))
 //!         },
-//!         vec![CredentialRequirement::required("HKASK_GITHUB_TOKEN", "GitHub PAT")],
+//!         vec![],
 //!     ).await
 //! }
 //! ```
@@ -455,7 +452,7 @@ fn emit_tool_span_with_caller(
 /// — no ambient authority via `std::env::var`.
 ///
 /// # Arguments
-/// - `server_name` — Human-readable server name for logging (e.g., `"hkask-mcp-github"`)
+/// - `server_name` — Human-readable server name for logging (e.g., `"hkask-mcp-web"`)
 /// - `version` — SemVer version string (use `env!("CARGO_PKG_VERSION")`)
 /// - `server_factory` — Closure that constructs the server, receiving a `ServerContext`
 /// - `credentials` — Declared credential requirements
