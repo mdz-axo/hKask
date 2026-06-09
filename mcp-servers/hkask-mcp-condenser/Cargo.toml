@@ -3,7 +3,7 @@ name = "hkask-mcp-condenser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Context condensation MCP server — compress tool outputs, manage profiles, classify categories"
+description = "Context condensation MCP server — compress tool outputs, manage profiles, classify categories, summarize thread history"
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
@@ -17,3 +17,4 @@ serde_json.workspace = true
 schemars.workspace = true
 tracing.workspace = true
 anyhow.workspace = true
+reqwest.workspace = true

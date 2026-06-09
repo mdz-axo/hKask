@@ -5,33 +5,53 @@
 //! temporal attention weighting) through the loop membrane.
 
 use crate::error::MemoryError;
-use crate::ports::{EpisodicStoragePort, RecallRequest, SemanticStoragePort, StorageRequest};
+use crate::ports::{
+    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
+    StorageRequest,
+};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{
     Confidence, DelegationToken, ExperienceClassification, require_read_access,
     require_write_access,
 };
-use serde_json::Value;
 use std::sync::Arc;
 
 // ── Template Method helpers (P2.4) ──────────────────────────────────────
 
-/// Convert a `Triple` into its canonical JSON representation.
+/// Convert a `Triple` into a typed `RecalledEpisode`.
 ///
-/// Both `recall_episodic` and `recall_semantic` produce the same JSON
-/// shape — this function eliminates that duplication.
-fn triple_to_json(t: Triple) -> Value {
-    serde_json::json!({
-        "id": t.id.to_string(),
-        "entity": t.entity,
-        "attribute": t.attribute,
-        "value": t.value,
-        "confidence": t.confidence.value(),
-        "perspective": t.access.perspective.map(|p| p.to_string()),
-        "visibility": t.access.visibility.as_str(),
-        "valid_from": t.temporal.valid_from.to_rfc3339(),
-    })
+/// Used by `recall_episodic` to produce domain-typed DTOs instead of
+/// untyped `serde_json::Value`. `recall_semantic` uses
+/// `triple_to_recalled_semantic` (separate type, no perspective).
+fn triple_to_recalled_episode(t: Triple) -> RecalledEpisode {
+    RecalledEpisode {
+        id: t.id.to_string(),
+        entity: t.entity,
+        attribute: t.attribute,
+        value: t.value,
+        confidence: t.confidence,
+        perspective: t.access.perspective,
+        visibility: t.access.visibility,
+        valid_from: t.temporal.valid_from.to_rfc3339(),
+    }
+}
+
+/// Convert a `Triple` into a typed `RecalledSemantic`.
+///
+/// Used by `recall_semantic` to produce domain-typed DTOs instead of
+/// untyped `serde_json::Value`. Semantic triples are perspective-free,
+/// so this struct omits the `perspective` field that `RecalledEpisode` carries.
+fn triple_to_recalled_semantic(t: Triple) -> RecalledSemantic {
+    RecalledSemantic {
+        id: t.id.to_string(),
+        entity: t.entity,
+        attribute: t.attribute,
+        value: t.value,
+        confidence: t.confidence,
+        visibility: t.access.visibility,
+        valid_from: t.temporal.valid_from.to_rfc3339(),
+    }
 }
 
 /// Build a `Triple` from a `StorageRequest`.
@@ -173,7 +193,10 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         })
     }
 
-    fn recall_episodic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
+    fn recall_episodic(
+        &self,
+        request: &RecallRequest,
+    ) -> Result<Vec<RecalledEpisode>, MemoryError> {
         check_read_access(&request.token, "episodic")?;
 
         // P4.1: Replaced `.expect(...)` with a typed error. Episodic memory
@@ -189,7 +212,10 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         // Route through EpisodicMemory's deduped+decayed query
         let triples = self.episodic.query_for_deduped(&request.query, owner)?;
 
-        let results: Vec<Value> = triples.into_iter().map(triple_to_json).collect();
+        let results: Vec<RecalledEpisode> = triples
+            .into_iter()
+            .map(triple_to_recalled_episode)
+            .collect();
 
         tracing::debug!(
             target: "hkask.memory.episodic",
@@ -274,13 +300,19 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         })
     }
 
-    fn recall_semantic(&self, request: &RecallRequest) -> Result<Vec<Value>, MemoryError> {
+    fn recall_semantic(
+        &self,
+        request: &RecallRequest,
+    ) -> Result<Vec<RecalledSemantic>, MemoryError> {
         check_read_access(&request.token, "semantic")?;
 
         // Route through SemanticMemory's deduped query
         let triples = self.semantic.query_deduped(&request.query)?;
 
-        let results: Vec<Value> = triples.into_iter().map(triple_to_json).collect();
+        let results: Vec<RecalledSemantic> = triples
+            .into_iter()
+            .map(triple_to_recalled_semantic)
+            .collect();
 
         tracing::debug!(
             target: "hkask.memory.semantic",

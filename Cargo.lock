@@ -1426,6 +1426,7 @@ dependencies = [
  "hkask-memory",
  "hkask-storage",
  "hkask-types",
+ "reqwest",
  "rmcp",
  "schemars",
  "serde",

@@ -38,7 +38,7 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
         let lines: Vec<&str> = input.lines().collect();
         let max_lines = profile.max_lines().unwrap_or(usize::MAX);
         let retention = profile.retention_pct();
-        let target_lines = ((lines.len() as f64) * retention).max(1.0) as usize;
+        let target_lines = ((lines.len() as f64) * retention).max(1.0).round() as usize;
         let budget = target_lines.min(max_lines).min(lines.len());
 
         if budget >= lines.len() {
@@ -150,7 +150,9 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
         let max_lines = profile.max_lines().unwrap_or(usize::MAX);
-        let target_lines = ((lines.len() as f64) * profile.retention_pct()).max(1.0) as usize;
+        let target_lines = ((lines.len() as f64) * profile.retention_pct())
+            .max(1.0)
+            .round() as usize;
         let budget = target_lines.min(max_lines).min(lines.len());
 
         if budget >= lines.len() {
@@ -258,7 +260,9 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
         let max_lines = profile.max_lines().unwrap_or(usize::MAX);
-        let target_lines = ((lines.len() as f64) * profile.retention_pct()).max(1.0) as usize;
+        let target_lines = ((lines.len() as f64) * profile.retention_pct())
+            .max(1.0)
+            .round() as usize;
         let budget = target_lines.min(max_lines).min(lines.len());
 
         if budget >= lines.len() {
@@ -372,5 +376,365 @@ impl AlgorithmRegistry {
                 })
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── AlgorithmRegistry ──
+
+    // REQ: AlgorithmRegistry always selects an algorithm (never panics on valid categories)
+    #[test]
+    fn registry_selects_for_all_categories() {
+        let registry = AlgorithmRegistry::new();
+        for cat in [
+            ContextCategory::ShellCommand,
+            ContextCategory::TestOutput,
+            ContextCategory::BuildOutput,
+            ContextCategory::FileContents,
+            ContextCategory::ConversationHistory,
+            ContextCategory::StructuredData,
+            ContextCategory::LogOutput,
+            ContextCategory::Unknown,
+        ] {
+            let algo = registry.select(cat);
+            assert!(!algo.name().is_empty());
+        }
+    }
+
+    // REQ: AlgorithmRegistry selects rtk_style for ShellCommand
+    #[test]
+    fn registry_selects_rtk_for_shell() {
+        let registry = AlgorithmRegistry::new();
+        let algo = registry.select(ContextCategory::ShellCommand);
+        assert_eq!(algo.name(), "rtk_style");
+    }
+
+    // REQ: AlgorithmRegistry selects rtk_style for TestOutput and BuildOutput
+    #[test]
+    fn registry_selects_rtk_for_test_and_build() {
+        let registry = AlgorithmRegistry::new();
+        assert_eq!(
+            registry.select(ContextCategory::TestOutput).name(),
+            "rtk_style"
+        );
+        assert_eq!(
+            registry.select(ContextCategory::BuildOutput).name(),
+            "rtk_style"
+        );
+    }
+
+    // REQ: AlgorithmRegistry selects saliency_rank for ConversationHistory, LogOutput, Unknown
+    #[test]
+    fn registry_selects_saliency_for_conv_log_unknown() {
+        let registry = AlgorithmRegistry::new();
+        assert_eq!(
+            registry.select(ContextCategory::ConversationHistory).name(),
+            "saliency_rank"
+        );
+        assert_eq!(
+            registry.select(ContextCategory::LogOutput).name(),
+            "saliency_rank"
+        );
+        assert_eq!(
+            registry.select(ContextCategory::Unknown).name(),
+            "saliency_rank"
+        );
+    }
+
+    // REQ: AlgorithmRegistry selects flashrank for FileContents and StructuredData
+    #[test]
+    fn registry_selects_flashrank_for_file_and_structured() {
+        let registry = AlgorithmRegistry::new();
+        assert_eq!(
+            registry.select(ContextCategory::FileContents).name(),
+            "flashrank"
+        );
+        assert_eq!(
+            registry.select(ContextCategory::StructuredData).name(),
+            "flashrank"
+        );
+    }
+
+    // REQ: AlgorithmRegistry lists exactly 3 algorithms
+    #[test]
+    fn registry_lists_three_algorithms() {
+        let registry = AlgorithmRegistry::new();
+        let list = registry.list_algorithms();
+        assert_eq!(list.len(), 3);
+        let names: Vec<&str> = list.iter().map(|v| v["name"].as_str().unwrap()).collect();
+        assert!(names.contains(&"rtk_style"));
+        assert!(names.contains(&"saliency_rank"));
+        assert!(names.contains(&"flashrank"));
+    }
+
+    // ── RtkStyleAlgorithm ──
+
+    // REQ: rtk_style compresses multi-line input to fewer lines under Heavy profile
+    #[test]
+    fn rtk_style_reduces_lines_under_heavy() {
+        let algo = RtkStyleAlgorithm;
+        let input = (0..100)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Heavy, ContextCategory::ShellCommand);
+        assert!(result.lines().count() < input.lines().count());
+    }
+
+    // REQ: rtk_style returns input unchanged when it fits within budget
+    #[test]
+    fn rtk_style_passthrough_when_under_budget() {
+        let algo = RtkStyleAlgorithm;
+        let input = "short\noutput";
+        let result = algo.compress(input, Profile::Light, ContextCategory::ShellCommand);
+        assert_eq!(result, input);
+    }
+
+    // REQ: rtk_style includes "..." ellipsis when truncating
+    #[test]
+    fn rtk_style_includes_ellipsis_when_truncating() {
+        let algo = RtkStyleAlgorithm;
+        let input = (0..200)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Heavy, ContextCategory::ShellCommand);
+        assert!(
+            result.contains("..."),
+            "truncated output should contain ellipsis marker"
+        );
+    }
+
+    // REQ: rtk_style produces at least 1 line for any non-empty input
+    #[test]
+    fn rtk_style_always_produces_output() {
+        let algo = RtkStyleAlgorithm;
+        let input = "single line";
+        let result = algo.compress(input, Profile::Heavy, ContextCategory::ShellCommand);
+        assert!(!result.is_empty());
+    }
+
+    // REQ: rtk_style preserves head and tail lines preferentially
+    #[test]
+    fn rtk_style_preserves_head_and_tail() {
+        let algo = RtkStyleAlgorithm;
+        let input = (0..50)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Heavy, ContextCategory::ShellCommand);
+        assert!(result.contains("line 0"), "head should be preserved");
+        assert!(result.contains("line 49"), "tail should be preserved");
+    }
+
+    // ── SaliencyRankAlgorithm ──
+
+    // REQ: saliency_rank produces fewer lines than input under Normal profile
+    #[test]
+    fn saliency_rank_reduces_lines() {
+        let algo = SaliencyRankAlgorithm;
+        let input = (0..200)
+            .map(|i| format!("line {i} with some words"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Normal, ContextCategory::LogOutput);
+        assert!(result.lines().count() < input.lines().count());
+    }
+
+    // REQ: saliency_rank boosts lines containing "error" in scoring
+    #[test]
+    fn saliency_rank_prioritizes_error_lines() {
+        let algo = SaliencyRankAlgorithm;
+        let mut lines: Vec<String> = (0..100).map(|i| format!("info line {i}")).collect();
+        lines.push("CRITICAL error something went wrong".to_string());
+        let input = lines.join("\n");
+        let result = algo.compress(&input, Profile::Heavy, ContextCategory::LogOutput);
+        assert!(
+            result.contains("error"),
+            "error lines should survive compression"
+        );
+    }
+
+    // REQ: saliency_rank returns input unchanged when within budget
+    #[test]
+    fn saliency_rank_passthrough_when_under_budget() {
+        let algo = SaliencyRankAlgorithm;
+        let input = "short log";
+        let result = algo.compress(input, Profile::Light, ContextCategory::LogOutput);
+        assert_eq!(result, input);
+    }
+
+    // REQ: saliency_rank preserves original line order (stable after selection)
+    #[test]
+    fn saliency_rank_preserves_order() {
+        let algo = SaliencyRankAlgorithm;
+        let input = (0..20)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Heavy, ContextCategory::Unknown);
+        let nums: Vec<usize> = result
+            .lines()
+            .filter_map(|l| {
+                l.strip_prefix("line ")
+                    .and_then(|n| n.parse::<usize>().ok())
+            })
+            .collect();
+        let mut sorted = nums.clone();
+        sorted.sort();
+        assert_eq!(
+            nums, sorted,
+            "selected lines should appear in original order"
+        );
+    }
+
+    // ── FlashrankAlgorithm ──
+
+    // REQ: flashrank produces fewer lines than input under Normal profile
+    #[test]
+    fn flashrank_reduces_lines() {
+        let algo = FlashrankAlgorithm;
+        let input = (0..200)
+            .map(|i| format!("data line {i} with various content"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Normal, ContextCategory::FileContents);
+        assert!(result.lines().count() < input.lines().count());
+    }
+
+    // REQ: flashrank returns input unchanged when within budget
+    #[test]
+    fn flashrank_passthrough_when_under_budget() {
+        let algo = FlashrankAlgorithm;
+        let input = "short file";
+        let result = algo.compress(input, Profile::Light, ContextCategory::FileContents);
+        assert_eq!(result, input);
+    }
+
+    // REQ: flashrank novelty_score returns 1.0 when no lines selected yet
+    #[test]
+    fn flashrank_novelty_is_one_for_empty_selected() {
+        let score = FlashrankAlgorithm::novelty_score("any line", &[]);
+        assert!((score - 1.0).abs() < f64::EPSILON);
+    }
+
+    // REQ: flashrank brevity_score is higher for shorter lines
+    #[test]
+    fn flashrank_brevity_favors_shorter_lines() {
+        let short = FlashrankAlgorithm::brevity_score("hi");
+        let long = FlashrankAlgorithm::brevity_score(&"x".repeat(500));
+        assert!(short > long, "shorter lines should score higher on brevity");
+    }
+
+    // REQ: flashrank relevance_score matches query terms
+    #[test]
+    fn flashrank_relevance_matches_terms() {
+        let terms: Vec<String> = vec!["important".to_string(), "key".to_string()];
+        let matching = FlashrankAlgorithm::relevance_score("this is an important key line", &terms);
+        let non_matching = FlashrankAlgorithm::relevance_score("nothing relevant here", &terms);
+        assert!(matching > non_matching);
+    }
+
+    // REQ: flashrank preserves original line order after greedy selection
+    #[test]
+    fn flashrank_preserves_order() {
+        let algo = FlashrankAlgorithm;
+        let input = (0..20)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = algo.compress(&input, Profile::Heavy, ContextCategory::StructuredData);
+        let nums: Vec<usize> = result
+            .lines()
+            .filter_map(|l| {
+                l.strip_prefix("line ")
+                    .and_then(|n| n.parse::<usize>().ok())
+            })
+            .collect();
+        let mut sorted = nums.clone();
+        sorted.sort();
+        assert_eq!(
+            nums, sorted,
+            "selected lines should appear in original order"
+        );
+    }
+
+    // ── Cross-algorithm invariants ──
+
+    // REQ: All algorithms produce non-empty output for non-empty single-line input
+    #[test]
+    fn all_algorithms_non_empty_on_single_line() {
+        let algos: Vec<Box<dyn CondenserAlgorithm>> = vec![
+            Box::new(RtkStyleAlgorithm),
+            Box::new(SaliencyRankAlgorithm),
+            Box::new(FlashrankAlgorithm),
+        ];
+        let input = "hello world";
+        for profile in [
+            Profile::Heavy,
+            Profile::Normal,
+            Profile::Soft,
+            Profile::Light,
+        ] {
+            for algo in &algos {
+                let result = algo.compress(input, profile, ContextCategory::Unknown);
+                assert!(
+                    !result.is_empty(),
+                    "{} should produce non-empty output for single line under {}",
+                    algo.name(),
+                    profile
+                );
+            }
+        }
+    }
+
+    // REQ: All algorithms never expand output (compressed_bytes <= original_bytes for multi-line)
+    #[test]
+    fn all_algorithms_never_expand() {
+        let algos: Vec<Box<dyn CondenserAlgorithm>> = vec![
+            Box::new(RtkStyleAlgorithm),
+            Box::new(SaliencyRankAlgorithm),
+            Box::new(FlashrankAlgorithm),
+        ];
+        let input = (0..500)
+            .map(|i| format!("line {i} with padding content"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for profile in [Profile::Heavy, Profile::Normal, Profile::Soft] {
+            for algo in &algos {
+                let result = algo.compress(&input, profile, ContextCategory::Unknown);
+                assert!(
+                    result.len() <= input.len(),
+                    "{} under {} expanded output: {} > {}",
+                    algo.name(),
+                    profile,
+                    result.len(),
+                    input.len()
+                );
+            }
+        }
+    }
+
+    // REQ: handles() is consistent with default_for() for each algorithm
+    #[test]
+    fn handles_consistent_with_default_for() {
+        let algos: Vec<Box<dyn CondenserAlgorithm>> = vec![
+            Box::new(RtkStyleAlgorithm),
+            Box::new(SaliencyRankAlgorithm),
+            Box::new(FlashrankAlgorithm),
+        ];
+        for algo in &algos {
+            for cat in algo.default_for() {
+                assert!(
+                    algo.handles(*cat),
+                    "{} claims default_for {:?} but doesn't handle it",
+                    algo.name(),
+                    cat
+                );
+            }
+        }
     }
 }

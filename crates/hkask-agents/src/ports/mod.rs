@@ -16,7 +16,10 @@ pub use acp::AcpPort;
 pub use audit_log::{AuditEntry, AuditOutcome};
 pub use git_cas::GitCasAdapter;
 pub use mcp_runtime::MCPRuntimePort;
-pub use memory_storage::{EpisodicStoragePort, RecallRequest, SemanticStoragePort, StorageRequest};
+pub use memory_storage::{
+    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
+    StorageRequest,
+};
 
 pub use registry_source::RegistrySourcePort;
 pub use standing_session::{MessageRecord, SessionRecord, StandingSessionPortError};

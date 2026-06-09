@@ -12,7 +12,7 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
-use hkask_agents::{RecallRequest, StorageRequest};
+use hkask_agents::{MemoryError, RecallRequest, StorageRequest};
 use hkask_types::Confidence;
 
 /// Create episodic memory router
@@ -119,17 +119,13 @@ async fn store_episode(
         .service_context
         .episodic_storage
         .store_episodic(request, &auth.token)
-        .map_err(|e| {
-            // Map OCAP denial to 403, storage errors to 500
-            if e.to_string().contains("denied") || e.to_string().contains("read-only") {
-                ApiError::Forbidden {
-                    reason: e.to_string(),
-                }
-            } else {
-                ApiError::Internal {
-                    message: e.to_string(),
-                }
-            }
+        .map_err(|e| match &e {
+            MemoryError::CapabilityDenied { resource, action } => ApiError::Forbidden {
+                reason: format!("Capability denied: {} on {}", action, resource),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
+            },
         })?;
 
     tracing::debug!(
@@ -181,52 +177,26 @@ async fn query_episodes(
         .service_context
         .episodic_storage
         .recall_episodic(&request)
-        .map_err(|e| {
-            if e.to_string().contains("denied") {
-                ApiError::Forbidden {
-                    reason: e.to_string(),
-                }
-            } else {
-                ApiError::Internal {
-                    message: e.to_string(),
-                }
-            }
+        .map_err(|e| match &e {
+            MemoryError::CapabilityDenied { resource, action } => ApiError::Forbidden {
+                reason: format!("Capability denied: {} on {}", action, resource),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
+            },
         })?;
 
     let episodes: Vec<EpisodeResponse> = results
         .into_iter()
-        .map(|v| EpisodeResponse {
-            id: v
-                .get("id")
-                .and_then(|i| i.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            entity: v
-                .get("entity")
-                .and_then(|e| e.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            attribute: v
-                .get("attribute")
-                .and_then(|a| a.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            value: v.get("value").cloned().unwrap_or(serde_json::Value::Null),
-            confidence: v.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.0),
-            perspective: v
-                .get("perspective")
-                .and_then(|p| p.as_str())
-                .map(|s| s.to_string()),
-            visibility: v
-                .get("visibility")
-                .and_then(|v| v.as_str())
-                .unwrap_or("private")
-                .to_string(),
-            valid_from: v
-                .get("valid_from")
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_string(),
+        .map(|ep| EpisodeResponse {
+            id: ep.id,
+            entity: ep.entity,
+            attribute: ep.attribute,
+            value: ep.value,
+            confidence: ep.confidence.value(),
+            perspective: ep.perspective.map(|p| p.to_string()),
+            visibility: ep.visibility.as_str().to_string(),
+            valid_from: ep.valid_from,
         })
         .collect();
 

@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use hkask_agents::ports::{
-    EpisodicStoragePort, RecallRequest, SemanticStoragePort, StorageRequest,
+    EpisodicStoragePort, RecallRequest, RecalledSemantic, SemanticStoragePort, StorageRequest,
 };
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
@@ -232,11 +232,7 @@ impl ChatService {
 
         let context: Vec<String> = triples
             .iter()
-            .filter_map(|t| {
-                t.get("value")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-            })
+            .filter_map(|t: &RecalledSemantic| t.value.as_str().map(|s| s.to_string()))
             .collect();
 
         if context.is_empty() {

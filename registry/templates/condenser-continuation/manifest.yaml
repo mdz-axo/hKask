@@ -1,0 +1,69 @@
+# Template crate manifest for condenser-continuation skill
+# ℏKask v0.23.0
+
+crate:
+  name: condenser-continuation
+  version: "0.23.0"
+  description: >
+    Continuation skill for resuming hKask condenser implementation work after
+    context reset. Restores session state, prioritizes remaining tasks,
+    verifies build status, and composes a structured continuation plan.
+    Inference-agnostic: works with Okapi, Ollama, or any hKask-supported
+    inference engine.
+
+templates:
+  - id: condenser-continuation/condenser-continuation-restore
+    path: condenser-continuation-restore.j2
+    type: KnowAct
+    lexicon_terms: [compact, distill, extract, classify, restore]
+    description: >
+      Distill session context into essential facts for condenser
+      continuation: what was done, what remains, key files, and decisions.
+      Inference-agnostic — does not depend on any specific LLM backend.
+
+  - id: condenser-continuation/condenser-continuation-prioritize
+    path: condenser-continuation-prioritize.j2
+    type: KnowAct
+    lexicon_terms: [prioritize, rank, classify, discriminate, recommend]
+    description: >
+      Rank remaining condenser tasks by priority (HIGH/MEDIUM/LOW),
+      identify blockers, and determine the immediate next action.
+      Considers inference engine availability and graceful degradation.
+
+  - id: condenser-continuation/condenser-continuation-verify
+    path: condenser-continuation-verify.j2
+    type: FlowDef
+    lexicon_terms: [verify, validate, check, test, regulate]
+    description: >
+      Dispatch verification commands (cargo check, build, clippy, MCP
+      handshake test) and collect results. Reports build health status.
+
+  - id: condenser-continuation/condenser-continuation-compose
+    path: condenser-continuation-compose.j2
+    type: WordAct
+    lexicon_terms: [compose, synthesize, structure, document, redact]
+    description: >
+      Assemble the final continuation document from restored context,
+      prioritized tasks, and verification results. Redacts sensitive
+      data and formats as structured markdown.
+
+hlexicon_terms:
+  - compact
+  - distill
+  - extract
+  - classify
+  - restore
+  - prioritize
+  - rank
+  - discriminate
+  - recommend
+  - verify
+  - validate
+  - check
+  - test
+  - regulate
+  - compose
+  - synthesize
+  - structure
+  - document
+  - redact

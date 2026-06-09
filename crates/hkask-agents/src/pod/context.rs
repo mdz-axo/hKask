@@ -24,7 +24,8 @@ use super::manager::PodManager;
 use super::types::PodID;
 use crate::SovereigntyChecker;
 use crate::ports::{
-    EpisodicStoragePort, MCPRuntimePort, RecallRequest, SemanticStoragePort, StorageRequest,
+    EpisodicStoragePort, MCPRuntimePort, RecallRequest, RecalledEpisode, RecalledSemantic,
+    SemanticStoragePort, StorageRequest,
 };
 
 /// PodContext — Runtime context for an active pod
@@ -188,7 +189,7 @@ impl PodContext {
     ///
     /// OCAP: Only the owning agent can read their own episodic triples.
     /// Returns only triples matching the agent's perspective.
-    pub fn recall_episodic(&self, query: &str) -> Result<Vec<serde_json::Value>, AgentPodError> {
+    pub fn recall_episodic(&self, query: &str) -> Result<Vec<RecalledEpisode>, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
             "episodic_memory",
@@ -293,7 +294,7 @@ impl PodContext {
     /// Recall semantic triples (shared, deduplicated knowledge).
     ///
     /// OCAP: Any agent with a valid capability token can read semantic triples.
-    pub fn recall_semantic(&self, query: &str) -> Result<Vec<serde_json::Value>, AgentPodError> {
+    pub fn recall_semantic(&self, query: &str) -> Result<Vec<RecalledSemantic>, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
             "semantic_memory",

@@ -10,7 +10,9 @@
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
 
-use hkask_types::{AccessControl, Confidence, DelegationToken, ExperienceClassification, WebID};
+use hkask_types::{
+    AccessControl, Confidence, DelegationToken, ExperienceClassification, Visibility, WebID,
+};
 use serde_json::Value;
 
 // ── Request value objects (P2.4/P1.5: eliminate data clumps) ───────────────
@@ -148,6 +150,62 @@ impl RecallRequest {
     }
 }
 
+/// Typed DTO for recalled episodic triples.
+///
+/// Replaces `Vec<serde_json::Value>` as the return type of
+/// `EpisodicStoragePort::recall_episodic`. Uses domain types
+/// (`Confidence`, `Visibility`, `WebID`) instead of raw strings
+/// so that callers get compile-time field safety rather than
+/// fragile `.get("field").and_then(|v| v.as_str())` destructuring.
+#[derive(Debug, Clone)]
+pub struct RecalledEpisode {
+    /// Triple ID (serialized string form).
+    pub id: String,
+    /// Entity (subject) of the triple.
+    pub entity: String,
+    /// Attribute (predicate/property) of the triple.
+    pub attribute: String,
+    /// Value (object) of the triple.
+    pub value: Value,
+    /// Confidence score (0.0–1.0).
+    pub confidence: Confidence,
+    /// Perspective (owning agent WebID) for episodic triples.
+    pub perspective: Option<WebID>,
+    /// Visibility level (Private, Shared, Public).
+    pub visibility: Visibility,
+    /// Timestamp when the triple became valid (RFC 3339).
+    pub valid_from: String,
+}
+
+/// Typed DTO for recalled semantic triples.
+///
+/// Replaces `Vec<serde_json::Value>` as the return type of
+/// `SemanticStoragePort::recall_semantic`. Uses domain types
+/// (`Confidence`, `Visibility`) instead of raw strings so that
+/// callers get compile-time field safety rather than fragile
+/// `.get("field").and_then(|v| v.as_str())` destructuring.
+///
+/// Semantic triples are perspective-free (consolidated from
+/// episodic, shared/public knowledge), so this struct omits
+/// the `perspective` field that `RecalledEpisode` carries.
+#[derive(Debug, Clone)]
+pub struct RecalledSemantic {
+    /// Triple ID (serialized string form).
+    pub id: String,
+    /// Entity (subject) of the triple.
+    pub entity: String,
+    /// Attribute (predicate/property) of the triple.
+    pub attribute: String,
+    /// Value (object) of the triple.
+    pub value: Value,
+    /// Confidence score (0.0–1.0).
+    pub confidence: Confidence,
+    /// Visibility level (Private, Shared, Public).
+    pub visibility: Visibility,
+    /// Timestamp when the triple became valid (RFC 3339).
+    pub valid_from: String,
+}
+
 // Episodic Storage Port — Private, agent-scoped memory
 
 /// Port trait for episodic memory storage operations.
@@ -178,7 +236,7 @@ pub trait EpisodicStoragePort: Send + Sync {
     fn recall_episodic(
         &self,
         request: &RecallRequest,
-    ) -> Result<Vec<Value>, crate::error::MemoryError>;
+    ) -> Result<Vec<RecalledEpisode>, crate::error::MemoryError>;
 
     /// Check episodic storage budget for an agent.
     ///
@@ -245,7 +303,7 @@ pub trait SemanticStoragePort: Send + Sync {
     fn recall_semantic(
         &self,
         request: &RecallRequest,
-    ) -> Result<Vec<Value>, crate::error::MemoryError>;
+    ) -> Result<Vec<RecalledSemantic>, crate::error::MemoryError>;
 
     /// Check semantic storage usage for an entity.
     ///

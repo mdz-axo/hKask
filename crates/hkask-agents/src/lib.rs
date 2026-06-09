@@ -47,7 +47,8 @@ pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
 pub use pod::{AgentPersona, PodID, PodManager, PodStatus};
 pub use ports::{
-    AcpPort, EpisodicStoragePort, GitCasAdapter, RecallRequest, SemanticStoragePort, StorageRequest,
+    AcpPort, EpisodicStoragePort, GitCasAdapter, RecallRequest, RecalledEpisode, RecalledSemantic,
+    SemanticStoragePort, StorageRequest,
 };
 pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;

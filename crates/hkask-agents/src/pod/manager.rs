@@ -15,7 +15,7 @@ use super::{AgentPod, AgentPodError, AgentPodResult};
 use crate::MemoryError;
 use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
 use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
-use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, MCPRuntimePort, RecalledEpisode, SemanticStoragePort};
 use hkask_mcp::GitCasAdapter;
 
 /// Pod Manager — Manages collection of agent pods
@@ -170,39 +170,37 @@ impl PodManager {
     /// Uses a `CapabilityOnlyAdapter` (no live MCP runtime) so that
     /// capability verification works but tool invocation returns
     /// `McpError::NoRuntime`.
+    ///
+    /// Uses a deterministic test ACP secret so the mock is self-contained
+    /// and does not require `HKASK_ACP_SECRET_KEY` or `HKASK_MASTER_KEY`.
+    /// The AcpRuntime and CapabilityChecker share the same secret so tokens
+    /// signed by the runtime are verifiable by the checker.
     pub fn new_mock() -> Self {
+        // Test-only ACP secret. Never use in production.
+        // 32 bytes for HMAC-SHA256 compatibility.
+        const MOCK_ACP_SECRET: &[u8] = b"hkask-mock-acp-secret-32-bytes!!";
+
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let episodic_storage: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let semantic_storage: Arc<dyn SemanticStoragePort> = adapter.clone();
 
-        // Resolve ACP secret using the same chain as AcpRuntime::default()
-        // so the CapabilityChecker can verify tokens signed by the ACP runtime.
-        let capability_checker = resolve_acp_secret_for_checker().map(Arc::new);
+        let acp_runtime = Arc::new(crate::acp::AcpRuntime::new(MOCK_ACP_SECRET));
+        let capability_checker = Arc::new(CapabilityChecker::new(MOCK_ACP_SECRET));
 
         // Use CapabilityOnlyAdapter (no live MCP runtime) for the MCP port.
-        // If we have a capability checker, wire it into the adapter so
-        // grant_tool_access works; otherwise fall back to a minimal checker
-        // that will always deny (the PodManager-level checker is set below).
-        let mcp_runtime: Arc<dyn MCPRuntimePort> = match &capability_checker {
-            Some(checker) => Arc::new(CapabilityOnlyAdapter::new(Arc::clone(checker))),
-            None => {
-                // No ACP secret available — use a placeholder checker that
-                // will always return NoChecker. This matches the old
-                // McpRuntimeAdapter::new() behaviour.
-                let checker = Arc::new(CapabilityChecker::new(&[]));
-                Arc::new(CapabilityOnlyAdapter::new(checker))
-            }
-        };
+        // Wired with the same test secret so grant_tool_access works.
+        let mcp_runtime: Arc<dyn MCPRuntimePort> =
+            Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&capability_checker)));
 
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
-            acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
+            acp_runtime,
             mcp_runtime,
             episodic_storage,
             semantic_storage,
             inference_port: None,
-            capability_checker,
+            capability_checker: Some(capability_checker),
             governed_tool: None,
             nu_event_sink: None,
             consent: Arc::new(crate::DenyAllConsent),
@@ -576,10 +574,7 @@ impl PodManager {
     }
 
     /// Recall lifecycle events for a pod
-    pub async fn recall_pod_events(
-        &self,
-        pod_id: &PodID,
-    ) -> AgentPodResult<Vec<serde_json::Value>> {
+    pub async fn recall_pod_events(&self, pod_id: &PodID) -> AgentPodResult<Vec<RecalledEpisode>> {
         let pods = self.pods.read().await;
         let pod = pods
             .get(pod_id)
