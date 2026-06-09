@@ -17,9 +17,9 @@ tools:
     inputs:
       - text: string (required)
       - entity_ref_prefix: string (required)
-      - max_tokens: integer (default: 512)
-      - overlap_tokens: integer (default: 64)
-      - strip_gutenberg: boolean (default: false)
+      - max_tokens: "integer (default: 512)"
+      - overlap_tokens: "integer (default: 64)"
+      - strip_gutenberg: "boolean (default: false)"
 
   - name: doc_knowledge_detect_format
     description: Detect document format from path/extension
@@ -42,17 +42,17 @@ tools:
     description: Parse document into IR with multi-tier chunking (coarse/medium/fine)
     inputs:
       - path: string (required)
-      - coarse_max_tokens: integer (default: 2048)
-      - medium_max_tokens: integer (default: 512)
-      - fine_max_tokens: integer (default: 128)
+      - coarse_max_tokens: "integer (default: 2048)"
+      - medium_max_tokens: "integer (default: 512)"
+      - fine_max_tokens: "integer (default: 128)"
 
   - name: doc_knowledge_generate_qa
     description: Generate QA pairs from text chunk (returns structured prompt for routing through inference engine)
     inputs:
       - text: string (required)
       - chunk_id: string (required)
-      - strategy: string (default: "default")
-      - bloom_levels: array[string] (default: ["factual", "conceptual"])
+      - strategy: 'string (default: "default")'
+      - bloom_levels: 'array[string] (default: ["factual", "conceptual"])'
 
   - name: doc_knowledge_store_qa
     description: Store QA items with provenance (requires semantic memory credentials)

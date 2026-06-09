@@ -59,7 +59,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-storage
+    mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 500
     timeout_seconds: 10
     cns_spans:

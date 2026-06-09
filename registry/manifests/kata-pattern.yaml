@@ -201,7 +201,7 @@ steps:
     renderer: null
     template_ref: null
     target: execute_kata_switch
-    mcp: hkask-mcp-templates
+    mcp: null  # internal SqliteRegistry was hkask-mcp-templates
     tool: kata_switch
     token_cap: 5000
     timeout_seconds: 20
@@ -239,7 +239,7 @@ steps:
     renderer: null
     template_ref: null
     target: execute_kata_iteration
-    mcp: hkask-mcp-templates
+    mcp: null  # internal SqliteRegistry was hkask-mcp-templates
     tool: kata_iteration
     token_cap: 50000
     timeout_seconds: 90

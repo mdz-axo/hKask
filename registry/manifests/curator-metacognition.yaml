@@ -37,7 +37,7 @@ steps:
     renderer: minijinja
     template_ref: curator/system_state_gather.j2
     model_tier: fast_local
-    mcp: hkask-mcp-storage
+    mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:

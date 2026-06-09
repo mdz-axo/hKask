@@ -1,13 +1,13 @@
 # GML Allosteric Reasoning Cascade
-
-**Type:** FlowDef
-**Version:** 0.1.0
+#
+# Type: FlowDef
+# Version: 0.1.0
 
 ---
 
 ## Process Definition
 
-```yaml
+# ```yaml
 process:
   name: "allosteric-reframing"
   type: FlowDef
@@ -92,40 +92,40 @@ process:
     - name: reframed_concept
       type: Concept
       description: "Concept with alternative interpretation frames"
-```
+# ```
 
 ---
 
 ## Template Inventory
 
-| Template | Purpose | KnowAct Operations |
-|----------|---------|-------------------|
-| `gml/recognize-ensemble.j2` | Parse concept into states and ports | recognize, discriminate, parse |
-| `gml/bind-effector.j2` | Apply effector, infer state-shift | analogy, infer, bind |
-| `gml/compute-equilibrium.j2` | Calculate R̄, n_H, distribution | calculate, compare |
-| `gml/assess-coherence.j2` | Evaluate network homeostasis | evaluate, reflect, calibrate |
-| `gml/reframe-concept.j2` | Generate alternative frames | abduct, generate, synthesize |
+# | Template | Purpose | KnowAct Operations |
+# |----------|---------|-------------------|
+# | `gml/recognize-ensemble.j2` | Parse concept into states and ports | recognize, discriminate, parse |
+# | `gml/bind-effector.j2` | Apply effector, infer state-shift | analogy, infer, bind |
+# | `gml/compute-equilibrium.j2` | Calculate R̄, n_H, distribution | calculate, compare |
+# | `gml/assess-coherence.j2` | Evaluate network homeostasis | evaluate, reflect, calibrate |
+# | `gml/reframe-concept.j2` | Generate alternative frames | abduct, generate, synthesize |
 
 ---
 
 ## CNS Integration
 
-**Spans:**
-- `cns.gml.recognize`
-- `cns.gml.bind`
-- `cns.gml.equilibrate`
-- `cns.gml.assess`
-- `cns.gml.reframe`
+# **Spans:**
+# - `cns.gml.recognize`
+# - `cns.gml.bind`
+# - `cns.gml.equilibrate`
+# - `cns.gml.assess`
+# - `cns.gml.reframe`
 
-**Algedonic Alert:**
-- Trigger: variety_deficit > 100
-- Channel: `cns.algedonic.variety_deficit`
+# **Algedonic Alert:**
+# - Trigger: variety_deficit > 100
+# - Channel: `cns.algedonic.variety_deficit`
 
 ---
 
 ## Usage Example
 
-```yaml
+# ```yaml
 # Example invocation
 target_concept:
   name: "Freedom"
@@ -151,8 +151,8 @@ contextual_effectors:
     concentration: 10.0
     effect_type: "Activator"
     shape: "SecurityThreat"
-```
+# ```
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — GML v0.1.0*
+# *ℏKask - A Minimal Viable Container for Agents — GML v0.1.0*

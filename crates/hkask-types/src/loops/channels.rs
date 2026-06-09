@@ -67,11 +67,10 @@ pub struct GoalTransitionEvent {
 
 // ── Curation input enum — what CurationLoop reads from its inbox ─────────────
 
-/// Messages CurationLoop receives from multiple producers.
+/// Messages CurationLoop receives from multiple producers via a single channel.
 ///
-/// Multiple producers send into separate channels drained by Curation's
-/// sense phase. This enum describes the message set but each variant
-/// currently arrives on its own dedicated `mpsc` channel.
+/// Cybernetics sends `Alert`, SpecCurator sends `SpecDrift`, GoalStore sends
+/// `GoalTransition`. All flow through one `mpsc::Sender<CurationInput>` channel.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CurationInput {
     /// Algedonic alert from Cybernetics (variety deficit escalation)

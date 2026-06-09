@@ -26,8 +26,7 @@ use crate::curator::context::CuratorContext;
 use crate::curator::curation_gate::CurationConfidenceGate;
 use crate::curator::curation_loop::CurationLoop;
 use hkask_memory::ConsolidationBridge;
-use hkask_types::loops::RuntimeAlert;
-use hkask_types::loops::SpecEvent;
+use hkask_types::loops::CurationInput;
 use std::sync::Arc;
 
 /// Curator Agent — the persona layer of Curation (Loop 5).
@@ -105,16 +104,14 @@ impl CuratorAgent {
     /// When episodic budget pressure triggers escalation, the consolidation
     /// bridge will fire to migrate episodic triples into semantic memory.
     ///
-    /// `alerts_rx` — direct channel from Cybernetics (RuntimeAlerts).
-    /// `spec_rx` — direct channel from SpecCurator (SpecEvents).
-    /// `spec_tx` — wires the SpecCurator to send SpecEvents.
+    /// `inbox_rx` — unified CurationInput channel from Cybernetics + SpecCurator.
+    /// `inbox_tx` — transmits CurationInput to the same channel (for SpecCurator).
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
         consolidation: Arc<ConsolidationBridge>,
-        alerts_rx: Option<tokio::sync::mpsc::UnboundedReceiver<RuntimeAlert>>,
-        spec_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SpecEvent>>,
-        spec_tx: Option<tokio::sync::mpsc::UnboundedSender<SpecEvent>>,
+        inbox_rx: Option<tokio::sync::mpsc::UnboundedReceiver<CurationInput>>,
+        inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
     ) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),
@@ -124,15 +121,12 @@ impl CuratorAgent {
         let mut curation_loop =
             CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation)
                 .with_confidence_gate(CurationConfidenceGate::new(vec![]));
-        if let Some(rx) = alerts_rx {
-            curation_loop = curation_loop.with_alerts_channel(rx);
-        }
-        if let Some(rx) = spec_rx {
-            curation_loop = curation_loop.with_spec_channel(rx);
+        if let Some(rx) = inbox_rx {
+            curation_loop = curation_loop.with_inbox(rx);
         }
         let curation_loop = Arc::new(curation_loop);
         let mut spec_curator = spec_curator::DefaultSpecCurator::default();
-        if let Some(tx) = spec_tx {
+        if let Some(tx) = inbox_tx {
             spec_curator = spec_curator.with_spec_channel(tx);
         }
 

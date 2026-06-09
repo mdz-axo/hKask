@@ -25,4 +25,4 @@ steps:
     action: execute
     description: Execute memory retrieval via storage MCP
     template_ref: ""
-    mcp: hkask-mcp-storage
+    mcp: hkask-mcp-memory  # was hkask-mcp-storage

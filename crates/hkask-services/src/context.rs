@@ -47,7 +47,7 @@ use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
-use hkask_types::loops::{CuratorDirective, RuntimeAlert, SpecEvent, ToolConsumptionEvent};
+use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 
 use crate::ServiceConfig;
@@ -285,14 +285,14 @@ impl ServiceContext {
         let loop_system = Arc::new(LoopSystem::new());
 
         // Direct alerts channel: Cybernetics → Curation.
-        let (alerts_tx, alerts_rx) = tokio::sync::mpsc::unbounded_channel::<RuntimeAlert>();
+        // Shared channel for CurationInput — Cybernetics sends Alert,
+        // SpecCurator sends SpecDrift, GoalStore sends GoalTransition.
+        let (curation_inbox_tx, curation_inbox_rx) =
+            tokio::sync::mpsc::unbounded_channel::<CurationInput>();
 
         // Direct tool consumption channel: GovernedTool → Cybernetics.
         let (tool_consumption_tx, tool_consumption_rx) =
             tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
-
-        // Direct spec channel: SpecCurator → Curation.
-        let (spec_tx, spec_rx) = tokio::sync::mpsc::unbounded_channel::<SpecEvent>();
 
         // Direct curator directive channel: Curation → Cybernetics.
         let (curator_directive_tx, curator_directive_rx) =
@@ -303,7 +303,7 @@ impl ServiceContext {
         let cybernetics_loop =
             CyberneticsLoop::with_set_points(Arc::clone(&cns_runtime), set_points)
                 .with_event_sink(Arc::clone(&cns_event_sink))
-                .with_alerts_channel(alerts_tx)
+                .with_alerts_channel(curation_inbox_tx.clone())
                 .with_tool_consumption_channel(tool_consumption_rx)
                 .with_curator_directive_channel(curator_directive_rx);
         let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
@@ -407,9 +407,8 @@ impl ServiceContext {
             curator_context,
             Default::default(),
             Arc::clone(&consolidation_bridge),
-            Some(alerts_rx),
-            Some(spec_rx),
-            Some(spec_tx),
+            Some(curation_inbox_rx),
+            Some(curation_inbox_tx),
         );
         let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
         loop_system.register_loop(curation_loop).await;

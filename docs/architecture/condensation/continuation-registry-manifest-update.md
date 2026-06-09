@@ -1,6 +1,13 @@
 # Condensation Continuation — Registry Manifest Inference Reference Update
 
-**Status:** Pending. ~90 registry manifest YAML files still reference `hkask-mcp-inference` for LLM invocation steps. Inference is now internal (via `InferencePort` trait). These manifests need to be updated to reflect the new dispatch path.
+**Status:** Complete (2026-06-09). All stale MCP server references in registry manifests updated:
+- `hkask-cns` (14 refs) → `null  # CNS is ambient (CnsRuntime)`
+- `hkask-mcp-storage` (14 refs) → `hkask-mcp-memory`
+- `hkask-mcp-templates` (3 refs) → `null  # internal SqliteRegistry`
+- `hkask-mcp-git` (1 ref) → `null  # internal GitCASPort`
+- `hkask-mcp-scholar` (1 ref) → `null  # was hkask-mcp-scholar (never existed)`
+
+Zero references to `hkask-mcp-inference` were found — the manifests use `action: select`/`populate` which go through `InferencePort` directly, not MCP dispatch.
 
 ---
 

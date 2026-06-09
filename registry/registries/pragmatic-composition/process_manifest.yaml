@@ -45,7 +45,7 @@ steps:
     renderer: none
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-storage
+    mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 100
     timeout_seconds: 5
     validation_rules:
@@ -108,7 +108,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-cns
+    mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 200
     timeout_seconds: 5
     feedback:

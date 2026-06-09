@@ -59,7 +59,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-cns
+    mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

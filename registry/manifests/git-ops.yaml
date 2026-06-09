@@ -34,7 +34,7 @@ steps:
   - ordinal: 3
     action: execute
     target: git_operation
-    mcp: hkask-mcp-git
+    mcp: null  # internal GitCASPort was hkask-mcp-git
     tool: "${operation}"
     output_schema:
       type: object
