@@ -297,7 +297,6 @@ impl DelegationTokenBuilder {
             caveats: Vec::new(),
         }
     }
-
     pub fn expires_at(mut self, ts: i64) -> Self {
         self.expires_at = Some(ts);
         self
@@ -315,7 +314,6 @@ impl DelegationTokenBuilder {
         self.caveats.push(c);
         self
     }
-
     pub fn sign(self, secret: &[u8]) -> DelegationToken {
         let id = DelegationToken::generate_id(
             &self.resource,
@@ -337,7 +335,6 @@ impl DelegationTokenBuilder {
         let context_nonce = self
             .context_nonce
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-
         DelegationToken {
             id: payload.id,
             resource: payload.resource,
@@ -543,7 +540,6 @@ impl DelegationToken {
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
     }
-    /// CRDT fingerprint for merge operations.
     pub fn fingerprint(&self) -> String {
         format!(
             "{}:{}:{}:{}:{}:{}",
@@ -561,7 +557,6 @@ impl DelegationToken {
     pub fn allows_read(&self) -> bool {
         self.action.permits_read()
     }
-    /// Check CRDT merge compatibility: same resource, action, and delegated_to.
     pub fn is_compatible_with(&self, other: &DelegationToken) -> bool {
         self.resource == other.resource
             && self.resource_id == other.resource_id

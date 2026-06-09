@@ -443,23 +443,18 @@ pub trait SkillRegistryIndex {
     fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill>;
     fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill>;
     fn remove_skill(&mut self, id: &str) -> Option<Skill>;
-
-    /// List skills visible to a given caller visibility context.
-    ///
-    /// P2 (Affirmative Consent) enforcement: default-deny access.
-    /// - A private context (user's local session) sees all skills.
-    /// - A public/shared context (A2A, ensemble) sees only Public or Shared skills.
+    /// P2 (Affirmative Consent): default-deny access. Private context sees all skills. Public/Shared sees only Public or Shared.
     fn list_skills_visible_to(
         &self,
         caller_visibility: crate::visibility::Visibility,
     ) -> Vec<Skill> {
         match caller_visibility {
             crate::visibility::Visibility::Private => self.list_skills(),
-            crate::visibility::Visibility::Public | crate::visibility::Visibility::Shared => {
-                let public = self.list_skills_by_visibility(crate::visibility::Visibility::Public);
-                let shared = self.list_skills_by_visibility(crate::visibility::Visibility::Shared);
-                let mut result = public;
-                result.extend(shared);
+            _ => {
+                let mut result =
+                    self.list_skills_by_visibility(crate::visibility::Visibility::Public);
+                result
+                    .extend(self.list_skills_by_visibility(crate::visibility::Visibility::Shared));
                 result
             }
         }

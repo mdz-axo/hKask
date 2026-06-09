@@ -145,24 +145,13 @@ impl CurationLoop {
                 Ok(Some(cursor_ms)) => {
                     self.last_review_ms
                         .store(cursor_ms as u64, Ordering::Relaxed);
-                    tracing::info!(
-                        target: CUR_TARGET,
-                        cursor_ms = cursor_ms,
-                        "Restored curation review cursor from persistence"
-                    );
+                    tracing::info!(target: CUR_TARGET, cursor_ms = cursor_ms, "Restored curation review cursor from persistence");
                 }
                 Ok(None) => {
-                    tracing::info!(
-                        target: CUR_TARGET,
-                        "No persisted cursor found — starting from epoch"
-                    );
+                    tracing::info!(target: CUR_TARGET, "No persisted cursor found — starting from epoch")
                 }
                 Err(e) => {
-                    tracing::warn!(
-                        target: CUR_TARGET,
-                        error = %e,
-                        "Failed to load persisted curation cursor — starting from epoch"
-                    );
+                    tracing::warn!(target: CUR_TARGET, error = %e, "Failed to load persisted curation cursor — starting from epoch")
                 }
             }
         }
@@ -226,37 +215,20 @@ impl HkaskLoop for CurationLoop {
             match store.query_algedonic(since, 1000) {
                 Ok(events) => {
                     let count = events.len() as u64;
-                    // Advance cursor to latest event timestamp
                     if let Some(latest) = events.last() {
                         let new_cursor = latest.timestamp.timestamp_millis() as u64;
                         self.last_review_ms.store(new_cursor, Ordering::Relaxed);
-
-                        // Persist cursor for crash recovery
                         if let Err(e) =
                             store.persist_cursor("curation_last_review_ms", new_cursor as i64)
                         {
-                            tracing::warn!(
-                                target: CUR_TARGET,
-                                error = %e,
-                                "Failed to persist curation review cursor"
-                            );
+                            tracing::warn!(target: CUR_TARGET, error = %e, "Failed to persist curation review cursor");
                         }
                     }
-                    tracing::info!(
-                        target: CUR_TARGET,
-                        since = %since.to_rfc3339(),
-                        event_count = count,
-                        "Curation read algedonic events from NuEvent store"
-                    );
+                    tracing::info!(target: CUR_TARGET, since = %since.to_rfc3339(), event_count = count, "Curation read algedonic events from NuEvent store");
                     count
                 }
                 Err(e) => {
-                    tracing::warn!(
-                        target: CUR_TARGET,
-                        error = %e,
-                        "Failed to query NuEvent store, falling back to live CNS reads"
-                    );
-                    // Fallback: count critical alerts from live CNS
+                    tracing::warn!(target: CUR_TARGET, error = %e, "Failed to query NuEvent store, falling back to live CNS reads");
                     self.context.cns().critical_alerts().await.len() as u64
                 }
             }
@@ -279,9 +251,6 @@ impl HkaskLoop for CurationLoop {
             .unwrap_or(0);
 
         // Drain inbox for GoalTransition and SpecDriftAlert messages.
-        // GoalStore emits GoalTransition NuEvents → Communication Loop delivers
-        // them to Curation's inbox. Count stale/expired transitions for sensing.
-        // DefaultSpecCurator emits SpecDriftAlert when drift exceeds threshold.
         let mut goal_stale_count: u64 = 0;
         let mut goal_expired_count: u64 = 0;
         let mut spec_drift_alert_count: u64 = 0;
@@ -290,58 +259,30 @@ impl HkaskLoop for CurationLoop {
             while let Ok(msg) = rx.try_recv() {
                 match &msg.payload {
                     LoopPayload::GoalTransition {
-                        goal_id,
-                        from_state: _,
-                        to_state,
-                        agent: _,
+                        goal_id, to_state, ..
                     } => match to_state.as_str() {
                         "stale" => {
                             goal_stale_count += 1;
-                            tracing::debug!(
-                                target: CUR_TARGET,
-                                goal_id = %goal_id,
-                                to_state = %to_state,
-                                "Goal stale transition received"
-                            );
+                            tracing::debug!(target: CUR_TARGET, goal_id = %goal_id, to_state = %to_state, "Goal stale transition received");
                         }
                         "expired" => {
                             goal_expired_count += 1;
-                            tracing::debug!(
-                                target: CUR_TARGET,
-                                goal_id = %goal_id,
-                                to_state = %to_state,
-                                "Goal expired transition received"
-                            );
+                            tracing::debug!(target: CUR_TARGET, goal_id = %goal_id, to_state = %to_state, "Goal expired transition received");
                         }
                         _ => {
-                            tracing::trace!(
-                                target: CUR_TARGET,
-                                goal_id = %goal_id,
-                                to_state = %to_state,
-                                "Goal transition received (non-stale)"
-                            );
+                            tracing::trace!(target: CUR_TARGET, goal_id = %goal_id, to_state = %to_state, "Goal transition received (non-stale)")
                         }
                     },
                     LoopPayload::SpecDriftAlert {
                         spec_id,
                         drift_magnitude,
-                        drift_threshold: _,
-                        missing_verbs: _,
+                        ..
                     } => {
                         spec_drift_alert_count += 1;
-                        tracing::warn!(
-                            target: CUR_TARGET,
-                            spec_id = %spec_id,
-                            drift_magnitude = drift_magnitude,
-                            "Spec drift alert received from DefaultSpecCurator"
-                        );
+                        tracing::warn!(target: CUR_TARGET, spec_id = %spec_id, drift_magnitude = drift_magnitude, "Spec drift alert received from DefaultSpecCurator");
                     }
                     _ => {
-                        tracing::trace!(
-                            target: CUR_TARGET,
-                            payload_type = ?msg.payload,
-                            "Ignoring non-curation payload in CurationLoop inbox"
-                        );
+                        tracing::trace!(target: CUR_TARGET, payload_type = ?msg.payload, "Ignoring non-curation payload in CurationLoop inbox")
                     }
                 }
             }

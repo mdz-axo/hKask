@@ -187,11 +187,7 @@ impl OkapiInference {
                     last_error = Some(e);
                     if attempt < self.retry_config.max_retries {
                         let delay_ms = self.retry_config.delay_for_attempt(attempt);
-                        warn!(
-                            target: "hkask.inference",
-                            %attempt, %delay_ms, error = ?last_error,
-                            "Retryable error, waiting"
-                        );
+                        warn!(target: "hkask.inference", %attempt, %delay_ms, error = ?last_error, "Retryable error, waiting");
                         tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                     }
                 }
@@ -215,21 +211,20 @@ impl InferencePort for OkapiInference {
         let parameters = parameters.clone();
         Box::pin(async move {
             validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
-
-            let request = build_request(&self.model, &prompt, None, &parameters, None, Some(5));
-            let result = self.execute_with_retry(request).await?;
-
-            info!(
-                target: "hkask.inference",
-                model = %result.model,
-                tokens = result.usage.total_tokens,
-                finish_reason = %result.finish_reason,
-                "Inference completed"
-            );
+            let result = self
+                .execute_with_retry(build_request(
+                    &self.model,
+                    &prompt,
+                    None,
+                    &parameters,
+                    None,
+                    Some(5),
+                ))
+                .await?;
+            info!(target: "hkask.inference", model = %result.model, tokens = result.usage.total_tokens, finish_reason = %result.finish_reason, "Inference completed");
             Ok(result)
         })
     }
-
     fn generate_stream(
         &self,
         prompt: &str,
@@ -243,7 +238,6 @@ impl InferencePort for OkapiInference {
     > {
         self.generate_stream_with_model(prompt, parameters, None)
     }
-
     fn generate_with_model(
         &self,
         prompt: &str,
@@ -258,15 +252,17 @@ impl InferencePort for OkapiInference {
         Box::pin(async move {
             validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
             let model_id = model_override.unwrap_or_else(|| self.model.clone());
-            let request = build_request(&model_id, &prompt, None, &parameters, None, Some(5));
-            let result = self.execute_with_retry(request).await?;
-            info!(
-                target: "hkask.inference",
-                model = %result.model,
-                tokens = result.usage.total_tokens,
-                finish_reason = %result.finish_reason,
-                "Inference with model completed"
-            );
+            let result = self
+                .execute_with_retry(build_request(
+                    &model_id,
+                    &prompt,
+                    None,
+                    &parameters,
+                    None,
+                    Some(5),
+                ))
+                .await?;
+            info!(target: "hkask.inference", model = %result.model, tokens = result.usage.total_tokens, finish_reason = %result.finish_reason, "Inference with model completed");
             Ok(result)
         })
     }

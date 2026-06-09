@@ -569,45 +569,24 @@ impl HkaskLoop for MetacognitionLoop {
     /// Compute: map deviations to regulatory actions.
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
-
         for dev in deviations {
             match dev.signal.metric {
                 SignalMetric::MetacognitionVarietyDeficit
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let deficit = dev.signal.value as u64;
-                    let new_threshold =
-                        deficit.saturating_add(self.config.thresholds.variety_deficit);
-                    actions.push(LoopAction::new(
-                        LoopId::Curation,
-                        ActionType::Calibrate,
-                        serde_json::json!({
-                            "domain": "variety",
-                            "deficit": deficit,
-                            "threshold": dev.signal.set_point as u64,
-                            "new_threshold": new_threshold,
-                        }),
-                    ));
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Calibrate, serde_json::json!({"domain": "variety", "deficit": deficit, "threshold": dev.signal.set_point as u64, "new_threshold": deficit.saturating_add(self.config.thresholds.variety_deficit)})));
                 }
                 SignalMetric::MetacognitionCriticalAlerts
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let count = dev.signal.value as u64;
-                    actions.push(LoopAction::new(
-                        LoopId::Curation,
-                        ActionType::Escalate,
-                        serde_json::json!({
-                            "metric": "critical_alerts",
-                            "count": count,
-                            "threshold": self.config.thresholds.critical_alerts,
-                        }),
-                    ));
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "critical_alerts", "count": count, "threshold": self.config.thresholds.critical_alerts})));
                 }
                 SignalMetric::MetacognitionBotFailures
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let count = dev.signal.value as u64;
-                    // Retrieve bot names from the stored snapshot
                     let bot_names: Vec<String> = self
                         .last_snapshot_tx
                         .borrow()
@@ -620,21 +599,11 @@ impl HkaskLoop for MetacognitionLoop {
                                 .collect()
                         })
                         .unwrap_or_default();
-                    actions.push(LoopAction::new(
-                        LoopId::Curation,
-                        ActionType::Escalate,
-                        serde_json::json!({
-                            "metric": "bot_failures",
-                            "failed_count": count,
-                            "threshold": self.config.thresholds.bot_failures,
-                            "bot_names": bot_names,
-                        }),
-                    ));
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "bot_failures", "failed_count": count, "threshold": self.config.thresholds.bot_failures, "bot_names": bot_names})));
                 }
-                _ => {} // BelowSetPoint deviations are in the desired direction
+                _ => {}
             }
         }
-
         actions
     }
 
@@ -658,19 +627,12 @@ impl HkaskLoop for MetacognitionLoop {
             }
         }
 
-        // Write escalations: batch if concurrent count meets/exceeds threshold,
-        // otherwise write individually.
+        // Write escalations: batch if concurrent count meets/exceeds threshold, otherwise write individually.
         let threshold = self.config.max_concurrent_escalations;
         if escalation_entries.len() >= threshold {
             let batch = EscalationBatch::new(escalation_entries, "consolidated", threshold);
             let summary = batch.summary();
-            info!(
-                target: MC_TARGET,
-                batch_id = %batch.id,
-                entry_count = batch.entries.len(),
-                threshold,
-                "Consolidating escalations into batch"
-            );
+            info!(target: MC_TARGET, batch_id = %batch.id, entry_count = batch.entries.len(), threshold, "Consolidating escalations into batch");
             if let Err(e) = self.context.escalation_queue().add(
                 hkask_types::TemplateID::new(),
                 BotID::new(),
@@ -683,11 +645,7 @@ impl HkaskLoop for MetacognitionLoop {
                 0,
                 format!("Consolidated batch: {} escalation(s)", batch.entries.len()),
             ) {
-                warn!(
-                    target: MC_TARGET,
-                    error = %e,
-                    "Failed to add consolidated escalation batch"
-                );
+                warn!(target: MC_TARGET, error = %e, "Failed to add consolidated escalation batch");
             }
         } else {
             for entry in escalation_entries {
@@ -699,11 +657,7 @@ impl HkaskLoop for MetacognitionLoop {
                     entry.retry_count,
                     entry.error_context,
                 ) {
-                    warn!(
-                        target: MC_TARGET,
-                        error = %e,
-                        "Failed to add escalation"
-                    );
+                    warn!(target: MC_TARGET, error = %e, "Failed to add escalation");
                 }
             }
         }

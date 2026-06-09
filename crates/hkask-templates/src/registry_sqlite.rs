@@ -47,12 +47,14 @@ fn query_column(conn: &Connection, sql: &str, id: &str) -> Result<Vec<String>> {
     let db_err = |ctx: &str, e| {
         TemplateError::Database(InfrastructureError::Database(format!("{ctx}: {e}")))
     };
-    conn.prepare(sql)
+    let results: Vec<String> = conn
+        .prepare(sql)
         .map_err(|e| db_err("Prepare", e))?
-        .query_map(params![id], |row| row.get(0))
+        .query_map(params![id], |row| row.get::<_, String>(0))
         .map_err(|e| db_err("Query", e))?
         .filter_map(|r| r.ok())
-        .collect()
+        .collect();
+    Ok(results)
 }
 
 // ── SqliteRegistry ─────────────────────────────────────────────────────────

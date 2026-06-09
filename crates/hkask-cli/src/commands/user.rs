@@ -246,7 +246,7 @@ pub fn login_replicant() {
         match store.lock().unwrap().login(name.trim(), &passphrase.trim()) {
             Ok(session) => {
                 println!("  ✓ Logged in as {}", identity.replicant_name);
-                println!("  Session: {}", session.id);
+                println!("  Session: {}", session.session_id);
             }
             Err(_) => eprintln!("  ✗ Login failed"),
         }
@@ -276,11 +276,12 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), UserErr
 }
 
 pub fn list_replicants(store: &Store) -> Result<(), UserError> {
+    let user_id = hkask_types::UserID::new();
     let replicants = store
         .lock()
         .unwrap()
-        .list_all_replicants()
-        .map_err(|e| UserError::from(hkask_services::ServiceError::from(e)))?;
+        .list_replicants(user_id)
+        .map_err(Into::into)?;
     if replicants.is_empty() {
         println!("No replicants registered.");
         return Ok(());
@@ -310,7 +311,7 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), UserError> {
             )))
         })?;
     store.lock().unwrap().logout(session_id)?;
-    println!("Session revoked: {}", session.id);
+    println!("Session revoked: {}", session.session_id);
     Ok(())
 }
 
@@ -325,8 +326,7 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), UserErro
         let last_active = chrono::DateTime::from_timestamp(s.last_active, 0)
             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
             .unwrap_or_default();
-        println!("  Session: {}", s.id);
-        println!("     Created: {}", s.created_at);
+        println!("  Session: {}", s.session_id);
         println!("     Last active: {}", last_active);
     }
     Ok(())
@@ -335,12 +335,12 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), UserErro
 pub fn run_replicant(action: crate::cli::ReplicantAction) {
     match action {
         ReplicantAction::Register { .. } => register_replicant(),
-        ReplicantAction::Login => login_replicant(),
+        ReplicantAction::Login { .. } => login_replicant(),
         ReplicantAction::Show { replicant_name } => {
             let store = build_store();
             super::helpers::or_exit(show_replicant(&store, &replicant_name), "Show failed");
         }
-        ReplicantAction::List => {
+        ReplicantAction::List { .. } => {
             let store = build_store();
             super::helpers::or_exit(list_replicants(&store), "List failed");
         }

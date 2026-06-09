@@ -204,11 +204,9 @@ impl Default for ConvergenceConfig {
 pub struct GasConfig {
     pub cap: u32,
     pub cost_per_token: f64,
-    /// Alert when this fraction of gas is consumed (0.0–1.0)
     pub alert_threshold: f64,
     pub hard_limit: bool,
 }
-
 impl Default for GasConfig {
     fn default() -> Self {
         Self {
@@ -230,15 +228,14 @@ pub struct ErrorHandlingConfig {
     pub retry_backoff_seconds: u32,
     pub on_validation_failure: String,
 }
-
 impl Default for ErrorHandlingConfig {
     fn default() -> Self {
         Self {
-            on_gas_exceeded: "abort".to_string(),
-            on_timeout: "retry".to_string(),
+            on_gas_exceeded: "abort".into(),
+            on_timeout: "retry".into(),
             max_retries: 2,
             retry_backoff_seconds: 1,
-            on_validation_failure: "abort".to_string(),
+            on_validation_failure: "abort".into(),
         }
     }
 }
@@ -252,12 +249,11 @@ pub struct OcapConfig {
     pub capability_expiry_seconds: u32,
     pub template_scoped: bool,
 }
-
 impl Default for OcapConfig {
     fn default() -> Self {
         Self {
             delegation_chain_required: true,
-            signature_algorithm: "ed25519".to_string(),
+            signature_algorithm: "ed25519".into(),
             capability_expiry_seconds: 3600,
             template_scoped: true,
         }
@@ -274,7 +270,6 @@ pub struct CnsConfig {
     pub algedonic_threshold: u32,
     pub escalation_target: String,
 }
-
 impl Default for CnsConfig {
     fn default() -> Self {
         Self {
@@ -282,7 +277,7 @@ impl Default for CnsConfig {
             span_namespace: String::new(),
             variety_monitoring: true,
             algedonic_threshold: 100,
-            escalation_target: "Curator".to_string(),
+            escalation_target: "Curator".into(),
         }
     }
 }
@@ -298,12 +293,11 @@ pub struct AuditConfig {
     pub include_gas_cost: bool,
     pub include_cns_events: bool,
 }
-
 impl Default for AuditConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            log_level: "info".to_string(),
+            log_level: "info".into(),
             include_input: true,
             include_output: true,
             include_gas_cost: true,
@@ -378,41 +372,25 @@ impl BundleManifest {
             ));
         }
         // P1: No divergent + convergent in the same phase
-        let pre_skills: Vec<&SkillPolarity> = self
-            .steps
-            .iter()
-            .filter(|s| s.phase == CascadePhase::Pre)
-            .filter_map(|s| {
-                self.skills
-                    .iter()
-                    .find(|sk| sk.id == s.description)
-                    .map(|sk| &sk.polarity)
-            })
-            .collect();
-        let core_skills: Vec<&SkillPolarity> = self
-            .steps
-            .iter()
-            .filter(|s| s.phase == CascadePhase::Core)
-            .filter_map(|s| {
-                self.skills
-                    .iter()
-                    .find(|sk| sk.id == s.description)
-                    .map(|sk| &sk.polarity)
-            })
-            .collect();
-        if pre_skills.iter().any(|p| p.is_divergent())
-            && pre_skills.iter().any(|p| p.is_convergent())
-        {
-            errors.push(
-                "P1 violation: divergent and convergent skills in same Pre phase".to_string(),
-            );
-        }
-        if core_skills.iter().any(|p| p.is_divergent())
-            && core_skills.iter().any(|p| p.is_convergent())
-        {
-            errors.push(
-                "P1 violation: divergent and convergent skills in same Core phase".to_string(),
-            );
+        let polarities_in = |phase: CascadePhase| -> Vec<&SkillPolarity> {
+            self.steps
+                .iter()
+                .filter(|s| s.phase == phase)
+                .filter_map(|s| {
+                    self.skills
+                        .iter()
+                        .find(|sk| sk.id == s.description)
+                        .map(|sk| &sk.polarity)
+                })
+                .collect()
+        };
+        for (phase, name) in [(CascadePhase::Pre, "Pre"), (CascadePhase::Core, "Core")] {
+            let ps = polarities_in(phase);
+            if ps.iter().any(|p| p.is_divergent()) && ps.iter().any(|p| p.is_convergent()) {
+                errors.push(format!(
+                    "P1 violation: divergent and convergent skills in same {name} phase"
+                ));
+            }
         }
         let skill_ids: std::collections::HashSet<&str> =
             self.skills.iter().map(|s| s.id.as_str()).collect();
@@ -526,11 +504,11 @@ mod tests {
     #[allow(dead_code)]
     fn make_skill(id: &str, polarity: SkillPolarity, terms: Vec<&str>) -> BundleSkill {
         BundleSkill {
-            id: id.to_string(),
+            id: id.into(),
             polarity,
             lexicon_terms: terms.iter().map(|t| t.to_string()).collect(),
-            manifest_ref: format!("{}-manifest", id),
-            content_hash: format!("sha256:{}", id),
+            manifest_ref: format!("{id}-manifest"),
+            content_hash: format!("sha256:{id}"),
         }
     }
 
@@ -543,8 +521,8 @@ mod tests {
     ) -> BundleManifestStep {
         BundleManifestStep {
             ordinal,
-            action: format!("execute-{}", description),
-            description: description.to_string(),
+            action: format!("execute-{description}"),
+            description: description.into(),
             renderer: None,
             template_ref: None,
             model_tier: None,
@@ -562,11 +540,11 @@ mod tests {
         let skill_a = make_skill("skill-a", SkillPolarity::Generative, vec!["term1", "term2"]);
         let skill_b = make_skill("skill-b", SkillPolarity::Evaluative, vec!["term3", "term4"]);
         BundleManifest {
-            id: "bundle-test".to_string(),
-            name: "Test Bundle".to_string(),
-            description: "A valid test bundle".to_string(),
-            version: "1.0.0".to_string(),
-            editor: "test-editor".to_string(),
+            id: "bundle-test".into(),
+            name: "Test Bundle".into(),
+            description: "A valid test bundle".into(),
+            version: "1.0.0".into(),
+            editor: "test-editor".into(),
             visibility: Visibility::Public,
             skills: vec![skill_a, skill_b],
             conflicts: vec![],

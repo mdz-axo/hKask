@@ -177,7 +177,6 @@ pub struct EnsembleChat {
 }
 
 impl EnsembleChat {
-    /// Create new ensemble chat with curator as owner
     pub fn new(curator_webid: WebID) -> Self {
         let mut participants = HashMap::new();
         participants.insert(
@@ -189,7 +188,6 @@ impl EnsembleChat {
                 capabilities: vec![],
             },
         );
-
         Self {
             curator_webid,
             participants,
@@ -205,13 +203,10 @@ impl EnsembleChat {
         }
     }
 
-    /// Set CNS event sink for span emission
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
-
-    /// Emit a CNS span event (if sink is wired).
     fn emit_span(&self, from: WebID, ns: &str, name: &str, phase: Phase, payload: Value) {
         if let Some(ref sink) = self.event_sink {
             let event = NuEvent::new(
@@ -226,8 +221,6 @@ impl EnsembleChat {
             }
         }
     }
-
-    /// Set template registry for capability intersection checks (R4)
     pub fn with_template_registry(
         mut self,
         registry: Arc<dyn RegistryIndex + Send + Sync>,
@@ -235,20 +228,14 @@ impl EnsembleChat {
         self.template_registry = Some(registry);
         self
     }
-
-    /// Set gas budget configuration
     pub fn with_gas_budget(mut self, config: GasBudgetConfig) -> Self {
         self.gas_budget = Some(config);
         self
     }
-
-    /// Set CNS gas governance port for CyberneticsLoop observability.
     pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
         self.gas_governance = Some(port);
         self
     }
-
-    /// Set available tools for intersection-based tool scoping (R4).
     pub fn with_available_tools(mut self, tools: Vec<ToolInfo>) -> Self {
         self.available_tools = Some(tools);
         self
@@ -264,9 +251,6 @@ impl EnsembleChat {
     /// permissions separately.
     pub fn intersection_tools(&self) -> Option<Vec<ToolInfo>> {
         let all_tools = self.available_tools.as_ref()?;
-
-        // Parse each participant's capabilities into (resource, domain) pairs.
-        // Only Tool-type capabilities contribute to tool visibility.
         let participant_domains: Vec<Vec<String>> = self
             .participants
             .values()
@@ -280,47 +264,32 @@ impl EnsembleChat {
                     .collect()
             })
             .collect();
-
-        // If no non-Curator participants have declared capabilities,
-        // all tools are visible (backward compat).
-        let all_empty = participant_domains.iter().all(|d| d.is_empty());
-        if all_empty {
+        if participant_domains.iter().all(|d| d.is_empty()) {
             return Some(all_tools.clone());
         }
-
-        // A tool is visible to ALL if every participant has at least one
-        // capability domain that covers the tool's required_capability domain.
-        // Tools with no required_capability are always visible.
         let visible_tools: Vec<ToolInfo> = all_tools
             .iter()
             .filter(|t| {
-                // Tools with no required_capability are always visible
                 if t.required_capability.is_none() {
                     return true;
                 }
-
                 let tool_domain = t
                     .required_capability
                     .as_ref()
                     .and_then(|c| CapabilitySpec::parse(c).ok())
                     .map(|s| s.resource_id.clone())
                     .unwrap_or_else(|| {
-                        // Fallback: derive domain from server_id
                         t.server_id
                             .strip_prefix("hkask-mcp-")
                             .unwrap_or(&t.server_id)
                             .to_string()
                     });
-
-                // Tool is visible to ALL participants if every participant
-                // has at least one capability domain that matches the tool's domain.
                 participant_domains
                     .iter()
                     .all(|domains| domains.iter().any(|d| d == &tool_domain))
             })
             .cloned()
             .collect();
-
         Some(visible_tools)
     }
 
@@ -387,68 +356,24 @@ impl EnsembleChat {
 
     /// Add a message. Dedup checks, gas enforcement, CNS observability.
     pub fn add_message(&mut self, message: ChatMessage) {
-        // Layer 2 DRY: dedup check — skip duplicates
         if !self.dedup.check_and_register(&message) {
-            tracing::debug!(
-                target: "cns.ensemble.chat",
-                from = %message.from,
-                content_len = message.content.len(),
-                "Message rejected as duplicate (dedup)"
-            );
-            self.emit_span(
-                message.from,
-                "cns.ensemble.chat",
-                "dedup_rejected",
-                Phase::Compute,
-                json!({
-                    "from": message.from.to_string(),
-                    "content_len": message.content.len(),
-                    "dedup_rejected": true,
-                }),
-            );
+            tracing::debug!(target: "cns.ensemble.chat", from = %message.from, content_len = message.content.len(), "Message rejected as duplicate (dedup)");
+            self.emit_span(message.from, "cns.ensemble.chat", "dedup_rejected", Phase::Compute, json!({"from": message.from.to_string(), "content_len": message.content.len(), "dedup_rejected": true}));
             return;
         }
-
         if let Some(ref budget) = self.gas_budget {
             let cost = budget.per_message_cost;
             let (can_proceed, level) = self.can_proceed_with_gas(cost);
             if !can_proceed {
-                tracing::warn!(
-                    target: "cns.gas",
-                    gas_used = self.gas_used,
-                    session_cap = budget.session_cap,
-                    "Message rejected — gas budget hard limit reached"
-                );
-                self.emit_span(
-                    message.from,
-                    "cns.gas",
-                    "ensemble.message_rejected",
-                    Phase::Compute,
-                    json!({
-                        "gas_used": self.gas_used,
-                        "session_cap": budget.session_cap,
-                        "message_rejected": true,
-                    }),
-                );
+                tracing::warn!(target: "cns.gas", gas_used = self.gas_used, session_cap = budget.session_cap, "Message rejected — gas budget hard limit reached");
+                self.emit_span(message.from, "cns.gas", "ensemble.message_rejected", Phase::Compute, json!({"gas_used": self.gas_used, "session_cap": budget.session_cap, "message_rejected": true}));
                 return;
             }
             self.gas_used += cost;
             if level != DegradationLevel::Normal {
-                self.emit_span(
-                    message.from,
-                    "cns.gas",
-                    "ensemble.degradation",
-                    Phase::Compute,
-                    json!({
-                        "gas_used": self.gas_used,
-                        "session_cap": budget.session_cap,
-                        "degradation_level": format!("{:?}", level),
-                    }),
-                );
+                self.emit_span(message.from, "cns.gas", "ensemble.degradation", Phase::Compute, json!({"gas_used": self.gas_used, "session_cap": budget.session_cap, "degradation_level": format!("{:?}", level)}));
             }
         }
-
-        // CNS gas governance: report usage to CyberneticsLoop (dual-track)
         if let Some(ref governance) = self.gas_governance {
             let cost = self
                 .gas_budget
@@ -456,11 +381,7 @@ impl EnsembleChat {
                 .map(|b| b.per_message_cost)
                 .unwrap_or(0);
             if !governance.can_proceed(cost) {
-                tracing::warn!(
-                    target: "cns.gas",
-                    gas = cost,
-                    "Message rejected — CNS governance blocked operation"
-                );
+                tracing::warn!(target: "cns.gas", gas = cost, "Message rejected — CNS governance blocked operation");
                 return;
             }
             governance.acquire(cost);
@@ -468,12 +389,8 @@ impl EnsembleChat {
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
             .is_ok()
         {
-            tracing::warn!(
-                target: "cns.gas",
-                "No GasGovernancePort wired — expected in API mode. CLI wires gas governance automatically."
-            );
+            tracing::warn!(target: "cns.gas", "No GasGovernancePort wired — expected in API mode. CLI wires gas governance automatically.");
         }
-
         self.messages.push(message);
     }
 
@@ -488,12 +405,9 @@ impl EnsembleChat {
         self.messages.push(message);
     }
 
-    /// Get chat history
     pub fn get_history(&self) -> &[ChatMessage] {
         &self.messages
     }
-
-    /// Get participants
     pub fn get_participants(&self) -> &HashMap<WebID, ChatParticipant> {
         &self.participants
     }
@@ -581,16 +495,10 @@ impl EnsembleChat {
         inference_client: &Arc<C>,
         user_message: &str,
     ) -> Result<ImprovTurn, ImprovError<C::Error>> {
-        // Gas budget check before inference
         if let Some(ref budget) = self.gas_budget {
             let (can_proceed, level) = self.can_proceed_with_gas(budget.per_message_cost);
             if !can_proceed {
-                tracing::warn!(
-                    target: "cns.gas",
-                    gas_used = self.gas_used,
-                    session_cap = budget.session_cap,
-                    "Gas budget exceeded — improv turn rejected"
-                );
+                tracing::warn!(target: "cns.gas", gas_used = self.gas_used, session_cap = budget.session_cap, "Gas budget exceeded — improv turn rejected");
                 return Err(ImprovError::Ensemble(EnsembleError::CapabilityDenied(
                     format!(
                         "Gas budget exceeded: {}/{}",
@@ -599,16 +507,9 @@ impl EnsembleChat {
                 )));
             }
             if level != DegradationLevel::Normal {
-                tracing::warn!(
-                    target: "cns.gas",
-                    gas_used = self.gas_used,
-                    session_cap = budget.session_cap,
-                    level = ?level,
-                    "Gas budget degradation — improv turn proceeding with warning"
-                );
+                tracing::warn!(target: "cns.gas", gas_used = self.gas_used, session_cap = budget.session_cap, level = ?level, "Gas budget degradation — improv turn proceeding with warning");
             }
         }
-
         if let Some(ref governance) = self.gas_governance {
             let cost = self
                 .gas_budget
@@ -616,11 +517,7 @@ impl EnsembleChat {
                 .map(|b| b.per_message_cost)
                 .unwrap_or(0);
             if !governance.can_proceed(cost) {
-                tracing::warn!(
-                    target: "cns.gas",
-                    gas = cost,
-                    "Improv turn rejected — CNS governance blocked operation"
-                );
+                tracing::warn!(target: "cns.gas", gas = cost, "Improv turn rejected — CNS governance blocked operation");
                 return Err(ImprovError::Ensemble(EnsembleError::CapabilityDenied(
                     "CNS governance blocked operation".to_string(),
                 )));
@@ -629,13 +526,8 @@ impl EnsembleChat {
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
             .is_ok()
         {
-            tracing::warn!(
-                target: "cns.gas",
-                "No GasGovernancePort wired — ensemble improv turn running without gas governance. \
-                 This is expected in API mode. CLI mode wires gas governance automatically."
-            );
+            tracing::warn!(target: "cns.gas", "No GasGovernancePort wired — ensemble improv turn running without gas governance. This is expected in API mode. CLI mode wires gas governance automatically.");
         }
-
         let participants: Vec<(WebID, String, String)> = self
             .participants
             .values()
@@ -645,13 +537,11 @@ impl EnsembleChat {
                 (p.webid, s.clone(), format!("Agent with role {s}"))
             })
             .collect();
-
         let chat_history: Vec<(WebID, String)> = self
             .messages
             .iter()
             .map(|msg| (msg.from, msg.content.clone()))
             .collect();
-
         improv_turn(
             &self.improv_config,
             inference_client,
