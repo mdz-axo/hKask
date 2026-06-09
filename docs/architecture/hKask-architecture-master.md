@@ -1,16 +1,16 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-08
-version: "2.2.5"
+last_updated: 2026-06-09
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # hKask Architecture Master
 
-**Purpose:** Index to the four authoritative DDMVSS specification documents and supporting reference artifacts.
+**Purpose:** Index to the authoritative architecture documents.
 
 **Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.0
 **Binary:** `kask`  
@@ -18,27 +18,36 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ---
 
-## DDMVSS Specification Documents
+## Document Hierarchy
 
-The architecture is specified in four DDMVSS-aligned documents, each authoritative for its category cluster:
+```
+magna-carta.md  ←  Foundation (4 inviolable principles)
+       ↓
+PRINCIPLES.md  ←  9 principles (P1-P9), constraint forces
+       ↓
+   MDS.md      ←  Minimal Domain Specification (5 categories, 6 tools)
+       ↓
+loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
+```
 
-| Document | DDMVSS Categories | Scope |
-|----------|-------------------|-------|
-| [`domain-and-capability.md`](domain-and-capability.md) | Domain, Capability | Bounded context, entities, agent taxonomy, capability model, MCP tool surface, hLexicon |
-| [`interface-and-composition.md`](interface-and-composition.md) | Interface, Composition | MCP/CLI/API equivalence, hexagonal ports, unified registry, template cascade, rendering pipeline |
-| [`trust-security-observability.md`](trust-security-observability.md) | Trust, Observability | Zero-trust model, OCAP enforcement, master key derivation, encryption stack, CNS spans, algedonic alerts, threat model |
-| [`persistence-and-lifecycle.md`](persistence-and-lifecycle.md) | Persistence, Lifecycle | SQLite + SQLCipher, bitemporal triples, embeddings, bootstrap sequence, evolution rules |
-
----
-
-## Framework Documents
+### Canonical Specifications
 
 | Document | Purpose |
 |----------|---------|
-| [`DDMVSS.md`](DDMVSS.md) | Domain-Driven Minimum Viable Specification Set — 9-category taxonomy and MVSDD methodology |
-| [`PRINCIPLES.md`](PRINCIPLES.md) | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
-| [`loop-architecture.md`](loop-architecture.md) | 6-loop architecture — authority DAG, crate↔loop mapping, capability membranes |
-| [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, Magna Carta verification |
+| [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
+| [`PRINCIPLES.md`](PRINCIPLES.md) | 9 architecture principles (P1-P9), 5 anchors, anti-patterns |
+| [`MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 6 tools, completeness predicate |
+| [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
+
+### Historical
+
+| Document | Status |
+|----------|--------|
+| `DDMVSS.md` | Deleted — superseded by MDS.md (9→5 categories, 9→6 tools) |
+| `domain-and-capability.md` | Deleted — covered by MDS.md §7.1-7.2 |
+| `interface-and-composition.md` | Deleted — covered by MDS.md §7.2 |
+| `persistence-and-lifecycle.md` | Deleted — covered by MDS.md §7.4 |
+| `trust-security-observability.md` | Deleted — covered by MDS.md §7.3 + PRINCIPLES.md §2.1 |
 
 ---
 

@@ -1,18 +1,18 @@
 ---
-title: "Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition"
+title: "Loop Architecture — Semantic Root-Cause Analysis & Four-Loop Decomposition"
 audience: [architects, developers, agents]
-last_updated: 2026-06-08
-version: "2.3.0"
+last_updated: 2026-06-09
+version: "0.27.0"
 status: "Active"
 domain: "Architecture"
-ddmvss_categories: [domain, capability, observability, curation]
+mds_categories: [domain, composition, lifecycle, curation]
 ---
 
 # Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition
 
 **Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into six semantic loops (three domain, three meta), map crates to loops, define capability membranes, and document open questions.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`trust-security-observability.md`](trust-security-observability.md), [`domain-and-capability.md`](domain-and-capability.md)
+**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`MDS.md`](MDS.md), [`magna-carta.md`](magna-carta.md)
 
 ---
 
@@ -77,7 +77,7 @@ status: VERIFIED
 
 ### 1.5 Consequence
 
-The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
+The `RateLimiter` and `CnsTokenBucket` types have been removed. `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
 ### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Communication Boundary
 
@@ -99,34 +99,29 @@ The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`t
 
 ---
 
-## 2. Six-Loop Architecture — Semantic Decomposition
+## 2. Four-Loop Architecture — Semantic Decomposition
 
 ### 2.1 Two-Layer Model
 
-hKask decomposes into six loops organized in two layers plus shared infrastructure:
-
-**Domain Loops** — value-producing, each owns a bounded resource and a transformation:
+hKask decomposes into four loops:
 
 > **Terminology:** *Context* is **condensed** (ephemeral conversation window, handled by the condenser server). *Memory* is **consolidated** (persistent episodic → semantic triples, handled by the consolidation bridge). These are distinct operations on distinct substrates.
 
+**Domain Loops** — value-producing:
+
 | Loop | Owns | Transforms |
 |------|------|------------|
-| **Inference Loop** | LLM call budget, token flow | Prompts → Completions |
-| **Semantic/Fact Memory Loop** | Knowledge graph, embedding indices | Queries → Retrieved facts |
-| **Episodic Memory Loop** | Conversation/event stream, SQLCipher storage | Experiences → Episodic records |
+| **Inference Loop** | LLM call budget, token flow, energy budgets (hJoules) | Prompts → Completions |
+| **Memory Loop** | Episodic + Semantic memory, embedding indices, SQLCipher storage, consolidation bridge | Experiences → Episodic records → Semantic facts |
 
-**Meta Loops** — governing, each regulates one or more domain loops:
+**Meta Loops** — governing:
 
 | Loop | Owns | Regulates |
 |------|------|------------|
-| **Curation/Metacognition Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent |
-| **Cybernetics Loop** | Observability, governance, energy accounting, homeostatic regulation | Health, stability, resource equilibrium of the entire system |
+| **Curation Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent |
+| **Cybernetics Loop** | Observability, governance, energy accounting (hJoules), homeostatic regulation | Health, stability, resource equilibrium of the entire system |
 
-**Shared Infrastructure** — dumb pipes, not regulators:
-
-| Component | Owns | Provides |
-|-----------|------|----------|
-| **Communication Loop** | Message routing, MCP dispatch, A2A/H2A protocol boundaries | Message delivery (not regulation) |
+**Communication** is demoted from a loop to transport infrastructure — `tokio::mpsc` channels handle inter-loop messaging. Communication does not own resources, does not regulate, and does not transform. It is a dumb pipe.
 
 ### 2.2 Loop ERD
 
@@ -137,41 +132,32 @@ erDiagram
     InferenceLoop ||--|{ Prompt : "transforms"
     InferenceLoop ||--|{ Completion : "produces"
 
-    SemanticMemoryLoop ||--o{ KnowledgeGraph : "owns"
-    SemanticMemoryLoop ||--o{ EmbeddingIndex : "owns"
-    SemanticMemoryLoop ||--|{ Query : "transforms"
-    SemanticMemoryLoop ||--|{ RetrievedFact : "produces"
-
-    EpisodicMemoryLoop ||--o{ ConversationStream : "owns"
-    EpisodicMemoryLoop ||--o{ SQLCipherStorage : "owns"
-    EpisodicMemoryLoop ||--|{ Experience : "transforms"
-    EpisodicMemoryLoop ||--|{ EpisodicRecord : "produces"
-
-    CommunicationLoop ||--o{ MessageRouter : "owns"
-    CommunicationLoop ||--o{ MCPDispatch : "owns"
-    CommunicationLoop ||--o{ A2AProtocol : "owns"
-    CommunicationLoop ||--o{ H2AProtocol : "owns"
+    MemoryLoop ||--o{ EpisodicMemory : "owns"
+    MemoryLoop ||--o{ SemanticMemory : "owns"
+    MemoryLoop ||--o{ ConsolidationBridge : "bridges"
+    MemoryLoop ||--o{ EmbeddingIndex : "owns"
+    MemoryLoop ||--o{ SQLCipherStorage : "owns"
+    MemoryLoop ||--|{ Experience : "transforms"
+    MemoryLoop ||--|{ EpisodicRecord : "produces"
+    MemoryLoop ||--|{ RetrievedFact : "produces"
+    EpisodicMemory ||--|| SemanticMemory : "consolidates-into"
 
     CurationLoop ||--o{ CuratorPersona : "owns"
     CurationLoop ||--o{ PromptValidation : "owns"
     CurationLoop ||--o{ ReflectiveAssessment : "owns"
     CurationLoop ||--o{ CyberneticsLoop : "regulates"
-    CurationLoop ||--o{ CommunicationLoop : "routes through (not authority)"
 
     CyberneticsLoop ||--o{ EnergyAccount : "owns"
     CyberneticsLoop ||--o{ VarietyCounter : "owns"
     CyberneticsLoop ||--o{ AlgedonicManager : "owns"
     CyberneticsLoop ||--o{ CnsSpan : "owns"
     CyberneticsLoop ||--o{ InferenceLoop : "regulates"
-    CyberneticsLoop ||--o{ SemanticMemoryLoop : "regulates"
-    CyberneticsLoop ||--o{ EpisodicMemoryLoop : "regulates"
-    CyberneticsLoop ||--o{ CommunicationLoop : "regulates"
+    CyberneticsLoop ||--o{ MemoryLoop : "regulates"
     CyberneticsLoop ||--o{ CurationLoop : "signals"
 
     CnsSpan ||--o{ CnsTool : "includes"
     CnsSpan ||--o{ CnsPrompt : "includes"
     CnsSpan ||--o{ CnsAgentPod : "includes"
-    CnsSpan ||--o{ CnsConnector : "includes"
     CnsSpan ||--o{ CnsEnergy : "includes"
     CnsSpan ||--o{ CnsPipeline : "includes"
     CnsSpan ||--o{ CnsVariety : "includes"
@@ -181,9 +167,9 @@ erDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-002
-verified_date: 2026-06-07
-verified_against: crates/hkask-cns/src/runtime.rs; crates/hkask-agents/src/pod/mod.rs; crates/hkask-mcp/src/runtime.rs; crates/hkask-memory/src; crates/hkask-templates/src
-status: CORRECTED
+verified_date: 2026-06-09
+verified_against: PRINCIPLES.md §2; MDS.md; crates/hkask-cns/src/runtime.rs; crates/hkask-memory/src
+status: UPDATED — 6 loops reduced to 4
 -->
 
 ### 2.3 CNS Span Subsumption into Cybernetics Loop
@@ -230,19 +216,19 @@ This pathway is **unidirectional**: Cybernetics signals Curation, but Curation d
 
 | Existing Component | Owning Loop | Minimal Interface Exposed |
 |--------------------|-------------|--------------------------|
-| `hkask-mcp` (dispatch) | Communication | `dispatch(tool, args) → Result<Output>` |
-| `hkask-agents` (curator) | Curation (regulatory) | `CurationLoop`, `CurationConfidenceGate`, `CuratorContext` |
-| `hkask-agents` (curator_agent) | Curation (persona) | `CuratorAgent`, `MetacognitionLoop`, `HealthSnapshot`, `DefaultSpecCurator` |
-| `hkask-cns` (governed_tool) | Cybernetics → all tools | `GovernedTool`, `EnergyEstimator`, `InferenceEnergyEstimator` |
-| `hkask-memory` (semantic) | Semantic/Fact Memory | `query(embedding, k) → Vec<Fact>`, `store(fact) → FactID` |
-| `hkask-memory` (episodic) | Episodic Memory | `record(experience) → RecordID`, `retrieve(query, window) → Vec<Record>` |
-| `hkask-keystore` | Cybernetics (energy for cryptographic operations) | `derive_key(purpose) → KeyRef`, `sign(data) → Signature` |
-| `hkask-storage` | Shared substrate (accessed via capability) | `read(cap, path) → Data`, `write(cap, path, data) → ()` |
-| `hkask-cns` | Cybernetics (refactored) | `observe(event)`, `regulate(span, action)`, `health() → CnsHealth` |
-| `hkask-templates` | Curation (cascade validation) | `render(template, ctx) → String`, `validate(template) → ValidationResult` |
-| `hkask-ensemble` | Communication (multi-agent routing) | `route(message, recipients) → Vec<Delivery>` |
-| `hkask-cli` / `hkask-api` | Communication (external interface) | `execute(command) → Result<Output>` |
-| `hkask-types` | Shared substrate (no loop ownership) | Type definitions only — no behavior |
+| `hkask-mcp` (dispatch) | Transport (tokio) | `dispatch(tool, args) → Result<Output>` |
+| `hkask-agents` (curator) | Curation | `CurationLoop`, `CuratorContext` |
+| `hkask-agents` (curator_agent) | Curation | `CuratorAgent`, `DefaultSpecCurator` |
+| `hkask-cns` (governed_tool) | Cybernetics → all tools | `GovernedTool`, `EnergyEstimator` |
+| `hkask-memory` | Memory | `record(experience) → RecordID`, `query(embedding, k) → Vec<Fact>`, consolidation bridge |
+| `hkask-keystore` | Cybernetics | `derive_key(purpose) → KeyRef`, `sign(data) → Signature` |
+| `hkask-storage` | Shared substrate | `read(cap, path) → Data`, `write(cap, path, data) → ()` |
+| `hkask-cns` | Cybernetics | `observe(event)`, `regulate(span, action)`, `health() → CnsHealth` |
+| `hkask-templates` | Curation | `render(template, ctx) → String`, `validate(template) → ValidationResult` |
+| `hkask-ensemble` | Curation | Multi-agent chat coordination via ACP ports |
+| `hkask-cli` / `hkask-api` | Surface (presentation) | `execute(command) → Result<Output>` |
+| `hkask-services` | Service layer | `ChatService`, `InferenceService`, domain operations |
+| `hkask-types` | Shared substrate | Type definitions only — no behavior |
 | Okapi inference server | Inference (via MCP) | `complete(prompt, budget) → Completion` |
 
 ### 3.2 Interface Discipline

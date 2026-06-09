@@ -7,9 +7,9 @@
 //! Defines a two-tier visibility model:
 //! - Public: accessible to all agents (shared/factual knowledge)
 //! - Private: agent-specific access (episodic/experiential knowledge)
-//
+//!
 //! Access control enforcement is delegated to the `CapabilityToken` primitive.
-//
+//!
 //! # Visibility Model
 //
 //! | Level | Meaning | Enforcement |

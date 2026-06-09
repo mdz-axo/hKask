@@ -1,11 +1,11 @@
 ---
 title: "The Magna Carta of hKask"
 audience: [architects, users, agents]
-last_updated: 2026-06-07
-version: "0.24.0"
+last_updated: 2026-06-09
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [trust]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # The Magna Carta of hKask

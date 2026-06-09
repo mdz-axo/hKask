@@ -41,12 +41,10 @@ for its category cluster.
 
 | Document | DDMVSS Categories | Description |
 |----------|-------------------|-------------|
-| [`domain-and-capability.md`](architecture/domain-and-capability.md) | domain, capability | Bounded context, agent taxonomy, capability/OCAP model, MCP tool surface, hLexicon |
-| [`interface-and-composition.md`](architecture/interface-and-composition.md) | interface, composition | MCP/CLI/API equivalence, hexagonal ports, unified registry, template cascade |
-| [`trust-security-observability.md`](architecture/trust-security-observability.md) | trust, observability | OCAP enforcement, key derivation, encryption stack, CNS spans, algedonic alerts |
-| [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) | persistence, lifecycle | SQLite + SQLCipher, bitemporal triples, embeddings, bootstrap, evolution rules |
-| [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, capability, curation | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
-| [`magna-carta.md`](architecture/magna-carta.md) | trust | User sovereignty charter — catch-and-release, affirmative consent, Magna Carta verification |
+| [`MDS.md`](architecture/MDS.md) | domain, composition, trust, lifecycle, curation | Minimal Domain Specification — 5 categories, 6 tools, completeness predicate |
+| [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P9), 5 anchors, anti-patterns |
+| [`magna-carta.md`](architecture/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
+| [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle, curation | 4-loop architecture — RateLimiting→EnergyBudget, crate↔loop mapping |
 
 ### Architecture Decision Records
 

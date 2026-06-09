@@ -162,15 +162,15 @@ fi
 
 ### §1.7 Loop Mapping
 
-The five anchors ground in the [six-loop authority model](loop-architecture.md):
+The five anchors ground in the [four-loop authority model](loop-architecture.md):
 
 | Anchor | Loop(s) | Rationale |
 |--------|---------|-----------|
-| 1. Agent Enablement | Curation (Loop 5) | Bot/Replicant pods, ACP, persona — the Curator enables agents |
-| 2. Essential Tools | Inference (L1) + Communication (L4) + Cybernetics (L6) + Episodic (L2) | 21 MCP servers span multiple loops: inference (L1), dispatch (L4), OCAP/keystore enforcement (L6), condenser (L2), registry bridge (L1↔L5). See [loop-architecture.md §3.4](loop-architecture.md) for per-server assignments. |
-| 3. User Sovereignty | Cybernetics (Loop 6) | OCAP, SQLCipher, affirmative consent, gating — all regulation is Cybernetics |
-| 4. CNS | Cybernetics (Loop 6) | Homeostatic self-regulation IS the Cybernetics loop |
-| 5. Composition | Semantic (Loop 2b) | Unified registry, hLexicon, cascade — shared knowledge composition |
+| 1. Agent Enablement | Curation | Bot/Replicant pods, ACP, persona — the Curator enables agents |
+| 2. Essential Tools | Inference + Memory + Cybernetics | 21 MCP servers span multiple loops: inference, memory storage, OCAP/keystore enforcement |
+| 3. User Sovereignty | Cybernetics | OCAP, SQLCipher, affirmative consent, gating — all regulation is Cybernetics |
+| 4. CNS | Cybernetics | Homeostatic self-regulation IS the Cybernetics loop |
+| 5. Composition | Memory | Unified registry, hLexicon, cascade — shared knowledge composition |
 
 ---
 
