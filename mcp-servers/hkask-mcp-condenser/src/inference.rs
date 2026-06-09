@@ -7,6 +7,33 @@ use hkask_mcp::server::McpToolError;
 
 use crate::types::ThreadSummaryOutput;
 
+/// Inference API format — detected from the INFERENCE_URL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiFormat {
+    /// Ollama / Okapi format: POST /api/chat with `think`, `options.num_ctx`, `options.num_predict`
+    Ollama,
+    /// OpenAI-compatible format (OpenRouter, LiteLLM, etc.): POST /v1/chat/completions
+    OpenAi,
+}
+
+/// Detect the API format from the inference URL.
+///
+/// - URLs containing `openrouter.ai` → `OpenAi`
+/// - URLs whose path ends with `/v1` (common for OpenAI-compatible proxies) → `OpenAi`
+/// - Everything else → `Ollama` (existing behavior, backward compatible)
+pub fn detect_format(url: &str) -> ApiFormat {
+    let lower = url.to_lowercase();
+    if lower.contains("openrouter.ai") {
+        return ApiFormat::OpenAi;
+    }
+    // Heuristic: /v1 as the final path segment indicates OpenAI-compatible base URL
+    let trimmed = url.trim_end_matches('/');
+    if trimmed.ends_with("/v1") {
+        return ApiFormat::OpenAi;
+    }
+    ApiFormat::Ollama
+}
+
 /// Format a parsed messages array into a conversation text string.
 ///
 /// Each message becomes `[role]: content\n\n`. Messages missing `role` or
@@ -39,21 +66,37 @@ pub fn build_summarization_prompt(conversation_text: &str, current_query: &str) 
 
 /// Validate and extract summary content from an inference response.
 ///
-/// Returns `Ok(summary)` if the response contains non-empty `message.content`.
-/// Returns `Err(McpToolError)` if the field is missing or the content is empty/whitespace-only.
-pub fn extract_summary(resp_body: &serde_json::Value) -> Result<String, McpToolError> {
-    match resp_body
-        .get("message")
-        .and_then(|m| m.get("content"))
-        .and_then(|c| c.as_str())
-    {
-        Some(content) if !content.trim().is_empty() => Ok(content.to_string()),
+/// Parses the response according to the detected API format:
+/// - Ollama: `resp.message.content`
+/// - OpenAI: `resp.choices[0].message.content`
+///
+/// Returns `Ok(summary)` if the content is non-empty, `Err` otherwise.
+pub fn extract_summary(
+    format: ApiFormat,
+    resp_body: &serde_json::Value,
+) -> Result<String, McpToolError> {
+    let content = match format {
+        ApiFormat::Ollama => resp_body
+            .get("message")
+            .and_then(|m| m.get("content"))
+            .and_then(|c| c.as_str()),
+        ApiFormat::OpenAi => resp_body
+            .get("choices")
+            .and_then(|c| c.as_array())
+            .and_then(|choices| choices.first())
+            .and_then(|choice| choice.get("message"))
+            .and_then(|m| m.get("content"))
+            .and_then(|c| c.as_str()),
+    };
+    match content {
+        Some(c) if !c.trim().is_empty() => Ok(c.to_string()),
         Some(_) => Err(McpToolError::internal(
             "Inference engine returned an empty summary",
         )),
-        None => Err(McpToolError::internal(
-            "Inference engine response missing message.content field",
-        )),
+        None => Err(McpToolError::internal(format!(
+            "Inference engine response missing content field ({:?} format)",
+            format
+        ))),
     }
 }
 
@@ -62,30 +105,44 @@ pub fn approx_token_count(text: &str) -> usize {
     text.split_whitespace().count()
 }
 
-/// Build the JSON body for an `/api/chat` inference request.
+/// Build the JSON body for a chat inference request.
 ///
 /// Pure function — no HTTP, no async. Testable in isolation. The caller
 /// (`condenser_thread_summary`) is responsible for sending the request.
+///
+/// Produces Ollama-style or OpenAI-style JSON depending on `format`.
 pub fn build_chat_request(
+    format: ApiFormat,
     model: &str,
     summarization_prompt: &str,
     system_prompt: &str,
-    num_ctx: u32,
+    _num_ctx: u32,
     max_predict: u32,
 ) -> serde_json::Value {
-    serde_json::json!({
-        "model": model,
-        "messages": [
-            {"role": "system",  "content": system_prompt},
-            {"role": "user",    "content": summarization_prompt}
-        ],
-        "stream": false,
-        "think":  false,
-        "options": {
-            "num_ctx":     num_ctx,
-            "num_predict": max_predict
-        }
-    })
+    match format {
+        ApiFormat::Ollama => serde_json::json!({
+            "model": model,
+            "messages": [
+                {"role": "system",  "content": system_prompt},
+                {"role": "user",    "content": summarization_prompt}
+            ],
+            "stream": false,
+            "think":  false,
+            "options": {
+                "num_ctx":     _num_ctx,
+                "num_predict": max_predict
+            }
+        }),
+        ApiFormat::OpenAi => serde_json::json!({
+            "model": model,
+            "messages": [
+                {"role": "system",  "content": system_prompt},
+                {"role": "user",    "content": summarization_prompt}
+            ],
+            "stream": false,
+            "max_tokens": max_predict
+        }),
+    }
 }
 
 /// Build a `ThreadSummaryOutput` from extracted data.
@@ -103,4 +160,3 @@ pub fn build_summary_output(
         inference_url,
     }
 }
-

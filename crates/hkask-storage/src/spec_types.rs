@@ -363,3 +363,27 @@ pub enum SpecError {
 impl_from_rusqlite!(SpecError, Infra);
 
 impl_from_serde_json!(SpecError, Infra);
+
+/// Curation trait — evaluates spec coherence and makes curation decisions.
+///
+/// Implemented by `DefaultSpecCurator` in `hkask-agents`. This trait lives
+/// in `hkask-storage` because it's tightly coupled to the spec data model
+/// (Spec, SpecCurationRecord, SpecError) and is consumed by `hkask-services`.
+pub trait SpecCurator: Send + Sync {
+    /// Evaluate a single spec against registered verbs, producing a curation decision.
+    fn evaluate(
+        &self,
+        spec: &Spec,
+        registered_verbs: &[String],
+    ) -> Result<SpecCurationRecord, SpecError>;
+
+    /// Evaluate all specs and produce records.
+    fn reconcile(
+        &self,
+        specs: &[Spec],
+        registered_verbs: &[String],
+    ) -> Result<Vec<SpecCurationRecord>, SpecError>;
+
+    /// Iteratively cultivate a collection until coherence meets threshold.
+    fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError>;
+}

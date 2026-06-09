@@ -153,6 +153,24 @@ impl ProviderPool {
             exa,
         }
     }
+
+    /// Fallback loop: try each search provider, return first Ok results.
+    async fn search_fallback(
+        providers: &[&dyn WebSearchProvider],
+        query: &SearchQuery,
+    ) -> Result<Vec<SearchResult>, WebError> {
+        let mut last_err = WebError::NoProvider;
+        for p in providers {
+            match p.search(query).await {
+                Ok(v) => return Ok(v.results),
+                Err(e) => {
+                    tracing::warn!(provider = p.kind(), error = %e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
 }
 
 impl ProviderPool {
@@ -166,7 +184,7 @@ impl ProviderPool {
         if let Some(idx) = ordered.iter().position(|p| p.kind() == primary) {
             ordered.swap(0, idx);
         }
-        try_fallback!(&ordered, search, query).map(|o| o.results)
+        Self::search_fallback(&ordered, query).await
     }
 
     pub async fn search_by_capability(
@@ -180,7 +198,7 @@ impl ProviderPool {
             .filter(|p| required_caps.iter().all(|c| p.capabilities().contains(c)))
             .map(|p| p.as_ref())
             .collect();
-        try_fallback!(&filtered, search, query).map(|o| o.results)
+        Self::search_fallback(&filtered, query).await
     }
 
     pub async fn search_compound(

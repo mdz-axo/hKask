@@ -16,11 +16,8 @@ pub(crate) mod inference_estimator; // Loop 6 → Inference gas estimation
 
 pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
-pub mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
+pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_gas_estimator; // Per-server gas cost table
-
-pub(crate) mod unified_tracker; // Loop 6 — variety tracking
-pub(crate) mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};

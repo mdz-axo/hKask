@@ -8,7 +8,7 @@ use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
 use crate::energy::{AgentGasStatus, GasBudget, GasCost};
-use crate::unified_tracker::UnifiedVarietyTracker;
+use crate::variety::VarietyMonitor;
 use crate::variety::VarietyTracker;
 
 use hkask_types::WebID;
@@ -24,7 +24,7 @@ use tracing;
 /// CNS state shared between threads
 struct CnsState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
-    tracker: UnifiedVarietyTracker,
+    tracker: VarietyMonitor,
     gas_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, GasBudget>>>,
 }
 
@@ -33,7 +33,7 @@ impl CnsState {
         let algedonic = Arc::new(ParkingRwLock::new(
             AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
         ));
-        let tracker = UnifiedVarietyTracker::new();
+        let tracker = VarietyMonitor::new();
         let gas_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             algedonic,
@@ -102,7 +102,7 @@ impl CnsRuntime {
         let state = self.state.read().await;
         let domains: Vec<String> = state
             .tracker
-            .variety_domains()
+            .domains()
             .iter()
             .map(|s| s.to_string())
             .collect();
@@ -129,7 +129,7 @@ impl CnsRuntime {
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
         {
             let mut state = self.state.write().await;
-            state.tracker.increment_variety(domain, state_name);
+            state.tracker.counter(domain).increment(state_name);
         }
         let alert = self.check_variety(domain).await;
 
@@ -163,7 +163,6 @@ impl CnsRuntime {
             let state = self.state.read().await;
             state
                 .tracker
-                .variety_monitor()
                 .counters()
                 .get(domain)
                 .cloned()

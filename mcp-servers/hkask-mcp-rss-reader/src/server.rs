@@ -225,7 +225,7 @@ impl RssServer {
             conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
             Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
         }).await;
-        handle_db_result!(span, result, |v| v);
+        handle_db_result!(span, result, |v| v)
     }
 
     #[tool(description = "Unsubscribe from a feed (stream_id e.g. 'feed/http://...')")]
@@ -244,7 +244,7 @@ impl RssServer {
             span,
             result,
             |removed| serde_json::json!({"stream_id": stream_id, "unsubscribed": removed > 0, "removed": removed})
-        );
+        )
     }
 
     #[tool(description = "List subscriptions, optionally filtered by folder")]
@@ -259,7 +259,7 @@ impl RssServer {
             span,
             result,
             |subs| serde_json::json!({"count": subs.len(), "subscriptions": subs})
-        );
+        )
     }
 
     #[tool(description = "Fetch/sync new entries from a feed (supports ETag/Last-Modified)")]
@@ -347,7 +347,7 @@ impl RssServer {
             span,
             result,
             |new_count| serde_json::json!({"stream_id": sid2, "new_entries": new_count, "fetched": true})
-        );
+        )
     }
 
     #[tool(
@@ -402,7 +402,7 @@ impl RssServer {
                     .encode(serde_json::to_vec(&cont).unwrap_or_default())
             });
             serde_json::json!({"stream_id": stream_id, "entries": entries, "count": entries.len(), "continuation_token": next_token})
-        });
+        })
     }
 
     #[tool(description = "Mark all entries in a stream as read")]
@@ -418,7 +418,7 @@ impl RssServer {
             span,
             result,
             |marked| serde_json::json!({"stream_id": stream_id, "marked_read": marked})
-        );
+        )
     }
 
     #[tool(description = "Get unread count for a stream")]

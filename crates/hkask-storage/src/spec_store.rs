@@ -12,6 +12,63 @@ use hkask_types::curation::{CurationDecision, OCAPBoundary};
 define_store!(SqliteSpecStore);
 define_store!(SqliteCurationRecordStore);
 
+/// SpecStore trait — storage abstraction for DDMVSS specifications.
+///
+/// Trait-object-safe (no `Self: Sized` constraints on methods).
+/// Implemented by `SqliteSpecStore`.
+pub trait SpecStore: Send + Sync {
+    fn save(&self, spec: &Spec) -> Result<(), SpecError>;
+    fn load(&self, id: SpecId) -> Result<Spec, SpecError>;
+    fn delete(&self, id: SpecId) -> Result<(), SpecError>;
+    fn list_all(&self) -> Result<Vec<Spec>, SpecError>;
+    fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
+    fn list_valid_at(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
+    fn list_valid_in_range(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<Spec>, SpecError>;
+    fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
+    fn expire(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SqliteSpecStore — trait implementations
+
+impl SpecStore for SqliteSpecStore {
+    fn save(&self, spec: &Spec) -> Result<(), SpecError> {
+        self.save_inner(spec)
+    }
+    fn load(&self, id: SpecId) -> Result<Spec, SpecError> {
+        self.load_inner(id)
+    }
+    fn delete(&self, id: SpecId) -> Result<(), SpecError> {
+        self.delete_inner(id)
+    }
+    fn list_all(&self) -> Result<Vec<Spec>, SpecError> {
+        self.list_all_inner()
+    }
+    fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
+        self.list_by_category_inner(cat)
+    }
+    fn list_valid_at(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
+        self.list_valid_at_inner(at)
+    }
+    fn list_valid_in_range(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<Spec>, SpecError> {
+        self.list_valid_in_range_inner(from, to)
+    }
+    fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
+        self.list_since_inner(since)
+    }
+    fn expire(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError> {
+        self.expire_inner(id, valid_to)
+    }
+}
+
 // ── Shared row extraction helpers ────────────────────────────────────────
 
 fn row_to_spec(row: &rusqlite::Row<'_>) -> rusqlite::Result<Spec> {
@@ -181,7 +238,7 @@ impl SqliteCurationRecordStore {
 // ── SqliteSpecStore inherent methods ──────────────────────────────────────
 
 impl SqliteSpecStore {
-    fn load(&self, id: SpecId) -> Result<Spec, SpecError> {
+    fn load_inner(&self, id: SpecId) -> Result<Spec, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE id = ?1")?;
         let data: String = stmt
@@ -190,7 +247,7 @@ impl SqliteSpecStore {
         serde_json::from_str(&data).map_err(Into::into)
     }
 
-    fn save(&self, spec: &Spec) -> Result<(), SpecError> {
+    fn save_inner(&self, spec: &Spec) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR REPLACE INTO specs (id, name, category, domain_anchor, signed_by, signature, created_at, valid_from, valid_to, data)
@@ -207,7 +264,7 @@ impl SqliteSpecStore {
         Ok(())
     }
 
-    fn delete(&self, id: SpecId) -> Result<(), SpecError> {
+    fn delete_inner(&self, id: SpecId) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         let changed = conn.execute(
             "DELETE FROM specs WHERE id = ?1",
@@ -220,13 +277,13 @@ impl SqliteSpecStore {
         }
     }
 
-    fn list_all(&self) -> Result<Vec<Spec>, SpecError> {
+    fn list_all_inner(&self) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs")?;
         Ok(collect_rows!(stmt, [], row_to_spec))
     }
 
-    fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
+    fn list_by_category_inner(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE category = ?1")?;
         Ok(collect_rows!(
@@ -236,7 +293,7 @@ impl SqliteSpecStore {
         ))
     }
 
-    fn list_valid_at(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
+    fn list_valid_at_inner(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT data FROM specs WHERE (valid_from IS NULL OR valid_from <= ?1)
@@ -249,7 +306,7 @@ impl SqliteSpecStore {
         ))
     }
 
-    fn list_valid_in_range(
+    fn list_valid_in_range_inner(
         &self,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
@@ -266,7 +323,7 @@ impl SqliteSpecStore {
         ))
     }
 
-    fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
+    fn list_since_inner(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE created_at >= ?1")?;
         Ok(collect_rows!(
@@ -276,7 +333,7 @@ impl SqliteSpecStore {
         ))
     }
 
-    fn expire(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError> {
+    fn expire_inner(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         let changed = conn.execute(
             "UPDATE specs SET valid_to = ?1 WHERE id = ?2",

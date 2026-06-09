@@ -7,8 +7,9 @@
 //! Provides compression algorithms (rtk_style, saliency_rank, flashrank) for reducing
 //! tool output size while preserving essential information. Phase 1 implements local
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
-//! thread summarization via a local inference engine (Okapi, Ollama, or any
-//! /api/chat-compatible endpoint).
+//! thread summarization via a local or cloud inference engine.
+//! Supports Ollama/Okapi (/api/chat) and OpenAI-compatible (/v1/chat/completions)
+//! endpoints (OpenRouter, LiteLLM, etc.). Format detected from INFERENCE_URL.
 //!
 //! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
 //! persist compressed outputs to episodic memory via the `condenser:persist` tool.
@@ -32,6 +33,7 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
 
 use engine::CondenserEngine;
+use inference::ApiFormat;
 use types::*;
 
 /// System prompt for the thread-summary inference request.
@@ -48,6 +50,7 @@ pub struct CondenserServer {
     episodic: Option<Arc<EpisodicMemory>>,
     inference_url: Option<String>,
     inference_model: String,
+    api_format: ApiFormat,
     http_client: reqwest::Client,
 }
 
@@ -70,12 +73,18 @@ impl CondenserServer {
             client_builder = client_builder.default_headers(headers);
         }
 
+        let api_format = inference_url
+            .as_deref()
+            .map(inference::detect_format)
+            .unwrap_or(ApiFormat::Ollama);
+
         Ok(Self {
             webid,
             engine: Mutex::new(CondenserEngine::new()),
             episodic: episodic.map(Arc::new),
             inference_url,
             inference_model,
+            api_format,
             http_client: client_builder.build()?,
         })
     }
@@ -268,6 +277,7 @@ impl CondenserServer {
             inference::build_summarization_prompt(&conversation_text, &current_query);
 
         let chat_request = inference::build_chat_request(
+            self.api_format,
             &self.inference_model,
             &summarization_prompt,
             THREAD_SUMMARY_SYSTEM_PROMPT,
@@ -275,7 +285,15 @@ impl CondenserServer {
             max_tok,
         );
 
-        let url = format!("{}/api/chat", inference_url.trim_end_matches('/'));
+        let url = match self.api_format {
+            ApiFormat::Ollama => {
+                format!("{}/api/chat", inference_url.trim_end_matches('/'))
+            }
+            ApiFormat::OpenAi => {
+                // Base URL already ends with /v1 (e.g. https://openrouter.ai/api/v1)
+                format!("{}/chat/completions", inference_url.trim_end_matches('/'))
+            }
+        };
 
         // Use shared api_post with automatic HTTP error classification
         let resp_body = match api_post(&self.http_client, "inference", &url, &chat_request).await {
@@ -284,7 +302,7 @@ impl CondenserServer {
         };
 
         // Extract and validate the summary content
-        let summary = match inference::extract_summary(&resp_body) {
+        let summary = match inference::extract_summary(self.api_format, &resp_body) {
             Ok(s) => s,
             Err(e) => return span.error(McpErrorKind::Internal, e.to_json_string()),
         };

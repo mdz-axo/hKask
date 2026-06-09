@@ -210,14 +210,16 @@ pub fn build_entry_query(
         }
         "user/-/state/com.google/starred" => ("", "WHERE s.is_starred = 1"),
         "user/-/state/com.google/read" => ("", "WHERE s.is_read = 1"),
-        _ if let Some(label) = stream_id.strip_prefix("user/-/label/") => {
+        _ if stream_id.starts_with("user/-/label/") => {
+            let label = &stream_id["user/-/label/".len()..];
             params.push(Box::new(label.to_string()));
             (
                 "JOIN subscriptions sub ON e.feed_id = sub.feed_id",
                 "WHERE sub.label = ?",
             )
         }
-        _ if let Some(feed_url) = stream_id.strip_prefix("feed/") => {
+        _ if stream_id.starts_with("feed/") => {
+            let feed_url = &stream_id["feed/".len()..];
             params.push(Box::new(feed_url.to_string()));
             ("JOIN feeds f ON e.feed_id = f.id", "WHERE f.url = ?")
         }
