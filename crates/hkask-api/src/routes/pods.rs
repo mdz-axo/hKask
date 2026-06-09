@@ -65,9 +65,12 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
 fn map_pod_err(e: hkask_agents::pod::AgentPodError) -> ApiError {
     match &e {
         hkask_agents::pod::AgentPodError::PodNotFound(id) => ApiError::NotFound {
-            message: format!("Pod {id} not found"),
+            resource: "pod".into(),
+            id: id.to_string(),
         },
-        _ => ApiError::from(e),
+        other => ApiError::Internal {
+            message: other.to_string(),
+        },
     }
 }
 

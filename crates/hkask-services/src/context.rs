@@ -38,8 +38,8 @@ use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{
-    ConsentStore, Database, EmbeddingStore, SovereigntyBoundaryStore, SqliteSpecStore,
-    StandingSessionStore, TripleStore, in_memory_db,
+    ConsentStore, Database, DatabaseError, EmbeddingStore, SovereigntyBoundaryStore,
+    SqliteSpecStore, StandingSessionStore, TripleStore, in_memory_db,
 };
 use hkask_templates::OkapiConfig;
 use hkask_templates::SqliteRegistry;
@@ -170,34 +170,18 @@ impl ServiceContext {
         let system_webid = WebID::from_persona(config.agent_name.as_bytes());
 
         // ── 2. Database connections ──────────────────────────────────────────
-        let primary_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
+        let open_db = || -> Result<Database, DatabaseError> {
+            if config.in_memory {
+                Ok(in_memory_db())
+            } else {
+                Database::open(&config.db_path, &config.db_passphrase)
+            }
         };
-        let primary_conn = primary_db.conn_arc();
 
-        // Per-purpose connections (each store gets its own pool)
-        let consent_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let consent_conn = consent_db.conn_arc();
-
-        let escalation_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let escalation_conn = escalation_db.conn_arc();
-
-        let goal_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let goal_conn = goal_db.conn_arc();
+        let primary_conn = open_db()?.conn_arc();
+        let consent_conn = open_db()?.conn_arc();
+        let escalation_conn = open_db()?.conn_arc();
+        let goal_conn = open_db()?.conn_arc();
 
         // ── 3. Stores ───────────────────────────────────────────────────────
         let consent_store = ConsentStore::new(consent_conn);
@@ -211,40 +195,20 @@ impl ServiceContext {
         let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
         let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
 
-        let standing_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let standing_conn = standing_db.conn_arc();
+        let standing_conn = open_db()?.conn_arc();
         let standing_session_store = Arc::new(StandingSessionStore::new(standing_conn));
 
-        let sovereignty_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let sovereignty_conn = sovereignty_db.conn_arc();
+        let sovereignty_conn = open_db()?.conn_arc();
         let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
         sovereignty_boundary_store
             .initialize_schema()
             .map_err(ServiceError::SovereigntyStore)?;
 
-        let spec_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let spec_conn = spec_db.conn_arc();
+        let spec_conn = open_db()?.conn_arc();
         let spec_store = SqliteSpecStore::new(spec_conn);
         spec_store.init_schema().map_err(ServiceError::Spec)?;
 
-        let user_db = if config.in_memory {
-            in_memory_db()
-        } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let user_conn = user_db.conn_arc();
+        let user_conn = open_db()?.conn_arc();
         let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
         {
             let guard = user_store.lock().map_err(|_| {
@@ -409,19 +373,21 @@ impl ServiceContext {
             Arc::new((*mcp_runtime).clone()),
             tokio::runtime::Handle::current(),
         );
-        let pod_manager = Arc::new(
-            PodManager::new(
-                Arc::new(hkask_mcp::GitCasAdapter::from_path(
-                    std::path::PathBuf::from(&config.template_cache_path),
-                )),
-                acp_runtime.clone(),
-                Arc::new(mcp_runtime_adapter),
-                Arc::clone(&episodic_storage) as Arc<dyn EpisodicStoragePort>,
-                Arc::clone(&semantic_storage) as Arc<dyn SemanticStoragePort>,
-            )
-            .with_capability_checker(hkask_types::CapabilityChecker::new(&config.acp_secret))
-            .with_governed_tool(governed_tool.clone()),
-        );
+        let pod_manager = Arc::new(PodManager::new(
+            Some(Arc::new(hkask_mcp::GitCasAdapter::from_path(
+                std::path::PathBuf::from(&config.template_cache_path),
+            ))),
+            Some(acp_runtime.clone()),
+            Some(Arc::new(mcp_runtime_adapter)),
+            Some(Arc::clone(&episodic_storage) as Arc<dyn EpisodicStoragePort>),
+            Some(Arc::clone(&semantic_storage) as Arc<dyn SemanticStoragePort>),
+            None,
+            Some(Arc::new(hkask_types::CapabilityChecker::new(
+                &config.acp_secret,
+            ))),
+            Some(governed_tool.clone()),
+            None,
+        ));
 
         // ── 9. Registry ─────────────────────────────────────────────────────
         let registry = Arc::new(tokio::sync::Mutex::new(
@@ -493,4 +459,3 @@ impl ServiceContext {
         })
     }
 }
-

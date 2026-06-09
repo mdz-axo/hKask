@@ -15,7 +15,7 @@
 use crate::acp::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
-use crate::escalation::{EscalationBatch, EscalationEntry, EscalationStatus};
+use crate::escalation::{EscalationBatch, EscalationEntry};
 use hkask_types::BotID;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
@@ -441,25 +441,15 @@ impl MetacognitionLoop {
             self.issue_directive(directive).await;
 
             // Build escalation entry for variety deficit (written in act())
-            let template_id = hkask_types::TemplateID::new();
-            let bot_id = BotID::new();
             let error_context = format!(
                 "Total variety deficit ({}) exceeds threshold ({})",
                 deficit, self.config.thresholds.variety_deficit
             );
-            Some(EscalationEntry {
-                id: format!("esc_{}", uuid::Uuid::new_v4().simple()),
-                template_id,
-                bot_id,
-                output: format!("Variety deficit: {}", deficit),
-                confidence: 0.6,
-                retry_count: 0,
+            Some(EscalationEntry::pending(
+                format!("Variety deficit: {}", deficit),
+                0.6,
                 error_context,
-                created_at: chrono::Utc::now(),
-                status: EscalationStatus::Pending,
-                resolved_at: None,
-                resolved_by: None,
-            })
+            ))
         } else {
             None
         }
@@ -497,26 +487,16 @@ impl MetacognitionLoop {
                     "Critical alert count exceeds threshold"
                 );
 
-                let template_id = hkask_types::TemplateID::new();
-                let bot_id = BotID::new();
                 let error_context = format!(
                     "Critical alert count ({}) exceeds threshold ({})",
                     count, self.config.thresholds.critical_alerts
                 );
 
-                Some(EscalationEntry {
-                    id: format!("esc_{}", uuid::Uuid::new_v4().simple()),
-                    template_id,
-                    bot_id,
-                    output: format!("System has {} critical alerts", count),
-                    confidence: 0.3,
-                    retry_count: 0,
+                Some(EscalationEntry::pending(
+                    format!("System has {} critical alerts", count),
+                    0.3,
                     error_context,
-                    created_at: chrono::Utc::now(),
-                    status: EscalationStatus::Pending,
-                    resolved_at: None,
-                    resolved_by: None,
-                })
+                ))
             }
             "bot_failures" => {
                 let count = action
@@ -542,24 +522,14 @@ impl MetacognitionLoop {
                     "Bot failure count exceeds threshold"
                 );
 
-                let template_id = hkask_types::TemplateID::new();
-                let bot_id = BotID::new();
                 let error_context =
                     format!("{} bots in critical state: {}", count, bot_names.join(", "));
 
-                Some(EscalationEntry {
-                    id: format!("esc_{}", uuid::Uuid::new_v4().simple()),
-                    template_id,
-                    bot_id,
-                    output: format!("{} bots require attention", count),
-                    confidence: 0.4,
-                    retry_count: 0,
+                Some(EscalationEntry::pending(
+                    format!("{} bots require attention", count),
+                    0.4,
                     error_context,
-                    created_at: chrono::Utc::now(),
-                    status: EscalationStatus::Pending,
-                    resolved_at: None,
-                    resolved_by: None,
-                })
+                ))
             }
             _ => {
                 warn!(

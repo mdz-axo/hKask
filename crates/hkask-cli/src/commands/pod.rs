@@ -22,7 +22,7 @@ fn normalize_pod_error(e: AgentPodError) -> String {
 
 async fn build_pod_manager() -> Result<Arc<PodManager>, String> {
     let config = hkask_services::ServiceConfig::from_env().map_err(|e| format!("Config: {e}"))?;
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
+    let _db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
         .map_err(|e| format!("DB: {e}"))?;
     let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
     let mcp = Arc::new(hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
@@ -49,9 +49,19 @@ async fn build_pod_manager() -> Result<Arc<PodManager>, String> {
         ),
     );
     let epi: Arc<dyn hkask_agents::ports::EpisodicStoragePort> = adapter.clone();
-    let sem: Arc<dyn hkask_agents::ports::SemanticStoragePort> = epi.clone();
+    let sem: Arc<dyn hkask_agents::ports::SemanticStoragePort> = adapter;
 
-    Ok(Arc::new(PodManager::new(git, acp, mcp, epi, sem)))
+    Ok(Arc::new(PodManager::new(
+        Some(git),
+        Some(acp),
+        Some(mcp),
+        Some(epi),
+        Some(sem),
+        None,
+        None,
+        None,
+        None,
+    )))
 }
 
 pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {

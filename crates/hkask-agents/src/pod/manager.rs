@@ -1,4 +1,4 @@
-//! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
+//! PodManager, PodStatus — Pod lifecycle management
 
 use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
@@ -12,7 +12,6 @@ use tracing::info;
 
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
-use crate::MemoryError;
 use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
 use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, RecalledEpisode, SemanticStoragePort};
@@ -69,14 +68,71 @@ pub struct PodStatus {
 }
 
 impl PodManager {
-    /// Create a new pod manager with trait-object adapters
+    /// Create a new pod manager with trait-object adapters.
+    ///
+    /// Any port passed as `None` receives a sensible default:
+    /// - `git_cas` → `GitCasAdapter` rooted at `./registry/templates`
+    /// - `acp_runtime` → `AcpRuntime::default()`
+    /// - `mcp_runtime` → `CapabilityOnlyAdapter` with empty-secret checker (no live MCP)
+    /// - `episodic_storage` / `semantic_storage` → in-memory `MemoryLoopAdapter`
+    /// - `inference_port` → `None` (pods that need inference must supply it)
+    /// - `capability_checker` → resolved from ACP secret chain, or `None` (fails-closed)
+    /// - `governed_tool` → `None` (pods bypass CNS governance)
+    /// - `nu_event_sink` → `None` (no pod lifecycle observability)
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        git_cas: Arc<GitCasAdapter>,
-        acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        mcp_runtime: Arc<dyn MCPRuntimePort>,
-        episodic_storage: Arc<dyn EpisodicStoragePort>,
-        semantic_storage: Arc<dyn SemanticStoragePort>,
+        git_cas: Option<Arc<GitCasAdapter>>,
+        acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
+        mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
+        episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
+        semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
+        inference_port: Option<Arc<dyn InferencePort>>,
+        capability_checker: Option<Arc<CapabilityChecker>>,
+        governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+        nu_event_sink: Option<Arc<dyn NuEventSink>>,
     ) -> Self {
+        // ── storage defaults ────────────────────────────────────────────────
+        if episodic_storage.is_none() || semantic_storage.is_none() {
+            tracing::warn!(
+                target: "hkask.agents.pod",
+                "No persistent storage configured — episodic and semantic memory are in-memory and will be lost on restart. \
+                 Use PodManager::new() with explicit storage ports for sovereign persistence."
+            );
+        }
+        let default_adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
+        let default_episodic: Arc<dyn EpisodicStoragePort> = default_adapter.clone();
+        let default_semantic: Arc<dyn SemanticStoragePort> = default_adapter;
+        let episodic_storage = episodic_storage.unwrap_or(default_episodic);
+        let semantic_storage = semantic_storage.unwrap_or(default_semantic);
+
+        // ── git_cas default ─────────────────────────────────────────────────
+        let git_cas = git_cas.unwrap_or_else(|| {
+            Arc::new(GitCasAdapter::from_path(PathBuf::from(
+                "./registry/templates",
+            )))
+        });
+
+        // ── acp_runtime default ─────────────────────────────────────────────
+        let acp_runtime =
+            acp_runtime.unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default()));
+
+        // ── mcp_runtime default (CapabilityOnlyAdapter: NoRuntime on tools) ─
+        let mcp_runtime = mcp_runtime.unwrap_or_else(|| {
+            Arc::new(CapabilityOnlyAdapter::new(Arc::new(
+                CapabilityChecker::new(&[]),
+            )))
+        });
+
+        // ── capability_checker default (resolve from ACP secret chain) ──────
+        let capability_checker =
+            capability_checker.or_else(|| resolve_acp_secret_for_checker().map(Arc::new));
+        if capability_checker.is_none() {
+            tracing::info!(
+                target: "hkask.ocap",
+                "No capability checker configured — PodContext::require_capability() will deny capabilities"
+            );
+        }
+
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             git_cas,
@@ -84,10 +140,10 @@ impl PodManager {
             mcp_runtime,
             episodic_storage,
             semantic_storage,
-            inference_port: None,
-            capability_checker: None,
-            governed_tool: None,
-            nu_event_sink: None,
+            inference_port,
+            capability_checker,
+            governed_tool,
+            nu_event_sink,
             consent: Arc::new(crate::DenyAllConsent),
         }
     }
@@ -131,19 +187,17 @@ impl PodManager {
         semantic_storage: Arc<dyn SemanticStoragePort>,
         inference_port: Arc<dyn InferencePort>,
     ) -> Self {
-        Self {
-            pods: Arc::new(RwLock::new(HashMap::new())),
-            git_cas,
-            acp_runtime,
-            mcp_runtime,
-            episodic_storage,
-            semantic_storage,
-            inference_port: Some(inference_port),
-            capability_checker: None,
-            governed_tool: None,
-            nu_event_sink: None,
-            consent: Arc::new(crate::DenyAllConsent),
-        }
+        Self::new(
+            Some(git_cas),
+            Some(acp_runtime),
+            Some(mcp_runtime),
+            Some(episodic_storage),
+            Some(semantic_storage),
+            Some(inference_port),
+            None,
+            None,
+            None,
+        )
     }
 
     /// Get the inference port if available
@@ -205,196 +259,6 @@ impl PodManager {
             nu_event_sink: None,
             consent: Arc::new(crate::DenyAllConsent),
         }
-    }
-}
-
-/// Builder for constructing [`PodManager`] with explicit adapter configuration
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use hkask_agents::pod::PodManagerBuilder;
-/// use hkask_mcp::GitCasAdapter;
-/// use std::path::PathBuf;
-/// use std::sync::Arc;
-///
-/// let pod_manager = PodManagerBuilder::new()
-///     .git_cas(Arc::new(GitCasAdapter::from_path(PathBuf::from("./registry/templates"))))
-///     .with_in_memory_storage()
-///     .build();
-/// ```
-pub struct PodManagerBuilder {
-    git_cas: Option<Arc<GitCasAdapter>>,
-    acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
-    mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
-    episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
-    semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
-    inference_port: Option<Arc<dyn InferencePort>>,
-    capability_checker: Option<Arc<CapabilityChecker>>,
-    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
-    nu_event_sink: Option<Arc<dyn NuEventSink>>,
-}
-
-impl PodManagerBuilder {
-    pub fn new() -> Self {
-        Self {
-            git_cas: None,
-            acp_runtime: None,
-            mcp_runtime: None,
-            episodic_storage: None,
-            semantic_storage: None,
-            inference_port: None,
-            capability_checker: None,
-            governed_tool: None,
-            nu_event_sink: None,
-        }
-    }
-
-    pub fn git_cas(mut self, adapter: Arc<GitCasAdapter>) -> Self {
-        self.git_cas = Some(adapter);
-        self
-    }
-
-    pub fn git_cas_from_path<P: Into<PathBuf>>(self, path: P) -> Self {
-        self.git_cas(Arc::new(GitCasAdapter::from_path(path.into())))
-    }
-
-    pub fn acp_runtime(mut self, adapter: Arc<dyn crate::ports::AcpPort + Send + Sync>) -> Self {
-        self.acp_runtime = Some(adapter);
-        self
-    }
-
-    pub fn mcp_runtime(mut self, adapter: Arc<dyn MCPRuntimePort>) -> Self {
-        self.mcp_runtime = Some(adapter);
-        self
-    }
-
-    pub fn episodic_storage(mut self, adapter: Arc<dyn EpisodicStoragePort>) -> Self {
-        self.episodic_storage = Some(adapter);
-        self
-    }
-
-    pub fn semantic_storage(mut self, adapter: Arc<dyn SemanticStoragePort>) -> Self {
-        self.semantic_storage = Some(adapter);
-        self
-    }
-
-    pub fn inference_port(mut self, adapter: Arc<dyn InferencePort>) -> Self {
-        self.inference_port = Some(adapter);
-        self
-    }
-
-    /// Set the capability checker for cryptographic OCAP verification.
-    ///
-    /// The checker must use the same HMAC secret as the ACP runtime that signs
-    /// capability tokens. If not set, `build()` attempts to resolve the default
-    /// ACP secret automatically.
-    pub fn capability_checker(mut self, checker: CapabilityChecker) -> Self {
-        self.capability_checker = Some(Arc::new(checker));
-        self
-    }
-
-    /// Set the GovernedTool membrane for pod tool invocations.
-    ///
-    /// When set, `PodContext::invoke_tool` routes through the membrane,
-    /// gaining CNS governance: gas budget enforcement, variety tracking,
-    /// and algedonic event spans. Without it, pods bypass CNS observability.
-    pub fn governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
-        self.governed_tool = Some(tool);
-        self
-    }
-
-    /// Set the NuEvent sink for pod lifecycle observability.
-    pub fn nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
-        self.nu_event_sink = Some(sink);
-        self
-    }
-
-    /// Configure with in-memory storage (episodic and semantic)
-    pub fn with_in_memory_storage(self) -> Self {
-        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
-        let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
-        let semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
-        self.episodic_storage(episodic).semantic_storage(semantic)
-    }
-
-    /// Configure with encrypted storage (episodic and semantic)
-    ///
-    /// P4.1: Returns `Result<Self, MemoryError>` so the caller can handle
-    /// recoverable storage initialization failures (invalid passphrase,
-    /// permission denied, disk full) instead of panicking. The path must
-    /// be valid UTF-8; non-UTF-8 paths return `MemoryError::Infra` with a
-    /// descriptive message rather than panicking with `.expect()`.
-    pub fn with_encrypted_storage<P: AsRef<std::path::Path>>(
-        self,
-        path: P,
-        passphrase: &str,
-    ) -> Result<Self, MemoryError> {
-        let path_str = path.as_ref().to_str().ok_or_else(|| {
-            hkask_types::InfrastructureError::Database(format!(
-                "Storage path is not valid UTF-8: {:?}",
-                path.as_ref()
-            ))
-        })?;
-        let adapter = Arc::new(MemoryLoopAdapter::from_path(path_str, passphrase)?);
-        let episodic: Arc<dyn EpisodicStoragePort> = Arc::clone(&adapter) as _;
-        let semantic: Arc<dyn SemanticStoragePort> = Arc::clone(&adapter) as _;
-        Ok(self.episodic_storage(episodic).semantic_storage(semantic))
-    }
-
-    pub fn build(self) -> PodManager {
-        if self.episodic_storage.is_none() || self.semantic_storage.is_none() {
-            tracing::warn!(
-                target: "hkask.agents.pod",
-                "No persistent storage configured — episodic and semantic memory are in-memory and will be lost on restart. \
-                 Use .with_encrypted_storage(path, passphrase) for sovereign persistence."
-            );
-        }
-        let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
-        let default_episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
-        let default_semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
-        let episodic_storage = self.episodic_storage.unwrap_or(default_episodic);
-        let semantic_storage = self.semantic_storage.unwrap_or(default_semantic);
-
-        let mut manager = PodManager::new(
-            self.git_cas.unwrap_or_else(|| {
-                Arc::new(GitCasAdapter::from_path(PathBuf::from(
-                    "./registry/templates",
-                )))
-            }),
-            self.acp_runtime
-                .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
-            // Default: CapabilityOnlyAdapter with a minimal (empty-secret) checker.
-            // Tool invocation will return NoRuntime (no live MCP servers).
-            // Token verification will fail with NoChecker, which matches
-            // the old McpRuntimeAdapter::new() behaviour.
-            self.mcp_runtime.unwrap_or_else(|| {
-                Arc::new(CapabilityOnlyAdapter::new(Arc::new(
-                    CapabilityChecker::new(&[]),
-                )))
-            }),
-            episodic_storage,
-            semantic_storage,
-        );
-        manager.inference_port = self.inference_port;
-        manager.governed_tool = self.governed_tool;
-        manager.nu_event_sink = self.nu_event_sink;
-        manager.capability_checker = self
-            .capability_checker
-            .or_else(|| resolve_acp_secret_for_checker().map(Arc::new));
-        if manager.capability_checker.is_none() {
-            tracing::info!(
-                target: "hkask.ocap",
-                "No capability checker configured — PodContext::require_capability() will deny capabilities"
-            );
-        }
-        manager
-    }
-}
-
-impl Default for PodManagerBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

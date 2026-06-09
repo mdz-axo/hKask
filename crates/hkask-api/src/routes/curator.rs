@@ -145,7 +145,8 @@ async fn resolve_escalation(
     let queue = &state.service_context.escalation_queue;
     if queue.get(&id).map_err(ApiError::from)?.is_none() {
         return Err(ApiError::NotFound {
-            message: format!("Escalation {} not found", id),
+            resource: "escalation".into(),
+            id,
         });
     }
     queue
@@ -153,7 +154,7 @@ async fn resolve_escalation(
         .map_err(ApiError::from)?;
     Ok(Json(ResolveEscalationResponse {
         id,
-        status: "resolved".to_string(),
+        status: "resolved".into(),
     }))
 }
 
@@ -176,7 +177,8 @@ async fn dismiss_escalation(
     let queue = &state.service_context.escalation_queue;
     if queue.get(&id).map_err(ApiError::from)?.is_none() {
         return Err(ApiError::NotFound {
-            message: format!("Escalation {} not found", id),
+            resource: "escalation".into(),
+            id,
         });
     }
     queue
@@ -184,7 +186,7 @@ async fn dismiss_escalation(
         .map_err(ApiError::from)?;
     Ok(Json(DismissEscalationResponse {
         id,
-        status: "dismissed".to_string(),
+        status: "dismissed".into(),
     }))
 }
 

@@ -281,38 +281,39 @@ impl WebServer {
         let num = num_results.unwrap_or(5).min(20);
 
         // Task 13: CapabilityContext passed as None for now
-        match self.pool.find_similar(&url, num, None).await {
-            Ok(output) => {
-                let results: Vec<FindSimilarResultOutput> = output
-                    .results
-                    .into_iter()
-                    .map(|r| {
-                        let key = r.url.to_lowercase();
-                        FindSimilarResultOutput {
-                            title: r.title,
-                            url: r.url,
-                            description: r.description,
-                            source: r.source,
-                            published: r.published,
-                            semantic_score: output.semantic_scores.get(&key).copied(),
-                            content_preview: output.content_previews.get(&key).cloned(),
-                        }
-                    })
-                    .collect();
+        span.finish(
+            self.pool
+                .find_similar(&url, num, None)
+                .await
+                .map(|output| {
+                    let results: Vec<FindSimilarResultOutput> = output
+                        .results
+                        .into_iter()
+                        .map(|r| {
+                            let key = r.url.to_lowercase();
+                            FindSimilarResultOutput {
+                                title: r.title,
+                                url: r.url,
+                                description: r.description,
+                                source: r.source,
+                                published: r.published,
+                                semantic_score: output.semantic_scores.get(&key).copied(),
+                                content_preview: output.content_previews.get(&key).cloned(),
+                            }
+                        })
+                        .collect();
 
-                let fs_output = FindSimilarOutput {
-                    source_url: url,
-                    count: results.len(),
-                    results,
-                };
+                    let fs_output = FindSimilarOutput {
+                        source_url: url,
+                        count: results.len(),
+                        results,
+                    };
 
-                span.ok_json(
                     serde_json::to_value(&fs_output)
-                        .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" })),
-                )
-            }
-            Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
-        }
+                        .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }))
+                })
+                .map_err(McpToolError::from),
+        )
     }
 
     #[tool(description = "Extract content from a URL into markdown or structured JSON")]
@@ -392,21 +393,26 @@ impl WebServer {
             return span.ok_json(cached);
         }
 
-        match self.pool.extract(&url, &opts, None).await {
-            Ok(result) => {
+        let json_result = self
+            .pool
+            .extract(&url, &opts, None)
+            .await
+            .map(|result| {
                 let output = ExtractOutput {
                     url: result.url,
                     format: result.format,
                     content: result.content,
                     metadata: result.metadata,
                 };
-                let json = serde_json::to_value(&output)
-                    .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }));
-                self.cache.insert(ckey, json.clone()).await;
-                span.ok_json(json)
-            }
-            Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
+                serde_json::to_value(&output)
+                    .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }))
+            })
+            .map_err(McpToolError::from);
+
+        if let Ok(ref json) = json_result {
+            self.cache.insert(ckey, json.clone()).await;
         }
+        span.finish(json_result)
     }
 
     #[tool(description = "Interactive browsing of JS-heavy pages via headless browser")]
@@ -456,21 +462,22 @@ impl WebServer {
         let timeout = Duration::from_secs(timeout_secs.unwrap_or(30)).min(Duration::from_secs(120));
 
         // Task 13: CapabilityContext passed as None for now
-        match self.pool.browse(&url, &instr, timeout, None).await {
-            Ok(result) => {
-                let output = BrowseOutput {
-                    url: result.url,
-                    content: result.content,
-                    instruction: result.instruction,
-                    actions_taken: result.actions_taken,
-                };
-                span.ok_json(
+        span.finish(
+            self.pool
+                .browse(&url, &instr, timeout, None)
+                .await
+                .map(|result| {
+                    let output = BrowseOutput {
+                        url: result.url,
+                        content: result.content,
+                        instruction: result.instruction,
+                        actions_taken: result.actions_taken,
+                    };
                     serde_json::to_value(&output)
-                        .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" })),
-                )
-            }
-            Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
-        }
+                        .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }))
+                })
+                .map_err(McpToolError::from),
+        )
     }
 }
 

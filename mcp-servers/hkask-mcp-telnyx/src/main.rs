@@ -67,24 +67,20 @@ impl TelnyxServer {
     async fn telnyx_ping(&self) -> String {
         let span = ToolSpanGuard::new("telnyx_ping", &self.webid);
         let url = format!("{BASE_URL}/phone_numbers?page_size=1");
-        match api_get(&self.client, "Telnyx", &url).await {
-            Ok(body) => span.ok_json(serde_json::json!({
+        span.finish(api_get(&self.client, "Telnyx", &url).await.map(|body| {
+            serde_json::json!({
                 "status": "ok",
                 "message": "Telnyx API is reachable",
                 "data": body,
-            })),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+            })
+        }))
     }
 
     #[tool(description = "List phone numbers")]
     async fn telnyx_list_numbers(&self) -> String {
         let span = ToolSpanGuard::new("telnyx_list_numbers", &self.webid);
         let url = format!("{BASE_URL}/phone_numbers");
-        match api_get(&self.client, "Telnyx", &url).await {
-            Ok(body) => span.ok_json(body),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_get(&self.client, "Telnyx", &url).await)
     }
 
     #[tool(description = "Buy a phone number")]
@@ -101,10 +97,7 @@ impl TelnyxServer {
             "phone_numbers": [{"phone_number": phone_number}],
             "messaging_profile_id": messaging_profile_id,
         });
-        match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok_json(resp_body),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
     }
 
     #[tool(description = "Send an SMS")]
@@ -119,10 +112,7 @@ impl TelnyxServer {
             "to": to,
             "text": text,
         });
-        match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok_json(resp_body),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
     }
 
     #[tool(description = "Make a phone call")]
@@ -144,10 +134,7 @@ impl TelnyxServer {
             "to": to,
             "webhook_url": webhook_url,
         });
-        match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok_json(resp_body),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
     }
 
     #[tool(description = "Send a WhatsApp message")]
@@ -171,10 +158,7 @@ impl TelnyxServer {
                 "content": content,
             },
         });
-        match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok_json(resp_body),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
     }
 
     #[tool(description = "List available TTS voices (static catalog from Telnyx docs)")]

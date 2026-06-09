@@ -100,20 +100,21 @@ impl FmpServer {
     #[tool(description = "Ping FMP API")]
     async fn fmp_ping(&self) -> String {
         let span = ToolSpanGuard::new("fmp_ping", &self.webid);
-        match fmp_get(
-            &self.client,
-            "/profile",
-            &self.api_key,
-            &[("symbol", "AAPL")],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/profile",
+                &self.api_key,
+                &[("symbol", "AAPL")],
+            )
+            .await
+            .map(|_| {
+                serde_json::json!({
+                    "status": "ok",
+                    "message": "FMP API is reachable"
+                })
+            }),
         )
-        .await
-        {
-            Ok(_) => span.ok_json(serde_json::json!({
-                "status": "ok",
-                "message": "FMP API is reachable"
-            })),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get company profile")]
@@ -125,17 +126,15 @@ impl FmpServer {
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        match fmp_get(
-            &self.client,
-            "/profile",
-            &self.api_key,
-            &[("symbol", &symbol)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/profile",
+                &self.api_key,
+                &[("symbol", &symbol)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get stock quote")]
@@ -147,17 +146,15 @@ impl FmpServer {
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        match fmp_get(
-            &self.client,
-            "/quote",
-            &self.api_key,
-            &[("symbol", &symbol)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/quote",
+                &self.api_key,
+                &[("symbol", &symbol)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get income statement")]
@@ -170,17 +167,15 @@ impl FmpServer {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(
-            &self.client,
-            "/income-statement",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", &limit_str)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/income-statement",
+                &self.api_key,
+                &[("symbol", &symbol), ("limit", &limit_str)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get balance sheet")]
@@ -193,17 +188,15 @@ impl FmpServer {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(
-            &self.client,
-            "/balance-sheet-statement",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", &limit_str)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/balance-sheet-statement",
+                &self.api_key,
+                &[("symbol", &symbol), ("limit", &limit_str)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get cash flow statement")]
@@ -216,17 +209,15 @@ impl FmpServer {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(
-            &self.client,
-            "/cash-flow-statement",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", &limit_str)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/cash-flow-statement",
+                &self.api_key,
+                &[("symbol", &symbol), ("limit", &limit_str)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get key metrics")]
@@ -239,17 +230,15 @@ impl FmpServer {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(
-            &self.client,
-            "/key-metrics",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", &limit_str)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/key-metrics",
+                &self.api_key,
+                &[("symbol", &symbol), ("limit", &limit_str)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get historical price data")]
@@ -261,17 +250,15 @@ impl FmpServer {
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        match fmp_get(
-            &self.client,
-            "/historical-price-full",
-            &self.api_key,
-            &[("symbol", &symbol), ("from", &from), ("to", &to)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/historical-price-full",
+                &self.api_key,
+                &[("symbol", &symbol), ("from", &from), ("to", &to)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Search for symbols")]
@@ -287,17 +274,15 @@ impl FmpServer {
             );
         }
         let limit_str = limit.unwrap_or(10).to_string();
-        match fmp_get(
-            &self.client,
-            "/search-name",
-            &self.api_key,
-            &[("query", &query), ("limit", &limit_str)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/search-name",
+                &self.api_key,
+                &[("query", &query), ("limit", &limit_str)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get analyst estimates")]
@@ -309,17 +294,15 @@ impl FmpServer {
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        match fmp_get(
-            &self.client,
-            "/analyst-estimates",
-            &self.api_key,
-            &[("symbol", &symbol), ("period", "annual")],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/analyst-estimates",
+                &self.api_key,
+                &[("symbol", &symbol), ("period", "annual")],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 
     #[tool(description = "Get discounted cash flow analysis")]
@@ -331,17 +314,15 @@ impl FmpServer {
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        match fmp_get(
-            &self.client,
-            "/discounted-cash-flow",
-            &self.api_key,
-            &[("symbol", &symbol)],
+        span.finish(
+            fmp_get(
+                &self.client,
+                "/discounted-cash-flow",
+                &self.api_key,
+                &[("symbol", &symbol)],
+            )
+            .await,
         )
-        .await
-        {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 }
 

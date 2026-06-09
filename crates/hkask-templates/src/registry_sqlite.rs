@@ -8,9 +8,10 @@
 //! Use `new_with_conn()` when opening the database through
 //! `hkask_storage::Database` (SQLCipher-encrypted).
 
+use crate::contract_validator::{ContractValidator, ValidationMode};
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
-use hkask_types::{InfrastructureError, Skill, TemplateType};
+use hkask_types::{HLexicon, InfrastructureError, Skill, TemplateType};
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
 
@@ -59,6 +60,9 @@ fn parse_template_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TemplateRow> 
 /// SQLite-based registry index
 pub struct SqliteRegistry {
     conn: Arc<Mutex<Connection>>,
+    /// Optional hLexicon for validating lexicon_terms during registration.
+    /// When set, `register()` delegates to `ContractValidator` for term enforcement.
+    hlexicon: Option<HLexicon>,
 }
 
 impl SqliteRegistry {
@@ -83,7 +87,10 @@ impl SqliteRegistry {
         };
 
         let conn = Arc::new(Mutex::new(conn));
-        let mut registry = Self { conn };
+        let mut registry = Self {
+            conn,
+            hlexicon: None,
+        };
 
         // Initialize schema
         registry.init_schema()?;
@@ -97,7 +104,10 @@ impl SqliteRegistry {
     /// `hkask_storage::Database` (SQLCipher-encrypted). The connection
     /// is obtained via `Database::conn_arc()`.
     pub fn new_with_conn(conn: Arc<Mutex<Connection>>) -> Result<Self> {
-        let mut registry = Self { conn };
+        let mut registry = Self {
+            conn,
+            hlexicon: None,
+        };
 
         // Initialize schema
         registry.init_schema()?;
@@ -204,15 +214,36 @@ impl SqliteRegistry {
         Ok(())
     }
 
+    /// Set the hLexicon for validating terms during registration.
+    ///
+    /// When set, `register()` delegates to `ContractValidator` with `Warn` mode —
+    /// unknown terms are logged but do not block registration. Callers can use
+    /// `set_lexicon_with_mode()` for stricter enforcement.
+    pub fn set_lexicon(&mut self, lexicon: HLexicon) {
+        self.hlexicon = Some(lexicon);
+    }
+
     /// Register a template in the registry
     ///
-    /// Validates the entry (cascade_level, matroshka_limit) and logs warnings
-    /// for any issues before persisting.
+    /// Validates the entry (cascade_level, matroshka_limit) and delegates
+    /// lexicon term validation to the `ContractValidator` (FA-C1) before
+    /// persisting to the database.
     pub fn register(&mut self, entry: RegistryEntry) -> Result<()> {
         // Validate entry consistency and log warnings
         let warnings = entry.validate();
         for warning in &warnings {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
+        }
+
+        // Delegate term validation to ContractValidator (FA-C1)
+        if let Some(ref lexicon) = self.hlexicon {
+            let validator =
+                ContractValidator::with_lexicon(lexicon).with_mode(ValidationMode::Warn);
+            let (result, _unknown) = validator.validate_terms(&entry.id, &entry.lexicon_terms);
+            // In Warn mode, unknown terms are logged but return Ok(()).
+            // If the caller switches to Reject mode, unknown terms would
+            // return Err here and should be propagated.
+            result?;
         }
 
         let mut conn = self.conn.lock().unwrap();
@@ -699,34 +730,35 @@ impl SqliteRegistry {
             })
     }
 
-    /// List all skills (owned)
-    pub fn list_skills_owned(&self) -> Vec<Skill> {
+    /// Shared helper: execute a skill query, map rows via `row_to_skill`.
+    fn query_skills(&self, sql: &str, params: &[rusqlite::types::Value]) -> Vec<Skill> {
         let conn = match self.conn.lock() {
             Ok(c) => c,
             Err(_) => return Vec::new(),
         };
 
-        let mut stmt = match conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills",
-        ) {
+        let mut stmt = match conn.prepare(sql) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
         };
 
-        let rows: Vec<SkillRow> = match stmt.query_map([], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get(5)?,
-                row.get(6)?,
-                row.get(7)?,
-                row.get(8)?,
-                row.get(9)?,
-            ))
-        }) {
+        let rows: Vec<SkillRow> = match stmt.query_map(
+            rusqlite::params_from_iter(params.iter().map(|v| v as &dyn rusqlite::types::ToSql)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                ))
+            },
+        ) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
             Err(_) => return Vec::new(),
         };
@@ -762,135 +794,29 @@ impl SqliteRegistry {
             }
         }
         skills
+    }
+
+    /// List all skills (owned)
+    pub fn list_skills_owned(&self) -> Vec<Skill> {
+        self.query_skills(
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills",
+            &[],
+        )
     }
 
     /// List skills by domain (owned)
     pub fn skills_by_domain_owned(&self, domain: TemplateType) -> Vec<Skill> {
-        let conn = match self.conn.lock() {
-            Ok(c) => c,
-            Err(_) => return Vec::new(),
-        };
-
-        let mut stmt = match conn.prepare(
+        self.query_skills(
             "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE domain = ?1",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-
-        let rows: Vec<SkillRow> = match stmt.query_map(params![domain.as_str()], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get(5)?,
-                row.get(6)?,
-                row.get(7)?,
-                row.get(8)?,
-                row.get(9)?,
-            ))
-        }) {
-            Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
-            Err(_) => return Vec::new(),
-        };
-
-        let mut skills = Vec::new();
-        for (
-            id,
-            domain_str,
-            word_act,
-            flow_def,
-            know_act,
-            polarity_str,
-            content_hash,
-            visibility_str,
-            zone_str,
-            namespace,
-        ) in rows
-        {
-            if let Some(skill) = Self::row_to_skill(
-                &conn,
-                id,
-                domain_str,
-                word_act,
-                flow_def,
-                know_act,
-                polarity_str,
-                content_hash,
-                visibility_str,
-                zone_str,
-                namespace,
-            ) {
-                skills.push(skill);
-            }
-        }
-        skills
+            &[rusqlite::types::Value::Text(domain.as_str().to_string())],
+        )
     }
 
     /// Find skills referencing a template (owned)
     pub fn skills_referencing_template_owned(&self, template_id: &str) -> Vec<Skill> {
-        let conn = match self.conn.lock() {
-            Ok(c) => c,
-            Err(_) => return Vec::new(),
-        };
-
-        let mut stmt = match conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1"
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-
-        let rows: Vec<SkillRow> = match stmt.query_map(params![template_id], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get(5)?,
-                row.get(6)?,
-                row.get(7)?,
-                row.get(8)?,
-                row.get(9)?,
-            ))
-        }) {
-            Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
-            Err(_) => return Vec::new(),
-        };
-
-        let mut skills = Vec::new();
-        for (
-            id,
-            domain_str,
-            word_act,
-            flow_def,
-            know_act,
-            polarity_str,
-            content_hash,
-            visibility_str,
-            zone_str,
-            namespace,
-        ) in rows
-        {
-            if let Some(skill) = Self::row_to_skill(
-                &conn,
-                id,
-                domain_str,
-                word_act,
-                flow_def,
-                know_act,
-                polarity_str,
-                content_hash,
-                visibility_str,
-                zone_str,
-                namespace,
-            ) {
-                skills.push(skill);
-            }
-        }
-        skills
+        self.query_skills(
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1",
+            &[rusqlite::types::Value::Text(template_id.to_string())],
+        )
     }
 }

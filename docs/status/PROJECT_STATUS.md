@@ -65,12 +65,12 @@ See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) for the exhaustiv
 | P2-09 | TemplateType vocabulary mapping (Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct) in `interface-and-composition.md` | ✅ Done |
 | P2-10 | DDMVSS §11 R3 deferred items (all 10) added to `OPEN_QUESTIONS.md` | ✅ Done |
 | P2-11 | `PROJECT_STATUS.md` populated with build/test/clippy results | ✅ Done |
+| **#4** | Wire `ContractValidator::validate_terms()` into template registration path | ✅ Done |
 
 ## Remaining (from HANDOFF.md)
 
 | # | Task | Priority |
 |---|------|----------|
-| 4 | Wire `ContractValidator::validate_terms()` into template registration | Medium |
 | 5 | Implement `parse_markdown_catalog` / `render_workspace_yaml` / `regenerate_workspace_yaml` | Medium |
 | 6 | Add bitemporal query methods to `SqliteSpecStore` (FUT-011) | Medium |
 | 7 | Calibrate coherence threshold (FUT-013) | Medium |

@@ -80,7 +80,7 @@ use crate::SovereigntyChecker;
 use hkask_mcp::GitCasAdapter;
 
 pub use context::PodContext;
-pub use manager::{PodManager, PodManagerBuilder, PodStatus};
+pub use manager::{PodManager, PodStatus};
 
 pub use types::{AgentKind, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile};
 

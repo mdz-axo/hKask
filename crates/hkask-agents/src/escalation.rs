@@ -29,6 +29,25 @@ pub struct EscalationEntry {
     pub resolved_by: Option<String>,
 }
 
+impl EscalationEntry {
+    /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
+    pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
+        Self {
+            id: format!("esc_{}", Uuid::new_v4().simple()),
+            template_id: TemplateID::new(),
+            bot_id: BotID::new(),
+            output,
+            confidence,
+            retry_count: 0,
+            error_context,
+            created_at: Utc::now(),
+            status: EscalationStatus::Pending,
+            resolved_at: None,
+            resolved_by: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EscalationStatus {

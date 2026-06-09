@@ -103,18 +103,19 @@ impl GoalServer {
             return span.error(err.kind, err.to_json_string());
         };
 
-        match self.repo.create_goal(&self.webid, &text, vis) {
-            Ok(goal) => span.ok_json(json!({
-                "id": goal.id.to_string(),
-                "text": goal.text,
-                "state": goal.state.as_str(),
-                "visibility": goal.visibility.as_str(),
-            })),
-            Err(e) => {
-                let err = Self::repo_error(e);
-                span.error(err.kind, err.to_json_string())
-            }
-        }
+        span.finish(
+            self.repo
+                .create_goal(&self.webid, &text, vis)
+                .map(|goal| {
+                    json!({
+                        "id": goal.id.to_string(),
+                        "text": goal.text,
+                        "state": goal.state.as_str(),
+                        "visibility": goal.visibility.as_str(),
+                    })
+                })
+                .map_err(Self::repo_error),
+        )
     }
 
     #[tool(description = "List the calling agent's goals, optionally filtered by state")]
@@ -135,26 +136,25 @@ impl GoalServer {
             None => None,
         };
 
-        match self.repo.list_goals(&self.webid, state_filter) {
-            Ok(goals) => {
-                let items: Vec<serde_json::Value> = goals
-                    .into_iter()
-                    .map(|g| {
-                        json!({
-                            "id": g.id.to_string(),
-                            "text": g.text,
-                            "state": g.state.as_str(),
-                            "visibility": g.visibility.as_str(),
+        span.finish(
+            self.repo
+                .list_goals(&self.webid, state_filter)
+                .map(|goals| {
+                    let items: Vec<serde_json::Value> = goals
+                        .into_iter()
+                        .map(|g| {
+                            json!({
+                                "id": g.id.to_string(),
+                                "text": g.text,
+                                "state": g.state.as_str(),
+                                "visibility": g.visibility.as_str(),
+                            })
                         })
-                    })
-                    .collect();
-                span.ok_json(json!({ "goals": items }))
-            }
-            Err(e) => {
-                let err = Self::repo_error(e);
-                span.error(err.kind, err.to_json_string())
-            }
-        }
+                        .collect();
+                    json!({ "goals": items })
+                })
+                .map_err(Self::repo_error),
+        )
     }
 
     #[tool(description = "Transition a goal to a new state (legal transitions only)")]
@@ -173,16 +173,17 @@ impl GoalServer {
         };
 
         let gid: GoalID = goal_id.parse().unwrap_or_else(|_| GoalID::new());
-        match self.repo.update_goal_state(gid, new_state) {
-            Ok(()) => span.ok_json(json!({
-                "id": gid.to_string(),
-                "state": new_state.as_str(),
-            })),
-            Err(e) => {
-                let err = Self::repo_error(e);
-                span.error(err.kind, err.to_json_string())
-            }
-        }
+        span.finish(
+            self.repo
+                .update_goal_state(gid, new_state)
+                .map(|()| {
+                    json!({
+                        "id": gid.to_string(),
+                        "state": new_state.as_str(),
+                    })
+                })
+                .map_err(Self::repo_error),
+        )
     }
 }
 

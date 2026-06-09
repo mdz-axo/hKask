@@ -239,10 +239,7 @@ impl FalServer {
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
             "num_images": num_images.unwrap_or(1),
         });
-        match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(fal_post(&self.client, "fal-ai/flux/schnell", body).await)
     }
 
     #[tool(description = "Transform an image with a prompt")]
@@ -265,10 +262,7 @@ impl FalServer {
         if let Some(s) = strength {
             body["strength"] = serde_json::json!(s);
         }
-        match fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await)
     }
 
     #[tool(description = "Upscale an image")]
@@ -284,10 +278,7 @@ impl FalServer {
             "image_url": image_url,
             "scale": scale.unwrap_or(4),
         });
-        match fal_post(&self.client, "fal-ai/imageutils/u2net", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(fal_post(&self.client, "fal-ai/imageutils/u2net", body).await)
     }
 
     #[tool(description = "Generate a video from a prompt")]
@@ -302,10 +293,7 @@ impl FalServer {
         if let Some(d) = duration {
             body["duration"] = serde_json::json!(d);
         }
-        match self.queue_post("fal-ai/minimax/video-01-live", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(self.queue_post("fal-ai/minimax/video-01-live", body).await)
     }
 
     #[tool(description = "Generate music from a prompt")]
@@ -323,10 +311,7 @@ impl FalServer {
         if let Some(d) = duration_seconds {
             body["duration"] = serde_json::json!(d);
         }
-        match self.queue_post("fal-ai/stable-audio", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(self.queue_post("fal-ai/stable-audio", body).await)
     }
 
     #[tool(description = "Transcribe audio to text")]
@@ -341,10 +326,7 @@ impl FalServer {
         let body = serde_json::json!({
             "audio_url": audio_url,
         });
-        match fal_post(&self.client, "fal-ai/whisper", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(fal_post(&self.client, "fal-ai/whisper", body).await)
     }
 
     #[tool(description = "Generate a caption for an image")]
@@ -367,10 +349,7 @@ impl FalServer {
                 }
             ]
         });
-        match fal_post(&self.client, "fal-ai/any-llm", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(fal_post(&self.client, "fal-ai/any-llm", body).await)
     }
 
     #[tool(description = "Generate a 3D model from an image")]
@@ -385,10 +364,7 @@ impl FalServer {
         let body = serde_json::json!({
             "image_url": image_url,
         });
-        match self.queue_post("fal-ai/hunyuan3d", body).await {
-            Ok(v) => span.ok_json(v),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(self.queue_post("fal-ai/hunyuan3d", body).await)
     }
 }
 

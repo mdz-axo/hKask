@@ -187,10 +187,11 @@ impl GithubServer {
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("github_get_repo", &self.webid);
-        validate_owner_repo(&owner, &repo).map_err(|e| McpToolError::new(e.kind, e.message))?;
-        let url = github_api_url(&owner, &repo, "");
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return span.error(e.kind, e.to_json_string());
+        }
         span.finish(
-            api_get(&self.client, "GitHub", &url)
+            api_get(&self.client, "GitHub", &github_api_url(&owner, &repo, ""))
                 .await
                 .map(|v| extract_repo_summary(&v)),
         )
@@ -206,24 +207,12 @@ impl GithubServer {
             return span.error(e.kind, e.to_json_string());
         }
         let state = state.unwrap_or_else(|| "open".to_string());
-        let url = github_api_url(&owner, &repo, &format!("issues?state={state}"));
-        match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => {
-                let issues: Vec<serde_json::Value> = v
-                    .as_array()
-                    .map(|arr| {
-                        arr.iter()
-                            .filter(|i| i.get("pull_request").is_none())
-                            .map(extract_issue_summary)
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                span.ok_json(
-                    serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues }),
-                )
-            }
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_get(&self.client, "GitHub", &github_api_url(&owner, &repo, &format!("issues?state={state}"))).await.map(|v| {
+            let issues: Vec<serde_json::Value> = v.as_array()
+                .map(|arr| arr.iter().filter(|i| i.get("pull_request").is_none()).map(extract_issue_summary).collect())
+                .unwrap_or_default();
+            serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues })
+        }))
     }
 
     #[tool(description = "Get a specific issue")]
@@ -240,27 +229,18 @@ impl GithubServer {
             return span.error(e.kind, e.to_json_string());
         }
         let url = github_api_url(&owner, &repo, &format!("issues/{issue_number}"));
-        match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => {
-                let labels: Vec<serde_json::Value> = v["labels"]
-                    .as_array()
-                    .map(|arr| {
-                        arr.iter()
-                            .map(|l| serde_json::json!({ "name": l["name"], "color": l["color"] }))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                span.ok_json(serde_json::json!({
-                    "owner": owner, "repo": repo,
-                    "number": v["number"], "title": v["title"], "state": v["state"],
-                    "body": v["body"], "labels": labels, "user": v["user"]["login"],
-                    "assignees": v["assignees"], "milestone": v["milestone"],
-                    "comments": v["comments"], "created_at": v["created_at"],
-                    "updated_at": v["updated_at"], "html_url": v["html_url"],
-                }))
-            }
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_get(&self.client, "GitHub", &url).await.map(|v| {
+            let labels: Vec<serde_json::Value> = v["labels"]
+                .as_array()
+                .map(|arr| arr.iter().map(|l| serde_json::json!({ "name": l["name"], "color": l["color"] })).collect())
+                .unwrap_or_default();
+            serde_json::json!({
+                "owner": owner, "repo": repo, "number": v["number"], "title": v["title"],
+                "state": v["state"], "body": v["body"], "labels": labels, "user": v["user"]["login"],
+                "assignees": v["assignees"], "milestone": v["milestone"], "comments": v["comments"],
+                "created_at": v["created_at"], "updated_at": v["updated_at"], "html_url": v["html_url"],
+            })
+        }))
     }
 
     #[tool(description = "Create a new issue")]
@@ -284,7 +264,6 @@ impl GithubServer {
                 McpToolError::invalid_argument("title must not be empty").to_json_string(),
             );
         }
-        let url = github_api_url(&owner, &repo, "issues");
         let mut payload = serde_json::json!({ "title": title });
         if let Some(ref b) = body {
             payload["body"] = serde_json::Value::String(b.clone());
@@ -296,14 +275,9 @@ impl GithubServer {
                     .collect(),
             );
         }
-        match api_post(&self.client, "GitHub", &url, &payload).await {
-            Ok(v) => span.ok_json(serde_json::json!({
-                "owner": owner, "repo": repo,
-                "number": v["number"], "title": v["title"],
-                "state": v["state"], "html_url": v["html_url"], "created": true,
-            })),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_post(&self.client, "GitHub", &github_api_url(&owner, &repo, "issues"), &payload).await.map(|v| {
+            serde_json::json!({ "owner": owner, "repo": repo, "number": v["number"], "title": v["title"], "state": v["state"], "html_url": v["html_url"], "created": true })
+        }))
     }
 
     #[tool(description = "Add a comment to an issue or PR")]
@@ -327,14 +301,9 @@ impl GithubServer {
             );
         }
         let url = github_api_url(&owner, &repo, &format!("issues/{issue_number}/comments"));
-        let payload = serde_json::json!({ "body": body });
-        match api_post(&self.client, "GitHub", &url, &payload).await {
-            Ok(v) => span.ok_json(serde_json::json!({
-                "owner": owner, "repo": repo, "issue": issue_number,
-                "comment_id": v["id"], "html_url": v["html_url"], "created": true,
-            })),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_post(&self.client, "GitHub", &url, &serde_json::json!({ "body": body })).await.map(|v| {
+            serde_json::json!({ "owner": owner, "repo": repo, "issue": issue_number, "comment_id": v["id"], "html_url": v["html_url"], "created": true })
+        }))
     }
 
     #[tool(description = "List pull requests")]
@@ -347,19 +316,21 @@ impl GithubServer {
             return span.error(e.kind, e.to_json_string());
         }
         let state = state.unwrap_or_else(|| "open".to_string());
-        let url = github_api_url(&owner, &repo, &format!("pulls?state={state}"));
-        match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => {
+        span.finish(
+            api_get(
+                &self.client,
+                "GitHub",
+                &github_api_url(&owner, &repo, &format!("pulls?state={state}")),
+            )
+            .await
+            .map(|v| {
                 let prs: Vec<serde_json::Value> = v
                     .as_array()
                     .map(|arr| arr.iter().map(extract_pr_summary).collect())
                     .unwrap_or_default();
-                span.ok_json(
-                    serde_json::json!({ "owner": owner, "repo": repo, "state": state, "prs": prs }),
-                )
-            }
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+                serde_json::json!({ "owner": owner, "repo": repo, "state": state, "prs": prs })
+            }),
+        )
     }
 
     #[tool(description = "Get a specific pull request")]
@@ -375,22 +346,15 @@ impl GithubServer {
         if let Err(e) = validate_owner_repo(&owner, &repo) {
             return span.error(e.kind, e.to_json_string());
         }
-        let url = github_api_url(&owner, &repo, &format!("pulls/{pr_number}"));
-        match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => span.ok_json(serde_json::json!({
-                "owner": owner, "repo": repo,
-                "number": v["number"], "title": v["title"], "state": v["state"],
-                "body": v["body"], "user": v["user"]["login"],
-                "head": v["head"]["ref"], "head_repo": v["head"]["repo"]["full_name"],
-                "base": v["base"]["ref"], "merged": v["merged"],
-                "mergeable": v["mergeable"], "draft": v["draft"],
-                "additions": v["additions"], "deletions": v["deletions"],
-                "changed_files": v["changed_files"],
-                "created_at": v["created_at"], "updated_at": v["updated_at"],
-                "html_url": v["html_url"],
-            })),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
+        span.finish(api_get(&self.client, "GitHub", &github_api_url(&owner, &repo, &format!("pulls/{pr_number}"))).await.map(|v| {
+            serde_json::json!({
+                "owner": owner, "repo": repo, "number": v["number"], "title": v["title"], "state": v["state"],
+                "body": v["body"], "user": v["user"]["login"], "head": v["head"]["ref"], "head_repo": v["head"]["repo"]["full_name"],
+                "base": v["base"]["ref"], "merged": v["merged"], "mergeable": v["mergeable"], "draft": v["draft"],
+                "additions": v["additions"], "deletions": v["deletions"], "changed_files": v["changed_files"],
+                "created_at": v["created_at"], "updated_at": v["updated_at"], "html_url": v["html_url"],
+            })
+        }))
     }
 
     #[tool(description = "Search repositories")]
@@ -406,10 +370,9 @@ impl GithubServer {
             );
         }
         let limit = limit.unwrap_or(10);
-        let url = github_api_url_root("/search/repositories");
         let resp = self
             .client
-            .get(url)
+            .get(github_api_url_root("/search/repositories"))
             .query(&[("q", query.as_str()), ("per_page", &limit.to_string())])
             .send()
             .await;
@@ -428,8 +391,7 @@ impl GithubServer {
                             .map(|arr| arr.iter().map(extract_repo_summary).collect())
                             .unwrap_or_default();
                         span.ok_json(serde_json::json!({
-                            "query": query, "limit": limit,
-                            "total_count": v["total_count"], "results": results,
+                            "query": query, "limit": limit, "total_count": v["total_count"], "results": results,
                         }))
                     }
                     Err(e) => span.internal_error(

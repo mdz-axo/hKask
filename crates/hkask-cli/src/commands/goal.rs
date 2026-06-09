@@ -1,6 +1,6 @@
 //! Goal coordination commands — call goal repo directly.
 
-use hkask_types::goal::{Goal, GoalState};
+use hkask_types::goal::GoalState;
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 
@@ -12,8 +12,7 @@ fn build_goal_repo() -> Result<hkask_storage::SqliteGoalRepository, RegistryErro
         .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
     let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
         .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
-    hkask_storage::SqliteGoalRepository::with_conn(db.conn_arc())
-        .map_err(|e| RegistryError::InitFailed(e.to_string()))
+    Ok(hkask_storage::SqliteGoalRepository::new(db.conn_arc()))
 }
 
 fn parse_visibility(vis: &str) -> Result<Visibility, RegistryError> {

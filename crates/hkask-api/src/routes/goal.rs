@@ -1,14 +1,7 @@
-//! Goal coordination routes.
-//!
-//! HTTP surface for the goal substrate, mirroring `kask goal` (CLI) and the
-//! `goal` MCP tools for MCP ≡ CLI ≡ API equivalence (REQ-IFC-001).
-//! Authority is co-located with effect: the caller's WebID is passed directly
-//! to the goal service, and denials are observed via the repository's CNS
-//! telemetry sink.
+//! Goal coordination routes — call goal repo directly.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::Query, extract::State, routing::Router};
-use hkask_services::{GoalContext, GoalService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -16,7 +9,6 @@ use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
 
-/// Create goal router
 pub fn goal_router() -> Router<ApiState> {
     Router::new()
         .route(
@@ -26,23 +18,17 @@ pub fn goal_router() -> Router<ApiState> {
         .route("/api/goals/:id/state", axum::routing::post(set_goal_state))
 }
 
-/// Request to create a goal.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct CreateGoalRequest {
-    /// Goal text.
     pub text: String,
-    /// Visibility: private | shared | public. Defaults to private.
     pub visibility: Option<String>,
 }
 
-/// Request to transition a goal's state.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SetGoalStateRequest {
-    /// Target state: pending | active | completed | blocked | abandoned.
     pub state: String,
 }
 
-/// A goal as returned over the API.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalResponse {
     pub id: String,
@@ -51,17 +37,13 @@ pub struct GoalResponse {
     pub visibility: String,
 }
 
-/// A list of goals.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalListResponse {
     pub goals: Vec<GoalResponse>,
 }
 
-/// Create a goal owned by the authenticated caller.
 #[utoipa::path(
-    post,
-    path = "/api/goals",
-    tag = "goals",
+    post, path = "/api/goals", tag = "goals",
     request_body = CreateGoalRequest,
     responses(
         (status = 200, description = "Goal created", body = GoalResponse),
@@ -75,12 +57,16 @@ async fn create_goal(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let goal_ctx = GoalContext::from(&*state.service_context);
-    let visibility_str = req.visibility.as_deref().unwrap_or("private");
-
-    let goal = GoalService::create_goal(&goal_ctx, &auth.webid, &req.text, visibility_str)
+    let repo = &state.service_context.goal_repo;
+    let vis_str = req.visibility.as_deref().unwrap_or("private");
+    let vis = hkask_types::visibility::Visibility::parse_str(vis_str).ok_or_else(|| {
+        ApiError::BadRequest {
+            message: format!("Invalid visibility '{vis_str}'"),
+        }
+    })?;
+    let goal = repo
+        .create_goal(&auth.webid, &req.text, vis)
         .map_err(ApiError::from)?;
-
     Ok(Json(GoalResponse {
         id: goal.id.to_string(),
         text: goal.text,
@@ -89,14 +75,9 @@ async fn create_goal(
     }))
 }
 
-/// List the authenticated caller's goals, optionally filtered by state.
 #[utoipa::path(
-    get,
-    path = "/api/goals",
-    tag = "goals",
-    params(
-        ("state" = Option<String>, Query, description = "Optional state filter"),
-    ),
+    get, path = "/api/goals", tag = "goals",
+    params(("state" = Option<String>, Query, description = "Optional state filter")),
     responses(
         (status = 200, description = "Goals listed", body = GoalListResponse),
         (status = 400, description = "Invalid state filter"),
@@ -109,12 +90,18 @@ async fn list_goals(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<GoalListResponse>, ApiError> {
-    let goal_ctx = GoalContext::from(&*state.service_context);
-    let state_filter = params.get("state").map(|s| s.as_str());
-
-    let goals =
-        GoalService::list_goals(&goal_ctx, &auth.webid, state_filter).map_err(ApiError::from)?;
-
+    let repo = &state.service_context.goal_repo;
+    let filter = match params.get("state") {
+        Some(s) => Some(hkask_types::goal::GoalState::parse_str(s).ok_or_else(|| {
+            ApiError::BadRequest {
+                message: format!("Invalid goal state '{s}'"),
+            }
+        })?),
+        None => None,
+    };
+    let goals = repo
+        .list_goals(&auth.webid, filter)
+        .map_err(ApiError::from)?;
     Ok(Json(GoalListResponse {
         goals: goals
             .into_iter()
@@ -128,14 +115,9 @@ async fn list_goals(
     }))
 }
 
-/// Transition a goal to a new state (legal transitions only).
 #[utoipa::path(
-    post,
-    path = "/api/goals/{id}/state",
-    tag = "goals",
-    params(
-        ("id" = String, Path, description = "Goal ID"),
-    ),
+    post, path = "/api/goals/{id}/state", tag = "goals",
+    params(("id" = String, Path, description = "Goal ID")),
     request_body = SetGoalStateRequest,
     responses(
         (status = 200, description = "Goal state changed"),
@@ -151,13 +133,17 @@ async fn set_goal_state(
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let goal_ctx = GoalContext::from(&*state.service_context);
-
-    GoalService::set_goal_state(&goal_ctx, &id, &req.state).map_err(ApiError::from)?;
-
-    // Parse goal ID back for the response (already validated by service)
-    let goal_id = GoalService::parse_goal_id(&id).map_err(ApiError::from)?;
-
+    let repo = &state.service_context.goal_repo;
+    let goal_id: hkask_types::id::GoalID = id.parse().map_err(|e| ApiError::BadRequest {
+        message: format!("Invalid goal ID '{id}': {e}"),
+    })?;
+    let new_state = hkask_types::goal::GoalState::parse_str(&req.state).ok_or_else(|| {
+        ApiError::BadRequest {
+            message: format!("Invalid goal state '{}'", req.state),
+        }
+    })?;
+    repo.update_goal_state(goal_id, new_state)
+        .map_err(ApiError::from)?;
     Ok(Json(GoalResponse {
         id: goal_id.to_string(),
         text: String::new(),

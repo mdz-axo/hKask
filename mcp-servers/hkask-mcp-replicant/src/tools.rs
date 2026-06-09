@@ -13,7 +13,7 @@
 //! 1. Resolves the replicant persona name → WebID
 //! 2. Loads the full agent definition from the YAML registry (if available),
 //!    falling back to a minimal persona definition
-//! 3. Creates a pod via `PodManagerBuilder` with ACP runtime and capability checker
+//! 3. Creates a pod via `PodManager::new()` with ACP runtime and capability checker
 //!    resolved from the same secret chain as the CLI (Follow-up #1: ACP integration)
 //! 4. Constructs a rich system prompt from the agent definition's charter,
 //!    responsibilities, rights, and voice/tone configuration (Follow-up #2:
@@ -39,7 +39,7 @@
 //! session state.
 
 use hkask_agents::acp::AcpRuntime;
-use hkask_agents::pod::{AgentPersona, PodContext, PodManager, PodManagerBuilder};
+use hkask_agents::pod::{AgentPersona, PodContext, PodManager};
 use hkask_agents::ports::AcpPort;
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;
@@ -271,12 +271,17 @@ impl ReplicantServer {
         let agent_secret = session.acp_runtime.derive_agent_secret(&self.webid).await;
         let capability_checker = CapabilityChecker::new(&agent_secret);
 
-        let pod_manager = PodManagerBuilder::new()
-            .acp_runtime(acp_port)
-            .capability_checker(capability_checker)
-            .inference_port(inference_port)
-            .with_in_memory_storage()
-            .build();
+        let pod_manager = PodManager::new(
+            None, // git_cas — use default
+            Some(acp_port),
+            None, // mcp_runtime — use default (no live MCP)
+            None, // episodic_storage — in-memory default
+            None, // semantic_storage — in-memory default
+            Some(inference_port),
+            Some(Arc::new(capability_checker)),
+            None, // governed_tool
+            None, // nu_event_sink
+        );
         drop(session); // Release read lock before write lock below
 
         // Follow-up #2: Use rich system prompt from agent definition when available.

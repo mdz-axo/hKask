@@ -8,6 +8,7 @@
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
+use crate::contract_validator::{ContractValidator, ValidationMode};
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
 use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType, Visibility};
@@ -121,10 +122,11 @@ impl Registry {
         Ok(())
     }
 
-    /// Register a template entry, validating against the hLexicon if set.
+    /// Register a template entry, validating against the hLexicon via ContractValidator.
     ///
-    /// Logs warnings for lexicon terms not in the canonical vocabulary
-    /// and for entries where `cascade_level >= matroshka_limit`.
+    /// When an hLexicon is set, unknown terms are logged as warnings (Warn mode).
+    /// The contract validator performs lexicon-term enforcement at registration time;
+    /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
     pub fn register(&mut self, entry: RegistryEntry) {
         // Validate entry consistency
         let warnings = entry.validate();
@@ -132,17 +134,11 @@ impl Registry {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
         }
 
-        // Validate lexicon terms against the hLexicon
+        // Delegate term validation to ContractValidator (FA-C1)
         if let Some(ref lexicon) = self.hlexicon {
-            let unknown = lexicon.validate(&entry.lexicon_terms);
-            if !unknown.is_empty() {
-                tracing::warn!(
-                    target: "hkask.templates",
-                    entry_id = %entry.id,
-                    unknown_terms = ?unknown,
-                    "Lexicon terms not in canonical vocabulary"
-                );
-            }
+            let validator =
+                ContractValidator::with_lexicon(lexicon).with_mode(ValidationMode::Warn);
+            let _ = validator.validate_terms(&entry.id, &entry.lexicon_terms);
         }
 
         self.templates.insert(entry.id.clone(), entry);
@@ -578,9 +574,8 @@ impl RegistryIndex for Registry {
         if let Err(e) = Self::validate_template_path(id) {
             return Err(hkask_types::ports::RegistryError::Other(e.to_string()));
         }
-
-        // Then check if template exists
-        self.templates.get(id).cloned().ok_or_else(|| {
+        // Delegate to inherent `get` (avoids trait method name collision)
+        Registry::get(self, id).cloned().ok_or_else(|| {
             hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
         })
     }
@@ -588,77 +583,52 @@ impl RegistryIndex for Registry {
 
 impl SkillRegistryIndex for Registry {
     fn register_skill(&mut self, skill: Skill) {
-        self.skills.insert(skill.id.clone(), skill);
+        Registry::register_skill(self, skill)
     }
 
     fn get_skill(&self, id: &str) -> Option<Skill> {
-        self.skills.get(id).cloned()
+        Registry::get_skill(self, id)
     }
 
     fn list_skills(&self) -> Vec<Skill> {
-        self.skills.values().cloned().collect()
+        Registry::list_skills(self)
     }
 
     fn list_skills_by_visibility(&self, visibility: hkask_types::Visibility) -> Vec<Skill> {
-        self.skills
-            .values()
-            .filter(|s| s.visibility == visibility)
-            .cloned()
-            .collect()
+        Registry::list_skills_by_visibility(self, visibility)
     }
 
     fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
-        self.skills
-            .values()
-            .filter(|s| s.domain == domain)
-            .cloned()
-            .collect()
+        Registry::skills_by_domain(self, domain)
     }
 
     fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
-        self.skills
-            .values()
-            .filter(|s| {
-                s.word_act.as_deref() == Some(template_id)
-                    || s.flow_def.as_deref() == Some(template_id)
-                    || s.know_act.as_deref() == Some(template_id)
-            })
-            .cloned()
-            .collect()
+        Registry::skills_referencing_template(self, template_id)
     }
 
     fn remove_skill(&mut self, id: &str) -> Option<Skill> {
-        self.skills.remove(id)
+        Registry::remove_skill(self, id)
     }
 }
 
 impl BundleRegistryIndex for Registry {
     fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
-        self.bundles.insert(bundle.id.clone(), bundle);
+        Registry::register_bundle(self, bundle)
     }
 
     fn get_bundle(&self, id: &str) -> Option<hkask_types::BundleManifest> {
-        self.bundles.get(id).cloned()
+        Registry::get_bundle(self, id).cloned()
     }
 
     fn list_bundles(&self) -> Vec<hkask_types::BundleManifest> {
-        self.bundles.values().cloned().collect()
+        Registry::list_bundles(self).into_iter().cloned().collect()
     }
 
     fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
-        self.bundles.remove(id)
+        Registry::remove_bundle(self, id)
     }
 
     fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<hkask_types::BundleManifest> {
-        let target: std::collections::HashSet<&str> =
-            skill_ids.iter().map(|s| s.as_str()).collect();
-        self.bundles
-            .values()
-            .find(|b| {
-                let bundle_skills: std::collections::HashSet<&str> =
-                    b.skills.iter().map(|s| s.id.as_str()).collect();
-                bundle_skills == target
-            })
-            .cloned()
+        Registry::find_bundle_by_skills(self, skill_ids).cloned()
     }
 }
