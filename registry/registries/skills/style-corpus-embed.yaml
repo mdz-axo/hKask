@@ -18,7 +18,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-semantic
+    mcp: hkask-mcp-memory
     gas_cap: 50000
     timeout_seconds: 600
     output_schema:

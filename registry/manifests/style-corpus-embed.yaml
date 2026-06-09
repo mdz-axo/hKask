@@ -6,10 +6,11 @@
 #
 # Composed from existing MCP tools:
 #   hkask-mcp-web/web_extract      — download texts (Step 1)
-#   hkask-mcp-semantic/semantic_purge — idempotent re-ingest (Step 2)
-#   hkask-mcp-semantic/semantic_embed — store passage vectors (Step 5)
-#   hkask-mcp-semantic/semantic_centroid — compute style centroid (Step 6)
-#   hkask-mcp-cns                  — variety feedback (Step 7)
+#   hkask-mcp-memory/semantic_purge — idempotent re-ingest (Step 2, via memory server)
+#   hkask-mcp-memory/semantic_embed — store passage vectors (Step 5, via memory server)
+#   hkask-mcp-memory/semantic_centroid — compute style centroid (Step 6, via memory server)
+#   hkask-mcp-memory              — semantic tools now in memory server
+#   CnsRuntime (internal)          — variety feedback (Step 7, CNS now internal)
 #
 # Input: corpus.yaml (e.g., registry/styles/hemingway/corpus.yaml)
 
@@ -60,7 +61,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-semantic
+    mcp: hkask-mcp-memory
     tool: semantic_purge
     arguments:
       prefix: "style:${corpus_config.author}:"
@@ -106,7 +107,7 @@ steps:
               content_length: { type: integer }
 
   # Step 3: Clean and chunk downloaded texts into passages
-  # Uses hkask-mcp-semantic's semantic_chunk tool with configurable
+  # Uses hkask-mcp-memory's semantic_chunk tool with configurable
   # min_words/max_words and optional Gutenberg header stripping.
   - ordinal: 3
     action: execute
@@ -117,7 +118,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-semantic
+    mcp: hkask-mcp-memory
     tool: semantic_chunk
     arguments:
       text: "${item.content}"
@@ -150,7 +151,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-inference
+    # Inference engine (internal) — Okapi embed_sentences API
     gas_cap: 20000
     timeout_seconds: 300
     output_schema:
@@ -169,7 +170,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-semantic
+    mcp: hkask-mcp-memory
     tool: semantic_embed
     loop_over: "${step4.embedded_passages}"
     arguments:
@@ -193,7 +194,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-semantic
+    mcp: hkask-mcp-memory
     tool: semantic_centroid
     arguments:
       prefix: "style:${corpus_config.author}:"
@@ -223,7 +224,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-semantic
+    mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 10
     validation_rules:
@@ -237,17 +238,17 @@ steps:
         exemplar_count: { type: integer }
         error_reason: { type: string }
 
-  # Step 8: Emit CNS feedback for variety tracking
+  # Step 8: Emit CNS feedback for variety tracking (CNS now internal via CnsRuntime)
   - ordinal: 8
     action: feedback
     description: >
       Emit CNS feedback for corpus embedding variety tracking.
       Record total passages embedded, centroid computed, and
-      validation outcome.
+      validation outcome. CNS feedback now emitted internally via CnsRuntime.
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-cns
+    # CNS feedback emitted internally via CnsRuntime
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -299,6 +300,7 @@ ocap:
       gas_budget: 20000
     - resource: cns
       action: emit
+      # CNS now internal via CnsRuntime
       template_id: style-corpus-embed
       gas_budget: 500
   delegation_chain_required: true

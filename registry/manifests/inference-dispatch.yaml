@@ -36,7 +36,7 @@ steps:
   - ordinal: 3
     action: execute
     target: inference_call
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     tool: inference_call
     output_schema:
       type: object

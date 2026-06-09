@@ -46,14 +46,8 @@ pub const INFERENCE_TICK_MS: u64 = 500;
 /// Default tick interval for the Episodic and Semantic loops (5s).
 pub const EPISODIC_SEMANTIC_TICK_SECS: u64 = 5;
 
-/// Default tick interval for the Communication loop (100ms).
-pub const COMMUNICATION_TICK_MS: u64 = 100;
-
 /// Default tick interval for the Cybernetics loop (2s).
 pub const CYBERNETICS_TICK_SECS: u64 = 2;
-
-/// Default tick interval for the Snapshot loop (60s).
-pub const SNAPSHOT_TICK_SECS: u64 = 60;
 
 /// Default tick interval for the Curation loop (10s).
 pub const CURATION_TICK_SECS: u64 = 10;

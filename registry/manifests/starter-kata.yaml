@@ -88,7 +88,7 @@ steps:
     renderer: minijinja
     template_ref: kata/starter-selector.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 1500
     timeout_seconds: 15
     output_schema:
@@ -110,7 +110,7 @@ steps:
     renderer: minijinja
     template_ref: kata/starter-${kata_type}.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 30
     output_schema:

@@ -13,7 +13,7 @@ steps:
     description: Select memory retrieval strategy
     template_ref: process/memory/recall
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     renderer: minijinja
 
   - ordinal: 2

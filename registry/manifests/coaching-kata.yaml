@@ -71,7 +71,7 @@ steps:
     renderer: minijinja
     template_ref: kata/coaching-q1-target.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 1500
     timeout_seconds: 15
     output_schema:
@@ -90,7 +90,7 @@ steps:
     renderer: minijinja
     template_ref: kata/coaching-q2-actual.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 1500
     timeout_seconds: 15
     output_schema:
@@ -110,7 +110,7 @@ steps:
     renderer: minijinja
     template_ref: kata/coaching-q3-obstacles.j2
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2500
     timeout_seconds: 20
     output_schema:
@@ -129,7 +129,7 @@ steps:
     renderer: minijinja
     template_ref: kata/coaching-q4-experiment.j2
     model_tier: balanced
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 3000
     timeout_seconds: 25
     output_schema:
@@ -151,7 +151,7 @@ steps:
     renderer: minijinja
     template_ref: kata/coaching-q5-learn.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 15
     output_schema:
@@ -172,7 +172,7 @@ steps:
     renderer: null
     template_ref: null
     target: synthesize_coaching_outcome
-    mcp: hkask-mcp-cns
+    mcp: hkask-mcp-memory  # CNS feedback now via memory server
     tool: cns_emit
     gas_cap: 1500
     timeout_seconds: 10

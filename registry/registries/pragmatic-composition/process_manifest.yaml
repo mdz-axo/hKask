@@ -29,7 +29,7 @@ steps:
     renderer: minijinja
     template_ref: prompt/selector
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 500
     timeout_seconds: 30
     output_schema:

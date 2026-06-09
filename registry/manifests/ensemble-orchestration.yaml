@@ -36,7 +36,7 @@ steps:
   - ordinal: 3
     action: execute
     target: coordinate_session
-    mcp: hkask-mcp-ensemble
+    # Ensemble orchestration now handled via ACP port (ACP adapter)
     tool: coordinate_session
     output_schema:
       type: object

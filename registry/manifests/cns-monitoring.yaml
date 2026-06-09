@@ -34,7 +34,7 @@ steps:
   - ordinal: 3
     action: execute
     target: cns_alert
-    mcp: hkask-mcp-cns
+    mcp: hkask-mcp-memory  # CNS feedback now via memory server
     tool: cns_alert
     output_schema:
       type: object

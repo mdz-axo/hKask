@@ -62,7 +62,7 @@ steps:
     renderer: minijinja
     template_ref: kata/consent-and-select.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 3000
     timeout_seconds: 20
     output_schema:
@@ -84,7 +84,7 @@ steps:
     renderer: minijinja
     template_ref: kata/{{ kata_type }}-cycle.j2
     model_tier: balanced
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 70000
     timeout_seconds: 60
     output_schema:
@@ -101,7 +101,7 @@ steps:
     renderer: minijinja
     template_ref: kata/outcome-and-habit.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 8000
     timeout_seconds: 30
     output_schema:
@@ -141,7 +141,7 @@ steps:
     renderer: null
     template_ref: null
     target: emit_kata_cns_span
-    mcp: hkask-mcp-cns
+    mcp: hkask-mcp-memory  # CNS feedback now via memory server
     tool: cns_emit
     token_cap: 2000
     timeout_seconds: 10
@@ -168,7 +168,7 @@ steps:
     renderer: minijinja
     template_ref: kata/habit-intervention.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 4000
     timeout_seconds: 15
     condition: intervention_needed OR days_since_practice_gt_3
@@ -186,7 +186,7 @@ steps:
     renderer: minijinja
     template_ref: kata/kata-switch-check.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 3000
     timeout_seconds: 15
     condition: composition_enabled
@@ -225,7 +225,7 @@ steps:
     renderer: minijinja
     template_ref: kata/iteration-check.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 3000
     timeout_seconds: 15
     condition: variance_detected OR confidence_low

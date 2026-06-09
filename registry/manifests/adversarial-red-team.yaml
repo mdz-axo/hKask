@@ -53,7 +53,7 @@ steps:
     renderer: minijinja
     template_ref: adversarial-red-team/select-target
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 15
     input_mapping:
@@ -92,7 +92,7 @@ steps:
     renderer: minijinja
     template_ref: adversarial-red-team/generate-adversarial
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -125,7 +125,7 @@ steps:
     renderer: minijinja
     template_ref: adversarial-red-team/test-against-target
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
@@ -200,7 +200,7 @@ steps:
     renderer: minijinja
     template_ref: adversarial-red-team/multi-turn-attack
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:

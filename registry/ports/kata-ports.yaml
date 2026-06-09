@@ -24,7 +24,7 @@ ports:
         improvement: Curator-consent
         coaching: learner-consent OR Curator-consent
         starter: self-consent
-    
+
     - port: kata:switch
       description: Switch from one Kata to another (composition)
       handler: kata-switch-protocol
@@ -43,7 +43,7 @@ ports:
       authorization:
         improvement_to_coaching: learner-consent
         coaching_to_improvement: Curator-consent
-    
+
     - port: kata:revoke-consent
       description: Revoke consent mid-Kata cycle
       handler: consent-revocation-handler
@@ -84,7 +84,7 @@ ports:
         framework: GHG-Protocol-Scope-2
         grid_intensity_source: IEA-Emission-Factors-2026
         pue: 1.15
-    
+
     - port: memory:record:kata
       description: Record practice to episodic memory
       handler: memory_remember_tool
@@ -101,7 +101,7 @@ ports:
             type: object
           visibility:
             type: string
-    
+
     - port: curator:report:kata
       description: Report to Curator standing session
       handler: ensemble_send_message_tool
@@ -116,7 +116,7 @@ ports:
             type: integer
           intervention_status:
             type: string
-    
+
     - port: kata:state:save
       description: Save Kata state for composition switching
       handler: memory_remember_tool
@@ -131,7 +131,7 @@ ports:
             type: integer
           context:
             type: object
-    
+
     - port: kata:state:resume
       description: Resume Kata state after composition
       handler: memory_recall_tool
@@ -146,33 +146,35 @@ adapters:
   cns_adapter:
     type: hexagonal_outbound
     port: cns:emit:kata
-    infrastructure: hkask-mcp-cns
+    # CNS now internal via CnsRuntime
+    infrastructure: internal_cns_runtime
     protocol: cns_span_emission
-  
+
   memory_adapter:
     type: hexagonal_outbound
     port: memory:record:kata
     infrastructure: hkask-mcp-memory
     protocol: sqlite_triple_store
-  
+
   ensemble_adapter:
     type: hexagonal_outbound
     port: curator:report:kata
-    infrastructure: hkask-mcp-ensemble
+    # Ensemble orchestration now via ACP port
+    infrastructure: acp_port
     protocol: standing_session_message
-  
+
   inference_adapter:
     type: hexagonal_inbound
     port: kata:execute
-    infrastructure: hkask-mcp-inference
+    # Inference engine now internal
+    infrastructure: internal_inference_engine
     protocol: llm_completion
 
 # Infrastructure Dependencies
 infrastructure:
   required:
-    - hkask-mcp-cns
+    # CNS now internal via CnsRuntime
+    # Inference engine now internal
+    # Ensemble now via ACP port
     - hkask-mcp-memory
-    - hkask-mcp-inference
-    - hkask-mcp-ensemble
-  optional:
-    - hkask-mcp-templates  # For Kata switching
+  optional: []

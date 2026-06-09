@@ -30,7 +30,7 @@ steps:
     renderer: minijinja
     template_ref: kata/improvement-step1-direction.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 20
     output_schema:
@@ -51,7 +51,7 @@ steps:
     renderer: minijinja
     template_ref: kata/improvement-step2-current.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:
@@ -72,7 +72,7 @@ steps:
     renderer: minijinja
     template_ref: kata/improvement-step3-target.j2
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 30
     output_schema:
@@ -93,7 +93,7 @@ steps:
     renderer: minijinja
     template_ref: kata/improvement-step4-experiment.j2
     model_tier: balanced
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 45
     output_schema:

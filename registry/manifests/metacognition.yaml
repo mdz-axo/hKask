@@ -31,7 +31,7 @@ steps:
     renderer: minijinja
     template_ref: metacognition/meta_decompose
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 6000
     timeout_seconds: 60
     output_schema:

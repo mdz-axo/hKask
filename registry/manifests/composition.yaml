@@ -30,7 +30,7 @@ steps:
     renderer: minijinja
     template_ref: composition/answer_composition
     model_tier: balanced
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4096
     timeout_seconds: 30
     output_schema:

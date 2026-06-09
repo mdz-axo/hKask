@@ -34,7 +34,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_0_triage
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:
@@ -52,7 +52,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_1_fermi_decompose
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 60
     output_schema:
@@ -70,7 +70,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_2_outside_view
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 60
     output_schema:
@@ -87,7 +87,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_3_inside_view
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 6000
     timeout_seconds: 90
     output_schema:
@@ -103,7 +103,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_4_evidence_update
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 45
     output_schema:
@@ -120,7 +120,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_5_synthesis
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 45
     output_schema:
@@ -137,7 +137,7 @@ steps:
     renderer: minijinja
     template_ref: superforecasting/stage_6_calibration
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 30
     output_schema:

@@ -47,7 +47,7 @@ tools:
       - fine_max_tokens: integer (default: 128)
 
   - name: doc_knowledge_generate_qa
-    description: Generate QA pairs from text chunk (returns structured prompt for routing through hkask-mcp-inference)
+    description: Generate QA pairs from text chunk (returns structured prompt for routing through inference engine)
     inputs:
       - text: string (required)
       - chunk_id: string (required)

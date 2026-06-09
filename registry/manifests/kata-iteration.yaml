@@ -39,7 +39,7 @@ steps:
     renderer: minijinja
     template_ref: kata/{{ kata_type }}-cycle.j2
     model_tier: balanced
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 40000
     timeout_seconds: 60
     temperature: 0.8  # Higher than primary (0.3) for variance
@@ -59,7 +59,7 @@ steps:
     renderer: minijinja
     template_ref: kata/iteration-comparison.j2
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     token_cap: 5000
     timeout_seconds: 20
     output_schema:
@@ -98,7 +98,7 @@ steps:
     renderer: null
     template_ref: null
     target: emit_iteration_cns_span
-    mcp: hkask-mcp-cns
+    mcp: hkask-mcp-memory  # CNS feedback now via memory server
     tool: cns_emit
     token_cap: 2000
     timeout_seconds: 10
