@@ -1,10 +1,6 @@
-//! Consolidation command — user-triggered episodic→semantic consolidation + semantic cleanup
+//! Consolidation command — user-triggered episodic→semantic consolidation
 
-use std::sync::Arc;
-
-use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
-use hkask_services::ServiceContext;
-use hkask_storage::{EmbeddingStore, TripleStore};
+use hkask_services::ConsolidationService;
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
@@ -29,59 +25,30 @@ pub fn run(
         std::process::exit(1)
     });
     let _ctx = super::helpers::or_exit(
-        rt.block_on(ServiceContext::build(config.clone())),
+        rt.block_on(hkask_services::ServiceContext::build(config.clone())),
         "Failed to build ServiceContext",
     );
 
     // Resolve the agent's per-agent memory DB path and passphrase.
-    // Consolidation operates on the agent's actual episodic and semantic
-    // triples, which live in hkask-memory-{agent}.db — not the registry DB.
     let db_path = format!("hkask-memory-{}.db", agent_name);
     let db_passphrase = config.db_passphrase.clone();
-    let db = match hkask_storage::Database::open(&db_path, &db_passphrase) {
-        Ok(db) => db,
-        Err(e) => {
-            eprintln!("Error: Failed to open agent memory DB ({}): {}", db_path, e);
-            std::process::exit(1);
-        }
-    };
-    let conn = db.conn_arc();
-
-    // Build memory infrastructure from the agent's DB
-    let triple_store = TripleStore::new(Arc::clone(&conn));
-    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
-    let triple_store2 = TripleStore::new(Arc::clone(&conn));
-    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
-    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
-
-    // Build consolidation bridge + service
-    let bridge = Arc::new(ConsolidationBridge::new(
-        Arc::clone(&episodic_memory),
-        Arc::clone(&semantic_memory),
-    ));
-    let handle = CuratorHandle::system();
-    let token = handle.issue_consolidation_token();
-    let service = ConsolidationService::new(bridge, semantic_memory, token);
 
     // Resolve perspective WebID
+    let handle = CuratorHandle::system();
     let perspective = match agent {
         Some(name) => WebID::from_persona(name.as_bytes()),
         None => *handle.curator_id(),
     };
 
-    // Passphrase verification using the master-passphrase → capability_key derivation chain.
-    // This matches onboarding: derive_all_internal_secrets(master_passphrase) produces
-    // a capability_key that is stored in the keychain as "hkask-db-passphrase" and used
-    // as the DB encryption key. We verify the user-supplied master passphrase by
-    // deriving the capability_key and comparing it against the resolved DB passphrase.
+    // Passphrase verification using ConsolidationService.
     if agent.is_some() {
         if let Some(provided) = passphrase {
-            let expected = config.db_passphrase.clone();
-            // Derive capability_key from the provided master passphrase
-            let secrets = hkask_keystore::master_key::derive_all_internal_secrets(provided);
-            if secrets.capability_key != expected {
-                eprintln!("Error: Passphrase verification failed");
-                std::process::exit(1);
+            match ConsolidationService::verify_passphrase(provided) {
+                Ok(_) => {}
+                Err(_) => {
+                    eprintln!("Error: Passphrase verification failed");
+                    std::process::exit(1);
+                }
             }
         } else {
             eprintln!("Error: --passphrase is required when specifying an agent");
@@ -89,35 +56,21 @@ pub fn run(
         }
     }
 
-    // Report pre-consolidation state
-    let candidates = service.consolidation_candidate_count(&perspective);
-    let semantic_count = service.semantic_triple_count();
-    let low_conf = service.semantic_low_confidence_count(0.33);
-    println!("Pre-consolidation state:");
-    println!("  Agent memory DB: {}", db_path);
-    println!("  Consolidation candidates: {}", candidates);
-    println!("  Semantic triple count: {}", semantic_count);
-    println!("  Low-confidence triples (≤0.33): {}", low_conf);
-
-    // Execute consolidation
+    // Execute consolidation via ConsolidationService
     let request = ConsolidationRequest {
         limit,
         confidence_floor,
         max_semantic_triples,
     };
 
-    match service.consolidate(&perspective, request) {
+    match ConsolidationService::consolidate(&perspective, &db_passphrase, &db_path, request) {
         Ok(outcome) => {
-            println!("\nConsolidation complete:");
+            println!("Consolidation complete:");
             println!("  Consolidated: {}", outcome.consolidated_count);
             println!("  Deleted: {}", outcome.deleted_count);
             if outcome.failed_count > 0 {
                 println!("  Failed: {}", outcome.failed_count);
             }
-            println!(
-                "  Post-consolidation semantic count: {}",
-                service.semantic_triple_count()
-            );
         }
         Err(e) => {
             eprintln!("Consolidation failed: {}", e);

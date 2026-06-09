@@ -5,29 +5,20 @@
 //!
 //! ## Architecture
 //!
-//! Functions are split into two layers:
-//! - **Application functions** (pure, no I/O): `register_replicant_with_passphrase`,
-//!   `login_with_passphrase`, `get_replicant`, `get_replicants`, `get_sessions`,
-//!   `revoke_session`
+//! - **Application functions** delegate to `UserService` in the service layer.
 //! - **CLI adapters** (interactive I/O): `register_replicant`, `login_replicant`,
 //!   `show_replicant`, `list_replicants`, `list_sessions`, `logout`
 
 use crate::cli::ReplicantAction;
 use crate::errors::UserError;
-use crate::registration::{validate_passphrase, validate_registration};
-use hkask_storage::user_store::UserStore;
-use hkask_types::RegistrationRequest;
-use std::sync::{Arc, Mutex};
+use hkask_services::{ServiceContext, UserService};
 use zeroize::Zeroizing;
 
-// Application functions — pure, no I/O, testable
+// Application functions — delegate to UserService
 
 /// Register a new replicant identity (non-interactive)
-///
-/// Validates registration fields, then persists
-/// the new human user + replicant identity via the store.
 pub fn register_replicant_with_passphrase(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
     first_name: &str,
     last_name: &str,
@@ -35,95 +26,57 @@ pub fn register_replicant_with_passphrase(
     phone: Option<&str>,
     passphrase: Zeroizing<String>,
 ) -> Result<hkask_types::ReplicantIdentity, UserError> {
-    // Sentinels: context-dependent mapping from RegistrationError.
-    // validate_passphrase errors → InvalidPassphrase (user input error).
-    // validate_registration errors → ValidationError (field validation error).
-    // Same upstream type, different CLI-facing variants — can't use #[from].
-    validate_passphrase(&passphrase).map_err(|e| UserError::InvalidPassphrase(e.to_string()))?;
-
-    let request = RegistrationRequest {
-        replicant_name: replicant_name.to_string(),
-        first_name: first_name.to_string(),
-        last_name: last_name.to_string(),
-        email: email.to_string(),
-        phone: phone.map(|s| s.to_string()),
-        passphrase: (*passphrase).clone(),
-    };
-
-    validate_registration(&request).map_err(|e| UserError::ValidationError(e.to_string()))?;
-
-    // P3.5: lock acquisition uses From<PoisonError<T>> for UserError →
-    // Infra(LockPoisoned). Store operations use From<UserStoreError> →
-    // Store(UserStoreError) — transparent rendering, no double-wrapping.
-    let store = store.lock()?;
-    store
-        .register_replicant(
-            request.replicant_name,
-            request.email,
-            request.phone,
-            request.first_name,
-            request.last_name,
-            request.passphrase,
-        )
-        .map_err(Into::into)
+    UserService::register(
+        ctx,
+        replicant_name,
+        first_name,
+        last_name,
+        email,
+        phone,
+        passphrase,
+    )
+    .map_err(Into::into)
 }
 
 /// Login as a replicant identity (non-interactive)
-///
-/// Verifies the passphrase against the stored hash and creates a session.
 pub fn login_with_passphrase(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
     passphrase: Zeroizing<String>,
 ) -> Result<hkask_types::UserSession, UserError> {
-    let store = store.lock()?;
-    // Deliberately opaque: drops the UserStoreError source to prevent
-    // information leakage (whether user exists, passphrase hash format, etc.)
-    store
-        .login(replicant_name, &passphrase)
-        .map_err(|_| UserError::LoginFailed("Invalid credentials".to_string()))
+    UserService::login(ctx, replicant_name, passphrase).map_err(Into::into)
 }
 
 /// Get a replicant identity by name
 pub fn get_replicant(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
 ) -> Result<hkask_types::ReplicantIdentity, UserError> {
-    let store = store.lock()?;
-    store
-        .get_replicant(replicant_name)?
-        .ok_or_else(|| UserError::NotFound(format!("Replicant '{}'", replicant_name)))
+    UserService::get_replicant(ctx, replicant_name).map_err(Into::into)
 }
 
 /// List replicant identities for a human user
 pub fn get_replicants(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     user_id: &hkask_types::UserID,
 ) -> Result<Vec<hkask_types::ReplicantIdentity>, UserError> {
-    let store = store.lock()?;
-    store.list_replicants(user_id).map_err(Into::into)
+    UserService::list_replicants(ctx, user_id).map_err(Into::into)
 }
 
 /// List active sessions for a replicant
 pub fn get_sessions(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
 ) -> Result<Vec<hkask_types::UserSession>, UserError> {
-    let store = store.lock()?;
-    store.list_sessions(replicant_name).map_err(Into::into)
+    UserService::list_sessions(ctx, replicant_name).map_err(Into::into)
 }
 
 /// Revoke a session by ID
 pub fn revoke_session(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     session_id: &str,
 ) -> Result<hkask_types::UserSession, UserError> {
-    let store = store.lock()?;
-    let session = store
-        .get_session(session_id)?
-        .ok_or_else(|| UserError::SessionNotFound(session_id.to_string()))?;
-    store.logout(session_id)?;
-    Ok(session)
+    UserService::revoke_session(ctx, session_id).map_err(Into::into)
 }
 
 // CLI adapters — interactive I/O wrappers
@@ -133,7 +86,7 @@ pub fn revoke_session(
 /// Prompts for passphrase with confirmation, then delegates to
 /// `register_replicant_with_passphrase`.
 pub fn register_replicant(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
     first_name: &str,
     last_name: &str,
@@ -156,7 +109,7 @@ pub fn register_replicant(
             .expect("stdin read failed");
         let passphrase = passphrase.trim().to_string();
 
-        if let Err(e) = validate_passphrase(&passphrase) {
+        if let Err(e) = UserService::validate_passphrase(&passphrase) {
             eprintln!("  ✗ {}", e);
             continue;
         }
@@ -175,7 +128,7 @@ pub fn register_replicant(
         }
 
         match register_replicant_with_passphrase(
-            store,
+            ctx,
             replicant_name,
             first_name,
             last_name,
@@ -203,7 +156,7 @@ pub fn register_replicant(
 ///
 /// Prompts for passphrase, then delegates to `login_with_passphrase`.
 pub fn login_replicant(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
 ) -> Result<hkask_types::UserSession, UserError> {
     use std::io::{self, Write};
@@ -216,7 +169,7 @@ pub fn login_replicant(
         .expect("stdin read failed");
     let passphrase = Zeroizing::new(passphrase.trim().to_string());
 
-    let session = login_with_passphrase(store, replicant_name, passphrase)?;
+    let session = login_with_passphrase(ctx, replicant_name, passphrase)?;
     println!("\n✅ Login successful!");
     println!("  Welcome, {}!", session.replicant_name);
     println!("  Session ID: {}", session.session_id);
@@ -224,11 +177,8 @@ pub fn login_replicant(
 }
 
 /// Show replicant identity info (interactive display)
-pub fn show_replicant(
-    store: &Arc<Mutex<UserStore>>,
-    replicant_name: &str,
-) -> Result<(), UserError> {
-    let identity = get_replicant(store, replicant_name)?;
+pub fn show_replicant(ctx: &ServiceContext, replicant_name: &str) -> Result<(), UserError> {
+    let identity = get_replicant(ctx, replicant_name)?;
 
     println!("\n👤 Replicant Info:");
     println!("  Replicant name: {}", identity.replicant_name);
@@ -258,10 +208,10 @@ pub fn show_replicant(
 
 /// List replicant identities for a human user (interactive display)
 pub fn list_replicants(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     user_id: &hkask_types::UserID,
 ) -> Result<Vec<hkask_types::ReplicantIdentity>, UserError> {
-    let identities = get_replicants(store, user_id)?;
+    let identities = get_replicants(ctx, user_id)?;
 
     if identities.is_empty() {
         println!("  No replicant identities found for this user.");
@@ -290,8 +240,8 @@ pub fn list_replicants(
 }
 
 /// Logout — invalidate a session (interactive display)
-pub fn logout(store: &Arc<Mutex<UserStore>>, session_id: &str) -> Result<(), UserError> {
-    let session = revoke_session(store, session_id)?;
+pub fn logout(ctx: &ServiceContext, session_id: &str) -> Result<(), UserError> {
+    let session = revoke_session(ctx, session_id)?;
     println!("\n✅ Logged out successfully!");
     println!("  Replicant: {}", session.replicant_name);
     println!("  Session: {}", &session_id[..8]);
@@ -300,10 +250,10 @@ pub fn logout(store: &Arc<Mutex<UserStore>>, session_id: &str) -> Result<(), Use
 
 /// List active sessions for a replicant (interactive display)
 pub fn list_sessions(
-    store: &Arc<Mutex<UserStore>>,
+    ctx: &ServiceContext,
     replicant_name: &str,
 ) -> Result<Vec<hkask_types::UserSession>, UserError> {
-    let sessions = get_sessions(store, replicant_name)?;
+    let sessions = get_sessions(ctx, replicant_name)?;
 
     if sessions.is_empty() {
         println!("  No active sessions for '{}'.", replicant_name);
@@ -324,8 +274,6 @@ pub fn list_sessions(
     Ok(sessions)
 }
 
-// Tests removed — see git history for test code
-
 /// CLI handler for `kask replicant` subcommand
 pub fn run_replicant(action: crate::cli::ReplicantAction) {
     use hkask_types::UserID;
@@ -342,7 +290,6 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
         rt.block_on(hkask_services::ServiceContext::build(config)),
         "Failed to build ServiceContext",
     );
-    let store = ctx.user_store.clone();
 
     match action {
         ReplicantAction::Register {
@@ -354,7 +301,7 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
         } => {
             super::helpers::or_exit(
                 register_replicant(
-                    &store,
+                    &ctx,
                     &replicant_name,
                     &first_name,
                     &last_name,
@@ -366,7 +313,7 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
         }
         ReplicantAction::Login { replicant_name } => {
             let session =
-                super::helpers::or_exit(login_replicant(&store, &replicant_name), "Login failed");
+                super::helpers::or_exit(login_replicant(&ctx, &replicant_name), "Login failed");
             println!("Session ID: {}", session.session_id);
             println!(
                 "\nTo logout: kask replicant logout {}",
@@ -374,11 +321,11 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
             );
         }
         ReplicantAction::Logout { session_id } => {
-            super::helpers::or_exit(logout(&store, &session_id), "Logout failed");
+            super::helpers::or_exit(logout(&ctx, &session_id), "Logout failed");
         }
         ReplicantAction::Sessions { replicant_name } => {
             super::helpers::or_exit(
-                list_sessions(&store, &replicant_name),
+                list_sessions(&ctx, &replicant_name),
                 "Failed to list sessions",
             );
         }
@@ -389,7 +336,7 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
                     std::process::exit(1)
                 });
                 super::helpers::or_exit(
-                    list_replicants(&store, &user_id),
+                    list_replicants(&ctx, &user_id),
                     "Failed to list identities",
                 );
             } else {
@@ -399,7 +346,7 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
         }
         ReplicantAction::Show { replicant_name } => {
             super::helpers::or_exit(
-                show_replicant(&store, &replicant_name),
+                show_replicant(&ctx, &replicant_name),
                 "Failed to show replicant",
             );
         }

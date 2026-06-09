@@ -137,10 +137,12 @@ async fn consolidate(
     };
 
     // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
-    let outcome = ConsolidationService::consolidate(&webid, &db_passphrase, consolidation_request)
-        .map_err(|e| ApiError::Internal {
-            message: e.to_string(),
-        })?;
+    let db_path = format!("hkask-memory-agent-{}.db", webid);
+    let outcome =
+        ConsolidationService::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

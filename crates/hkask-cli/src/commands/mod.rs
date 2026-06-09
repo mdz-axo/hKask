@@ -59,7 +59,8 @@ pub use ensemble::{
 };
 
 // Re-exports from agent
-pub use agent::{AgentReceipt, agent_register, agent_unregister, bot_list, bot_status};
+pub use agent::{agent_register, agent_unregister, bot_list, bot_status};
+pub use hkask_services::AgentReceipt;
 
 // Re-exports from chat
 pub use chat::{ChatResponse, TokenUsage, chat_with_agent};

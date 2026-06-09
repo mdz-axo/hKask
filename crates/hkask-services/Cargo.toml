@@ -22,6 +22,8 @@ serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+serde_yaml.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

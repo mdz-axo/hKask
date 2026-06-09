@@ -3,62 +3,22 @@
 use crate::block_on;
 use crate::cli::BotAction;
 use crate::errors::AgentError;
-use hkask_services::ServiceContext;
-use std::str::FromStr;
-use std::sync::Arc;
-
-pub struct AgentReceipt {
-    pub webid: String,
-    pub token_hash: String,
-    pub registered_at: String,
-}
+use hkask_services::{AgentReceipt, AgentService, ServiceContext};
 
 /// List registered agents, optionally filtered by kind
 pub async fn bot_list(
     kind_filter: Option<&str>,
 ) -> Result<Vec<hkask_types::RegisteredAgent>, AgentError> {
     let ctx = ServiceContext::build(hkask_services::ServiceConfig::from_env()?).await?;
-
-    let loader = hkask_agents::AgentRegistryLoader::new(
-        ctx.config.registry_yaml_path.clone(),
-        ctx.acp_runtime.clone(),
-        ctx.agent_registry_store.clone(),
-        Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
-    );
-
-    let agents = loader.boot().await?;
-
-    let filtered = if let Some(kind_str) = kind_filter {
-        let kind = hkask_types::AgentKind::parse(kind_str)
-            .ok_or_else(|| AgentError::InvalidType(kind_str.to_string()))?;
-        agents
-            .into_iter()
-            .filter(|a| a.definition.agent_kind == kind)
-            .collect()
-    } else {
-        agents
-    };
-
-    Ok(filtered)
+    AgentService::list(&ctx, kind_filter)
+        .await
+        .map_err(Into::into)
 }
 
 /// Get status/details for a specific agent by name
 pub async fn bot_status(name: &str) -> Result<hkask_types::RegisteredAgent, AgentError> {
     let ctx = ServiceContext::build(hkask_services::ServiceConfig::from_env()?).await?;
-
-    let loader = hkask_agents::AgentRegistryLoader::new(
-        ctx.config.registry_yaml_path.clone(),
-        ctx.acp_runtime.clone(),
-        ctx.agent_registry_store.clone(),
-        Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
-    );
-
-    let agents = loader.boot().await?;
-
-    agents
-        .into_iter()
-        .find(|a| a.definition.name == name)
-        .ok_or_else(|| AgentError::NotFound(name.to_string()))
+    AgentService::status(&ctx, name).await.map_err(Into::into)
 }
 
 /// Register a new agent with ACP
@@ -68,50 +28,16 @@ pub async fn agent_register(
     capabilities: Vec<String>,
 ) -> Result<AgentReceipt, AgentError> {
     let ctx = ServiceContext::build(hkask_services::ServiceConfig::from_env()?).await?;
-
-    let webid = hkask_types::WebID::from_str(webid_str)?;
-
-    let agent_kind = hkask_types::AgentKind::parse(agent_type).ok_or_else(|| {
-        AgentError::RegistrationFailed(format!(
-            "Unknown agent type '{}'. Must be 'Bot' or 'Replicant'.",
-            agent_type
-        ))
-    })?;
-
-    let token = ctx
-        .acp_runtime
-        .register_agent(webid, agent_kind, capabilities)
-        .await?;
-
-    let definition = hkask_types::AgentDefinition {
-        name: webid_str.to_string(),
-        agent_kind,
-        charter: None,
-        capabilities: vec![],
-        rights: vec![],
-        responsibilities: vec![],
-        persona: None,
-        depends_on: vec![],
-        process_manifest: None,
-    };
-
-    let registered = hkask_types::RegisteredAgent {
-        definition,
-        token_hash: token.signature.clone(),
-        // P4.3: Use canonical `now_rfc3339()` helper.
-        registered_at: hkask_types::now_rfc3339(),
-        source_yaml: "cli-register".to_string(),
-    };
-
-    ctx.agent_registry_store.insert(&registered)?;
-
-    Ok(AgentReceipt {
-        webid: webid_str.to_string(),
-        token_hash: token.signature,
-        registered_at: registered.registered_at,
-    })
+    AgentService::register(&ctx, webid_str, agent_type, capabilities)
+        .await
+        .map_err(Into::into)
 }
 
+/// Unregister an agent by name
+pub async fn agent_unregister(name: &str) -> Result<(), AgentError> {
+    let ctx = ServiceContext::build(hkask_services::ServiceConfig::from_env()?).await?;
+    AgentService::unregister(&ctx, name).map_err(Into::into)
+}
 /// CLI handler for `kask bot` subcommand
 pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
     use crate::commands;
@@ -243,11 +169,4 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             }
         }
     }
-}
-
-/// Unregister an agent by name
-pub async fn agent_unregister(name: &str) -> Result<(), AgentError> {
-    let ctx = ServiceContext::build(hkask_services::ServiceConfig::from_env()?).await?;
-    ctx.agent_registry_store.remove(name)?;
-    Ok(())
 }

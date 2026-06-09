@@ -62,20 +62,21 @@ impl ConsolidationService {
 
     /// Execute consolidation for an agent's episodic→semantic memory.
     ///
-    /// Opens the per-agent memory DB (`hkask-memory-agent-{webid}.db`),
-    /// constructs the consolidation pipeline (EpisodicMemory →
-    /// ConsolidationBridge → SemanticMemory), and executes the consolidation
-    /// with the given parameters.
+    /// Opens the per-agent memory DB at `db_path`, constructs the consolidation
+    /// pipeline (EpisodicMemory → ConsolidationBridge → SemanticMemory), and
+    /// executes the consolidation with the given parameters.
+    ///
+    /// `db_path` is the per-agent memory DB path (e.g., `hkask-memory-curator.db`).
+    /// Surfaces derive this differently: CLI uses agent name; API uses WebID.
     ///
     /// # REQ: svc-consolidation-002 — consolidate runs pipeline and returns outcome
     pub fn consolidate(
         webid: &WebID,
         db_passphrase: &str,
+        db_path: &str,
         request: ConsolidationRequest,
     ) -> Result<ConsolidationOutcome, ServiceError> {
-        let agent_name = format!("agent-{}", webid);
-        let db_path = format!("hkask-memory-{}.db", agent_name);
-        let db = Database::open(&db_path, db_passphrase)?;
+        let db = Database::open(db_path, db_passphrase)?;
 
         let conn = db.conn_arc();
         let ts1 = TripleStore::new(Arc::clone(&conn));

@@ -227,6 +227,9 @@ impl From<hkask_services::ServiceError> for AgentError {
         match e {
             SE::AgentNotFound(name) => AgentError::NotFound(name),
             SE::InvalidAgentType(t) => AgentError::InvalidType(t),
+            SE::InvalidWebID(msg) => {
+                AgentError::RegistrationFailed(format!("Invalid WebID: {}", msg))
+            }
             SE::AgentRegistrationFailed(msg) => AgentError::RegistrationFailed(msg),
             SE::Acp(err) => AgentError::RegistrationFailed(err.to_string()),
             SE::AgentRegistry(err) => AgentError::RegistryLoader(err),

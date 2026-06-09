@@ -43,7 +43,7 @@ use hkask_storage::{
 };
 use hkask_templates::TemplateError;
 use hkask_types::InfrastructureError;
-use hkask_types::ports::{InferenceError, RegistryError};
+use hkask_types::ports::{EmbeddingGenerationError, InferenceError, RegistryError};
 
 /// Unified domain error for all service operations.
 ///
@@ -200,6 +200,10 @@ pub enum ServiceError {
     #[error(transparent)]
     InferencePort(#[from] InferenceError),
 
+    /// Upstream embedding generation error.
+    #[error(transparent)]
+    Embedding(#[from] EmbeddingGenerationError),
+
     // ── User domain ─────────────────────────────────────────────────────
     /// User not found by name.
     #[error("User not found: {0}")]
@@ -217,6 +221,10 @@ pub enum ServiceError {
     #[error("Validation error: {0}")]
     ValidationError(String),
 
+    /// Invalid UUID format for WebID parsing.
+    #[error("Invalid WebID: {0}")]
+    InvalidWebID(String),
+
     // ── Infrastructure ──────────────────────────────────────────────────
     /// Upstream infrastructure error (lock poisoning, IO, etc.).
     #[error(transparent)]
@@ -229,4 +237,16 @@ pub enum ServiceError {
     /// Registry load failure (no upstream typed source).
     #[error("Registry load failed: {0}")]
     RegistryLoadFailed(String),
+}
+
+impl From<uuid::Error> for ServiceError {
+    fn from(e: uuid::Error) -> Self {
+        ServiceError::InvalidWebID(e.to_string())
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for ServiceError {
+    fn from(_: std::sync::PoisonError<T>) -> Self {
+        ServiceError::Infra(hkask_types::InfrastructureError::LockPoisoned)
+    }
 }

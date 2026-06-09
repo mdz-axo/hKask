@@ -19,7 +19,9 @@
 //! Domain crates NEVER depend on `hkask-services`. Neither `hkask-cli` nor
 //! `hkask-api` directly depend on domain crates for business operations.
 
+pub mod agent;
 pub mod chat;
+pub mod compose;
 pub mod config;
 pub mod consolidation;
 pub mod context;
@@ -30,8 +32,14 @@ pub mod goal;
 pub mod inference;
 pub mod pods;
 pub mod sovereignty;
+pub mod user;
 
+pub use agent::{AgentReceipt, AgentService};
 pub use chat::{ChatRequest, ChatResponse, ChatService, TokenUsage};
+pub use compose::{
+    CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
+    EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
+};
 pub use config::ServiceConfig;
 pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
 pub use consolidation::ConsolidationService;
@@ -45,3 +53,4 @@ pub use pods::{PodContext, PodService};
 pub use sovereignty::{
     AccessCheck, SovereigntyContext, SovereigntyService, SovereigntyStatus, parse_data_category,
 };
+pub use user::UserService;
