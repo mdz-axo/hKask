@@ -17,6 +17,10 @@ pub mod ports;
 pub mod prompt_cache;
 pub mod prompt_strategy;
 
+// FocusingAssumption FA-C1/FA-T3: Minimal stubs for spec-code alignment.
+pub mod capability_validator;
+pub mod contract_validator;
+
 pub mod registry;
 pub mod registry_sqlite;
 pub mod skill_loader;

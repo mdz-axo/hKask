@@ -273,6 +273,12 @@ documented as surface-only. See §7 (Project Complete) for final metrics.
 
 83. **MCP server duplication classified as parity-test candidates (option c).** Zoom-out analysis of goal, replicant, and spec MCP servers revealed that all three fall under parity tests, not domain-crate extraction. Goal: both delegate to `SqliteGoalRepository`; duplication is surface-specific validation. Replicant: P1 Prohibition against `PodService`/`InferenceService`; duplication is intentional per architecture. Spec: 8 of 11 tools are MCP-only (OCAP, Writing Excellence, test traceability); 3 partially-duplicated tools use same domain types. F4 resolved — no domain-crate extraction needed.
 
+84. **Ensemble standing_start remains surface-specific (depth test fails — Divergent).** Zoom-out analysis confirmed that `EnsembleService` explicitly documents standing sessions as Divergent (CLI: YAML file bootstrap, API: JSON body + MCP tool discovery + gas governance). No stub exists. Extracting `standing_start` would require a complex parameter type capturing divergent surface inputs, adding more interface cost than behavior benefit. The depth test fails: deleting a hypothetical `standing_start` service method would simplify, not complicate, callers. Standing sessions stay in surface code.
+
+85. **Sovereignty consent enforcement is already extracted.** `SovereigntyService::check_access()` returns `AccessCheck` with `classification`, `access_required`, and `has_consent`. The API route's 6-line enforcement block (if no consent and not PUBLIC → return 403) is surface-specific HTTP error mapping. Correct architecture: service returns data, surface decides presentation. No extraction needed.
+
+86. **Chat PromptStrategy abstraction not warranted (depth test fails).** `ChatService::prepare_chat()` composes prompts with ~30 lines of straightforward string assembly (agent definition + tool section + HHH suffix + semantic context + user input). The existing `PromptStrategy` enum in `hkask-templates` is used in API routes for per-input framing. A strategy pattern in ChatService would add indirection without reducing complexity. Document as future consideration if prompt composition grows significantly.
+
 ---
 
 ## 5. Remaining Legitimate Legacy Patterns (Do NOT Migrate)
@@ -332,6 +338,8 @@ documented as surface-only. See §7 (Project Complete) for final metrics.
 | `crates/hkask-api/src/routes/acp.rs` | ACP API routes | ✅ Shallow — stays in surface |
 | `crates/hkask-api/src/routes/consolidation.rs` | Consolidation API | ✅ Delegates to ConsolidationService (with db_path param) |
 | `crates/hkask-api/src/routes/spec.rs` | Spec API | ✅ capture delegates to SpecService::build_spec |
+| `mcp-servers/hkask-mcp-replicant/src/tools.rs` | Replicant MCP server | ✅ P1 Prohibition documentation added (Session 29) |
+| `mcp-servers/hkask-mcp-replicant/src/agent_loader.rs` | Agent definition loader | ✅ P1 Prohibition documentation added (Session 29) |
 
 ---
 
@@ -377,16 +385,19 @@ between CLI, API, and MCP surfaces. Key capabilities:
 
 | ID | Topic | Status |
 |----|-------|--------|
-| F1 | Streaming responses | ✅ Resolved (Sessions 27–28, #80–#81) — CLI incremental printing via `ChatService::prepare_chat()` + `generate_stream_with_model()` |
+| F1 | Streaming responses | ✅ Resolved (Sessions 27–28, #80–#82) — CLI incremental printing via `ChatService::prepare_chat()` + `generate_stream_with_model()` |
 | F2 | Session lifecycle across surfaces | Deferred — sessions are CLI-local currently |
 | F3 | Unified authentication context | ✅ Resolved (Session 27, #79) — `ChatService` uses unified `capability_checker`; `mcp_secret`/`acp_secret` split documented as Guardrail |
-| F4 | MCP server duplication | ✅ Resolved (Session 28) — All three servers classified as parity-test candidates; no domain-crate extraction needed |
+| F4 | MCP server duplication | ✅ Resolved (Sessions 28–29) — All three servers classified as parity-test candidates; P1 Prohibition documented in replicant |
 | F5 | Test seam depth (C8) | ✅ Resolved (Session 24) — PodManager::new_mock() uses deterministic test ACP secret |
 | F6 | REPL vs API state boundary | Resolved — ServiceContext bridges both |
 | F7 | ServiceConfig vs environment variables | Resolved — ServiceConfig::from_env() resolves from both |
 | F8 | GovernedTool membrane boundary | ✅ Resolved (Session 26, #76) — GovernedTool wired to PodManager; service layer never touches it |
 | F9 | `serde_json::Value` from EpisodicStoragePort.recall | ✅ Resolved (Session 24) — RecalledEpisode typed DTO replaces untyped Values |
 | F10 | `serde_json::Value` from SemanticStoragePort.recall | ✅ Resolved (Session 25) — RecalledSemantic typed DTO replaces untyped Values; triple_to_json deleted |
+| — | Ensemble standing_start | ✅ Evaluated (Session 29, #84) — Divergent; depth test fails; remains surface-specific |
+| — | Sovereignty consent enforcement | ✅ Evaluated (Session 29, #85) — Already extracted; API route is correct surface-specific mapping |
+| — | Chat PromptStrategy | ✅ Evaluated (Session 29, #86) — Depth test fails; existing PromptStrategy sufficient |
 
 ---
 

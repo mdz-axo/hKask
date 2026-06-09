@@ -1,7 +1,7 @@
 ---
 title: "hKask Trust, Security & Observability Specification"
 audience: [architects, security engineers, developers]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
@@ -33,13 +33,13 @@ hKask implements a **zero-trust, capability-based security model**:[^miller-robu
 
 ### 1.2 Single Capability Primitive
 
-All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:308`; `CapabilityToken` type alias not yet in code):
+All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:327`; `CapabilityToken` is a type alias for `DelegationToken` — added for spec-code alignment in v0.23.0):
 
 | Property | Implementation |
 |----------|---------------|
 | **Signing** | HMAC-SHA256 + `subtle::ConstantTimeEq` |
 | **Scoping** | Resource + action pairs (`CapabilityResource`, `CapabilityAction`) |
-| **Caveats** | Expiration, operation, template, visibility |
+| **Caveats** | Expiration, operation, template, visibility (`Caveat` struct — `pub(crate)` in `DelegationTokenBuilder`; not public API) |
 | **Attenuation** | Max depth 7 (configurable) |
 | **Revocation** | `HashSet<String>` inside `AcpRuntime` |
 | **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
@@ -79,7 +79,7 @@ WebIDs derived from persona content via UUID v5:
 | Boundary | Enforcement | Implementation |
 |----------|------------|----------------|
 | MCP tool invocation | `GovernedTool` | `hkask-cns/src/governed_tool.rs:80` |
-| Template execution | `CapabilityAwareValidator` | not yet in code (was `hkask-templates/src/capability_validator.rs:21`) |
+| Template execution | `GovernedTool` (runtime) / `CapabilityAwareValidator` (registration-time stub) | `hkask-cns/src/governed_tool.rs:80` (runtime); `hkask-templates/src/capability_validator.rs` (stub, FocusingAssumption: minimal stub — full implementation deferred) |
 | ACP message routing | `SovereigntyPort` | `hkask-agents/src/sovereignty.rs` |
 | Memory storage | `MemoryStoragePort` | `hkask-agents/src/pod/context.rs:50` |
 | API requests | Capability in Authorization header | `hkask-api/src/lib.rs` |
@@ -163,9 +163,9 @@ The MCP keystore server persists encrypted entries to a file-based vault at `~/.
 | Threat | Category | Mitigation | hKask Primitive |
 |--------|----------|-----------|-----------------|
 | Template injection | Tampering | Jinja2 sandbox | `minijinja` sandboxing |
-| Capability forgery | Spoofing | HMAC-SHA256 + constant-time | `CapabilityToken` integrity |
-| Capability escalation | Elevation | Attenuation enforcement | `CapabilityTokenBuilder` attenuation |
-| Replay attacks | Spoofing | Context nonce + expiry | `CapabilityToken.context_nonce` |
+| Capability forgery | Spoofing | HMAC-SHA256 + constant-time | `DelegationToken` integrity |
+| Capability escalation | Elevation | Attenuation enforcement | `DelegationTokenBuilder` attenuation |
+| Replay attacks | Spoofing | Context nonce + expiry | `DelegationToken.context_nonce` |
 | Data at rest exposure | Info Disclosure | SQLCipher | `hkask-storage` |
 | Supply chain compromise | Tampering | Pinned versions, `cargo deny` | `Cargo.toml` |
 | Path traversal | Elevation | Path validation | `hkask-storage` guards |

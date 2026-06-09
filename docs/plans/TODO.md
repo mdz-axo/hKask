@@ -1,7 +1,7 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "1.7.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -47,9 +47,9 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-03** | GPU acceleration (CUDA) | Infrastructure | Low | Optional |
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
-| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved (cargo check passes); remaining code drift noted below |
-| **P2-07** | DDMVSS audit R4: Update §9.1 self-application matrix | Curator | Medium | ⬜ Open | 3 cells need :partial/:drift labels |
-| **P2-08** | DDMVSS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ⬜ Open | PRINCIPLES.md §1.4 is authoritative |
+| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `docs/status/spec-code-drift.yaml` and `docs/status/curation-decisions.yaml` |
+| **P2-07** | DDMVSS audit R4: Update §9.1 self-application matrix | Curator | Medium | ✅ Complete | Trust → Pass, Observability → Pass, Persistence/Lifecycle/Curation → :partial. Updated 2026-06-08 |
+| **P2-08** | DDMVSS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | PRINCIPLES.md §1.4 is authoritative; 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
 | **P2-09** | DDMVSS audit R8: Add TemplateType vocabulary mapping to interface-and-composition.md | Curator | Medium | ⬜ Open | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct |
 | **P2-10** | DDMVSS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ⬜ Open | 10 items from DDMVSS §11 R3 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ⬜ Open | Requires current `cargo check`, `cargo test`, `cargo clippy` results |
@@ -58,19 +58,19 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ⬜ Open | Pattern refactoring review across codebase |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` \u2014 dead code and unwired seam inventory | Dev | Low | \u2b1c Open | Dead-code identification, unimplemented seams |
 
-**Code drift from spec alignment audit (2026-06-07):** The following spec references describe intended behavior but code has not yet caught up:
+**Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`docs/status/spec-code-drift.yaml`](../status/spec-code-drift.yaml) and [`docs/status/curation-decisions.yaml`](../status/curation-decisions.yaml). Summary of resolutions:
 
-| ID | Spec Reference | Code Status | Notes |
-|----|---------------|-------------|-------|
-| P2-06-D1 | 5 hierarchical CNS spans (`cns.hhh.gate`, `cns.hhh.persona`, `cns.cybernetics.backpressure`, `cns.memory.encode`, `cns.memory.budget`) | Not in `CANONICAL_NAMESPACES` | Listed in PRINCIPLES.md \u00a71.4 (authoritative) but not yet registered in code |
-| P2-06-D2 | `Caveat` struct (`capability/mod.rs:240`) | Not in code | Spec describes caveat restrictions; code uses `Vec<Caveat>` field in `DelegationTokenBuilder` but no `Caveat` type defined |
-| P2-06-D3 | `CapabilityToken` type alias | Not in code | Referenced in trust-security-observability.md; `DelegationToken` is the actual type |
-| P2-06-D4 | `ContractValidator` (`hkask-templates::contract_validator`) | Not in code | Spec describes lexicon-term enforcement at template registration |
-| P2-06-D5 | `CapabilityAwareValidator` (`hkask-templates/src/capability_validator.rs`) | Not in code | Spec describes OCAP enforcement point for template execution |
-| P2-06-D6 | `TemplateInvocation` struct (`template.rs:95`) | Not in code | Entity referenced in domain entity table |
-| P2-06-D7 | `SecurityGateway` struct | Not in code | Referenced in REQ-CAP-003; enforcement is via `GovernedTool` instead |
-| P2-06-D8 | `McpTransport` trait | Not in code | Referenced in REQ-CAP-003; rmcp handles transport internally |
-| P2-06-D9 | `parse_markdown_catalog`, `render_workspace_yaml`, `regenerate_workspace_yaml` functions | Not in code | Markdown\u2192YAML derivation not yet implemented; `load_hlexicon_from_yaml` loads YAML directly |
+| ID | Resolution |
+|----|------------|
+| P2-06-D1 | ✅ Resolved: 5 hierarchical CNS spans registered in `CANONICAL_NAMESPACES` |
+| P2-06-D2 | ✅ Resolved: `Caveat` exists as `pub(crate)` — spec updated to note it's an internal implementation detail |
+| P2-06-D3 | ✅ Resolved: `CapabilityToken` type alias added to `hkask-types/src/capability/mod.rs` |
+| P2-06-D4 | ✅ Resolved: `ContractValidator` stub added with FocusingAssumption FA-C1 |
+| P2-06-D5 | ✅ Resolved: `CapabilityAwareValidator` stub added with FocusingAssumption FA-T3 |
+| P2-06-D6 | ✅ Resolved: `TemplateInvocation` struct stub added with FocusingAssumption FA-D1 |
+| P2-06-D7 | ✅ Resolved: Spec updated — SecurityGateway superseded by GovernedTool |
+| P2-06-D8 | ✅ Resolved: Spec updated — McpTransport not needed (rmcp handles transport) |
+| P2-06-D9 | ✅ Resolved: `parse_markdown_catalog`, `render_workspace_yaml`, `regenerate_workspace_yaml` stubs added with FocusingAssumption FA-Co1 |
 
 ---
 

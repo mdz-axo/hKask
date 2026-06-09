@@ -1,6 +1,6 @@
 # CONTINUATION.md — hKask Auth & Streaming Follow-Up
 
-**Sessions:** 12–28 | **Status:** Extraction ✅ COMPLETE | F3 ✅ RESOLVED | F1 ✅ CLI streaming done | F4 ✅ Resolved
+**Sessions:** 12–29 | **Status:** Extraction ✅ COMPLETE | All follow-up tasks evaluated ✅
 
 ---
 
@@ -30,14 +30,27 @@ F4 (MCP server access) was confirmed as architecturally correct.
 | 4 | MCP server duplication resolution | 🟡 Medium | Not started | ~4–6h |
 | 5 | OPEN_QUESTIONS.md update | 🟡 Medium | ✅ Done (Session 28) | ~15m |
 | 6 | F1 — CLI incremental printing | 🟡 Medium | ✅ Done (Session 28, #81) | ~1.5h |
-| 7 | Ensemble standing_start orchestration | 🔴 High | Not started | ~2h |
-| 8 | Sovereignty consent enforcement extraction | 🔴 High | Not started | ~1h |
-| 9 | Chat PromptStrategy framing | 🟡 Medium | Not started | ~1h |
+| 7 | Ensemble standing_start orchestration | 🔴 High | ✅ Evaluated — depth test fails (Divergent) | ~30m |
+| 8 | Sovereignty consent enforcement extraction | 🔴 High | ✅ Evaluated — already extracted | ~15m |
+| 9 | Chat PromptStrategy framing | 🟡 Medium | ✅ Evaluated — depth test fails | ~15m |
 | 10 | Pre-existing hkask-cns test compile error | 🟡 Medium | ✅ Fixed (Session 28) | ~10m |
+| 11 | Replicant MCP P1 Prohibition documentation | 🟡 Medium | ✅ Done (Session 29) | ~15m |
 
 ---
 
 ## Session History (Post-Extraction)
+
+### Session 29 (Evaluation Sweep + Replicant Documentation)
+
+- **Ensemble standing_start orchestration:** Zoom-out analysis revealed that `EnsembleService` explicitly documents standing sessions as Divergent (CLI: YAML file bootstrap, API: JSON body + MCP discovery + gas governance). No stub exists. The depth test fails — extracting `standing_start` to the service layer would require a complex parameter type that captures divergent surface inputs, adding more interface cost than behavior benefit. Decision #84: Standing sessions remain surface-specific. No code change needed.
+
+- **Sovereignty consent enforcement extraction:** Zoom-out analysis revealed that `SovereigntyService::check_access()` already returns the `AccessCheck` struct with `classification`, `access_required`, and `has_consent` fields. The API route's 6-line enforcement block (if no consent and not PUBLIC → return 403) is surface-specific HTTP error mapping — correct architecture. The service layer already provides all business logic. Decision #85: Consent enforcement is already extracted. No code change needed.
+
+- **Chat PromptStrategy framing:** The existing `PromptStrategy` enum in `hkask-templates` is used in API chat routes for prompt framing. `ChatService::prepare_chat()` composes prompts with ~30 lines of straightforward string assembly (agent definition + tool section + HHH suffix + semantic context + user input). A strategy pattern would add indirection without reducing complexity. Decision #86: PromptStrategy abstraction not warranted. Document as future consideration if prompt composition grows significantly.
+
+- **Replicant MCP P1 Prohibition documentation:** Added P1 Prohibition comments to `hkask-mcp-replicant` `tools.rs` (on `ReplicantServer` struct) and `agent_loader.rs` (module doc). Documents that the apparent duplication of agent loading and ACP secret resolution is intentional — MCP servers must NOT depend on `hkask-services` (P1 User Sovereignty boundary).
+
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test -p hkask-services -p hkask-cli -p hkask-types -p hkask-cns -p hkask-ensemble` ✅ (0 failures).
 
 ### Session 28 (CLI Streaming + CNS Fix + OPEN_QUESTIONS)
 

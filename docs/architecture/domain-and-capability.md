@@ -1,7 +1,7 @@
 ---
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "2.2.4"
 status: "Active"
 domain: "Cross-cutting"
@@ -99,7 +99,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | **Goal** | `hkask-types` | `goal.rs:159` | DDMVSS goal specification |
 | **Spec** | `hkask-storage` | `spec_types.rs:250` | Minimum viable specification |
 | **AgentDefinition** | `hkask-types` | `agent_def.rs:137` | Declarative agent configuration |
-| **TemplateInvocation** | `hkask-types` | not yet in code | Template rendering record |
+| **TemplateInvocation** | `hkask-types` | not yet in code | Template rendering record (**FocusingAssumption FA-D1**: minimal stub planned — full implementation deferred until template rendering tracking is needed) |
 
 ### 3.2 Agent Taxonomy
 
@@ -235,7 +235,7 @@ All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mo
 |----------|---------------|
 | **Signing** | HMAC-SHA256 with `subtle::ConstantTimeEq` |
 | **Scoping** | Resource + action pairs (`DelegationResource`, `DelegationAction`) |
-| **Caveats** | Expiration, operation, template, visibility (`Caveat` \u2014 not yet in code, see TODO.md P2-06) |
+| **Caveats** | Expiration, operation, template, visibility (`Caveat` — `pub(crate)` internal implementation detail in `DelegationTokenBuilder`; not public API) |
 | **Attenuation** | Chains with max depth (default: 7, compile-time const `SYSTEM_MAX_ATTENUATION`) |
 | **Revocation** | Persistent set via `ocap:revoke` MCP tool (`mcp-servers/hkask-mcp-ocap/src/main.rs`) |
 | **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
@@ -248,7 +248,7 @@ All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mo
 | `DelegationTokenBuilder` | `capability/mod.rs:336` | Builder with caveats, attenuation, context nonce |
 | `DelegationResource` | `capability/mod.rs:170` | Resource enum (Tool, Template, Registry) |
 | `DelegationAction` | `capability/mod.rs:196` | Action enum (Read, Write, Execute) |
-| `Caveat` | not yet in code | Expiration, operation, template, visibility restrictions |
+| `Caveat` | `pub(crate)` in `capability/mod.rs:320` | Expiration, operation, template, visibility restrictions (crate-private implementation detail; not public API) |
 | `OcapServer` (revocation set) | `mcp-servers/hkask-mcp-ocap/src/main.rs` | Persistent capability revocation |
 
 [^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.

@@ -20,7 +20,7 @@ OCAP capability tokens support delegation chains where each delegation creates a
 
 ## Decision
 
-**Maximum attenuation depth of 7 levels.** This is the hard cap enforced by `CapabilityToken::can_attenuate()`.
+**Maximum attenuation depth of 7 levels.** This is the hard cap enforced by `DelegationToken::can_attenuate()`.
 
 ```rust
 pub const MAX_ATTENUATION_LEVEL: u8 = 7;
@@ -62,7 +62,7 @@ The 8th attenuation attempt returns `None`. Chain verification is bounded to O(7
 
 | Principle | Compliance |
 |-----------|-----------|
-| P1 (No trait without two consumers) | ✅ `MAX_ATTENUATION_LEVEL` used by `AgentPod::delegate()` and `CapabilityToken::attenuate()` |
+| P1 (No trait without two consumers) | ✅ `MAX_ATTENUATION_LEVEL` used by `AgentPod::delegate()` and `DelegationToken::attenuate()` |
 | C5 (Every error variant is unique recovery path) | ✅ `AgentPodError::AttenuationLimitExceeded` is distinct |
 | Miller (Least authority) | ✅ Bounded attenuation enforces authority reduction at each step |
 

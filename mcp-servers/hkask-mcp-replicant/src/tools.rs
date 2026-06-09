@@ -77,6 +77,19 @@ struct SessionState {
 
 // ── Server ────────────────────────────────────────────────────────────────────
 
+// P1 Prohibition: This MCP server does NOT depend on `hkask-services`.
+//
+// The replicant server operates in a separate process and must not import
+// `PodService`, `InferenceService`, or any other service-layer module.
+// This is an intentional architectural boundary: process isolation ensures
+// that a compromised or misbehaving replicant cannot access the shared
+// service context, session manager, or CNS governance.
+//
+// The apparent duplication of agent loading (vs. CLI/API via ChatService)
+// is by design: this server resolves ACP secrets independently, loads agent
+// definitions from its own registry discovery, and constructs inference
+// ports directly. Any shared logic should live in domain crates
+// (`hkask-agents`, `hkask-types`, `hkask-templates`), never in `hkask-services`.
 pub struct ReplicantServer {
     /// Calling agent's WebID (from run_stdio_server resolution)
     webid: WebID,

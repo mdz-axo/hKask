@@ -1,7 +1,7 @@
 ---
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "2.5.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -119,25 +119,25 @@ Draft → Active → Deprecated → Superseded → Removed
 
 ---
 
-## 4. Spec-Document Completeness Predicate
+## 4. Spec-Code Completeness Predicate
 
 Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2 and the axiom `Spec-document completeness ⊥ Code-implementation completeness`:
 
-**This table evaluates spec-document completeness only** — whether each category has an authoritative specification document that is internally consistent and properly cross-referenced. It does not evaluate whether the code implementing those specifications is complete. Code-implementation gaps are tracked in [`plans/TODO.md`](../plans/TODO.md) and [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
+**This table evaluates both spec-document completeness AND code-implementation completeness.** Spec-code drift items are tracked in [`spec-code-drift.yaml`](../status/spec-code-drift.yaml) and curation decisions in [`curation-decisions.yaml`](../status/curation-decisions.yaml).
 
-| Category | Authoritative Document | Spec-Document Complete? | Curated? |
-|----------|----------------------|-------------------------|----------|
-| Domain | `domain-and-capability.md` | ✅ | ✅ Merge |
-| Capability | `domain-and-capability.md` | ✅ | ✅ Merge |
-| Interface | `interface-and-composition.md` | ✅ | ✅ Merge |
-| Composition | `interface-and-composition.md` | ✅ | ✅ Merge |
-| Trust & Security | `trust-security-observability.md` | ✅ | ✅ Merge |
-| Observability | `trust-security-observability.md` | ✅ | ✅ Merge |
-| Persistence | `persistence-and-lifecycle.md` | ✅ | ✅ Merge |
-| Lifecycle | `persistence-and-lifecycle.md` | ✅ | ✅ Merge |
-| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ✅ | ✅ Merge |
+| Category | Authoritative Document | Spec-Document Complete? | Code-Implementation Complete? | Curation Decision | Drift Items |
+|----------|----------------------|-------------------------|-------------------------------|-------------------|-------------|
+| Domain | `domain-and-capability.md` | ✅ | ⚠️ | Merge + Revise | P2-06-D6 (TemplateInvocation stub), DRIFT-001 (CapabilityToken alias), DRIFT-002 (TemplateInvocation in ERD) |
+| Capability | `domain-and-capability.md` | ✅ | ⚠️ | Merge + Revise | P2-06-D4 (ContractValidator stub) |
+| Interface | `interface-and-composition.md` | ✅ | ✅ | Merge | P2-06-D8 (McpTransport — resolved: rmcp handles transport) |
+| Composition | `interface-and-composition.md` | ✅ | ⚠️ | Merge + Revise | P2-06-D9 (derivation stubs) |
+| Trust & Security | `trust-security-observability.md` | ✅ | ⚠️ | Merge + Revise | P2-06-D2 (Caveat visibility), D3 (CapabilityToken alias), D5 (CapabilityAwareValidator stub), D7 (SecurityGateway — superseded by GovernedTool) |
+| Observability | `trust-security-observability.md` | ✅ | ⚠️ | Merge + Revise | P2-06-D1 (5 hierarchical CNS spans — now registered) |
+| Persistence | `persistence-and-lifecycle.md` | ✅ | ✅ | Merge | — |
+| Lifecycle | `persistence-and-lifecycle.md` | ✅ | ✅ | Merge | — |
+| Curation | `DDMVSS.md` + `WRITING_EXCELLENCE.md` | ✅ | ⚠️ | Merge + Revise | DA-4-code_ahead (SpecStore method names), DA-5-code_ahead (DefaultSpecCurator exists), DRIFT-004 (self-application matrix labels) |
 
-**Result:** 9/9 categories have authoritative spec documents that are internally consistent and cross-referenced. Code-implementation gaps (MCP≡CLI≡API equivalence verification, SpecStore bitemporal query methods, curation record persistence wiring, coherence threshold calibration) are code tasks, not spec-document gaps — tracked in [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
+**Result:** 9/9 categories have authoritative spec documents. 5/9 categories have code-implementation gaps (marked ⚠️). All drift items have curation decisions recorded in [`curation-decisions.yaml`](../status/curation-decisions.yaml). Code-implementation gaps are tracked in [`spec-code-drift.yaml`](../status/spec-code-drift.yaml) and [`plans/TODO.md`](../plans/TODO.md).
 
 ---
 

@@ -738,3 +738,13 @@ impl DelegationToken {
             && self.delegated_to == other.delegated_to
     }
 }
+
+/// Type alias for spec-code alignment.
+///
+/// DDMVSS and trust-security-observability.md reference `CapabilityToken`.
+/// This alias preserves the spec vocabulary while the code uses `DelegationToken`
+/// as the canonical name (changed during implementation for semantic clarity).
+///
+/// FocusingAssumption FA-T2: This alias exists solely for spec-code alignment.
+/// All new code should use `DelegationToken` directly.
+pub type CapabilityToken = DelegationToken;

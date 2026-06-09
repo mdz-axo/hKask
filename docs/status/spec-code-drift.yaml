@@ -1,0 +1,149 @@
+---
+title: "Spec-Code Drift Set"
+audience: [architects, developers, agents]
+last_updated: 2026-06-08
+version: "1.0.0"
+status: "Active"
+domain: "Cross-cutting"
+ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+---
+
+# Spec-Code Drift Set
+
+Computed: 2026-06-08
+Method: Set-difference of named entities from `docs/architecture/*.md` and `docs/specifications/*.md`
+         against `pub` API surfaces from `crates/*/src/**/*.rs`.
+
+## Drift Items
+
+- id: P2-06-D1
+  spec_reference: "PRINCIPLES.md §1.4 — 5 hierarchical CNS spans: cns.hhh.gate, cns.hhh.persona, cns.cybernetics.backpressure, cns.memory.encode, cns.memory.budget"
+  code_reality: "CANONICAL_NAMESPACES in hkask-types/src/event.rs contains 15 flat namespaces; 5 hierarchical spans listed in PRINCIPLES.md are NOT registered"
+  drift_classification: spec_ahead
+  ddmvss_category: observability
+  priority: P2
+  notes: "PRINCIPLES.md §1.4 is the authoritative source. Code registration is pending, not a spec error."
+
+- id: P2-06-D2
+  spec_reference: "domain-and-capability.md §4.1 — Caveat struct with caveat_id and data fields"
+  code_reality: "Caveat exists in hkask-types/src/capability/mod.rs:320 as pub(crate) struct Caveat — crate-private, not public API"
+  drift_classification: divergent
+  ddmvss_category: trust
+  priority: P2
+  notes: "Spec describes Caveat as a public type. Code implements it as an internal detail of DelegationTokenBuilder. Visibility mismatch is the divergence."
+
+- id: P2-06-D3
+  spec_reference: "trust-security-observability.md §1.2, DDMVSS.md §7.2 — CapabilityToken type"
+  code_reality: "DelegationToken is the actual type in hkask-types/src/capability/mod.rs:327. CapabilityToken does not exist as a type alias."
+  drift_classification: divergent
+  ddmvss_category: trust
+  priority: P2
+  notes: "Spec uses CapabilityToken; code uses DelegationToken. Naming history: CapabilityToken was the original name, changed during implementation. Both DDMVSS §7.2 and trust-security-observability.md still reference CapabilityToken."
+
+- id: P2-06-D4
+  spec_reference: "domain-and-capability.md — ContractValidator in hkask-templates::contract_validator"
+  code_reality: "No file contract_validator.rs exists in hkask-templates. No ContractValidator type or trait in any crate."
+  drift_classification: spec_ahead
+  ddmvss_category: capability
+  priority: P2
+  notes: "Spec describes lexicon-term enforcement at template registration. No code exists yet."
+
+- id: P2-06-D5
+  spec_reference: "trust-security-observability.md — CapabilityAwareValidator in hkask-templates/src/capability_validator.rs:21"
+  code_reality: "No file capability_validator.rs exists in hkask-templates. No CapabilityAwareValidator type or trait in any crate."
+  drift_classification: spec_ahead
+  ddmvss_category: trust
+  priority: P2
+  notes: "Spec describes OCAP enforcement point for template execution. GovernedTool in hkask-cns fills the runtime enforcement role, but template-registration-time capability validation does not exist."
+
+- id: P2-06-D6
+  spec_reference: "domain-and-capability.md entity table — TemplateInvocation struct (template.rs:95)"
+  code_reality: "No TemplateInvocation struct exists. TemplateFile and TemplateCrate exist in hkask-types/src/template.rs."
+  drift_classification: spec_ahead
+  ddmvss_category: domain
+  priority: P2
+  notes: "TemplateInvocation was intended to track template rendering events. TemplateFile/TemplateCrate cover file-level metadata, not invocation records."
+
+- id: P2-06-D7
+  spec_reference: "trust-security-observability.md REQ-CAP-003 — SecurityGateway struct"
+  code_reality: "No SecurityGateway type exists. GovernedTool in hkask-cns/src/governed_tool.rs fills the OCAP enforcement role."
+  drift_classification: divergent
+  ddmvss_category: trust
+  priority: P2
+  notes: "SecurityGateway was never implemented. GovernedTool subsumes its responsibilities. The spec reference is stale."
+
+- id: P2-06-D8
+  spec_reference: "interface-and-composition.md — McpTransport trait"
+  code_reality: "No McpTransport trait exists. rmcp handles MCP transport internally. McpServer in hkask-mcp/src/runtime.rs manages connections."
+  drift_classification: divergent
+  ddmvss_category: interface
+  priority: P2
+  notes: "Spec assumed an explicit transport abstraction trait. Code delegates to the rmcp library. No McpTransport is needed."
+
+- id: P2-06-D9
+  spec_reference: "interface-and-composition.md §5.3, hKask-hLexicon.md — parse_markdown_catalog, render_workspace_yaml, regenerate_workspace_yaml functions"
+  code_reality: "Only load_hlexicon_from_yaml exists in hkask-templates/src/lexicon.rs. No markdown-to-YAML derivation pipeline exists."
+  drift_classification: spec_ahead
+  ddmvss_category: composition
+  priority: P2
+  notes: "Spec describes a derivation pipeline from markdown hLexicon to YAML workspace. Code only loads YAML directly."
+
+- id: DA-4-code_ahead
+  spec_reference: "DDMVSS.md §8 — SpecStore trait with load, save, list_by_category"
+  code_reality: "SpecStore trait in hkask-storage/src/spec_types.rs:417 has get (not load), save, list_by_category, evaluate, reconcile. SqliteSpecStore and SqliteCurationRecordStore both exist with wired implementations."
+  drift_classification: code_ahead
+  ddmvss_category: curation
+  priority: P1
+  notes: "Code has evolved past the DDMVSS §8 skeleton. Method names differ (get vs load), and code has additional evaluate/reconcile methods. Spec skeleton is a pattern demonstration, not an API contract — this is expected."
+
+- id: DA-5-code_ahead
+  spec_reference: "DDMVSS.md §8 — SpecCurator trait with evaluate, reconcile, cultivate"
+  code_reality: "DefaultSpecCurator exists in hkask-agents/src/curator_agent/spec_curator.rs. SqliteCurationRecordStore exists in hkask-storage/src/spec_store.rs."
+  drift_classification: code_ahead
+  ddmvss_category: curation
+  priority: P2
+  notes: "Code has more concrete implementations than the spec skeleton documents. Spec skeleton shows pattern; implementation has evolved."
+
+- id: DRIFT-001
+  spec_reference: "subsystem-erds.md — ERD shows CapabilityToken entity"
+  code_reality: "Code uses DelegationToken. No CapabilityToken type alias exists."
+  drift_classification: divergent
+  ddmvss_category: domain
+  priority: P2
+  notes: "Same naming divergence as P2-06-D3, but in a different spec document (reference ERD)."
+
+- id: DRIFT-002
+  spec_reference: "subsystem-erds.md — ERD shows TemplateInvocation entity"
+  code_reality: "No TemplateInvocation struct exists. Same as P2-06-D6."
+  drift_classification: spec_ahead
+  ddmvss_category: domain
+  priority: P2
+  notes: "Duplicate reference of P2-06-D6 in ERD document."
+
+- id: DRIFT-003
+  spec_reference: "subsystem-erds.md — SecurityGateway and SecurityPolicy entities in ERD"
+  code_reality: "Neither exists. GovernedTool and CapabilityChecker fill the enforcement roles. A note on the ERD already acknowledges this (status: CORRECTED)."
+  drift_classification: divergent
+  ddmvss_category: trust
+  priority: P2
+  notes: "ERD has already been corrected with a note. The entities remain in the diagram for historical reference but are marked as never existed."
+
+- id: DRIFT-004
+  spec_reference: "DDMVSS.md §9.1 — Self-application matrix claims Trust :partial, Observability :partial, Persistence :partial, Lifecycle :partial, Curation :drift"
+  code_reality: "Code has made progress since those labels were assigned. SqliteSpecStore is wired. SqliteCurationRecordStore exists. CurationDecision has 4 variants."
+  drift_classification: divergent
+  ddmvss_category: curation
+  priority: P2
+  notes: "The self-application matrix labels are stale. Need re-evaluation per Task 5."
+
+## Summary
+
+| Classification | Count | Items |
+|---|---|---|
+| spec_ahead | 5 | P2-06-D1, D4, D5, D6, D9 |
+| code_ahead | 2 | DA-4-code_ahead, DA-5-code_ahead |
+| divergent | 5 | P2-06-D2, D3, D7, D8, DRIFT-004 |
+| absent | 0 | (none — all references resolve to at least a named entity) |
+| duplicate | 2 | DRIFT-001 (=D3), DRIFT-002 (=D6), DRIFT-003 (=D7) |
+
+*ℏKask - A Minimal Viable Container for Agents — v0.23.0*

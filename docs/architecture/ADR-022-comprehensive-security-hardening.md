@@ -38,7 +38,7 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 
 #### T01: Delete Duplicate CapabilityToken
 **Problem:** Two parallel `CapabilityToken` implementations in `hkask-agents` and `hkask-types`  
-**Solution:** Unified on `hkask-types::CapabilityToken`, deleted `hkask-agents/src/capability.rs`  
+**Solution:** Unified on `hkask-types::DelegationToken` (with `CapabilityToken` as a type alias for spec-code alignment), deleted `hkask-agents/src/capability.rs`  
 **Impact:** Eliminated type confusion, single source of truth
 
 #### T02: Fix OCAP Bypass
@@ -73,7 +73,7 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 
 #### T08: Unify Capability Primitive
 **Problem:** Three parallel capability systems (CapabilityToken, Macaroon, OkapiCapability)  
-**Solution:** Single `CapabilityToken` with caveats  
+**Solution:** Single `DelegationToken` (aliased `CapabilityToken`) with caveats  
 **Impact:** Miller-style unforgeable capabilities
 
 ### Phase B: Architectural (T09-T16)

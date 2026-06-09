@@ -7,6 +7,18 @@
 //!
 //! These are standalone functions used during [`ReplicantServer`](super::tools::ReplicantServer)
 //! initialization to set up ACP runtime and persona configuration.
+//!
+//! # P1 Prohibition — No Service-Layer Dependencies
+//!
+//! This module intentionally duplicates functionality that exists in
+//! `hkask-services` (agent loading, ACP secret resolution). This is NOT a
+//! violation of DRY — it is an **architectural Prohibition** enforcement.
+//! MCP servers run in separate processes and must NOT depend on
+//! `hkask-services`, `PodService`, or `InferenceService`. Process isolation
+//! is a P1 (User Sovereignty) boundary: it prevents replicants from
+//! accessing shared service context, session state, or CNS governance.
+//! Shared logic belongs in domain crates (`hkask-agents`, `hkask-types`,
+//! `hkask-templates`, `hkask-keystore`), never in `hkask-services`.
 
 use std::collections::HashMap;
 

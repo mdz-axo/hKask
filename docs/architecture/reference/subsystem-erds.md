@@ -1,7 +1,7 @@
 ---
 title: "hKask Subsystem Entity Relationship Diagrams"
 audience: [data architects, developers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "1.0.0"
 status: "Active"
 domain: "Data"
@@ -43,7 +43,7 @@ The type foundation: 76 public types across 16 modules. All ID types are newtype
 ```mermaid
 erDiagram
     WebID ||--o{ NuEvent : "observes"
-    WebID ||--o{ CapabilityToken : "delegates"
+    WebID ||--o{ DelegationToken : "delegates"
     WebID ||--o{ Goal : "owns"
     WebID ||--o{ Bot : "identifies"
     WebID ||--o{ Replicant : "identifies"
@@ -129,7 +129,7 @@ erDiagram
         DateTime created_at
     }
 
-    CapabilityToken {
+    DelegationToken {
         string id PK
         CapabilityResource resource
         string resource_id
@@ -157,14 +157,11 @@ erDiagram
         TemplateID id PK
         TemplateID template_id FK
         BotID bot_id FK
-        f32 temperature
-        LLMParameters parameters
-        json input
-        json outputs
-        usize selected_index
-        TemplateOutcome outcome
-        DateTime timestamp
+        DateTime invoked_at
     }
+    %% FocusingAssumption FA-D1: Minimal stub — full implementation deferred until
+    %% template rendering tracking is needed. Currently TemplateFile/TemplateCrate
+    %% cover file-level metadata; TemplateInvocation will record runtime invocations.
 
     LexiconTerm {
         string term PK
@@ -202,7 +199,7 @@ erDiagram
     PodManager ||--o{ AgentPod : "manages"
     AgentPod ||--|| AgentPersona : "has"
     AgentPod ||--|| TemplateCrate : "loaded_from"
-    AgentPod ||--|| CapabilityToken : "authorized_by"
+    AgentPod ||--|| DelegationToken : "authorized_by"
     AgentPod }o--|| PodLifecycleState : "in_state"
 
     AgentPersona ||--|| AgentIdentity : "identifies"
@@ -232,7 +229,7 @@ erDiagram
         AgentType agent_type
         AgentPersona persona
         TemplateCrate template_crate
-        CapabilityToken capability_token
+        DelegationToken capability_token
         PodLifecycleState state
         i64 created_at
         u8 max_attenuation

@@ -1,7 +1,7 @@
 ---
 title: "Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition"
 audience: [architects, developers, agents]
-last_updated: 2026-06-06
+last_updated: 2026-06-08
 version: "2.3.0"
 status: "Active"
 domain: "Architecture"
@@ -250,7 +250,7 @@ This pathway is **unidirectional**: Cybernetics signals Curation, but Curation d
 Each loop exposes a **minimal interface** — a set of operations that other loops may invoke without coupling to internals:
 
 1. **No struct leakage:** Interfaces accept and return primitive types or type aliases from `hkask-types`, not internal domain structs.
-2. **Capability-gated:** Every cross-loop call requires a `CapabilityToken` authorizing the specific operation.
+2. **Capability-gated:** Every cross-loop call requires a `DelegationToken` (aliased as `CapabilityToken`) authorizing the specific operation.
 3. **Energy-accounted:** Every cross-loop call is metered through `EnergyBudget.try_consume()` before execution.
 4. **Observable:** Every cross-loop call emits a `NuEvent` into the appropriate `cns.*` span.
 

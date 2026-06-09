@@ -541,20 +541,21 @@ The coherence threshold (0.7) is a starting guess. The spec document states this
 ### DA-1: Spec-document vs code-implementation boundary decision rule
 
 **DDMVSS Category:** Curation  
-**Status:** Open  
-**Opened:** 2026-06-07
+**Status:** Resolved  
+**Opened:** 2026-06-07  
+**Resolved:** 2026-06-08
 
-The corrected DDMVSS establishes that spec-document completeness is orthogonal to code-implementation completeness. The boundary between "this spec is incomplete as a document" and "the code implementing this spec is incomplete" needs a clear decision rule. Proposed rule: a spec document is complete when it defines its category's goal structure, required interfaces, and cross-references, independent of whether any code satisfies it. This rule is consistent with the DDMVSS axiom `Spec-document completeness ⊥ Code-implementation completeness` added in DDMVSS.md v0.3.0.
+The corrected DDMVSS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `docs/status/spec-code-drift.yaml`, curation decisions in `docs/status/curation-decisions.yaml`. The DDMVSS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
 
 ---
 
 ### DA-2: Status file population
 
 **DDMVSS Category:** Capability, Observability  
-**Status:** Open  
+**Status:** Partially resolved  
 **Opened:** 2026-06-07
 
-Producing real content for `docs/status/` files (MCP tools inventory, test inventory, Fowler audit, adversarial simplification inventory, PROJECT_STATUS) is substantive work. Each requires running analyses against the codebase. These are separate work items beyond the scope of documentation alignment. Tracked in `docs/plans/TODO.md` (P2-11 through P2-15).
+Producing real content for `docs/status/` files. Two new status files have been created: `spec-code-drift.yaml` (the exhaustive drift set) and `curation-decisions.yaml` (the curation decision records). Remaining status files (Fowler audit, adversarial simplification, PROJECT_STATUS) stay open. Tracked in `docs/plans/TODO.md` (P2-11 through P2-15).
 
 ---
 
@@ -562,9 +563,10 @@ Producing real content for `docs/status/` files (MCP tools inventory, test inven
 
 **DDMVSS Category:** Domain, Capability  
 **Status:** Resolved  
-**Opened:** 2026-06-07
+**Opened:** 2026-06-07  
+**Resolved:** 2026-06-08
 
-The `hkask-agents` crate previously had 5 compile errors (P2-06). These have been resolved. Code drift items (P2-06-D1 through P2-06-D9 in TODO.md) document types/references that exist in specs but not yet in code.
+The `hkask-agents` crate build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `docs/status/spec-code-drift.yaml` and `docs/status/curation-decisions.yaml`.
 
 ---
 
@@ -576,6 +578,8 @@ The `hkask-agents` crate previously had 5 compile errors (P2-06). These have bee
 
 The `hkask-mcp-spec` server can be used to capture and curate the specification corpus itself. There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 
+**Note (2026-06-08):** The spec-code drift curation (Tasks 1–4) could be performed via `hkask-mcp-spec` tools (`spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`) once self-application is implemented. The drift set and curation decisions were produced manually this cycle; future cycles should use the spec server. This requires SpecStore persistence wiring (FUT-011, FUT-012).
+
 ---
 
 ### DA-5: Coherence threshold calibration as spec-document gap
@@ -585,6 +589,8 @@ The `hkask-mcp-spec` server can be used to capture and curate the specification 
 **Opened:** 2026-06-07
 
 The curation coherence threshold is uncalibrated. This is a genuine underspecification in the Curation category's specification document — the spec should state the calibration method, not just the threshold value. Resolving this requires adding a calibration procedure section to `DDMVSS.md` §5.9 or `WRITING_EXCELLENCE.md`, then verifying via the Documentation Standards gate. Also tracked as FUT-013.
+
+**Note (2026-06-08):** The curation decisions in `docs/status/curation-decisions.yaml` use estimated coherence scores (0.60–0.95) based on structural alignment between spec and code. A mechanical calibration procedure would ground these estimates. The DDMVSS completeness predicate in DDMVSS_SCAFFOLD.md §4 now distinguishes spec-document completeness from code-implementation completeness, which makes coherence scoring more precise.
 
 ---
 

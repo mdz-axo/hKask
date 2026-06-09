@@ -1,7 +1,7 @@
 ---
 title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "0.3.1"
 status: "Active"
 domain: "Cross-cutting"
@@ -372,7 +372,7 @@ sequenceDiagram
     H->>S: specify(domain_anchor)
     S->>S: extract goals → G[]
     S->>C: grant_capabilities(G[])
-    C-->>S: CapabilityToken[]
+    C-->>S: DelegationToken[]
     S->>R: compose(existing_specs, new_tokens)
     R-->>S: ComposedSpec
     S->>Cu: curate(ComposedSpec)
@@ -470,7 +470,7 @@ verb_inventory:
     resource: Manifest
     interface: [mcp, cli, api]
   - verb: delegate_capability
-    resource: CapabilityToken
+    resource: DelegationToken
     interface: [mcp]
   - verb: curate_artifact
     resource: SpecArtifact
@@ -979,7 +979,7 @@ The templates above are instantiated for hKask (domain anchor: `hkask`, bounded 
 - **Capability spec:** 21 MCP servers × 6 actions + `hkask-mcp-spec` (11 tools) + `hkask-mcp-replicant` (3 tools) = 120 capability grant slots; current implementation covers ~60%.
 - **Interface spec:** `kask` binary (CLI), `hkask-mcp` (MCP), `hkask-api` (HTTP) — all route through `hkask-agents` core. `kask spec` subcommands added.
 - **Composition spec:** Unified registry with `template_type` discriminator (WordAct, KnowAct, FlowDef) — matches FA-Co1.
-- **Trust spec:** `CapabilityToken` in `hkask-types` implements HMAC-SHA256 + attenuation — matches FA-T1. Curation authority bounded via `OCAPBoundary`.
+- **Trust spec:** `DelegationToken` in `hkask-types` (aliased as `CapabilityToken` for spec-code alignment) implements HMAC-SHA256 + attenuation — matches FA-T1. Curation authority bounded via `OCAPBoundary`.
 - **Observability spec:** `NuEvent` in `hkask-types` with `Span` enum covers all `cns.*` namespaces. `cns.spec.curate` added.
 - **Persistence spec:** Bitemporal triples in `hkask-storage` with SQLCipher — matches FA-P1.
 - **Lifecycle spec:** Bootstrap in `hkask-cli`, Git-only versioning, Curator singleton initialization — matches FA-L1.
@@ -1124,10 +1124,10 @@ status: VERIFIED
 |--------|-----------|-----------------|
 | Template injection | Jinja2 sandbox + `internal_safe_search` | `minijinja` with sandboxing |
 | Path traversal | Path validation at storage boundary | `hkask-storage` path guards |
-| Capability forgery | HMAC-SHA256 verification + constant-time comparison | `CapabilityToken::verify()` |
-| Capability escalation | Attenuation enforcement (`attenuation_level < max_attenuation`) | `CapabilityToken::attenuate()` |
+| Capability forgery | HMAC-SHA256 verification + constant-time comparison | `DelegationToken::verify_hmac()` |
+| Capability escalation | Attenuation enforcement (`attenuation_level < max_attenuation`) | `DelegationToken::attenuate()` |
 | Spec tampering | Ed25519 manifest signing via keystore | `hkask-keystore` |
-| Replay attacks | Context nonce binding + token expiry | `CapabilityToken.context_nonce` |
+| Replay attacks | Context nonce binding + token expiry | `DelegationToken.context_nonce` |
 | Data at rest exposure | SQLCipher encryption | `hkask-storage` SQLCipher |
 | Curation override | CuratorId singleton + OCAPBoundary enforcement | `hkask-types/src/curation.rs` |
 
@@ -1146,7 +1146,7 @@ status: VERIFIED
 | Reconcile conflicts | `spec:*` | Compose | `spec:curate` | Yes | `cns.spec.curate` |
 | Cultivate collection | `spec:*` | Write | `spec:curate` | No (Curator only) | `cns.spec.curate` |
 
-**POLA enforcement:** Every spec operation requires presenting a `CapabilityToken` with matching `(resource, resource_id, action)`. No ambient authority. The MVSDD tool itself holds only `spec:*` capabilities — it cannot access `tool:*` or `template:*` resources. Curation operations are attenuatable except `cultivate`, which requires CuratorId authority.
+**POLA enforcement:** Every spec operation requires presenting a `DelegationToken` (aliased as `CapabilityToken`) with matching `(resource, resource_id, action)`. No ambient authority. The MVSDD tool itself holds only `spec:*` capabilities — it cannot access `tool:*` or `template:*` resources. Curation operations are attenuatable except `cultivate`, which requires CuratorId authority.
 
 ### 7.3 Implementation Status (Post ADV-REVIEW-F2)
 
@@ -1154,12 +1154,12 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 
 | Category | Implementation | Status | Evidence |
 |----------|---------------|--------|----------|
-| **Trust & Security** | Unified CapabilityToken with caveats, OCAP enforcement at all boundaries, secure memory (`Arc<Zeroizing<Vec<u8>>>`) | ✅ Complete | [`trust-security-observability.md`](trust-security-observability.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) |
-| **Capability** | Single primitive (`CapabilityToken`), attenuation chains (max 7 levels), persistent revocation tracking | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §3 |
+| **Trust & Security** | Unified `DelegationToken` (aliased as `CapabilityToken`) with caveats, OCAP enforcement via `GovernedTool` at all boundaries, secure memory (`Arc<Zeroizing<Vec<u8>>`) | ✅ Complete | [`trust-security-observability.md`](trust-security-observability.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) |
+| **Capability** | Single primitive (`DelegationToken`, aliased `CapabilityToken`), attenuation chains (max 7 levels), persistent revocation tracking | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §3 |
 | **Observability** | CNS spans on all capability mutations (`cns.cap.minted`, `cns.cap.attenuated`, `cns.cap.revoked`, `cns.cap.verified_ok`, `cns.cap.verified_denied`) | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §11 |
 | **Lifecycle** | Deterministic WebID derivation (UUID v5 from persona content), persistent revocation survives restarts | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §2 |
 | **Curation** | `AuditLogPort` dual-write (in-memory cache + SQLite storage), CNS span emission for audit trail | ⚠️ Partial | Curation decisions not yet gradient-evaluated (Merge/Revise/Defer/Discard) |
-| **Domain** | Bounded context: "Agentic AI tooling". ν-events: `cns.agent_pod.*`, `cns.cap.*`. Entities: `AgentPod`, `CapabilityToken`, `WebID` | ✅ Complete | [`hKask-architecture-master.md`](hKask-architecture-master.md) |
+| **Domain** | Bounded context: "Agentic AI tooling". ν-events: `cns.agent_pod.*`, `cns.cap.*`. Entities: `AgentPod`, `DelegationToken`, `WebID` | ✅ Complete | [`hKask-architecture-master.md`](hKask-architecture-master.md) |
 | **Interface** | Hexagonal ports: `AcpPort`, `GitCASPort`, `MCPRuntimePort`, `MemoryStoragePort`, `CnsEmit`, `KeystorePort`, `SovereigntyPort`. All async (`#[async_trait]`) | ✅ Complete | [`reference/ports-inventory.md`](reference/ports-inventory.md) |
 | **Composition** | Unified registry with `template_type` discriminator, cascade phase ordering | ✅ Complete | §2–§6 above |
 | **Persistence** | `MemoryStoragePort` wired into pod lifecycle, episodic/semantic memory for lifecycle events | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §7 |
@@ -1365,11 +1365,11 @@ impl SpecStore for SqliteSpecStore {
 | Capability | Verbs: `read_spec`, `amend_spec`, `compose_specs`, `sign_manifest`, `validate_completeness`, `delegate_access`, `curate_artifact`. All attenuatable except sign/publish/cultivate. | **Pass** — grant table in §7.2 |
 | Interface | MCP: `hkask-mcp-spec` (11 tools). CLI: `kask spec <subcommand>`. API: `POST /api/v1/specs/*`. All equivalent via `SpecStore` port. | **Pass** — three surfaces, one core |
 | Composition | Specs compose via `Spec.goals` aggregation. Registry stores spec templates with `template_type: FlowDef`. | **Pass** — unified registry |
-| Trust | OCAP tokens govern all spec ops. Manifests signed via `hkask-keystore` (`Ed25519SpecSigner`). Curation authority bounded via `OCAPBoundary`. Threat model in §7.1. | **:partial** — Ed25519SpecSigner implemented. `Spec.signed_by` populated at registration time. Capability tokens for spec ops via `CapabilityChecker::grant_spec()`. |
-| Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **:partial** — Span::Spec exists in code. General variety counter wired to algedonic system (CyberneticsLoop). SpecDriftAlert wired into Communication Loop (R13 resolved). Spec-specific variety counter not separately tracked. |
-| Persistence | Specs stored as bitemporal triples in `hkask-storage`. Embeddings for semantic recall of prior specs. | **:partial** — TripleStore has bitemporal columns. Spec has `valid_from`/`valid_to` fields (R14). `SqliteCurationRecordStore` exists for persisting curation decisions (R17). No `recorded_at` column yet; no bitemporal query methods. |
-| Lifecycle | Bootstrap: register spec templates + initialize Curator. Evolution: Git SHA versioning. Deprecation: delete per P7. | **:partial** — `Spec.version` field added (R15 remediated). Spec has `valid_from`/`valid_to` bitemporal fields (R14). `Ed25519SpecSigner` for spec signing (R12). Bootstrap and deprecation are operational. No bitemporal query methods yet. |
-| Curation | `CurationDecision` gradient (Merge/Revise/Defer/Discard) from `curation.rs`. Spec-curator bot as Replicant. Coherence metric defined. | **:drift** — CurationDecision has 4 variants (Defer added per audit remediation R2). `SqliteCurationRecordStore` for persisting decisions (R17). Coherence threshold 0.7 uncalibrated (§10.3). Curation records not yet wired into `evaluate()` call path. |
+| Trust | OCAP tokens govern all spec ops. Manifests signed via `hkask-keystore` (`Ed25519SpecSigner`). Curation authority bounded via `OCAPBoundary`. Threat model in §7.1. | **Pass** — `CapabilityToken` type alias added for spec-code alignment (P2-06-D3). `DelegationToken` is the implementation. `Caveat` is `pub(crate)` in `DelegationTokenBuilder`. `CapabilityAwareValidator` stub added with FocusingAssumption. `SecurityGateway` superseded by `GovernedTool` (noted in spec). |
+| Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **Pass** — `Span::Spec` variant exists. 5 hierarchical CNS spans registered in `CANONICAL_NAMESPACES` (P2-06-D1 resolved). SpecDriftAlert wired into Communication Loop. Spec-specific variety counter not separately tracked (future). |
+| Persistence | Specs stored as bitemporal triples in `hkask-storage`. Embeddings for semantic recall of prior specs. | **:partial** — `SqliteSpecStore` exists with `get`, `save`, `list_by_category`, `evaluate`, `reconcile`. `SqliteCurationRecordStore` for persisting curation decisions. No `recorded_at` column yet; no bitemporal query methods. |
+| Lifecycle | Bootstrap: register spec templates + initialize Curator. Evolution: Git SHA versioning. Deprecation: delete per P7. | **:partial** — `Spec.version` field added. Spec has `valid_from`/`valid_to` bitemporal fields. `Ed25519SpecSigner` for spec signing. Bootstrap and deprecation are operational. No bitemporal query methods yet. |
+| Curation | `CurationDecision` gradient (Merge/Revise/Defer/Discard) from `curation.rs`. Spec-curator bot as Replicant. Coherence metric defined. | **:partial** — `CurationDecision` has 4 variants (Defer added per audit remediation R2). `SqliteCurationRecordStore` for persisting decisions. `DefaultSpecCurator` exists in `hkask-agents`. Coherence threshold 0.7 uncalibrated (§10.3). Curation decisions persisted but `evaluate()` not fully wired to call path. |
 
 ### 9.2 Gaps Discovered & Corrections
 
@@ -1392,7 +1392,7 @@ impl SpecStore for SqliteSpecStore {
 
 2. **Cross-MVSS boundary conflicts:** When Okapi's DDMVSS and hKask's DDMVSS disagree on a shared interface contract (e.g., inference API shape), resolution is currently ad-hoc (human negotiation). A protocol is needed — likely: the *consuming* domain's spec takes precedence at the boundary, with the *providing* domain's spec governing internals.
 
-3. **Versioning & evolution:** Specs are Git-SHA versioned (no SemVer). A v2 capability that attenuates v1 must be expressible as a new `CapabilityToken` with `parent: v1_token_id`. But what happens to dependents holding v1 tokens when v2 supersedes? Currently: v1 tokens expire naturally via TTL. This may be insufficient for long-lived specs.
+3. **Versioning & evolution:** Specs are Git-SHA versioned (no SemVer). A v2 capability that attenuates v1 must be expressible as a new `DelegationToken` with `parent: v1_token_id`. But what happens to dependents holding v1 tokens when v2 supersedes? Currently: v1 tokens expire naturally via TTL. This may be insufficient for long-lived specs.
 
 4. **Empirical minimum goal count:** Is there a discoverable minimum number of goals before `complete?` flips true? Hypothesis: for a domain with N verbs, the minimum is approximately 2N goals (one capability + one constraint per verb). This is untested.
 
@@ -1516,7 +1516,7 @@ This section codifies testing practices as normative DDMVSS requirements. Full d
 | Capability | `Capability`, `Delegation`, `AcpRuntime` traits | Fail-closed: no checker → denied | Testing HMAC internals rather than attenuation |
 | Interface | CLI ↔ API ↔ MCP equivalence | `MCP ≡ CLI ≡ API` for every operation | Testing only one surface |
 | Composition | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` | Cascade terminates within depth limit | Testing Jinja2 string manipulation in isolation |
-| Trust & Security | `SecurityGateway`, `AcpRuntime`, key derivation | Security boundaries never relaxed by default | Only testing happy paths |
+| Trust & Security | `GovernedTool`, `AcpRuntime`, key derivation | Security boundaries never relaxed by default | Only testing happy paths |
 | Observability | `CnsObserver`, `SseObserver`, `AlgedonicManager` | Alerts fire at threshold/2 (warning), threshold (critical) | Testing `tracing::info!` format rather than observer behavior |
 | Persistence | Repository traits (`GoalRepository`, `TripleStore`, `SpecStore`) | Bitemporal queries correct; encrypted storage fails without key | Testing SQL query strings rather than repository behavior |
 | Lifecycle | `main()` entry point, migration functions | Forward-only evolution — no rollback | Testing CLI arg parsing in isolation |
@@ -1537,7 +1537,7 @@ Priority is determined by risk: security and correctness-critical paths first.
 | P2 | Observability | Algedonic alert thresholds | `AlgedonicManager` |
 | P2 | Composition | Template cascade depth | `TemplateResolver` |
 | P2 | Persistence | Bitemporal triple storage | `TripleStore` |
-| P3 | Domain | hLexicon drift detection | `ContractValidator` |
+| P3 | Domain | hLexicon drift detection | `ContractValidator` (stub with FocusingAssumption FA-C1) |
 | P3 | Lifecycle | Bootstrap sequence | `main()` |
 | P3 | Curation | Spec curation pipeline | `DefaultSpecCurator` |
 

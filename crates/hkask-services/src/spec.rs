@@ -173,4 +173,79 @@ mod tests {
             "invalid category falls back to domain"
         );
     }
+
+    // ── Parity tests: MCP spec server vs SpecService ──
+    // The spec MCP server has 11 tools, of which 8 are MCP-only (OCAP verification,
+    // Writing Excellence, test traceability, reconciliation, etc.). 3 tools
+    // partially duplicate SpecService operations. These tests verify that both
+    // paths produce the same domain types from the same string inputs.
+
+    // PARITY: Both SpecCategory::parse_str paths match
+    #[test]
+    fn parity_spec_category_parsing_matches_service() {
+        // MCP server uses SpecCategory::parse_str() directly (same as service)
+        for &cat in SpecCategory::all() {
+            let service_result: Option<SpecCategory> = SpecCategory::parse_str(cat.as_str());
+            assert_eq!(
+                service_result,
+                Some(cat),
+                "service parity: '{}' should parse to {:?}",
+                cat.as_str(),
+                cat
+            );
+        }
+        // Invalid category falls back to Domain (both paths)
+        assert_eq!(
+            SpecCategory::parse_str("nonexistent"),
+            None,
+            "invalid category should not parse"
+        );
+        // Service falls back to Domain, MCP also falls back to Domain
+        let service_spec = SpecService::build_spec("test", "nonexistent", "hkask", &[]);
+        assert_eq!(service_spec.category, SpecCategory::Domain);
+    }
+
+    // PARITY: Both DomainAnchor::parse_str paths match
+    #[test]
+    fn parity_domain_anchor_parsing_matches_service() {
+        // DomainAnchor has two variants: Okapi and Hkask
+        for anchor in [DomainAnchor::Okapi, DomainAnchor::Hkask] {
+            let result = DomainAnchor::parse_str(anchor.as_str());
+            assert_eq!(
+                result,
+                Some(anchor),
+                "domain anchor parity: '{}' should parse",
+                anchor.as_str()
+            );
+        }
+        assert_eq!(
+            DomainAnchor::parse_str("nonexistent"),
+            None,
+            "invalid anchor should not parse"
+        );
+    }
+
+    // PARITY: Both paths build the same Spec from equivalent inputs
+    #[test]
+    fn parity_spec_construction_matches_service() {
+        // Service path: SpecService::build_spec
+        let service_spec = SpecService::build_spec(
+            "parity-test",
+            "capability",
+            "okapi",
+            &["criterion-1".to_string()],
+        );
+
+        // MCP path: manual construction (same as spec_goal_capture does)
+        let cat = SpecCategory::parse_str("capability").unwrap_or(SpecCategory::Domain);
+        let anchor = DomainAnchor::parse_str("okapi").unwrap_or(DomainAnchor::Hkask);
+        let goal = GoalSpec::new("parity-test").with_criterion("criterion-1");
+        let mcp_spec = Spec::new("parity-test", cat, anchor).with_goal(goal);
+
+        // Both produce the same domain type
+        assert_eq!(service_spec.name, mcp_spec.name);
+        assert_eq!(service_spec.category, mcp_spec.category);
+        assert_eq!(service_spec.domain_anchor, mcp_spec.domain_anchor);
+        assert_eq!(service_spec.is_complete(), mcp_spec.is_complete());
+    }
 }

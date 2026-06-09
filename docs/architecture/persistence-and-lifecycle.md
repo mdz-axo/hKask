@@ -1,7 +1,7 @@
 ---
 title: "hKask Persistence & Lifecycle Specification"
 audience: [architects, database developers, DevOps engineers]
-last_updated: 2026-06-07
+last_updated: 2026-06-08
 version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
@@ -260,7 +260,7 @@ status: VERIFIED
 | 1 | Initialize SQLCipher database | `Database::new()` |
 | 2 | Load hLexicon bootstrap terms (17 loaded by `Lexicon::bootstrap()`; 87 cataloged) | Bootstrap lexicon |
 | 3 | Register built-in templates | `SqliteRegistry` |
-| 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
+| 4 | Mint root capability token | `DelegationToken` (aliased `CapabilityToken`) with `hkask-root-authority` WebID |
 | 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |
 | 6 | Start CNS runtime | `CnsRuntime` with `UnifiedVarietyTracker` |
 | 7 | Connect MCP servers | `McpRuntime` discovers 21 MCP servers |

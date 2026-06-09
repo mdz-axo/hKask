@@ -100,6 +100,12 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.goal",
     "cns.spec",
     "cns.test",
+    // Hierarchical spans — registered from PRINCIPLES.md §1.4 (P2-06-D1)
+    "cns.hhh.gate",
+    "cns.hhh.persona",
+    "cns.cybernetics.backpressure",
+    "cns.memory.encode",
+    "cns.memory.budget",
 ];
 
 impl SpanNamespace {
