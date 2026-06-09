@@ -8,9 +8,9 @@ domain: "Architecture"
 mds_categories: [domain, composition, lifecycle, curation]
 ---
 
-# Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition
+# Loop Architecture — Semantic Root-Cause Analysis & Four-Loop Decomposition
 
-**Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into six semantic loops (three domain, three meta), map crates to loops, define capability membranes, and document open questions.
+**Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into four semantic loops, map crates to loops, define capability membranes, and document open questions.
 
 **Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`MDS.md`](MDS.md), [`magna-carta.md`](magna-carta.md)
 
@@ -81,7 +81,7 @@ The `RateLimiter` and `CnsTokenBucket` types have been removed. `McpErrorKind::R
 
 ### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Communication Boundary
 
-`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 6-loop model, Communication (Loop 4) is dumb transport with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the Communication boundary**, not a Communication-internal concern.
+`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 4-loop model, Communication is demoted to transport with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the Communication boundary**, not a Communication-internal concern.
 
 **Important distinction:** The `RateLimiter` lives in `hkask-mcp-web` (an MCP server), not in `CommunicationLoop` itself. The `CommunicationLoop` struct only has `max_deliveries_per_tick` — a delivery batch limit that prevents unbounded event loop blocking. This is analogous to a queue prefetch size, not a throttling decision. Batch limits are transport mechanics; throttling decisions are regulatory.
 

@@ -171,4 +171,3 @@ impl InferenceService {
         Ok(models.into_iter().map(ModelInfo::from).collect())
     }
 }
-

@@ -1245,7 +1245,7 @@ kask pod deactivate <pod-id>
 - [ ] `templates/selectors/selector.j2` — Template selector
 - [ ] `templates/prompts/*.j2` — Prompt templates
 - [ ] `templates/processes/*.yaml` — Process templates
-- [ ] `templates/know_acts/*.j2` — Cognition templates
+- [ ] `templates/know_acts/*.j2` — KnowAct templates
 - [ ] `Cargo.toml` — Rust crate metadata
 
 ### Common Capability Patterns

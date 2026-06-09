@@ -500,13 +500,15 @@ async fn standing_start(
         participants: req
             .participants
             .into_iter()
-            .map(|p| hkask_agents::ensemble::standing_session::ParticipantEntry {
-                agent: p.agent,
-                agent_type: p.agent_type,
-                role: p.role,
-                description: p.description,
-                domains: p.domains,
-            })
+            .map(
+                |p| hkask_agents::ensemble::standing_session::ParticipantEntry {
+                    agent: p.agent,
+                    agent_type: p.agent_type,
+                    role: p.role,
+                    description: p.description,
+                    domains: p.domains,
+                },
+            )
             .collect(),
         bootstrap: hkask_agents::ensemble::standing_session::BootstrapConfig {
             initial_message: hkask_agents::ensemble::standing_session::InitialMessage {

@@ -102,4 +102,3 @@ impl Default for VarietyMonitor {
         Self::new()
     }
 }
-

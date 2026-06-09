@@ -356,7 +356,7 @@ All architecture documents MUST map to at least one of the 9 MDS categories defi
 
 ### 11.1 Metadata Extension
 
-Documents spanning multiple categories SHOULD list all applicable categories in the metadata header using the `ddmvss_categories` field:
+Documents spanning multiple categories SHOULD list all applicable categories in the metadata header using the `mds_categories` field:
 
 ```yaml
 ---
@@ -375,7 +375,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 The verification checklist (§10) is extended with MDS alignment checks:
 
 - [ ] Document maps to ≥1 MDS category
-- [ ] `ddmvss_categories` field present in metadata (if applicable)
+- [ ] `mds_categories` field present in metadata (if applicable)
 - [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/MDS.md) §3.2)
 
 ### 11.3 Category-Specific Requirements

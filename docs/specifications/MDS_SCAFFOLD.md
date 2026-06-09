@@ -59,7 +59,7 @@ docs/
 │   ├── ADR-031-*.md                       # DECISION RECORD
 │   ├── ADR-032-*.md                       # DECISION RECORD (draft)
 │   ├── ADR-033-*.md                       # DECISION RECORD (draft)
-│   ├── loop-architecture.md              # FRAMEWORK (6-loop authority model)
+│   ├── loop-architecture.md              # FRAMEWORK (4-loop authority model)
 │   └── reference/
 │       ├── hKask-erd.md                   # Diagram artifact
 │       ├── registry-erd.md                # Diagram artifact
@@ -112,7 +112,7 @@ Per [`DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_STANDARDS.md)
 Draft → Active → Deprecated → Superseded → Removed
 ```
 
-- **Active** documents must map to ≥1 MDS category via `ddmvss_categories` metadata
+- **Active** documents must map to ≥1 MDS category via `mds_categories` metadata
 - **Deprecated/Superseded** documents moved to `docs/archive/YYYY-MM-DD-<label>/`
 - **Removed** documents deleted; git history is archive of record
 - `docs/archive/` is gitignored

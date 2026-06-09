@@ -146,7 +146,11 @@ impl CyberneticsLoop {
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call settle_gas() after.
-    pub async fn reserve_gas(&self, agent: &WebID, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+    pub async fn reserve_gas(
+        &self,
+        agent: &WebID,
+        gas: EnergyCost,
+    ) -> Result<EnergyCost, EnergyError> {
         self.energy_budget_manager.reserve_gas(agent, gas).await
     }
 
@@ -163,7 +167,11 @@ impl CyberneticsLoop {
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
-    pub async fn acquire_budget(&self, agent: &WebID, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+    pub async fn acquire_budget(
+        &self,
+        agent: &WebID,
+        gas: EnergyCost,
+    ) -> Result<EnergyCost, EnergyError> {
         self.energy_budget_manager.acquire_budget(agent, gas).await
     }
 
@@ -436,9 +444,9 @@ impl HkaskLoop for CyberneticsLoop {
 
     async fn act(&self, actions: &[LoopAction]) {
         self.replenish_all_budgets().await;
-        let has_energy_depletion = actions
-            .iter()
-            .any(|a| a.parameters.get("reason").and_then(|v| v.as_str()) == Some("energy_budget_low"));
+        let has_energy_depletion = actions.iter().any(|a| {
+            a.parameters.get("reason").and_then(|v| v.as_str()) == Some("energy_budget_low")
+        });
         if has_energy_depletion {
             let cns = self.cns.read().await;
             let worst_ratio = actions

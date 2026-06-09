@@ -99,7 +99,7 @@ fn is_private_ip(ip: &IpAddr) -> bool {
     }
 }
 
-    //
-    // The check is gated behind an env var so it doesn't run on
-    // every `cargo test` invocation (it walks the whole workspace).
-    // CI sets `HKASK_RUN_MCP_GATE_AUDIT=1` to enable it.
+//
+// The check is gated behind an env var so it doesn't run on
+// every `cargo test` invocation (it walks the whole workspace).
+// CI sets `HKASK_RUN_MCP_GATE_AUDIT=1` to enable it.

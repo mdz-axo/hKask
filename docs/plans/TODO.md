@@ -34,7 +34,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | ⬜ Open | P1-06 — Deferred pending build regression fix |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web: 3,389 LOC (verified 2026-05-28) |
-| **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have ddmvss_categories (2026-05-28) |
+| **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
 
 ---
 
@@ -94,14 +94,14 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-02** | Archive 10 stale documents (Task 2) | 2026-05-25 | `docs/archive/2026-05-25-documentation-refresh/` |
 | **R-03** | Delete 1 duplicate document (Task 2) | 2026-05-25 | `DOCUMENTATION_REFRESH_DDNVSS.md` removed |
 | **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `docs/MDS_SCAFFOLD.md` |
-| **R-05** | Write 4 MDS-aligned architecture docs (Task 4) | 2026-05-25 | domain-and-composition, interface-and-composition, trust-security-lifecycle, persistence-and-lifecycle |
+| **R-05** | Write 4 MDS-aligned architecture docs (Task 4) | 2026-05-25 | domain-and-capability (deleted), interface-and-composition, trust-security-observability (deleted), persistence-and-lifecycle |
 | **R-06** | Write REQUIREMENTS.md (Task 5) | 2026-05-25 | `docs/specifications/REQUIREMENTS.md` |
 | **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `docs/specifications/TRACEABILITY_MATRIX.md` |
 | **R-08** | Update PROJECT_STATUS.md (Task 7) | 2026-05-25 | Accurate metrics, MDS completeness |
 | **R-09** | Write OPEN_QUESTIONS.md (Task 9) | 2026-05-25 | 9 open questions with MDS tags |
 | **R-10** | Fix MDS.md stale gaps (Task 8) | 2026-05-25 | hkask-mcp-spec existence, Span::Spec variant |
 | **R-11** | Update DOCUMENTATION_STANDARDS.md (Task 8) | 2026-05-25 | TOGAF→MDS metadata migration |
-| **R-12** | Add ddmvss_categories to key docs (Task 8) | 2026-05-25 | architecture-master, security-architecture, MDS |
+| **R-12** | Add mds_categories to key docs (Task 8) | 2026-05-25 | architecture-master, security-architecture, MDS |
 
 ---
 
@@ -113,8 +113,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-14** | Fix README.md path rot (3 broken references) | 2026-05-28 | Same path corrections as R-13 |
 | **R-15** | Fix hKask-architecture-master.md duplicate line | 2026-05-28 | okapi-integration.md listed twice → once |
 | **R-16** | Create docs/ci/check-links.sh + check-metadata.sh | 2026-05-28 | Both scripts operational, passing |
-| **R-17** | Run metadata check — 34 docs missing ddmvss_categories | 2026-05-28 | `docs/ci/check-metadata.sh` |
-| **R-18** | Batch-add ddmvss_categories to all 34 docs | 2026-05-28 | All 47 active docs now pass metadata check |
+| **R-17** | Run metadata check — 34 docs missing mds_categories | 2026-05-28 | `docs/ci/check-metadata.sh` |
+| **R-18** | Batch-add mds_categories to all 34 docs | 2026-05-28 | All 47 active docs now pass metadata check |
 | **R-19** | Create DIAGRAMS_INDEX.md (28 diagrams, 8 V1.1+ candidates) | 2026-05-28 | `docs/DIAGRAMS_INDEX.md` |
 | **R-20** | Fix MDS_SCAFFOLD.md directory map | 2026-05-28 | standards/→specifications/, added ci/, generated/ |
 | **R-21** | Fix PROJECT_STATUS.md standards/→specifications/ | 2026-05-28 | Row corrected |
@@ -136,7 +136,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------|------|----------|
 | **R-31** | Archive 8 stale documents (Task 2) | 2026-06-03 | `docs/archive/2026-06-03-documentation-refresh/` |
 | **R-32** | Delete 3 superseded/implementation reference docs | 2026-06-03 | reference/loop-architecture.md (superseded), mcp-memory-split-plan.md, mcp-memory-continuation-prompt.md |
-| **R-33** | Update MCP server count 15→18 across all docs | 2026-06-03 | PRINCIPLES, domain-and-composition, persistence-and-lifecycle, subsystem-erds, REQUIREMENTS, OPEN_QUESTIONS, mcp-server-audit |
+| **R-33** | Update MCP server count 15→18 across all docs | 2026-06-03 | PRINCIPLES, domain-and-capability (deleted), persistence-and-lifecycle, subsystem-erds, REQUIREMENTS, OPEN_QUESTIONS, mcp-server-audit |
 | **R-34** | Update MDS_SCAFFOLD directory tree | 2026-06-03 | Removed archived plans, added loop-architecture.md; note: distillation-erd.md subsequently archived 2026-06-07 |
 | **R-35** | Fix docs/README.md portal (remove dead links) | 2026-06-03 | Removed archived plan links, fixed GML reference |
 | **R-37** | Archive IMPLEMENTATION-PLAN-simplification.md (Task 2) | 2026-06-06 | `docs/archive/2026-06-06-documentation-refresh/` |
@@ -144,7 +144,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-39** | Update MDS_SCAFFOLD.md with current directory structure | 2026-06-06 | Added 4 status docs to tree |
 | **R-40** | Update architecture-master ADR-029 description | 2026-06-06 | Clarified ADR-029 scope |
 | **R-41** | Archive 5 stale documents (ADR-023, ADR-028, ADR-029, distillation-erd, refactor-sweep) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/` |
-| **R-42** | Fix stale code paths in architecture docs (bot.rs, replicant.rs, dependency.rs) | 2026-06-07 | domain-and-composition, DIAGRAMS_INDEX, persistence-and-lifecycle |
+| **R-42** | Fix stale code paths in architecture docs (bot.rs, replicant.rs, dependency.rs) | 2026-06-07 | domain-and-capability (deleted), DIAGRAMS_INDEX, persistence-and-lifecycle |
 | **R-43** | Update stale version footers (0.21.0 → 0.23.0) | 2026-06-07 | template-header-standard, registry-erd, CI-CD-GUIDE, ADR_TEMPLATE |
 | **R-44** | Fix CNS span count 15→21 across all docs | 2026-06-07 | hKask-erd, trust-security-observability |
 | **R-45** | Update DIAGRAM_ALIGNMENT verified_dates to 2026-06-07 | 2026-06-07 | All architecture docs with diagrams |
@@ -162,7 +162,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-57** | Archive mcp-server-audit.md (merged into mcp-tools-inventory.md v1.1.0) and MDS-AUDIT-2026-06-06.md (absorbed into SCAFFOLD §4) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/` |
 | **R-58** | Remove duplicate Verification section from architecture-master; add self-application precedent note to SCAFFOLD §6.1 | 2026-06-07 | Points to MDS_SCAFFOLD §6 |
 | **R-59** | Fix OQ-3 to note 'arsenal' is not a hKask term | 2026-06-07 | OPEN_QUESTIONS.md OQ-3 rationale |
-| **R-60** | Add ddmvss_categories to ADR template body frontmatter | 2026-06-07 | ADR_TEMPLATE.md |
+| **R-60** | Add mds_categories to ADR template body frontmatter | 2026-06-07 | ADR_TEMPLATE.md |
 | **R-61** | Archive docs/review/ directory (26 files — session artifacts; structural insights incorporated into MDS.md §7.1-7.2 and subsystem-erds.md) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/review/` |
 | **R-62** | Fix DOCUMENTATION_STANDARDS §6.2 location paths (standards/→specifications/, adr/→architecture/) | 2026-06-07 | DOCUMENTATION_STANDARDS.md §6.2 |
 | **R-63** | Add forward-references from canonical specs to reference docs (okapi, ports-inventory, utoipa, template-header, hLexicon, Curator persona) | 2026-06-07 | MDS.md §7.2, MDS.md §7.1-7.2 |

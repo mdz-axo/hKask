@@ -246,9 +246,9 @@ impl From<hkask_services::ServiceError> for EnsembleError {
         match e {
             SE::SessionNotFound(id) => EnsembleError::SessionNotFound(id),
             SE::StandingSession(err) => EnsembleError::Standing(err),
-            other => EnsembleError::Standing(hkask_agents::ensemble::StandingSessionError::Bootstrap(
-                other.to_string(),
-            )),
+            other => EnsembleError::Standing(
+                hkask_agents::ensemble::StandingSessionError::Bootstrap(other.to_string()),
+            ),
         }
     }
 }

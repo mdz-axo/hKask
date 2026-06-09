@@ -243,7 +243,7 @@ pub fn login_replicant() {
         io::stdout().flush().unwrap();
         let mut passphrase = String::new();
         io::stdin().read_line(&mut passphrase).unwrap();
-        match store.lock().unwrap().login(name.trim(), &passphrase.trim()) {
+        match store.lock().unwrap().login(name.trim(), passphrase.trim()) {
             Ok(session) => {
                 println!("  ✓ Logged in as {}", identity.replicant_name);
                 println!("  Session: {}", session.session_id);

@@ -155,4 +155,3 @@ impl EnergyEstimator for TableEnergyEstimator {
         self.lookup(server, tool)
     }
 }
-

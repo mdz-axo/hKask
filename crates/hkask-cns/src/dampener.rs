@@ -178,4 +178,3 @@ impl Default for Dampener {
         Self::new()
     }
 }
-

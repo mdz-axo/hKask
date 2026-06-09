@@ -26,7 +26,8 @@ use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
-    CnsRuntime, CompositeEnergyEstimator, CyberneticsLoop, EnergyEstimator, GovernedTool, load_set_points,
+    CnsRuntime, CompositeEnergyEstimator, CyberneticsLoop, EnergyEstimator, GovernedTool,
+    load_set_points,
 };
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;

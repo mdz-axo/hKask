@@ -14,7 +14,9 @@ use tracing::info;
 
 static GAS_GOVERNANCE_WARNED: AtomicBool = AtomicBool::new(false);
 
-use crate::ensemble::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
+use crate::ensemble::improv::{
+    ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn,
+};
 use crate::ensemble::ports::InferenceClient;
 
 /// Degradation level for energy budget enforcement
@@ -232,7 +234,10 @@ impl EnsembleChat {
         self.energy_budget = Some(config);
         self
     }
-    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ensemble::ports::GasGovernancePort>) -> Self {
+    pub fn with_gas_governance(
+        mut self,
+        port: Arc<dyn crate::ensemble::ports::GasGovernancePort>,
+    ) -> Self {
         self.gas_governance = Some(port);
         self
     }

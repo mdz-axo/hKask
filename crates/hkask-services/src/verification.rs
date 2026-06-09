@@ -281,11 +281,11 @@ fn verify_structural_audit(assertion: &Assertion) -> AssertionResult {
                 }
             }
         }
-        if let Some(gate) = target.get("gate").and_then(|v| v.as_str()) {
-            if !source.contains(gate) {
-                findings.push(format!("Gate `{gate}` not found in {crate_name}::{module}"));
-                all_pass = false;
-            }
+        if let Some(gate) = target.get("gate").and_then(|v| v.as_str())
+            && !source.contains(gate)
+        {
+            findings.push(format!("Gate `{gate}` not found in {crate_name}::{module}"));
+            all_pass = false;
         }
         if let Some(gates) = target.get("gates").and_then(|v| v.as_sequence()) {
             for gv in gates {
@@ -378,10 +378,10 @@ fn grep_crate(crate_dir: &str, pattern: &str) -> Result<usize, String> {
     let mut count = 0usize;
     let lower_pattern = pattern.to_lowercase();
     walk_dir(crate_dir, &mut |path| {
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if content.to_lowercase().contains(&lower_pattern) {
-                count += 1;
-            }
+        if let Ok(content) = std::fs::read_to_string(path)
+            && content.to_lowercase().contains(&lower_pattern)
+        {
+            count += 1;
         }
     })?;
     Ok(count)

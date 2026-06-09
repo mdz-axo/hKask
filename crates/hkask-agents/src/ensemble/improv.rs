@@ -360,9 +360,13 @@ async fn sequential_speak<C: InferenceClient>(
         );
         if let Some(ref cc) = config.confidence_config
             && confidence < cc.threshold
-            && let Some(escalated) =
-                crate::ensemble::confidence_router::check_and_escalate(cc, &ar, inference_client, &prompt)
-                    .await
+            && let Some(escalated) = crate::ensemble::confidence_router::check_and_escalate(
+                cc,
+                &ar,
+                inference_client,
+                &prompt,
+            )
+            .await
         {
             tracing::info!(target: "cns.ensemble.improv", agent = %speaker.webid,
                 original_confidence = confidence, escalated_confidence = escalated.confidence,

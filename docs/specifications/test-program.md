@@ -91,7 +91,7 @@ Capability tokens for test operations follow the same `DelegationToken` pattern 
 |------|-------|--------|----------|
 | `spec/test/invariant` | `{spec_id, seam, invariant, category, cycle?, capability_token?}` | `{invariant_id, status}` | `trace`, `verify` |
 | `spec/test/verify` | `{seam?, category?, capability_token?}` | `{total_requirements, tested, gaps, debt, traceability: [{requirement_id, classification?, test_path?, has_gap, test_debt_location?}], complete}` | `verify`, `diagnose` |
-| `spec/skill/register` | `{skill_name, root_principle, ddmvss_categories, hlexicon_terms}` | `{artifact_id, status}` | `register`, `curate` |
+| `spec/skill/register` | `{skill_name, root_principle, mds_categories, hlexicon_terms}` | `{artifact_id, status}` | `register`, `curate` |
 | `spec/skill/evaluate` | `{skill_name, context}` | `{skill, constraints_evaluated, violations, curation_decision}` | `evaluate`, `diagnose` |
 
 ### CLI Equivalence

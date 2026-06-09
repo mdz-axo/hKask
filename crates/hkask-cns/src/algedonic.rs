@@ -311,4 +311,3 @@ pub(crate) fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
         healthy: manager.critical_alerts().is_empty(),
     }
 }
-

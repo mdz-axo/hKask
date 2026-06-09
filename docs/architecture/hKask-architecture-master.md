@@ -175,7 +175,7 @@ docs/architecture/
 ├── hKask-architecture-master.md           # THIS FILE (index)
 ├── MDS.md                              # Framework
 ├── PRINCIPLES.md                          # Framework
-├── loop-architecture.md                   # Framework (6-loop authority model)
+├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── magna-carta.md                         # Framework
 ├── MDS.md §7.1-7.2               # SPEC (Domain + Capability)
 ├── MDS.md §7.2           # SPEC (Interface + Composition)

@@ -298,7 +298,7 @@ impl PodManager {
             .read()
             .await
             .get(pod_id)
-            .map(|p| PodStatus::from_pod(p))
+            .map(PodStatus::from_pod)
             .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))
     }
 

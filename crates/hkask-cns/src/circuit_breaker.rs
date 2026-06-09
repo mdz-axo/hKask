@@ -187,4 +187,3 @@ impl CircuitBreakerPort for CircuitBreaker {
         CircuitBreaker::state(self)
     }
 }
-

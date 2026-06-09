@@ -45,4 +45,3 @@ impl EnergyEstimator for CompositeEnergyEstimator {
         }
     }
 }
-

@@ -529,10 +529,9 @@ where
         if let Some(ref pre) = preloaded
             && let Some(val) = pre.get(&cred.env_var)
         {
-                tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
-                resolved.insert(cred.env_var.clone(), val.clone());
-                continue;
-            }
+            tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
+            resolved.insert(cred.env_var.clone(), val.clone());
+            continue;
         }
         match resolve_credential(&cred.env_var) {
             Ok(val) => {

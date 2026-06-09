@@ -25,11 +25,6 @@ impl CondenserEngine {
         }
     }
 
-    #[cfg(test)]
-    pub fn profile(&self) -> Profile {
-        self.profile
-    }
-
     /// Resolve a tool name to its category and the algorithm that handles it.
     ///
     /// D3: single call site for the classify→select path. `condenser_classify`
@@ -100,4 +95,3 @@ impl CondenserEngine {
         &self.stats
     }
 }
-

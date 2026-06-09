@@ -7,12 +7,12 @@
 
 use crate::block_on;
 use crate::cli::EnsembleAction;
-use hkask_cns::{CircuitBreaker, EnergyCost};
 use hkask_agents::ensemble::{
     AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
     ImprovMode, ImprovSessionConfig, ImprovTurn, InferencePortAdapter, ParticipantRole,
     bootstrap_standing_session_with_store,
 };
+use hkask_cns::{CircuitBreaker, EnergyCost};
 use hkask_services::ServiceContext;
 use hkask_types::WebID;
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};

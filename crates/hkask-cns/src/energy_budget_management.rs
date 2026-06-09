@@ -90,7 +90,11 @@ impl EnergyBudgetManager {
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call `settle_gas()` after.
-    pub async fn reserve_gas(&self, agent: &WebID, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+    pub async fn reserve_gas(
+        &self,
+        agent: &WebID,
+        gas: EnergyCost,
+    ) -> Result<EnergyCost, EnergyError> {
         let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.reserve(gas)
@@ -117,7 +121,11 @@ impl EnergyBudgetManager {
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
-    pub async fn acquire_budget(&self, agent: &WebID, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+    pub async fn acquire_budget(
+        &self,
+        agent: &WebID,
+        gas: EnergyCost,
+    ) -> Result<EnergyCost, EnergyError> {
         let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.consume(gas)
@@ -288,4 +296,3 @@ impl EnergyBudgetManager {
             .collect()
     }
 }
-
