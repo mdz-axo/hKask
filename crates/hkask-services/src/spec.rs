@@ -1,9 +1,4 @@
-//! Spec domain operations — specification capture, validation, and cultivation.
-//!
-//! Encapsulates the multi-step spec construction pipeline (parse inputs → build
-//! goal → build spec → persist) and the evaluation pipeline (load → curator
-//! evaluate → record). Both CLI and API delegate to these operations instead
-//! of duplicating the construction and evaluation logic.
+//! Specification capture, validation, and cultivation.
 
 use chrono::{DateTime, Utc};
 use hkask_agents::DefaultSpecCurator;
@@ -119,4 +114,3 @@ impl SpecService {
         SpecCategory::all().iter().map(|c| c.as_str()).collect()
     }
 }
-

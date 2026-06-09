@@ -18,6 +18,8 @@ use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+// ── Config types ─────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ImprovMode {
@@ -35,7 +37,6 @@ impl ImprovMode {
             Self::RoundRobin => "round_robin",
         }
     }
-
     pub fn parse_mode(s: &str) -> Option<Self> {
         match s {
             "freeform" => Some(Self::Freeform),
@@ -64,9 +65,6 @@ pub struct ImprovSessionConfig {
     pub relevance_model: String,
     pub relevance_max_tokens: i32,
     pub(crate) synthesis: SynthesisMode,
-    /// Confidence configuration for automatic model escalation.
-    /// When set, responses below the confidence threshold are re-generated
-    /// using a larger model via `check_and_escalate`.
     #[serde(default)]
     pub confidence_config: Option<crate::confidence_router::ConfidenceConfig>,
 }
@@ -90,11 +88,12 @@ impl ImprovSessionConfig {
     pub fn set_threshold(&mut self, threshold: f64) {
         self.participation_threshold = threshold.clamp(0.0, 1.0);
     }
-
     pub fn set_mode(&mut self, mode: ImprovMode) {
         self.mode = mode;
     }
 }
+
+// ── Domain types ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelevanceJudgment {
@@ -124,10 +123,11 @@ struct Speaker {
 pub enum ImprovError<E: std::error::Error + Send + Sync> {
     #[error("Inference error: {0}")]
     Inference(E),
-
     #[error("Ensemble error: {0}")]
     Ensemble(#[from] EnsembleError),
 }
+
+// ── Main turn orchestrator ───────────────────────────────────────────────
 
 pub(crate) async fn improv_turn<C: InferenceClient>(
     config: &ImprovSessionConfig,
@@ -147,12 +147,10 @@ pub(crate) async fn improv_turn<C: InferenceClient>(
             )
             .await?
         }
-        ImprovMode::CuratorLed => curator_selected(participants),
-        ImprovMode::RoundRobin => all_speakers(participants),
+        ImprovMode::CuratorLed => make_judgments(participants, true),
+        ImprovMode::RoundRobin => make_judgments(participants, false),
     };
-
     let speakers = filter_speakers(config, &judgments);
-
     if speakers.is_empty() {
         return Ok(ImprovTurn {
             user_message: user_message.to_string(),
@@ -161,7 +159,6 @@ pub(crate) async fn improv_turn<C: InferenceClient>(
             curator_synthesis: None,
         });
     }
-
     let responses = sequential_speak(
         config,
         inference_client,
@@ -170,7 +167,6 @@ pub(crate) async fn improv_turn<C: InferenceClient>(
         chat_history,
     )
     .await?;
-
     let curator_synthesis = match config.synthesis {
         SynthesisMode::Always => {
             Some(synthesize(config, inference_client, user_message, &responses).await)
@@ -180,7 +176,6 @@ pub(crate) async fn improv_turn<C: InferenceClient>(
         }
         _ => None,
     };
-
     Ok(ImprovTurn {
         user_message: user_message.to_string(),
         judgments,
@@ -188,6 +183,8 @@ pub(crate) async fn improv_turn<C: InferenceClient>(
         curator_synthesis,
     })
 }
+
+// ── Relevance check (Freeform) ───────────────────────────────────────────
 
 async fn relevance_check<C: InferenceClient>(
     config: &ImprovSessionConfig,
@@ -198,13 +195,9 @@ async fn relevance_check<C: InferenceClient>(
 ) -> Result<Vec<RelevanceJudgment>, ImprovError<C::Error>> {
     let context_str = format_context_with_earlier(config, chat_history, &[]);
     let mut judgments = Vec::new();
-
     for (webid, name, description) in participants {
         let prompt = format!(
-            "You are {} ({}).\n\
-             The following message was sent in a group conversation:\n\n\
-             \"{}\"\n\n\
-             {}\n\n\
+            "You are {} ({}).\nThe following message was sent in a group conversation:\n\n\"{}\"\n\n{}\n\n\
              Do you have something unique and valuable to contribute to this discussion?\n\
              Rate your relevance confidence from 0.0 to 1.0.\n\
              Respond with ONLY a JSON object: {{\"confidence\": <float>, \"reason\": \"<brief explanation>\"}}",
@@ -214,29 +207,23 @@ async fn relevance_check<C: InferenceClient>(
             if context_str.is_empty() {
                 String::new()
             } else {
-                format!("Recent context:\n{}", context_str)
+                format!("Recent context:\n{context_str}")
             }
         );
-
-        let request = GenerateRequest {
-            model: config.relevance_model.clone(),
-            prompt,
-            options: Some(GenerateOptions {
-                n_probs: None,
-                temperature: Some(0.3),
-                max_tokens: Some(config.relevance_max_tokens),
-            }),
-        };
-
         let response = inference_client
-            .generate(&request)
+            .generate(&GenerateRequest {
+                model: config.relevance_model.clone(),
+                prompt,
+                options: Some(GenerateOptions {
+                    n_probs: None,
+                    temperature: Some(0.3),
+                    max_tokens: Some(config.relevance_max_tokens),
+                }),
+            })
             .await
             .map_err(ImprovError::Inference)?;
-
-        let judgment = parse_relevance(config, webid, name, &response.response);
-        judgments.push(judgment);
+        judgments.push(parse_relevance(config, webid, name, &response.response));
     }
-
     Ok(judgments)
 }
 
@@ -252,71 +239,62 @@ fn parse_relevance(
         .trim_start_matches("```")
         .trim_end_matches("```")
         .trim();
-
     let (confidence, reason) =
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(cleaned) {
-            let conf = parsed
-                .get("confidence")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
-            let reas = parsed
-                .get("reason")
-                .and_then(|v| v.as_str())
-                .unwrap_or("no reason given")
-                .to_string();
-            (conf, reas)
+            (
+                parsed
+                    .get("confidence")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                parsed
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("no reason given")
+                    .to_string(),
+            )
         } else {
-            let conf = extract_first_float(cleaned).unwrap_or(0.0);
-            (conf, "parsed from non-JSON response".to_string())
+            (
+                extract_first_float(cleaned).unwrap_or(0.0),
+                "parsed from non-JSON response".to_string(),
+            )
         };
-
-    let should_speak = confidence >= config.participation_threshold;
-
     RelevanceJudgment {
         agent_webid: *webid,
         agent_name: name.to_string(),
         confidence,
         reason,
-        should_speak,
+        should_speak: confidence >= config.participation_threshold,
     }
 }
 
 fn extract_first_float(s: &str) -> Option<f64> {
-    for part in s.split_whitespace() {
-        if let Ok(f) = part.parse::<f64>()
-            && (0.0..=1.0).contains(&f)
-        {
-            return Some(f);
-        }
-    }
-    None
+    s.split_whitespace()
+        .find_map(|p| p.parse::<f64>().ok().filter(|f| (0.0..=1.0).contains(f)))
 }
 
-fn curator_selected(participants: &[(WebID, String, String)]) -> Vec<RelevanceJudgment> {
+// ── Mode helpers ─────────────────────────────────────────────────────────
+
+fn make_judgments(
+    participants: &[(WebID, String, String)],
+    is_curator: bool,
+) -> Vec<RelevanceJudgment> {
     participants
         .iter()
         .map(|(webid, name, desc)| RelevanceJudgment {
             agent_webid: *webid,
             agent_name: name.clone(),
             confidence: 1.0,
-            reason: format!("Curator selected {} ({})", name, desc),
+            reason: if is_curator {
+                format!("Curator selected {name} ({desc})")
+            } else {
+                format!("round_robin: {name} speaks")
+            },
             should_speak: true,
         })
         .collect()
 }
 
-fn all_speakers(participants: &[(WebID, String, String)]) -> Vec<RelevanceJudgment> {
-    participants
-        .iter()
-        .map(|(webid, name, _)| RelevanceJudgment {
-            agent_webid: *webid,
-            agent_name: name.clone(),
-            confidence: 1.0,
-            reason: format!("round_robin: {} speaks", name),
-            should_speak: true,
-        })
-        .collect()
-}
+// ── Speaker filtering & sequential speak ─────────────────────────────────
 
 fn filter_speakers(config: &ImprovSessionConfig, judgments: &[RelevanceJudgment]) -> Vec<Speaker> {
     let mut speakers: Vec<_> = judgments
@@ -328,13 +306,11 @@ fn filter_speakers(config: &ImprovSessionConfig, judgments: &[RelevanceJudgment]
             confidence: j.confidence,
         })
         .collect();
-
     speakers.sort_by(|a, b| {
         b.confidence
             .partial_cmp(&a.confidence)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-
     speakers.truncate(config.max_speakers_per_turn);
     speakers
 }
@@ -348,20 +324,17 @@ async fn sequential_speak<C: InferenceClient>(
 ) -> Result<Vec<AgentResponse>, ImprovError<C::Error>> {
     let mut responses = Vec::new();
     let mut turn_context = chat_history.to_vec();
-
     for speaker in speakers {
-        let context_str = format_context_with_earlier(config, &turn_context, &responses);
-
-        let prefix = if context_str.is_empty() {
+        let c_str = format_context_with_earlier(config, &turn_context, &responses);
+        let prefix = if c_str.is_empty() {
             String::new()
         } else {
-            format!("Conversation so far:\n{context_str}\n\n")
+            format!("Conversation so far:\n{c_str}\n\n")
         };
         let prompt = format!(
             "{prefix}User: {user_message}\n\nProvide your response as {}:",
             speaker.name
         );
-
         let request = GenerateRequest {
             model: config.relevance_model.clone(),
             prompt: prompt.clone(),
@@ -371,51 +344,38 @@ async fn sequential_speak<C: InferenceClient>(
                 max_tokens: Some(512),
             }),
         };
-
         let response = inference_client
             .generate(&request)
             .await
             .map_err(ImprovError::Inference)?;
-
         let confidence = response
             .completion_probabilities
             .as_ref()
             .map(|probs| crate::confidence_router::compute_confidence(probs))
             .unwrap_or(speaker.confidence);
-
-        let mut agent_response = AgentResponse::new(
+        let mut ar = AgentResponse::new(
             speaker.webid,
             response.response.trim().to_string(),
             confidence,
         );
-
-        // Confidence-based escalation: re-generate with larger model if below threshold
-        if let Some(ref conf_config) = config.confidence_config
-            && confidence < conf_config.threshold
-            && let Some(escalated) = crate::confidence_router::check_and_escalate(
-                conf_config,
-                &agent_response,
-                inference_client,
-                &prompt,
-            )
-            .await
+        if let Some(ref cc) = config.confidence_config
+            && confidence < cc.threshold
+            && let Some(escalated) =
+                crate::confidence_router::check_and_escalate(cc, &ar, inference_client, &prompt)
+                    .await
         {
-            tracing::info!(
-                target: "cns.ensemble.improv",
-                agent = %speaker.webid,
-                original_confidence = confidence,
-                escalated_confidence = escalated.confidence,
-                "Confidence escalated response"
-            );
-            agent_response = escalated;
+            tracing::info!(target: "cns.ensemble.improv", agent = %speaker.webid,
+                original_confidence = confidence, escalated_confidence = escalated.confidence,
+                "Confidence escalated response");
+            ar = escalated;
         }
-
-        turn_context.push((speaker.webid, agent_response.content.clone()));
-        responses.push(agent_response);
+        turn_context.push((speaker.webid, ar.content.clone()));
+        responses.push(ar);
     }
-
     Ok(responses)
 }
+
+// ── Synthesis ────────────────────────────────────────────────────────────
 
 async fn synthesize<C: InferenceClient>(
     config: &ImprovSessionConfig,
@@ -423,29 +383,25 @@ async fn synthesize<C: InferenceClient>(
     user_message: &str,
     responses: &[AgentResponse],
 ) -> String {
-    let summary: String = responses.iter().fold(String::new(), |mut acc, r| {
+    let summary = responses.iter().fold(String::new(), |mut acc, r| {
         use std::fmt::Write;
         let _ = writeln!(acc, "[{}]: {}", r.agent_webid, r.content);
         acc
     });
-
-    let prompt = format!(
-        "The user asked: {user_message}\n\nMultiple agents responded:\n{summary}\n\
-         Provide a brief synthesis that highlights key insights and any disagreements:"
-    );
-
     let request = GenerateRequest {
         model: config.relevance_model.clone(),
-        prompt,
+        prompt: format!(
+            "The user asked: {user_message}\n\nMultiple agents responded:\n{summary}\n\
+             Provide a brief synthesis that highlights key insights and any disagreements:"
+        ),
         options: Some(GenerateOptions {
             n_probs: None,
             temperature: Some(0.5),
             max_tokens: Some(256),
         }),
     };
-
     match inference_client.generate(&request).await {
-        Ok(response) => response.response.trim().to_string(),
+        Ok(r) => r.response.trim().to_string(),
         Err(_) => responses
             .iter()
             .fold(String::from("Synthesis: "), |mut acc, r| {
@@ -455,6 +411,8 @@ async fn synthesize<C: InferenceClient>(
             }),
     }
 }
+
+// ── Context formatting ───────────────────────────────────────────────────
 
 fn format_context_with_earlier(
     config: &ImprovSessionConfig,

@@ -1,24 +1,4 @@
-//! Consolidation service — passphrase verification, per-agent DB construction,
-//! and episodic→semantic consolidation pipeline assembly.
-//!
-//! # Depth test
-//!
-//! Deleting this module would cause ~30 lines of infrastructure assembly
-//! (keystore access, Argon2id key derivation, per-agent DB opening, memory
-//! pipeline construction) to reappear in any caller. The passphrase
-//! verification crosses three domain boundaries (keystore → master_key →
-//! memory). Passes deletion test.
-//!
-//! # Design decisions
-//!
-//! - **Constraint: Guardrail (P1)** — Rate limiting moved to the service layer.
-//!   Both CLI and API need consolidation rate limiting (Argon2id CPU cost).
-//!   The service enforces it; surfaces no longer need separate gates.
-//! - **Constraint: Guideline** — WebID parsing stays in the surface.
-//!   Both CLI and API parse WebID from different sources (persona vs request).
-//! - **Naming** — `ConsolidationService` here wraps
-//!   `hkask_memory::ConsolidationService` (the domain execution engine).
-//!   This service owns the infrastructure assembly that precedes execution.
+//! Consolidation — passphrase verify, per-agent DB, episodic→semantic pipeline.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -150,4 +130,3 @@ impl ConsolidationService {
         })
     }
 }
-

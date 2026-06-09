@@ -846,6 +846,13 @@ curation_model:
   coherence_metric:
     method: "Weighted hLexicon term coverage + cross-reference saturation"
     threshold: 0.7
+    calibration:
+      - "The 0.7 threshold is a starting default, not a calibrated value"
+      - "Calibrate from operational data: collect ≥10 SpecCurationRecord coherence scores"
+      - "Compute the 25th percentile (nearest-rank) from historical scores"
+      - "This is the empirical threshold — specs below it need Revise; above are candidates for Merge/Defer"
+      - "Recalibrate after every curation cycle to prevent threshold drift"
+      - "Code: DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)"
 
 focusing_assumptions:
   - id: FA-Cu1

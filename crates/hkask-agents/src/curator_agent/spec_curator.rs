@@ -48,6 +48,55 @@ impl DefaultSpecCurator {
         }
     }
 
+    /// Calibrate the coherence threshold from historical curation records.
+    ///
+    /// Queries `SqliteCurationRecordStore` for all prior coherence scores,
+    /// computes the 25th percentile as the empirical threshold, and returns
+    /// a recommended value. The 25th percentile is chosen so that specs in
+    /// the bottom quartile trigger `Revise` while the top 75% are candidates
+    /// for `Merge` or `Defer`. This is a conservative baseline — manual tuning
+    /// may tighten the threshold further.
+    ///
+    /// Returns `None` if there are fewer than 10 records (insufficient data).
+    ///
+    /// DDMVSS §5.9: Coherence threshold calibration — FUT-013.
+    pub fn calibrate_from_history(
+        curation_store: &hkask_storage::spec_store::SqliteCurationRecordStore,
+    ) -> Option<f64> {
+        let records = curation_store
+            .load_all_curation_records()
+            .unwrap_or_default();
+
+        if records.len() < 10 {
+            tracing::info!(
+                target: "cns.spec",
+                record_count = records.len(),
+                "Insufficient curation history for threshold calibration — need ≥10 records"
+            );
+            return None;
+        }
+
+        let mut scores: Vec<f64> = records.iter().map(|r| r.coherence_score).collect();
+        scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        // 25th percentile: the score below which 25% of observations fall.
+        // Using nearest-rank method (n = ceil(P/100 * N)).
+        let p25_idx = (0.25_f64 * scores.len() as f64).ceil() as usize;
+        let p25_idx = p25_idx.saturating_sub(1);
+        let calibrated = scores[p25_idx.min(scores.len().saturating_sub(1))];
+
+        tracing::info!(
+            target: "cns.spec",
+            record_count = records.len(),
+            min_coherence = scores.first(),
+            max_coherence = scores.last(),
+            p25_coherence = calibrated,
+            "Calibrated coherence threshold from historical curation records"
+        );
+
+        Some(calibrated)
+    }
+
     /// Create from a `CurationThresholdConfig` loaded from YAML.
     ///
     /// Logs the actual threshold values at construction time for post-hoc analysis.

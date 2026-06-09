@@ -2,19 +2,15 @@
 //!
 //! Loads YAML manifests defining assertions against hKask's four Magna Carta
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
-//! Boundaries), dispatches verification methods (structural audit, resource
-//! verification, absence check), and produces structured reports.
-//!
-//! ℏKask - A Minimal Viable Container for Agents
+//! Boundaries), dispatches verification methods, and produces structured reports.
 
-use hkask_types::sovereignty::DataCategory;
-use hkask_types::sovereignty::DataSovereigntyBoundary;
-
-use serde::Deserialize;
+use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Manifest defining assertions for one Magna Carta principle.
-#[derive(Debug, Deserialize)]
+// ── Domain types ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
     pub principle: String,
     pub version: String,
@@ -22,7 +18,6 @@ pub struct Manifest {
     pub assertions: Vec<Assertion>,
 }
 
-/// A single assertion to verify.
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct Assertion {
@@ -36,19 +31,53 @@ pub struct Assertion {
     pub prohibited: Vec<String>,
 }
 
-/// Verification result for a single assertion.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct AssertionResult {
     pub id: String,
     pub name: String,
     pub method: String,
-    pub status: &'static str, // "pass", "fail", "gap", "skip"
+    pub status: &'static str,
     pub findings: Vec<String>,
     pub recommendations: Vec<String>,
 }
 
-/// Verification result for a whole principle.
+impl AssertionResult {
+    fn new(
+        assertion: &Assertion,
+        status: &'static str,
+        findings: Vec<String>,
+        recommendations: Vec<String>,
+    ) -> Self {
+        Self {
+            id: assertion.id.clone(),
+            name: assertion.name.clone(),
+            method: assertion.method.clone(),
+            status,
+            findings,
+            recommendations,
+        }
+    }
+    fn skip(assertion: &Assertion, reason: String) -> Self {
+        Self::new(assertion, "skip", vec![reason], vec![])
+    }
+    fn gap(assertion: &Assertion, reason: String) -> Self {
+        Self::new(
+            assertion,
+            "gap",
+            vec![reason],
+            vec!["Update verifier to support this method".to_string()],
+        )
+    }
+    fn verdict(assertion: &Assertion, all_pass: bool, findings: Vec<String>) -> Self {
+        Self::new(
+            assertion,
+            if all_pass { "pass" } else { "fail" },
+            findings,
+            vec![],
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct PrincipleResult {
     pub principle: String,
@@ -56,7 +85,6 @@ pub struct PrincipleResult {
     pub assertion_results: Vec<AssertionResult>,
 }
 
-/// Full verification report.
 #[derive(Debug)]
 pub struct VerificationReport {
     pub principles: Vec<PrincipleResult>,
@@ -67,26 +95,29 @@ pub struct VerificationReport {
     pub total_assertions: usize,
 }
 
-/// Service for Magna Carta sovereignty verification.
-///
-/// Loads manifests, dispatches verification methods, and produces
-/// structured reports. Used by CLI and MCP tools.
 pub struct VerificationService;
 
 impl VerificationService {
-    /// Run the full verification pipeline, optionally filtered by principle.
     pub fn verify(filter: Option<&str>) -> VerificationReport {
-        let manifests = load_manifests();
-        build_report(&manifests, filter)
+        build_report(&load_manifests(), filter)
     }
-
-    /// Run verification and return a JSON report (for MCP tool and API).
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {
         let report = Self::verify(filter);
-        report_to_json(&report)
+        serde_json::json!({
+            "principles": report.principles.iter().map(|pr| serde_json::json!({
+                "principle": pr.principle, "display_name": pr.display_name,
+                "assertions": pr.assertion_results.iter().map(|ar| serde_json::json!({
+                    "id": ar.id, "name": ar.name, "method": ar.method,
+                    "status": ar.status, "findings": ar.findings,
+                    "recommendations": ar.recommendations,
+                })).collect::<Vec<_>>(),
+            })).collect::<Vec<_>>(),
+            "total_pass": report.total_pass, "total_fail": report.total_fail,
+            "total_gap": report.total_gap, "total_skip": report.total_skip,
+            "total_assertions": report.total_assertions,
+            "escalation_required": report.total_fail > 0 || report.total_gap > 0,
+        })
     }
-
-    /// Load manifests from the default directory.
     pub fn load_manifests() -> Vec<Manifest> {
         load_manifests()
     }
@@ -99,17 +130,14 @@ fn load_manifests() -> Vec<Manifest> {
     if !manifest_dir.exists() {
         return Vec::new();
     }
-
     let mut manifests = Vec::new();
-    let dir_result = std::fs::read_dir(manifest_dir);
-    let entries = match dir_result {
+    let entries = match std::fs::read_dir(manifest_dir) {
         Ok(e) => e,
         Err(e) => {
             tracing::warn!("Cannot read manifests directory: {e}");
             return manifests;
         }
     };
-
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().is_none_or(|ext| ext != "yaml") {
@@ -123,7 +151,6 @@ fn load_manifests() -> Vec<Manifest> {
             Err(e) => tracing::warn!("Failed to read {}: {e}", path.display()),
         }
     }
-
     manifests.sort_by(|a, b| a.principle.cmp(&b.principle));
     manifests
 }
@@ -136,7 +163,6 @@ const PRINCIPLE_DISPLAY_NAMES: &[(&str, &str)] = &[
     ("generative_space", "P3 — Generative Space"),
     ("clear_boundaries", "P4 — Clear Boundaries / OCAP"),
 ];
-
 const PRINCIPLE_ALIASES: &[(&str, &str)] = &[
     ("p1", "user_sovereignty"),
     ("p2", "affirmative_consent"),
@@ -144,66 +170,55 @@ const PRINCIPLE_ALIASES: &[(&str, &str)] = &[
     ("p4", "clear_boundaries"),
 ];
 
-fn build_report(manifests: &[Manifest], filter: Option<&str>) -> VerificationReport {
-    let mut total_pass = 0usize;
-    let mut total_fail = 0usize;
-    let mut total_gap = 0usize;
-    let mut total_skip = 0usize;
-    let mut total_assertions = 0usize;
-    let mut principles = Vec::new();
+fn resolve_filter(alias: &str) -> &str {
+    PRINCIPLE_ALIASES
+        .iter()
+        .find(|(a, _)| a == &alias)
+        .map(|(_, p)| *p)
+        .unwrap_or(alias)
+}
 
+fn build_report(manifests: &[Manifest], filter: Option<&str>) -> VerificationReport {
+    let mut counts = (0usize, 0usize, 0usize, 0usize, 0usize); // pass, fail, gap, skip, total
+    let mut principles = Vec::new();
     for manifest in manifests {
-        // Skip if filter is set and doesn't match
         if let Some(f) = filter {
-            let resolved = PRINCIPLE_ALIASES
-                .iter()
-                .find(|(alias, _)| alias == &f)
-                .map(|(_, principle)| *principle)
-                .unwrap_or(f);
-            let matches =
-                manifest.principle.starts_with(resolved) || resolved == manifest.principle;
-            if !matches {
+            let resolved = resolve_filter(f);
+            if resolved != manifest.principle && !manifest.principle.starts_with(resolved) {
                 continue;
             }
         }
-
         let display_name = PRINCIPLE_DISPLAY_NAMES
             .iter()
             .find(|(key, _)| key == &manifest.principle)
             .map(|(_, name)| *name)
             .unwrap_or(&manifest.principle)
             .to_string();
-
         let mut assertion_results = Vec::new();
-
         for assertion in &manifest.assertions {
             let result = verify_assertion(assertion);
-            total_assertions += 1;
-
+            counts.4 += 1;
             match result.status {
-                "pass" => total_pass += 1,
-                "fail" => total_fail += 1,
-                "gap" => total_gap += 1,
-                _ => total_skip += 1,
+                "pass" => counts.0 += 1,
+                "fail" => counts.1 += 1,
+                "gap" => counts.2 += 1,
+                _ => counts.3 += 1,
             }
-
             assertion_results.push(result);
         }
-
         principles.push(PrincipleResult {
             principle: manifest.principle.clone(),
             display_name,
             assertion_results,
         });
     }
-
     VerificationReport {
         principles,
-        total_pass,
-        total_fail,
-        total_gap,
-        total_skip,
-        total_assertions,
+        total_pass: counts.0,
+        total_fail: counts.1,
+        total_gap: counts.2,
+        total_skip: counts.3,
+        total_assertions: counts.4,
     }
 }
 
@@ -212,36 +227,17 @@ fn build_report(manifests: &[Manifest], filter: Option<&str>) -> VerificationRep
 fn verify_assertion(assertion: &Assertion) -> AssertionResult {
     match assertion.method.as_str() {
         "structural_audit" => verify_structural_audit(assertion),
-        "behavioral_probe" => AssertionResult {
-            id: assertion.id.clone(),
-            name: assertion.name.clone(),
-            method: assertion.method.clone(),
-            status: "skip",
-            findings: vec![
-                "Behavioral probes require a live system runtime. Run `cargo test` for behavioral verification.".to_string(),
-            ],
-            recommendations: vec![format!(
-                "Write and run a #[test] for {} that exercises the denial path",
-                assertion.id
-            )],
-        },
+        "behavioral_probe" => AssertionResult::skip(assertion,
+            "Behavioral probes require a live system runtime. Run `cargo test` for behavioral verification.".to_string()),
         "resource_verification" => verify_resource_verification(assertion),
         "absence_check" => verify_absence_check(assertion),
-        _ => AssertionResult {
-            id: assertion.id.clone(),
-            name: assertion.name.clone(),
-            method: assertion.method.clone(),
-            status: "gap",
-            findings: vec![format!("Unknown verification method: {}", assertion.method)],
-            recommendations: vec!["Update verifier to support this method".to_string()],
-        },
+        _ => AssertionResult::gap(assertion, format!("Unknown verification method: {}", assertion.method)),
     }
 }
 
 fn verify_structural_audit(assertion: &Assertion) -> AssertionResult {
     let mut findings = Vec::new();
     let mut all_pass = true;
-
     for target in &assertion.targets {
         let crate_name = target
             .get("crate")
@@ -251,7 +247,6 @@ fn verify_structural_audit(assertion: &Assertion) -> AssertionResult {
             .get("module")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
-
         let crate_dir = PathBuf::from(format!("crates/{crate_name}/src"));
         if !crate_dir.exists() {
             findings.push(format!(
@@ -261,75 +256,56 @@ fn verify_structural_audit(assertion: &Assertion) -> AssertionResult {
             all_pass = false;
             continue;
         }
-
         let module_file = module.replace("::", "/");
         let file_path = crate_dir.join(format!("{module_file}.rs"));
         let mod_path = crate_dir.join(format!("{module_file}/mod.rs"));
-
         if !file_path.exists() && !mod_path.exists() {
             findings.push(format!("Module not found: {crate_name}::{module}"));
             all_pass = false;
             continue;
         }
-
         let source_path = if file_path.exists() {
             &file_path
         } else {
             &mod_path
         };
         let source = std::fs::read_to_string(source_path).unwrap_or_default();
-
-        // Check that target methods exist in the source file
         if let Some(methods) = target.get("methods").and_then(|v| v.as_sequence()) {
-            for method_val in methods {
-                let method_name = method_val.as_str().unwrap_or("");
-                if !source.contains(method_name) {
+            for mv in methods {
+                let name = mv.as_str().unwrap_or("");
+                if !source.contains(name) {
                     findings.push(format!(
-                        "Method `{method_name}` not found in {crate_name}::{module}"
+                        "Method `{name}` not found in {crate_name}::{module}"
                     ));
                     all_pass = false;
                 }
             }
         }
-
-        // Check that gate exists in source
-        let gate = target.get("gate").and_then(|v| v.as_str());
-        let gates = target.get("gates").and_then(|v| v.as_sequence());
-
-        if let Some(gate) = gate
-            && !source.contains(gate)
-        {
-            findings.push(format!("Gate `{gate}` not found in {crate_name}::{module}"));
-            all_pass = false;
+        if let Some(gate) = target.get("gate").and_then(|v| v.as_str()) {
+            if !source.contains(gate) {
+                findings.push(format!("Gate `{gate}` not found in {crate_name}::{module}"));
+                all_pass = false;
+            }
         }
-        if let Some(gates) = gates {
-            for gate_val in gates {
-                let gate_name = gate_val.as_str().unwrap_or("");
-                if !source.contains(gate_name) {
+        if let Some(gates) = target.get("gates").and_then(|v| v.as_sequence()) {
+            for gv in gates {
+                let gname = gv.as_str().unwrap_or("");
+                if !source.contains(gname) {
                     findings.push(format!(
-                        "Gate `{gate_name}` not found in {crate_name}::{module}"
+                        "Gate `{gname}` not found in {crate_name}::{module}"
                     ));
                     all_pass = false;
                 }
             }
         }
     }
-
-    AssertionResult {
-        id: assertion.id.clone(),
-        name: assertion.name.clone(),
-        method: assertion.method.clone(),
-        status: if all_pass { "pass" } else { "fail" },
-        findings,
-        recommendations: Vec::new(),
-    }
+    AssertionResult::verdict(assertion, all_pass, findings)
 }
 
 fn verify_resource_verification(assertion: &Assertion) -> AssertionResult {
     let boundary = DataSovereigntyBoundary::hkask_default();
     let mut findings = Vec::new();
     let mut all_pass = true;
-
     let categories = [
         DataCategory::EpisodicMemory,
         DataCategory::SemanticMemory,
@@ -340,13 +316,10 @@ fn verify_resource_verification(assertion: &Assertion) -> AssertionResult {
         DataCategory::HLexiconTerms,
         DataCategory::TemplateRegistry,
     ];
-
     for cat in &categories {
-        let is_sovereign = boundary.is_sovereign(cat);
-        let is_shared = boundary.is_category_shared(cat);
-        let is_public = boundary.is_category_public(cat);
-
-        let tier_count = is_sovereign as usize + is_shared as usize + is_public as usize;
+        let tier_count = boundary.is_sovereign(cat) as usize
+            + boundary.is_category_shared(cat) as usize
+            + boundary.is_category_public(cat) as usize;
         if tier_count == 0 {
             findings.push(format!("{cat:?} is not assigned to any tier"));
             all_pass = false;
@@ -355,82 +328,58 @@ fn verify_resource_verification(assertion: &Assertion) -> AssertionResult {
             all_pass = false;
         }
     }
-
     if !boundary.requires_affirmative_consent() {
         findings.push("requires_affirmative_consent is false in default boundary".to_string());
         all_pass = false;
     }
-
-    AssertionResult {
-        id: assertion.id.clone(),
-        name: assertion.name.clone(),
-        method: assertion.method.clone(),
-        status: if all_pass { "pass" } else { "fail" },
-        findings,
-        recommendations: Vec::new(),
-    }
+    AssertionResult::verdict(assertion, all_pass, findings)
 }
 
 fn verify_absence_check(assertion: &Assertion) -> AssertionResult {
     let prohibited = &assertion.prohibited;
     if prohibited.is_empty() {
-        return AssertionResult {
-            id: assertion.id.clone(),
-            name: assertion.name.clone(),
-            method: assertion.method.clone(),
-            status: "pass",
-            findings: vec!["No prohibited patterns specified — vacuously true".to_string()],
-            recommendations: Vec::new(),
-        };
+        return AssertionResult::verdict(
+            assertion,
+            true,
+            vec!["No prohibited patterns specified — vacuously true".to_string()],
+        );
     }
-
-    let mut findings = Vec::new();
-    let mut all_pass = true;
-
     let crate_dirs: Vec<String> = assertion
         .targets
         .iter()
         .filter_map(|t| t.get("crate").and_then(|v| v.as_str()))
         .map(|c| format!("crates/{c}"))
         .collect();
-
+    let mut findings = Vec::new();
+    let mut all_pass = true;
     for pattern in prohibited {
-        let mut found_count = 0;
+        let mut found = 0;
         for crate_dir in &crate_dirs {
             match grep_crate(crate_dir, pattern) {
-                Ok(count) => found_count += count,
+                Ok(count) => found += count,
                 Err(e) => {
                     findings.push(format!("Error searching {crate_dir} for `{pattern}`: {e}"))
                 }
             }
         }
-        if found_count > 0 {
+        if found > 0 {
             findings.push(format!(
-                "Prohibited pattern `{pattern}` found ({found_count} match(es))"
+                "Prohibited pattern `{pattern}` found ({found} match(es))"
             ));
             all_pass = false;
         }
     }
-
-    AssertionResult {
-        id: assertion.id.clone(),
-        name: assertion.name.clone(),
-        method: assertion.method.clone(),
-        status: if all_pass { "pass" } else { "fail" },
-        findings,
-        recommendations: Vec::new(),
-    }
+    AssertionResult::verdict(assertion, all_pass, findings)
 }
 
 // ── Internal: codebase scanning ─────────────────────────────────────────
 
 fn grep_crate(crate_dir: &str, pattern: &str) -> Result<usize, String> {
     let mut count = 0usize;
+    let lower_pattern = pattern.to_lowercase();
     walk_dir(crate_dir, &mut |path| {
         if let Ok(content) = std::fs::read_to_string(path) {
-            let lower_content = content.to_lowercase();
-            let lower_pattern = pattern.to_lowercase();
-            if lower_content.contains(&lower_pattern) {
+            if content.to_lowercase().contains(&lower_pattern) {
                 count += 1;
             }
         }
@@ -439,8 +388,7 @@ fn grep_crate(crate_dir: &str, pattern: &str) -> Result<usize, String> {
 }
 
 fn walk_dir(dir: &str, f: &mut dyn FnMut(&Path)) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
-    for entry in entries.flatten() {
+    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())?.flatten() {
         let path = entry.path();
         if path.is_dir() {
             walk_dir(path.to_str().unwrap_or(""), f)?;
@@ -451,40 +399,4 @@ fn walk_dir(dir: &str, f: &mut dyn FnMut(&Path)) -> Result<(), String> {
     Ok(())
 }
 
-// ── Internal: JSON report ───────────────────────────────────────────────
-
-fn report_to_json(report: &VerificationReport) -> serde_json::Value {
-    let mut principles_json = Vec::new();
-
-    for pr in &report.principles {
-        let mut assertions_json = Vec::new();
-        for ar in &pr.assertion_results {
-            assertions_json.push(serde_json::json!({
-                "id": ar.id,
-                "name": ar.name,
-                "method": ar.method,
-                "status": ar.status,
-                "findings": ar.findings,
-                "recommendations": ar.recommendations,
-            }));
-        }
-        principles_json.push(serde_json::json!({
-            "principle": pr.principle,
-            "display_name": pr.display_name,
-            "assertions": assertions_json,
-        }));
-    }
-
-    serde_json::json!({
-        "principles": principles_json,
-        "total_pass": report.total_pass,
-        "total_fail": report.total_fail,
-        "total_gap": report.total_gap,
-        "total_skip": report.total_skip,
-        "total_assertions": report.total_assertions,
-        "escalation_required": report.total_fail > 0 || report.total_gap > 0,
-    })
-}
-
 // ── Tests ───────────────────────────────────────────────────────────────
-

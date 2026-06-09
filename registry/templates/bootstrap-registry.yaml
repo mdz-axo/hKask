@@ -1,0 +1,447 @@
+# Bootstrap Registry — core template definitions loaded at startup.
+# Each entry maps to a RegistryEntry struct. Template types use domain-aligned names:
+#   WordAct  — Jinja2 prompts ("what to say")
+#   KnowAct  — Jinja2 cognition ("how to think")
+#   FlowDef  — YAML process manifests ("what to do")
+#
+# cascade_level is always 0 at bootstrap; matroshka_limit is set at runtime.
+# required_capabilities is always [] at bootstrap.
+
+- id: wordact/selector
+  template_type: WordAct
+  name: "Template Selector"
+  lexicon_terms:
+    - recognize
+    - classify
+    - match
+    - discriminate
+  description: "Selects best-fit template for input context"
+  source_path: registry/templates/wordact/selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: wordact/render
+  template_type: WordAct
+  name: "Prompt Render"
+  lexicon_terms:
+    - render
+    - compose
+    - format
+  description: "Renders prompt with context binding"
+  source_path: registry/templates/wordact/render.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: wordact/execute
+  template_type: WordAct
+  name: "Prompt Execute"
+  lexicon_terms:
+    - execute
+    - respond
+    - complete
+  description: "Executes rendered prompt via inference"
+  source_path: registry/templates/wordact/execute.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: composition/hemingway-style-synthesizer
+  template_type: WordAct
+  name: "Hemingway Style Synthesizer"
+  lexicon_terms:
+    - compose
+    - synthesize
+    - write
+    - edit
+    - refine
+    - render
+  description: "Generate prose using Kansas City Star rules, Iceberg Theory, Fish generative forms, and embedding-based exemplar retrieval"
+  source_path: registry/templates/composition/hemingway-style-synthesizer.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/detect
+  template_type: KnowAct
+  name: "Drift Detection"
+  lexicon_terms:
+    - detect
+    - drift
+    - calibrate
+  description: "Detects cognitive drift in agent behavior"
+  source_path: registry/templates/knowact/detect.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/calibrate
+  template_type: KnowAct
+  name: "Calibration"
+  lexicon_terms:
+    - calibrate
+    - baseline
+    - adjust
+  description: "Calibrates agent responses to baseline"
+  source_path: registry/templates/knowact/calibrate.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/prompt-strategy
+  template_type: KnowAct
+  name: "Prompt Strategy Selection"
+  lexicon_terms:
+    - classify
+    - select
+    - frame
+  description: "Keyword-based heuristic for prompt framing"
+  source_path: registry/templates/knowact/prompt-strategy.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/ellipsis-analysis
+  template_type: KnowAct
+  name: "Ellipsis Analysis"
+  lexicon_terms:
+    - read
+    - detect
+    - classify
+    - calibrate
+    - analyze
+  description: "Bloom Method: detect meaning in gaps and omissions"
+  source_path: registry/templates/knowact/ellipsis-analysis.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/falstaffian-perspective
+  template_type: KnowAct
+  name: "Falstaffian Perspective"
+  lexicon_terms:
+    - calibrate
+    - affirm
+    - select
+    - execute
+    - verify
+  description: "Multi-iteration perspective generation through semantic shape transforms"
+  source_path: registry/templates/knowact/falstaffian-perspective.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/recognize-ensemble
+  template_type: KnowAct
+  name: "GML Recognize Ensemble"
+  lexicon_terms:
+    - recognize
+    - discriminate
+    - parse
+  description: "Parse concept into states and ports"
+  source_path: registry/templates/gml/recognize-ensemble.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/bind-effector
+  template_type: KnowAct
+  name: "GML Bind Effector"
+  lexicon_terms:
+    - analogy
+    - infer
+    - bind
+  description: "Apply effector, infer state-shift"
+  source_path: registry/templates/gml/bind-effector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/compute-equilibrium
+  template_type: KnowAct
+  name: "GML Compute Equilibrium"
+  lexicon_terms:
+    - calculate
+    - compare
+  description: "Calculate R̄, n_H, distribution"
+  source_path: registry/templates/gml/compute-equilibrium.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/assess-coherence
+  template_type: KnowAct
+  name: "GML Assess Coherence"
+  lexicon_terms:
+    - evaluate
+    - reflect
+    - calibrate
+  description: "Evaluate network homeostasis"
+  source_path: registry/templates/gml/assess-coherence.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/reframe-concept
+  template_type: KnowAct
+  name: "GML Reframe Concept"
+  lexicon_terms:
+    - abduct
+    - generate
+    - synthesize
+  description: "Generate alternative frames"
+  source_path: registry/templates/gml/reframe-concept.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: coding-guidelines/guidelines-assess
+  template_type: KnowAct
+  name: "Coding Guidelines Assess"
+  lexicon_terms:
+    - assess
+    - orient
+    - detect
+    - classify
+    - discriminate
+  description: "Assess a coding task against four behavioral principles before implementation"
+  source_path: registry/templates/coding-guidelines/guidelines-assess.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: coding-guidelines/guidelines-apply
+  template_type: KnowAct
+  name: "Coding Guidelines Apply"
+  lexicon_terms:
+    - constrain
+    - apply
+    - regulate
+    - simplify
+    - specify
+  description: "Generate constrained implementation directives with guardrails against over-engineering"
+  source_path: registry/templates/coding-guidelines/guidelines-apply.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: coding-guidelines/guidelines-verify
+  template_type: KnowAct
+  name: "Coding Guidelines Verify"
+  lexicon_terms:
+    - verify
+    - evaluate
+    - discriminate
+    - calibrate
+    - audit
+  description: "Verify implementation against four principles with compliance scoring"
+  source_path: registry/templates/coding-guidelines/guidelines-verify.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-compact
+  template_type: KnowAct
+  name: "Handoff Compact"
+  lexicon_terms:
+    - compact
+    - distill
+    - extract
+    - summarize
+    - crystallize
+  description: "Compress session context into structured summary for handoff"
+  source_path: registry/templates/handoff/handoff-compact.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-artifacts
+  template_type: KnowAct
+  name: "Handoff Artifacts"
+  lexicon_terms:
+    - catalog
+    - reference
+    - classify
+    - detect
+    - redact
+  description: "Catalog artifacts by reference and detect sensitive data for redaction"
+  source_path: registry/templates/handoff/handoff-artifacts.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-skills-suggest
+  template_type: KnowAct
+  name: "Handoff Skills Suggest"
+  lexicon_terms:
+    - suggest
+    - match
+    - prioritize
+    - analyze
+    - recommend
+  description: "Suggest relevant skills and extract open questions for next session"
+  source_path: registry/templates/handoff/handoff-skills-suggest.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-compose
+  template_type: WordAct
+  name: "Handoff Compose"
+  lexicon_terms:
+    - compose
+    - synthesize
+    - structure
+    - redact
+    - document
+  description: "Assemble final handoff document with redaction and skill suggestions"
+  source_path: registry/templates/handoff/handoff-compose.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: flowdef/dispatch
+  template_type: FlowDef
+  name: "Dispatch"
+  lexicon_terms:
+    - dispatch
+    - route
+    - invoke
+  description: "Dispatches tool calls via ACP/MCP"
+  source_path: registry/templates/flowdef/dispatch.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: flowdef/memory/recall
+  template_type: FlowDef
+  name: "Memory Recall"
+  lexicon_terms:
+    - recall
+    - retrieve
+    - remember
+  description: "Recalls semantic/episodic memory triples"
+  source_path: registry/templates/flowdef/memory_recall.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/goal-capture
+  template_type: FlowDef
+  name: "Goal Capture"
+  lexicon_terms:
+    - specify
+    - require
+    - elicit
+  description: "Elicit user intent as binding requirement"
+  source_path: registry/templates/spec/goal-capture.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/constraint-bind
+  template_type: FlowDef
+  name: "Constraint Bind"
+  lexicon_terms:
+    - constrain
+    - require
+  description: "Attach OCAP boundaries to goals"
+  source_path: registry/templates/spec/constraint-bind.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/curate-collection
+  template_type: FlowDef
+  name: "Curate Collection"
+  lexicon_terms:
+    - curate
+    - cultivate
+  description: "Evaluate collection coherence and completeness"
+  source_path: registry/templates/spec/curate-collection.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/reconcile-conflicts
+  template_type: FlowDef
+  name: "Reconcile Conflicts"
+  lexicon_terms:
+    - reconcile
+  description: "Resolve goal tensions without collapsing them"
+  source_path: registry/templates/spec/reconcile-conflicts.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/contextualise
+  template_type: FlowDef
+  name: "Contextualise"
+  lexicon_terms:
+    - contextualise
+  description: "Situate artifact within meaningful environment"
+  source_path: registry/templates/spec/contextualise.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/selector
+  template_type: FlowDef
+  name: "Spec Selector"
+  lexicon_terms:
+    - recognize
+    - match
+  description: "Route input to best-fit specification template"
+  source_path: registry/templates/spec/selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: skill-bundler/compose-bundle
+  template_type: FlowDef
+  name: "Compose Skill Bundle"
+  lexicon_terms:
+    - compose
+    - decompose
+    - reconcile
+    - curate
+    - sequence
+    - evaluate
+    - calibrate
+  description: "Analyze a set of skills and produce a FlowDef bundle manifest with conflicts, complementarities, and cascade steps"
+  source_path: registry/templates/skill-bundler/compose-bundle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: skill-bundler/apply-bundle
+  template_type: FlowDef
+  name: "Apply Skill Bundle"
+  lexicon_terms:
+    - sequence
+    - curate
+    - orient
+    - reconcile
+    - evaluate
+    - calibrate
+  description: "Apply an existing bundle to a session interaction following cascade order and conflict resolutions"
+  source_path: registry/templates/skill-bundler/apply-bundle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: skill-bundler/evolve-bundle
+  template_type: FlowDef
+  name: "Evolve Skill Bundle"
+  lexicon_terms:
+    - compose
+    - reconcile
+    - calibrate
+    - cultivate
+    - evaluate
+  description: "Re-compose a bundle when skills have evolved, preserving unchanged configuration and updating what has changed"
+  source_path: registry/templates/skill-bundler/evolve-bundle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7

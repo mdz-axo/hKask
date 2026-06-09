@@ -142,17 +142,12 @@ pub struct RssServer {
 
 impl RssServer {
     /// Construct from a server context.
-    ///
-    /// - `HKASK_RSS_DB` + `HKASK_DB_PASSPHRASE` (optional): persistent encrypted database.
-    ///   Absent → in-memory (ephemeral, data lost on restart).
     pub fn new(ctx: hkask_mcp::ServerContext) -> Result<Self, anyhow::Error> {
         let db = ctx.open_database_with_extensions("HKASK_RSS_DB", RSS_SCHEMA_DDL)?;
         let db: Arc<std::sync::Mutex<Connection>> = db.conn_arc();
-
         let client = Client::builder()
             .user_agent(format!("hkask-mcp-rss-reader/{}", SERVER_VERSION))
             .build()?;
-
         Ok(Self {
             webid: ctx.webid,
             db,
@@ -209,12 +204,9 @@ impl RssServer {
                 );
             }
         };
-
         let stream_id = format!("feed/{url}");
         let db = self.db.clone();
-        let url_c = url;
-        let label_c = label;
-        let folder_c = folder;
+        let (url_c, label_c, folder_c) = (url, label, folder);
         let etag = fetch_result.etag.clone();
         let lm = fetch_result.last_modified.clone();
         let feed_title = fetch_result
@@ -224,42 +216,15 @@ impl RssServer {
             .map(|t| t.content.clone())
             .unwrap_or_default();
         let entry_count = fetch_result.feed.entries.len();
-
         let result = spawn_db(db, move |conn| {
             let feed_id = upsert_feed(conn, &url_c, &fetch_result.feed)?;
             insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
             update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-
-            let exists: bool = conn.query_row(
-                "SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1",
-                [&stream_id],
-                |row| row.get::<_, i64>(0),
-            ).map(|c| c > 0)?;
-
-            if exists {
-                return Ok(serde_json::json!({
-                    "stream_id": stream_id,
-                    "url": url_c,
-                    "subscribed": true,
-                    "note": "Already subscribed, feed refreshed",
-                }));
-            }
-
-            conn.execute(
-                "INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)",
-                rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c],
-            )?;
-
-            Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({
-                "stream_id": stream_id,
-                "url": url_c,
-                "label": label_c,
-                "folder": folder_c,
-                "subscribed": true,
-                "entry_count": entry_count,
-            }))
+            let exists: bool = conn.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
+            if exists { return Ok(serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})); }
+            conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
+            Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
         }).await;
-
         handle_db_result!(span, result, |v| v);
     }
 
@@ -272,11 +237,9 @@ impl RssServer {
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| {
-            let removed = conn.execute("DELETE FROM subscriptions WHERE stream_id = ?1", [&sid])?;
-            Ok::<usize, anyhow::Error>(removed)
+            conn.execute("DELETE FROM subscriptions WHERE stream_id = ?1", [&sid])
         })
         .await;
-
         handle_db_result!(
             span,
             result,
@@ -336,9 +299,8 @@ impl RssServer {
                 );
             }
             Err(e) => {
-                return span.internal_error(serde_json::json!({
-                    "error": format!("Task error: {}", e),
-                }));
+                return span
+                    .internal_error(serde_json::json!({"error": format!("Task error: {}", e)}));
             }
         };
 
@@ -521,11 +483,9 @@ impl RssServer {
             return span.error(e.kind, e.to_json_string());
         }
         match discover_feeds(&self.client, &url).await {
-            Ok(feeds) => span.ok_json(serde_json::json!({
-                "url": url,
-                "feeds": feeds,
-                "count": feeds.len(),
-            })),
+            Ok(feeds) => {
+                span.ok_json(serde_json::json!({"url": url, "feeds": feeds, "count": feeds.len()}))
+            }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable(e.to_string()).to_json_string(),
@@ -533,9 +493,7 @@ impl RssServer {
         }
     }
 
-    #[tool(
-        description = "Edit tags on entries: mark read/unread, star/unstar, add/remove labels (Google Reader edit-tag)"
-    )]
+    #[tool(description = "Edit tags on entries: mark read/unread, star/unstar, add/remove labels")]
     async fn rss_edit_tag(&self, Parameters(req): Parameters<EditTagRequest>) -> String {
         let span = ToolSpanGuard::new("rss_edit_tag", &self.webid);
         let db = self.db.clone();

@@ -433,30 +433,22 @@ impl ProviderPool {
 
     pub async fn health_check_all(&self) -> Vec<ProviderHealthEntry> {
         let mut entries = Vec::new();
-
-        for p in &self.search_providers {
-            let kind = p.kind().to_string();
-            let result = p.health().await;
-            entries.push(health_entry(kind, result));
+        macro_rules! health_them {
+            ($provs:expr) => {
+                for p in $provs {
+                    let k = p.kind().to_string();
+                    let r = p.health().await;
+                    entries.push(health_entry(k, r));
+                }
+            };
         }
-
-        for p in &self.extract_providers {
-            let kind = p.kind().to_string();
-            let result = p.health().await;
-            entries.push(health_entry(kind, result));
-        }
-
-        for p in &self.browse_providers {
-            let kind = p.kind().to_string();
-            let result = p.health().await;
-            entries.push(health_entry(kind, result));
-        }
-
+        health_them!(&self.search_providers);
+        health_them!(&self.extract_providers);
+        health_them!(&self.browse_providers);
         if let Some(ref exa) = self.exa {
-            let result = exa.health().await;
-            entries.push(health_entry("exa-similar".into(), result));
+            let r = exa.health().await;
+            entries.push(health_entry("exa-similar".into(), r));
         }
-
         entries
     }
 }

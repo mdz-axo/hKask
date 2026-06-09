@@ -1,10 +1,4 @@
-//! Onboarding domain operations — secret derivation, keychain storage,
-//! registry initialization, replicant registration, sign-in verification,
-//! and failure cleanup.
-//!
-//! The CLI surface orchestrates the interactive flow (prompts, choices) and
-//! delegates each domain step to `OnboardingService`. The service does NOT
-//! own any I/O — it accepts caller-provided inputs and returns domain results.
+//! Onboarding — secret derivation, keychain, registry init, sign-in.
 
 use std::sync::Arc;
 
@@ -300,4 +294,3 @@ impl OnboardingService {
         }
     }
 }
-

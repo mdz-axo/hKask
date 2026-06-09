@@ -17,54 +17,30 @@ use crate::middleware::AuthContext;
 
 /// Create ensemble router
 pub fn ensemble_router() -> Router<ApiState> {
+    use axum::routing::{get, post};
     Router::new()
-        .route("/api/ensemble/chat", axum::routing::post(create_chat))
-        .route("/api/ensemble/chat/:session", axum::routing::get(get_chat))
-        .route(
-            "/api/ensemble/chat/:session/list",
-            axum::routing::get(list_chats),
-        )
-        .route(
-            "/api/ensemble/chat/:session/register",
-            axum::routing::post(register_bot),
-        )
-        .route(
-            "/api/ensemble/chat/:session/send",
-            axum::routing::post(send_message),
-        )
-        .route(
-            "/api/ensemble/chat/:session/improv",
-            axum::routing::post(improv_turn),
-        )
-        .route(
-            "/api/ensemble/deliberation",
-            axum::routing::post(create_deliberation),
-        )
+        .route("/api/ensemble/chat", post(create_chat))
+        .route("/api/ensemble/chat/:session", get(get_chat))
+        .route("/api/ensemble/chat/:session/list", get(list_chats))
+        .route("/api/ensemble/chat/:session/register", post(register_bot))
+        .route("/api/ensemble/chat/:session/send", post(send_message))
+        .route("/api/ensemble/chat/:session/improv", post(improv_turn))
+        .route("/api/ensemble/deliberation", post(create_deliberation))
         .route(
             "/api/ensemble/deliberation/:session/start",
-            axum::routing::post(start_deliberation),
+            post(start_deliberation),
         )
         .route(
             "/api/ensemble/deliberation/:session/record",
-            axum::routing::post(record_response),
+            post(record_response),
         )
         .route(
             "/api/ensemble/deliberation/:session/synthesize",
-            axum::routing::post(synthesize_deliberation),
+            post(synthesize_deliberation),
         )
-        .route(
-            "/api/ensemble/deliberation/list",
-            axum::routing::get(list_deliberations),
-        )
-        // Standing session routes (v1)
-        .route(
-            "/api/v1/ensemble/standing-start",
-            axum::routing::post(standing_start),
-        )
-        .route(
-            "/api/v1/ensemble/standing-status",
-            axum::routing::get(standing_status),
-        )
+        .route("/api/ensemble/deliberation/list", get(list_deliberations))
+        .route("/api/v1/ensemble/standing-start", post(standing_start))
+        .route("/api/v1/ensemble/standing-status", get(standing_status))
 }
 
 /// Create chat request
@@ -116,6 +92,34 @@ pub struct ImprovTurnResponse {
     pub curator_synthesis: Option<String>,
 }
 
+/// Respond with EnsembleResponse as (StatusCode, Json)
+fn respond(code: StatusCode, success: bool, msg: impl Into<String>) -> impl IntoResponse {
+    (
+        code,
+        Json(EnsembleResponse {
+            success,
+            message: msg.into(),
+        }),
+    )
+        .into_response()
+}
+
+/// Look up a chat session, return Ok(chat) or an error response
+async fn with_chat(
+    state: &ApiState,
+    session: &str,
+) -> Result<hkask_ensemble::ChatHandle, impl IntoResponse> {
+    let manager = state.service_context.session_manager.read().await;
+    match manager.get_chat(session).await {
+        Some(c) => Ok(c),
+        None => Err(respond(
+            StatusCode::NOT_FOUND,
+            false,
+            format!("Session '{session}' not found"),
+        )),
+    }
+}
+
 /// Create chat session
 #[utoipa::path(
     post,
@@ -131,39 +135,37 @@ async fn create_chat(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let manager = state.service_context.session_manager.read().await;
-    manager.create_chat(&req.session_id).await;
-    (
+    state
+        .service_context
+        .session_manager
+        .read()
+        .await
+        .create_chat(&req.session_id)
+        .await;
+    respond(
         StatusCode::CREATED,
-        Json(EnsembleResponse {
-            success: true,
-            message: format!("Chat session '{}' created", req.session_id),
-        }),
+        true,
+        format!("Chat session '{}' created", req.session_id),
     )
-        .into_response()
 }
 
 /// Get chat details
 async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) -> impl IntoResponse {
     let manager = state.service_context.session_manager.read().await;
-    let (code, body) = if manager.get_chat(&session).await.is_some() {
-        (
-            StatusCode::OK,
-            EnsembleResponse {
-                success: true,
-                message: format!("Chat session '{}' details", session),
-            },
-        )
+    let (exists, msg) = if manager.get_chat(&session).await.is_some() {
+        (true, format!("Chat session '{}' details", session))
     } else {
-        (
-            StatusCode::NOT_FOUND,
-            EnsembleResponse {
-                success: false,
-                message: format!("Chat session '{}' not found", session),
-            },
-        )
+        (false, format!("Chat session '{}' not found", session))
     };
-    (code, Json(body)).into_response()
+    respond(
+        if exists {
+            StatusCode::OK
+        } else {
+            StatusCode::NOT_FOUND
+        },
+        exists,
+        msg,
+    )
 }
 
 /// List chat sessions

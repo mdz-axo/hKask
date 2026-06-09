@@ -1,11 +1,4 @@
 //! EmbedService — Style corpus embedding pipeline.
-//!
-//! Orchestrates the full embedding pipeline: config parsing → DB open →
-//! purge → download + cache + chunk → batch embed → centroid compute.
-//! Uses `SemanticMemory` methods (same code that MCP tools
-//! semantic_purge, semantic_chunk, semantic_embed, semantic_centroid call).
-//!
-//! ℏKask - A Minimal Viable Container for Agents
 
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
@@ -300,4 +293,3 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────
-

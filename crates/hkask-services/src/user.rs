@@ -1,24 +1,4 @@
-//! User registration and authentication service — replicant identity management.
-//!
-//! # Depth test
-//!
-//! Deleting this module would cause passphrase validation, registration
-//! validation, opaque login error normalization, lock acquisition, and
-//! the composite register + revoke operations to reappear in every caller.
-//! The register operation crosses three boundaries (validation → lock → store).
-//! Passes deletion test.
-//!
-//! # Design decisions
-//!
-//! - **Constraint: Guideline** — CLI interactive I/O (stdin/stdout prompts,
-//!   table display) stays in the surface. The service returns domain types.
-//! - **Constraint: Guideline** — Login errors are deliberately opaque.
-//!   The service always returns `ServiceError::LoginFailed` regardless of
-//!   the underlying cause (unknown user, wrong passphrase, hash failure)
-//!   to prevent information leakage.
-//! - **Validation** — `validate_passphrase` and `validate_registration` moved
-//!   from `hkask-cli/src/registration.rs` to the service layer so both
-//!   CLI and future API routes share the same validation logic.
+//! User registration and authentication — replicant identity management.
 
 use hkask_types::{RegistrationRequest, ReplicantIdentity, UserID, UserSession};
 use zeroize::Zeroizing;
@@ -26,10 +6,6 @@ use zeroize::Zeroizing;
 use crate::ServiceContext;
 use crate::error::ServiceError;
 
-/// User registration and authentication service.
-///
-/// Encapsulates replicant identity registration, login, lookup, and
-/// session management with consistent validation and error normalization.
 pub struct UserService;
 
 impl UserService {
@@ -206,4 +182,3 @@ impl UserService {
         Ok(session)
     }
 }
-

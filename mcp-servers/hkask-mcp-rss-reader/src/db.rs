@@ -81,7 +81,10 @@ pub const RSS_SCHEMA_DDL: &str = "
     END;
 ";
 
-// DB write functions
+// Column constants — shared across query functions
+const ENTRY_COLS: &str = "e.id, e.entry_id, e.title, e.url, e.author, e.summary, e.published_at, COALESCE(s.is_read, 0) as is_read, COALESCE(s.is_starred, 0) as is_starred";
+const ENTRY_FROM_JOIN: &str = "FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id";
+const SUB_QUERY: &str = "SELECT s.stream_id, s.title, s.label, s.folder, s.added_at, f.url, f.title as feed_title FROM subscriptions s JOIN feeds f ON s.feed_id = f.id";
 
 fn feed_text(feed_text: &Option<feed_rs::model::Text>) -> &str {
     feed_text.as_ref().map(|t| t.content.as_str()).unwrap_or("")
@@ -183,8 +186,6 @@ pub fn update_feed_cache_headers(
     Ok(())
 }
 
-// Stream resolution (Google Reader data model)
-
 pub fn resolve_feed_url(conn: &Connection, stream_id: &str) -> Option<String> {
     if let Some(rest) = stream_id.strip_prefix("feed/") {
         Some(rest.to_string())
@@ -264,9 +265,7 @@ fn query_entry_rows(
             .map(|p| Box::new(p.as_ref()) as Box<dyn rusqlite::types::ToSql>),
     );
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
-    let mut stmt = conn.prepare(&format!(
-        "{select_clause} FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id {join_where}"
-    ))?;
+    let mut stmt = conn.prepare(&format!("{select_clause} {ENTRY_FROM_JOIN} {join_where}"))?;
     let rows = stmt.query_map(param_refs.as_slice(), entry_row_to_json)?;
     let mut results = Vec::new();
     for row in rows {
@@ -296,10 +295,9 @@ pub fn query_entries(
     let (join_where, params) = build_entry_query(stream_id, &clause_extra);
     let extra_params: Vec<Box<dyn rusqlite::types::ToSql>> =
         vec![Box::new(limit as i64), Box::new(offset as i64)];
-    let select = "SELECT e.id, e.entry_id, e.title, e.url, e.author, e.summary, e.published_at, e.updated_at, COALESCE(s.is_read, 0) as is_read, COALESCE(s.is_starred, 0) as is_starred";
     query_entry_rows(
         conn,
-        select,
+        ENTRY_COLS,
         (
             format!("{join_where} ORDER BY e.published_at DESC LIMIT ? OFFSET ?"),
             params,
@@ -319,9 +317,7 @@ pub fn count_entries(
         ""
     };
     let (join_where, params) = build_entry_query(stream_id, aux);
-    let sql = format!(
-        "SELECT COUNT(*) FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id {join_where}"
-    );
+    let sql = format!("SELECT COUNT(*) {ENTRY_FROM_JOIN} {join_where}");
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
     Ok(conn.query_row(&sql, param_refs.as_slice(), |row| row.get::<_, i64>(0))? as usize)
 }
@@ -330,9 +326,7 @@ pub fn count_entries(
 
 pub fn mark_stream_read(conn: &Connection, stream_id: &str) -> Result<usize, anyhow::Error> {
     let (join_where, params) = build_entry_query(stream_id, "(s.is_read = 0 OR s.is_read IS NULL)");
-    let find_sql = format!(
-        "SELECT e.id FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id {join_where}"
-    );
+    let find_sql = format!("SELECT e.id {ENTRY_FROM_JOIN} {join_where}");
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
     let mut stmt = conn.prepare(&find_sql)?;
     let entry_ids: Vec<i64> = stmt
@@ -429,14 +423,9 @@ pub fn search_entries(
     query: &str,
     limit: usize,
 ) -> Result<Vec<serde_json::Value>, anyhow::Error> {
-    let sql = "SELECT e.id, e.entry_id, e.title, e.url, e.author, e.summary, e.published_at,
-                COALESCE(s.is_read, 0) as is_read, COALESCE(s.is_starred, 0) as is_starred
-         FROM entries e
-         JOIN entries_fts fts ON e.id = fts.rowid
-         LEFT JOIN entry_states s ON e.id = s.entry_id
-         WHERE entries_fts MATCH ?1
-         ORDER BY rank
-         LIMIT ?2";
+    let sql = format!(
+        "SELECT {ENTRY_COLS} FROM entries e JOIN entries_fts fts ON e.id = fts.rowid LEFT JOIN entry_states s ON e.id = s.entry_id WHERE entries_fts MATCH ?1 ORDER BY rank LIMIT ?2"
+    );
     let mut stmt = conn.prepare(sql)?;
     let rows = stmt.query_map(rusqlite::params![query, limit as i64], entry_row_to_json)?;
     let mut results = Vec::new();
@@ -451,14 +440,9 @@ pub fn list_subscriptions(
     folder: Option<&str>,
 ) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let sql = if folder.is_some() {
-        "SELECT s.stream_id, s.title, s.label, s.folder, s.added_at, f.url, f.title as feed_title
-         FROM subscriptions s JOIN feeds f ON s.feed_id = f.id
-         WHERE s.folder = ?1
-         ORDER BY s.added_at"
+        format!("{SUB_QUERY} WHERE s.folder = ?1 ORDER BY s.added_at")
     } else {
-        "SELECT s.stream_id, s.title, s.label, s.folder, s.added_at, f.url, f.title as feed_title
-         FROM subscriptions s JOIN feeds f ON s.feed_id = f.id
-         ORDER BY s.added_at"
+        format!("{SUB_QUERY} ORDER BY s.added_at")
     };
 
     let map_row = |row: &rusqlite::Row| -> Result<serde_json::Value, rusqlite::Error> {

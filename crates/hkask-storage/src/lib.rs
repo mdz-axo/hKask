@@ -34,6 +34,7 @@ pub use hkask_types::TripleID;
 pub use nu_event_store::{DecayConfig, NuEventError, NuEventStore, WeightedEvent};
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
+pub use spec_store::SqliteCurationRecordStore;
 pub use spec_store::SqliteSpecStore;
 pub use spec_types::{
     CompletenessDomain, Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory,

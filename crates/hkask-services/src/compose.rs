@@ -1,36 +1,4 @@
-//! Style composition service — exemplar retrieval, prose generation, centroid validation.
-//!
-//! `ComposeService` encapsulates the Hemingway style synthesizer pipeline:
-//!   1. Open per-agent DB + construct semantic memory infrastructure
-//!   2. Embed the user's prompt via Okapi
-//!   3. KNN search for exemplar passages in the style corpus
-//!   4. Filter by prefix, centroid exclusion, rule exclusion, distance threshold
-//!   5. Retrieve passage text from semantic triples
-//!   6. Compose system prompt with exemplars + centroid validation note
-//!   7. Generate prose via inference
-//!   8. Validate centroid distance (optional)
-//!
-//! # Depth test
-//!
-//! Deleting this module would cause ~200 lines of pipeline construction
-//! (DB open → TripleStore → EmbeddingStore → SemanticMemory → OkapiEmbedding
-//! → KNN search → filter → deduped retrieval → prompt composition → inference
-//! → centroid validation) to reappear in any caller. Passes deletion test.
-//!
-//! # Design decisions
-//!
-//! - **Constraint: Guideline** — DB path + passphrase are caller-provided,
-//!   not from ServiceContext. Compose uses user-provided DB credentials,
-//!   similar to ConsolidationService.
-//! - **Constraint: Guideline** — CognitionConfig lives in the service layer
-//!   because it's domain configuration for the compose operation, not
-//!   surface-specific CLI arg parsing. Future API routes would use the
-//!   same type.
-//! - **Constraint: Guideline** — InferenceContext is caller-provided.
-//!   The compose command constructs its own InferenceContext because it
-//!   uses user-provided DB credentials (not ServiceContext).
-//! - **CLI-only** — no API route for compose currently exists. The service
-//!   is designed to serve both surfaces when one is added.
+//! Style composition — exemplar retrieval, prose generation, centroid validation.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -369,4 +337,3 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f64 {
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
-

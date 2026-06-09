@@ -1,11 +1,4 @@
 //! ArchivalService — GitHub REST API integration for registry archival.
-//!
-//! Encapsulates the GitHub Contents API and Commits API interactions
-//! for archiving and restoring registry data. Handles credential
-//! resolution, base64 encoding/decoding, conditional SHA handling,
-//! and registry serialization.
-//!
-//! ℏKask - A Minimal Viable Container for Agents
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use hkask_mcp::server::{api_get, api_put, resolve_credential};
@@ -267,4 +260,3 @@ fn read_local_registry(store: &AgentRegistryStore) -> Result<String, ServiceErro
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────
-

@@ -239,7 +239,7 @@ impl InferencePort for Arc<dyn InferencePort> {
 }
 
 /// Unified registry entry covering all template types with cascade metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistryEntry {
     pub id: String,
     pub template_type: TemplateType,
