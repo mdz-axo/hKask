@@ -511,7 +511,7 @@ impl DocKnowledgeServer {
     }
 
     #[tool(
-        description = "Generate QA prompt from text chunk (returns structured prompt for LLM; actual LLM call routed through hkask-mcp-inference)"
+        description = "Generate QA prompt from text chunk (returns structured prompt for LLM; actual LLM call routed through inference engine)"
     )]
     async fn doc_knowledge_generate_qa(
         &self,
@@ -555,7 +555,7 @@ impl DocKnowledgeServer {
 
         span.ok_json(json!({
             "prompt": prompt, "chunk_id": chunk_id, "strategy": strat, "bloom_levels": levels,
-            "note": "Route this prompt through hkask-mcp-inference for LLM completion",
+            "note": "Route this prompt through the inference engine for LLM completion",
         }))
     }
 

@@ -235,3 +235,9 @@ impl LoopSystem {
         self.loops.read().await.keys().copied().collect()
     }
 }
+
+impl Default for LoopSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}

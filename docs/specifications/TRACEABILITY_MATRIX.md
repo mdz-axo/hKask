@@ -41,7 +41,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-IFC-001 | MCP ≡ CLI ≡ API equivalence | `hkask-cli`, `hkask-api`, `hkask-mcp` | `main`, `lib`, `runtime` | `Commands`, `create_router`, `McpRuntime` | — | ✅ Implemented |
-| REQ-IFC-001a (P0-05) | Goal subsystem exposed on all three surfaces (parity exemplar) | `hkask-cli`, `hkask-api`, `hkask-mcp-goal` | `commands/goal`, `routes/goal`, `main` | `kask goal`, `goal_router`, `GoalServer` (`goal_create`/`goal_list`/`goal_set_state`) | `hkask-mcp-goal` tests (create/list round-trip, illegal transition, invalid visibility) | ✅ Implemented |
+| REQ-IFC-001a (P0-05) | Goal subsystem exposed on all three surfaces (parity exemplar) | `hkask-cli`, `hkask-api`, `hkask-storage` | `commands/goal`, `routes/goal`, `goals` | `kask goal`, `goal_router`, `SqliteGoalRepository` (`goal_create`/`goal_list`/`goal_set_state`) | `goals::tests` (create/list round-trip, illegal transition, invalid visibility) | ✅ Implemented |
 | REQ-IFC-002 | OpenAPI documentation | `hkask-api` | `openapi` | `ApiDoc` | — | ✅ Implemented |
 
 ## Composition
@@ -66,7 +66,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-OBS-001 | CNS span emission | `hkask-types`, `hkask-cns` | `event`, `runtime` | `Span`, `CnsRuntime` | — | ✅ Implemented |
 | REQ-OBS-002 | Algedonic alerting | `hkask-cns`, `hkask-types` | `algedonic`, `cns` | `AlgedonicManager`, `AlgedonicAlert` | — | ✅ Implemented |
-| REQ-OBS-003 (ADR-029, P0-03) | Goal operations use WebID-based owner scoping — access is determined by `&WebID` identity rather than capability tokens; no capability denials to observe (ADR-029 archived) | `hkask-types`, `hkask-storage`, `hkask-api`, `hkask-mcp-goal` | `goal`, `goals`, `routes/goal`, `main` | `WebID`, `SqliteGoalRepository`, `ApiState.goal_repo`, `GoalServer` | `goals::tests` (owner-scoped access), `hkask-mcp-goal` tests | ✅ Implemented |
+| REQ-OBS-003 (ADR-029, P0-03) | Goal operations use WebID-based owner scoping — access is determined by `&WebID` identity rather than capability tokens; no capability denials to observe (ADR-029 archived) | `hkask-types`, `hkask-storage`, `hkask-api` | `goal`, `goals`, `routes/goal` | `WebID`, `SqliteGoalRepository`, `ApiState.goal_repo` | `goals::tests` (owner-scoped access) | ✅ Implemented |
 
 ## Persistence
 

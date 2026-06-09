@@ -26,7 +26,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
-| DIAG-DC-007 | Standing Session Chat Lifecycle | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-replicant/src/tools.rs` | ✅ VERIFIED |
+| DIAG-DC-007 | Standing Session Chat Lifecycle | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-web/src/main.rs` | ✅ VERIFIED |
 | DIAG-DC-008 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams
@@ -91,7 +91,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Template Manifest Validation Flow (ContractValidator) | Composition | `hkask-templates` | P2 |
 | MVSDD Cycle (Specify → Grant → Compose → Curate → Reflect) | Curation | `hkask-templates`, `hkask-agents` | P2 |
 
-> **Note (2026-06-03):** `hkask-mcp-episodic` and `hkask-mcp-semantic` are newly added MCP servers (split from the monolithic `hkask-mcp` runtime). Their interaction patterns with the memory subsystem are not yet diagrammed and should be considered candidates for v1.1+ coverage.
+> **Note (2026-06-09):** `hkask-mcp-memory` consolidates episodic and semantic memory operations (formerly separate MCP servers). Its interaction patterns with the memory subsystem are not yet diagrammed and should be considered candidates for v1.1+ coverage.
 
 ---
 

@@ -27,14 +27,12 @@
 
 pub mod channels;
 pub mod curation;
-pub mod dispatch;
 pub mod episodic;
 
 pub use channels::{
     CurationInput, GoalTransitionEvent, RuntimeAlert, SpecEvent, ToolConsumptionEvent,
 };
 pub use curation::{CuratorDirective, CuratorHandle};
-pub use dispatch::{LoopMessage, LoopPayload, MessagePriority, TraceId};
 pub use episodic::ExperienceClassification;
 
 pub use self::Loop as HkaskLoop;

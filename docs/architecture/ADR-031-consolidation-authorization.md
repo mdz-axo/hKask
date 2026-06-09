@@ -31,7 +31,7 @@ One MCP server provides memory operations but **cannot perform consolidation**:
 
 4. **MCP Memory** (`hkask-mcp-memory`) — combined episodic store/recall + semantic store/recall/embed/search; read-only consolidation status
 
-The CLI, API, and Chat need explicit user authorization since they are directly user-facing. MCP servers are OCAP-gated and do not expose consolidation because they lack both stores.
+The CLI, API, and Chat need explicit user authorization since they are directly user-facing. The MCP memory server is OCAP-gated and, while it has access to both stores, does not expose consolidation by policy — the tool is restricted to surfaces that can verify user identity.
 
 Before this decision, consolidation had no authorization at all — any code path could trigger it without verification.
 

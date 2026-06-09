@@ -199,7 +199,7 @@ All sub-questions are **moot**:
    `CapabilityToken` attenuation, but the goal-specific recursion question is
    moot.
 
-**See:** `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `mcp-servers/hkask-mcp-goal/src/main.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025. ~~ADR-029 is archived (superseded — `GoalCapabilityToken` type no longer exists).~~
+**See:** `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025. ~~ADR-029 is archived (superseded — `GoalCapabilityToken` type no longer exists).~~
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 
@@ -251,7 +251,7 @@ Loop inboxes and variety counters are in-memory. On crash, all pending directive
 **Status:** Resolved — intentional gap  
 **Resolution Date:** 2026-06-03
 
-Semantic Memory (Loop 2b) has no direct MCP server. Queries go through `hkask-mcp-cns` or `hkask-mcp-registry`. This is intentional — semantic queries are lower-level than what MCP tools expose. The CNS and Registry servers provide higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
+Semantic Memory (Loop 2b) has no direct MCP server — queries go through `hkask-mcp-cns`, `hkask-mcp-memory`, or `hkask-mcp-registry`. This is intentional — semantic queries are lower-level than what MCP tools expose. The CNS, Memory, and Registry servers provide higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
 
 ### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
 

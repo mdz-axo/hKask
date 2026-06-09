@@ -7,7 +7,7 @@
 //!
 //! OCR requires `HKASK_OCR_MODEL` to be set to a vision-capable model name
 //! that exists in the Okapi model catalog (e.g., a model with vision support).
-//! Use `inference_models` from hkask-mcp-inference to discover available models.
+//! Use `InferenceService::list_models()` to discover available models.
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;

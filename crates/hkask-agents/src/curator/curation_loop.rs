@@ -19,7 +19,6 @@ use crate::curator::curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
-use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{
     Deviation, GoalTransitionEvent, HkaskLoop, LoopAction, LoopId, RuntimeAlert, Signal,
     SignalMetric, SpecEvent,
@@ -51,12 +50,7 @@ pub struct CurationLoop {
     context: Arc<CuratorContext>,
     consolidation: Option<Arc<ConsolidationBridge>>,
     /// Cursor for incremental algedonic review.
-    /// Stores the Unix timestamp (milliseconds) of the last reviewed event.
-    /// Curation reads from the persistent NuEvent log, not live CNS state.
     last_review_ms: AtomicU64,
-    /// Inbox for receiving inter-loop messages (GoalTransition, SpecDriftAlert, etc.).
-    /// Messages are drained during the sense phase.
-    inbox: Option<Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>>,
     /// Curation confidence gate for metacognitive evaluation.
     ///
     /// When present, `act()` calls `gate.decide()` during the regulation cycle
@@ -64,17 +58,11 @@ pub struct CurationLoop {
     /// interior mutability: `HkaskLoop::act(&self)` takes `&self`, but
     /// `CurationConfidenceGate::decide()` requires `&mut self`.
     confidence_gate: Option<Mutex<CurationConfidenceGate>>,
-    /// Direct alerts channel: Cybernetics → Curation (strangler fig).
-    /// When set, RuntimeAlerts are drained during sense() and counted as
-    /// algedonic events alongside the NuEvent store pathway.
+    /// Direct alerts channel: Cybernetics → Curation.
     alerts_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<RuntimeAlert>>>>,
-    /// Direct spec channel: SpecCurator → Curation (strangler fig).
-    /// When set, SpecEvents are drained during sense() alongside the
-    /// legacy LoopMessage inbox.
+    /// Direct spec channel: SpecCurator → Curation.
     spec_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<SpecEvent>>>>,
-    /// Direct goal channel: GoalStore → Curation (strangler fig).
-    /// When set, GoalTransitionEvents are drained during sense() alongside the
-    /// legacy LoopMessage inbox.
+    /// Direct goal channel: GoalStore → Curation.
     goal_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<GoalTransitionEvent>>>>,
 }
 
@@ -91,35 +79,11 @@ impl CurationLoop {
             context,
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
-            inbox: None,
             confidence_gate: None,
             alerts_rx: None,
             spec_rx: None,
             goal_rx: None,
         }
-    }
-
-    /// Create a Curation Loop with an inbox for inter-loop messages.
-    ///
-    /// Returns `(loop_instance, inbox_sender)` where the sender should be
-    /// registered with the Communication Loop for message delivery.
-    pub fn with_inbox(
-        curator_handle: CuratorHandle,
-        context: Arc<CuratorContext>,
-    ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
-        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
-        let loop_instance = Self {
-            curator_handle,
-            context,
-            consolidation: None,
-            last_review_ms: AtomicU64::new(0),
-            inbox: Some(Arc::new(RwLock::new(inbox_rx))),
-            confidence_gate: None,
-            alerts_rx: None,
-            spec_rx: None,
-            goal_rx: None,
-        };
-        (loop_instance, inbox_tx)
     }
 
     pub fn with_consolidation(
@@ -132,7 +96,6 @@ impl CurationLoop {
             context,
             consolidation: Some(consolidation),
             last_review_ms: AtomicU64::new(0),
-            inbox: None,
             confidence_gate: None,
             alerts_rx: None,
             spec_rx: None,
@@ -147,10 +110,7 @@ impl CurationLoop {
     }
 
     /// Wire the direct alerts channel for Cybernetics → Curation RuntimeAlert delivery.
-    ///
-    /// When set, `sense()` drains RuntimeAlerts from this channel alongside the
-    /// legacy LoopMessage inbox. This is the strangler fig pattern — both pathways
-    /// operate until the legacy dispatch is fully removed.
+    /// Wire the direct alerts channel: Cybernetics → Curation.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_alerts_channel(mut self, rx: mpsc::UnboundedReceiver<RuntimeAlert>) -> Self {
         self.alerts_rx = Some(Arc::new(RwLock::new(rx)));
@@ -158,9 +118,7 @@ impl CurationLoop {
     }
 
     /// Wire the direct spec channel: SpecCurator → Curation.
-    ///
-    /// When set, `sense()` drains SpecEvents from this channel alongside the
-    /// legacy LoopMessage inbox.
+    /// Wire the direct spec channel: SpecCurator → Curation.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_spec_channel(mut self, rx: mpsc::UnboundedReceiver<SpecEvent>) -> Self {
         self.spec_rx = Some(Arc::new(RwLock::new(rx)));
@@ -302,46 +260,12 @@ impl HkaskLoop for CurationLoop {
             .map(|port| port.consolidation_candidate_count(self.context.handle().curator_id()))
             .unwrap_or(0);
 
-        // Drain inbox for GoalTransition and SpecDriftAlert messages.
+        // Drain direct channels for GoalTransition, SpecDriftAlert, and RuntimeAlert messages.
         let mut goal_stale_count: u64 = 0;
         let mut goal_expired_count: u64 = 0;
         let mut spec_drift_alert_count: u64 = 0;
-        if let Some(inbox) = &self.inbox {
-            let mut rx = inbox.write().await;
-            while let Ok(msg) = rx.try_recv() {
-                match &msg.payload {
-                    LoopPayload::GoalTransition {
-                        goal_id, to_state, ..
-                    } => match to_state.as_str() {
-                        "stale" => {
-                            goal_stale_count += 1;
-                            tracing::debug!(target: CUR_TARGET, goal_id = %goal_id, to_state = %to_state, "Goal stale transition received");
-                        }
-                        "expired" => {
-                            goal_expired_count += 1;
-                            tracing::debug!(target: CUR_TARGET, goal_id = %goal_id, to_state = %to_state, "Goal expired transition received");
-                        }
-                        _ => {
-                            tracing::trace!(target: CUR_TARGET, goal_id = %goal_id, to_state = %to_state, "Goal transition received (non-stale)")
-                        }
-                    },
-                    LoopPayload::SpecDriftAlert {
-                        spec_id,
-                        drift_magnitude,
-                        ..
-                    } => {
-                        spec_drift_alert_count += 1;
-                        tracing::warn!(target: CUR_TARGET, spec_id = %spec_id, drift_magnitude = drift_magnitude, "Spec drift alert received from DefaultSpecCurator");
-                    }
-                    _ => {
-                        tracing::trace!(target: CUR_TARGET, payload_type = ?msg.payload, "Ignoring non-curation payload in CurationLoop inbox")
-                    }
-                }
-            }
-        }
 
-        // Strangler fig: drain direct alerts channel (Cybernetics → Curation RuntimeAlerts).
-        // RuntimeAlerts supplement the NuEvent store algedonic count with real-time signals.
+        // Drain direct alerts channel (Cybernetics → Curation RuntimeAlerts).
         let mut direct_alerts: u64 = 0;
         if let Some(alerts_rx) = &self.alerts_rx {
             let mut rx = alerts_rx.write().await;
@@ -356,7 +280,7 @@ impl HkaskLoop for CurationLoop {
             }
         }
 
-        // Strangler fig: drain direct spec channel (SpecCurator → Curation).
+        // Drain direct spec channel (SpecCurator → Curation).
         if let Some(spec_rx) = &self.spec_rx {
             let mut rx = spec_rx.write().await;
             while let Ok(event) = rx.try_recv() {
@@ -370,7 +294,7 @@ impl HkaskLoop for CurationLoop {
             }
         }
 
-        // Strangler fig: drain direct goal channel (GoalStore → Curation).
+        // Drain direct goal channel (GoalStore → Curation).
         if let Some(goal_rx) = &self.goal_rx {
             let mut rx = goal_rx.write().await;
             while let Ok(event) = rx.try_recv() {

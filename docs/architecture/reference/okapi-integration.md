@@ -291,7 +291,7 @@ The `hkask-mcp-markitdown` server uses `generate_vision` for OCR fallback:
 
 **Environment variable:** `HKASK_OCR_MODEL` — must be set to a vision-capable model (e.g., `minicpm-v`). If unset, OCR requests return an error with guidance.
 
-**MCP tool:** `inference_generate_vision` in `hkask-mcp-inference` (prompt, images, model, fallback_model, temperature, max_tokens, caller_id)
+**MCP tool:** `inference_generate_vision` (via `InferencePort` trait, internal cognition layer) (prompt, images, model, fallback_model, temperature, max_tokens, caller_id)
 
 ---
 

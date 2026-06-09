@@ -16,21 +16,20 @@ mds_categories: [composition, trust]
 
 ## Context
 
-hKask's 21 MCP servers provide tool capabilities to agents. The capability model documented in `MDS.md §7.1-7.2` §5.5 describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 2 of 21 MCP servers currently implement this membrane via `GovernedTool`:
+hKask's 10 MCP servers provide tool capabilities to agents. The capability model documented in `MDS.md §7.1-7.2` §5.5 describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 1 of 10 MCP servers currently implements this membrane via `GovernedTool`:
 
 | Server | Membrane | Rationale |
 |--------|----------|-----------|
-| `hkask-mcp-keystore` | ✅ `GovernedTool` | Secrets must not leak across agent boundaries |
-| `hkask-mcp-ocap` | ✅ `GovernedTool` | Capability tokens are trust infrastructure |
-| 19 others | ❌ Passthrough | No OCAP check on tool invocation |
+| `hkask-mcp-spec` | ✅ `GovernedTool` | Spec governance (write operations) must not be invoked without authorization |
+| 9 others | ❌ Passthrough | No OCAP check on tool invocation |
 
-This creates an architectural gap: the documented capability membrane is selectively permeable. Agents can invoke 19 servers' tools without presenting any capability token.
+This creates an architectural gap: the documented capability membrane is selectively permeable. Agents can invoke 9 servers' tools without presenting any capability token.
 
 **Problem Statement:** Should the MCP gateway be a membrane for all servers, or a passthrough for servers without side effects?
 
 **Stakeholders:** Agent developers, security reviewers, MCP server implementers
 
-**Constraints:** Headless constraint (§1.6) — no visual UI for capability negotiation; 21-server surface area must remain tractable
+**Constraints:** Headless constraint (§1.6) — no visual UI for capability negotiation; 10-server surface area must remain tractable
 
 ## Decision
 
@@ -40,17 +39,14 @@ This creates an architectural gap: the documented capability membrane is selecti
 
 Servers that manage state, secrets, or trust infrastructure MUST gate all tool calls through `GovernedTool`. Capability tokens are required for every invocation.
 
-- `hkask-mcp-keystore` (secrets)
-- `hkask-mcp-ocap` (trust infrastructure)
-- `hkask-mcp-cns` (homeostatic state — write operations)
 - `hkask-mcp-spec` (spec governance — write operations)
 
 ### Tier 2: Passthrough (OCAP-exempt)
 
 Servers that provide read-only queries or agent-scoped operations with no cross-agent state MAY be exempted from `GovernedTool`. Read-only tools on these servers are documented as "capability-exempt" in their tool descriptions.
 
-- Read operations on spec, CNS (status queries)
-- Agent-scoped memory operations (episodic, semantic)
+- Read operations on spec (status queries)
+- Agent-scoped memory operations (memory)
 - Inference tools (model selection is per-agent, not cross-agent)
 
 ### Implementation
@@ -62,7 +58,7 @@ Servers that provide read-only queries or agent-scoped operations with no cross-
 5. Tier 2 servers MAY use passthrough for read-only, agent-scoped tools.
 
 **Alternatives Considered:**
-1. **All servers membrane** — Rejected: 19 of 21 servers have read-only or agent-scoped tools. Requiring tokens for every read query adds latency and complexity without security benefit (an agent can only read its own memory).
+1. **All servers membrane** — Rejected: 9 of 10 servers have read-only or agent-scoped tools. Requiring tokens for every read query adds latency and complexity without security benefit (an agent can only read its own memory).
 2. **No membrane** — Rejected: Secrets and trust infrastructure must be protected. This was the pre-ADR state and it violates the zero-trust model.
 3. **Per-tool membrane** — Rejected: Too granular. A server-level tier is easier to audit and enforce.
 
@@ -92,7 +88,7 @@ Servers that provide read-only queries or agent-scoped operations with no cross-
 
 | Principle | Compliance | Evidence |
 |-----------|-----------|----------|
-| **P1** (No trait without two consumers) | ✅ | `GovernedTool` consumed by keystore + ocap servers; passthrough consumed by 19 others |
+| **P1** (No trait without two consumers) | ✅ | `GovernedTool` consumed by spec server; passthrough consumed by 9 others |
 | **P2** (No generic without two instantiations) | ✅ | Two tiers, each with multiple instances |
 | **P3** (No module directory without encapsulation) | ✅ | Membrane policy encapsulates capability boundary |
 | **P6** (Delete stubs, don't publish) | ✅ | No stub membrane — each server is either governed or documented-exempt |
@@ -102,8 +98,8 @@ Servers that provide read-only queries or agent-scoped operations with no cross-
 ## Verification
 
 ```bash
-# Verify Tier 1 servers use GovernedTool
-grep -r "GovernedTool" mcp-servers/hkask-mcp-keystore/ mcp-servers/hkask-mcp-ocap/ | wc -l
+# Verify Tier 1 server uses GovernedTool
+grep -r "GovernedTool" mcp-servers/hkask-mcp-spec/ | wc -l
 
 # Verify all servers declare membrane tier in metadata
 grep -r '"membrane"' mcp-servers/*/src/ | wc -l
@@ -113,8 +109,8 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 ```
 
 **Expected Results:**
-- Tier 1 servers use `GovernedTool` for all tool registrations
-- All 21 servers declare membrane tier
+- Tier 1 server uses `GovernedTool` for all tool registrations
+- All 10 servers declare membrane tier
 - No stub implementations
 
 ## Related Documents
