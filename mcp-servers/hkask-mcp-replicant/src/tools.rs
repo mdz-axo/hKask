@@ -217,13 +217,17 @@ impl ReplicantServer {
         }
     }
 
-    /// Format an internal error response with the persona name.
-    /// Consumes the span guard (every call site immediately returns this value).
-    fn internal_error(&self, span: ToolSpanGuard, message: String) -> String {
-        span.internal_error(serde_json::json!({
-            "error": message,
-            "persona": self.persona,
-        }))
+    /// Format an internal error with persona. Consumes the span guard.
+    fn internal_error(&self, span: ToolSpanGuard, msg: String) -> String {
+        span.internal_error(serde_json::json!({"error": msg, "persona": self.persona}))
+    }
+
+    /// Build persona YAML from template.
+    fn persona_yaml(&self) -> String {
+        let p = &self.persona;
+        format!(
+            "agent:\n  type: Replicant\n  version: \"0.1.0\"\ncharter:\n  description: \"Chat session with {p} via MCP\"\n  editor: mcp-server\ncapabilities:\n  - \"tool:inference:call\"\nrights: []\nresponsibilities: []\nvisibility:\n  default: public\n  episodic_override: private\n"
+        )
     }
 }
 
@@ -285,27 +289,7 @@ impl ReplicantServer {
         drop(session); // Release read lock before write lock below
 
         // Follow-up #2: Use rich system prompt from agent definition when available.
-        let persona_yaml = format!(
-            r#"
-agent:
-  name: {}
-  type: Replicant
-  version: "0.1.0"
-charter:
-  description: "Chat session with {} via MCP"
-  editor: mcp-server
-capabilities:
-  - "tool:inference:call"
-rights: []
-responsibilities: []
-visibility:
-  default: public
-  episodic_override: private
-"#,
-            self.persona, self.persona
-        );
-
-        let persona = match AgentPersona::from_yaml(&persona_yaml) {
+        let persona = match AgentPersona::from_yaml(&self.persona_yaml()) {
             Ok(p) => p,
             Err(e) => {
                 return self.internal_error(span, format!("Persona parse error: {}", e));

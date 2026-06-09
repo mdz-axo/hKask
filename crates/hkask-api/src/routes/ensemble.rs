@@ -104,22 +104,7 @@ fn respond(code: StatusCode, success: bool, msg: impl Into<String>) -> impl Into
         .into_response()
 }
 
-/// Look up a chat session, return Ok(chat) or an error response
-async fn with_chat(
-    state: &ApiState,
-    session: &str,
-) -> Result<hkask_ensemble::ChatHandle, impl IntoResponse> {
-    let manager = state.service_context.session_manager.read().await;
-    match manager.get_chat(session).await {
-        Some(c) => Ok(c),
-        None => Err(respond(
-            StatusCode::NOT_FOUND,
-            false,
-            format!("Session '{session}' not found"),
-        )),
-    }
-}
-
+/// Improv turn request
 /// Create chat session
 #[utoipa::path(
     post,

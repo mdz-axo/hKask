@@ -1,4 +1,4 @@
-//! Core types, constants, and re-exports for the hKask MCP Web crate.
+//! Core types for the hKask MCP Web crate.
 
 mod freshness;
 mod ranking;
@@ -10,7 +10,7 @@ use hkask_types::McpErrorKind;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ── Constants ──
 
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BRAVE_API_BASE: &str = "https://api.search.brave.com/res/v1";
@@ -19,6 +19,7 @@ pub const TAVILY_API_BASE: &str = "https://api.tavily.com";
 pub const SERPAPI_BASE: &str = "https://serpapi.com/search";
 pub const EXA_API_BASE: &str = "https://api.exa.ai";
 pub const BROWSERBASE_API_BASE: &str = "https://api.browserbase.com/v1";
+pub const FIRECRAWL_API_VERSION: &str = "v2";
 pub const DEFAULT_CACHE_TTL_SECS: u64 = 300;
 pub const MAX_CACHE_TTL_SECS: u64 = 7200;
 pub const DEFAULT_CACHE_MAX_ENTRIES: usize = 50;
@@ -27,21 +28,14 @@ pub const MAX_CACHE_VALUE_BYTES: usize = 1_048_576;
 pub const RRF_K: u64 = 60;
 pub const RATE_LIMIT_WINDOW_SECS: u64 = 60;
 pub const RATE_LIMIT_MAX_REQUESTS: u32 = 30;
-
-// --- Task 2: Request timeout for all provider calls ---
 pub const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
-
-// --- Task 5: Input validation bounds ---
 pub const MAX_QUERY_LENGTH: usize = 400;
 pub const MAX_URL_LENGTH: usize = 2048;
 pub const MAX_INSTRUCTION_LENGTH: usize = 2000;
 pub const MAX_JSON_PROMPT_LENGTH: usize = 4000;
 pub const MAX_JSON_SCHEMA_BYTES: usize = 32_768;
 
-// --- Task 8: Firecrawl API version ---
-pub const FIRECRAWL_API_VERSION: &str = "v2";
-
-// ── Re-exports from submodules ───────────────────────────────────────────────
+// ── Re-exports ──
 
 pub use freshness::{Freshness, freshness_brave, freshness_serpapi, normalize_freshness};
 pub use hkask_memory::ranking::parse_age_to_days;
@@ -52,7 +46,7 @@ pub use validation::{
     validate_extract_request, validate_search_request,
 };
 
-// ── Request types ────────────────────────────────────────────────────────────
+// ── Request types ──
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SearchRequest {
@@ -87,7 +81,7 @@ pub struct BrowseRequest {
     pub timeout_secs: Option<u64>,
 }
 
-// ── Result types ─────────────────────────────────────────────────────────────
+// ── Result types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -123,12 +117,9 @@ pub struct SearchQuery {
     pub include_domains: Vec<String>,
     pub exclude_domains: Vec<String>,
     pub freshness: Option<Freshness>,
-    /// Search depth hint for providers that support it (e.g., Tavily "basic"/"advanced").
-    /// Set by `ProviderPool` based on `SearchStrategy` before calling individual providers.
     pub depth: SearchDepth,
 }
 
-/// Search depth hint derived from `SearchStrategy`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SearchDepth {
@@ -145,7 +136,7 @@ pub struct ExtractOptions {
     pub wait_for_ms: u64,
 }
 
-// ── Error type ───────────────────────────────────────────────────────────────
+// ── Error type ──
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebError {
@@ -155,8 +146,6 @@ pub enum WebError {
     ProviderUnavailable(String),
     #[error("Provider error: {0}")]
     ProviderError(String),
-    /// External API boundary rate limit (HTTP 429 from upstream providers).
-    /// Distinct from internal energy budget tracking.
     #[error("Rate limited: {0}")]
     RateLimited(String),
     #[error("No provider available")]
@@ -166,11 +155,11 @@ pub enum WebError {
 impl WebError {
     pub fn kind(&self) -> McpErrorKind {
         match self {
-            WebError::BadArgs(_) => McpErrorKind::InvalidArgument,
-            WebError::ProviderUnavailable(_) => McpErrorKind::Unavailable,
-            WebError::ProviderError(_) => McpErrorKind::Internal,
-            WebError::RateLimited(_) => McpErrorKind::RateLimited,
-            WebError::NoProvider => McpErrorKind::Unavailable,
+            Self::BadArgs(_) => McpErrorKind::InvalidArgument,
+            Self::ProviderUnavailable(_) => McpErrorKind::Unavailable,
+            Self::ProviderError(_) => McpErrorKind::Internal,
+            Self::RateLimited(_) => McpErrorKind::RateLimited,
+            Self::NoProvider => McpErrorKind::Unavailable,
         }
     }
 }
@@ -181,7 +170,7 @@ impl From<WebError> for McpToolError {
     }
 }
 
-// ── Capability / provider types ──────────────────────────────────────────────
+// ── Capability / provider types ──
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SearchCapability {
@@ -241,7 +230,7 @@ pub struct CompoundSearchResult {
     pub duplicates_removed: usize,
 }
 
-// ── Strategy & filter types ─────────────────────────────────────────────────
+// ── Strategy & filter types ──
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -255,10 +244,10 @@ pub enum SearchStrategy {
 impl SearchStrategy {
     pub fn provider_filter(&self) -> ProviderFilter {
         match self {
-            SearchStrategy::Quick => ProviderFilter::Capabilities(vec![SearchCapability::Keyword]),
-            SearchStrategy::Web => ProviderFilter::All,
-            SearchStrategy::News => ProviderFilter::Capabilities(vec![SearchCapability::News]),
-            SearchStrategy::Deep => ProviderFilter::All,
+            Self::Quick => ProviderFilter::Capabilities(vec![SearchCapability::Keyword]),
+            Self::Web => ProviderFilter::All,
+            Self::News => ProviderFilter::Capabilities(vec![SearchCapability::News]),
+            Self::Deep => ProviderFilter::All,
         }
     }
 }
@@ -272,21 +261,22 @@ pub enum ProviderFilter {
 impl ProviderFilter {
     pub fn matches(&self, provider_kind: &str) -> bool {
         match self {
-            ProviderFilter::All => true,
-            ProviderFilter::Capabilities(_caps) => true, // capabilities filtering is done separately
-            ProviderFilter::Kinds(kinds) => kinds.contains(&provider_kind),
+            Self::All => true,
+            Self::Capabilities(_) => true,
+            Self::Kinds(kinds) => kinds.contains(&provider_kind),
         }
     }
 }
 
 impl std::fmt::Display for SearchStrategy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SearchStrategy::Quick => write!(f, "quick"),
-            SearchStrategy::Web => write!(f, "web"),
-            SearchStrategy::News => write!(f, "news"),
-            SearchStrategy::Deep => write!(f, "deep"),
-        }
+        let s = match self {
+            Self::Quick => "quick",
+            Self::Web => "web",
+            Self::News => "news",
+            Self::Deep => "deep",
+        };
+        write!(f, "{s}")
     }
 }
 
@@ -294,10 +284,10 @@ impl std::str::FromStr for SearchStrategy {
     type Err = WebError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "quick" => Ok(SearchStrategy::Quick),
-            "web" | "semantic" => Ok(SearchStrategy::Web),
-            "news" => Ok(SearchStrategy::News),
-            "deep" | "research" => Ok(SearchStrategy::Deep),
+            "quick" => Ok(Self::Quick),
+            "web" | "semantic" => Ok(Self::Web),
+            "news" => Ok(Self::News),
+            "deep" | "research" => Ok(Self::Deep),
             _ => Err(WebError::BadArgs(format!(
                 "Unknown strategy: {s}. Use: quick, web, news, deep"
             ))),
@@ -312,7 +302,7 @@ pub enum RerankSignal {
     ContentQuality,
 }
 
-// ── Output types ─────────────────────────────────────────────────────────────
+// ── Output types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResultOutput {
@@ -408,7 +398,7 @@ pub struct BrowseOutput {
     pub actions_taken: Vec<String>,
 }
 
-// ── Health / ping types ──────────────────────────────────────────────────────
+// ── Health / ping types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderHealthEntry {
@@ -425,16 +415,9 @@ pub struct PingOutput {
     pub providers: Vec<ProviderHealthEntry>,
 }
 
-// ── Capability context ───────────────────────────────────────────────────────
+// ── Capability context ──
 
-/// Capability context for OCAP-style enforcement at the port boundary.
-///
-/// When `Some(ctx)` is provided, each `WebSearchPort` method checks
-/// `ctx.allows(tool_name)` before proceeding. When `None`, all
-/// capabilities are allowed (current default behavior).
-///
-/// When `hkask-keystore` and `hkask-agents` ACP are ready, the MCP server
-/// will extract capabilities from the session and pass them through.
+/// OCAP enforcement context. `None` = allow all.
 #[derive(Debug, Clone, Default)]
 pub struct CapabilityContext {
     pub requester_id: Option<String>,
@@ -442,14 +425,8 @@ pub struct CapabilityContext {
 }
 
 impl CapabilityContext {
-    /// Check whether the given tool name is in the capability set.
-    ///
-    /// If `capabilities` is empty, allows all (open policy).
-    /// Otherwise, requires an explicit match.
+    /// If `capabilities` is empty, allows all. Otherwise requires explicit match.
     pub fn allows(&self, tool: &str) -> bool {
-        if self.capabilities.is_empty() {
-            return true;
-        }
-        self.capabilities.iter().any(|c| c == tool)
+        self.capabilities.is_empty() || self.capabilities.iter().any(|c| c == tool)
     }
 }

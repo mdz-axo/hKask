@@ -327,63 +327,48 @@ impl AlgorithmRegistry {
     }
 }
 
-/// Classify a tool name into a `ContextCategory` based on keyword matching.
-///
-/// Phase 1 splits on `_` and `-` and matches exact tokens against known prefixes.
-/// Phase 2 falls back to substring matching for compound names without separators.
+/// Keyword→category mapping — single source of truth for both exact-token (Phase 1)
+/// and substring (Phase 2) matching in [`classify_tool`].
+const KEYWORD_CATEGORIES: &[(&[&str], ContextCategory)] = &[
+    (
+        &[
+            "git", "docker", "cargo", "npm", "shell", "bash", "exec", "run",
+        ],
+        ContextCategory::ShellCommand,
+    ),
+    (&["test", "pytest", "spec"], ContextCategory::TestOutput),
+    (&["build", "compile", "make"], ContextCategory::BuildOutput),
+    (
+        &["chat", "conversation", "message"],
+        ContextCategory::ConversationHistory,
+    ),
+    (&["log", "journal", "trace"], ContextCategory::LogOutput),
+    (&["json", "api", "query"], ContextCategory::StructuredData),
+    (&["file", "read", "cat"], ContextCategory::FileContents),
+];
+
+/// Classify a tool name into a `ContextCategory`.
+/// Phase 1: exact token match on `_`/`-`-split parts. Phase 2: substring fallback.
 pub fn classify_tool(tool_name: &str) -> ContextCategory {
     let lower = tool_name.to_lowercase();
     let parts: Vec<&str> = lower.split('_').chain(lower.split('-')).collect();
 
-    // Phase 1: known tool name prefixes — exact, no false positives
+    // Phase 1: exact token match — no false positives
     for part in &parts {
-        match *part {
-            "git" | "docker" | "cargo" | "npm" | "shell" | "bash" | "exec" | "run" => {
-                return ContextCategory::ShellCommand;
+        for (keywords, cat) in KEYWORD_CATEGORIES {
+            if keywords.contains(part) {
+                return *cat;
             }
-            "test" | "pytest" | "spec" => return ContextCategory::TestOutput,
-            "build" | "compile" | "make" => return ContextCategory::BuildOutput,
-            "chat" | "conversation" | "message" => return ContextCategory::ConversationHistory,
-            "log" | "journal" | "trace" => return ContextCategory::LogOutput,
-            "json" | "api" | "query" => return ContextCategory::StructuredData,
-            "file" | "read" | "cat" => return ContextCategory::FileContents,
-            _ => {}
         }
     }
 
-    // Phase 2: substring heuristic for compound/unknown tool names
-    //
-    // Tradeoff: substring matching produces false positives. E.g. "logistics"
-    // contains "log" → LogOutput, "catalog" contains "cat" → FileContents.
-    // This is acceptable because Phase 2 only fires when Phase 1 (exact token
-    // matching) fails, so the tool name is already non-standard. The alternative
-    // (word-boundary matching) would miss compound names like "gitlog" that
-    // lack separators. If false positives become a problem, add word-boundary
-    // checks (\b) for the shortest keywords (log, cat, run, api).
-    if lower.contains("git")
-        || lower.contains("docker")
-        || lower.contains("cargo")
-        || lower.contains("npm")
-        || lower.contains("shell")
-        || lower.contains("exec")
-        || lower.contains("run")
-        || lower.contains("bash")
-    {
-        ContextCategory::ShellCommand
-    } else if lower.contains("test") || lower.contains("pytest") || lower.contains("spec") {
-        ContextCategory::TestOutput
-    } else if lower.contains("build") || lower.contains("compile") || lower.contains("make") {
-        ContextCategory::BuildOutput
-    } else if lower.contains("chat") || lower.contains("conversation") || lower.contains("message")
-    {
-        ContextCategory::ConversationHistory
-    } else if lower.contains("log") || lower.contains("journal") || lower.contains("trace") {
-        ContextCategory::LogOutput
-    } else if lower.contains("json") || lower.contains("api") || lower.contains("query") {
-        ContextCategory::StructuredData
-    } else if lower.contains("file") || lower.contains("read") || lower.contains("cat") {
-        ContextCategory::FileContents
-    } else {
-        ContextCategory::Unknown
+    // Phase 2: substring heuristic for compound names without separators.
+    // False positives possible ("logistics"→LogOutput) but Phase 2 only fires
+    // after Phase 1 fails, so the tool name is already non-standard.
+    for (keywords, cat) in KEYWORD_CATEGORIES {
+        if keywords.iter().any(|kw| lower.contains(kw)) {
+            return *cat;
+        }
     }
+    ContextCategory::Unknown
 }

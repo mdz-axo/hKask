@@ -234,39 +234,35 @@ pub fn build_entry_query(
 }
 
 fn entry_row_to_json(row: &rusqlite::Row) -> rusqlite::Result<serde_json::Value> {
-    let is_read: i64 = row.get("is_read")?;
-    let is_starred: i64 = row.get("is_starred")?;
-    let opt = |name: &str| -> rusqlite::Result<String> {
-        row.get::<_, Option<String>>(name)
+    let str_col = |n: &str| -> rusqlite::Result<String> {
+        row.get::<_, Option<String>>(n)
             .map(|v| v.unwrap_or_default())
     };
     Ok(serde_json::json!({
         "id": row.get::<_, i64>("id")?,
         "entry_id": row.get::<_, String>("entry_id")?,
-        "title": opt("title")?,
-        "url": opt("url")?,
-        "author": opt("author")?,
-        "summary": opt("summary")?,
-        "published_at": opt("published_at")?,
-        "is_read": is_read == 1,
-        "is_starred": is_starred == 1,
+        "title": str_col("title")?,
+        "url": str_col("url")?,
+        "author": str_col("author")?,
+        "summary": str_col("summary")?,
+        "published_at": str_col("published_at")?,
+        "is_read": row.get::<_, i64>("is_read")? == 1,
+        "is_starred": row.get::<_, i64>("is_starred")? == 1,
     }))
 }
 
-fn query_entry_rows(
+fn query_and_collect<T, P, F>(
     conn: &Connection,
-    select_clause: &str,
-    (join_where, mut params): (String, Vec<Box<dyn rusqlite::types::ToSql>>),
-    extra_params: &[Box<dyn rusqlite::types::ToSql>],
-) -> Result<Vec<serde_json::Value>, anyhow::Error> {
-    params.extend(
-        extra_params
-            .iter()
-            .map(|p| Box::new(p.as_ref()) as Box<dyn rusqlite::types::ToSql>),
-    );
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
-    let mut stmt = conn.prepare(&format!("{select_clause} {ENTRY_FROM_JOIN} {join_where}"))?;
-    let rows = stmt.query_map(param_refs.as_slice(), entry_row_to_json)?;
+    sql: &str,
+    params: P,
+    mapper: F,
+) -> Result<Vec<T>, anyhow::Error>
+where
+    P: rusqlite::Params,
+    F: Fn(&rusqlite::Row) -> rusqlite::Result<T>,
+{
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(params, mapper)?;
     let mut results = Vec::new();
     for row in rows {
         results.push(row?);
@@ -291,19 +287,14 @@ pub fn query_entries(
     if starred_only {
         extra.push("s.is_starred = 1");
     }
-    let clause_extra = extra.join(" AND ");
-    let (join_where, params) = build_entry_query(stream_id, &clause_extra);
-    let extra_params: Vec<Box<dyn rusqlite::types::ToSql>> =
-        vec![Box::new(limit as i64), Box::new(offset as i64)];
-    query_entry_rows(
-        conn,
-        ENTRY_COLS,
-        (
-            format!("{join_where} ORDER BY e.published_at DESC LIMIT ? OFFSET ?"),
-            params,
-        ),
-        &extra_params,
-    )
+    let (join_where, mut params) = build_entry_query(stream_id, &extra.join(" AND "));
+    let sql = format!(
+        "SELECT {ENTRY_COLS} {ENTRY_FROM_JOIN} {join_where} ORDER BY e.published_at DESC LIMIT ? OFFSET ?"
+    );
+    params.push(Box::new(limit as i64));
+    params.push(Box::new(offset as i64));
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    query_and_collect(conn, &sql, param_refs.as_slice(), entry_row_to_json)
 }
 
 pub fn count_entries(
@@ -426,13 +417,12 @@ pub fn search_entries(
     let sql = format!(
         "SELECT {ENTRY_COLS} FROM entries e JOIN entries_fts fts ON e.id = fts.rowid LEFT JOIN entry_states s ON e.id = s.entry_id WHERE entries_fts MATCH ?1 ORDER BY rank LIMIT ?2"
     );
-    let mut stmt = conn.prepare(sql)?;
-    let rows = stmt.query_map(rusqlite::params![query, limit as i64], entry_row_to_json)?;
-    let mut results = Vec::new();
-    for row in rows {
-        results.push(row?);
-    }
-    Ok(results)
+    query_and_collect(
+        conn,
+        &sql,
+        rusqlite::params![query, limit as i64],
+        entry_row_to_json,
+    )
 }
 
 pub fn list_subscriptions(

@@ -316,8 +316,10 @@ async fn main() -> anyhow::Result<()> {
                 None => None,
             };
 
-            // Inference endpoint configuration (INFERENCE_URL preferred, OKAPI_URL for backward compat)
-            let inference_url = ctx.credentials.get("INFERENCE_URL")
+            // Inference endpoint: INFERENCE_URL preferred, OKAPI_URL for backward compat
+            let inference_url = ctx
+                .credentials
+                .get("INFERENCE_URL")
                 .cloned()
                 .or_else(|| ctx.credentials.get("OKAPI_URL").cloned());
             let inference_model = ctx
@@ -326,7 +328,9 @@ async fn main() -> anyhow::Result<()> {
                 .or_else(|| ctx.credentials.get("OKAPI_MODEL"))
                 .cloned()
                 .unwrap_or_else(|| "qwen3:8b".to_string());
-            let inference_api_key = ctx.credentials.get("INFERENCE_API_KEY")
+            let inference_api_key = ctx
+                .credentials
+                .get("INFERENCE_API_KEY")
                 .or_else(|| ctx.credentials.get("OKAPI_API_KEY"))
                 .cloned();
             let inference_timeout_secs = ctx
@@ -335,46 +339,49 @@ async fn main() -> anyhow::Result<()> {
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(30);
 
-            CondenserServer::new(ctx.webid, episodic, inference_url, inference_model, inference_api_key, inference_timeout_secs)
+            CondenserServer::new(
+                ctx.webid,
+                episodic,
+                inference_url,
+                inference_model,
+                inference_api_key,
+                inference_timeout_secs,
+            )
         },
-        vec![
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_DB_PATH",
-                "Path to the SQLite database for episodic persistence (in-memory if absent)",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_DB_PASSPHRASE",
-                "Passphrase for the database (required if HKASK_DB_PATH is set)",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "INFERENCE_URL",
-                "Inference engine URL for thread summarization (e.g. http://127.0.0.1:11435). OKAPI_URL also accepted for backward compatibility.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "INFERENCE_MODEL",
-                "Model for summarization (default: qwen3:8b). OKAPI_MODEL also accepted.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "INFERENCE_API_KEY",
-                "API key if authentication is enabled. OKAPI_API_KEY also accepted.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "INFERENCE_TIMEOUT_SECS",
-                "Timeout for inference requests in seconds (default: 30)",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "OKAPI_URL",
-                "[Legacy] Alias for INFERENCE_URL. Prefer INFERENCE_URL for new deployments.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "OKAPI_MODEL",
-                "[Legacy] Alias for INFERENCE_MODEL. Prefer INFERENCE_MODEL for new deployments.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "OKAPI_API_KEY",
-                "[Legacy] Alias for INFERENCE_API_KEY. Prefer INFERENCE_API_KEY for new deployments.",
-            ),
-        ],
+        credential_requirements(),
     )
     .await
+}
+
+fn credential_requirements() -> Vec<hkask_mcp::CredentialRequirement> {
+    let opt = hkask_mcp::CredentialRequirement::optional;
+    vec![
+        opt(
+            "HKASK_DB_PATH",
+            "Path to the SQLite database for episodic persistence",
+        ),
+        opt(
+            "HKASK_DB_PASSPHRASE",
+            "Passphrase for the database (required if HKASK_DB_PATH is set)",
+        ),
+        opt(
+            "INFERENCE_URL",
+            "Inference engine URL for thread summarization. OKAPI_URL also accepted.",
+        ),
+        opt(
+            "INFERENCE_MODEL",
+            "Model for summarization (default: qwen3:8b). OKAPI_MODEL also accepted.",
+        ),
+        opt(
+            "INFERENCE_API_KEY",
+            "API key if authentication is enabled. OKAPI_API_KEY also accepted.",
+        ),
+        opt(
+            "INFERENCE_TIMEOUT_SECS",
+            "Timeout for inference requests in seconds (default: 30)",
+        ),
+        opt("OKAPI_URL", "[Legacy] Alias for INFERENCE_URL."),
+        opt("OKAPI_MODEL", "[Legacy] Alias for INFERENCE_MODEL."),
+        opt("OKAPI_API_KEY", "[Legacy] Alias for INFERENCE_API_KEY."),
+    ]
 }

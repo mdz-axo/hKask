@@ -5,12 +5,12 @@
 //! Boundaries), dispatches verification methods, and produces structured reports.
 
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 // ── Domain types ─────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Manifest {
     pub principle: String,
     pub version: String,

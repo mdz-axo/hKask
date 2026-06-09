@@ -489,20 +489,23 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-web",
         SERVER_VERSION,
         |ctx: ServerContext| {
-            let brave_key = ctx.credentials.get("HKASK_BRAVE_API_KEY").cloned();
-            let firecrawl_key = ctx.credentials.get("HKASK_FIRECRAWL_API_KEY").cloned();
-            let tavily_key = ctx.credentials.get("HKASK_TAVILY_API_KEY").cloned();
-            let serpapi_key = ctx.credentials.get("HKASK_SERPAPI_API_KEY").cloned();
-            let exa_key = ctx.credentials.get("HKASK_EXA_API_KEY").cloned();
-            let browserbase_key = ctx.credentials.get("HKASK_BROWSERBASE_API_KEY").cloned();
-            let cache_ttl_secs = ctx
-                .credentials
-                .get("HKASK_WEB_CACHE_TTL_SECS")
-                .and_then(|s| s.parse::<u64>().ok());
-            let cache_max_entries = ctx
-                .credentials
-                .get("HKASK_WEB_CACHE_MAX_ENTRIES")
-                .and_then(|s| s.parse::<usize>().ok());
+            macro_rules! cred {
+                ($k:expr) => {
+                    ctx.credentials.get($k).cloned()
+                };
+            }
+            let (brave_key, firecrawl_key, tavily_key, serpapi_key, exa_key, browserbase_key) = (
+                cred!("HKASK_BRAVE_API_KEY"),
+                cred!("HKASK_FIRECRAWL_API_KEY"),
+                cred!("HKASK_TAVILY_API_KEY"),
+                cred!("HKASK_SERPAPI_API_KEY"),
+                cred!("HKASK_EXA_API_KEY"),
+                cred!("HKASK_BROWSERBASE_API_KEY"),
+            );
+            let parse_env_u64 = |k| ctx.credentials.get(k).and_then(|s| s.parse::<u64>().ok());
+            let parse_env_usize = |k| ctx.credentials.get(k).and_then(|s| s.parse::<usize>().ok());
+            let cache_ttl_secs = parse_env_u64("HKASK_WEB_CACHE_TTL_SECS");
+            let cache_max_entries = parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES");
 
             WebServer::new(WebServerConfig {
                 webid: ctx.webid,
@@ -517,38 +520,14 @@ async fn main() -> anyhow::Result<()> {
             })
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_BRAVE_API_KEY",
-                "Brave Search API key for web search",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_FIRECRAWL_API_KEY",
-                "Firecrawl API key for web extract/browse",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_TAVILY_API_KEY",
-                "Tavily API key for AI-optimized web search",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_SERPAPI_API_KEY",
-                "SerpAPI API key for Google search results",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_EXA_API_KEY",
-                "Exa API key for neural/semantic web search",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_BROWSERBASE_API_KEY",
-                "Browserbase API key for headless browser browsing",
-            ),
-            CredentialRequirement::optional(
-                "HKASK_WEB_CACHE_TTL_SECS",
-                "Cache TTL in seconds (default: 3600)",
-            ),
-            CredentialRequirement::optional(
-                "HKASK_WEB_CACHE_MAX_ENTRIES",
-                "Maximum cache entries (default: 1000)",
-            ),
+            CredentialRequirement::optional("HKASK_BRAVE_API_KEY", "Brave Search API key"),
+            CredentialRequirement::optional("HKASK_FIRECRAWL_API_KEY", "Firecrawl API key"),
+            CredentialRequirement::optional("HKASK_TAVILY_API_KEY", "Tavily API key"),
+            CredentialRequirement::optional("HKASK_SERPAPI_API_KEY", "SerpAPI key"),
+            CredentialRequirement::optional("HKASK_EXA_API_KEY", "Exa API key"),
+            CredentialRequirement::optional("HKASK_BROWSERBASE_API_KEY", "Browserbase API key"),
+            CredentialRequirement::optional("HKASK_WEB_CACHE_TTL_SECS", "Cache TTL seconds"),
+            CredentialRequirement::optional("HKASK_WEB_CACHE_MAX_ENTRIES", "Max cache entries"),
         ],
         dotenv,
     )

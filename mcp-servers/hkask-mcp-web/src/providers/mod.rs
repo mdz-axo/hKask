@@ -118,6 +118,23 @@ pub struct ProviderPool {
     pub(crate) exa: Option<ExaProvider>,
 }
 
+/// Try each provider sequentially, returning first Ok or last Err.
+macro_rules! try_fallback {
+    ($providers:expr, $call:ident, $($arg:expr),* $(,)?) => {{
+        let mut last_err = WebError::NoProvider;
+        for p in $providers {
+            match p.$call($($arg,)*).await {
+                Ok(v) => return Ok(v),
+                Err(e) => {
+                    tracing::warn!(provider = p.kind(), error = %e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }};
+}
+
 impl ProviderPool {
     /// Construct a new `ProviderPool` with the given providers.
     ///
@@ -144,26 +161,12 @@ impl ProviderPool {
         query: &SearchQuery,
         primary: &str,
     ) -> Result<Vec<SearchResult>, WebError> {
-        let mut ordered: Vec<&dyn WebSearchProvider> = Vec::new();
-        for p in &self.search_providers {
-            if p.kind() == primary {
-                ordered.insert(0, p.as_ref());
-            } else {
-                ordered.push(p.as_ref());
-            }
+        let mut ordered: Vec<&dyn WebSearchProvider> =
+            self.search_providers.iter().map(|p| p.as_ref()).collect();
+        if let Some(idx) = ordered.iter().position(|p| p.kind() == primary) {
+            ordered.swap(0, idx);
         }
-
-        let mut last_err = WebError::NoProvider;
-        for provider in ordered {
-            match provider.search(query).await {
-                Ok(output) => return Ok(output.results),
-                Err(e) => {
-                    tracing::warn!(provider = provider.kind(), error = %e, "Search provider failed, trying next");
-                    last_err = e;
-                }
-            }
-        }
-        Err(last_err)
+        try_fallback!(&ordered, search, query).map(|o| o.results)
     }
 
     pub async fn search_by_capability(
@@ -174,24 +177,10 @@ impl ProviderPool {
         let filtered: Vec<&dyn WebSearchProvider> = self
             .search_providers
             .iter()
-            .filter(|p| {
-                let p_caps = p.capabilities();
-                required_caps.iter().all(|c| p_caps.contains(c))
-            })
+            .filter(|p| required_caps.iter().all(|c| p.capabilities().contains(c)))
             .map(|p| p.as_ref())
             .collect();
-
-        let mut last_err = WebError::NoProvider;
-        for provider in filtered {
-            match provider.search(query).await {
-                Ok(output) => return Ok(output.results),
-                Err(e) => {
-                    tracing::warn!(provider = provider.kind(), error = %e, "Capability search provider failed");
-                    last_err = e;
-                }
-            }
-        }
-        Err(last_err)
+        try_fallback!(&filtered, search, query).map(|o| o.results)
     }
 
     pub async fn search_compound(
@@ -367,17 +356,7 @@ impl ProviderPool {
         url: &str,
         opts: &ExtractOptions,
     ) -> Result<ExtractedContent, WebError> {
-        let mut last_err = WebError::NoProvider;
-        for provider in &self.extract_providers {
-            match provider.extract(url, opts).await {
-                Ok(result) => return Ok(result),
-                Err(e) => {
-                    tracing::warn!(provider = provider.kind(), error = %e, "Extract provider failed, trying next");
-                    last_err = e;
-                }
-            }
-        }
-        Err(last_err)
+        try_fallback!(&self.extract_providers, extract, url, opts)
     }
 
     pub async fn browse_with_fallback(
@@ -386,17 +365,7 @@ impl ProviderPool {
         instruction: &str,
         timeout: Duration,
     ) -> Result<BrowseResult, WebError> {
-        let mut last_err = WebError::NoProvider;
-        for provider in &self.browse_providers {
-            match provider.browse(url, instruction, timeout).await {
-                Ok(result) => return Ok(result),
-                Err(e) => {
-                    tracing::warn!(provider = provider.kind(), error = %e, "Browse provider failed, trying next");
-                    last_err = e;
-                }
-            }
-        }
-        Err(last_err)
+        try_fallback!(&self.browse_providers, browse, url, instruction, timeout)
     }
 
     pub fn search_provider_kinds(&self) -> Vec<String> {
@@ -509,15 +478,13 @@ impl WebSearchPort for ProviderPool {
             let results = self
                 .search_by_capability(&query_with_depth, &[SearchCapability::Keyword])
                 .await?;
-            let provider_name = self
+            let pname = self
                 .search_providers
                 .iter()
-                .find(|p| {
-                    let caps = p.capabilities();
-                    caps.contains(&SearchCapability::Keyword)
-                })
+                .find(|p| p.capabilities().contains(&SearchCapability::Keyword))
                 .map(|p| p.kind())
-                .unwrap_or("unknown");
+                .unwrap_or("unknown")
+                .to_string();
             CompoundSearchResult {
                 query: query.query.clone(),
                 strategy: strategy.to_string(),
@@ -525,27 +492,27 @@ impl WebSearchPort for ProviderPool {
                     .into_iter()
                     .enumerate()
                     .map(|(i, r)| RankedResult {
+                        rrf_score: rrf_score(RRF_K, &[i]),
+                        provider_count: 1,
+                        providers: vec![pname.clone()],
+                        best_rank: Some(i),
+                        extracted_content: None,
+                        content_preview: None,
+                        semantic_score: None,
                         title: r.title,
                         url: r.url,
                         description: r.description,
                         source: r.source,
                         published: r.published,
-                        rrf_score: rrf_score(RRF_K, &[i]),
-                        provider_count: 1,
-                        providers: vec![provider_name.to_string()],
-                        best_rank: Some(i),
-                        content_preview: None,
-                        semantic_score: None,
-                        extracted_content: None,
                     })
                     .collect(),
-                answer_box: None,
-                related_questions: Vec::new(),
                 providers_queried: vec![ProviderInfo {
-                    kind: provider_name.to_string(),
+                    kind: pname.clone(),
                     capabilities: vec![SearchCapability::Keyword],
                 }],
-                providers_succeeded: vec![provider_name.to_string()],
+                providers_succeeded: vec![pname],
+                answer_box: None,
+                related_questions: Vec::new(),
                 providers_failed: Vec::new(),
                 total_before_dedup: 0,
                 duplicates_removed: 0,

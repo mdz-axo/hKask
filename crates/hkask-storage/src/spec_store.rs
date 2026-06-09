@@ -138,58 +138,41 @@ impl SqliteCurationRecordStore {
         &self,
         since: DateTime<Utc>,
     ) -> Result<Vec<SpecCurationRecord>, SpecError> {
-        self.load_records(
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
             "SELECT spec_id, decision, rationale, coherence_score, ocap_boundary, curated_at
              FROM spec_curation_records WHERE recorded_at >= ?1 ORDER BY recorded_at DESC",
-            rusqlite::params![since.to_rfc3339()],
-            0,
-            1,
-            4,
-        )
+        )?;
+        let records = collect_rows!(stmt, rusqlite::params![since.to_rfc3339()], |row| {
+            let s: String = row.get(0)?;
+            let spec_id = SpecId::from_string(&s).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
+                )
+            })?;
+            row_to_curation_record(row, spec_id, 1, 4)
+        });
+        Ok(records)
     }
 
     pub fn load_all_curation_records(&self) -> Result<Vec<SpecCurationRecord>, SpecError> {
-        self.load_records(
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
             "SELECT spec_id, decision, rationale, coherence_score, ocap_boundary, curated_at
              FROM spec_curation_records ORDER BY recorded_at DESC",
-            [],
-            0,
-            1,
-            4,
-        )
-    }
-
-    fn load_records(
-        &self,
-        sql: &str,
-        params: &[&dyn rusqlite::types::ToSql],
-        spec_id_idx: usize,
-        decision_idx: usize,
-        ocap_idx: usize,
-    ) -> Result<Vec<SpecCurationRecord>, SpecError> {
-        let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(sql)?;
-        let records = collect_rows!(stmt, params, |row| {
-            let spec_id = if spec_id_idx == 0 {
-                let s: String = row.get(0)?;
-                SpecId::from_string(&s).map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        0,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
-                    )
-                })?
-            } else {
-                let s: String = row.get(0)?;
-                SpecId::from_string(&s).map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        0,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
-                    )
-                })?
-            };
-            row_to_curation_record(row, spec_id, decision_idx, ocap_idx)
+        )?;
+        let records = collect_rows!(stmt, [], |row| {
+            let s: String = row.get(0)?;
+            let spec_id = SpecId::from_string(&s).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
+                )
+            })?;
+            row_to_curation_record(row, spec_id, 1, 4)
         });
         Ok(records)
     }

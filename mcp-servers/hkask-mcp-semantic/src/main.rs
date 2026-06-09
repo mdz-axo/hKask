@@ -92,6 +92,15 @@ impl SemanticServer {
     pub fn new(memory: Arc<SemanticMemory>, webid: WebID) -> Self {
         Self { memory, webid }
     }
+
+    fn internal_error(
+        &self,
+        span: ToolSpanGuard,
+        context: &str,
+        e: impl std::fmt::Display,
+    ) -> String {
+        span.internal_error(json!({"error": format!("Failed to {}: {}", context, e)}))
+    }
 }
 
 #[tool_router(server_handler)]
@@ -99,10 +108,7 @@ impl SemanticServer {
     #[tool(description = "Liveness and storage info for semantic memory")]
     async fn semantic_ping(&self) -> String {
         let span = ToolSpanGuard::new("semantic_ping", &self.webid);
-        span.ok_json(json!({
-            "status": "ok",
-            "server": "hkask-mcp-semantic",
-        }))
+        span.ok_json(json!({"status": "ok", "server": "hkask-mcp-semantic"}))
     }
 
     #[tool(description = "Store a shared semantic triple (no perspective)")]
@@ -116,23 +122,16 @@ impl SemanticServer {
         }): Parameters<StoreRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_store", &self.webid);
-
         validate_field!(span, "entity", &entity, 256);
         validate_field!(span, "attribute", &attribute, 256);
-
         let triple = Triple::new(&entity, &attribute, value, self.webid)
             .with_visibility(Visibility::Shared)
             .with_confidence(confidence.unwrap_or(1.0));
-
         match self.memory.store(triple) {
-            Ok(()) => span.ok_json(json!({
-                "stored": true,
-                "entity": entity,
-                "attribute": attribute,
-            })),
-            Err(e) => span.internal_error(
-                json!({"error": format!("Failed to store semantic triple: {}", e)}),
-            ),
+            Ok(()) => {
+                span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute}))
+            }
+            Err(e) => self.internal_error(span, "store semantic triple", e),
         }
     }
 
@@ -142,31 +141,16 @@ impl SemanticServer {
         Parameters(RecallRequest { entity }): Parameters<RecallRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_recall", &self.webid);
-
         validate_field!(span, "entity", &entity, 256);
-
         match self.memory.query_deduped(&entity) {
             Ok(triples) => {
-                let serialized: Vec<serde_json::Value> = triples
-                    .iter()
-                    .map(|t| {
-                        json!({
-                            "entity": t.entity,
-                            "attribute": t.attribute,
-                            "value": t.value,
-                            "confidence": t.confidence,
-                            "valid_from": t.temporal.valid_from.to_rfc3339(),
-                        })
-                    })
-                    .collect();
-                span.ok_json(json!({
-                    "count": serialized.len(),
-                    "triples": serialized,
-                }))
+                let serialized: Vec<_> = triples.iter().map(|t| json!({
+                    "entity": t.entity, "attribute": t.attribute, "value": t.value,
+                    "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
+                })).collect();
+                span.ok_json(json!({"count": serialized.len(), "triples": serialized}))
             }
-            Err(e) => span.internal_error(
-                json!({"error": format!("Failed to recall semantic triples: {}", e)}),
-            ),
+            Err(e) => self.internal_error(span, "recall semantic triples", e),
         }
     }
 
@@ -180,7 +164,6 @@ impl SemanticServer {
         }): Parameters<EmbedRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_embed", &self.webid);
-
         validate_field!(span, "entity_ref", &entity_ref, 256);
         if vector.is_empty() {
             return span.error(
@@ -188,17 +171,11 @@ impl SemanticServer {
                 McpToolError::invalid_argument("vector must not be empty").to_json_string(),
             );
         }
-
         match self.memory.store_embedding(&entity_ref, &vector, &model) {
             Ok(_id) => span.ok_json(json!({
-                "stored": true,
-                "entity_ref": entity_ref,
-                "model": model,
-                "dimensions": vector.len(),
+                "stored": true, "entity_ref": entity_ref, "model": model, "dimensions": vector.len(),
             })),
-            Err(e) => {
-                span.internal_error(json!({"error": format!("Failed to store embedding: {}", e)}))
-            }
+            Err(e) => self.internal_error(span, "store embedding", e),
         }
     }
 
@@ -211,36 +188,23 @@ impl SemanticServer {
         }): Parameters<SearchRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_search", &self.webid);
-
         if query_vector.is_empty() {
             return span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument("query_vector must not be empty").to_json_string(),
             );
         }
-
-        let limit = limit.unwrap_or(10);
-
-        match self.memory.search_similar(&query_vector, limit) {
+        match self
+            .memory
+            .search_similar(&query_vector, limit.unwrap_or(10))
+        {
             Ok(results) => {
-                let serialized: Vec<serde_json::Value> = results
-                    .iter()
-                    .map(|r| {
-                        json!({
-                            "entity_ref": r.embedding.entity_ref,
-                            "model": r.embedding.model,
-                            "distance": r.distance,
-                        })
-                    })
-                    .collect();
-                span.ok_json(json!({
-                    "count": serialized.len(),
-                    "results": serialized,
-                }))
+                let serialized: Vec<_> = results.iter().map(|r| json!({
+                    "entity_ref": r.embedding.entity_ref, "model": r.embedding.model, "distance": r.distance,
+                })).collect();
+                span.ok_json(json!({"count": serialized.len(), "results": serialized}))
             }
-            Err(e) => {
-                span.internal_error(json!({"error": format!("Failed to search embeddings: {}", e)}))
-            }
+            Err(e) => self.internal_error(span, "search embeddings", e),
         }
     }
 
@@ -259,18 +223,15 @@ impl SemanticServer {
         }): Parameters<CentroidRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_centroid", &self.webid);
-
         validate_field!(span, "prefix", &prefix, 256);
         validate_field!(span, "exclude_prefix", &exclude_prefix, 256);
         validate_field!(span, "exclude_ref", &exclude_ref, 256);
-
         if dim == 0 {
             return span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument("dim must be positive").to_json_string(),
             );
         }
-
         match self.memory.compute_centroid(
             &prefix,
             &exclude_prefix,
@@ -280,15 +241,10 @@ impl SemanticServer {
             model.as_deref(),
         ) {
             Ok(result) => span.ok_json(json!({
-                "centroid": result.centroid,
-                "dimensions": result.centroid.len(),
-                "prefix": prefix,
-                "passage_count": result.passage_count,
-                "stored": result.stored,
+                "centroid": result.centroid, "dimensions": result.centroid.len(), "prefix": prefix,
+                "passage_count": result.passage_count, "stored": result.stored,
             })),
-            Err(e) => {
-                span.internal_error(json!({"error": format!("Failed to compute centroid: {}", e)}))
-            }
+            Err(e) => self.internal_error(span, "compute centroid", e),
         }
     }
 
@@ -298,17 +254,10 @@ impl SemanticServer {
         Parameters(PurgeRequest { prefix }): Parameters<PurgeRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_purge", &self.webid);
-
         validate_field!(span, "prefix", &prefix, 256);
-
         match self.memory.purge_by_prefix(&prefix) {
-            Ok(count) => span.ok_json(json!({
-                "purged": count,
-                "prefix": prefix,
-            })),
-            Err(e) => {
-                span.internal_error(json!({"error": format!("Failed to purge embeddings: {}", e)}))
-            }
+            Ok(count) => span.ok_json(json!({"purged": count, "prefix": prefix})),
+            Err(e) => self.internal_error(span, "purge embeddings", e),
         }
     }
 
@@ -327,34 +276,27 @@ impl SemanticServer {
         }): Parameters<ChunkTextRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_chunk", &self.webid);
-
-        if text.is_empty() {
+        if text.is_empty() || entity_ref_prefix.is_empty() {
+            let field = if text.is_empty() {
+                "text"
+            } else {
+                "entity_ref_prefix"
+            };
             return span.error(
                 McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("text must not be empty").to_json_string(),
-            );
-        }
-
-        if entity_ref_prefix.is_empty() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("entity_ref_prefix must not be empty")
+                McpToolError::invalid_argument(format!("{field} must not be empty"))
                     .to_json_string(),
             );
         }
-
         validate_field!(span, "entity_ref_prefix", &entity_ref_prefix, 256);
-
         let min_w = min_words.unwrap_or(50);
         let max_w = max_words.unwrap_or(200);
         let boundary = sentence_boundary.unwrap_or_else(|| ".!? ".to_string());
-
         let processed = if strip_gutenberg.unwrap_or(false) {
             hkask_memory::SemanticMemory::strip_gutenberg_headers(&text)
         } else {
             text.clone()
         };
-
         let passages = hkask_memory::SemanticMemory::chunk_text(
             &processed,
             &entity_ref_prefix,
@@ -362,24 +304,10 @@ impl SemanticServer {
             max_w,
             &boundary,
         );
-
-        let total_passages = passages.len();
-        let serialized: Vec<serde_json::Value> = passages
-            .into_iter()
-            .map(|(entity_ref, passage_text)| {
-                json!({
-                    "entity_ref": entity_ref,
-                    "text": passage_text,
-                })
-            })
-            .collect();
-
+        let serialized: Vec<_> = passages.into_iter().map(|(entity_ref, passage_text)| json!({"entity_ref": entity_ref, "text": passage_text})).collect();
         span.ok_json(json!({
-            "total_passages": total_passages,
-            "passages": serialized,
-            "min_words": min_w,
-            "max_words": max_w,
-            "sentence_boundary": boundary,
+            "total_passages": serialized.len(), "passages": serialized,
+            "min_words": min_w, "max_words": max_w, "sentence_boundary": boundary,
             "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
         }))
     }
@@ -389,18 +317,11 @@ impl SemanticServer {
         let span = ToolSpanGuard::new("semantic_count", &self.webid);
         let triple_count = match self.memory.triple_count() {
             Ok(c) => c,
-            Err(e) => {
-                return span
-                    .internal_error(json!({"error": format!("Failed to count triples: {}", e)}));
-            }
+            Err(e) => return self.internal_error(span, "count triples", e),
         };
         let embedding_count = match self.memory.embedding_count() {
             Ok(c) => c,
-            Err(e) => {
-                return span.internal_error(
-                    json!({"error": format!("Failed to count embeddings: {}", e)}),
-                );
-            }
+            Err(e) => return self.internal_error(span, "count embeddings", e),
         };
         span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
     }

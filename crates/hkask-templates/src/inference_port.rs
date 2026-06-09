@@ -3,14 +3,14 @@
 //! `InferencePort` trait lives in hkask-types (port membrane).
 //! This module provides `OkapiInference` — the concrete implementation.
 
-use crate::okapi_config::{validate_prompt, OkapiConfig};
+use crate::okapi_config::{OkapiConfig, validate_prompt};
 use futures_util::StreamExt;
+use hkask_types::LLMParameters;
 use hkask_types::cns::RetryConfig;
 use hkask_types::ports::{
     CircuitBreakerPort, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
     InferenceUsage, StructuredToolCall, TokenProb, TokenProbability,
 };
-use hkask_types::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -21,7 +21,6 @@ pub struct OkapiInference {
     retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
-    prompt_cache: Option<Arc<crate::prompt_cache::PromptCache>>,
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
@@ -89,7 +88,6 @@ impl OkapiInference {
             config,
             client,
             circuit_breaker: None,
-            prompt_cache: None,
         })
     }
 
@@ -141,9 +139,10 @@ impl OkapiInference {
             .await
             .map_err(|e| InferenceError::Json(format!("Okapi JSON parse: {}", e)))?;
 
-        let choice = okapi_response.choices.first().ok_or_else(|| {
-            InferenceError::Generation("Empty response from Okapi".to_string())
-        })?;
+        let choice = okapi_response
+            .choices
+            .first()
+            .ok_or_else(|| InferenceError::Generation("Empty response from Okapi".to_string()))?;
 
         let token_probabilities = choice.token_probs.as_ref().map(|probs| {
             probs
@@ -154,7 +153,10 @@ impl OkapiInference {
                     top_k: p
                         .top_k
                         .iter()
-                        .map(|tk| TokenProb { token: tk.token.clone(), prob: tk.prob })
+                        .map(|tk| TokenProb {
+                            token: tk.token.clone(),
+                            prob: tk.prob,
+                        })
                         .collect(),
                 })
                 .collect()
@@ -225,31 +227,8 @@ impl InferencePort for OkapiInference {
         Box::pin(async move {
             validate_prompt(&prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
-            // Cache check
-            if let Some(ref cache) = self.prompt_cache {
-                let ck = crate::prompt_cache::PromptCache::generate_key(
-                    &prompt,
-                    &self.model,
-                    &parameters,
-                );
-                if let Ok(result) = cache.get(&ck) {
-                    info!(target: "hkask.inference", model = %result.model, cache_key = %ck, "Cache hit");
-                    return Ok(result);
-                }
-            }
-
             let request = build_request(&self.model, &prompt, None, &parameters, None, Some(5));
             let result = self.execute_with_retry(request).await?;
-
-            // Cache store
-            if let Some(ref cache) = self.prompt_cache {
-                let ck = crate::prompt_cache::PromptCache::generate_key(
-                    &prompt,
-                    &self.model,
-                    &parameters,
-                );
-                let _ = cache.put(&ck, &prompt, &self.model, &result);
-            }
 
             info!(
                 target: "hkask.inference",
@@ -331,9 +310,8 @@ impl OkapiInference {
 
         Box::pin(
             futures_util::stream::once(async move {
-                let request = build_request(
-                    &model_id, &prompt, None, &parameters, Some(true), None,
-                );
+                let request =
+                    build_request(&model_id, &prompt, None, &parameters, Some(true), None);
 
                 let mut req = client
                     .post(format!("{}/api/generate", base_url))
@@ -342,9 +320,11 @@ impl OkapiInference {
                     req = req.header("Authorization", header);
                 }
 
-                let response = match req.send().await.map_err(|e| {
-                    InferenceError::Connection(e.to_string())
-                }) {
+                let response = match req
+                    .send()
+                    .await
+                    .map_err(|e| InferenceError::Connection(e.to_string()))
+                {
                     Ok(r) => r,
                     Err(e) => return vec![Err(e)],
                 };
@@ -358,9 +338,11 @@ impl OkapiInference {
                     )))];
                 }
 
-                let body = match response.text().await.map_err(|e| {
-                    InferenceError::Connection(e.to_string())
-                }) {
+                let body = match response
+                    .text()
+                    .await
+                    .map_err(|e| InferenceError::Connection(e.to_string()))
+                {
                     Ok(b) => b,
                     Err(e) => return vec![Err(e)],
                 };
@@ -443,8 +425,14 @@ impl OkapiInference {
         let model_id = model_override
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.model.clone());
-        let request =
-            build_request(&model_id, prompt, Some(images.to_vec()), parameters, None, Some(5));
+        let request = build_request(
+            &model_id,
+            prompt,
+            Some(images.to_vec()),
+            parameters,
+            None,
+            Some(5),
+        );
 
         match self.execute_with_retry(request).await {
             Ok(result) => {

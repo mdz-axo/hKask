@@ -349,13 +349,9 @@ impl DocKnowledgeServer {
         let serialized = serialize_passages(passages);
 
         span.ok_json(json!({
-            "total_passages": total_passages,
-            "passages": serialized,
-            "max_tokens": max_tokens.unwrap_or(512),
-            "overlap_tokens": overlap_tokens.unwrap_or(64),
-            "max_words": max_words,
-            "min_words": min_words,
-            "sentence_boundary": boundary,
+            "total_passages": total_passages, "passages": serialized,
+            "max_tokens": max_tokens.unwrap_or(512), "overlap_tokens": overlap_tokens.unwrap_or(64),
+            "max_words": max_words, "min_words": min_words, "sentence_boundary": boundary,
             "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
         }))
     }
@@ -495,15 +491,9 @@ impl DocKnowledgeServer {
         let entity_base = path.replace(['/', '\\', '.', ' '], "_");
         let boundary = ".!? ";
 
-        let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| {
-            let max_w = tokens_to_words(max_tok.unwrap_or(default));
-            SemanticMemory::chunk_text(
-                &text,
-                &format!("{}:{tier}", entity_base),
-                max_w / 4,
-                max_w,
-                boundary,
-            )
+        let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| -> Vec<_> {
+            let w = tokens_to_words(max_tok.unwrap_or(default));
+            SemanticMemory::chunk_text(&text, &format!("{entity_base}:{tier}"), w / 4, w, boundary)
         };
 
         let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
@@ -511,13 +501,11 @@ impl DocKnowledgeServer {
         let fine = chunk_tier("fine", fine_max_tokens, 128);
 
         span.ok_json(json!({
-            "format": format,
-            "path": path,
+            "format": format, "path": path,
             "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
             "medium_max_tokens": medium_max_tokens.unwrap_or(512),
             "fine_max_tokens": fine_max_tokens.unwrap_or(128),
-            "coarse": serialize_passages(coarse),
-            "medium": serialize_passages(medium),
+            "coarse": serialize_passages(coarse), "medium": serialize_passages(medium),
             "fine": serialize_passages(fine),
         }))
     }
@@ -566,10 +554,7 @@ impl DocKnowledgeServer {
         );
 
         span.ok_json(json!({
-            "prompt": prompt,
-            "chunk_id": chunk_id,
-            "strategy": strat,
-            "bloom_levels": levels,
+            "prompt": prompt, "chunk_id": chunk_id, "strategy": strat, "bloom_levels": levels,
             "note": "Route this prompt through hkask-mcp-inference for LLM completion",
         }))
     }
@@ -627,16 +612,11 @@ impl DocKnowledgeServer {
         }
 
         if errors.is_empty() {
-            span.ok_json(json!({
-                "stored": stored,
-                "source_document": source_document,
-            }))
+            span.ok_json(json!({ "stored": stored, "source_document": source_document }))
         } else {
-            span.internal_error(json!({
-                "stored": stored,
-                "errors": errors,
-                "source_document": source_document,
-            }))
+            span.internal_error(
+                json!({ "stored": stored, "errors": errors, "source_document": source_document }),
+            )
         }
     }
 }

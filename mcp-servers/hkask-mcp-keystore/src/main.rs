@@ -120,26 +120,16 @@ impl KeystoreServer {
                 })
         });
         let vault_path = vault_dir.join("vault.json");
-
         let entries = match Self::load_vault(&vault_path) {
             Ok(vault) => {
-                tracing::info!(
-                    path = %vault_path.display(),
-                    count = vault.entries.len(),
-                    "Loaded keystore vault from disk"
-                );
+                tracing::info!(path = %vault_path.display(), count = vault.entries.len(), "Loaded keystore vault");
                 vault.entries
             }
             Err(e) => {
-                tracing::warn!(
-                    path = %vault_path.display(),
-                    error = %e,
-                    "No existing keystore vault found; starting with empty entries"
-                );
+                tracing::warn!(path = %vault_path.display(), error = %e, "No existing vault; starting empty");
                 HashMap::new()
             }
         };
-
         Self {
             keychain: Keychain::new(service_name),
             entries: Arc::new(RwLock::new(entries)),
@@ -152,7 +142,6 @@ impl KeystoreServer {
         format!("{}:{}", service.as_deref().unwrap_or("default"), key)
     }
 
-    /// Load vault from disk.
     fn load_vault(path: &PathBuf) -> Result<Vault, String> {
         if !path.exists() {
             return Err("vault file does not exist".to_string());
@@ -162,23 +151,19 @@ impl KeystoreServer {
         serde_json::from_str(&data).map_err(|e| format!("failed to parse vault: {}", e))
     }
 
-    /// Save vault to disk. Called after each mutation.
     async fn save_vault(&self) {
         let entries = self.entries.read().await;
         let vault = Vault {
             version: Vault::VERSION,
             entries: entries.clone(),
         };
-        drop(entries); // Release read lock before I/O
-
-        // Ensure parent directory exists
-        if let Some(parent) = self.vault_path.parent()
-            && let Err(e) = std::fs::create_dir_all(parent)
-        {
-            tracing::error!(path = %parent.display(), error = %e, "Failed to create vault directory");
-            return;
+        drop(entries);
+        if let Some(parent) = self.vault_path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                tracing::error!(path = %parent.display(), error = %e, "Failed to create vault directory");
+                return;
+            }
         }
-
         let json = match serde_json::to_string_pretty(&vault) {
             Ok(j) => j,
             Err(e) => {
@@ -186,25 +171,70 @@ impl KeystoreServer {
                 return;
             }
         };
-
-        // Write atomically: temp file + rename
         let temp_path = self.vault_path.with_extension("json.tmp");
         if let Err(e) = std::fs::write(&temp_path, &json) {
             tracing::error!(path = %temp_path.display(), error = %e, "Failed to write vault");
             return;
         }
         if let Err(e) = std::fs::rename(&temp_path, &self.vault_path) {
-            tracing::error!(
-                from = %temp_path.display(),
-                to = %self.vault_path.display(),
-                error = %e,
-                "Failed to rename vault temp file"
-            );
+            tracing::error!(from = %temp_path.display(), to = %self.vault_path.display(), error = %e, "Failed to rename vault temp");
             let _ = std::fs::remove_file(&temp_path);
             return;
         }
+        tracing::debug!(path = %self.vault_path.display(), "Vault saved");
+    }
 
-        tracing::debug!(path = %self.vault_path.display(), "Vault saved to disk");
+    /// Check ownership. Returns `Some(span.error(...))` if unauthorized.
+    fn check_ownership(
+        &self,
+        entries: &HashMap<String, EncryptedEntry>,
+        full_key: &str,
+        caller: &str,
+    ) -> Option<String> {
+        None // placeholder — ownership check inlined per-tool for now
+    }
+
+    /// Encrypt, insert entry, drop lock, save, return ok JSON.
+    async fn encrypt_and_store(
+        &self,
+        span: ToolSpanGuard,
+        full_key: String,
+        value: &str,
+        owner: &str,
+        ok_json: serde_json::Value,
+    ) -> String {
+        let salt = EncryptionService::generate_salt();
+        let enc = match EncryptionService::new("hkask-mcp-keystore", &salt) {
+            Ok(e) => e,
+            Err(e) => {
+                return span
+                    .internal_error(json!({"error": format!("encryption service failed: {}", e)}));
+            }
+        };
+        let encrypted = match enc.encrypt(value.as_bytes()) {
+            Ok(v) => v,
+            Err(e) => {
+                return span.internal_error(json!({"error": format!("encryption failed: {}", e)}));
+            }
+        };
+        {
+            let mut entries = self.entries.write().await;
+            entries.insert(
+                full_key.clone(),
+                EncryptedEntry {
+                    encrypted,
+                    salt: salt.to_vec(),
+                    owner_webid: owner.to_string(),
+                    updated_at: now_rfc3339(),
+                },
+            );
+        }
+        let webid: WebID = owner.parse().unwrap_or_else(|_| WebID::new());
+        if let Err(e) = self.keychain.store(&webid, &full_key) {
+            return span.internal_error(json!({"error": format!("keychain store failed: {}", e)}));
+        }
+        self.save_vault().await;
+        span.ok_json(ok_json)
     }
 }
 
@@ -221,52 +251,11 @@ impl KeystoreServer {
         }): Parameters<SetRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("keystore_set", &self.webid);
-
         let full_key = Self::full_key(&service, &key);
         let owner = owner_webid.unwrap_or_else(|| "system".to_string());
-
-        let salt = EncryptionService::generate_salt();
-        match EncryptionService::new("hkask-mcp-keystore", &salt) {
-            Ok(enc) => match enc.encrypt(value.as_bytes()) {
-                Ok(encrypted) => {
-                    let mut entries = self.entries.write().await;
-                    entries.insert(
-                        full_key.clone(),
-                        EncryptedEntry {
-                            encrypted,
-                            salt: salt.to_vec(),
-                            owner_webid: owner.clone(),
-                            // P4.3: Use canonical `now_rfc3339()` helper.
-                            updated_at: now_rfc3339(),
-                        },
-                    );
-                    drop(entries); // Release write lock before I/O
-
-                    let webid: WebID = owner.parse().unwrap_or_else(|_| WebID::new());
-                    match self.keychain.store(&webid, &full_key) {
-                        Ok(()) => {
-                            self.save_vault().await;
-                            span.ok_json(json!({
-                                "key": key,
-                                "service": service.unwrap_or_else(|| "default".to_string()),
-                                "set": true,
-                                "encrypted": true,
-                                "persisted": true,
-                            }))
-                        }
-                        Err(e) => span.internal_error(json!({
-                            "error": format!("keychain store failed: {}", e),
-                        })),
-                    }
-                }
-                Err(e) => span.internal_error(json!({
-                    "error": format!("encryption failed: {}", e),
-                })),
-            },
-            Err(e) => span.internal_error(json!({
-                "error": format!("encryption service failed: {}", e),
-            })),
-        }
+        let ok = json!({"key": key, "service": service.unwrap_or_else(|| "default".to_string()), "set": true, "encrypted": true, "persisted": true});
+        self.encrypt_and_store(span, full_key, &value, &owner, ok)
+            .await
     }
 
     #[tool(
@@ -281,10 +270,8 @@ impl KeystoreServer {
         }): Parameters<GetRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("keystore_get", &self.webid);
-
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
-
         let entries = self.entries.read().await;
         match entries.get(&full_key) {
             Some(entry) => {
@@ -292,36 +279,22 @@ impl KeystoreServer {
                     return span.error(
                         McpErrorKind::PermissionDenied,
                         McpToolError::permission_denied(format!(
-                            "Caller {} does not own this secret",
-                            caller
+                            "Caller {caller} does not own this secret"
                         ))
                         .to_json_string(),
                     );
                 }
-
                 match EncryptionService::new("hkask-mcp-keystore", &entry.salt) {
                     Ok(enc) => match enc.decrypt(&entry.encrypted) {
-                        Ok(plaintext) => {
-                            let value = String::from_utf8_lossy(&plaintext).to_string();
-                            span.ok_json(json!({
-                                "key": key,
-                                "value": value,
-                                "found": true,
-                                "decrypted": true,
-                            }))
-                        }
-                        Err(e) => span.internal_error(json!({
-                            "error": format!("decryption failed: {}", e),
-                        })),
+                        Ok(plaintext) => span.ok_json(json!({"key": key, "value": String::from_utf8_lossy(&plaintext), "found": true, "decrypted": true})),
+                        Err(e) => span.internal_error(json!({"error": format!("decryption failed: {}", e)})),
                     },
-                    Err(e) => span.internal_error(json!({
-                        "error": format!("encryption service failed: {}", e),
-                    })),
+                    Err(e) => span.internal_error(json!({"error": format!("encryption service failed: {}", e)})),
                 }
             }
             None => span.error(
                 McpErrorKind::NotFound,
-                McpToolError::not_found(format!("key not found: {}", key)).to_json_string(),
+                McpToolError::not_found(format!("key not found: {key}")).to_json_string(),
             ),
         }
     }
@@ -337,64 +310,33 @@ impl KeystoreServer {
         }): Parameters<RotateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("keystore_rotate", &self.webid);
-
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
-
         let mut entries = self.entries.write().await;
-        match entries.get(&full_key) {
-            Some(entry) => {
-                if entry.owner_webid != caller && entry.owner_webid != "system" {
-                    return span.error(
-                        McpErrorKind::PermissionDenied,
-                        McpToolError::permission_denied(format!(
-                            "Caller {} does not own this secret",
-                            caller
-                        ))
-                        .to_json_string(),
-                    );
-                }
+        let owner = match entries.get(&full_key) {
+            Some(entry) if entry.owner_webid == caller || entry.owner_webid == "system" => {
+                entry.owner_webid.clone()
+            }
+            Some(_) => {
+                return span.error(
+                    McpErrorKind::PermissionDenied,
+                    McpToolError::permission_denied(format!(
+                        "Caller {caller} does not own this secret"
+                    ))
+                    .to_json_string(),
+                );
             }
             None => {
                 return span.error(
                     McpErrorKind::NotFound,
-                    McpToolError::not_found(format!("Key {} not found", key)).to_json_string(),
+                    McpToolError::not_found(format!("Key {key} not found")).to_json_string(),
                 );
             }
-        }
-
-        let salt = EncryptionService::generate_salt();
-        match EncryptionService::new("hkask-mcp-keystore", &salt) {
-            Ok(enc) => match enc.encrypt(new_value.as_bytes()) {
-                Ok(encrypted) => {
-                    let owner = entries.get(&full_key).unwrap().owner_webid.clone();
-                    entries.insert(
-                        full_key,
-                        EncryptedEntry {
-                            encrypted,
-                            salt: salt.to_vec(),
-                            owner_webid: owner,
-                            // P4.3: Use canonical `now_rfc3339()` helper.
-                            updated_at: now_rfc3339(),
-                        },
-                    );
-                    drop(entries); // Release write lock before I/O
-
-                    self.save_vault().await;
-                    span.ok_json(json!({
-                        "key": key,
-                        "rotated": true,
-                        "re_encrypted": true,
-                    }))
-                }
-                Err(e) => span.internal_error(json!({
-                    "error": format!("encryption failed: {}", e),
-                })),
-            },
-            Err(e) => span.internal_error(json!({
-                "error": format!("encryption service failed: {}", e),
-            })),
-        }
+        };
+        drop(entries);
+        let ok = json!({"key": key, "rotated": true, "re_encrypted": true});
+        self.encrypt_and_store(span, full_key, &new_value, &owner, ok)
+            .await
     }
 
     #[tool(description = "Delete a key from the keystore (capability-gated)")]
@@ -407,47 +349,37 @@ impl KeystoreServer {
         }): Parameters<DeleteRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("keystore_delete", &self.webid);
-
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
-
         let mut entries = self.entries.write().await;
         match entries.get(&full_key) {
-            Some(entry) => {
-                if entry.owner_webid != caller && entry.owner_webid != "system" {
-                    return span.error(
-                        McpErrorKind::PermissionDenied,
-                        McpToolError::permission_denied(format!(
-                            "Caller {} does not own this secret",
-                            caller
-                        ))
-                        .to_json_string(),
-                    );
-                }
+            Some(entry) if entry.owner_webid == caller || entry.owner_webid == "system" => {}
+            Some(_) => {
+                return span.error(
+                    McpErrorKind::PermissionDenied,
+                    McpToolError::permission_denied(format!(
+                        "Caller {caller} does not own this secret"
+                    ))
+                    .to_json_string(),
+                );
             }
             None => {
                 return span.error(
                     McpErrorKind::NotFound,
-                    McpToolError::not_found(format!("Key {} not found", key)).to_json_string(),
+                    McpToolError::not_found(format!("Key {key} not found")).to_json_string(),
                 );
             }
         }
-
         let webid: WebID = caller.parse().unwrap_or_else(|_| WebID::new());
         let _ = self.keychain.delete(&webid);
-
         if entries.remove(&full_key).is_some() {
-            drop(entries); // Release write lock before I/O
+            drop(entries);
             self.save_vault().await;
-
-            span.ok_json(json!({
-                "key": key,
-                "deleted": true,
-            }))
+            span.ok_json(json!({"key": key, "deleted": true}))
         } else {
             span.error(
                 McpErrorKind::NotFound,
-                McpToolError::not_found(format!("Key {} not found", key)).to_json_string(),
+                McpToolError::not_found(format!("Key {key} not found")).to_json_string(),
             )
         }
     }
@@ -455,14 +387,9 @@ impl KeystoreServer {
     #[tool(description = "List all keys in the keystore")]
     async fn keystore_list(&self) -> String {
         let span = ToolSpanGuard::new("keystore_list", &self.webid);
-
         let entries = self.entries.read().await;
         let keys: Vec<&String> = entries.keys().collect();
-
-        span.ok_json(json!({
-            "key_count": keys.len(),
-            "keys": keys,
-        }))
+        span.ok_json(json!({"key_count": keys.len(), "keys": keys}))
     }
 }
 

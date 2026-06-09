@@ -483,10 +483,11 @@ Also added `recorded_at` column to `spec_curation_records` table and `list_curat
 ### FUT-013: Coherence threshold calibration
 
 **DDMVSS Category:** Curation  
-**Status:** Open  
-**Opened:** 2026-06-07
+**Status:** Resolved  
+**Opened:** 2026-06-07  
+**Resolved:** 2026-06-08
 
-The coherence threshold (0.7) is a starting guess. The spec document states this is uncalibrated. Calibration requires operational data from curation sessions. This is a genuine underspecification in the Curation category's spec — the spec should state the calibration method, not just the threshold value. Tracked as both a spec-document refinement and a code task.
+Added calibration procedure to DDMVSS §5.9: collect ≥10 SpecCurationRecord coherence scores, compute 25th percentile (nearest-rank) as empirical threshold. Code: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)`. Also added `load_all_curation_records()` to `SqliteCurationRecordStore` for retrieval of all historical scores. Recalibration recommended after every curation cycle.
 
 ---
 
@@ -595,12 +596,11 @@ The `hkask-mcp-spec` server can be used to capture and curate the specification 
 ### DA-5: Coherence threshold calibration as spec-document gap
 
 **DDMVSS Category:** Curation  
-**Status:** Open  
-**Opened:** 2026-06-07
+**Status:** Resolved  
+**Opened:** 2026-06-07  
+**Resolved:** 2026-06-08
 
-The curation coherence threshold is uncalibrated. This is a genuine underspecification in the Curation category's specification document — the spec should state the calibration method, not just the threshold value. Resolving this requires adding a calibration procedure section to `DDMVSS.md` §5.9 or `WRITING_EXCELLENCE.md`, then verifying via the Documentation Standards gate. Also tracked as FUT-013.
-
-**Note (2026-06-08):** The curation decisions in `docs/status/curation-decisions.yaml` use estimated coherence scores (0.60–0.95) based on structural alignment between spec and code. A mechanical calibration procedure would ground these estimates. The DDMVSS completeness predicate in DDMVSS_SCAFFOLD.md §4 now distinguishes spec-document completeness from code-implementation completeness, which makes coherence scoring more precise.
+Resolved by adding a `calibration` section to the `coherence_metric` block in DDMVSS §5.9 Curation Spec Template. The calibration procedure is now documented: collect ≥10 SpecCurationRecord coherence scores, compute the 25th percentile (nearest-rank), use that as the empirical threshold. Code implementation: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)` in `crates/hkask-agents/src/curator_agent/spec_curator.rs`. This closes the spec-document gap — the spec now states the calibration method, not just the threshold value.
 
 ---
 

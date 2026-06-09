@@ -7,17 +7,14 @@
 //! Template types: Prompt (WordAct), Process (FlowDef), Cognition (KnowAct).
 //! Registry adapters: `Registry` (in-memory), `SqliteRegistry` (SQLite).
 
+pub mod contract_validator;
 pub mod embedding_port;
 pub mod executor;
 pub mod inference_port;
-pub mod lexicon;
 pub mod manifest_loader;
 pub mod okapi_config;
 pub mod ports;
-pub mod prompt_cache;
 pub mod prompt_strategy;
-
-pub mod contract_validator;
 
 pub mod registry;
 pub mod registry_sqlite;
