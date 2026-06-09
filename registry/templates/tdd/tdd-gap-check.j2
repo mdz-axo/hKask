@@ -16,9 +16,9 @@ contract:
   visibility: Shared
 
 ---
-{# Template: tdd/tdd-gap-check.j2 #}
+# Template: tdd/tdd-gap-check.j2 #}
 {# KnowAct — Functional gap analysis: spec requirements vs tested behaviors #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1
@@ -35,16 +35,16 @@ You are a TDD functional gap analysis agent. Compare specification requirements 
 **{{ crate_scope }}**
 {% endif %}
 
-## Specification Requirements (from spec/graph/query)
+## Specification Requirements (from spec/goal/capture)
 
-These are the structured Spec objects from the specification graph that this TDD session covers:
+These are the structured Spec objects from the specification system that this TDD session covers:
 
 ```json
 {{ spec_requirements | tojson }}
 ```
 
 {% if collection_coherence %}
-## Collection Coherence (from spec/graph/validate)
+## Collection Coherence (from spec/graph/coherence)
 
 ```json
 {{ collection_coherence | tojson }}
@@ -62,22 +62,19 @@ These are the behaviors that have tracer bullets (tests) written for them:
 ## Analysis Rules
 
 1. **Match by spec_id**: Each tested behavior should carry a `spec_id` linking it to a specification requirement. If a behavior has no `spec_id`, flag it as unanchored.
-2. **Gap = no tracer bullet for a requirement**: If a spec from the graph has no matching tested behavior (no `// REQ:` tag with its `spec_id`), it is a coverage gap.
+2. **Gap = no tracer bullet for a requirement**: If a spec from the captured goals has no matching tested behavior (no `// REQ:` tag with its `spec_id`), it is a coverage gap.
 3. **Unanchored = no spec_id on a behavior**: If a tested behavior has no `spec_id`, it tests something not in the specification — flag it for review.
-4. **Priority is derived from SpecCategory**: P0 = Trust (Trust & Security), P1 = Capability, Interface, Domain, Composition, P2+ = Observability, Persistence, Lifecycle, Curation.
+4. **Priority is derived from MDS category**: P0 = Trust, P1 = Domain, Composition, P2 = Lifecycle, Curation.
 5. **Incomplete specs**: If `is_complete()` returns false for a spec, its unsatisfied `Criterion` items are additional coverage gaps.
 6. **Deferrals go to OPEN_QUESTIONS.md**: Every deferred gap must have a documented rationale.
 
-## DDMVSS Priority Categories
+## MDS Priority Categories
 
-| Priority | DDMVSS Category | Resolution |
-|----------|-----------------|------------|
-| P0 | Trust & Security (REQ-TRU-*) | MUST write tracer bullet |
-| P0 | Critical correctness | MUST write tracer bullet |
-| P1 | Capability (REQ-CAP-*), Interface (REQ-IFC-*) | SHOULD write tracer bullet |
-| P1 | Domain (REQ-DOM-*), Composition (REQ-COM-*) | SHOULD write tracer bullet |
-| P2 | Observability (REQ-OBS-*), Persistence (REQ-PER-*) | MAY defer with rationale |
-| P2+ | Lifecycle (REQ-LIF-*), Curation (REQ-CUR-*) | MAY defer with rationale |
+| Priority | MDS Category | Resolution |
+|----------|-------------|------------|
+| P0 | Trust | MUST write tracer bullet |
+| P1 | Domain, Composition | SHOULD write tracer bullet |
+| P2 | Lifecycle, Curation | MAY defer with rationale |
 
 ## Output Requirements
 
@@ -87,7 +84,7 @@ Respond with a JSON object:
 {
   "covered_requirements": [
     {
-      "spec_id": "UUID from spec/graph/query",
+      "spec_id": "UUID from spec/goal/capture",
       "requirement": "Fail-closed capability checker",
       "test_name": "capability_check_denies_when_no_checker",
       "seam": "CapabilityChecker trait",
@@ -97,7 +94,7 @@ Respond with a JSON object:
   ],
   "gaps": [
     {
-      "spec_id": "UUID from spec/graph/query",
+      "spec_id": "UUID from spec/goal/capture",
       "requirement": "Encrypted storage at rest",
       "priority": "P0",
       "recommendation": "tracer-bullet",
@@ -107,7 +104,7 @@ Respond with a JSON object:
   ],
   "deferrals": [
     {
-      "spec_id": "UUID from spec/graph/query",
+      "spec_id": "UUID from spec/goal/capture",
       "requirement": "Algedonic alerting threshold configuration",
       "priority": "P2",
       "rationale": "Deferred: alert thresholds not configurable in current sprint",
@@ -128,7 +125,7 @@ Respond with a JSON object:
 - P2+ gaps MAY recommend `defer-to-OPEN_QUESTIONS`.
 - Unanchored behaviors (no `spec_id`) must be flagged in the analysis.
 - Specs where `is_complete()` is false have unsatisfied `Criterion` items that should appear as gaps.
-- Use `spec/graph/validate` results to check overall collection coherence and missing categories.
+- Use `spec/graph/coherence` results to check overall collection coherence and missing MDS categories.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

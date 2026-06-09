@@ -71,6 +71,10 @@ pub struct CyberneticsLoop {
     /// When set, ToolConsumptionEvents are drained during process_inbox() alongside
     /// the legacy LoopMessage inbox.
     tool_consumption_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<ToolConsumptionEvent>>>>,
+    /// Direct curator directive channel: Curation → Cybernetics.
+    /// When set, CuratorDirectives are drained during process_inbox() instead of
+    /// going through the legacy LoopMessage dispatch path.
+    curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
 }
 
 impl CyberneticsLoop {
@@ -111,6 +115,7 @@ impl CyberneticsLoop {
             communication_queue_depth: None,
             alerts_tx: None,
             tool_consumption_rx: None,
+            curator_directive_rx: None,
         }
     }
 
@@ -150,6 +155,19 @@ impl CyberneticsLoop {
         rx: mpsc::UnboundedReceiver<ToolConsumptionEvent>,
     ) -> Self {
         self.tool_consumption_rx = Some(Arc::new(RwLock::new(rx)));
+        self
+    }
+
+    /// Wire the direct curator directive channel: Curation → Cybernetics.
+    ///
+    /// When set, `process_inbox()` drains CuratorDirectives from this channel
+    /// instead of going through the legacy LoopMessage dispatch path.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_curator_directive_channel(
+        mut self,
+        rx: mpsc::UnboundedReceiver<CuratorDirective>,
+    ) -> Self {
+        self.curator_directive_rx = Some(Arc::new(RwLock::new(rx)));
         self
     }
 
@@ -249,6 +267,19 @@ impl CyberneticsLoop {
         }
         if processed > 0 {
             tracing::info!(target: "cns.cybernetics", processed = processed, "Processed inbox messages");
+        }
+
+        // Strangler fig: drain direct curator directive channel.
+        if let Some(ref rx) = self.curator_directive_rx {
+            let mut cd_rx = rx.write().await;
+            let mut cd_processed = 0;
+            while let Ok(directive) = cd_rx.try_recv() {
+                cd_processed += 1;
+                self.handle_curation_directive(directive).await;
+            }
+            if cd_processed > 0 {
+                tracing::info!(target: "cns.cybernetics", processed = cd_processed, "Processed direct curator directives");
+            }
         }
 
         // Strangler fig: drain direct tool consumption channel.

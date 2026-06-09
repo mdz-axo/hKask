@@ -30,7 +30,7 @@ use hkask_types::capability::{
     DelegationAction, DelegationResource, DelegationToken, capabilities_match,
 };
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::loops::{LoopId, LoopMessage, LoopPayload, MessagePriority, ToolConsumptionEvent};
+use hkask_types::loops::ToolConsumptionEvent;
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 
 use serde_json::Value;
@@ -83,10 +83,7 @@ pub struct GovernedTool<P: ToolPort> {
     event_sink: Arc<dyn NuEventSink>,
     estimator: Arc<dyn EnergyEstimator>,
     agent: WebID,
-    dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    /// Direct tool consumption channel: GovernedTool → Cybernetics (strangler fig).
-    /// When set, ToolConsumptionEvent is sent on this channel alongside the
-    /// legacy LoopMessage::ToolConsumption through dispatch_tx.
+    /// Direct tool consumption channel: GovernedTool → Cybernetics
     tool_consumption_tx: Option<mpsc::UnboundedSender<ToolConsumptionEvent>>,
 }
 
@@ -98,7 +95,6 @@ impl<P: ToolPort> GovernedTool<P> {
         event_sink: Arc<dyn NuEventSink>,
         estimator: Arc<dyn EnergyEstimator>,
         agent: WebID,
-        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
         Self {
             inner,
@@ -106,17 +102,11 @@ impl<P: ToolPort> GovernedTool<P> {
             event_sink,
             estimator,
             agent,
-            dispatch_tx,
             tool_consumption_tx: None,
         }
     }
 
     /// Wire the direct tool consumption channel: GovernedTool → Cybernetics.
-    ///
-    /// When set, `invoke()` sends a `ToolConsumptionEvent` on this channel
-    /// alongside the legacy `LoopMessage::ToolConsumption` through dispatch_tx.
-    /// This is the strangler fig pattern — both pathways operate until
-    /// CyberneticsLoop is fully migrated.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_tool_consumption_channel(
         mut self,
@@ -303,30 +293,8 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         }
         drop(loop6);
 
-        // Step 5b: Emit gas-consumed signal to Cybernetics Loop
+        // Step 5b: Emit gas-consumed signal to Cybernetics Loop via direct channel.
         let success = result.is_ok();
-        let consumption_msg = LoopMessage::new(
-            MessagePriority::Info,
-            LoopId::Cybernetics,
-            LoopPayload::ToolConsumption {
-                tool_name: tool.to_string(),
-                agent: self.agent,
-                gas_cost: actual_cost,
-                success,
-            },
-        )
-        .with_target(LoopId::Cybernetics);
-        if let Err(e) = self.dispatch_tx.send(consumption_msg) {
-            warn!(
-                target: "cns.tool",
-                agent = ?self.agent,
-                tool = %tool,
-                error = %e,
-                "Failed to send ToolConsumption signal to Cybernetics Loop"
-            );
-        }
-
-        // Strangler fig: also send ToolConsumptionEvent on direct channel.
         if let Some(ref tx) = self.tool_consumption_tx {
             let event = ToolConsumptionEvent {
                 tool_name: tool.to_string(),

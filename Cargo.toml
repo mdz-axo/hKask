@@ -21,8 +21,7 @@ members = [
     "mcp-servers/hkask-mcp-telnyx",
     "mcp-servers/hkask-mcp-fal",
     "mcp-servers/hkask-mcp-rss-reader",
-    "mcp-servers/hkask-mcp-episodic",
-    "mcp-servers/hkask-mcp-semantic",
+    "mcp-servers/hkask-mcp-memory",
     "mcp-servers/hkask-mcp-doc-knowledge",
     "mcp-servers/hkask-mcp-markitdown",
 ]

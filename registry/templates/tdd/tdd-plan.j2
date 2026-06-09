@@ -19,8 +19,8 @@ contract:
 
 ---
 {# Template: tdd/tdd-plan.j2 #}
-{# KnowAct — TDD cycle planning with spec-anchored functional requirements #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# KnowAct — TDD cycle planning with MDS spec-anchored functional requirements #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2
@@ -58,9 +58,9 @@ Target: **{{ crate_scope }}**
 {% endif %}
 
 {% if spec_source %}
-## Specification Requirements (from spec/graph/query)
+## Specification Requirements (from spec/goal/capture)
 
-The following specification requirements were retrieved from the specification graph. Each spec has a `spec_id`, category, goals with criteria, and a completeness status. Use these as the source of truth for functional requirements.
+The following specification requirements were retrieved from the specification system. Each spec has a `spec_id`, category, goals with criteria, and a completeness status. Use these as the source of truth for functional requirements.
 
 ```json
 {{ spec_source | tojson }}
@@ -70,7 +70,7 @@ For each spec, extract functional requirements from its `goals` and `criteria`. 
 {% else %}
 ## Specification Source
 
-No specification data was provided and no specs were found in the graph for the given categories. You MUST use `spec/goal/capture` to create a specification before planning tests. A feature without a spec cannot be spec-anchored.
+No specification data was provided and no specs were found for the given categories. You MUST use `spec/goal/capture` to create a specification before planning tests. A feature without a spec cannot be spec-anchored.
 {% endif %}
 
 ## Rust Conventions
@@ -82,14 +82,14 @@ No specification data was provided and no specs were found in the graph for the 
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. Every test carries a `// REQ: REQ-XXX — requirement summary` comment naming the spec requirement it validates.
+8. Every test carries a `// REQ: <spec_id> — requirement summary` comment naming the spec requirement it validates. The `spec_id` comes from `spec/goal/capture`.
 
 ## Planning Requirements
 
 1. **Functional requirements**: Extract every requirement from the specification graph that is in scope for this task. Use the `spec_id` as the stable reference. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet.
 2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph.
 3. **Public interface**: Describe the interface changes needed.
-4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust & Security). P1 = correctness (Capability, Interface, Domain, Composition). P2+ = ergonomics (Observability, Persistence, Lifecycle, Curation). Use `spec/curate/evaluate` results to inform priority — specs with `Merge` decisions are ready for testing; specs with `Revise` need more work first.
+4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust). P1 = correctness (Domain, Composition). P2 = ergonomics (Lifecycle, Curation). Only plan tracer bullets for specs with `Accept` curation decisions (curation is external — Curator or human).
 5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation.
 
 ## Output Requirements
@@ -100,12 +100,12 @@ Respond with a JSON object:
 {
   "functional_requirements": [
     {
-      "spec_id": "UUID from spec/graph/query",
+      "spec_id": "UUID from spec/goal/capture",
       "category": "trust",
       "requirement": "Fail-closed capability checker",
       "seam": "CapabilityChecker trait",
       "priority": "P0",
-      "curation_decision": "Merge|Revise|Discard"
+      "curation_decision": "Accept|Revise|Reject"
     }
   ],
   "behaviors_to_test": [
@@ -142,7 +142,7 @@ Respond with a JSON object:
 
 - Do NOT write any code. This is planning only.
 - Every behavior must be testable through a public interface (seam).
-- Every behavior must reference a `spec_id` from the specification graph.
+- Every behavior must reference a `spec_id` from the specification system.
 - If no spec data was provided, you must use `spec/goal/capture` to create a specification before listing behaviors.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.

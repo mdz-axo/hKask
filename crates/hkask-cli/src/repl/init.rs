@@ -161,7 +161,6 @@ pub(super) fn init_repl_state(
         ctx.event_sink.clone(),
         estimator,
         agent_webid,
-        ctx.loop_system.dispatch_sender(),
     ));
 
     // Register the agent's energy budget with the CyberneticsLoop.

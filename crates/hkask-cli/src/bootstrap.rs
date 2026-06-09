@@ -254,8 +254,7 @@ impl BootstrapSequence {
         info!(target: "bootstrap", "MCP phase: Starting MCP supervisor");
 
         let mcp_servers = vec![
-            "hkask-mcp-episodic",
-            "hkask-mcp-semantic",
+            "hkask-mcp-memory",
             "hkask-mcp-spec",
             "hkask-mcp-web",
             "hkask-mcp-condenser",

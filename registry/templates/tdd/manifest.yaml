@@ -1,14 +1,16 @@
 # Template crate manifest for tdd skill
-# ℏKask v0.23.0
+# ℏKask v0.27.0
 
 crate:
   name: tdd
-  version: "0.23.0"
+  version: "0.27.0"
   description: >
-    Test-driven development with red-green-refactor loop, spec-anchored functional
+    Test-driven development with red-green-refactor loop, MDS spec-anchored functional
     testing, and gap analysis. Builds features or fixes bugs one vertical slice at a
     time. Enforces behavior testing through public interfaces, spec traceability via
-    // REQ: tags, anti-horizontal-slicing, and minimal-implementation discipline.
+    // REQ: tags (anchored to MDS spec/goal/capture outputs), anti-horizontal-slicing,
+    and minimal-implementation discipline. Five MDS categories: domain, composition,
+    trust, lifecycle, curation.
 
 templates:
   - id: tdd/tdd-plan

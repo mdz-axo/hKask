@@ -34,15 +34,15 @@ The SKILL.md (this file) teaches the Zed coding agent the TDD methodology. The .
 
 Every tracer bullet starts from a specification requirement, not from intuition. The specification is the source of truth for *what* to test. Without spec anchoring, tests validate behavior that may not matter and miss behavior that does.
 
-**Traceability chain**: `spec/graph/query` → `Spec` objects → `GoalSpec.criteria` → `// REQ:` comment → test → implementation.
+**Traceability chain**: `spec/goal/capture` → `Spec` objects → `GoalSpec.criteria` → `// REQ:` comment → test → implementation.
 
-The TDD process queries the specification graph via MCP tools before planning. Requirements come from structured `Spec` and `GoalSpec` objects — not from LLM interpretation of markdown. This makes spec anchoring mechanically verifiable:
+The TDD process queries the specification system before planning. Requirements come from structured `Spec` and `GoalSpec` objects — not from LLM interpretation of markdown. This makes spec anchoring mechanically verifiable:
 
-- `spec/graph/query` retrieves specs filtered by DDMVSS category and domain anchor
-- `spec/graph/validate` checks collection coherence and identifies missing categories
-- `spec/curate/evaluate` determines whether a spec is ready for testing (Merge = ready, Revise = needs work)
-- `spec/test/invariant` creates the `TestTraceability` record linking a test to a requirement
-- `spec/test/verify` returns `TestVerifyResponse` with coverage, gaps, and debt counts
+- `spec/goal/capture` creates a new specification with auto-inferred MDS category and criteria seeding
+- `spec/graph/coherence` checks collection coherence and identifies missing categories (MDS §3: tool 5)
+- `spec/require/writing-quality` gates spec readability before testing (MDS §3: tool 3)
+- `spec/graph/query` retrieves specs by MDS category and domain anchor (MDS §3: tool 4 — aspirational, not yet implemented)
+- Curation decisions (Accept/Revise/Reject) are external to the spec server — the Curator or human makes them (MDS §2)
 
 If no specification exists for the feature, use `spec/goal/capture` to create one before planning tests. A feature without a spec cannot be spec-anchored.
 
@@ -79,7 +79,7 @@ RIGHT (vertical):
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. The `spec_id` comes from `spec/graph/query` or `spec/goal/capture`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
+8. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. The `spec_id` comes from `spec/goal/capture`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
 
 ## Workflow
 
@@ -89,7 +89,7 @@ Before writing any code:
 
 **Step 1 — Extract requirements from specifications:**
 - Identify the relevant specification document(s) for the change
-- Extract functional requirements with their DDMVSS REQ-IDs (e.g., `REQ-TRU-001`)
+- Extract functional requirements with their MDS category and spec_id (e.g., from `spec/goal/capture` output)
 - If no spec exists, create a minimal one before proceeding
 
 **Step 2 — Map requirements to testable behaviors:**
@@ -103,13 +103,13 @@ Before writing any code:
 - P2+ (Ergonomics): Convenience, polish
 
 **Step 4 — List behaviors with traceability:**
-- Each behavior must reference a REQ-ID from the specification
+- Each behavior must reference a spec_id from the specification
 - List behaviors to test (not implementation steps)
 - Get user approval on the plan
 
-Ask: "Which DDMVSS categories does this change touch? What should the public interface look like? Which requirements are most critical to test?"
+Ask: "Which MDS categories does this change touch? What should the public interface look like? Which requirements are most critical to test?"
 
-**Spec resolution via MCP:** Before writing any test plan, call `spec/graph/query` with the relevant `SpecCategory` to retrieve structured requirements. Use `spec/curate/evaluate` to check whether each spec is ready for testing. Only plan tracer bullets for specs with `Merge` curation decisions.
+**Spec resolution:** Before writing any test plan, query the specification system for requirements in the relevant MDS category (Domain, Composition, Trust, Lifecycle, or Curation). Curation decisions (Accept/Revise/Reject) are made externally by the Curator or human per MDS §2. Only plan tracer bullets for specs with `Accept` curation decisions.
 
 **You can't test everything.** Focus on requirements in the change scope, prioritized by risk.
 
@@ -122,13 +122,13 @@ RED:   Write test for first behavior → test fails
 GREEN: Write minimal code to pass → test passes
 ```
 
-Each test must include a `// REQ:` comment that references the spec's `id` field from the `SpecStore`:
+Each test must include a `// REQ:` comment that references the spec's `id` field from `Spec`:
 ```rust
-// REQ: <spec_id from spec/graph/query> — Fail-closed capability checker
+// REQ: <spec_id> — capability_check_denies_when_no_checker
 #[test]
 fn capability_check_denies_when_no_checker() { ... }
 ```
-The `spec_id` is the UUID returned by `spec/goal/capture` or `spec/graph/query`. For human readability, include the DDMVSS category and a brief summary after the em-dash.
+The `spec_id` is the UUID returned by `spec/goal/capture`. For human readability, include the MDS category and a brief summary after the em-dash.
 
 ### 3. Incremental Loop
 
@@ -170,15 +170,14 @@ cargo check -p <crate>          # Type-check
 
 After verification, compare tested behaviors against specification requirements:
 
-1. **Call `spec/graph/query`** with the DDMVSS categories in scope to retrieve all relevant specs
-2. **Call `spec/test/verify`** to get a `TestVerifyResponse` with `total_requirements`, `tested`, `gaps`, `debt`, and `traceability`
-3. **For each spec in the query result**, check `is_complete()` — if false, the spec has unsatisfied criteria that may need tracer bullets
-4. **Gaps** — specs with `has_gap: true` in their `TestTraceability` — must be addressed:
+1. **Query the specification system** with the MDS categories in scope to retrieve all relevant specs (via `spec/graph/query` when implemented; currently review `Spec` objects from `spec/goal/capture` outputs)
+2. **For each spec**, check `is_complete()` — if false, the spec has unsatisfied criteria that may need tracer bullets
+3. **Gaps** — spec requirements with no matching `// REQ:` tag — must be addressed:
    - Write a tracer bullet for the gap, OR
    - Document the gap in `OPEN_QUESTIONS.md` with a deferral rationale
-5. **Call `spec/graph/validate`** to check overall collection coherence and identify missing categories
+4. **Check collection coherence** via `spec/graph/coherence` to identify missing MDS categories
 
-This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage). Both are mechanically verifiable via the MCP spec tools.
+This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
 
 ## Checklist Per Cycle
 
@@ -198,9 +197,8 @@ This step catches the "tested but wrong" problem (tests that don't validate real
 
 ```
 [ ] Every spec requirement in scope has a tracer bullet OR a documented deferral
-[ ] No // REQ: tag references a non-existent spec (verify via spec/graph/query)
-[ ] spec/graph/validate confirms collection coherence above threshold
-[ ] spec/test/verify confirms no gaps for in-scope categories
+[ ] No // REQ: tag references a non-existent spec_id
+[ ] Each MDS category in scope has coverage (Domain, Composition, Trust, Lifecycle, Curation)
 [ ] TRACEABILITY_MATRIX.md is updated for new coverage
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
 ```

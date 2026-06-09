@@ -13,8 +13,7 @@ use std::sync::Arc;
 /// Each entry maps `(server_id, binary_name)`. The binary must be on PATH
 /// or specified via the `HKASK_MCP_{ID}_BIN` environment variable.
 const API_SERVERS: &[(&str, &str)] = &[
-    ("episodic", "hkask-mcp-episodic"),
-    ("semantic", "hkask-mcp-semantic"),
+    ("memory", "hkask-mcp-memory"),
     ("condenser", "hkask-mcp-condenser"),
     ("spec", "hkask-mcp-spec"),
     ("web", "hkask-mcp-web"),

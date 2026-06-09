@@ -5,7 +5,7 @@
 //
 //! | Tier | Servers | Cost | Rationale |
 //! |------|---------|------|----------|
-//! | Memory | episodic, semantic | 5 | Internal storage read |
+//! | Memory | memory | 5 | Internal storage read |
 //! | Local I/O | spec | 5 | No network |
 //! | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + I/O |
 //! | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
@@ -25,9 +25,8 @@ use std::collections::HashMap;
 /// while being simple to understand and calibrate.
 pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     let mut table = HashMap::new();
-    // Memory servers — internal storage read
-    table.insert("hkask-mcp-episodic", 5);
-    table.insert("hkask-mcp-semantic", 5);
+    // Memory — internal storage read
+    table.insert("hkask-mcp-memory", 5);
 
     // Local I/O — no network
     table.insert("hkask-mcp-spec", 5);
@@ -63,7 +62,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 ///
 /// | Tier | Servers | Cost Range | Rationale |
 /// |------|---------|------------|----------|
-/// | Memory | episodic, semantic | 5 | Internal storage read |
+/// | Memory | memory | 5 | Internal storage read |
 /// | Local I/O | spec | 5 | Local I/O, no network |
 /// | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + local I/O |
 /// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |

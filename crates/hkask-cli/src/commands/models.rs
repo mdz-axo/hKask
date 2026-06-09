@@ -1,9 +1,10 @@
 //! Models command handlers for `kask models`
+//!
+//! Lists available models from the inference backend via `InferenceService`.
+//! Inference is an internal cognition layer, not an MCP server — the `kask models`
+//! command queries the inference backend directly through the service layer.
 
-fn build_service_context(
-    rt: &tokio::runtime::Runtime,
-    servers: &[(&str, &str)],
-) -> hkask_services::ServiceContext {
+pub fn run(rt: &tokio::runtime::Runtime) {
     let config = super::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",
@@ -12,61 +13,48 @@ fn build_service_context(
         rt.block_on(hkask_services::ServiceContext::build(config)),
         "Failed to build ServiceContext",
     );
-    for (server_id, command) in servers {
-        match rt.block_on(ctx.mcp_runtime.start_server(server_id, command)) {
-            Ok(()) => {
-                tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started")
-            }
-            Err(e) => {
-                tracing::warn!(target: "hkask.cli", server_id = %server_id, error = %e, "Failed to start MCP server")
-            }
-        }
-    }
-    ctx
-}
 
-pub fn run(rt: &tokio::runtime::Runtime) {
-    use hkask_templates::McpPort;
-    let ctx = build_service_context(rt, &[("inference", "hkask-mcp-inference")]);
-    let from = hkask_types::WebID::new();
-    let to = hkask_types::WebID::new();
-    let token = ctx
-        .mcp_dispatcher
-        .issue_capability("tools".to_string(), from, to);
-    match rt.block_on(
-        ctx.mcp_dispatcher
-            .invoke("inference_models", serde_json::json!({}), &token),
-    ) {
-        Ok(result) => {
-            if let Some(tiers) = result.get("model_tiers").and_then(|t| t.as_array()) {
-                println!("\n=== Available Model Tiers ===");
-                for tier in tiers {
-                    let label = tier
-                        .get("tier")
-                        .and_then(|t| t.as_str())
-                        .unwrap_or("unknown");
-                    let count = tier.get("count").and_then(|c| c.as_u64()).unwrap_or(0);
-                    println!("  {}: {} models", label, count);
-                    if let Some(models) = tier.get("models").and_then(|m| m.as_array()) {
-                        for model in models {
-                            let name = model.get("name").and_then(|n| n.as_str()).unwrap_or("?");
-                            let size = model.get("size").and_then(|s| s.as_str()).unwrap_or("");
-                            println!("    - {}  {}", name, size);
-                        }
-                    }
+    let inf_ctx = hkask_services::InferenceContext::from(&ctx);
+    match rt.block_on(hkask_services::InferenceService::list_models(&inf_ctx)) {
+        Ok(models) => {
+            if models.is_empty() {
+                println!("No models available.");
+                return;
+            }
+            // Group by family for tiered display
+            use std::collections::BTreeMap;
+            let mut by_family: BTreeMap<String, Vec<&hkask_services::ModelInfo>> = BTreeMap::new();
+            for m in &models {
+                let family = m.family.as_deref().unwrap_or("uncategorized");
+                by_family.entry(family.to_string()).or_default().push(m);
+            }
+            println!("\n=== Available Models ===");
+            for (family, group) in &by_family {
+                println!("  {}: {} model(s)", family, group.len());
+                for m in group {
+                    let size_label = m
+                        .parameter_size
+                        .as_deref()
+                        .unwrap_or(m.quantization_level.as_deref().unwrap_or(""));
+                    let bytes = m
+                        .size_bytes
+                        .map(|b| {
+                            if b >= 1_000_000_000 {
+                                format!("{:.1} GB", b as f64 / 1_000_000_000.0)
+                            } else if b >= 1_000_000 {
+                                format!("{:.1} MB", b as f64 / 1_000_000.0)
+                            } else {
+                                format!("{} B", b)
+                            }
+                        })
+                        .unwrap_or_default();
+                    println!("    - {}  {}  {}", m.name, size_label, bytes);
                 }
-            } else {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&result).unwrap_or_default()
-                );
             }
         }
         Err(e) => {
             eprintln!("Failed to list models: {}", e);
-            rt.block_on(ctx.mcp_dispatcher.shutdown_all());
             std::process::exit(1);
         }
     }
-    rt.block_on(ctx.mcp_dispatcher.shutdown_all());
 }

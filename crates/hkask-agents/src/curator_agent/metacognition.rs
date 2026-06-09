@@ -9,7 +9,6 @@ use hkask_types::BotID;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
-use hkask_types::loops::dispatch::TraceId;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -318,10 +317,10 @@ impl MetacognitionLoop {
         Ok(())
     }
 
-    /// Issue a CuratorDirective through message dispatch with DAMPEN filtering.
+    /// Issue a CuratorDirective on the direct channel with DAMPEN filtering.
     /// Delegates to `CuratorContext::issue_directive()`.
-    pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
-        self.context.issue_directive(directive).await
+    pub async fn issue_directive(&self, directive: CuratorDirective) {
+        self.context.issue_directive(directive).await;
     }
 
     // Act helpers — parameter extraction

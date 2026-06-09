@@ -7,8 +7,6 @@
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
 //! the port is passed to this loop.
 
-use hkask_types::WebID;
-use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
@@ -49,7 +47,6 @@ impl InferenceLoop {
             gas_remaining: Arc::new(AtomicU64::new(0)),
             gas_cap: 0,
             current_model: None,
-            dispatch_tx: None,
         }
     }
 }
@@ -74,17 +71,6 @@ impl InferenceLoop {
     /// Set the active inference model.
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.current_model = Some(model.into());
-        self
-    }
-
-    /// Set the dispatch channel for routing LoopActions through Communication.
-    ///
-    /// When set, `act()` converts each `LoopAction` to a `LoopMessage` and sends
-    /// it through this channel. The Communication Loop receives and delivers to
-    /// the target loop's inbox.
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_dispatch(mut self, tx: tokio::sync::mpsc::UnboundedSender<LoopMessage>) -> Self {
-        self.dispatch_tx = Some(tx);
         self
     }
 
@@ -326,32 +312,6 @@ impl HkaskLoop for InferenceLoop {
                         action_type = ?action.action_type,
                         target_loop = %action.target,
                         "Inference Loop regulatory action"
-                    );
-                }
-            }
-        }
-
-        // Route LoopActions through Communication Loop via dispatch channel
-        if let Some(ref tx) = self.dispatch_tx {
-            for action in actions {
-                let payload = LoopPayload::CyberneticsRegulation {
-                    regulation_type: match action.action_type {
-                        ActionType::Throttle => "throttle",
-                        ActionType::Calibrate => "calibrate",
-                        ActionType::AdjustEnergyBudget => "adjust_energy_budget",
-                        _ => continue, // Skip non-routable actions
-                    }
-                    .to_string(),
-                    target: WebID::from_persona(b"inference_loop"),
-                    parameters: action.parameters.clone(),
-                };
-                let msg = LoopMessage::new(action.priority, LoopId::Inference, payload)
-                    .with_target(action.target);
-                if let Err(e) = tx.send(msg) {
-                    tracing::warn!(
-                        target: "cns.inference",
-                        error = %e,
-                        "Failed to dispatch Inference LoopAction"
                     );
                 }
             }

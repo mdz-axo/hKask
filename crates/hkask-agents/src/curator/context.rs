@@ -1,20 +1,22 @@
 //! CurationContext — Runtime composition of Curator capability handles
 
-use crate::communication::dispatch::MessageDispatch;
 use crate::escalation::EscalationQueue;
 use crate::ports::AcpPort;
 use hkask_cns::CnsRuntime;
 use hkask_storage::NuEventStore;
 use hkask_types::CuratorHandle;
 use hkask_types::loops::curation::CuratorDirective;
-use hkask_types::loops::dispatch::TraceId;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 
 /// CuratorContext — aggregates the runtime references the Curator needs.
 pub struct CuratorContext {
     handle: CuratorHandle,
     cns: Arc<CnsRuntime>,
-    dispatch: Arc<MessageDispatch>,
+    /// Direct channel for issuing CuratorDirectives to Cybernetics.
+    /// None when running standalone (e.g., CLI metacognition) where no
+    /// CyberneticsLoop receiver exists.
+    curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
     escalation_queue: Arc<EscalationQueue>,
     /// NuEvent store for algedonic review queries.
     /// Curation reads from the persistent log, not live CNS state.
@@ -28,13 +30,13 @@ impl CuratorContext {
     pub fn new(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
-        dispatch: Arc<MessageDispatch>,
+        curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_queue: Arc<EscalationQueue>,
     ) -> Self {
         Self {
             handle,
             cns,
-            dispatch,
+            curator_directive_tx,
             escalation_queue,
             nu_event_store: None,
             acp: None,
@@ -45,14 +47,14 @@ impl CuratorContext {
     pub fn with_nu_event_store(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
-        dispatch: Arc<MessageDispatch>,
+        curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_queue: Arc<EscalationQueue>,
         nu_event_store: Arc<NuEventStore>,
     ) -> Self {
         Self {
             handle,
             cns,
-            dispatch,
+            curator_directive_tx,
             escalation_queue,
             nu_event_store: Some(nu_event_store),
             acp: None,
@@ -95,16 +97,22 @@ impl CuratorContext {
         self.acp.as_ref()
     }
 
-    /// Issue a CuratorDirective unconditionally.
+    /// Issue a CuratorDirective unconditionally on the direct channel.
     ///
     /// Curation (Loop 5) governs Cybernetics (Loop 6) per the authority DAG,
     /// so Curator directives MUST NOT be dampened by a Cybernetics dampener.
     /// Dampening is applied at the Cybernetics receipt boundary instead.
-    pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
-        let trace_id = self
-            .dispatch
-            .send_curator_directive(directive, *self.handle.curator_id())
-            .await;
-        Some(trace_id)
+    ///
+    /// When no channel is configured (e.g., standalone CLI), this is a no-op.
+    pub async fn issue_directive(&self, directive: CuratorDirective) {
+        if let Some(ref tx) = self.curator_directive_tx
+            && let Err(e) = tx.send(directive)
+        {
+            tracing::warn!(
+                target: "curator.context",
+                error = %e,
+                "Failed to send CuratorDirective on direct channel"
+            );
+        }
     }
 }

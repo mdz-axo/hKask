@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use hkask_agents::EscalationEntry;
 use hkask_agents::EscalationQueue;
-use hkask_agents::communication::MessageDispatch;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_cns::CnsRuntime;
 use hkask_types::CuratorHandle;
@@ -13,15 +12,9 @@ use crate::block_on;
 use crate::cli::CuratorAction;
 use crate::errors::CuratorError;
 
-/// Open DB, build escalation queue, build CNS + dispatch for metacognition.
-async fn build_curator_infra() -> Result<
-    (
-        Arc<EscalationQueue>,
-        Option<Arc<CnsRuntime>>,
-        Option<Arc<MessageDispatch>>,
-    ),
-    CuratorError,
-> {
+/// Open DB, build escalation queue, build CNS for metacognition.
+async fn build_curator_infra()
+-> Result<(Arc<EscalationQueue>, Option<Arc<CnsRuntime>>), CuratorError> {
     let config = hkask_services::ServiceConfig::from_env().map_err(CuratorError::from)?;
     let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
         .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?;
@@ -31,19 +24,18 @@ async fn build_curator_infra() -> Result<
             .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?,
     );
     let cns = Some(Arc::new(CnsRuntime::with_threshold(config.cns_threshold)));
-    let dispatch = Some(Arc::new(MessageDispatch::new()));
-    Ok((queue, cns, dispatch))
+    Ok((queue, cns))
 }
 
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
-    let (queue, _, _) = build_curator_infra().await?;
+    let (queue, _) = build_curator_infra().await?;
     queue
         .list_pending()
         .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))
 }
 
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
-    let (queue, _, _) = build_curator_infra().await?;
+    let (queue, _) = build_curator_infra().await?;
     if queue
         .get(id)
         .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?
@@ -59,7 +51,7 @@ pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
 }
 
 pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
-    let (queue, _, _) = build_curator_infra().await?;
+    let (queue, _) = build_curator_infra().await?;
     if queue
         .get(id)
         .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?
@@ -75,13 +67,12 @@ pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
 }
 
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
-    let (queue, cns, dispatch) = build_curator_infra().await?;
+    let (queue, cns) = build_curator_infra().await?;
     let cns = cns.unwrap();
-    let dispatch = dispatch.unwrap();
     let agents_ctx = Arc::new(hkask_agents::CuratorContext::new(
         CuratorHandle::system(),
         cns,
-        dispatch,
+        None,
         queue.clone(),
     ));
     let agent = CuratorAgent::new(agents_ctx);

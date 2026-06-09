@@ -16,7 +16,7 @@ contract:
 ---
 {# Template: tdd/tdd-refactor.j2 #}
 {# KnowAct — Refactor while GREEN: extract, deepen, simplify #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2
@@ -72,7 +72,7 @@ Respond with a JSON object:
       "files": ["path/to/file.rs"],
       "lines_estimate": 15,
       "verification": "cargo test -p <crate>",
-      "req_tags_preserved": ["REQ-TRU-001", "REQ-IFC-001"]
+      "req_tags_preserved": ["<spec_id>", "<spec_id>"]
     }
   ],
   "each_step_passes": true,

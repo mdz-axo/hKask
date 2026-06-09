@@ -1421,22 +1421,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-episodic"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-memory",
- "hkask-storage",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "hkask-mcp-fal"
 version = "0.27.0"
 dependencies = [
@@ -1486,6 +1470,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-memory"
+version = "0.27.0"
+dependencies = [
+ "anyhow",
+ "hkask-mcp",
+ "hkask-memory",
+ "hkask-storage",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "hkask-mcp-rss-reader"
 version = "0.27.0"
 dependencies = [
@@ -1506,22 +1506,6 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "hkask-mcp-semantic"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-memory",
- "hkask-storage",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

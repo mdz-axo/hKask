@@ -21,7 +21,7 @@ contract:
 ---
 {# Template: tdd/tdd-verify.j2 #}
 {# KnowAct — TDD cycle verification with functional coverage check #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1
@@ -54,7 +54,7 @@ You are a TDD verification agent. Verify that a TDD cycle is complete, clean, an
 
 ### Spec Traceability
 - [ ] Each test carries a `// REQ:` comment referencing a specification requirement
-- [ ] Every `// REQ:` tag references a valid REQ-ID from the specification
+- [ ] Every `// REQ:` tag references a valid spec_id from `spec/goal/capture`
 - [ ] No specification requirement in scope is missing a tracer bullet
 
 ### Implementation Quality
@@ -81,12 +81,12 @@ Respond with a JSON object:
       "behavior": "description of tested behavior",
       "covered": true,
       "seam": "which public interface covers it",
-      "spec_id": "UUID from spec/graph/query"
+      "spec_id": "UUID from spec/goal/capture"
     }
   ],
   "functional_gaps": [
     {
-      "spec_id": "UUID from spec/graph/query",
+      "spec_id": "UUID from spec/goal/capture",
       "requirement": "description of uncovered requirement",
       "priority": "P0|P1|P2",
       "recommendation": "tracer-bullet|defer-to-OPEN_QUESTIONS"

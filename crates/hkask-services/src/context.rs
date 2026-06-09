@@ -48,7 +48,7 @@ use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
-use hkask_types::loops::{RuntimeAlert, SpecEvent, ToolConsumptionEvent};
+use hkask_types::loops::{CuratorDirective, RuntimeAlert, SpecEvent, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 
 use crate::ServiceConfig;
@@ -302,6 +302,10 @@ impl ServiceContext {
         // Strangler fig: direct spec channel SpecCurator → Curation.
         let (spec_tx, spec_rx) = tokio::sync::mpsc::unbounded_channel::<SpecEvent>();
 
+        // Strangler fig: direct curator directive channel Curation → Cybernetics.
+        let (curator_directive_tx, curator_directive_rx) =
+            tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
+
         // Cybernetics loop
         let set_points = load_set_points();
         let cybernetics_loop = CyberneticsLoop::with_set_points(
@@ -312,7 +316,8 @@ impl ServiceContext {
         .with_event_sink(Arc::clone(&cns_event_sink))
         .with_communication_queue_depth(loop_system.communication_queue_depth_counter())
         .with_alerts_channel(alerts_tx)
-        .with_tool_consumption_channel(tool_consumption_rx);
+        .with_tool_consumption_channel(tool_consumption_rx)
+        .with_curator_directive_channel(curator_directive_rx);
         let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
 
         loop_system
@@ -401,7 +406,7 @@ impl ServiceContext {
             CuratorContext::new(
                 CuratorHandle::system(),
                 cns_for_curator,
-                Arc::clone(&dispatch),
+                Some(curator_directive_tx),
                 Arc::clone(&escalation_queue),
             )
             .with_acp(acp_port),
@@ -432,7 +437,6 @@ impl ServiceContext {
                 Arc::clone(&cns_event_sink),
                 estimator,
                 system_webid,
-                loop_system.dispatch_sender(),
             )
             .with_tool_consumption_channel(tool_consumption_tx),
         );

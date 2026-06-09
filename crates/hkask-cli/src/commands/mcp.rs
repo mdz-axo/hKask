@@ -3,8 +3,7 @@
 use crate::cli::McpAction;
 
 const BUILTIN_SERVERS: &[(&str, &str)] = &[
-    ("episodic", "hkask-mcp-episodic"),
-    ("semantic", "hkask-mcp-semantic"),
+    ("memory", "hkask-mcp-memory"),
     ("condenser", "hkask-mcp-condenser"),
     ("spec", "hkask-mcp-spec"),
     ("doc-knowledge", "hkask-mcp-doc-knowledge"),

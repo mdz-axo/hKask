@@ -22,7 +22,7 @@ contract:
 ---
 {# Template: tdd/tdd-tracer.j2 #}
 {# KnowAct — Tracer bullet: one test, one behavior, minimal pass, spec-anchored #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1
@@ -41,7 +41,7 @@ You are a TDD tracer bullet agent. Write ONE failing test for ONE behavior, then
 
 {{ spec_id }}
 
-Every test must include a `// REQ:` comment that references the spec's `id` field from the specification graph. This creates bidirectional traceability: specification ↔ test ↔ implementation. The `spec_id` is the UUID returned by `spec/goal/capture` or `spec/graph/query`.
+Every test must include a `// REQ:` comment that references the spec's `id` field from the specification system. This creates bidirectional traceability: specification ↔ test ↔ implementation. The `spec_id` is the UUID returned by `spec/goal/capture`.
 
 ## Seam
 
@@ -70,7 +70,7 @@ Default: integration test through public API.
 3. **One behavior per tracer bullet**. Do not batch.
 4. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
 5. **No speculative features.** Only implement what the test requires.
-6. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: REQ-XXX — requirement summary`. If a test has no REQ-ID, it tests implementation detail, not a functional requirement.
+6. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
 
 ## Rust Conventions
 
@@ -94,11 +94,11 @@ Respond with a JSON object:
 
 ```json
 {
-  "test_code": "// REQ: <spec_id from spec/graph/query> — requirement summary\n// (tracer bullet comment above)\n#[test]\nfn test_name() { ... }",
+  "test_code": "// REQ: <spec_id from spec/goal/capture> — requirement summary\n// (tracer bullet comment above)\n#[test]\nfn test_name() { ... }",
   "test_file_path": "path/to/test/file.rs",
   "implementation_code": "// The minimal code to pass the test",
   "implementation_file_path": "path/to/implementation/file.rs",
-  "spec_id": "UUID from spec/graph/query",
+  "spec_id": "UUID from spec/goal/capture",
   "test_passes": false,
   "verification_command": "cargo test -p <crate> --test <name>"
 }
@@ -114,7 +114,7 @@ The `// REQ:` comment MUST be the first line of the test function body or a comm
 - Test must fail before implementation is added.
 - Implementation must be the minimum to pass the test.
 - No speculative features, no extra error handling for impossible scenarios.
-- The `// REQ:` tag must reference a valid spec_id from the specification graph (returned by `spec/graph/query` or `spec/goal/capture`).
+- The `// REQ:` tag must reference a valid spec_id from the specification system (returned by `spec/goal/capture`).
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

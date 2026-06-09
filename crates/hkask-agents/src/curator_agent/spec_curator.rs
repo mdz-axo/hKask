@@ -16,7 +16,6 @@ use hkask_types::curation::{
 };
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
-use hkask_types::loops::LoopId;
 use hkask_types::loops::SpecEvent;
 use std::collections::HashSet;
 use std::sync::Arc;

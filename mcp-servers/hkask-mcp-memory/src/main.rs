@@ -1,7 +1,12 @@
-//! hKask MCP Semantic — Semantic memory store, recall, similarity search, and text chunking
+//! hKask MCP Memory — Unified episodic + semantic memory MCP server
 //!
-//! 9 tools:
-//! - `semantic_ping` — Liveness and storage info
+//! 14 tools:
+//! - `episodic_ping` — Liveness and storage info for episodic memory
+//! - `episodic_store` — Store an episodic triple (private, perspective-bound)
+//! - `episodic_recall` — Recall triples by entity (filtered by caller's WebID)
+//! - `episodic_budget` — Storage usage and budget info
+//! - `episodic_consolidate_status` — Check consolidation candidates and budget status
+//! - `semantic_ping` — Liveness and storage info for semantic memory
 //! - `semantic_store` — Store a shared semantic triple (no perspective)
 //! - `semantic_recall` — Recall triples by entity (public, any agent can read)
 //! - `semantic_embed` — Store an embedding vector for similarity search
@@ -11,16 +16,17 @@
 //! - `semantic_chunk` — Chunk text into passages for embedding
 //! - `semantic_count` — Triple and embedding counts
 //!
-//! **Consolidation:** This server does not perform consolidation. Full
-//! consolidation (episodic→semantic promotion) requires both `EpisodicMemory`
-//! and `SemanticMemory`, available only through the CLI, API, or Chat
-//! ConsolidationService surfaces. This server connects to the per-agent
-//! memory DB (`HKASK_MEMORY_DB` / `hkask-memory-{agent}.db`) alongside the
-//! episodic MCP server — both access the same database.
+//! **Sovereignty:** Episodic operations use the calling agent's `WebID` as
+//! the `perspective`. An agent cannot read another agent's episodic memory.
+//! Semantic operations use public `Visibility` — any agent can read shared triples.
+//!
+//! This server replaces `hkask-mcp-episodic` and `hkask-mcp-semantic`,
+//! merging both into a single server that connects to one per-agent memory DB
+//! (`HKASK_MEMORY_DB` / `hkask-memory-{agent}.db`).
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_memory::SemanticMemory;
+use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::Triple;
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -28,6 +34,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
+
+// ── Shared request types ───────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct StoreRequest {
@@ -41,6 +49,16 @@ pub struct StoreRequest {
 pub struct RecallRequest {
     pub entity: String,
 }
+
+// ── Episodic-specific request types ─────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BudgetRequest {}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConsolidateStatusRequest {}
+
+// ── Semantic-specific request types ─────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct EmbedRequest {
@@ -83,14 +101,21 @@ pub struct ChunkTextRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CountRequest {}
 
-pub struct SemanticServer {
-    memory: Arc<SemanticMemory>,
+// ── Server ──────────────────────────────────────────────────────────
+
+pub struct MemoryServer {
+    episodic: EpisodicMemory,
+    semantic: Arc<SemanticMemory>,
     webid: WebID,
 }
 
-impl SemanticServer {
-    pub fn new(memory: Arc<SemanticMemory>, webid: WebID) -> Self {
-        Self { memory, webid }
+impl MemoryServer {
+    pub fn new(episodic: EpisodicMemory, semantic: Arc<SemanticMemory>, webid: WebID) -> Self {
+        Self {
+            episodic,
+            semantic,
+            webid,
+        }
     }
 
     fn internal_error(
@@ -104,11 +129,122 @@ impl SemanticServer {
 }
 
 #[tool_router(server_handler)]
-impl SemanticServer {
+impl MemoryServer {
+    // ── Episodic tools ──────────────────────────────────────────
+
+    #[tool(description = "Liveness and storage info for episodic memory")]
+    async fn episodic_ping(&self) -> String {
+        let span = ToolSpanGuard::new("episodic_ping", &self.webid);
+        span.ok_json(json!({
+            "status": "ok",
+            "server": "hkask-mcp-memory",
+            "perspective": self.webid.to_string(),
+        }))
+    }
+
+    #[tool(description = "Store an episodic triple (private, perspective-bound)")]
+    async fn episodic_store(
+        &self,
+        Parameters(StoreRequest {
+            entity,
+            attribute,
+            value,
+            confidence,
+        }): Parameters<StoreRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("episodic_store", &self.webid);
+        validate_field!(span, "entity", &entity, 256);
+        validate_field!(span, "attribute", &attribute, 256);
+        let triple = Triple::new(&entity, &attribute, value, self.webid)
+            .with_perspective(self.webid)
+            .with_confidence(confidence.unwrap_or(1.0))
+            .with_visibility(Visibility::Private);
+        match self.episodic.store(triple) {
+            Ok(()) => span.ok_json(json!({
+                "stored": true, "entity": entity, "attribute": attribute,
+            })),
+            Err(e) => span.internal_error(
+                json!({"error": format!("Failed to store episodic triple: {}", e)}),
+            ),
+        }
+    }
+
+    #[tool(description = "Recall episodic triples by entity (filtered by caller's WebID)")]
+    async fn episodic_recall(
+        &self,
+        Parameters(RecallRequest { entity }): Parameters<RecallRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("episodic_recall", &self.webid);
+        validate_field!(span, "entity", &entity, 256);
+        match self.episodic.query_for_deduped(&entity, self.webid) {
+            Ok(triples) => {
+                let serialized: Vec<serde_json::Value> = triples
+                    .iter()
+                    .map(|t| {
+                        json!({
+                            "entity": t.entity,
+                            "attribute": t.attribute,
+                            "value": t.value,
+                            "confidence": t.confidence,
+                            "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        })
+                    })
+                    .collect();
+                span.ok_json(json!({"count": serialized.len(), "triples": serialized}))
+            }
+            Err(e) => span.internal_error(
+                json!({"error": format!("Failed to recall episodic triples: {}", e)}),
+            ),
+        }
+    }
+
+    #[tool(description = "Storage usage and budget for episodic memory")]
+    async fn episodic_budget(&self, Parameters(_budget): Parameters<BudgetRequest>) -> String {
+        let span = ToolSpanGuard::new("episodic_budget", &self.webid);
+        let usage = match self.episodic.storage_usage(&self.webid) {
+            Ok(u) => u,
+            Err(e) => {
+                return span
+                    .internal_error(json!({"error": format!("Failed to query storage usage: {}", e)}));
+            }
+        };
+        let budget = self.episodic.storage_budget();
+        let remaining = budget.saturating_sub(usage);
+        span.ok_json(json!({"used": usage, "budget": budget, "remaining": remaining}))
+    }
+
+    #[tool(
+        description = "Check consolidation candidates and budget status for episodic→semantic promotion"
+    )]
+    async fn episodic_consolidate_status(
+        &self,
+        Parameters(_req): Parameters<ConsolidateStatusRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("episodic_consolidate_status", &self.webid);
+        let candidate_count = self.episodic.consolidation_candidate_count(&self.webid);
+        let usage = match self.episodic.storage_usage(&self.webid) {
+            Ok(u) => u,
+            Err(e) => {
+                return span
+                    .internal_error(json!({"error": format!("Failed to query storage usage: {}", e)}));
+            }
+        };
+        let budget = self.episodic.storage_budget();
+        let over_budget = usage > budget;
+        span.ok_json(json!({
+            "consolidation_candidates": candidate_count,
+            "episodic_usage": usage,
+            "episodic_budget": budget,
+            "over_budget": over_budget,
+        }))
+    }
+
+    // ── Semantic tools ──────────────────────────────────────────
+
     #[tool(description = "Liveness and storage info for semantic memory")]
     async fn semantic_ping(&self) -> String {
         let span = ToolSpanGuard::new("semantic_ping", &self.webid);
-        span.ok_json(json!({"status": "ok", "server": "hkask-mcp-semantic"}))
+        span.ok_json(json!({"status": "ok", "server": "hkask-mcp-memory"}))
     }
 
     #[tool(description = "Store a shared semantic triple (no perspective)")]
@@ -127,7 +263,7 @@ impl SemanticServer {
         let triple = Triple::new(&entity, &attribute, value, self.webid)
             .with_visibility(Visibility::Public)
             .with_confidence(confidence.unwrap_or(1.0));
-        match self.memory.store(triple) {
+        match self.semantic.store(triple) {
             Ok(()) => {
                 span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute}))
             }
@@ -142,12 +278,20 @@ impl SemanticServer {
     ) -> String {
         let span = ToolSpanGuard::new("semantic_recall", &self.webid);
         validate_field!(span, "entity", &entity, 256);
-        match self.memory.query_deduped(&entity) {
+        match self.semantic.query_deduped(&entity) {
             Ok(triples) => {
-                let serialized: Vec<_> = triples.iter().map(|t| json!({
-                    "entity": t.entity, "attribute": t.attribute, "value": t.value,
-                    "confidence": t.confidence, "valid_from": t.temporal.valid_from.to_rfc3339(),
-                })).collect();
+                let serialized: Vec<_> = triples
+                    .iter()
+                    .map(|t| {
+                        json!({
+                            "entity": t.entity,
+                            "attribute": t.attribute,
+                            "value": t.value,
+                            "confidence": t.confidence,
+                            "valid_from": t.temporal.valid_from.to_rfc3339(),
+                        })
+                    })
+                    .collect();
                 span.ok_json(json!({"count": serialized.len(), "triples": serialized}))
             }
             Err(e) => self.internal_error(span, "recall semantic triples", e),
@@ -171,9 +315,12 @@ impl SemanticServer {
                 McpToolError::invalid_argument("vector must not be empty").to_json_string(),
             );
         }
-        match self.memory.store_embedding(&entity_ref, &vector, &model) {
+        match self.semantic.store_embedding(&entity_ref, &vector, &model) {
             Ok(_id) => span.ok_json(json!({
-                "stored": true, "entity_ref": entity_ref, "model": model, "dimensions": vector.len(),
+                "stored": true,
+                "entity_ref": entity_ref,
+                "model": model,
+                "dimensions": vector.len(),
             })),
             Err(e) => self.internal_error(span, "store embedding", e),
         }
@@ -195,13 +342,20 @@ impl SemanticServer {
             );
         }
         match self
-            .memory
+            .semantic
             .search_similar(&query_vector, limit.unwrap_or(10))
         {
             Ok(results) => {
-                let serialized: Vec<_> = results.iter().map(|r| json!({
-                    "entity_ref": r.embedding.entity_ref, "model": r.embedding.model, "distance": r.distance,
-                })).collect();
+                let serialized: Vec<_> = results
+                    .iter()
+                    .map(|r| {
+                        json!({
+                            "entity_ref": r.embedding.entity_ref,
+                            "model": r.embedding.model,
+                            "distance": r.distance,
+                        })
+                    })
+                    .collect();
                 span.ok_json(json!({"count": serialized.len(), "results": serialized}))
             }
             Err(e) => self.internal_error(span, "search embeddings", e),
@@ -232,7 +386,7 @@ impl SemanticServer {
                 McpToolError::invalid_argument("dim must be positive").to_json_string(),
             );
         }
-        match self.memory.compute_centroid(
+        match self.semantic.compute_centroid(
             &prefix,
             &exclude_prefix,
             &exclude_ref,
@@ -241,8 +395,11 @@ impl SemanticServer {
             model.as_deref(),
         ) {
             Ok(result) => span.ok_json(json!({
-                "centroid": result.centroid, "dimensions": result.centroid.len(), "prefix": prefix,
-                "passage_count": result.passage_count, "stored": result.stored,
+                "centroid": result.centroid,
+                "dimensions": result.centroid.len(),
+                "prefix": prefix,
+                "passage_count": result.passage_count,
+                "stored": result.stored,
             })),
             Err(e) => self.internal_error(span, "compute centroid", e),
         }
@@ -255,7 +412,7 @@ impl SemanticServer {
     ) -> String {
         let span = ToolSpanGuard::new("semantic_purge", &self.webid);
         validate_field!(span, "prefix", &prefix, 256);
-        match self.memory.purge_by_prefix(&prefix) {
+        match self.semantic.purge_by_prefix(&prefix) {
             Ok(count) => span.ok_json(json!({"purged": count, "prefix": prefix})),
             Err(e) => self.internal_error(span, "purge embeddings", e),
         }
@@ -293,21 +450,29 @@ impl SemanticServer {
         let max_w = max_words.unwrap_or(200);
         let boundary = sentence_boundary.unwrap_or_else(|| ".!? ".to_string());
         let processed = if strip_gutenberg.unwrap_or(false) {
-            hkask_memory::SemanticMemory::strip_gutenberg_headers(&text)
+            SemanticMemory::strip_gutenberg_headers(&text)
         } else {
             text.clone()
         };
-        let passages = hkask_memory::SemanticMemory::chunk_text(
+        let passages = SemanticMemory::chunk_text(
             &processed,
             &entity_ref_prefix,
             min_w,
             max_w,
             &boundary,
         );
-        let serialized: Vec<_> = passages.into_iter().map(|(entity_ref, passage_text)| json!({"entity_ref": entity_ref, "text": passage_text})).collect();
+        let serialized: Vec<_> = passages
+            .into_iter()
+            .map(|(entity_ref, passage_text)| {
+                json!({"entity_ref": entity_ref, "text": passage_text})
+            })
+            .collect();
         span.ok_json(json!({
-            "total_passages": serialized.len(), "passages": serialized,
-            "min_words": min_w, "max_words": max_w, "sentence_boundary": boundary,
+            "total_passages": serialized.len(),
+            "passages": serialized,
+            "min_words": min_w,
+            "max_words": max_w,
+            "sentence_boundary": boundary,
             "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
         }))
     }
@@ -315,11 +480,11 @@ impl SemanticServer {
     #[tool(description = "Triple and embedding counts for semantic memory")]
     async fn semantic_count(&self, Parameters(_req): Parameters<CountRequest>) -> String {
         let span = ToolSpanGuard::new("semantic_count", &self.webid);
-        let triple_count = match self.memory.triple_count() {
+        let triple_count = match self.semantic.triple_count() {
             Ok(c) => c,
             Err(e) => return self.internal_error(span, "count triples", e),
         };
-        let embedding_count = match self.memory.embedding_count() {
+        let embedding_count = match self.semantic.embedding_count() {
             Ok(c) => c,
             Err(e) => return self.internal_error(span, "count embeddings", e),
         };
@@ -330,18 +495,21 @@ impl SemanticServer {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     hkask_mcp::run_server(
-        "hkask-mcp-semantic",
+        "hkask-mcp-memory",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             let db = ctx.open_database("HKASK_MEMORY_DB")?;
             let conn = db.conn_arc();
             let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
-            let embedding_store = hkask_storage::EmbeddingStore::new(conn);
-            let memory = Arc::new(hkask_memory::SemanticMemory::new(
-                triple_store,
+            let episodic = hkask_memory::EpisodicMemory::new(triple_store);
+            let conn2 = db.conn_arc();
+            let triple_store2 = hkask_storage::TripleStore::new(Arc::clone(&conn2));
+            let embedding_store = hkask_storage::EmbeddingStore::new(conn2);
+            let semantic = Arc::new(hkask_memory::SemanticMemory::new(
+                triple_store2,
                 embedding_store,
             ));
-            Ok(SemanticServer::new(memory, ctx.webid))
+            Ok(MemoryServer::new(episodic, semantic, ctx.webid))
         },
         vec![
             hkask_mcp::CredentialRequirement::required(
