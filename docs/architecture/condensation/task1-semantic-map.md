@@ -203,7 +203,7 @@ Loop-architecture.md §1 uses "EnergyBudget." Code uses "EnergyBudget." Same con
 | Rank | Candidate | Confidence | Action | Risk |
 |------|-----------|------------|--------|------|
 | #1 | Visibility 3→2 | ⭐⭐⭐ Declarative | Delete `Shared` variant | Minimal |
-| #2 | NuEvent/Span unification | ⭐⭐ Probabilistic | Examine code; collapse if possible | Medium |
+| #2 | NuEvent/Span unification | ⭐⭐ Probabilistic | **Resolved: complementary** — Span is a locator embedded in NuEvent, not a redundant projection. No code change needed. | — |
 | #3 | LoopMessage → tokio | ⭐⭐ Probabilistic | Replace custom messaging | Medium-High |
 | #4 | Pod/Agent/Service | ⭐⭐⭐ Declarative | Clarify model boundaries | Medium |
 | #5 | EnergyBudget naming | ⭐⭐⭐ Declarative | Reconcile naming only | Minimal |

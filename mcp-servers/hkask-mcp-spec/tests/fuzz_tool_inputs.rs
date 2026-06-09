@@ -6,12 +6,12 @@
 //! generates 1000 random `serde_json::Value` shapes and asserts
 //! that each deserialisation is `Err(_)` (not `panic!`).
 //!
-//! Run with `cargo test -p hkask-mcp --test fuzz_tool_inputs`.
+//! Run with `cargo test -p hkask-mcp-spec --test fuzz_tool_inputs`.
 
 // F-SYN-020: integration test for the `hkask-mcp-spec` binary.
 // The `types` module is `pub` in `main.rs`; integration tests
 // reference it via the binary's name (`hkask_mcp_spec`).
-use hkask_mcp_spec::types::RequireBindRequest;
+use hkask_mcp_spec::types::GoalCaptureRequest;
 use proptest::prelude::*;
 
 /// proptest strategy: any JSON string. Generates 1000 random
@@ -39,13 +39,13 @@ fn any_json_string() -> impl Strategy<Value = String> {
 proptest! {
     /// F-SYN-020: arbitrary JSON input must not panic on
     /// deserialisation. The result must be either `Ok(_)` (if the
-    /// input happens to be a valid `RequireBindRequest`) or
+    /// input happens to be a valid `GoalCaptureRequest`) or
     /// `Err(_)` (if the input is malformed). A `panic!` is a
     /// finding.
     #[test]
-    fn require_bind_request_arbitrary_input_does_not_panic(input in any_json_string()) {
+    fn goal_capture_request_arbitrary_input_does_not_panic(input in any_json_string()) {
         let result = std::panic::catch_unwind(|| {
-            serde_json::from_str::<RequireBindRequest>(&input)
+            serde_json::from_str::<GoalCaptureRequest>(&input)
         });
         match result {
             Ok(Ok(_)) => {}    // valid input
