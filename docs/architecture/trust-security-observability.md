@@ -33,7 +33,7 @@ hKask implements a **zero-trust, capability-based security model**:[^miller-robu
 
 ### 1.2 Single Capability Primitive
 
-All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:327`; `CapabilityToken` is a type alias for `DelegationToken` — added for spec-code alignment in v0.23.0):
+All access control uses `DelegationToken` (`crates/hkask-types/src/capability/mod.rs:327`; `CapabilityToken` is a type alias for `DelegationToken` — added for spec-code alignment in v0.27.0):
 
 | Property | Implementation |
 |----------|---------------|

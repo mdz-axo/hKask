@@ -2,7 +2,7 @@
 title: "ADR-024: Unified Registry Decision"
 audience: [architects, developers]
 last_updated: 2026-05-29
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Technology"
 ddmvss_categories: [composition]

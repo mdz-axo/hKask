@@ -70,4 +70,4 @@ recommended resolution approach.
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.23.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.27.0*

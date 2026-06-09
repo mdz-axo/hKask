@@ -2,7 +2,7 @@
 title: "ADR-033: Dampener Override Cooldown Semantics"
 audience: [architects, security engineers, developers]
 last_updated: 2026-06-07
-version: "1.0.0"
+version: "0.27.0"
 status: "Draft"
 domain: "Technology"
 ddmvss_categories: [trust, observability]

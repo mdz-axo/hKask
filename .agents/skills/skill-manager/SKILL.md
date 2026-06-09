@@ -162,7 +162,7 @@ Scaffold both layers from a user description:
      ---
      {# Template: <name>/<name>-<verb>.j2 #}
      {# KnowAct — <one-line purpose> #}
-     {# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+     {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
      [inference]
      temperature = 0.2

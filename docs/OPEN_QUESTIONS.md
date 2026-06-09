@@ -2,7 +2,7 @@
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
 last_updated: 2026-06-08
-version: "1.5.0"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition, capability, observability, curation, lifecycle]
@@ -174,10 +174,10 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 ### F6: Goal Capability — Revocation and Lineage Unification ✅ RESOLVED
 
 **DDMVSS Category:** Trust  
-**Status:** **Resolved** — `GoalCapabilityToken` entirely removed in v0.23.0  
+**Status:** **Resolved** — `GoalCapabilityToken` entirely removed in v0.27.0  
 **Raised:** 2026-05-29 · **Resolved:** 2026-06-04
 
-**Resolution:** In v0.23.0, `GoalCapabilityToken` was **entirely removed** — the
+**Resolution:** In v0.27.0, `GoalCapabilityToken` was **entirely removed** — the
 type, its HMAC signing, epoch-based revocation, and attenuation were all
 deleted. Goal operations now use `&WebID` for owner scoping instead of token
 verification. The entire token infrastructure (HMAC, revocation, attenuation,
@@ -240,10 +240,10 @@ Currently same master key for both. Episodic (private) and semantic (shared) hav
 ### P3-e: Loop Membrane Persistence ⚠️ DEFERRED
 
 **DDMVSS Category:** Persistence  
-**Status:** Deferred (acceptable data loss for v0.22)  
+**Status:** Deferred (acceptable data loss for v0.27.0)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-Loop inboxes and variety counters are in-memory. On crash, all pending directives are lost. For v0.22, this is acceptable — directives are advisory (Curation suggests, doesn't command). If crash resilience becomes critical, add a WAL or periodic checkpoint mechanism to `MessageDispatch` and `VarietyTracker`. Priority: low.
+Loop inboxes and variety counters are in-memory. On crash, all pending directives are lost. For v0.27.0, this is acceptable — directives are advisory (Curation suggests, doesn't command). If crash resilience becomes critical, add a WAL or periodic checkpoint mechanism to `MessageDispatch` and `VarietyTracker`. Priority: low.
 
 ### P3-f: Semantic Loop MCP Server ⚠️ RESOLVED
 
@@ -256,10 +256,10 @@ Semantic Memory (Loop 2b) has no direct MCP server. Queries go through `hkask-mc
 ### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
 
 **DDMVSS Category:** Interface  
-**Status:** Deferred (hardcoded defaults sufficient for v0.22)  
+**Status:** Deferred (hardcoded defaults sufficient for v0.27.0)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YAML/env configuration for deploy-time tuning. Low priority for v0.22 — defaults work for development. Add `SetPointsConfig` YAML parsing when deployment scenarios require tuning.
+CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YAML/env configuration for deploy-time tuning. Low priority for v0.27.0 — defaults work for development. Add `SetPointsConfig` YAML parsing when deployment scenarios require tuning.
 
 ### 8g: WebSearchPort Extraction ⚠️ DEFERRED
 
@@ -275,7 +275,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 **Status:** Resolved — `AgentKind` remains a cosmetic enum  
 **Resolution Date:** 2026-06-03
 
-**Decision:** `AgentKind` (Bot/Replicant) remains a simple enum with no behavioral dispatch. Behavioral differences between Bot and Replicant are handled at the call site level (e.g., `chat_with_agent()` selects model based on `AgentKind`, privacy enforcement in `SemanticMemory`/`EpisodicMemory` uses `Visibility`). Converting `AgentKind` to a trait with associated types would change it from a 2-variant enum to a type-level dispatch mechanism, affecting every pod, agent registration, and template selection. The current design correctly separates identity (AgentKind) from behavior (site-level decisions). This is the right granularity for v0.22.
+**Decision:** `AgentKind` (Bot/Replicant) remains a simple enum with no behavioral dispatch. Behavioral differences between Bot and Replicant are handled at the call site level (e.g., `chat_with_agent()` selects model based on `AgentKind`, privacy enforcement in `SemanticMemory`/`EpisodicMemory` uses `Visibility`). Converting `AgentKind` to a trait with associated types would change it from a 2-variant enum to a type-level dispatch mechanism, affecting every pod, agent registration, and template selection. The current design correctly separates identity (AgentKind) from behavior (site-level decisions). This is the right granularity for v0.27.0.
 
 ---
 
@@ -547,7 +547,7 @@ Added calibration procedure to DDMVSS §5.9: collect ≥10 SpecCurationRecord co
 
 ## Documentation Alignment Open Questions (2026-06-07)
 
-*Questions surfaced during the v0.23.0 documentation alignment and consolidation effort.*
+*Questions surfaced during the v0.27.0 documentation alignment and consolidation effort.*
 
 ### DA-1: Spec-document vs code-implementation boundary decision rule
 

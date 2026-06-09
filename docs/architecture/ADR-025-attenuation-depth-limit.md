@@ -2,7 +2,7 @@
 title: "ADR-025: 7-Level Attenuation Depth Limit"
 audience: [architects, security engineers]
 last_updated: 2026-05-29
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Technology"
 ddmvss_categories: [trust]

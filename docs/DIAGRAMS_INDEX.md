@@ -2,7 +2,7 @@
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -118,5 +118,5 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.23.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
 *Mermaid-First Mandate: Every interaction pattern, data flow, and object model is diagrammed.*

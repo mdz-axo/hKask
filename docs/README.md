@@ -2,7 +2,7 @@
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
 last_updated: 2026-06-07
-version: "1.3.0"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -15,7 +15,7 @@ by [DDMVSS](architecture/DDMVSS.md) category. This portal is the navigation
 surface; canonical content lives in the linked documents, never duplicated here.
 
 ℏKask - "A Minimal Viable Container for Agents" - binary `kask`,
-crate prefix `hkask-`, workspace v0.23.0.
+crate prefix `hkask-`, workspace v0.27.0.
 
 > **Lifecycle note.** Retired documents are removed from the active tree via
 > `git rm` (git history is the archive of record) and the on-disk `docs/archive/`
@@ -155,4 +155,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers on every active doc
 ```
 
-*ℏKask - A Minimal Viable Container for Agents — v0.23.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.27.0*

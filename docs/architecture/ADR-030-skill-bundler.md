@@ -2,7 +2,7 @@
 title: "ADR-030: Skill Bundler — Meta-Skill Composition"
 audience: [architects, developers]
 last_updated: 2026-06-04
-version: "1.0.0"
+version: "0.27.0"
 status: "Proposed"
 domain: "Technology"
 ddmvss_categories: [composition, capability]

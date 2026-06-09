@@ -2,7 +2,7 @@
 title: "ADR-026: Bitemporal Triple Schema"
 audience: [architects, database developers]
 last_updated: 2026-05-29
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Technology"
 ddmvss_categories: [persistence]
