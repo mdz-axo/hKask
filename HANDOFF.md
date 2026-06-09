@@ -1,6 +1,6 @@
 # HANDOFF.md — hKask Service Layer Extraction
 
-**Sessions:** 12–21 | **Status:** Infrastructure wiring complete. 5 deep service modules (ChatService, AgentService, UserService, ComposeService, OnboardingService) + SpecService (medium-deep) + EnsembleService extended with improv ops. consolidation.rs CLI deduplicated. `registration.rs` deleted. 13/27 CLI commands fully extracted. `onboarding.rs` reduced from ~639 to 377 lines. `cns.rs` evaluated and skipped (depth test fails — shallow). ~11-20h remaining. | **Verification:** `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace` all pass (4 pre-existing pod test failures unrelated).
+**Sessions:** 12–22 | **Status:** Infrastructure wiring complete. 10 deep service modules (ChatService, AgentService, UserService, ComposeService, OnboardingService, ArchivalService, EmbedService, SkillService, VerificationService, ConsolidationService) + 2 medium-deep (SpecService, EnsembleService extended with improv ops). consolidation.rs CLI deduplicated. `registration.rs` and `git_archival.rs` deleted. 17/27 CLI commands fully extracted. 5 depth-test skips (CnsService, KeystoreService, McpService). ~4-8h remaining (5 partially extracted files to evaluate + 1 API route fix). | **Verification:** `cargo check --workspace && cargo clippy --workspace -- -D warnings && cargo test --workspace` all pass (4 pre-existing pod test failures unrelated).
 
 ---
 
@@ -29,9 +29,13 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 - **CnsService evaluated and SKIPPED.** Depth test fails — `cns.rs` is mostly `println!` formatting. The domain logic (CnsRuntime health/alerts/variety calls) is already well-encapsulated in `hkask_cns`. API routes already access CnsRuntime through ServiceContext. No duplicated business logic between surfaces.
 - **P2 #3 — SpecService:** Created `hkask_services::SpecService` with 5 operations (`capture`, `build_spec`, `validate`, `cultivate`, `list_categories`). Moves the spec construction pipeline (parse category → parse domain → build goal → build spec → save) and the evaluation pipeline (load → curator evaluate) from CLI into the service layer. `CapturedSpec` and `EvaluatedSpec` types introduced. CLI `commands/spec.rs` Capture, Validate, Cultivate actions now delegate to SpecService. API `routes/spec.rs` capture route delegates to `SpecService::build_spec()`. 5 service-layer tests. Render action stays in CLI (MiniJinja template rendering is surface-specific).
 
-### Session 22 (ArchivalService + EmbedService Extraction)
+### Session 22 (ArchivalService + EmbedService + SkillService + VerificationService Extraction)
 - **P2 #4 — ArchivalService:** Created `hkask_services::ArchivalService` with 4 operations (`archive_to_git`, `restore_from_git`, `list_archives`, `create_snapshot`). Moves the full GitHub REST API integration (credential resolution → authenticated client build → base64 encode/decode → conditional SHA handling → JSON payload construction → response parsing → registry serialization) from CLI into the service layer. `ArchiveResult` and `SnapshotResult` types introduced for structured returns. `ServiceError::Archival(String)` added as sentinel. Added `reqwest` and `base64` deps to services crate. CLI `commands/git_cmd.rs` Archive/Restore/List/Snapshot actions now delegate to ArchivalService. Dead `McpRuntime` and `CapabilityChecker` parameters dropped from CLI calls. CLI `git_archival.rs` (238 lines) deleted entirely — all callers now use ArchivalService. `reqwest` and `base64` removed from CLI Cargo.toml (orphaned). 7 service-layer tests.
 - **P2 #5 — EmbedService:** Created `hkask_services::EmbedService` with 2 operations (`embed_corpus`, `parse_config`). Moves the full style corpus embedding pipeline (config parsing → DB open → purge → download/caching/chunking → batch embedding → centroid computation) from CLI into the service layer. `CorpusConfig` and 6 sub-types (`EmbeddingConfig`, `Work`, `FoundationalRule`, `ChunkingConfig`, `ValidationConfig`, `EmbedResult`) moved from CLI to services. `ServiceError::Embed(String)` added as sentinel. CLI `commands/embed_corpus.rs` reduced from ~290 lines to ~60 lines. `Database::open` in embed_corpus remains a legitimate legacy pattern — service accepts caller-provided `db_path` + `db_passphrase`. 9 service-layer tests.
+- **P3 #6 — SkillService:** Created `hkask_services::SkillService` with 7 operations (`discover_skills`, `read_skill_visibility`, `read_skill_namespace`, `compute_content_hash`, `compute_file_hash`, `find_public_skill`, `publish_skill`). Moves the full skill visibility management and publishing pipeline (replicant name resolution → zone discovery → BLAKE3 hashing → SKILL.md YAML mutation → namespaced publishing) from CLI into the service layer. `SkillInfo` and `SkillPublishResult` types introduced. `ServiceError::Skill(String)` added as sentinel. Added `hex` dep to services crate. CLI `commands/skill.rs` reduced from ~453 lines to ~170 lines. 8 service-layer tests.
+- **P3 #8 — VerificationService:** Created `hkask_services::VerificationService` with 3 operations (`verify`, `verify_json`, `load_manifests`). Moves the full Magna Carta verification pipeline (manifest loading → assertion dispatch → structural audit / resource verification / absence check → report building → JSON serialization) from CLI into the service layer. `Manifest`, `Assertion`, `AssertionResult`, `PrincipleResult`, `VerificationReport` types moved from CLI to services. `ServiceError::Verification(String)` added as sentinel. CLI `commands/magna_carta.rs` reduced from ~556 lines to ~102 lines. 9 service-layer tests.
+- **KeystoreService SKIPPED.** Depth test fails — `keystore.rs` is thin pass-through over `Keychain` API (`.env` parsing is CLI presentation). The `hkask_keystore::Keychain` is already the deep module.
+- **McpService SKIPPED.** Depth test fails — `mcp.rs`/`models.rs`/`web_search.rs` are surface adapters over `mcp_dispatcher.invoke()`. No business logic to extract.
 
 ---
 
@@ -53,11 +57,11 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 
 | Status | CLI Commands | API Routes |
 |--------|-------------|------------|
-| ✅ Fully extracted | 15/27 (curator, docs, goal, pod, sovereignty, chat, agent, user, consolidation, compose, ensemble, onboarding, spec, git_archival, embed_corpus) | 9/18 (pods, sovereignty, curator, goal, consolidation, chat, ensemble, spec, + acp shallow) |
+| ✅ Fully extracted | 17/27 (curator, docs, goal, pod, sovereignty, chat, agent, user, consolidation, compose, ensemble, onboarding, spec, git_archival, embed_corpus, skill, magna_carta) | 9/18 (pods, sovereignty, curator, goal, consolidation, chat, ensemble, spec, + acp shallow) |
 | 🟡 Partially extracted | 5/27 (git_cmd, loops, serve, template, models) | 3/18 (episodic, git, cns) |
-| 🔴 Unextracted | 7/27 (cns, keystore, magna_carta, mcp, skill, web_search, bootstrap) | 1/18 (none fully unextracted) |
+| 🔴 Unextracted | 3/27 (keystore, mcp, web_search, + cns skipped, + bootstrap) | 1/18 (none fully unextracted) |
 
-→ cns skipped (depth test fails)
+→ cns, keystore, mcp/models/web_search skipped (depth test fails)
 | ⬜ Stub/N/A | 0/27 (bundle, registry deleted) | 6/18 (templates, mcp, acp, bundles, bots, spec stubs) |
 
 ### Priority Extraction Targets (by impact)
@@ -69,12 +73,12 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | ~~P2~~ | ~~`spec.rs`~~ | ~~Spec curation, MiniJinja rendering, Spec construction~~ | ~~`SpecService`~~ | ~~✅ DONE (Session 21)~~ |
 | ~~P2~~ | ~~`git_archival.rs`~~ | ~~GitHub REST API calls, base64 encoding, registry serialization~~ | ~~`ArchivalService`~~ | ~~✅ DONE (Session 22)~~ |
 | ~~P2~~ | ~~`embed_corpus.rs`~~ | ~~HTTP download, corpus chunking, embedding batch loop, centroid computation~~ | ~~`EmbedService`~~ | ~~✅ DONE (Session 22)~~ |
-| **P3** | `skill.rs` | Filesystem discovery, hash computation, visibility mutation | `SkillService` | 2h |
-| **P3** | `keystore.rs` | Keychain CRUD, .env file parsing | `KeystoreService` | 1-2h |
-| **P3** | `magna_carta.rs` | Manifest loading, structural audits | `VerificationService` | 2h |
-| **P3** | `mcp.rs` / `models.rs` / `web_search.rs` | MCP dispatcher invocation patterns | `McpService` | 2-3h |
+| **P3** | ~~`skill.rs`~~ | ~~Filesystem discovery, hash computation, visibility mutation~~ | ~~`SkillService`~~ | ~~✅ DONE (Session 22)~~ |
+| **P3** | ~~`keystore.rs`~~ | ~~Keychain CRUD, .env file parsing~~ | ~~`KeystoreService`~~ | ~~⚠️ SKIPPED — depth test fails, shallow pass-through over Keychain~~ |
+| **P3** | ~~`magna_carta.rs`~~ | ~~Manifest loading, structural audits~~ | ~~`VerificationService`~~ | ~~✅ DONE (Session 22)~~ |
+| **P3** | ~~`mcp.rs` / `models.rs` / `web_search.rs`~~ | ~~MCP dispatcher invocation patterns~~ | ~~`McpService`~~ | ~~⚠️ SKIPPED — depth test fails, surface adapters over MCP dispatcher~~ |
 
-**Total estimated effort: ~11-20 hours** for complete extraction of all remaining inline business logic (adjusted for cns skip).
+**Total estimated effort: ~4–8 hours** for remaining work (partially extracted files + API routes). Depth-test skips reduce scope significantly.
 
 ---
 
@@ -90,6 +94,8 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | `SpecService` | `capture`, `build_spec`, `validate`, `cultivate`, `list_categories` | MEDIUM-DEEP — spec construction pipeline + curator evaluation | CLI, API |
 | `ArchivalService` | `archive_to_git`, `restore_from_git`, `list_archives`, `create_snapshot` | DEEP — GitHub REST API + credential resolution + base64 + conditional SHA + registry serialization | CLI |
 | `EmbedService` | `embed_corpus`, `parse_config` | DEEP — full style embedding pipeline (config → DB → purge → download/cache/chunk → batch embed → centroid) | CLI |
+| `SkillService` | `discover_skills`, `read_skill_visibility`, `read_skill_namespace`, `compute_content_hash`, `compute_file_hash`, `find_public_skill`, `publish_skill` | DEEP — replicant name resolution + zone discovery + BLAKE3 hashing + SKILL.md YAML mutation + namespaced publishing | CLI |
+| `VerificationService` | `verify`, `verify_json`, `load_manifests` | DEEP — manifest loading + assertion dispatch + structural audit + resource verification + absence check + report building | CLI, MCP |
 | `ConsolidationService` | `verify_passphrase`, `consolidate` | DEEP — keystore + key derivation + DB + pipeline assembly | CLI, API |
 | `EnsembleService` | `create_session`, `list_sessions`, `add_participant`, `improv_turn`, `improv_config`, `set_improv_threshold`, `set_improv_mode`, `list_participants` | MEDIUM-DEEP — thin delegates + deep improv_turn (session + inference + persistence) | CLI, API |
 | `PodService` | `parse_pod_id`, `get_pod_status`, `list_pods`, `create_pod`, `activate_pod`, `deactivate_pod` | MEDIUM — UUID normalization + error mapping | CLI, API |
@@ -180,6 +186,14 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 
 62. **`CorpusConfig` and sub-types moved from CLI to services.** These are domain configuration types for the embedding pipeline, not CLI arg parsing. Future API routes would use the same types. `ValidationConfig` derives `Clone` for inclusion in `EmbedResult`.
 
+63. **SkillService encapsulates the full skill visibility and publishing pipeline.** 7 operations covering discovery, front matter parsing, BLAKE3 hashing, zone-aware publishing. CLI `skill.rs` reduced from ~453 to ~170 lines. `SkillInfo` and `SkillPublishResult` types introduced for structured returns.
+
+64. **VerificationService encapsulates the full Magna Carta verification pipeline.** 3 operations (verify, verify_json, load_manifests). `Manifest`, `Assertion`, `AssertionResult`, `PrincipleResult`, `VerificationReport` types moved from CLI to services. CLI `magna_carta.rs` reduced from ~556 to ~102 lines. The `verify_json` operation serves both CLI and MCP tool.
+
+65. **KeystoreService extraction SKIPPED — depth test fails.** `keystore.rs` is thin pass-through over `Keychain` API. The `.env` parsing logic is CLI presentation (per-key feedback like "skipped", "stored", "failed"). `hkask_keystore::Keychain` is already the deep module.
+
+66. **McpService extraction SKIPPED — depth test fails.** `mcp.rs`/`models.rs`/`web_search.rs` are surface adapters over `mcp_dispatcher.invoke()`. All three share `build_service_context()` + `issue_capability()` + `shutdown_all()` lifecycle patterns, but this is MCP dispatch orchestration, not business logic. No duplication between surfaces — each just formats JSON results differently.
+
 ---
 
 ## 5. Remaining Legitimate Legacy Patterns (Do NOT Migrate)
@@ -209,8 +223,10 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | `crates/hkask-services/src/consolidation.rs` | ConsolidationService | ✅ DEEP: keystore + key derivation + DB + pipeline assembly |
 | `crates/hkask-services/src/context.rs` | ServiceContext | ✅ All fields populated |
 | `crates/hkask-services/src/config.rs` | ServiceConfig | ✅ |
-| `crates/hkask-services/src/error.rs` | ServiceError | ✅ InvalidWebID + Embedding + Improv + Archival + Embed + From<PoisonError> + From<uuid::Error> |
-| `crates/hkask-services/src/lib.rs` | Services public API | ✅ Exports 15 service modules |
+| `crates/hkask-services/src/error.rs` | ServiceError | ✅ InvalidWebID + Embedding + Improv + Archival + Embed + Skill + Verification + From<PoisonError> + From<uuid::Error> |
+| `crates/hkask-services/src/lib.rs` | Services public API | ✅ Exports 17 service modules |
+| `crates/hkask-services/src/skill.rs` | SkillService | ✅ DEEP: replicant name resolution + zone discovery + BLAKE3 hashing + SKILL.md YAML mutation + namespaced publishing |
+| `crates/hkask-services/src/verification.rs` | VerificationService | ✅ DEEP: manifest loading + assertion dispatch + structural audit + resource verification + absence check + report building |
 | `crates/hkask-cli/src/onboarding.rs` | Onboarding CLI | ✅ Delegates to OnboardingService (377 lines, was 639) |
 | `crates/hkask-cli/src/commands/agent.rs` | Agent CLI | ✅ Delegates to AgentService |
 | `crates/hkask-cli/src/commands/user.rs` | User CLI | ✅ Delegates to UserService |
@@ -222,6 +238,8 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | `crates/hkask-cli/src/commands/embed_corpus.rs` | Embed CLI | ✅ Delegates to EmbedService (~60 lines, was 290) |
 | `crates/hkask-cli/src/commands/git_cmd.rs` | Git CLI | ✅ Archive/Restore/List/Snapshot delegate to ArchivalService |
 | `crates/hkask-cli/src/git_archival.rs` | DELETED | ✅ Logic moved to ArchivalService |
+| `crates/hkask-cli/src/commands/skill.rs` | Skill CLI | ✅ Delegates to SkillService (~170 lines, was 453) |
+| `crates/hkask-cli/src/commands/magna_carta.rs` | Magna Carta CLI | ✅ Delegates to VerificationService (~102 lines, was 556) |
 | `crates/hkask-api/src/routes/ensemble.rs` | Ensemble API | ✅ improv_turn delegates to EnsembleService |
 | `crates/hkask-cli/src/registration.rs` | DELETED | ✅ Logic moved to UserService |
 | `crates/hkask-api/src/routes/acp.rs` | ACP API routes | ✅ Shallow — stays in surface |

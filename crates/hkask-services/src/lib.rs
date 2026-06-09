@@ -34,9 +34,11 @@ pub mod goal;
 pub mod inference;
 pub mod onboarding;
 pub mod pods;
+pub mod skill;
 pub mod sovereignty;
 pub mod spec;
 pub mod user;
+pub mod verification;
 
 pub use agent::{AgentReceipt, AgentService};
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
@@ -60,8 +62,12 @@ pub use goal::{GoalContext, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use onboarding::{OnboardingService, RegistryHandle, ResolvedSecrets, SignInOutcome};
 pub use pods::{PodContext, PodService};
+pub use skill::{SkillInfo, SkillPublishResult, SkillService};
 pub use sovereignty::{
     AccessCheck, SovereigntyContext, SovereigntyService, SovereigntyStatus, parse_data_category,
 };
 pub use spec::{CapturedSpec, EvaluatedSpec, SpecService};
 pub use user::UserService;
+pub use verification::{
+    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
+};

@@ -251,6 +251,16 @@ pub enum ServiceError {
     /// Embedding pipeline failed (config parsing, download, IO, batch processing).
     #[error("Embed failed: {0}")]
     Embed(String),
+
+    // ── Skill domain ────────────────────────────────────────────────────────
+    /// Skill operation failed (IO, front matter parsing, publish failure).
+    #[error("Skill failed: {0}")]
+    Skill(String),
+
+    // ── Verification domain ─────────────────────────────────────────────────
+    /// Sovereignty verification failed (manifest loading, assertion execution).
+    #[error("Verification failed: {0}")]
+    Verification(String),
 }
 
 impl From<uuid::Error> for ServiceError {

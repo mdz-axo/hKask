@@ -1783,6 +1783,7 @@ version = "0.23.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "hex",
  "hkask-agents",
  "hkask-cns",
  "hkask-ensemble",
