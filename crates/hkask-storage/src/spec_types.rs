@@ -1,5 +1,7 @@
-//! DDMVSS specification types — domain specifications, completeness predicates, curation.
+//! MDS specification types — domain specifications, completeness predicates, curation.
 //! Relocated from `hkask-types` per P1: consumed primarily by `hkask-storage` and `hkask-mcp-spec`.
+//!
+//! Five categories per MDS §1: Domain, Composition, Trust, Lifecycle, Curation.
 
 use chrono::{DateTime, Utc};
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
@@ -51,28 +53,20 @@ impl std::fmt::Display for SpecId {
     }
 }
 
-/// DDMVSS 9-category spec taxonomy.
+/// MDS 5-category spec taxonomy (MDS §1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SpecCategory {
     Domain,
-    Capability,
-    Interface,
     Composition,
     Trust,
-    Observability,
-    Persistence,
     Lifecycle,
     Curation,
 }
 
 str_enum!(SpecCategory {
     Domain => "domain",
-    Capability => "capability",
-    Interface => "interface",
     Composition => "composition",
     Trust => "trust",
-    Observability => "observability",
-    Persistence => "persistence",
     Lifecycle => "lifecycle",
     Curation => "curation",
 });
@@ -81,12 +75,8 @@ impl SpecCategory {
     pub fn all() -> &'static [SpecCategory] {
         &[
             SpecCategory::Domain,
-            SpecCategory::Capability,
-            SpecCategory::Interface,
             SpecCategory::Composition,
             SpecCategory::Trust,
-            SpecCategory::Observability,
-            SpecCategory::Persistence,
             SpecCategory::Lifecycle,
             SpecCategory::Curation,
         ]
@@ -100,15 +90,6 @@ pub enum DomainAnchor {
 }
 
 str_enum!(DomainAnchor { Okapi => "okapi", Hkask => "hkask" });
-
-/// Domain of completeness assessment — spec vs implementation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CompletenessDomain {
-    Specification,
-    Implementation,
-}
-
-str_enum!(CompletenessDomain { Specification => "specification", Implementation => "implementation" });
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Criterion {
@@ -179,10 +160,6 @@ impl GoalSpec {
         }
         let satisfied = self.criteria.iter().filter(|c| c.satisfied).count();
         let ratio = satisfied as f64 / self.criteria.len() as f64;
-        // When there are sub_goals, coherence averages criteria satisfaction
-        // with sub_goal coherence (both must be met). When there are no
-        // sub_goals, coherence is just the criteria satisfaction ratio —
-        // defaulting to 1.0 would inflate scores for incomplete specs.
         if self.sub_goals.is_empty() {
             ratio
         } else {

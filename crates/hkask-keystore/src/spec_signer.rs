@@ -1,4 +1,4 @@
-//! Ed25519 spec signing — authenticates spec provenance (DDMVSS §7 Trust)
+//! Ed25519 spec signing — authenticates spec provenance (MDS §3 Trust)
 //!
 //! Specs are curated, not governed. The signature authenticates the spec's
 //! provenance — that it was registered by a known agent — not its authority.

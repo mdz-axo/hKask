@@ -104,7 +104,7 @@ pub enum Commands {
         action: EnsembleAction,
     },
 
-    /// Specification authoring, curation, and validation (DDMVSS)
+    /// Specification authoring, curation, and validation (MDS)
     Spec {
         #[command(subcommand)]
         action: SpecAction,

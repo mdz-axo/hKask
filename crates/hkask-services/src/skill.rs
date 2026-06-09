@@ -95,18 +95,18 @@ pub fn read_skill_visibility(skill_md_path: &Path) -> Visibility {
     }
 }
 
+/// Compute BLAKE3 hash of a SKILL.md file's contents.
+fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
+    let content = fs::read_to_string(skill_md_path).ok()?;
+    let hash = hkask_types::blake3_hash(content.as_bytes());
+    Some(hex::encode(hash))
+}
+
 /// Read the namespace field from a SKILL.md file.
 pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
     let content = fs::read_to_string(skill_md_path).ok()?;
     let fm = SkillLoader::parse_front_matter(&content).ok()?;
     fm.namespace
-}
-
-/// Compute BLAKE3 hash of a SKILL.md file's contents.
-pub fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
-    let content = fs::read_to_string(skill_md_path).ok()?;
-    let hash = hkask_types::blake3_hash(content.as_bytes());
-    Some(hex::encode(hash))
 }
 
 /// Compute BLAKE3 hash of an arbitrary file's contents.

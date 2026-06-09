@@ -68,12 +68,12 @@ impl TemplateType {
         }
     }
 
-    /// Return the DDMVSS specification vocabulary name for this template type.
+    /// Return the MDS specification vocabulary name for this template type.
     ///
     /// The code uses operational names (WordAct, KnowAct, FlowDef) while
-    /// the DDMVSS specification uses (Prompt, Process, Cognition, Specification).
+    /// the MDS specification uses (Prompt, Process, Cognition, Specification).
     /// This mapping bridges the vocabulary fracture identified in the
-    /// DDMVSS Semantic Alignment Audit (2026-06-06).
+    /// MDS Semantic Alignment Audit (2026-06-06).
     ///
     /// | Code Name | Spec Name |
     /// |-----------|-----------|
@@ -81,7 +81,7 @@ impl TemplateType {
     /// | KnowAct   | Cognition |
     /// | FlowDef   | Process   |
     ///
-    /// Note: The DDMVSS `Specification` template type has no code counterpart
+    /// Note: The MDS `Specification` template type has no code counterpart
     /// yet — specs are authored as YAML manifests within FlowDef templates.
     pub fn as_spec_name(&self) -> &'static str {
         match self {
@@ -311,7 +311,7 @@ impl HLexicon {
         lexicon.add(LexiconTerm::new(
             "register",
             TemplateType::FlowDef,
-            "Record a skill-to-DDMVSS mapping as a SpecArtifact",
+            "Record a skill-to-MDS mapping as a SpecArtifact",
         ));
         lexicon.add(LexiconTerm::new(
             "handoff",

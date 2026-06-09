@@ -1,7 +1,7 @@
 //! SpecStore — SQLite-backed specification storage
 //!
 //! Also provides `SqliteCurationRecordStore` for persisting spec curation
-//! decisions (DDMVSS §5.9, audit remediation R17).
+//! decisions (MDS §5 Curation).
 
 use crate::Store;
 use crate::spec_types::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecId};
@@ -12,7 +12,7 @@ use hkask_types::curation::{CurationDecision, OCAPBoundary};
 define_store!(SqliteSpecStore);
 define_store!(SqliteCurationRecordStore);
 
-/// SpecStore trait — storage abstraction for DDMVSS specifications.
+/// SpecStore trait — storage abstraction for MDS specifications.
 ///
 /// Trait-object-safe (no `Self: Sized` constraints on methods).
 /// Implemented by `SqliteSpecStore`.

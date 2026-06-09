@@ -80,7 +80,7 @@ pub struct ApiState {
     >,
     /// Ensemble inferencer (optional — for ensemble inference) — surface-specific
     pub ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
-    /// Spec store for DDMVSS specifications — surface-specific
+    /// Spec store for MDS specifications — surface-specific
     pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
     /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
     pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
@@ -185,7 +185,7 @@ impl ApiState {
         })
     }
 
-    /// Set the spec store for DDMVSS specifications
+    /// Set the spec store for MDS specifications
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
         self.spec_store = Some(store);
         self

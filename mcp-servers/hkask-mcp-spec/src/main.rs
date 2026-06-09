@@ -1,8 +1,8 @@
-//! hKask MCP Spec — Specification authoring, curation, and validation (11 tools per DDMVSS §6.3)
+//! hKask MCP Spec — Specification authoring, validation, and graph analysis (5 tools per MDS §3)
 //!
-//! Curation decisions (merge/revise/defer/discard) driven by spec-document completeness,
-//! orthogonal to code-implementation status. Writing Excellence 4-perspective test
-//! (Hopper/Lovelace/Schriver/Gentle) per WRITING_EXCELLENCE.md §3: 3/4 passing = publishable.
+//! Curation (Accept/Revise/Reject) is external to the spec server — performed by
+//! the Curator agent or human. The spec server handles capture, decompose,
+//! writing-quality, graph query, and graph coherence.
 
 pub mod types;
 
@@ -12,10 +12,9 @@ use hkask_mcp::validate_field;
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId};
 use hkask_types::{
-    CapabilityChecker, CurationDecision, DelegationAction, DelegationResource, DelegationToken,
-    McpErrorKind, OCAPBoundary, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE,
-    TOKEN_ERR_NO_CHECKER, VerificationOutcome, WebID, token_err_insufficient_access,
-    verify_delegation_token_now,
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
+    TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
+    WebID, token_err_insufficient_access, verify_delegation_token_now,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -39,7 +38,7 @@ impl std::fmt::Debug for SpecServer {
     }
 }
 
-// Capability-check macro — covers 11 tool handlers
+// Capability-check macro — covers 5 tool handlers
 macro_rules! check_cap {
     ($self:expr, $span:expr, $token:expr, $resource:expr, $action:expr) => {
         if let Err(e) = $self.verify_capability($token.as_deref(), $resource, $action) {
@@ -132,6 +131,83 @@ impl SpecServer {
     fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
         self.store.save(spec)
     }
+
+    /// Infer spec category from context string keywords.
+    fn infer_category(context: Option<&str>) -> SpecCategory {
+        let ctx = match context {
+            Some(c) => c.to_lowercase(),
+            None => return SpecCategory::Domain,
+        };
+        if ctx.contains("trust") || ctx.contains("security") || ctx.contains("threat") {
+            SpecCategory::Trust
+        } else if ctx.contains("compose") || ctx.contains("interface") || ctx.contains("api") {
+            SpecCategory::Composition
+        } else if ctx.contains("lifecycle") || ctx.contains("bootstrap") || ctx.contains("evolve") {
+            SpecCategory::Lifecycle
+        } else if ctx.contains("curat") || ctx.contains("review") || ctx.contains("coherence") {
+            SpecCategory::Curation
+        } else {
+            SpecCategory::Domain
+        }
+    }
+
+    /// Extract OCAP boundary hints from context keywords.
+    fn extract_ocap_boundaries(context: Option<&str>) -> Vec<String> {
+        let ctx = match context {
+            Some(c) => c.to_lowercase(),
+            None => return vec![],
+        };
+        let mut boundaries = Vec::new();
+        if ctx.contains("curation") || ctx.contains("curat") {
+            boundaries.push("curation".to_string());
+        }
+        if ctx.contains("cybernetics") || ctx.contains("cns") {
+            boundaries.push("cybernetics".to_string());
+        }
+        if ctx.contains("spec_curate") || ctx.contains("spec curate") {
+            boundaries.push("spec_curate".to_string());
+        }
+        boundaries
+    }
+
+    /// Basic writing quality heuristic: assess spec structure as proxy for the
+    /// 4-perspective test (Hopper/Lovelace/Schriver/Gentle).
+    fn assess_writing_quality(&self, spec: &Spec) -> WritingQualityScore {
+        let has_description = !spec.name.is_empty();
+        let has_goals = !spec.goals.is_empty();
+        let has_criteria = spec.goals.iter().any(|g| !g.criteria.is_empty());
+        let has_verbs = !spec.declared_verbs.is_empty();
+
+        WritingQualityScore {
+            // Hopper: can zero-context reader understand? → spec has goals + criteria
+            hopper: has_goals && has_criteria,
+            // Lovelace: can reader write a correct test? → spec has criteria
+            lovelace: has_criteria,
+            // Schriver: can reader find answer in 30s? → spec has description + goals
+            schriver: has_description && has_goals,
+            // Gentle: would AI agent behave correctly? → spec has declared verbs
+            gentle: has_description && has_verbs,
+        }
+    }
+
+    /// Basic goal decomposition: split description into sentences as sub-goals.
+    fn decompose_description(description: &str) -> (Vec<String>, Vec<DependencyEdge>) {
+        let sub_goals: Vec<String> = description
+            .split(['.', '\n'])
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+        // Sequential dependencies: each sub-goal depends on the previous
+        let mut dependencies = Vec::new();
+        for i in 1..sub_goals.len() {
+            dependencies.push(DependencyEdge {
+                from: sub_goals[i - 1].clone(),
+                to: sub_goals[i].clone(),
+            });
+        }
+        (sub_goals, dependencies)
+    }
 }
 
 /// Serialize response and convert to ok_json
@@ -139,36 +215,19 @@ fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
     span.ok_json(serde_json::to_value(resp).unwrap_or_default())
 }
 
-/// Categories not yet covered by a spec collection.
-fn missing_categories(covered: &std::collections::HashSet<String>) -> Vec<String> {
-    SpecCategory::all()
-        .iter()
-        .map(|c| c.as_str().to_string())
-        .filter(|c| !covered.contains(c))
-        .collect()
-}
-
-fn not_found_err(spec_id: &str) -> (McpErrorKind, String) {
-    (
-        McpErrorKind::NotFound,
-        McpToolError::not_found(format!("Spec not found: {}", spec_id)).to_json_string(),
-    )
-}
-
 #[tool_router(server_handler)]
 impl SpecServer {
+    /// MDS §3 tool 1: Capture a goal as a binding specification requirement.
+    /// OCAP boundaries are declared inline from context.
     #[tool(
-        description = "Capture a goal as a binding specification requirement in a spec document"
+        description = "Capture a goal as a binding specification requirement. OCAP boundaries are declared inline from context per MDS §3."
     )]
     async fn spec_goal_capture(
         &self,
         Parameters(GoalCaptureRequest {
             description,
-            category,
-            domain_anchor,
-            criteria,
+            context,
             capability_token,
-            completeness_domain: _,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_goal_capture", &self.webid);
@@ -180,171 +239,130 @@ impl SpecServer {
             DelegationAction::Write
         );
 
-        let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
-        let anchor = DomainAnchor::parse_str(&domain_anchor).unwrap_or(DomainAnchor::Hkask);
+        let category = Self::infer_category(context.as_deref());
+        let anchor = DomainAnchor::Hkask;
+        let ocap_boundaries = Self::extract_ocap_boundaries(context.as_deref());
+
         let mut goal = GoalSpec::new(&description);
-        if let Some(crits) = criteria {
-            for c in crits {
-                goal = goal.with_criterion(&c);
+        // Seed criteria from description sentences
+        for sentence in description.split('.') {
+            let trimmed = sentence.trim();
+            if !trimmed.is_empty() && trimmed.len() < 200 {
+                goal = goal.with_criterion(trimmed);
             }
         }
-        let spec = Spec::new(&description, cat, anchor).with_goal(goal);
-        let id = spec.id;
+
+        let spec = Spec::new(&description, category, anchor).with_goal(goal);
+        let spec_id = spec.id;
+
         if let Err(v) = self.persist_val(&spec) {
             return span.internal_error(v);
         }
+
+        let requirements: Vec<String> = spec
+            .goals
+            .iter()
+            .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
+            .collect();
+
         respond(
             span,
             &GoalCaptureResponse {
-                spec_id: id.to_string(),
-                category: cat.as_str().to_string(),
-                domain_anchor: anchor.as_str().to_string(),
-                status: "captured".to_string(),
+                goal_id: spec_id.to_string(),
+                requirements,
+                ocap_boundaries,
             },
         )
     }
 
-    #[tool(description = "Decompose a specification goal into ordered sub-goals (max depth 7)")]
+    /// MDS §3 tool 2: Decompose a specification goal into ordered sub-goals with dependencies.
+    #[tool(
+        description = "Decompose a specification goal into ordered sub-goals with dependencies per MDS §3"
+    )]
     async fn spec_goal_decompose(
         &self,
         Parameters(GoalDecomposeRequest {
-            spec_id,
-            goal_index,
-            sub_goals,
+            goal_id,
             capability_token,
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_goal_decompose", &self.webid);
-        validate_field!(span, "spec_id", &spec_id, 256);
+        validate_field!(span, "goal_id", &goal_id, 256);
         check_cap!(
             self,
             span,
             capability_token,
-            &spec_id,
+            &goal_id,
             DelegationAction::Write
         );
 
-        let mut spec = match self.load_spec(&spec_id) {
+        let mut spec = match self.load_spec(&goal_id) {
             Ok(s) => s,
             Err((kind, msg)) => return span.error(kind, msg),
         };
-        let Some(goal) = spec.goals.get_mut(goal_index) else {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("Goal index {} out of range", goal_index))
-                    .to_json_string(),
-            );
+
+        // Decompose each goal that can have subgoals
+        for goal in &mut spec.goals {
+            if !goal.can_have_subgoals() || !goal.sub_goals.is_empty() {
+                continue;
+            }
+            let (sub_texts, _deps) = Self::decompose_description(&goal.text);
+            if sub_texts.len() <= 1 {
+                continue;
+            }
+            for text in &sub_texts {
+                let mut child = GoalSpec::new(text);
+                child.depth = goal.depth + 1;
+                goal.sub_goals.push(child);
+            }
+        }
+
+        let (sub_goals, dependencies) = {
+            let mut all_subs = Vec::new();
+            let mut all_deps = Vec::new();
+            for goal in &spec.goals {
+                for sub in &goal.sub_goals {
+                    all_subs.push(sub.text.clone());
+                }
+            }
+            if all_subs.len() > 1 {
+                for i in 1..all_subs.len() {
+                    all_deps.push(DependencyEdge {
+                        from: all_subs[i - 1].clone(),
+                        to: all_subs[i].clone(),
+                    });
+                }
+            }
+            (all_subs, all_deps)
         };
-        if !goal.can_have_subgoals() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("Depth limit reached (max 7)".to_string())
-                    .to_json_string(),
-            );
-        }
-        let added = sub_goals.len();
-        for text in sub_goals {
-            let mut child = GoalSpec::new(&text);
-            child.depth = goal.depth + 1;
-            goal.sub_goals.push(child);
-        }
+
         if let Err(v) = self.persist_val(&spec) {
             return span.internal_error(v);
         }
+
         respond(
             span,
             &GoalDecomposeResponse {
-                spec_id,
-                goal_index,
-                sub_goals_added: added,
+                sub_goals,
+                dependencies,
             },
         )
     }
 
-    #[tool(description = "Bind OCAP boundaries to a specification goal as a constraint")]
-    async fn spec_require_bind(
-        &self,
-        Parameters(RequireBindRequest {
-            spec_id,
-            goal_index,
-            capability,
-            authority,
-            capability_token,
-        }): Parameters<RequireBindRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("spec_require_bind", &self.webid);
-        validate_field!(span, "spec_id", &spec_id, 256);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            &spec_id,
-            DelegationAction::Write
-        );
-
-        let mut spec = match self.load_spec(&spec_id) {
-            Ok(s) => s,
-            Err((kind, msg)) => return span.error(kind, msg),
-        };
-        if goal_index >= spec.goals.len() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!("Goal index {} out of range", goal_index))
-                    .to_json_string(),
-            );
-        }
-        let boundary = match OCAPBoundary::parse_token(&capability) {
-            Some(b) => b,
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
-                        "Unknown capability kind: {capability:?}. Expected: curation, cybernetics, spec_curate."
-                    ))
-                    .to_json_string(),
-                );
-            }
-        };
-        if authority == "denied" {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(
-                    "The 'denied' authority is no longer supported. Every OCAPBoundary is enforced by construction."
-                        .to_string(),
-                )
-                .to_json_string(),
-            );
-        }
-        spec.goals[goal_index].constraints.push(boundary);
-        if let Err(v) = self.persist_val(&spec) {
-            return span.internal_error(v);
-        }
-        respond(
-            span,
-            &RequireBindResponse {
-                spec_id,
-                goal_index,
-                capability,
-                authority,
-                enforced: true,
-            },
-        )
-    }
-
+    /// MDS §3 tool 3: Assess a specification's writing quality via the 4-perspective test.
+    /// The server assesses, not the caller. 3 of 4 passing = meets publication standard.
     #[tool(
-        description = "Assess specification artifact against collection coherence. Evaluates spec-document completeness. When writing_excellence scores are provided, includes 4-perspective test results (Hopper/Lovelace/Schriver/Gentle) per WRITING_EXCELLENCE.md §3."
+        description = "Assess a specification's writing quality via the 4-perspective test (Hopper/Lovelace/Schriver/Gentle) per MDS §3. 3/4 = publishable."
     )]
-    async fn spec_curate_evaluate(
+    async fn spec_require_writing_quality(
         &self,
-        Parameters(CurateEvaluateRequest {
+        Parameters(WritingQualityRequest {
             spec_id,
-            rationale_hint,
+            notes: _,
             capability_token,
-            completeness_domain,
-            writing_excellence,
-        }): Parameters<CurateEvaluateRequest>,
+        }): Parameters<WritingQualityRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_curate_evaluate", &self.webid);
+        let span = ToolSpanGuard::new("spec_require_writing_quality", &self.webid);
         validate_field!(span, "spec_id", &spec_id, 256);
         check_cap!(
             self,
@@ -358,220 +376,27 @@ impl SpecServer {
             Ok(s) => s,
             Err((kind, msg)) => return span.error(kind, msg),
         };
-        let complete = spec.is_complete();
-        let we_blocks = writing_excellence
-            .as_ref()
-            .map(|we| we.passes() <= 1)
-            .unwrap_or(false);
-        let decision = if we_blocks {
-            CurationDecision::Discard
-        } else if complete {
-            CurationDecision::Merge
-        } else if spec.goals.is_empty() {
-            CurationDecision::Discard
-        } else {
-            CurationDecision::Revise
-        };
-        let domain = completeness_domain.unwrap_or_default();
-        let rationale = rationale_hint.unwrap_or_else(|| {
-            if we_blocks {
-                "Writing Excellence: 1 or fewer dimensions pass — publication blocked".to_string()
-            } else if complete {
-                "All criteria satisfied".to_string()
-            } else {
-                "Unsatisfied criteria remain".to_string()
-            }
-        });
-        let implementation_status = (domain == CompletenessDomain::Implementation).then(|| {
-            if complete {
-                "spec complete; implementation status unknown".to_string()
-            } else {
-                "spec incomplete; implementation status irrelevant".to_string()
-            }
-        });
+
+        let quality = self.assess_writing_quality(&spec);
+
         respond(
             span,
-            &CurateEvaluateResponse {
-                spec_id,
-                decision: decision.to_string(),
-                rationale,
-                coherence_score: spec.coherence(),
-                specification_completeness: complete,
-                implementation_status,
-                writing_excellence,
+            &WritingQualityResponse {
+                dimensions_passing: quality.passes(),
+                meets_publication_standard: quality.meets_publication_standard(),
             },
         )
     }
 
-    #[tool(description = "Reconcile spec-domain tensions between specification documents")]
-    async fn spec_curate_reconcile(
-        &self,
-        Parameters(CurateReconcileRequest {
-            spec_ids,
-            tension_description,
-            capability_token,
-        }): Parameters<CurateReconcileRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("spec_curate_reconcile", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "reconcile",
-            DelegationAction::Write
-        );
-
-        let mut loaded_specs = Vec::new();
-        let mut missing = Vec::new();
-        for id in &spec_ids {
-            let parsed = SpecId::from_string(id).unwrap_or_default();
-            match self.store.load(parsed) {
-                Ok(s) => loaded_specs.push(s),
-                Err(_) => missing.push(id.as_str()),
-            }
-        }
-        if !missing.is_empty() {
-            let (kind, msg) = not_found_err(&format!("{:?}", missing));
-            return span.error(kind, msg);
-        }
-
-        let mut tensions = Vec::new();
-        for i in 0..loaded_specs.len() {
-            for j in (i + 1)..loaded_specs.len() {
-                let a = &loaded_specs[i];
-                let b = &loaded_specs[j];
-                let words_a: std::collections::HashSet<&str> = a
-                    .goals
-                    .iter()
-                    .flat_map(|g| g.text.split_whitespace())
-                    .collect();
-                let words_b: std::collections::HashSet<&str> = b
-                    .goals
-                    .iter()
-                    .flat_map(|g| g.text.split_whitespace())
-                    .collect();
-                let union = words_a.union(&words_b).count();
-                let jaccard = if union > 0 {
-                    words_a.intersection(&words_b).count() as f64 / union as f64
-                } else {
-                    0.0
-                };
-                if jaccard > 0.3 {
-                    tensions.push(TensionReport {
-                        spec_a: a.id.to_string(),
-                        spec_b: b.id.to_string(),
-                        overlapping_goals: words_a
-                            .intersection(&words_b)
-                            .map(|w| w.to_string())
-                            .collect(),
-                        jaccard_score: jaccard,
-                    });
-                }
-            }
-        }
-        let resolution = if tensions.is_empty() {
-            "no_tensions_detected"
-        } else {
-            "tensions_identified"
-        };
-        respond(
-            span,
-            &CurateReconcileResponse {
-                resolution: resolution.to_string(),
-                spec_ids,
-                tension: tension_description,
-                tensions,
-                status: "reconciled".to_string(),
-            },
-        )
-    }
-
-    #[tool(description = "Grow specification collection toward coherence")]
-    async fn spec_curate_cultivate(
-        &self,
-        Parameters(CurateCultivateRequest {
-            coherence_threshold,
-            capability_token,
-            completeness_domain: _,
-        }): Parameters<CurateCultivateRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("spec_curate_cultivate", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "cultivate",
-            DelegationAction::Write
-        );
-
-        let threshold = coherence_threshold.unwrap_or(0.7);
-        let all_specs = match self.load_all_specs_val() {
-            Ok(specs) => specs,
-            Err(v) => return span.internal_error(v),
-        };
-        let coherence = Spec::collection_coherence(&all_specs);
-        let categories_covered: std::collections::HashSet<String> = all_specs
-            .iter()
-            .map(|s| s.category.as_str().to_string())
-            .collect();
-        let categories_missing = missing_categories(&categories_covered);
-        respond(
-            span,
-            &CurateCultivateResponse {
-                coherence_score: coherence,
-                threshold,
-                above_threshold: coherence >= threshold,
-                spec_count: all_specs.len(),
-                categories_covered: categories_covered.into_iter().collect(),
-                categories_missing,
-            },
-        )
-    }
-
+    /// MDS §3 tool 4: Query the specification graph by search term with configurable depth.
     #[tool(
-        description = "Assess a specification document against the Writing Excellence 4-perspective test (Hopper: accessibility, Lovelace: precision, Schriver: findability, Gentle: agent-correctness). 3/4 = publishable; 1/4 blocks."
+        description = "Query the specification graph by search term with configurable traversal depth per MDS §3"
     )]
-    async fn spec_curate_writing_excellence(
-        &self,
-        Parameters(WritingExcellenceRequest {
-            spec_id,
-            scores,
-            notes: _,
-            capability_token,
-        }): Parameters<WritingExcellenceRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("spec_curate_writing_excellence", &self.webid);
-        validate_field!(span, "spec_id", &spec_id, 256);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            &spec_id,
-            DelegationAction::Read
-        );
-
-        if let Err((kind, msg)) = self.load_spec(&spec_id).map(|_| ()) {
-            return span.error(kind, msg);
-        }
-        let dims = scores.passes();
-        respond(
-            span,
-            &WritingExcellenceResponse {
-                spec_id,
-                dimensions_passing: dims,
-                meets_publication_standard: scores.meets_publication_standard(),
-                blocks_publication: dims <= 1,
-                scores,
-            },
-        )
-    }
-
-    #[tool(description = "Query the specification document graph by category or domain anchor")]
     async fn spec_graph_query(
         &self,
         Parameters(GraphQueryRequest {
-            category,
-            domain_anchor,
+            query,
+            depth,
             capability_token,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
@@ -584,203 +409,133 @@ impl SpecServer {
             DelegationAction::Read
         );
 
+        let max_depth = depth.unwrap_or(3);
         let all_specs = match self.load_all_specs_val() {
             Ok(specs) => specs,
             Err(v) => return span.internal_error(v),
         };
-        let nodes: Vec<GraphNodeResponse> = all_specs
+
+        let query_lower = query.to_lowercase();
+
+        // Match specs where name, goals, or category contain the query
+        let nodes: Vec<GraphNode> = all_specs
             .iter()
             .filter(|s| {
-                category
-                    .as_ref()
-                    .map(|c| s.category.as_str() == c.as_str())
-                    .unwrap_or(true)
-                    && domain_anchor
-                        .as_ref()
-                        .map(|a| s.domain_anchor.as_str() == a.as_str())
-                        .unwrap_or(true)
+                s.name.to_lowercase().contains(&query_lower)
+                    || s.goals
+                        .iter()
+                        .any(|g| g.text.to_lowercase().contains(&query_lower))
+                    || s.category.as_str().contains(&query_lower)
             })
-            .map(|s| GraphNodeResponse {
+            .map(|s| GraphNode {
                 id: s.id.to_string(),
-                name: s.name.clone(),
+                label: s.name.clone(),
                 category: s.category.as_str().to_string(),
-                complete: s.is_complete(),
             })
             .collect();
+
+        // Build edges between specs in the same category (composition adjacency)
+        let mut edges = Vec::new();
+        for i in 0..nodes.len() {
+            for j in (i + 1)..nodes.len() {
+                if nodes[i].category == nodes[j].category {
+                    edges.push(GraphEdge {
+                        from: nodes[i].id.clone(),
+                        to: nodes[j].id.clone(),
+                        relation: "same-category".to_string(),
+                    });
+                }
+            }
+        }
+
+        // Build simple paths (direct category-linked chains up to max_depth)
+        let mut paths = Vec::new();
+        for node in &nodes {
+            let linked: Vec<String> = edges
+                .iter()
+                .filter(|e| e.from == node.id || e.to == node.id)
+                .flat_map(|e| vec![e.from.clone(), e.to.clone()])
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .take(max_depth as usize)
+                .collect();
+            if !linked.is_empty() {
+                paths.push(GraphPath {
+                    nodes: linked,
+                    length: 1,
+                });
+            }
+        }
+
         respond(
             span,
             &GraphQueryResponse {
-                count: nodes.len(),
-                specs: nodes,
+                nodes,
+                edges,
+                paths,
             },
         )
     }
 
+    /// MDS §3 tool 5: Validate specification collection coherence.
     #[tool(
-        description = "Validate specification collection for internal consistency and coherence"
+        description = "Validate specification collection for internal consistency and coherence per MDS §3"
     )]
-    async fn spec_graph_validate(
+    async fn spec_graph_coherence(
         &self,
-        Parameters(GraphValidateRequest {
-            coherence_threshold,
+        Parameters(GraphCoherenceRequest {
+            collection_id: _,
             capability_token,
-        }): Parameters<GraphValidateRequest>,
+        }): Parameters<GraphCoherenceRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec_graph_validate", &self.webid);
+        let span = ToolSpanGuard::new("spec_graph_coherence", &self.webid);
         check_cap!(
             self,
             span,
             capability_token,
-            "validate",
+            "coherence",
             DelegationAction::Read
         );
 
-        let threshold = coherence_threshold.unwrap_or(0.7);
         let all_specs = match self.load_all_specs_val() {
             Ok(specs) => specs,
             Err(v) => return span.internal_error(v),
         };
+
         let coherence = Spec::collection_coherence(&all_specs);
+        let threshold = 0.7;
         let mut violations = Vec::new();
         let mut suggestions = Vec::new();
+
         if coherence < threshold {
             violations.push(format!(
-                "Coherence {:.2} below threshold {:.2}",
+                "Collection coherence {:.2} below threshold {:.2}",
                 coherence, threshold
             ));
         }
+
         let categories_covered: std::collections::HashSet<String> = all_specs
             .iter()
             .map(|s| s.category.as_str().to_string())
             .collect();
-        suggestions.extend(
-            missing_categories(&categories_covered)
-                .into_iter()
-                .map(|c| format!("Missing category: {}", c)),
-        );
+        for cat in SpecCategory::all() {
+            if !categories_covered.contains(cat.as_str()) {
+                suggestions.push(format!("Missing category: {}", cat.as_str()));
+            }
+        }
+
         for spec in &all_specs {
             if !spec.is_complete() {
                 suggestions.push(format!("Incomplete spec: {} ({})", spec.id, spec.name));
             }
         }
+
         respond(
             span,
-            &GraphValidateResponse {
-                valid: violations.is_empty(),
+            &GraphCoherenceResponse {
                 coherence_score: coherence,
-                threshold,
                 violations,
                 suggestions,
-                spec_count: all_specs.len(),
-            },
-        )
-    }
-
-    #[tool(
-        description = "Create a test traceability record linking a test to a specification requirement"
-    )]
-    async fn spec_test_invariant(
-        &self,
-        Parameters(TestInvariantRequest {
-            spec_id,
-            seam,
-            invariant,
-            category,
-            cycle,
-            capability_token,
-        }): Parameters<TestInvariantRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("spec_test_invariant", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "test/invariant",
-            DelegationAction::Write
-        );
-        validate_field!(span, "spec_id", &spec_id, 256);
-        validate_field!(span, "seam", &seam, 256);
-        validate_field!(span, "invariant", &invariant, 1024);
-        validate_field!(span, "category", &category, 64);
-
-        match self.load_spec(&spec_id) {
-            Ok(_) => {}
-            Err((kind, msg)) => return span.error(kind, msg),
-        }
-        let invariant_id = format!("{}:{}:{}", spec_id, seam, category.to_lowercase());
-        let cycle_tag = cycle
-            .as_deref()
-            .map(|c| format!(" [{} cycle]", c))
-            .unwrap_or_default();
-        respond(
-            span,
-            &TestInvariantResponse {
-                invariant_id,
-                status: format!("recorded{}", cycle_tag),
-            },
-        )
-    }
-
-    #[tool(description = "Verify test coverage for a specification seam or spec category")]
-    async fn spec_test_verify(
-        &self,
-        Parameters(TestVerifyRequest {
-            seam: _,
-            category,
-            capability_token,
-        }): Parameters<TestVerifyRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("spec_test_verify", &self.webid);
-        check_cap!(
-            self,
-            span,
-            capability_token,
-            "test/verify",
-            DelegationAction::Read
-        );
-
-        let all_specs = match self.load_all_specs_val() {
-            Ok(specs) => specs,
-            Err(v) => return span.internal_error(v),
-        };
-        let filtered: Vec<&Spec> = all_specs
-            .iter()
-            .filter(|s| {
-                category
-                    .as_deref()
-                    .and_then(SpecCategory::parse_str)
-                    .as_ref()
-                    .map(|cf| s.category == *cf)
-                    .unwrap_or(true)
-            })
-            .collect();
-        let mut traceability = Vec::new();
-        let mut tested = 0;
-        let mut gaps = 0;
-        for spec in &filtered {
-            let is_complete = spec.is_complete();
-            if is_complete {
-                tested += 1;
-            } else {
-                gaps += 1;
-            }
-            traceability.push(TestTraceability {
-                requirement_id: spec.id.to_string(),
-                classification: is_complete.then_some(TestClassification::PublicInterface),
-                test_path: is_complete.then(|| format!("spec:{}", spec.id)),
-                has_gap: !is_complete,
-                test_debt_location: None,
-            });
-        }
-        respond(
-            span,
-            &TestVerifyResponse {
-                total_requirements: filtered.len(),
-                tested,
-                gaps,
-                debt: 0,
-                traceability,
-                complete: gaps == 0 && !filtered.is_empty(),
             },
         )
     }

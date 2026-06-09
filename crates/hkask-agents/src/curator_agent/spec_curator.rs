@@ -1,4 +1,4 @@
-//! DefaultSpecCurator — Curation logic for DDMVSS specifications
+//! DefaultSpecCurator — Curation logic for MDS specifications
 //!
 //! `DefaultSpecCurator` implements the `SpecCurator` trait, which evaluates
 //! specification coherence and makes curation decisions (Merge, Revise,
@@ -59,7 +59,7 @@ impl DefaultSpecCurator {
     ///
     /// Returns `None` if there are fewer than 10 records (insufficient data).
     ///
-    /// DDMVSS §5.9: Coherence threshold calibration — FUT-013.
+    /// MDS §5: Coherence threshold calibration — FUT-013.
     pub fn calibrate_from_history(
         curation_store: &hkask_storage::spec_store::SqliteCurationRecordStore,
     ) -> Option<f64> {
@@ -193,7 +193,7 @@ impl SpecCurator for DefaultSpecCurator {
         let drift_report = spec.drift(registered_verbs);
         let drift_within_tolerance = drift_report.drift_magnitude <= self.drift_threshold;
 
-        // Four-way curation decision gradient (DDMVSS §5.9):
+        // Four-way curation decision gradient (MDS §5):
         //   Merge:   spec is complete (all criteria satisfied)
         //   Discard: spec has no goals
         //   Defer:   partial progress but insufficient for Merge — coherence > 0.5

@@ -384,7 +384,7 @@ pub enum KeystoreAction {
     },
 }
 
-/// Specification actions (DDMVSS)
+/// Specification actions (MDS)
 #[derive(Subcommand)]
 pub enum SpecAction {
     Capture {

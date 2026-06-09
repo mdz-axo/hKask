@@ -278,7 +278,7 @@ impl A2AMessage {
     }
 }
 
-// DDMVSS P8 invariant: the visitor dispatch must visit exactly one variant,
+// MDS P8 invariant: the visitor dispatch must visit exactly one variant,
 // and `RouteFields` must produce the routing fields `send_message` consumes.
 // The first test pins the bijection between enum variants and visitor
 // methods; the rest pin the per-variant routing invariants.
