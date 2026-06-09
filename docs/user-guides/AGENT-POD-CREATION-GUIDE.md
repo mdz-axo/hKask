@@ -207,9 +207,8 @@ rights:
 
 ```yaml
 depends_on:
-  - hkask-mcp-registry
   - hkask-mcp-inference
-   - hkask-mcp-registry
+  - hkask-mcp-spec
   - cns-curator-bot
   - memory-curator-bot
 ```
@@ -316,7 +315,7 @@ process_manifest: registry/manifests/my-bot-dispatch.yaml
 # Optional: Dependencies
 depends_on:
   - hkask-mcp-inference
-   - hkask-mcp-registry
+  - hkask-mcp-spec
 
 # Required: Readiness probe
 readiness_probe:
@@ -520,7 +519,7 @@ steps:
     action: execute
     target: memory
     contract:
-       mcp: hkask-mcp-registry
+       mcp: hkask-mcp-spec
 
   - ordinal: 3
     action: populate
@@ -554,7 +553,8 @@ steps:
     action: execute
     target: cns
     contract:
-      mcp: hkask-mcp-cns
+      # CNS is now internal via CnsRuntime; use memory for health/monitoring
+      mcp: hkask-mcp-memory
 
   - ordinal: 3
     action: populate
@@ -1115,7 +1115,7 @@ responsibilities:
 depends_on:
   - external-workspace-adapter
   - hkask-mcp-inference
-  - hkask-mcp-registry
+  - hkask-mcp-spec
 
 process_manifest: registry/manifests/bridge-dispatch.yaml
 

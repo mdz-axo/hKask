@@ -46,11 +46,8 @@ pub enum LoopId {
     Inference,
     Episodic,
     Semantic,
-    Communication,
     Curation,
     Cybernetics,
-    /// Scheduled CAS snapshots (sub-function of Cybernetics Loop 6)
-    Snapshot,
 }
 
 impl std::fmt::Display for LoopId {
@@ -59,10 +56,8 @@ impl std::fmt::Display for LoopId {
             LoopId::Inference => write!(f, "inference"),
             LoopId::Episodic => write!(f, "episodic"),
             LoopId::Semantic => write!(f, "semantic"),
-            LoopId::Communication => write!(f, "communication"),
             LoopId::Curation => write!(f, "curation"),
             LoopId::Cybernetics => write!(f, "cybernetics"),
-            LoopId::Snapshot => write!(f, "snapshot"),
         }
     }
 }

@@ -145,7 +145,7 @@ impl SnapshotLoop {
 #[async_trait::async_trait]
 impl HkaskLoop for SnapshotLoop {
     fn id(&self) -> LoopId {
-        LoopId::Snapshot
+        LoopId::Cybernetics
     }
 
     /// Sense: measure time since last snapshot per repo.
@@ -175,7 +175,7 @@ impl HkaskLoop for SnapshotLoop {
             // Signal: elapsed time vs. expected interval
             // If elapsed >= interval, we're "above set-point" (snapshot is due)
             signals.push(Signal::new(
-                LoopId::Snapshot,
+                LoopId::Cybernetics,
                 SignalMetric::SnapshotInterval,
                 elapsed_secs as f64,
                 interval,
@@ -207,7 +207,7 @@ impl HkaskLoop for SnapshotLoop {
         }
         // One action covers all due repos — act() iterates them
         vec![LoopAction::new(
-            LoopId::Snapshot,
+            LoopId::Cybernetics,
             ActionType::Calibrate,
             serde_json::json!({"action": "snapshot", "repos": "all_due"}),
         )]

@@ -66,19 +66,16 @@ pub fn default_tick_interval(loop_id: LoopId) -> Duration {
         LoopId::Inference => Duration::from_millis(INFERENCE_TICK_MS),
         LoopId::Episodic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
         LoopId::Semantic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
-        LoopId::Communication => Duration::from_millis(COMMUNICATION_TICK_MS),
         LoopId::Cybernetics => Duration::from_secs(CYBERNETICS_TICK_SECS),
-        LoopId::Snapshot => Duration::from_secs(SNAPSHOT_TICK_SECS),
         LoopId::Curation => Duration::from_secs(CURATION_TICK_SECS),
     }
 }
 
 /// Authority DAG tick order: meta-loops first, then domain loops.
-/// Curation (5) → Cybernetics (6) → Snapshot (6b) → Inference (1) → Episodic (2a) → Semantic (2b)
-pub const AUTHORITY_ORDER: [LoopId; 6] = [
+/// Curation (5) → Cybernetics (6) → Inference (1) → Episodic (2a) → Semantic (2b)
+pub const AUTHORITY_ORDER: [LoopId; 5] = [
     LoopId::Curation,
     LoopId::Cybernetics,
-    LoopId::Snapshot,
     LoopId::Inference,
     LoopId::Episodic,
     LoopId::Semantic,
@@ -107,9 +104,7 @@ impl LoopSystem {
                 LoopId::Inference,
                 LoopId::Episodic,
                 LoopId::Semantic,
-                LoopId::Communication,
                 LoopId::Cybernetics,
-                LoopId::Snapshot,
                 LoopId::Curation,
             ]
             .into_iter()

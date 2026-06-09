@@ -163,7 +163,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-storage
+    mcp: hkask-mcp-memory
     gas_cap: 1000
     timeout_seconds: 15
     validation_rules:
@@ -234,7 +234,8 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-cns
+    # CNS is now internal via CnsRuntime; use memory for health/monitoring feedback
+    mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 5
     feedback:

@@ -104,7 +104,7 @@ visibility:
 process_manifest: registry/manifests/memory-ops.yaml
 
 depends_on:
-   - hkask-mcp-registry
+  - hkask-mcp-spec
 
 readiness_probe:
   type: health_check
@@ -161,7 +161,7 @@ steps:
     action: execute
     target: memory
     contract:
-       mcp: hkask-mcp-registry
+       mcp: hkask-mcp-spec
       model_tier: balanced
 
 cns:
@@ -296,7 +296,7 @@ standing_session:
 process_manifest: registry/manifests/domain-curation.yaml
 
 depends_on:
-  - hkask-mcp-cns
+  - hkask-mcp-memory
   - hkask-mcp-inference
 
 readiness_probe:
@@ -392,7 +392,7 @@ standing_session:
 process_manifest: registry/manifests/dispatch.yaml
 
 depends_on:
-  - hkask-mcp-registry
+  - hkask-mcp-spec
   - hkask-mcp-inference
 
 readiness_probe:
@@ -652,7 +652,7 @@ external_workspace:
 depends_on:
   - external-workspace-adapter
   - hkask-mcp-inference
-  - hkask-mcp-registry
+  - hkask-mcp-spec
 
 readiness_probe:
   type: health_check

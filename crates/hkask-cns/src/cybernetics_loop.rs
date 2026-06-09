@@ -401,7 +401,7 @@ impl HkaskLoop for CyberneticsLoop {
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     Some(LoopAction::new(
-                        LoopId::Communication,
+                        LoopId::Cybernetics,
                         ActionType::Throttle,
                         serde_json::json!({"reason": "connector_latency_exceeded", "latency_secs": dev.signal.value, "threshold": dev.signal.set_point}),
                     ))
@@ -411,7 +411,7 @@ impl HkaskLoop for CyberneticsLoop {
                 {
                     tracing::info!(target: "cns.cybernetics.backpressure", queue_depth = dev.signal.value, threshold = dev.signal.set_point, "Communication queue depth exceeded backpressure threshold");
                     Some(LoopAction::new(
-                        LoopId::Communication,
+                        LoopId::Cybernetics,
                         ActionType::Throttle,
                         serde_json::json!({"reason": "communication_backpressure", "queue_depth": dev.signal.value, "threshold": dev.signal.set_point}),
                     ))

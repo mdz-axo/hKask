@@ -49,87 +49,69 @@ sequence:
     depends_on: [hkask-storage, hkask-cns]
 
   - ordinal: 5
-    component: hkask-mcp-cns
-    type: mcp_server
-    description: CNS monitoring MCP server
-    readiness_probe: mcp_ping
-    timeout_seconds: 60
-    critical: true
-    depends_on: [hkask-cns]
-
-  - ordinal: 6
-    component: hkask-mcp-registry
-    type: mcp_server
-    description: Registry operations MCP server
-    readiness_probe: mcp_ping
-    timeout_seconds: 60
-    critical: true
-    depends_on: [hkask-storage]
-
-  - ordinal: 7
     component: cns-curator-bot
     type: bot
     manifest: registry/bots/cns-curator-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-cns, hkask-mcp-memory]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 8
+  - ordinal: 6
     component: memory-curator-bot
     type: bot
     manifest: registry/bots/memory-curator-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-memory, hkask-mcp-cns]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 9
+  - ordinal: 7
     component: inference-curator-bot
     type: bot
     manifest: registry/bots/inference-curator-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-memory, hkask-mcp-inference]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 10
+  - ordinal: 8
     component: mcp-dispatch-bot
     type: bot
     manifest: registry/bots/mcp-dispatch-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-registry, hkask-mcp-memory]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 11
+  - ordinal: 9
     component: ensemble-curator-bot
     type: bot
     manifest: registry/bots/ensemble-curator-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-ensemble, hkask-mcp-memory]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 12
+  - ordinal: 10
     component: git-curator-bot
     type: bot
     manifest: registry/bots/git-curator-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-git, hkask-mcp-memory]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 13
+  - ordinal: 11
     component: registry-dispatch-bot
     type: bot
     manifest: registry/bots/registry-dispatch-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
     critical: true
-    depends_on: [hkask-mcp-registry, hkask-mcp-inference]
+    depends_on: [hkask-mcp-memory]
 
-  - ordinal: 14
+  - ordinal: 12
     component: Curator
     type: replicant
     manifest: registry/bots/Curator.yaml
@@ -145,7 +127,7 @@ sequence:
       - git-curator-bot
       - registry-dispatch-bot
 
-  - ordinal: 15
+  - ordinal: 13
     component: system-coordination-standing-session
     type: standing_session
     manifest: registry/manifests/standing-ensemble-session.yaml
@@ -167,42 +149,42 @@ readiness_probes:
   storage_ping:
     type: health_check
     endpoint: storage::ping
-    expected: {status: ok}
+    expected: { status: ok }
     retry_count: 3
     retry_delay_seconds: 5
 
   keystore_ping:
     type: health_check
     endpoint: keystore::ping
-    expected: {status: ok}
+    expected: { status: ok }
     retry_count: 3
     retry_delay_seconds: 5
 
   cns_ping:
     type: health_check
     endpoint: cns::ping
-    expected: {status: ok}
+    expected: { status: ok }
     retry_count: 3
     retry_delay_seconds: 5
 
   mcp_ping:
     type: health_check
     endpoint: mcp::ping
-    expected: {status: ok}
+    expected: { status: ok }
     retry_count: 3
     retry_delay_seconds: 5
 
   bot_ping:
     type: health_check
     endpoint: agent_pod::status
-    expected: {state: Registered}
+    expected: { state: Registered }
     retry_count: 3
     retry_delay_seconds: 5
 
   session_ping:
     type: health_check
     endpoint: ensemble::session_status
-    expected: {state: Active}
+    expected: { state: Active }
     retry_count: 3
     retry_delay_seconds: 5
 
