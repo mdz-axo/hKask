@@ -13,17 +13,7 @@ pub fn run(action: crate::cli::SovereigntyAction) {
 }
 
 fn parse_data_category(s: &str) -> DataCategory {
-    match s {
-        "episodic_memory" => DataCategory::EpisodicMemory,
-        "semantic_memory" => DataCategory::SemanticMemory,
-        "personal_context" => DataCategory::PersonalContext,
-        "capability_tokens" => DataCategory::CapabilityTokens,
-        "ocap_boundaries" => DataCategory::OcapBoundaries,
-        "template_invocations" => DataCategory::TemplateInvocations,
-        "hlexicon_terms" => DataCategory::HLexiconTerms,
-        "template_registry" => DataCategory::TemplateRegistry,
-        _ => DataCategory::Custom(s.to_string()),
-    }
+    DataCategory::parse(s)
 }
 
 fn build_consent() -> (
@@ -166,15 +156,9 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             let (_svc, cm) = build_consent();
             let boundary = DataSovereigntyBoundary::hkask_default();
 
-            let (classification, access_required) = if boundary.is_sovereign(&cat) {
-                ("SOVEREIGN", "Requires explicit consent AND owner")
-            } else if boundary.is_category_shared(&cat) {
-                ("SHARED", "Requires explicit consent")
-            } else if boundary.is_category_public(&cat) {
-                ("PUBLIC", "Always accessible")
-            } else {
-                ("UNKNOWN", "Denied by default")
-            };
+            let class = boundary.classify(&cat);
+            let classification = class.label();
+            let access_required = class.access_required();
             let has_consent = if classification == "PUBLIC" {
                 true
             } else {

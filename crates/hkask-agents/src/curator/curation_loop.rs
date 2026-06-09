@@ -340,32 +340,18 @@ impl HkaskLoop for CurationLoop {
     /// Act: issue directives through CuratorContext with DAMPEN filtering.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
-            tracing::info!(
-                target: CUR_TARGET,
-                action_type = ?action.action_type,
-                target_loop = %action.target,
-                "Curation Loop regulatory action"
-            );
-
-            // Convert LoopAction to CuratorDirective and issue
+            tracing::info!(target: CUR_TARGET, action_type = ?action.action_type, target_loop = %action.target, "Curation Loop regulatory action");
             let directive = match action.action_type {
                 hkask_types::loops::ActionType::Escalate
                     if action.parameters.get("reason").and_then(|v| v.as_str())
                         == Some("algedonic_events_exceeded") =>
                 {
-                    // Algedonic events from NuEvent store — review and override if needed
                     let count = action
                         .parameters
                         .get("count")
                         .and_then(|v| v.as_u64())
                         .unwrap_or(0);
-                    tracing::warn!(
-                        target: CUR_TARGET,
-                        count = count,
-                        "Algedonic events exceeded threshold — Curation reviewing"
-                    );
-                    // Curation may issue OverrideGasBudget or CalibrateThreshold directives
-                    // based on review. For now, log and escalate.
+                    tracing::warn!(target: CUR_TARGET, count = count, "Algedonic events exceeded threshold — Curation reviewing");
                     None
                 }
                 hkask_types::loops::ActionType::Escalate
@@ -392,23 +378,15 @@ impl HkaskLoop for CurationLoop {
                             // (adjust gas budgets for the associated bot)
                             for entry in entries.iter().filter(|e| e.confidence > 0.5) {
                                 let directive = CuratorDirective::OverrideGasBudget {
-                                    agent: entry.bot_id.into(), // BotID -> WebID
-                                    new_budget: 5000, // Reduced budget for problematic bot
+                                    agent: entry.bot_id.into(),
+                                    new_budget: 5000,
                                 };
                                 if let Some(trace_id) =
                                     self.context.issue_directive(directive).await
                                 {
-                                    tracing::info!(
-                                        target: CUR_TARGET,
-                                        trace_id = %trace_id,
-                                        escalation_id = %entry.id,
-                                        "Issued OverrideGasBudget directive for escalated bot"
-                                    );
+                                    tracing::info!(target: CUR_TARGET, trace_id = %trace_id, escalation_id = %entry.id, "Issued OverrideGasBudget directive for escalated bot");
                                 }
                             }
-
-                            // Trigger consolidation if a consolidation port is available
-                            // and there are escalations (episodic budget pressure → consolidate)
                             if let Some(consolidation) = &self.consolidation {
                                 let handle = self.context.handle();
                                 let token = handle.issue_consolidation_token();
@@ -422,20 +400,11 @@ impl HkaskLoop for CurationLoop {
                                     },
                                 ) {
                                     Ok(outcome) if outcome.consolidated_count > 0 => {
-                                        tracing::info!(
-                                            target: CUR_TARGET,
-                                            consolidated = outcome.consolidated_count,
-                                            failed = outcome.failed_count,
-                                            "Consolidation bridge fired for escalated system"
-                                        );
+                                        tracing::info!(target: CUR_TARGET, consolidated = outcome.consolidated_count, failed = outcome.failed_count, "Consolidation bridge fired for escalated system")
                                     }
                                     Ok(_) => {}
                                     Err(e) => {
-                                        tracing::warn!(
-                                            target: CUR_TARGET,
-                                            error = %e,
-                                            "Consolidation bridge failed"
-                                        );
+                                        tracing::warn!(target: CUR_TARGET, error = %e, "Consolidation bridge failed")
                                     }
                                 }
                             }

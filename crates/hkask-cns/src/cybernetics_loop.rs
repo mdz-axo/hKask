@@ -200,23 +200,13 @@ impl CyberneticsLoop {
                     self.handle_algedonic_alert(*current, *threshold, *deficit);
                 }
                 _ => {
-                    tracing::debug!(
-                        target: "cns.cybernetics",
-                        payload_type = ?msg.payload,
-                        "Ignoring non-directive payload in CyberneticsLoop inbox"
-                    );
+                    tracing::debug!(target: "cns.cybernetics", payload_type = ?msg.payload, "Ignoring non-directive payload in CyberneticsLoop inbox")
                 }
             }
         }
         if processed > 0 {
-            tracing::info!(
-                target: "cns.cybernetics",
-                processed = processed,
-                "Processed inbox messages"
-            );
+            tracing::info!(target: "cns.cybernetics", processed = processed, "Processed inbox messages");
         }
-
-        // Expire overrides with non-zero TTL
         self.gas_budget_manager.expire_overrides().await;
     }
 
@@ -246,47 +236,29 @@ impl CyberneticsLoop {
             CuratorDirective::CalibrateThreshold {
                 domain,
                 new_threshold,
-            } => {
-                self.apply_calibrate_threshold(&domain, new_threshold).await;
-            }
+            } => self.apply_calibrate_threshold(&domain, new_threshold).await,
             CuratorDirective::OverrideGasBudget { agent, new_budget } => {
-                self.apply_override_gas_budget(agent, new_budget).await;
+                self.apply_override_gas_budget(agent, new_budget).await
             }
-            CuratorDirective::ClearOverride { agent } => {
-                self.apply_clear_override(agent).await;
-            }
+            CuratorDirective::ClearOverride { agent } => self.apply_clear_override(agent).await,
             CuratorDirective::ReplenishBudget {
                 agent,
                 amount,
                 priority,
-            } => {
-                self.apply_replenish_budget(agent, amount, priority).await;
-            }
+            } => self.apply_replenish_budget(agent, amount, priority).await,
             CuratorDirective::UpdateCapabilities {
                 agent,
                 additions,
                 removals,
             } => {
-                tracing::info!(
-                    target: "cns.cybernetics",
-                    agent = %agent,
-                    additions = ?additions,
-                    removals = ?removals,
-                    "Applied UpdateCapabilities directive from Curation (capabilities updated)"
-                );
+                tracing::info!(target: "cns.cybernetics", agent = %agent, additions = ?additions, removals = ?removals, "Applied UpdateCapabilities directive from Curation (capabilities updated)")
             }
             CuratorDirective::SeekMoreEvidence {
                 context,
                 channel,
                 confidence,
             } => {
-                tracing::info!(
-                    target: "cns.cybernetics",
-                    context = %context,
-                    channel = %channel,
-                    confidence = %confidence,
-                    "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)"
-                );
+                tracing::info!(target: "cns.cybernetics", context = %context, channel = %channel, confidence = %confidence, "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)")
             }
         }
     }
@@ -414,29 +386,9 @@ impl HkaskLoop for CyberneticsLoop {
                 SignalMetric::EnergyRemaining
                     if dev.direction == DeviationDirection::BelowSetPoint =>
                 {
-                    // Produce both Throttle (for immediate protection) and
-                    // AdjustGasBudget (for automatic budget reallocation)
-                    // Throttle signals downstream loops to reduce consumption
-                    // AdjustGasBudget is Cybernetics' automatic homeostatic response
-                    actions.push(LoopAction::new(
-                        LoopId::Inference,
-                        ActionType::Throttle,
-                        serde_json::json!({
-                            "reason": "gas_budget_low",
-                            "remaining_ratio": dev.signal.value,
-                            "set_point": dev.signal.set_point,
-                        }),
-                    ));
-                    actions.push(LoopAction::new(
-                        LoopId::Cybernetics,
-                        ActionType::AdjustGasBudget,
-                        serde_json::json!({
-                            "reason": "energy_depletion_auto_adjust",
-                            "remaining_ratio": dev.signal.value,
-                            "set_point": dev.signal.set_point,
-                        }),
-                    ));
-                    None // Already added actions above
+                    actions.push(LoopAction::new(LoopId::Inference, ActionType::Throttle, serde_json::json!({"reason": "gas_budget_low", "remaining_ratio": dev.signal.value, "set_point": dev.signal.set_point})));
+                    actions.push(LoopAction::new(LoopId::Cybernetics, ActionType::AdjustGasBudget, serde_json::json!({"reason": "energy_depletion_auto_adjust", "remaining_ratio": dev.signal.value, "set_point": dev.signal.set_point})));
+                    None
                 }
                 SignalMetric::VarietyDeficit
                     if dev.direction == DeviationDirection::AboveSetPoint =>
@@ -444,22 +396,14 @@ impl HkaskLoop for CyberneticsLoop {
                     Some(LoopAction::new(
                         LoopId::Curation,
                         ActionType::Escalate,
-                        serde_json::json!({
-                            "reason": "variety_deficit_exceeded",
-                            "deficit": dev.signal.value,
-                            "threshold": dev.signal.set_point,
-                        }),
+                        serde_json::json!({"reason": "variety_deficit_exceeded", "deficit": dev.signal.value, "threshold": dev.signal.set_point}),
                     ))
                 }
                 SignalMetric::ErrorRate if dev.direction == DeviationDirection::AboveSetPoint => {
                     Some(LoopAction::new(
                         LoopId::Inference,
                         ActionType::CircuitBreak,
-                        serde_json::json!({
-                            "reason": "error_rate_exceeded",
-                            "error_rate": dev.signal.value,
-                            "threshold": dev.signal.set_point,
-                        }),
+                        serde_json::json!({"reason": "error_rate_exceeded", "error_rate": dev.signal.value, "threshold": dev.signal.set_point}),
                     ))
                 }
                 SignalMetric::ConnectorLatency
@@ -468,30 +412,17 @@ impl HkaskLoop for CyberneticsLoop {
                     Some(LoopAction::new(
                         LoopId::Communication,
                         ActionType::Throttle,
-                        serde_json::json!({
-                            "reason": "connector_latency_exceeded",
-                            "latency_secs": dev.signal.value,
-                            "threshold": dev.signal.set_point,
-                        }),
+                        serde_json::json!({"reason": "connector_latency_exceeded", "latency_secs": dev.signal.value, "threshold": dev.signal.set_point}),
                     ))
                 }
                 SignalMetric::CommunicationQueueDepth
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
-                    tracing::info!(
-                        target: "cns.cybernetics.backpressure",
-                        queue_depth = dev.signal.value,
-                        threshold = dev.signal.set_point,
-                        "Communication queue depth exceeded backpressure threshold"
-                    );
+                    tracing::info!(target: "cns.cybernetics.backpressure", queue_depth = dev.signal.value, threshold = dev.signal.set_point, "Communication queue depth exceeded backpressure threshold");
                     Some(LoopAction::new(
                         LoopId::Communication,
                         ActionType::Throttle,
-                        serde_json::json!({
-                            "reason": "communication_backpressure",
-                            "queue_depth": dev.signal.value,
-                            "threshold": dev.signal.set_point,
-                        }),
+                        serde_json::json!({"reason": "communication_backpressure", "queue_depth": dev.signal.value, "threshold": dev.signal.set_point}),
                     ))
                 }
                 _ => None,
@@ -503,49 +434,29 @@ impl HkaskLoop for CyberneticsLoop {
         actions
     }
 
-    /// Routes actions via dispatch channel; replenishes gas budgets each cycle.
     async fn act(&self, actions: &[LoopAction]) {
-        // Replenish all gas budgets each regulation cycle
         self.replenish_all_budgets().await;
-
-        // Emit backpressure signals for gas budget depletion.
-        // When the Cybernetics Loop detects energy depletion (gas_budget_low),
-        // it signals subscribers so downstream loops can throttle consumption.
         let has_energy_depletion = actions
             .iter()
             .any(|a| a.parameters.get("reason").and_then(|v| v.as_str()) == Some("gas_budget_low"));
         if has_energy_depletion {
             let cns = self.cns.read().await;
-            // Find the worst remaining ratio from the actions
             let worst_ratio = actions
                 .iter()
                 .filter_map(|a| a.parameters.get("remaining_ratio").and_then(|v| v.as_f64()))
                 .fold(1.0, f64::min);
-            let signal = BackpressureSignal {
+            cns.emit_backpressure(BackpressureSignal {
                 source: LoopId::Cybernetics,
-                reason: "gas_budget_depletion".to_string(),
+                reason: "gas_budget_depletion".into(),
                 severity: 1.0 - worst_ratio,
-            };
-            cns.emit_backpressure(signal).await;
+            })
+            .await;
         }
-
         if actions.len() > self.max_iterations as usize {
-            tracing::warn!(
-                target: "cns.cybernetics",
-                action_count = actions.len(),
-                max_iterations = self.max_iterations,
-                "Cascade detected: action count exceeds max_iterations"
-            );
+            tracing::warn!(target: "cns.cybernetics", action_count = actions.len(), max_iterations = self.max_iterations, "Cascade detected: action count exceeds max_iterations");
         }
-
         for action in actions {
-            tracing::info!(
-                target: "cns.cybernetics",
-                action_type = ?action.action_type,
-                target_loop = %action.target,
-                "Cybernetics Loop efferent signal"
-            );
-
+            tracing::info!(target: "cns.cybernetics", action_type = ?action.action_type, target_loop = %action.target, "Cybernetics Loop efferent signal");
             let target_id = action.target;
             let directive_type = match action.action_type {
                 ActionType::Throttle => "throttle",
@@ -556,11 +467,9 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::OverrideGasBudget => "override_gas_budget",
                 ActionType::ReplenishBudget => "replenish_budget",
             };
-
             let payload = if action.action_type == ActionType::Escalate
                 && target_id == DispatchTarget::Loop(LoopId::Curation)
             {
-                // Algedonic alert — Cybernetics → Curation via Communication Loop.
                 let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
                 LoopPayload::AlgedonicAlert {
                     current: deficit,
@@ -574,19 +483,11 @@ impl HkaskLoop for CyberneticsLoop {
                     parameters: action.parameters.clone(),
                 }
             };
-
             let msg = LoopMessage::new(action.priority, LoopId::Cybernetics, payload)
                 .with_target(target_id);
-
             if let Err(e) = self.dispatch_tx.send(msg) {
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    error = %e,
-                    "Failed to dispatch LoopAction — Communication Loop may be closed"
-                );
+                tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to dispatch LoopAction — Communication Loop may be closed");
             }
-
-            // Persist algedonic alerts to NuEventStore for durability across restarts.
             if action.action_type == ActionType::Escalate
                 && target_id == DispatchTarget::Loop(LoopId::Curation)
                 && let Some(ref sink) = self.event_sink
@@ -596,18 +497,11 @@ impl HkaskLoop for CyberneticsLoop {
                     WebID::new(),
                     Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
                     Phase::Act,
-                    serde_json::json!({
-                        "deficit": deficit,
-                        "threshold": threshold,
-                    }),
+                    serde_json::json!({"deficit": deficit, "threshold": threshold}),
                     0,
                 );
                 if let Err(e) = sink.persist(&event) {
-                    tracing::warn!(
-                        target: "cns.algedonic",
-                        error = %e,
-                        "Failed to persist algedonic alert to NuEventStore"
-                    );
+                    tracing::warn!(target: "cns.algedonic", error = %e, "Failed to persist algedonic alert to NuEventStore");
                 }
             }
         }

@@ -195,33 +195,17 @@ impl Drop for ToolSpanGuard {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct McpToolOutput {
     pub(crate) content: Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) metadata: Option<Value>,
 }
 
 impl McpToolOutput {
     pub(crate) fn new(content: Value) -> Self {
-        Self {
-            content,
-            metadata: None,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn with_metadata(content: Value, metadata: Value) -> Self {
-        Self {
-            content,
-            metadata: Some(metadata),
-        }
+        Self { content }
     }
 
     /// Serialize to JSON string for rmcp tool return value.
     pub(crate) fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|e| {
-            serde_json::json!({
-                "content": format!("serialization error: {e}"),
-            })
-            .to_string()
+        serde_json::to_string(&serde_json::json!({"content": &self.content})).unwrap_or_else(|e| {
+            serde_json::json!({"content": format!("serialization error: {e}")}).to_string()
         })
     }
 }
@@ -229,29 +213,15 @@ impl McpToolOutput {
 // McpToolError
 
 /// Structured error from a tool dispatch, carrying semantic classification.
-///
-/// The `kind` field allows the dispatch layer to reason about failures without
-/// parsing error message strings. This enables:
-/// - Retry logic (retry on `Timeout`/`Unavailable`, don't on `InvalidArgument`)
-/// - User-facing error categorization
-/// - CNS observability bucketing by error class
-/// - OCAP policy decisions
-///
-/// Tool methods return `McpToolError::to_json_string()` which rmcp wraps
-/// in the MCP error content envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolError {
-    /// Semantic classification from the `McpErrorKind` taxonomy.
     pub kind: McpErrorKind,
-    /// Human-readable error message.
     pub message: String,
-    /// Optional structured details (stack traces, validation failures, etc.).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     details: Option<Value>,
 }
 
 impl McpToolError {
-    /// Create an error with kind and message.
     pub fn new(kind: McpErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -259,60 +229,32 @@ impl McpToolError {
             details: None,
         }
     }
-
-    /// Create an internal error (the most common case).
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Internal, message)
     }
-
-    /// Create a not-found error (unknown tool name, missing resource).
     pub fn not_found(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::NotFound, message)
     }
-
-    /// Create an invalid-argument error (bad tool params, schema violation).
     pub fn invalid_argument(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::InvalidArgument, message)
     }
-
-    /// Create an unavailable error (upstream service down, network failure).
     pub fn unavailable(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Unavailable, message)
     }
-
-    /// Create a timeout error.
     pub fn timeout(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Timeout, message)
     }
-
-    /// Create a permission-denied error (OCAP capability check failed).
     pub fn permission_denied(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::PermissionDenied, message)
     }
-
-    /// Create a rate-limited error.
-    ///
-    /// External API boundary rate limiter — protects MCP servers from external
-    /// client DoS, distinct from internal energy budget tracking.
     pub fn rate_limited(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::RateLimited, message)
     }
-
-    /// Create a failed-precondition error (server not initialized, feature disabled).
     pub fn failed_precondition(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::FailedPrecondition, message)
     }
-
-    /// Serialize to JSON string for rmcp tool return value.
-    ///
-    /// Returns a JSON object with `"error"`, `"kind"`, and optional `"details"`.
-    /// This format is consumed by the dispatch layer and CNS observability.
     pub fn to_json_string(&self) -> String {
-        serde_json::json!({
-            "error": self.message,
-            "kind": self.kind.to_string(),
-        })
-        .to_string()
+        serde_json::json!({"error": self.message, "kind": self.kind.to_string()}).to_string()
     }
 }
 
@@ -326,11 +268,7 @@ impl std::error::Error for McpToolError {}
 
 // Input validation — Shared sanitization for MCP tool parameters
 
-/// Validate a string identifier (owner, repo, symbol, etc.).
-///
-/// Rejects empty strings, strings longer than `max_len`, and strings
-/// containing characters outside the allowed set `[a-zA-Z0-9_.-]`.
-/// This prevents injection in URL paths and query parameters.
+/// Validate a string identifier.
 pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<(), McpToolError> {
     if value.is_empty() {
         return Err(McpToolError::invalid_argument(format!(
@@ -364,18 +302,7 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
 }
 
 // classify_http_error — Shared HTTP Status → McpToolError mapping
-
 /// Classify an HTTP error response into a structured `McpToolError`.
-///
-/// Every hKask API server maps HTTP status codes the same way:
-/// - 401/403 → `PermissionDenied`
-/// - 404 → `NotFound`
-/// - 422 → `InvalidArgument`
-/// - 429 → `RateLimited`
-/// - 502/503 + other 5xx → `Unavailable`
-/// - Everything else → `Internal`
-///
-/// The `service` parameter prefixes the error message (e.g., `"GitHub"`, `"FMP"`).
 pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &str) -> McpToolError {
     let msg = format!("{service} API returned {status}: {}", body.trim());
     match status.as_u16() {
@@ -389,19 +316,21 @@ pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &st
     }
 }
 
-// api_get / api_post — Shared HTTP helpers
+// api_get / api_post / api_put — Shared HTTP helpers
 
-/// Perform an authenticated GET request with automatic error classification.
-///
-/// On success, parses the response body as JSON. On failure, classifies
-/// the HTTP status using `classify_http_error()`.
-pub async fn api_get(
+async fn http_req(
     client: &reqwest::Client,
     service: &str,
+    method: &str,
     url: &str,
+    payload: Option<&Value>,
 ) -> Result<Value, McpToolError> {
-    let resp = client
-        .get(url)
+    let builder = match method {
+        "GET" => client.get(url),
+        "POST" => client.post(url).json(payload.unwrap_or(&Value::Null)),
+        _ => client.put(url).json(payload.unwrap_or(&Value::Null)),
+    };
+    let resp = builder
         .send()
         .await
         .map_err(|e| McpToolError::unavailable(format!("{service} request failed: {e}")))?;
@@ -414,83 +343,41 @@ pub async fn api_get(
         .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
 }
 
-/// Perform an authenticated POST request with automatic error classification.
-///
-/// On success, parses the response body as JSON. On failure, classifies
-/// the HTTP status using `classify_http_error()`.
+pub async fn api_get(
+    client: &reqwest::Client,
+    service: &str,
+    url: &str,
+) -> Result<Value, McpToolError> {
+    http_req(client, service, "GET", url, None).await
+}
 pub async fn api_post(
     client: &reqwest::Client,
     service: &str,
     url: &str,
     payload: &Value,
 ) -> Result<Value, McpToolError> {
-    let resp = client
-        .post(url)
-        .json(payload)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("{service} request failed: {e}")))?;
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_http_error(service, status, &body));
-    }
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
+    http_req(client, service, "POST", url, Some(payload)).await
 }
-
-/// Perform an authenticated PUT request with automatic error classification.
-///
-/// On success, parses the response body as JSON. On failure, classifies
-/// the HTTP status using `classify_http_error()`.
 pub async fn api_put(
     client: &reqwest::Client,
     service: &str,
     url: &str,
     payload: &Value,
 ) -> Result<Value, McpToolError> {
-    let resp = client
-        .put(url)
-        .json(payload)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("{service} request failed: {e}")))?;
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_http_error(service, status, &body));
-    }
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
+    http_req(client, service, "PUT", url, Some(payload)).await
 }
 
 // resolve_credential — Keystore-first credential resolution
 
-/// Resolve a credential value, trying hkask-keystore first, then env vars.
-///
-/// Resolution order:
-/// 1. OS keychain via `hkask_keystore::Keychain` (key = env_var name)
-/// 2. Environment variable (traditional `std::env::var`)
-///
-/// This allows servers to get credentials from either source transparently.
 /// Parse .env files and return key-value pairs without mutating the process environment.
-///
-/// Searches for `.env` in the current directory, then the parent directory.
-/// Only sets keys that are not already present in the environment (same semantics
-/// as the original load_dotenv, but without the unsafe set_var).
-///
-/// This is the safe alternative to `unsafe std::env::set_var()` — the returned
-/// map can be passed to `run_stdio_server_with_preloaded()` to inject values
-/// into credential resolution without mutating global state.
 pub fn load_dotenv() -> HashMap<String, String> {
     let cwd = std::env::current_dir().unwrap_or_default();
-    let paths = [cwd.join(".env")];
-    let parent_paths = cwd
-        .parent()
-        .map(|p| vec![p.join(".env")])
-        .unwrap_or_default();
-
-    for path in paths.iter().chain(parent_paths.iter()) {
+    for path in [cwd.join(".env")].iter().chain(
+        cwd.parent()
+            .map(|p| vec![p.join(".env")])
+            .unwrap_or_default()
+            .iter(),
+    ) {
         if let Ok(content) = std::fs::read_to_string(path) {
             let mut map = HashMap::new();
             for line in content.lines() {
@@ -499,10 +386,9 @@ pub fn load_dotenv() -> HashMap<String, String> {
                     continue;
                 }
                 if let Some((key, value)) = line.split_once('=') {
-                    let key = key.trim();
-                    let value = value.trim();
+                    let (key, value) = (key.trim(), value.trim());
                     if !key.is_empty() && !value.is_empty() && std::env::var(key).is_err() {
-                        map.insert(key.to_string(), value.to_string());
+                        map.insert(key.into(), value.into());
                     }
                 }
             }
@@ -513,8 +399,7 @@ pub fn load_dotenv() -> HashMap<String, String> {
 }
 
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
-    let keychain = hkask_keystore::Keychain::default();
-    match keychain.retrieve_by_key(env_var) {
+    match hkask_keystore::Keychain::default().retrieve_by_key(env_var) {
         Ok(val) => {
             tracing::debug!(
                 credential = env_var,
@@ -533,7 +418,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
                 Ok(val)
             }
             Err(_) => Err(hkask_keystore::KeystoreError::NotFound(format!(
-                "Credential '{}' not found in keychain or environment",
+                "Credential '{}' not found",
                 env_var
             ))),
         },
@@ -542,16 +427,7 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
 
 // emit_tool_span — CNS observability for tool invocations
 
-/// Emit a CNS tool span for observability.
-///
 /// Emit a CNS tool span with caller identity (WebID) for observability.
-///
-/// Like `emit_tool_span`, but includes the calling agent's identity in the
-/// span. Use this in servers that have access to `self.webid` for full
-/// CNS attribution — it records *who* called the tool, not just *what* happened.
-///
-/// For servers that don't yet store a `webid`, `emit_tool_span` still works
-/// and omits the caller field.
 fn emit_tool_span_with_caller(
     tool_name: &str,
     outcome: &str,
@@ -559,26 +435,7 @@ fn emit_tool_span_with_caller(
     error_kind: Option<&McpErrorKind>,
     caller: Option<&hkask_types::WebID>,
 ) {
-    let mut fields = serde_json::json!({
-        "tool": tool_name,
-        "outcome": outcome,
-        "duration_ms": duration_ms,
-    });
-    if let Some(kind) = error_kind {
-        fields["error_kind"] = serde_json::json!(kind.to_string());
-    }
-    if let Some(webid) = caller {
-        fields["caller"] = serde_json::json!(webid.to_string());
-    }
-    tracing::info!(
-        target: "cns.tool",
-        tool = tool_name,
-        outcome = outcome,
-        duration_ms = duration_ms,
-        error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""),
-        caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""),
-        "CNS tool span"
-    );
+    tracing::info!(target: "cns.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), "CNS tool span");
 }
 
 // run_stdio_server — Common Server Bootstrap
@@ -612,13 +469,9 @@ pub async fn run_stdio_server<S, F>(
     credentials: Vec<CredentialRequirement>,
 ) -> anyhow::Result<()>
 where
-    S: rmcp::ServiceExt<rmcp::RoleServer>,
-    S: rmcp::Service<rmcp::RoleServer>,
+    S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
-    // 1. Tracing initialization — write to stderr so stdout is reserved
-    // for MCP JSON-RPC messages. If tracing output goes to stdout,
-    // it corrupts the protocol stream.
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
@@ -626,11 +479,8 @@ where
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
-
-    // 2. Credential checks (keystore → env var)
     let mut resolved = HashMap::new();
     let mut missing_required = Vec::new();
-
     for cred in &credentials {
         match resolve_credential(&cred.env_var) {
             Ok(val) => {
@@ -638,68 +488,40 @@ where
                 resolved.insert(cred.env_var.clone(), val);
             }
             Err(_) if cred.required => {
-                tracing::error!(
-                    credential = %cred.env_var,
-                    description = %cred.description,
-                    "Required credential not set — server cannot function"
-                );
+                tracing::error!(credential = %cred.env_var, description = %cred.description, "Required credential not set — server cannot function");
                 missing_required.push(cred.env_var.clone());
             }
             Err(_) => {
-                tracing::warn!(
-                    credential = %cred.env_var,
-                    description = %cred.description,
-                    "Optional credential not set — server will operate with degraded functionality"
-                );
+                tracing::warn!(credential = %cred.env_var, description = %cred.description, "Optional credential not set — server will operate with degraded functionality")
             }
         }
     }
-
     if !missing_required.is_empty() {
         anyhow::bail!(
             "Missing required credentials: {}. Set them via environment variables or hkask-keystore.",
             missing_required.join(", ")
         );
     }
-
-    // 3. Resolve calling agent identity (WebID)
     let webid = if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
-        // Direct UUID — highest precedence
         hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
     } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
-        // Deterministic derivation from persona name
         hkask_types::WebID::from_persona(persona.as_bytes())
     } else {
-        // Anonymous caller — random UUID
         hkask_types::WebID::new()
     };
-
-    tracing::info!(
-        webid = %webid.redacted_display(),
-        "Agent identity resolved"
-    );
-
-    // 4. Build server context (no ambient authority)
+    tracing::info!(webid = %webid.redacted_display(), "Agent identity resolved");
     let ctx = ServerContext {
         credentials: resolved,
         adapters: crate::AdapterContainer::new(),
         webid,
     };
-
-    // 5. Construct server (only after credential checks pass)
     let server = server_factory(ctx)?;
-
-    // 6. Serve via rmcp stdio transport
     tracing::info!(
         server = server_name,
         version = version,
         "MCP server starting"
     );
     let running = server.serve(rmcp::transport::stdio()).await?;
-    // Keep the RunningService alive until the service loop exits
-    // (stdin closes or cancellation). Without .waiting().await, the
-    // RunningService is dropped immediately, cancelling its CancellationToken
-    // and killing the service loop before it can process any requests.
     running.waiting().await?;
     Ok(())
 }
@@ -717,12 +539,9 @@ pub async fn run_stdio_server_with_preloaded<S, F>(
     preloaded: HashMap<String, String>,
 ) -> anyhow::Result<()>
 where
-    S: rmcp::ServiceExt<rmcp::RoleServer>,
-    S: rmcp::Service<rmcp::RoleServer>,
+    S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
-    // 1. Tracing initialization — write to stderr so stdout is reserved
-    // for MCP JSON-RPC messages.
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
@@ -730,11 +549,8 @@ where
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
-
-    // 2. Credential checks — preloaded values override resolve_credential
     let mut resolved = HashMap::new();
     let mut missing_required = Vec::new();
-
     for cred in &credentials {
         if let Some(val) = preloaded.get(&cred.env_var) {
             tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
@@ -747,31 +563,20 @@ where
                 resolved.insert(cred.env_var.clone(), val);
             }
             Err(_) if cred.required => {
-                tracing::error!(
-                    credential = %cred.env_var,
-                    description = %cred.description,
-                    "Required credential not set — server cannot function"
-                );
+                tracing::error!(credential = %cred.env_var, description = %cred.description, "Required credential not set — server cannot function");
                 missing_required.push(cred.env_var.clone());
             }
             Err(_) => {
-                tracing::warn!(
-                    credential = %cred.env_var,
-                    description = %cred.description,
-                    "Optional credential not set — server will operate with degraded functionality"
-                );
+                tracing::warn!(credential = %cred.env_var, description = %cred.description, "Optional credential not set — server will operate with degraded functionality")
             }
         }
     }
-
     if !missing_required.is_empty() {
         anyhow::bail!(
             "Missing required credentials: {}. Set them via environment variables or hkask-keystore.",
             missing_required.join(", ")
         );
     }
-
-    // 3. Resolve calling agent identity (WebID)
     let webid = if let Some(uuid_str) = preloaded.get("HKASK_WEBID") {
         hkask_types::WebID::from_str(uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
     } else if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
@@ -783,33 +588,19 @@ where
     } else {
         hkask_types::WebID::new()
     };
-
-    tracing::info!(
-        webid = %webid.redacted_display(),
-        "Agent identity resolved"
-    );
-
-    // 4. Build server context (no ambient authority)
+    tracing::info!(webid = %webid.redacted_display(), "Agent identity resolved");
     let ctx = ServerContext {
         credentials: resolved,
         adapters: crate::AdapterContainer::new(),
         webid,
     };
-
-    // 5. Construct server (only after credential checks pass)
     let server = server_factory(ctx)?;
-
-    // 6. Serve via rmcp stdio transport
     tracing::info!(
         server = server_name,
         version = version,
         "MCP server starting"
     );
     let running = server.serve(rmcp::transport::stdio()).await?;
-    // Keep the RunningService alive until the service loop exits
-    // (stdin closes or cancellation). Without .waiting().await, the
-    // RunningService is dropped immediately, cancelling its CancellationToken
-    // and killing the service loop before it can process any requests.
     running.waiting().await?;
     Ok(())
 }

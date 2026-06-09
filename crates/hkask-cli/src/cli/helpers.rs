@@ -2,19 +2,10 @@
 
 use hkask_types::TemplateType as Type;
 
-/// Parse a string into a DataCategory
+/// Parse a string into a DataCategory (delegates to DataCategory::parse)
+#[expect(deprecated)]
 pub fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    match s {
-        "episodic_memory" => hkask_types::DataCategory::EpisodicMemory,
-        "semantic_memory" => hkask_types::DataCategory::SemanticMemory,
-        "personal_context" => hkask_types::DataCategory::PersonalContext,
-        "capability_tokens" => hkask_types::DataCategory::CapabilityTokens,
-        "ocap_boundaries" => hkask_types::DataCategory::OcapBoundaries,
-        "template_invocations" => hkask_types::DataCategory::TemplateInvocations,
-        "hlexicon_terms" => hkask_types::DataCategory::HLexiconTerms,
-        "template_registry" => hkask_types::DataCategory::TemplateRegistry,
-        _ => hkask_types::DataCategory::Custom(s.to_string()),
-    }
+    hkask_types::DataCategory::parse(s)
 }
 
 /// Parse a template type string into a TemplateType enum

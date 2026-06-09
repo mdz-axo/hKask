@@ -1,22 +1,19 @@
 //! Models command handlers for `kask models`
 
-use std::sync::Arc;
-
-fn build_mcp(
+fn build_service_context(
     rt: &tokio::runtime::Runtime,
     servers: &[(&str, &str)],
-) -> Arc<hkask_mcp::McpDispatcher> {
+) -> hkask_services::ServiceContext {
     let config = super::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",
     );
-    let mcp = hkask_mcp::runtime::McpRuntime::new();
-    let dispatcher = Arc::new(hkask_mcp::McpDispatcher::with_secret(
-        mcp.clone(),
-        &config.mcp_secret,
-    ));
+    let ctx = super::helpers::or_exit(
+        rt.block_on(hkask_services::ServiceContext::build(config)),
+        "Failed to build ServiceContext",
+    );
     for (server_id, command) in servers {
-        match rt.block_on(mcp.start_server(server_id, command)) {
+        match rt.block_on(ctx.mcp_runtime.start_server(server_id, command)) {
             Ok(()) => {
                 tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started")
             }
@@ -25,16 +22,21 @@ fn build_mcp(
             }
         }
     }
-    dispatcher
+    ctx
 }
 
 pub fn run(rt: &tokio::runtime::Runtime) {
     use hkask_templates::McpPort;
-    let dispatcher = build_mcp(rt, &[("inference", "hkask-mcp-inference")]);
+    let ctx = build_service_context(rt, &[("inference", "hkask-mcp-inference")]);
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
-    let token = dispatcher.issue_capability("tools".to_string(), from, to);
-    match rt.block_on(dispatcher.invoke("inference_models", serde_json::json!({}), &token)) {
+    let token = ctx
+        .mcp_dispatcher
+        .issue_capability("tools".to_string(), from, to);
+    match rt.block_on(
+        ctx.mcp_dispatcher
+            .invoke("inference_models", serde_json::json!({}), &token),
+    ) {
         Ok(result) => {
             if let Some(tiers) = result.get("model_tiers").and_then(|t| t.as_array()) {
                 println!("\n=== Available Model Tiers ===");
@@ -62,9 +64,9 @@ pub fn run(rt: &tokio::runtime::Runtime) {
         }
         Err(e) => {
             eprintln!("Failed to list models: {}", e);
-            rt.block_on(dispatcher.shutdown_all());
+            rt.block_on(ctx.mcp_dispatcher.shutdown_all());
             std::process::exit(1);
         }
     }
-    rt.block_on(dispatcher.shutdown_all());
+    rt.block_on(ctx.mcp_dispatcher.shutdown_all());
 }

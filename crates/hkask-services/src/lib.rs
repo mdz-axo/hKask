@@ -12,7 +12,6 @@ pub mod inference;
 pub mod onboarding;
 pub mod skill;
 pub mod spec;
-pub mod user;
 pub mod verification;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
@@ -33,8 +32,7 @@ pub use error::ServiceError;
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use onboarding::{OnboardingService, RegistryHandle, ResolvedSecrets, SignInOutcome};
 pub use skill::{SkillInfo, SkillPublishResult, SkillService};
-pub use spec::{CapturedSpec, EvaluatedSpec, SpecService};
-pub use user::UserService;
+pub use spec::{CapturedSpec, EvaluatedSpec};
 pub use verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };

@@ -8,7 +8,6 @@
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
-use crate::contract_validator::{ContractValidator, ValidationMode};
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
 use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType, Visibility};
@@ -134,11 +133,17 @@ impl Registry {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
         }
 
-        // Delegate term validation to ContractValidator (FA-C1)
+        // Validate terms against canonical hLexicon vocabulary
         if let Some(ref lexicon) = self.hlexicon {
-            let validator =
-                ContractValidator::with_lexicon(lexicon).with_mode(ValidationMode::Warn);
-            let _ = validator.validate_terms(&entry.id, &entry.lexicon_terms);
+            let unknown = lexicon.validate(&entry.lexicon_terms);
+            if !unknown.is_empty() {
+                tracing::warn!(
+                    target: "hkask.templates",
+                    template_id = %entry.id,
+                    unknown_terms = ?unknown,
+                    "Lexicon terms not in canonical vocabulary"
+                );
+            }
         }
 
         self.templates.insert(entry.id.clone(), entry);

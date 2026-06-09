@@ -4,7 +4,6 @@
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
-use crate::contract_validator::{ContractValidator, ValidationMode};
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex, SkillZone};
 use hkask_types::{
@@ -124,10 +123,15 @@ impl SqliteRegistry {
             tracing::warn!(target: "hkask.templates", "{}", warning);
         }
         if let Some(ref lexicon) = self.hlexicon {
-            ContractValidator::with_lexicon(lexicon)
-                .with_mode(ValidationMode::Warn)
-                .validate_terms(&entry.id, &entry.lexicon_terms)
-                .0?;
+            let unknown = lexicon.validate(&entry.lexicon_terms);
+            if !unknown.is_empty() {
+                tracing::warn!(
+                    target: "hkask.templates",
+                    template_id = %entry.id,
+                    unknown_terms = ?unknown,
+                    "Lexicon terms not in canonical vocabulary"
+                );
+            }
         }
         let mut conn = self.conn.lock().unwrap();
         let tx = conn

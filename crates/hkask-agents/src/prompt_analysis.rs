@@ -60,9 +60,7 @@ pub struct PromptAnalysis {
 /// table are returned lowercased but otherwise unchanged.
 fn lemmatize(word: &str) -> String {
     let lower = word.to_lowercase();
-
-    // Common irregular verbs
-    let irregular = [
+    let irregular: &[(&str, &str)] = &[
         ("was", "be"),
         ("were", "be"),
         ("am", "be"),
@@ -269,16 +267,12 @@ fn lemmatize(word: &str) -> String {
         ("returning", "return"),
     ];
 
-    // Check irregular forms first
-    for (form, root) in &irregular {
+    for (form, root) in irregular {
         if lower == *form {
             return root.to_string();
         }
     }
-
-    // Common noun plurals and verb inflections
     if lower.ends_with("ies") && lower.len() > 4 {
-        // stories → story, abilities → ability
         return format!("{}y", &lower[..lower.len() - 3]);
     }
     if lower.ends_with("es") && lower.len() > 3 {
@@ -294,25 +288,18 @@ fn lemmatize(word: &str) -> String {
         return stem.to_string();
     }
     if lower.ends_with("s") && !lower.ends_with("ss") && lower.len() > 3 {
-        // computers → computer, runs → run, models → model
         return lower[..lower.len() - 1].to_string();
     }
     if lower.ends_with("ing") && lower.len() > 5 {
-        // running → run, computing → compute, creating → create
         let stem = &lower[..lower.len() - 3];
-        // Double consonant: running → run
         if stem.len() >= 2 {
             let chars: Vec<char> = stem.chars().collect();
-            if chars.len() >= 2 && chars[chars.len() - 1] == chars[chars.len() - 2] {
-                let c = chars[chars.len() - 1];
-                if "bdfglmnprst".contains(c) {
-                    return stem[..stem.len() - 1].to_string();
-                }
+            if chars.len() >= 2
+                && chars[chars.len() - 1] == chars[chars.len() - 2]
+                && "bdfglmnprst".contains(chars[chars.len() - 1])
+            {
+                return stem[..stem.len() - 1].to_string();
             }
-        }
-        // -ating → -ate, -iting → -ite, -uting → -ute
-        if stem.ends_with("at") || stem.ends_with("it") || stem.ends_with("ut") {
-            return format!("{}e", stem);
         }
         return stem.to_string();
     }

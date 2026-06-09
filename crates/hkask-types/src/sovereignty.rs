@@ -55,6 +55,25 @@ impl DataCategory {
         }
     }
 
+    /// Parse a data category from its string representation.
+    ///
+    /// Known categories map directly; unknown strings become `DataCategory::Custom`.
+    /// This is the single source of truth — replaces the 3 duplicated `parse_data_category`
+    /// functions previously scattered across CLI helpers, CLI sovereignty, and API routes.
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "episodic_memory" => DataCategory::EpisodicMemory,
+            "semantic_memory" => DataCategory::SemanticMemory,
+            "personal_context" => DataCategory::PersonalContext,
+            "capability_tokens" => DataCategory::CapabilityTokens,
+            "ocap_boundaries" => DataCategory::OcapBoundaries,
+            "template_invocations" => DataCategory::TemplateInvocations,
+            "hlexicon_terms" => DataCategory::HLexiconTerms,
+            "template_registry" => DataCategory::TemplateRegistry,
+            _ => DataCategory::Custom(s.to_string()),
+        }
+    }
+
     /// Check if this category is typically sovereign
     pub fn is_typically_sovereign(&self) -> bool {
         matches!(
@@ -107,6 +126,40 @@ pub struct DataSovereigntyBoundary {
     pub public_data: HashSet<DataCategory>,
     /// Whether this boundary requires affirmative consent (default: true)
     pub(crate) requires_affirmative_consent: bool,
+}
+
+/// Classification of a data category within a sovereignty boundary.
+///
+/// Single source of truth for the SOVEREIGN/SHARED/PUBLIC/UNKNOWN mapping
+/// previously duplicated across CLI, API, and verification service.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundaryClassification {
+    Sovereign,
+    Shared,
+    Public,
+    Unknown,
+}
+
+impl BoundaryClassification {
+    /// Human-readable label.
+    pub fn label(&self) -> &'static str {
+        match self {
+            BoundaryClassification::Sovereign => "SOVEREIGN",
+            BoundaryClassification::Shared => "SHARED",
+            BoundaryClassification::Public => "PUBLIC",
+            BoundaryClassification::Unknown => "UNKNOWN",
+        }
+    }
+
+    /// Access requirement description.
+    pub fn access_required(&self) -> &'static str {
+        match self {
+            BoundaryClassification::Sovereign => "Requires explicit consent AND owner",
+            BoundaryClassification::Shared => "Requires explicit consent",
+            BoundaryClassification::Public => "Always accessible",
+            BoundaryClassification::Unknown => "Denied by default",
+        }
+    }
 }
 
 impl DataSovereigntyBoundary {
@@ -175,6 +228,22 @@ impl DataSovereigntyBoundary {
     /// Whether this boundary requires affirmative consent (default: true)
     pub fn requires_affirmative_consent(&self) -> bool {
         self.requires_affirmative_consent
+    }
+
+    /// Classify a data category within this boundary.
+    ///
+    /// Single source of truth for the SOVEREIGN/SHARED/PUBLIC/UNKNOWN mapping
+    /// previously duplicated across CLI, API, and verification service.
+    pub fn classify(&self, category: &DataCategory) -> BoundaryClassification {
+        if self.is_sovereign(category) {
+            BoundaryClassification::Sovereign
+        } else if self.is_category_shared(category) {
+            BoundaryClassification::Shared
+        } else if self.is_category_public(category) {
+            BoundaryClassification::Public
+        } else {
+            BoundaryClassification::Unknown
+        }
     }
 }
 

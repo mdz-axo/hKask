@@ -50,67 +50,43 @@ struct LexiconTermYaml {
 pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
     let workspace: HlexiconWorkspaceYaml = serde_yaml::from_str(content)
         .map_err(|e| format!("Failed to parse hLexicon YAML: {}", e))?;
-
     let mut lexicon = HLexicon::new();
-
-    if let Some(terms) = workspace.hlexicon.wordact {
-        for t in terms {
-            let mut term = LexiconTerm::new(&t.term, TemplateType::WordAct, &t.definition);
-            if let Some(ref citation) = t.academic_citation {
-                term = term.with_citation(citation);
+    for (terms, tt) in [
+        (&workspace.hlexicon.wordact, TemplateType::WordAct),
+        (&workspace.hlexicon.flowdef, TemplateType::FlowDef),
+        (&workspace.hlexicon.knowact, TemplateType::KnowAct),
+    ] {
+        if let Some(terms) = terms {
+            for t in terms {
+                let mut term = LexiconTerm::new(&t.term, tt, &t.definition);
+                if let Some(ref citation) = t.academic_citation {
+                    term = term.with_citation(citation);
+                }
+                lexicon.add(term);
             }
-            lexicon.add(term);
         }
     }
-
-    if let Some(terms) = workspace.hlexicon.flowdef {
-        for t in terms {
-            let mut term = LexiconTerm::new(&t.term, TemplateType::FlowDef, &t.definition);
-            if let Some(ref citation) = t.academic_citation {
-                term = term.with_citation(citation);
-            }
-            lexicon.add(term);
-        }
-    }
-
-    if let Some(terms) = workspace.hlexicon.knowact {
-        for t in terms {
-            let mut term = LexiconTerm::new(&t.term, TemplateType::KnowAct, &t.definition);
-            if let Some(ref citation) = t.academic_citation {
-                term = term.with_citation(citation);
-            }
-            lexicon.add(term);
-        }
-    }
-
     Ok(lexicon)
 }
 
-/// Load the hLexicon from a file path.
 pub fn load_hlexicon_from_file(path: &Path) -> Result<HLexicon, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read hLexicon file {:?}: {}", path, e))?;
-    load_hlexicon_from_yaml(&content)
+    load_hlexicon_from_yaml(
+        &std::fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read hLexicon file {:?}: {}", path, e))?,
+    )
 }
 
-/// Load the hLexicon from the default workspace YAML path.
-///
-/// Resolution order:
-/// 1. `HKASK_TEMPLATES_PATH` env var parent + `registries/hlexicon-workspace.yaml`
-/// 2. `registry/registries/hlexicon-workspace.yaml` (relative to CWD)
 pub fn load_hlexicon_default() -> Result<HLexicon, String> {
     let path = std::env::var("HKASK_TEMPLATES_PATH")
         .map(|p| {
-            let templates_path = Path::new(&p);
-            templates_path
-                .parent()
+            let tp = Path::new(&p);
+            tp.parent()
                 .map(|p| p.join("registries/hlexicon-workspace.yaml"))
                 .unwrap_or_else(|| {
                     Path::new("registry/registries/hlexicon-workspace.yaml").to_path_buf()
                 })
         })
         .unwrap_or_else(|_| Path::new("registry/registries/hlexicon-workspace.yaml").to_path_buf());
-
     load_hlexicon_from_file(&path)
 }
 
@@ -125,11 +101,8 @@ pub fn parse_markdown_catalog(
 ) -> Result<Vec<(String, String, TemplateType)>, String> {
     let mut terms = Vec::new();
     let mut current_domain: Option<TemplateType> = None;
-
     for line in markdown.lines() {
         let trimmed = line.trim();
-
-        // Detect domain headers: "## Domain 1: WordAct ..." etc.
         if trimmed.starts_with("## Domain 1:") {
             current_domain = Some(TemplateType::WordAct);
             continue;
@@ -142,50 +115,32 @@ pub fn parse_markdown_catalog(
             current_domain = Some(TemplateType::KnowAct);
             continue;
         }
-
-        // Stop parsing at the cross-domain section (no more term tables)
         if trimmed.starts_with("## Cross-Domain") {
             break;
         }
-
-        // Parse table rows: | `term` | definition | * |
-        // Skip header rows and separator rows (|------|)
         if let Some(domain) = current_domain
             && trimmed.starts_with('|')
             && trimmed.ends_with('|')
+            && !trimmed.contains("---")
         {
-            // Skip separator rows
-            if trimmed.contains("---") {
-                continue;
-            }
             let cells: Vec<&str> = trimmed
                 .trim_matches('|')
                 .split('|')
                 .map(|s| s.trim())
                 .collect();
-
-            // Need at least 2 cells: term and definition
             if cells.len() >= 2 {
-                let term_cell = cells[0];
-                // Only parse rows where the term cell is backtick-quoted
-                if let Some(term) = extract_backtick_quoted(term_cell) {
-                    // Skip header row ("Term")
-                    if term.eq_ignore_ascii_case("term") {
-                        continue;
+                if let Some(term) = extract_backtick_quoted(cells[0]) {
+                    if !term.eq_ignore_ascii_case("term") {
+                        let definition = cells[1].trim_matches('"');
+                        terms.push((term, definition.to_string(), domain));
                     }
-                    let definition = cells[1].trim_matches('"');
-                    terms.push((term, definition.to_string(), domain));
                 }
             }
         }
     }
-
     if terms.is_empty() {
-        return Err(
-            "No hLexicon terms extracted from markdown. Check that domain headers (## Domain 1/2/3:) and term tables are present.".to_string(),
-        );
+        return Err("No hLexicon terms extracted from markdown. Check that domain headers (## Domain 1/2/3:) and term tables are present.".into());
     }
-
     Ok(terms)
 }
 

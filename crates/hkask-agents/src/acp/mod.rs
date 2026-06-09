@@ -570,37 +570,31 @@ impl crate::ports::AcpPort for AcpRuntime {
     ) -> Result<DelegationToken, AcpError> {
         AcpRuntime::register_agent(self, webid, agent_type, capabilities).await
     }
-
     async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
         AcpRuntime::unregister_agent(self, webid).await
     }
-
     async fn send_message(&self, msg: A2AMessage) -> Result<String, AcpError> {
         AcpRuntime::send_message(self, msg).await
     }
-
     async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, AcpError> {
-        let state = self.state.read().await;
-        state
+        self.state
+            .read()
+            .await
             .agents
             .get(webid)
             .map(|agent| agent.capabilities.clone())
             .ok_or(AcpError::AgentNotFound(*webid))
     }
-
     async fn is_registered(&self, webid: &WebID) -> bool {
         AcpRuntime::is_registered(self, webid).await
     }
-
     async fn revoke_capability(&self, token_id: &str, _holder: &WebID) -> Result<(), AcpError> {
         AcpRuntime::revoke_capability(self, token_id).await;
         Ok(())
     }
-
     async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
         AcpRuntime::get_capabilities(self, webid).await
     }
-
     async fn list_agents(&self) -> Vec<AcpAgent> {
         AcpRuntime::list_agents(self).await
     }

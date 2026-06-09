@@ -14,18 +14,7 @@ fn consent_name(value: bool) -> &'static str {
 }
 
 fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    use hkask_types::DataCategory;
-    match s {
-        "episodic_memory" => DataCategory::EpisodicMemory,
-        "semantic_memory" => DataCategory::SemanticMemory,
-        "personal_context" => DataCategory::PersonalContext,
-        "capability_tokens" => DataCategory::CapabilityTokens,
-        "ocap_boundaries" => DataCategory::OcapBoundaries,
-        "template_invocations" => DataCategory::TemplateInvocations,
-        "hlexicon_terms" => DataCategory::HLexiconTerms,
-        "template_registry" => DataCategory::TemplateRegistry,
-        _ => DataCategory::Custom(s.to_string()),
-    }
+    hkask_types::DataCategory::parse(s)
 }
 
 pub fn sovereignty_router() -> Router<ApiState> {
@@ -198,15 +187,9 @@ async fn sovereignty_check_access(
     let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
     let cm = &state.service_context.consent_manager;
 
-    let (classification, access_required) = if boundary.is_sovereign(&cat) {
-        ("SOVEREIGN", "Requires explicit consent AND owner")
-    } else if boundary.is_category_shared(&cat) {
-        ("SHARED", "Requires explicit consent")
-    } else if boundary.is_category_public(&cat) {
-        ("PUBLIC", "Always accessible")
-    } else {
-        ("UNKNOWN", "Denied by default")
-    };
+    let class = boundary.classify(&cat);
+    let classification = class.label();
+    let access_required = class.access_required();
     let has_consent = if classification == "PUBLIC" {
         true
     } else {

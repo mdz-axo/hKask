@@ -280,8 +280,8 @@ pub fn list_replicants(store: &Store) -> Result<(), UserError> {
     let replicants = store
         .lock()
         .unwrap()
-        .list_replicants(user_id)
-        .map_err(Into::into)?;
+        .list_replicants(&user_id)
+        .map_err(|e| UserError::from(hkask_services::ServiceError::from(e)))?;
     if replicants.is_empty() {
         println!("No replicants registered.");
         return Ok(());
