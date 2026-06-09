@@ -136,9 +136,8 @@ async fn sovereignty_grant_consent(
 
     let ctx = SovereigntyContext::from(&*state.service_context);
 
-    SovereigntyService::grant_consent(&ctx, &webid_str, &category).map_err(ApiError::from)?;
-
-    let granted = SovereigntyService::get_granted_categories(&ctx, &webid_str).unwrap_or_default();
+    let granted = SovereigntyService::grant_consent_and_fetch(&ctx, &webid_str, &category)
+        .map_err(ApiError::from)?;
 
     Ok(Json(SovereigntyConsentResponse {
         consent: true,

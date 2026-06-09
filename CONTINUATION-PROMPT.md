@@ -83,12 +83,11 @@ The hKask service layer extraction project (Sessions 12–23) produced:
 ```
 cargo check --workspace    ✅
 cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings  ✅
-cargo test --workspace --exclude hkask-mcp-condenser  ✅ (138 passed in hkask-services, 0 failed)
+cargo test --workspace  ✅ (138 passed in hkask-services, 51 passed in condenser, 0 failed)
 ```
 
-Note: `hkask-mcp-condenser` has a pre-existing build failure (uses renamed
-`McpToolError::internal_error` → `McpToolError::internal`). This is unrelated to
-service-layer or follow-up work.
+Note: The `hkask-mcp-condenser` build fix (Task 4) was completed in a prior session.
+The condenser compiles, passes clippy, and has 51 passing tests.
 
 ---
 
@@ -141,7 +140,7 @@ no `perspective` field (always `None`), so the struct differs from `RecalledEpis
 5. Update `PodContext::recall_semantic` return type.
 6. Simplify `ChatService::recall_semantic` to use typed field access.
 7. Check for any MCP semantic server callers and update.
-8. Verify: `cargo check --workspace && cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings && cargo test --workspace --exclude hkask-mcp-condenser`.
+8. Verify: `cargo check --workspace && cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings && cargo test --workspace`.
 
 **Estimated effort:** ~1–2 hours.
 
@@ -191,36 +190,14 @@ plus the domain-layer `RecalledEpisode` changes.
 
 ---
 
-### Task 4: hkask-mcp-condenser Build Fix (Medium Priority)
+### Task 4: hkask-mcp-condenser Build Fix ✅ DONE
 
-**Problem:** `hkask-mcp-condenser` fails to compile because it uses
-`McpToolError::internal_error` and `McpErrorKind::InternalError` which have been
-renamed to `McpToolError::internal` and `McpErrorKind::Internal` in `hkask-mcp`.
-
-**Goal:** Update the condenser to use the current API names so it compiles and
-its tests pass.
-
-**Scope:**
-- `mcp-servers/hkask-mcp-condenser/src/main.rs` — Replace `internal_error` with
-  `internal`, `InternalError` with `Internal`.
-- `mcp-servers/hkask-mcp-condenser/src/types.rs` — Remove or `#[allow(dead_code)]`
-  the unused `ThreadSummaryRequest` and `ThreadSummaryOutput` structs.
-
-**Strategy:**
-1. Build `hkask-mcp-condenser` to see all errors.
-2. Apply renames surgically.
-3. Address dead_code warnings for the two unused structs (either remove them if
-   truly unused, or add `#[allow(dead_code)]` with a comment explaining they're
-   reserved for future use).
-4. Verify: `cargo build -p hkask-mcp-condenser && cargo test -p hkask-mcp-condenser`.
-
-**Constraint classification:**
-- Renaming to match upstream API → Evidence (the API was renamed, measured by
-  compile errors)
-- Dead code in types.rs → Guideline (P6/P7 constraints say no `todo!`, no
-  `#[deprecated]`, but `#[allow(dead_code)]` with justification is acceptable)
-
-**Estimated effort:** ~15–30 minutes.
+The condenser build fix was completed in a prior session. `McpToolError::internal`
+and `McpErrorKind::Internal` are used throughout. The condenser compiles, passes
+clippy, and has 51 passing tests covering types, algorithms, and engine integration.
+Additionally, two bugs were fixed: `classify_tool` priority inversion (more-specific
+categories now checked before ShellCommand catch-all) and float truncation in
+`target_lines` calculation (`.round()` instead of `as usize` truncation).
 
 ---
 
@@ -305,7 +282,7 @@ For every task that touches code:
 [ ] Implement with surgical changes — every line traces to the task
 [ ] Verify: cargo check --workspace
 [ ] Run clippy: cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings
-[ ] Run tests: cargo test --workspace --exclude hkask-mcp-condenser
+[ ] Run tests: cargo test --workspace
 [ ] Update HANDOFF.md (add key decision, update file map if needed)
 [ ] Update CONTINUATION.md (mark task done or document new findings)
 ```
@@ -379,8 +356,8 @@ cargo check -p hkask-agents && cargo clippy -p hkask-agents -- -D warnings
 
 # Full workspace verification (run after every change)
 cargo check --workspace
-cargo test --workspace --exclude hkask-mcp-condenser
-cargo clippy --workspace -- -D warnings  # Note: condenser will fail; fix separately
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
 ```
 
 ---

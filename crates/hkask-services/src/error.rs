@@ -261,6 +261,11 @@ pub enum ServiceError {
     /// Sovereignty verification failed (manifest loading, assertion execution).
     #[error("Verification failed: {0}")]
     Verification(String),
+
+    // ── Rate limiting ──────────────────────────────────────────────────────
+    /// Operation rate limited (too soon after previous invocation).
+    #[error("{0}")]
+    RateLimited(String),
 }
 
 impl From<uuid::Error> for ServiceError {

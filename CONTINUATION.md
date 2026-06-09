@@ -27,7 +27,7 @@ error matching in `routes/episodic.rs`).
 | 2 | F5 — Pod test ACP secret fixture | 🔴 High | ✅ Done (Session 24) | ~1–2h |
 | 3 | F9 — Typed DTOs for EpisodicStoragePort | 🔴 High | ✅ Done (Session 24) | ~2–3h |
 | 4 | OPEN_QUESTIONS.md (F1–F10) | 🟡 Medium | ✅ Done (Session 25) | ~30m |
-| 5 | Test inventory update | 🟡 Medium | Not started | ~1h |
+| 5 | Test inventory update | 🟡 Medium | ✅ Done (Session 26) | ~1h |
 | 6 | Condenser build fix | 🟡 Medium | ✅ Already resolved | 0 |
 | 7 | F3 — Unified auth context | ⚪ Low/Speculative | Deferred | — |
 | 8 | F4 — MCP server service access | ⚪ Low/Speculative | Deferred | — |
@@ -37,6 +37,11 @@ error matching in `routes/episodic.rs`).
 ---
 
 ## Session History (Post-Extraction)
+
+### Session 26 (Test Inventory Update)
+
+- **Test inventory update:** Refreshed `docs/status/test-inventory.md` with actual test counts. Fixed per-module header discrepancies (EnsembleService 18→17, SovereigntyService 14→13, GoalService 14→13, CuratorService 8→6, PodService 7→6). Removed non-existent test entries (`parse_data_category` from EnsembleService, `invalid_uuid_returns_pod_not_found` from SovereigntyService). Updated condenser section from 35→53 tests with individual algorithm/type test entries replacing grouped ranges. Added 2 new `classify_tool` tests (priority inversion fix, separator splitting). Updated summary total 192→210. Clarified `hkask-agents` doc test status (1 ignored, 2 passing).
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings` ✅. `cargo test --workspace` ✅ (0 failures).
 
 ### Session 25 (F10 Typed DTOs + OPEN_QUESTIONS.md)
 
@@ -49,7 +54,7 @@ error matching in `routes/episodic.rs`).
 
 - **F9 — Typed DTOs for EpisodicStoragePort:** Added `RecalledEpisode` struct with domain-typed fields (`Confidence`, `Visibility`, `Option<WebID>`) in `hkask-agents/src/ports/memory_storage.rs`. Changed `EpisodicStoragePort::recall_episodic` return type from `Vec<serde_json::Value>` to `Vec<RecalledEpisode>`. Updated `MemoryLoopAdapter`, `PodContext`, `PodManager`. Simplified `routes/episodic.rs::query_episodes` — replaced fragile `.get().and_then()` destructuring with direct field mapping. Left `recall_semantic` unchanged (separate concern). (#73)
 - **F5 — Pod Test ACP Secret Fixture:** Replaced `AcpRuntime::default()` (panics without env var) in `PodManager::new_mock()` with `AcpRuntime::new(MOCK_ACP_SECRET)` using a deterministic 32-byte test secret. Both AcpRuntime and CapabilityChecker now share the same secret so tokens signed by the runtime are verifiable by the checker. 4 previously-failing pod tests now pass. (#74)
-- **Verification:** `cargo check --workspace` ✅, `cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings` ✅, `cargo test --workspace --exclude hkask-mcp-condenser` ✅ (138 passed in hkask-services, 0 failed). Pre-existing `hkask-mcp-condenser` build failure (uses renamed `McpToolError` API) unrelated.
+- **Verification:** `cargo check --workspace` ✅, `cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings` ✅, `cargo test --workspace` ✅ (138 passed in hkask-services, 51 passed in condenser, 0 failed).
 
 ### Session 23 (Final Evaluation Sweep + OCAP Error Fix)
 

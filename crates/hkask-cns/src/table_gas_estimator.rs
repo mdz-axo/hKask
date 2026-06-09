@@ -8,6 +8,7 @@
 //! | Internal | ocap, keystore, cns, registry | 1-2 | In-process |
 //! | Local I/O | spec, git, goal | 5 | No network |
 //! | Moderate | condenser | 10 | Compute + I/O |
+//! | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 //! | External | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O |
 //! | Heavy | fal | 100 | GPU compute |
 //! | Inference | hkask-mcp-inference | 0 | Token-based estimator |
@@ -74,6 +75,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 /// | Internal | ocap, keystore, cns, registry | 1-2 | In-process, negligible compute |
 /// | Local I/O | spec, git, goal | 5 | Local I/O, no network |
 /// | Moderate | condenser | 10 | Some computation + local I/O |
+/// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 /// | External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
 /// | Heavy external | fal | 100 | GPU compute, expensive |
 /// | Inference | hkask-mcp-inference | 0 (table) | Handled by `InferenceGasEstimator` |
@@ -111,9 +113,18 @@ impl TableGasEstimator {
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect();
+        let mut tool_costs: HashMap<(String, String), u64> = HashMap::new();
+        // thread_summary makes an HTTP call to Okapi — more expensive than local compression
+        tool_costs.insert(
+            (
+                "hkask-mcp-condenser".to_string(),
+                "condenser_thread_summary".to_string(),
+            ),
+            25,
+        );
         Self {
             server_costs,
-            tool_costs: HashMap::new(),
+            tool_costs,
             default_cost: 10,
         }
     }

@@ -161,6 +161,21 @@ impl SovereigntyService {
             .map_err(ServiceError::Consent)
     }
 
+    /// Grant consent and return the updated list of granted categories.
+    ///
+    /// Combines `grant_consent` + `get_granted_categories` into a single
+    /// service operation so surfaces don't need to make two separate calls.
+    ///
+    /// # REQ: svc-sov-009 — grant_consent_and_fetch grants + returns updated categories
+    pub fn grant_consent_and_fetch(
+        ctx: &SovereigntyContext,
+        webid: &str,
+        category: &DataCategory,
+    ) -> Result<Vec<String>, ServiceError> {
+        Self::grant_consent(ctx, webid, category)?;
+        Self::get_granted_categories(ctx, webid)
+    }
+
     /// Check access for a data category against boundary classification and consent.
     ///
     /// Returns the classification string ("SOVEREIGN", "SHARED", "PUBLIC"),

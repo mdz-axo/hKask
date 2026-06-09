@@ -33,7 +33,7 @@ pub struct PersistRequest {
     pub confidence: Option<f64>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Profile {
     Heavy,
@@ -211,6 +211,20 @@ mod tests {
         assert_eq!(classify_tool("Docker_Run"), ContextCategory::ShellCommand);
     }
 
+    // REQ: classify_tool splits on _ and - for token matching (Phase 1)
+    #[test]
+    fn classify_tool_splits_on_separators() {
+        assert_eq!(classify_tool("pytest-run"), ContextCategory::TestOutput);
+        assert_eq!(classify_tool("build-compile"), ContextCategory::BuildOutput);
+        assert_eq!(classify_tool("git-status"), ContextCategory::ShellCommand);
+    }
+
+    // REQ: classify_tool Phase 1 matches first token, so "cargo_test" → ShellCommand (cargo first)
+    #[test]
+    fn classify_tool_first_token_wins() {
+        assert_eq!(classify_tool("cargo_test"), ContextCategory::ShellCommand);
+    }
+
     // REQ: CondenserStats defaults to normal profile and zero counters
     #[test]
     fn condenser_stats_default() {
@@ -224,7 +238,7 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextCategory {
     ShellCommand,
@@ -270,9 +284,36 @@ impl std::str::FromStr for ContextCategory {
 
 pub fn classify_tool(tool_name: &str) -> ContextCategory {
     let lower = tool_name.to_lowercase();
-    // Order matters: check more specific categories before the broad ShellCommand catch-all.
-    // "run" and "exec" are ShellCommand but also appear in "pytest_run", "test_run", etc.
-    if lower.contains("test") || lower.contains("pytest") || lower.contains("spec") {
+    let parts: Vec<&str> = lower.split('_').chain(lower.split('-')).collect();
+
+    // Phase 1: known tool name prefixes — exact, no false positives
+    for part in &parts {
+        match *part {
+            "git" | "docker" | "cargo" | "npm" | "shell" | "bash" | "exec" | "run" => {
+                return ContextCategory::ShellCommand;
+            }
+            "test" | "pytest" | "spec" => return ContextCategory::TestOutput,
+            "build" | "compile" | "make" => return ContextCategory::BuildOutput,
+            "chat" | "conversation" | "message" => return ContextCategory::ConversationHistory,
+            "log" | "journal" | "trace" => return ContextCategory::LogOutput,
+            "json" | "api" | "query" => return ContextCategory::StructuredData,
+            "file" | "read" | "cat" => return ContextCategory::FileContents,
+            _ => {}
+        }
+    }
+
+    // Phase 2: substring heuristic for compound/unknown tool names
+    if lower.contains("git")
+        || lower.contains("docker")
+        || lower.contains("cargo")
+        || lower.contains("npm")
+        || lower.contains("shell")
+        || lower.contains("exec")
+        || lower.contains("run")
+        || lower.contains("bash")
+    {
+        ContextCategory::ShellCommand
+    } else if lower.contains("test") || lower.contains("pytest") || lower.contains("spec") {
         ContextCategory::TestOutput
     } else if lower.contains("build") || lower.contains("compile") || lower.contains("make") {
         ContextCategory::BuildOutput
@@ -285,22 +326,12 @@ pub fn classify_tool(tool_name: &str) -> ContextCategory {
         ContextCategory::StructuredData
     } else if lower.contains("file") || lower.contains("read") || lower.contains("cat") {
         ContextCategory::FileContents
-    } else if lower.contains("git")
-        || lower.contains("docker")
-        || lower.contains("cargo")
-        || lower.contains("npm")
-        || lower.contains("shell")
-        || lower.contains("exec")
-        || lower.contains("run")
-        || lower.contains("bash")
-    {
-        ContextCategory::ShellCommand
     } else {
         ContextCategory::Unknown
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CompressedOutput {
     pub content: String,
     pub algorithm: String,
@@ -313,7 +344,7 @@ pub struct CompressedOutput {
     pub reduction_pct: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CondenserStats {
     pub total_compressions: u64,
     pub total_original_bytes: u64,
@@ -339,18 +370,18 @@ impl Default for CondenserStats {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ThreadSummaryRequest {
     /// The conversation messages to summarize, as a JSON array of {role, content} objects.
-    pub messages: String,
+    pub messages: Vec<serde_json::Value>,
     /// The current user query for relevance-weighted summarization.
     pub current_query: String,
     /// Maximum tokens for the summary output (default 500).
     pub max_tokens: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ThreadSummaryOutput {
     pub summary: String,
     pub original_message_count: usize,
     pub summary_tokens_approx: usize,
-    pub okapi_model: String,
-    pub okapi_url: String,
+    pub inference_model: String,
+    pub inference_url: String,
 }

@@ -1054,7 +1054,7 @@ erDiagram
     MCP_SERVER }o--|| HKASK_MCP_RUNTIME : "registered_in"
 
     INFERENCE_SERVER ||--|| OKAPI_CONNECTOR : "delegates_to"
-    CONDENSER_SERVER ||--|| TEMPLATE_ABSTRACTION : "delegates_to"
+    CONDENSER_SERVER ||--|| ALGORITHM_REGISTRY : "delegates_to"
     WEB_SERVER ||--|| FIRECRAWL_CONNECTOR : "delegates_to"
 
     OCAP_SERVER ||--|| CAPABILITY_MANAGER : "delegates_to"

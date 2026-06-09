@@ -152,20 +152,19 @@ async fn create_chat(
 
 /// Get chat details
 async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) -> impl IntoResponse {
-    let manager = &state.service_context.session_manager;
-    let chat = manager.read().await.get_chat(&session).await;
-    match chat {
-        Some(_) => {
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
+    match hkask_services::EnsembleService::get_chat(&ctx, &session).await {
+        Ok(()) => {
             let response = EnsembleResponse {
                 success: true,
                 message: format!("Chat session '{}' details", session),
             };
             Json(response).into_response()
         }
-        None => {
+        Err(e) => {
             let response = EnsembleResponse {
                 success: false,
-                message: format!("Chat session '{}' not found", session),
+                message: e.to_string(),
             };
             (StatusCode::NOT_FOUND, Json(response)).into_response()
         }
@@ -409,9 +408,8 @@ async fn synthesize_deliberation(
 
 /// List deliberation sessions
 async fn list_deliberations(State(state): State<ApiState>) -> impl IntoResponse {
-    // Thin delegation — list doesn't normalize errors, so stays direct.
-    let manager = &state.service_context.session_manager;
-    let sessions = manager.read().await.list_deliberation_sessions().await;
+    let ctx = hkask_services::EnsembleContext::from(&*state.service_context);
+    let sessions = hkask_services::EnsembleService::list_deliberations(&ctx).await;
     Json(sessions)
 }
 

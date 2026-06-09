@@ -11,10 +11,9 @@
 //!
 //! # Design decisions
 //!
-//! - **Constraint: Guideline** — Rate limiting stays in the API surface.
-//!   The service layer does not enforce request timing; the API route
-//!   applies rate limiting because Argon2id CPU cost is a server-protection
-//!   concern, not domain logic.
+//! - **Constraint: Guardrail (P1)** — Rate limiting moved to the service layer.
+//!   Both CLI and API need consolidation rate limiting (Argon2id CPU cost).
+//!   The service enforces it; surfaces no longer need separate gates.
 //! - **Constraint: Guideline** — WebID parsing stays in the surface.
 //!   Both CLI and API parse WebID from different sources (persona vs request).
 //! - **Naming** — `ConsolidationService` here wraps
@@ -22,6 +21,7 @@
 //!   This service owns the infrastructure assembly that precedes execution.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use hkask_memory::{ConsolidationBridge, EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
@@ -30,6 +30,20 @@ use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::{ConsolidationOutcome, ConsolidationRequest};
 
 use crate::ServiceError;
+
+/// Minimum seconds between consolidation requests.
+///
+/// Each request runs Argon2id key derivation (~100ms CPU) for passphrase
+/// verification. Without rate limiting, a tight loop of requests becomes
+/// a CPU denial-of-service vector. 30s is appropriate for an admin operation
+/// that runs at most a few times per session.
+const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
+
+/// Coarse-grained rate limiter for consolidation requests.
+///
+/// Uses a single `AtomicU64` timestamp (epoch seconds). Intentionally simple —
+/// one global gate, not per-user. For a single-user headless system, this is sufficient.
+static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
 
 /// Consolidation service — passphrase verification and pipeline execution.
 ///
@@ -40,6 +54,38 @@ use crate::ServiceError;
 pub struct ConsolidationService;
 
 impl ConsolidationService {
+    /// Check the consolidation rate limit.
+    ///
+    /// Returns `Ok(())` if enough time has elapsed since the last consolidation.
+    /// Returns `Err(ServiceError::RateLimited)` if called too soon.
+    ///
+    /// # REQ: svc-consolidation-003 — check_rate_limit enforces minimum interval
+    pub fn check_rate_limit() -> Result<(), ServiceError> {
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
+        if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
+            let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
+            return Err(ServiceError::RateLimited(format!(
+                "Rate limited: try again in {}s",
+                remaining
+            )));
+        }
+        LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Build the per-agent memory DB path for a given WebID.
+    ///
+    /// The convention is `hkask-memory-agent-{webid}.db`. This is a domain
+    /// convention that should not be duplicated in surfaces.
+    ///
+    /// # REQ: svc-consolidation-004 — db_path_for_agent returns per-agent DB path
+    pub fn db_path_for_agent(webid: &WebID) -> String {
+        format!("hkask-memory-agent-{}.db", webid)
+    }
     /// Verify a master passphrase against the stored DB passphrase.
     ///
     /// Derives internal secrets from the supplied passphrase via Argon2id +

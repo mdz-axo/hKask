@@ -523,6 +523,7 @@ when an agent's budget is exhausted, the operation is rejected by Cybernetics.
 | Internal | ocap, keystore, cns, registry | 1-5 | In-process, negligible compute |
 | Local I/O | spec, git, goal | 5 | Local filesystem I/O |
 | Moderate | condenser | 10 | Some computation + local I/O |
+| Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 | External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
 | Heavy external | fal | 100 | GPU compute, expensive |
 | Inference | hkask-mcp-inference | token-based | LLM compute, scales with tokens |

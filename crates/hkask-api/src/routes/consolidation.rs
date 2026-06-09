@@ -1,7 +1,5 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use axum::{Extension, Json, extract::State};
 use hkask_services::ConsolidationService;
 use hkask_types::WebID;
@@ -12,40 +10,7 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 
-/// Minimum seconds between consolidation requests to the API.
-///
-/// Each request runs Argon2id key derivation (~100ms CPU) for passphrase
-/// verification. Without rate limiting, a tight loop of requests becomes
-/// a CPU denial-of-service vector. 30s is appropriate for an admin operation
-/// that runs at most a few times per session.
-const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
-
-/// Coarse-grained rate limiter for the consolidation endpoint.
-///
-/// Uses a single `AtomicU64` timestamp (seconds since `Instant::now()` is not
-/// available across threads, so we use `SystemTime` epoch seconds). This is
-/// intentionally simple — one global gate, not per-user. For a single-user
-/// headless system, this is sufficient.
-static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
-
-fn check_rate_limit() -> Result<(), ApiError> {
-    let now_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
-    if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
-        let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
-        Err(ApiError::BadRequest {
-            message: format!("Rate limited: try again in {}s", remaining),
-        })
-    } else {
-        LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
-        Ok(())
-    }
-}
-
-// Request / Response types
+// Handlers
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsolidateRequest {
@@ -98,7 +63,12 @@ async fn consolidate(
 ) -> Result<Json<ConsolidateResponse>, ApiError> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
-    check_rate_limit()?;
+    ConsolidationService::check_rate_limit().map_err(|e| match e {
+        hkask_services::ServiceError::RateLimited(msg) => ApiError::BadRequest { message: msg },
+        _ => ApiError::Internal {
+            message: e.to_string(),
+        },
+    })?;
 
     // Parse agent WebID
     let webid = req
@@ -137,7 +107,7 @@ async fn consolidate(
     };
 
     // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
-    let db_path = format!("hkask-memory-agent-{}.db", webid);
+    let db_path = ConsolidationService::db_path_for_agent(&webid);
     let outcome =
         ConsolidationService::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)
             .map_err(|e| ApiError::Internal {

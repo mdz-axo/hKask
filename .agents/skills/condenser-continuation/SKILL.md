@@ -33,7 +33,7 @@ The hKask condenser has two implementation options, both exposed as an MCP serve
 
 ### Option A: Standalone Condenser (MCP Server)
 
-A self-contained MCP server with 6 tools: `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist`. No hKask runtime dependency — compiles standalone. Binary: `hkask-mcp-condenser`.
+A self-contained MCP server with 7 tools: `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist`, `thread_summary`. No running hKask instance required — compiles standalone. Binary: `hkask-mcp-condenser`.
 
 ### Option B: Thread Summary via Inference Engine
 

@@ -143,7 +143,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] 94 documents archived, 36 active documents curated
 
 ### In Progress
-- [ ] Context condensation in condenser MCP server
+- [x] Context condensation in condenser MCP server (7 tools, 51 tests)
 - [ ] Memory consolidation bridge (episodic → semantic)
 - [ ] Integration tests for inference pipeline
 - [ ] `hkask-storage` trait mismatches (goals.rs)

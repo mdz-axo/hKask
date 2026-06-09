@@ -390,6 +390,26 @@ impl EnsembleService {
             .collect();
         Ok(result)
     }
+
+    /// Get a chat session by ID.
+    ///
+    /// # REQ: svc-ens-014 — get_chat returns session existence check via SessionManager
+    pub async fn get_chat(ctx: &EnsembleContext, session_id: &str) -> Result<(), ServiceError> {
+        let manager = ctx.session_manager.read().await;
+        manager
+            .get_chat(session_id)
+            .await
+            .ok_or_else(|| ServiceError::SessionNotFound(session_id.to_string()))?;
+        Ok(())
+    }
+
+    /// List all deliberation session IDs.
+    ///
+    /// # REQ: svc-ens-015 — list_deliberations returns all deliberation session IDs
+    pub async fn list_deliberations(ctx: &EnsembleContext) -> Vec<String> {
+        let manager = ctx.session_manager.read().await;
+        manager.list_deliberation_sessions().await
+    }
 }
 
 #[cfg(test)]

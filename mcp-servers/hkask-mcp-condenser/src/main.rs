@@ -7,110 +7,38 @@
 //! Provides compression algorithms (rtk_style, saliency_rank, flashrank) for reducing
 //! tool output size while preserving essential information. Phase 1 implements local
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
-//! thread summarization via Okapi's local inference.
+//! thread summarization via a local inference engine (Okapi, Ollama, or any
+//! /api/chat-compatible endpoint).
 //!
 //! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
 //! persist compressed outputs to episodic memory via the `condenser:persist` tool.
 //! Without those credentials, the server operates in memory-only mode (graceful
 //! degradation).
 //!
-//! When `OKAPI_URL` is provided, the `condenser_thread_summary` tool calls Okapi's
-//! local inference to summarize conversation history for context compaction.
+//! When `INFERENCE_URL` (or legacy `OKAPI_URL`) is provided, the
+//! `condenser_thread_summary` tool calls the inference engine
+//! to summarize conversation history for context compaction.
 
 mod algorithms;
+mod engine;
 mod types;
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, api_post};
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
 
-use algorithms::AlgorithmRegistry;
+use engine::CondenserEngine;
 use types::*;
-
-struct CondenserEngine {
-    registry: AlgorithmRegistry,
-    profile: Profile,
-    stats: CondenserStats,
-}
-
-impl CondenserEngine {
-    fn new() -> Self {
-        Self {
-            registry: AlgorithmRegistry::new(),
-            profile: Profile::Normal,
-            stats: CondenserStats::default(),
-        }
-    }
-
-    fn compress(
-        &mut self,
-        tool_name: &str,
-        output: &str,
-        category: Option<ContextCategory>,
-    ) -> CompressedOutput {
-        let cat = category.unwrap_or_else(|| classify_tool(tool_name));
-        let algo = self.registry.select(cat);
-        let algorithm_name = algo.name().to_string();
-
-        let compressed_content = algo.compress(output, self.profile, cat);
-
-        let original_lines = output.lines().count();
-        let compressed_lines = compressed_content.lines().count();
-        let original_bytes = output.len();
-        let compressed_bytes = compressed_content.len();
-        let reduction_pct = if original_bytes == 0 {
-            0.0
-        } else {
-            (1.0 - (compressed_bytes as f64 / original_bytes as f64)) * 100.0
-        };
-
-        *self
-            .stats
-            .algorithm_usage
-            .entry(algorithm_name.clone())
-            .or_insert(0) += 1;
-        *self
-            .stats
-            .category_usage
-            .entry(cat.label().to_string())
-            .or_insert(0) += 1;
-        self.stats.total_compressions += 1;
-        self.stats.total_original_bytes += original_bytes as u64;
-        self.stats.total_compressed_bytes += compressed_bytes as u64;
-
-        CompressedOutput {
-            content: compressed_content,
-            algorithm: algorithm_name,
-            category: cat.label().to_string(),
-            profile: self.profile.to_string(),
-            original_lines,
-            compressed_lines,
-            original_bytes,
-            compressed_bytes,
-            reduction_pct,
-        }
-    }
-
-    fn set_profile(&mut self, profile: Profile) {
-        self.profile = profile;
-        self.stats.current_profile = profile.to_string();
-    }
-
-    fn get_stats(&self) -> &CondenserStats {
-        &self.stats
-    }
-}
 
 pub struct CondenserServer {
     webid: WebID,
     engine: Mutex<CondenserEngine>,
     episodic: Option<Arc<EpisodicMemory>>,
-    okapi_url: Option<String>,
-    okapi_model: String,
-    okapi_api_key: Option<String>,
+    inference_url: Option<String>,
+    inference_model: String,
     http_client: reqwest::Client,
 }
 
@@ -118,20 +46,28 @@ impl CondenserServer {
     fn new(
         webid: WebID,
         episodic: Option<EpisodicMemory>,
-        okapi_url: Option<String>,
-        okapi_model: String,
-        okapi_api_key: Option<String>,
+        inference_url: Option<String>,
+        inference_model: String,
+        inference_api_key: Option<String>,
+        inference_timeout_secs: u64,
     ) -> Result<Self, anyhow::Error> {
+        let mut client_builder = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(inference_timeout_secs));
+
+        if let Some(api_key) = &inference_api_key {
+            let mut headers = reqwest::header::HeaderMap::new();
+            let auth_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}"))?;
+            headers.insert(reqwest::header::AUTHORIZATION, auth_value);
+            client_builder = client_builder.default_headers(headers);
+        }
+
         Ok(Self {
             webid,
             engine: Mutex::new(CondenserEngine::new()),
             episodic: episodic.map(Arc::new),
-            okapi_url,
-            okapi_model,
-            okapi_api_key,
-            http_client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(60))
-                .build()?,
+            inference_url,
+            inference_model,
+            http_client: client_builder.build()?,
         })
     }
 
@@ -139,8 +75,8 @@ impl CondenserServer {
         self.episodic.is_some()
     }
 
-    fn has_okapi(&self) -> bool {
-        self.okapi_url.is_some()
+    fn has_inference(&self) -> bool {
+        self.inference_url.is_some()
     }
 }
 
@@ -156,9 +92,9 @@ impl CondenserServer {
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
             "persistence": self.has_persistence(),
-            "okapi": self.has_okapi(),
-            "okapi_url": self.okapi_url,
-            "okapi_model": self.okapi_model,
+            "inference": self.has_inference(),
+            "inference_url": self.inference_url,
+            "inference_model": self.inference_model,
         }))
     }
 
@@ -260,7 +196,7 @@ impl CondenserServer {
         let entity = format!("condenser:{tool_name}");
         let triple = Triple::new(
             &entity,
-            "compressed_output",
+            "content",
             serde_json::Value::String(compressed_output),
             self.webid,
         )
@@ -272,7 +208,7 @@ impl CondenserServer {
             Ok(()) => span.ok_json(serde_json::json!({
                 "persisted": true,
                 "entity": entity,
-                "attribute": "compressed_output",
+                "attribute": "content",
                 "perspective": self.webid.to_string(),
             })),
             Err(e) =>
@@ -281,7 +217,7 @@ impl CondenserServer {
     }
 
     #[tool(
-        description = "Summarize conversation history using Okapi local inference for context compaction. Call when approaching context window limits to condense older messages."
+        description = "Summarize conversation history using a local inference engine for context compaction. Call when approaching context window limits to condense older messages."
     )]
     async fn condenser_thread_summary(
         &self,
@@ -293,31 +229,17 @@ impl CondenserServer {
     ) -> String {
         let span = ToolSpanGuard::new("condenser_thread_summary", &self.webid);
 
-        let Some(okapi_url) = &self.okapi_url else {
+        let Some(inference_url) = &self.inference_url else {
             return span.error(
                 McpErrorKind::PermissionDenied,
                 McpToolError::permission_denied(
-                    "Okapi not configured — set OKAPI_URL to enable thread summarization",
+                    "Inference not configured — set INFERENCE_URL (or OKAPI_URL) to enable thread summarization",
                 )
                 .to_json_string(),
             );
         };
 
-        // Parse the messages JSON
-        let parsed: Vec<serde_json::Value> = match serde_json::from_str(&messages) {
-            Ok(v) => v,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(format!(
-                        "messages must be a JSON array of {{role, content}} objects: {e}"
-                    ))
-                    .to_json_string(),
-                );
-            }
-        };
-
-        let msg_count = parsed.len();
+        let msg_count = messages.len();
         if msg_count == 0 {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -327,7 +249,7 @@ impl CondenserServer {
 
         // Build the conversation text for summarization
         let mut conversation_text = String::new();
-        for msg in &parsed {
+        for msg in &messages {
             let role = msg
                 .get("role")
                 .and_then(|r| r.as_str())
@@ -338,7 +260,7 @@ impl CondenserServer {
 
         let max_tok = max_tokens.unwrap_or(500);
 
-        // Build the Okapi chat request
+        // Build the inference chat request
         let summarization_prompt = format!(
             "Summarize this conversation history for context compaction. \
              Preserve: key decisions, file paths mentioned, error states encountered, \
@@ -350,7 +272,7 @@ impl CondenserServer {
         );
 
         let chat_request = serde_json::json!({
-            "model": self.okapi_model,
+            "model": self.inference_model,
             "messages": [
                 {
                     "role": "system",
@@ -369,53 +291,38 @@ impl CondenserServer {
             }
         });
 
-        // Build the request URL
-        let url = format!("{}/api/chat", okapi_url.trim_end_matches('/'));
+        let url = format!("{}/api/chat", inference_url.trim_end_matches('/'));
 
-        // Send the request
-        let mut req_builder = self.http_client.post(&url).json(&chat_request);
-
-        if let Some(api_key) = &self.okapi_api_key {
-            req_builder = req_builder.header("Authorization", format!("Bearer {api_key}"));
-        }
-
-        let response = match req_builder.send().await {
-            Ok(r) => r,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Okapi request failed: {e}")).to_json_string(),
-                );
-            }
-        };
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let body = response.text().await.unwrap_or_default();
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Okapi returned HTTP {status}: {body}"))
-                    .to_json_string(),
-            );
-        }
-
-        let resp_body: serde_json::Value = match response.json().await {
+        // Use shared api_post with automatic HTTP error classification
+        let resp_body = match api_post(&self.http_client, "inference", &url, &chat_request).await {
             Ok(v) => v,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to parse Okapi response: {e}"))
-                        .to_json_string(),
-                );
-            }
+            Err(e) => return span.error(e.kind, e.to_json_string()),
         };
 
-        let summary = resp_body
+        // Extract and validate the summary content
+        let summary = match resp_body
             .get("message")
             .and_then(|m| m.get("content"))
             .and_then(|c| c.as_str())
-            .unwrap_or("(summary generation failed)")
-            .to_string();
+        {
+            Some(content) if !content.trim().is_empty() => content.to_string(),
+            Some(_) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal("Inference engine returned an empty summary")
+                        .to_json_string(),
+                );
+            }
+            None => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(
+                        "Inference engine response missing message.content field",
+                    )
+                    .to_json_string(),
+                );
+            }
+        };
 
         let summary_tokens_approx = summary.split_whitespace().count();
 
@@ -423,8 +330,8 @@ impl CondenserServer {
             summary,
             original_message_count: msg_count,
             summary_tokens_approx,
-            okapi_model: self.okapi_model.clone(),
-            okapi_url: url,
+            inference_model: self.inference_model.clone(),
+            inference_url: url,
         };
 
         span.ok_json(serde_json::to_value(&result).unwrap_or_default())
@@ -451,15 +358,26 @@ async fn main() -> anyhow::Result<()> {
                 None => None,
             };
 
-            let okapi_url = ctx.credentials.get("OKAPI_URL").cloned();
-            let okapi_model = ctx
+            // Inference endpoint configuration (INFERENCE_URL preferred, OKAPI_URL for backward compat)
+            let inference_url = ctx.credentials.get("INFERENCE_URL")
+                .cloned()
+                .or_else(|| ctx.credentials.get("OKAPI_URL").cloned());
+            let inference_model = ctx
                 .credentials
-                .get("OKAPI_MODEL")
+                .get("INFERENCE_MODEL")
+                .or_else(|| ctx.credentials.get("OKAPI_MODEL"))
                 .cloned()
                 .unwrap_or_else(|| "qwen3:8b".to_string());
-            let okapi_api_key = ctx.credentials.get("OKAPI_API_KEY").cloned();
+            let inference_api_key = ctx.credentials.get("INFERENCE_API_KEY")
+                .or_else(|| ctx.credentials.get("OKAPI_API_KEY"))
+                .cloned();
+            let inference_timeout_secs = ctx
+                .credentials
+                .get("INFERENCE_TIMEOUT_SECS")
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(30);
 
-            CondenserServer::new(ctx.webid, episodic, okapi_url, okapi_model, okapi_api_key)
+            CondenserServer::new(ctx.webid, episodic, inference_url, inference_model, inference_api_key, inference_timeout_secs)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
@@ -471,16 +389,32 @@ async fn main() -> anyhow::Result<()> {
                 "Passphrase for the database (required if HKASK_DB_PATH is set)",
             ),
             hkask_mcp::CredentialRequirement::optional(
+                "INFERENCE_URL",
+                "Inference engine URL for thread summarization (e.g. http://127.0.0.1:11435). OKAPI_URL also accepted for backward compatibility.",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "INFERENCE_MODEL",
+                "Model for summarization (default: qwen3:8b). OKAPI_MODEL also accepted.",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "INFERENCE_API_KEY",
+                "API key if authentication is enabled. OKAPI_API_KEY also accepted.",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "INFERENCE_TIMEOUT_SECS",
+                "Timeout for inference requests in seconds (default: 30)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
                 "OKAPI_URL",
-                "Okapi inference engine URL for thread summarization (e.g. http://127.0.0.1:11435)",
+                "[Legacy] Alias for INFERENCE_URL. Prefer INFERENCE_URL for new deployments.",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "OKAPI_MODEL",
-                "Okapi model for summarization (default: qwen3:8b)",
+                "[Legacy] Alias for INFERENCE_MODEL. Prefer INFERENCE_MODEL for new deployments.",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "OKAPI_API_KEY",
-                "Okapi API key if authentication is enabled",
+                "[Legacy] Alias for INFERENCE_API_KEY. Prefer INFERENCE_API_KEY for new deployments.",
             ),
         ],
     )

@@ -374,7 +374,7 @@ Legend: **✓** implemented · **~** partially · **✗** missing · **n/a** not
 | MCP Server | Crate | LOC | Status | Loop | Domain |
 |-----------|-------|-----|--------|------|--------|
 | inference | `hkask-mcp-inference` | 328 | ✅ Complete | L1 (Inference) | Okapi LLM |
-| condenser | `hkask-mcp-condenser` | 866 | ✅ Complete | L2 (Episodic) | Context condensation (reranking and compression of the active conversation window) |
+| condenser | `hkask-mcp-condenser` | 1,744 | ✅ Complete | L2 (Episodic) | Context condensation (7 tools: compress, classify, set_profile, stats, ping, persist, thread_summary) |
 | web | `hkask-mcp-web` | 3,185 | ✅ Complete | L4 (Communication) | Web search with SSRF protection |
 | ocap | `hkask-mcp-ocap` | 315 | ✅ Complete | L6 (Cybernetics) | Capability management |
 | keystore | `hkask-mcp-keystore` | 497 | ✅ Complete | L6 (Cybernetics) | OS keychain secret management |

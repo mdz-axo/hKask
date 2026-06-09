@@ -127,7 +127,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
-**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (761 LOC), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `docs/status/mcp-tools-inventory.md`).
+**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `docs/status/mcp-tools-inventory.md`).
 
 ---
 
