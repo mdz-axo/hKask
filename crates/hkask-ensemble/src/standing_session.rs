@@ -1,7 +1,4 @@
-//! Standing Ensemble Session — Bootstrap and lifecycle management
-//!
-//! The standing session is the persistent coordination channel where the R7 bots
-//! report status and the Curator orchestrates metacognition.
+//! Standing Ensemble Session — Bootstrap and lifecycle management.
 
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
 use hkask_types::NuEventSink;
@@ -10,7 +7,7 @@ use hkask_types::now_rfc3339;
 use hkask_types::ports::{MessageRecord, SessionRecord};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
-use serde_json;
+use serde_json::{self, json};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -52,25 +49,15 @@ pub struct GasSection {
 }
 
 impl GasSection {
-    /// Convert YAML gas section to GasBudgetConfig, applying defaults for missing fields
     pub fn to_config(&self) -> GasBudgetConfig {
+        let d = GasBudgetConfig::default();
         GasBudgetConfig {
-            session_cap: self
-                .session_cap
-                .unwrap_or(GasBudgetConfig::DEFAULT_SESSION_CAP),
-            per_message_cost: self
-                .per_message_cost
-                .unwrap_or(GasBudgetConfig::DEFAULT_PER_MESSAGE_COST),
-            alert_threshold: self
-                .alert_threshold
-                .unwrap_or(GasBudgetConfig::DEFAULT_ALERT_THRESHOLD),
+            session_cap: self.session_cap.unwrap_or(d.session_cap),
+            per_message_cost: self.per_message_cost.unwrap_or(d.per_message_cost),
+            alert_threshold: self.alert_threshold.unwrap_or(d.alert_threshold),
             hard_limit: self.hard_limit.unwrap_or(true),
-            per_bot_allocation: self
-                .per_bot_allocation
-                .unwrap_or(GasBudgetConfig::DEFAULT_PER_BOT_ALLOCATION),
-            curator_allocation: self
-                .curator_allocation
-                .unwrap_or(GasBudgetConfig::DEFAULT_CURATOR_ALLOCATION),
+            per_bot_allocation: self.per_bot_allocation.unwrap_or(d.per_bot_allocation),
+            curator_allocation: self.curator_allocation.unwrap_or(d.curator_allocation),
         }
     }
 }
@@ -130,15 +117,9 @@ impl StandingSession {
     pub fn from_config(config: StandingSessionConfig) -> Self {
         let curator_webid = WebID::from_persona(b"Curator");
         let mut chat = EnsembleChat::new(curator_webid);
-        let mut participant_names = HashMap::new();
+        let mut participant_names = HashMap::from([(curator_webid, "Curator".to_string())]);
+        let mut participant_descriptions = HashMap::from([(curator_webid, String::new())]);
 
-        participant_names.insert(curator_webid, "Curator".to_string());
-
-        let mut participant_descriptions = HashMap::new();
-
-        participant_descriptions.insert(curator_webid, "".to_string());
-
-        // Build R7 bot lookup for domain→capability resolution
         let r7_bots: HashMap<String, R7BotIdentity> = default_r7_bots()
             .iter()
             .map(|b| (b.id.clone(), b.clone()))
@@ -159,45 +140,36 @@ impl StandingSession {
                 _ => ParticipantRole::Custom(entry.role.clone()),
             };
 
-            // Load capabilities from domains declared in YAML.
-            // Domains are bare strings (e.g., "cns", "storage") — convert them
-            // to proper capability specs ("tool:<domain>:execute") so that
-            // intersection_tools() can parse them via CapabilitySpec::parse().
-            let mut capabilities: Vec<String> = entry
-                .domains
-                .iter()
-                .map(|d| format!("tool:{}:execute", d))
-                .collect();
-
-            // If this entry matches an R7 bot identity, use its domains
-            // (the YAML domains take precedence, then fall back to R7 bot defaults)
-            if capabilities.is_empty()
-                && let Some(r7_bot) = r7_bots.get(&entry.agent)
-            {
-                capabilities = r7_bot
+            // Convert domains → capability specs ("tool:<domain>:execute")
+            let capabilities: Vec<String> = if entry.domains.is_empty() {
+                r7_bots
+                    .get(&entry.agent)
+                    .map(|b| {
+                        b.domains
+                            .iter()
+                            .map(|d| format!("tool:{d}:execute"))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                entry
                     .domains
                     .iter()
-                    .map(|d| format!("tool:{}:execute", d))
-                    .collect();
-            }
+                    .map(|d| format!("tool:{d}:execute"))
+                    .collect()
+            };
 
-            let participant = ChatParticipant {
+            chat.register_participant(ChatParticipant {
                 webid,
                 role,
                 pod_id: None,
                 capabilities,
-            };
-
-            chat.register_participant(participant);
+            });
             participant_names.insert(webid, entry.agent.clone());
             participant_descriptions.insert(webid, entry.description.clone());
         }
 
-        info!(
-            session_id = %config.session.id,
-            participants = config.participants.len(),
-            "Standing session created"
-        );
+        info!(session_id = %config.session.id, participants = config.participants.len(), "Standing session created");
 
         Self {
             session_id: config.session.id,
@@ -215,34 +187,22 @@ impl StandingSession {
         self
     }
 
-    /// Set gas budget configuration, forwarding it to the inner EnsembleChat
     pub fn with_gas_budget(mut self, config: GasBudgetConfig) -> Self {
         self.chat = self.chat.with_gas_budget(config);
         self
     }
 
-    /// Set CNS event sink for span emission
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink.clone());
         self.chat = self.chat.with_event_sink(sink);
         self
     }
 
-    /// Set CNS gas governance port for CyberneticsLoop observability.
-    ///
-    /// After `add_message()` consumes gas internally, the governance port
-    /// is also notified so the CNS can sense ensemble gas usage.
     pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
         self.chat = self.chat.with_gas_governance(port);
         self
     }
 
-    /// Set available tools for intersection-based tool scoping (R4).
-    ///
-    /// When set, `intersection_tools()` returns only the tools whose
-    /// required_capability domains intersect across all participants.
-    /// Without this, `intersection_tools()` returns `None` and tool
-    /// scoping falls back to showing all tools.
     pub fn with_available_tools(mut self, tools: Vec<hkask_types::ports::ToolInfo>) -> Self {
         self.chat = self.chat.with_available_tools(tools);
         self
@@ -250,44 +210,38 @@ impl StandingSession {
 
     pub fn persist_session(&self, config_yaml: &str) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
-            // P4.3: Use the canonical `hkask_types::now_rfc3339()` helper
-            // instead of inlining `chrono::Utc::now().to_rfc3339()` so the
-            // timestamp format is consistent across all hKask crates.
             let now = now_rfc3339();
-            let record = SessionRecord {
+            store.save_session(&SessionRecord {
                 session_id: self.session_id.clone(),
                 config_yaml: config_yaml.to_string(),
                 created_at: now.clone(),
                 last_active: now,
-            };
-            store.save_session(&record)?;
+            })?;
         }
         Ok(())
     }
 
     pub fn persist_message(&self, message: &ChatMessage) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
-            let record = MessageRecord {
+            store.save_message(&MessageRecord {
                 id: 0,
                 session_id: self.session_id.clone(),
                 from_webid: message.from.to_string(),
                 content: message.content.clone(),
                 timestamp: message.timestamp.to_rfc3339(),
                 template_id: message.template_id.clone(),
-            };
-            store.save_message(&record)?;
+            })?;
             store.update_last_active(&self.session_id)?;
         }
         if let Some(ref sink) = self.event_sink {
-            let span = Span::new(
-                SpanNamespace::new("cns.gas"),
-                "standing_session.message_persisted",
-            );
             let event = NuEvent::new(
                 message.from,
-                span,
+                Span::new(
+                    SpanNamespace::new("cns.gas"),
+                    "standing_session.message_persisted",
+                ),
                 Phase::Act,
-                serde_json::json!({
+                json!({
                     "from": message.from.to_string(),
                     "content_len": message.content.len(),
                     "template_id": message.template_id,
@@ -304,14 +258,10 @@ impl StandingSession {
 
     pub fn load_messages_from_storage(&mut self) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
-            let messages = store.get_messages(&self.session_id)?;
-
-            for stored in messages {
+            for stored in store.get_messages(&self.session_id)? {
                 let webid: WebID = stored.from_webid.parse().map_err(|e| {
                     StandingSessionError::Storage(hkask_types::ports::SessionStoreError::Storage(
-                        hkask_types::InfrastructureError::Database(format!(
-                            "Invalid WebID in stored message: {e}"
-                        )),
+                        hkask_types::InfrastructureError::Database(format!("Invalid WebID: {e}")),
                     ))
                 })?;
                 let mut msg = ChatMessage::new(webid, stored.content);
@@ -319,15 +269,9 @@ impl StandingSession {
                     .map(|dt| dt.with_timezone(&chrono::Utc))
                     .unwrap_or_else(|_| chrono::Utc::now());
                 msg.template_id = stored.template_id;
-                // Use add_restored_message to pre-register in dedup and skip gas
                 self.chat.add_restored_message(msg);
             }
-
-            info!(
-                session_id = %self.session_id,
-                messages = self.chat.get_history().len(),
-                "Messages loaded from storage"
-            );
+            info!(session_id = %self.session_id, messages = self.chat.get_history().len(), "Messages loaded from storage");
         }
         Ok(())
     }
@@ -345,31 +289,24 @@ impl StandingSession {
             config.bootstrap.initial_message.content.clone(),
         );
         self.chat.add_message(initial_msg.clone());
-        if let Err(e) = self.persist_message(&initial_msg) {
+        let _ = self.persist_message(&initial_msg).inspect_err(|e| {
             tracing::warn!(target: "standing_session", error = %e, "Failed to persist initial message");
-        }
+        });
 
-        info!(
-            session_id = %self.session_id,
-            from = %config.bootstrap.initial_message.from,
-            message_type = %config.bootstrap.initial_message.message_type,
-            "Initial message posted"
-        );
+        info!(session_id = %self.session_id, from = %config.bootstrap.initial_message.from, message_type = %config.bootstrap.initial_message.message_type, "Initial message posted");
 
         for report in &config.bootstrap.initial_reports {
-            let webid = WebID::from_persona(report.from.as_bytes());
-            let msg = ChatMessage::new(webid, report.content.clone());
+            let msg = ChatMessage::new(
+                WebID::from_persona(report.from.as_bytes()),
+                report.content.clone(),
+            );
             self.chat.add_message(msg.clone());
-            if let Err(e) = self.persist_message(&msg) {
+            let _ = self.persist_message(&msg).inspect_err(|e| {
                 tracing::warn!(target: "standing_session", error = %e, "Failed to persist report message");
-            }
+            });
         }
 
-        info!(
-            session_id = %self.session_id,
-            messages = self.chat.get_history().len(),
-            "Initial messages posted"
-        );
+        info!(session_id = %self.session_id, messages = self.chat.get_history().len(), "Initial messages posted");
     }
 
     pub fn get_status(&self) -> StandingSessionStatus {

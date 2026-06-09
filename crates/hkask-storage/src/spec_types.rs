@@ -1,11 +1,5 @@
-//! DDMVSS specification types — domain specifications, completeness predicates, and curation
-//!
-//! Domain specifications define completeness predicates and validation criteria.
-//! Curation (Loop 5) cultivates specs; Cybernetics (Loop 6) tracks coverage;
-//! Inference (Loop 1) uses them for guided generation.
-//!
-//! Relocated from `hkask-types` per P1: these types are consumed primarily by
-//! `hkask-storage` (implementation) and `hkask-mcp-spec` (MCP surface).
+//! DDMVSS specification types — domain specifications, completeness predicates, curation.
+//! Relocated from `hkask-types` per P1: consumed primarily by `hkask-storage` and `hkask-mcp-spec`.
 
 use chrono::{DateTime, Utc};
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
@@ -14,6 +8,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;
 
+/// Macro for string↔enum conversion pairs.
+macro_rules! str_enum {
+    ($enum:ident { $($variant:ident => $s:literal),+ $(,)? }) => {
+        impl $enum {
+            pub fn as_str(&self) -> &'static str {
+                match self { $($enum::$variant => $s),+ }
+            }
+            pub fn parse_str(s: &str) -> Option<Self> {
+                match s.to_lowercase().as_str() {
+                    $($s => Some($enum::$variant),)+
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpecId(pub Uuid);
 
@@ -21,7 +32,6 @@ impl SpecId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
         Uuid::parse_str(s)
             .map(SpecId)
@@ -42,12 +52,6 @@ impl std::fmt::Display for SpecId {
 }
 
 /// DDMVSS 9-category spec taxonomy.
-///
-/// Each variant corresponds to a DDMVSS goal-group category.
-/// The first 4 (Domain, Capability, Interface, Composition) were present from
-/// the initial implementation. The remaining 5 (Trust, Observability, Persistence,
-/// Lifecycle, Curation) were added to close the SpecCategory gap identified in
-/// the DDMVSS Semantic Alignment Audit (2026-06-06).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SpecCategory {
     Domain,
@@ -61,36 +65,19 @@ pub enum SpecCategory {
     Curation,
 }
 
+str_enum!(SpecCategory {
+    Domain => "domain",
+    Capability => "capability",
+    Interface => "interface",
+    Composition => "composition",
+    Trust => "trust",
+    Observability => "observability",
+    Persistence => "persistence",
+    Lifecycle => "lifecycle",
+    Curation => "curation",
+});
+
 impl SpecCategory {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            SpecCategory::Domain => "domain",
-            SpecCategory::Capability => "capability",
-            SpecCategory::Interface => "interface",
-            SpecCategory::Composition => "composition",
-            SpecCategory::Trust => "trust",
-            SpecCategory::Observability => "observability",
-            SpecCategory::Persistence => "persistence",
-            SpecCategory::Lifecycle => "lifecycle",
-            SpecCategory::Curation => "curation",
-        }
-    }
-
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "domain" => Some(SpecCategory::Domain),
-            "capability" => Some(SpecCategory::Capability),
-            "interface" => Some(SpecCategory::Interface),
-            "composition" => Some(SpecCategory::Composition),
-            "trust" => Some(SpecCategory::Trust),
-            "observability" => Some(SpecCategory::Observability),
-            "persistence" => Some(SpecCategory::Persistence),
-            "lifecycle" => Some(SpecCategory::Lifecycle),
-            "curation" => Some(SpecCategory::Curation),
-            _ => None,
-        }
-    }
-
     pub fn all() -> &'static [SpecCategory] {
         &[
             SpecCategory::Domain,
@@ -112,41 +99,7 @@ pub enum DomainAnchor {
     Hkask,
 }
 
-/// Domain of completeness assessment.
-/// Specification completeness: the spec document is internally complete.
-/// Implementation completeness: the code that satisfies the spec is complete.
-/// These are orthogonal — a spec can be complete even if no code implements it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CompletenessDomain {
-    Specification,
-    Implementation,
-}
-
-impl CompletenessDomain {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            CompletenessDomain::Specification => "specification",
-            CompletenessDomain::Implementation => "implementation",
-        }
-    }
-}
-
-impl DomainAnchor {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            DomainAnchor::Okapi => "okapi",
-            DomainAnchor::Hkask => "hkask",
-        }
-    }
-
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "okapi" => Some(DomainAnchor::Okapi),
-            "hkask" => Some(DomainAnchor::Hkask),
-            _ => None,
-        }
-    }
-}
+str_enum!(DomainAnchor { Okapi => "okapi", Hkask => "hkask" });
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Criterion {

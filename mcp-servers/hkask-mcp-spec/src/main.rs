@@ -1,29 +1,9 @@
-//! hKask MCP Spec — Specification authoring, curation, and validation
+//! hKask MCP Spec — Specification authoring, curation, and validation (11 tools per DDMVSS §6.3)
 //!
-//! These tools curate specification documents and their composition.
-//! Spec-document completeness is orthogonal to code-implementation completeness.
-//! Evaluation decisions (merge/revise/defer/discard) are driven by
-//! specification completeness alone — not by whether the code implements the spec.
-//!
-//! The curation process includes the Writing Excellence 4-perspective test
-//! (Hopper/Lovelace/Schriver/Gentle) per WRITING_EXCELLENCE.md §3.
-//! Publication standard: 3 of 4 dimensions passing. 1 of 4 blocks publication.
-//!
-//! 11 tools following DDMVSS §6.3:
-//! - spec/goal/capture — Elicit user intent as binding requirement
-//! - spec/goal/decompose — Break goal into ordered sub-goals
-//! - spec/require/bind — Attach OCAP boundaries to a goal
-//! - spec/curate/evaluate — Assess specification artifact against collection coherence
-//! - spec/curate/reconcile — Resolve spec-domain tensions
-//! - spec/curate/cultivate — Grow specification collection toward coherence
-//! - spec/curate/writing-excellence — Assess document against Writing Excellence 4-perspective test
-//! - spec/graph/query — Query specification graph
-//! - spec/graph/validate — Validate spec-document coherence
-//! - spec/test/invariant — Create test traceability record linking test to spec requirement
-//! - spec/test/verify — Verify test coverage for a seam or spec category
+//! Curation decisions (merge/revise/defer/discard) driven by spec-document completeness,
+//! orthogonal to code-implementation status. Writing Excellence 4-perspective test
+//! (Hopper/Lovelace/Schriver/Gentle) per WRITING_EXCELLENCE.md §3: 3/4 passing = publishable.
 
-// F-SYN-020: `types` must be `pub` so that integration tests in
-// `tests/` can reference request types for fuzz testing.
 pub mod types;
 
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
@@ -41,15 +21,7 @@ use hkask_types::{
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use std::sync::Arc;
-use types::{
-    CompletenessDomain, CurateCultivateRequest, CurateCultivateResponse, CurateEvaluateRequest,
-    CurateEvaluateResponse, CurateReconcileRequest, CurateReconcileResponse, GoalCaptureRequest,
-    GoalCaptureResponse, GoalDecomposeRequest, GoalDecomposeResponse, GraphNodeResponse,
-    GraphQueryRequest, GraphQueryResponse, GraphValidateRequest, GraphValidateResponse,
-    RequireBindRequest, RequireBindResponse, TensionReport, TestClassification,
-    TestInvariantRequest, TestInvariantResponse, TestTraceability, TestVerifyRequest,
-    TestVerifyResponse, WritingExcellenceRequest, WritingExcellenceResponse,
-};
+use types::*;
 
 // ── Server ───────────────────────────────────────────────────
 
@@ -63,15 +35,21 @@ impl std::fmt::Debug for SpecServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpecServer")
             .field("store", &"<dyn SpecStore>")
-            .field("capability_checker", &"<CapabilityChecker>")
             .field("webid", &self.webid)
             .finish()
     }
 }
 
+// Capability-check macro — covers 11 tool handlers
+macro_rules! check_cap {
+    ($self:expr, $span:expr, $token:expr, $resource:expr, $action:expr) => {
+        if let Err(e) = $self.verify_capability($token.as_deref(), $resource, $action) {
+            return $span.error(e.kind, e.to_json_string());
+        }
+    };
+}
+
 impl SpecServer {
-    /// Creates a new SpecServer. Evaluations default to Specification-domain
-    /// completeness unless the caller provides CompletenessDomain::Implementation.
     pub fn new(
         store: Arc<dyn SpecStore + Send + Sync>,
         webid: WebID,
@@ -82,10 +60,6 @@ impl SpecServer {
             capability_checker: Arc::new(capability_checker),
             webid,
         }
-    }
-
-    fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
-        self.store.save(spec)
     }
 
     fn verify_capability(
@@ -101,12 +75,9 @@ impl SpecServer {
                 action.as_str()
             ))
         })?;
-
         let token = DelegationToken::from_base64(b64).map_err(|e| {
             McpToolError::permission_denied(format!("Invalid token encoding: {}", e))
         })?;
-
-        // P1.1: Use unified verification instead of duplicated inline checks
         match verify_delegation_token_now(
             Some(&self.capability_checker),
             &token,
@@ -134,6 +105,55 @@ impl SpecServer {
             )),
         }
     }
+
+    /// Load spec by id string; returns error wire string on failure.
+    fn load_spec(&self, spec_id: &str) -> Result<Spec, (McpErrorKind, String)> {
+        let parsed = SpecId::from_string(spec_id).unwrap_or_default();
+        self.store.load(parsed).map_err(|_| {
+            (
+                McpErrorKind::NotFound,
+                McpToolError::not_found(format!("Spec not found: {}", spec_id)).to_json_string(),
+            )
+        })
+    }
+
+    /// Load all specs; returns error JSON value on failure.
+    fn load_all_specs_val(&self) -> Result<Vec<Spec>, serde_json::Value> {
+        self.store
+            .list_all()
+            .map_err(|e| serde_json::json!({"error": format!("Failed to load specs: {}", e)}))
+    }
+
+    /// Save spec; returns error JSON value on failure.
+    fn persist_val(&self, spec: &Spec) -> Result<(), serde_json::Value> {
+        self.save_spec(spec)
+            .map_err(|e| serde_json::json!({"error": format!("Failed to persist spec: {}", e)}))
+    }
+
+    fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
+        self.store.save(spec)
+    }
+}
+
+/// Serialize response and convert to ok_json
+fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
+    span.ok_json(serde_json::to_value(resp).unwrap_or_default())
+}
+
+/// Categories not yet covered by a spec collection.
+fn missing_categories(covered: &std::collections::HashSet<String>) -> Vec<String> {
+    SpecCategory::all()
+        .iter()
+        .map(|c| c.as_str().to_string())
+        .filter(|c| !covered.contains(c))
+        .collect()
+}
+
+fn not_found_err(spec_id: &str) -> (McpErrorKind, String) {
+    (
+        McpErrorKind::NotFound,
+        McpToolError::not_found(format!("Spec not found: {}", spec_id)).to_json_string(),
+    )
 }
 
 #[tool_router(server_handler)]
@@ -153,42 +173,35 @@ impl SpecServer {
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_goal_capture", &self.webid);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             "capture",
-            DelegationAction::Write,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Write
+        );
 
         let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
         let anchor = DomainAnchor::parse_str(&domain_anchor).unwrap_or(DomainAnchor::Hkask);
-
         let mut goal = GoalSpec::new(&description);
         if let Some(crits) = criteria {
             for c in crits {
                 goal = goal.with_criterion(&c);
             }
         }
-
         let spec = Spec::new(&description, cat, anchor).with_goal(goal);
         let id = spec.id;
-
-        if let Err(e) = self.save_spec(&spec) {
-            return span.internal_error(
-                serde_json::json!({"error": format!("Failed to persist spec: {}", e)}),
-            );
+        if let Err(v) = self.persist_val(&spec) {
+            return span.internal_error(v);
         }
-
-        span.ok_json(
-            serde_json::to_value(GoalCaptureResponse {
+        respond(
+            span,
+            &GoalCaptureResponse {
                 spec_id: id.to_string(),
                 category: cat.as_str().to_string(),
                 domain_anchor: anchor.as_str().to_string(),
                 status: "captured".to_string(),
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
@@ -203,29 +216,19 @@ impl SpecServer {
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_goal_decompose", &self.webid);
-
         validate_field!(span, "spec_id", &spec_id, 256);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             &spec_id,
-            DelegationAction::Write,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Write
+        );
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
-        let mut spec = match self.store.load(spec_id_parsed) {
+        let mut spec = match self.load_spec(&spec_id) {
             Ok(s) => s,
-            Err(_) => {
-                return span.error(
-                    McpErrorKind::NotFound,
-                    McpToolError::not_found(format!("Spec not found: {}", spec_id))
-                        .to_json_string(),
-                );
-            }
+            Err((kind, msg)) => return span.error(kind, msg),
         };
-
         let Some(goal) = spec.goals.get_mut(goal_index) else {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -233,7 +236,6 @@ impl SpecServer {
                     .to_json_string(),
             );
         };
-
         if !goal.can_have_subgoals() {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -241,27 +243,22 @@ impl SpecServer {
                     .to_json_string(),
             );
         }
-
         let added = sub_goals.len();
         for text in sub_goals {
             let mut child = GoalSpec::new(&text);
             child.depth = goal.depth + 1;
             goal.sub_goals.push(child);
         }
-
-        if let Err(e) = self.save_spec(&spec) {
-            return span.internal_error(
-                serde_json::json!({"error": format!("Failed to persist spec: {}", e)}),
-            );
+        if let Err(v) = self.persist_val(&spec) {
+            return span.internal_error(v);
         }
-
-        span.ok_json(
-            serde_json::to_value(GoalDecomposeResponse {
+        respond(
+            span,
+            &GoalDecomposeResponse {
                 spec_id,
                 goal_index,
                 sub_goals_added: added,
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
@@ -277,27 +274,18 @@ impl SpecServer {
         }): Parameters<RequireBindRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_require_bind", &self.webid);
-
         validate_field!(span, "spec_id", &spec_id, 256);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             &spec_id,
-            DelegationAction::Write,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Write
+        );
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
-        let mut spec = match self.store.load(spec_id_parsed) {
+        let mut spec = match self.load_spec(&spec_id) {
             Ok(s) => s,
-            Err(_) => {
-                return span.error(
-                    McpErrorKind::NotFound,
-                    McpToolError::not_found(format!("Spec not found: {}", spec_id))
-                        .to_json_string(),
-                );
-            }
+            Err((kind, msg)) => return span.error(kind, msg),
         };
         if goal_index >= spec.goals.len() {
             return span.error(
@@ -306,61 +294,46 @@ impl SpecServer {
                     .to_json_string(),
             );
         }
-
-        // F-SYN-001: parse the user-supplied capability string into a typed
-        // token. Untrusted input that does not match a known token kind is
-        // rejected; the previous code accepted any string and minted a
-        // boundary with `OcapCapability::String(attack_string)`.
         let boundary = match OCAPBoundary::parse_token(&capability) {
             Some(b) => b,
             None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
                     McpToolError::invalid_argument(format!(
-                        "Unknown capability kind: {capability:?}. Expected one of: curation, cybernetics, spec_curate."
+                        "Unknown capability kind: {capability:?}. Expected: curation, cybernetics, spec_curate."
                     ))
                     .to_json_string(),
                 );
             }
         };
-
-        // The `authority` field is now informational only; every
-        // boundary is enforced by construction. Reject the legacy
-        // "denied" sentinel with a clear migration error rather than
-        // silently accepting it.
         if authority == "denied" {
             return span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(
-                    "The 'denied' authority is no longer supported. Every OCAPBoundary is enforced by construction; omit the request or use a different tool to record a denial."
+                    "The 'denied' authority is no longer supported. Every OCAPBoundary is enforced by construction."
                         .to_string(),
                 )
                 .to_json_string(),
             );
         }
-
         spec.goals[goal_index].constraints.push(boundary);
-
-        if let Err(e) = self.save_spec(&spec) {
-            return span.internal_error(
-                serde_json::json!({"error": format!("Failed to persist spec: {}", e)}),
-            );
+        if let Err(v) = self.persist_val(&spec) {
+            return span.internal_error(v);
         }
-
-        span.ok_json(
-            serde_json::to_value(RequireBindResponse {
+        respond(
+            span,
+            &RequireBindResponse {
                 spec_id,
                 goal_index,
                 capability,
                 authority,
                 enforced: true,
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
     #[tool(
-        description = "Assess specification artifact against collection coherence. Evaluates spec-document completeness (internal consistency, cross-reference integrity, section coverage), not code-implementation status. When writing_excellence scores are provided, includes 4-perspective test results (Hopper/Lovelace/Schriver/Gentle) and accounts for publication standard (3 of 4 passing)."
+        description = "Assess specification artifact against collection coherence. Evaluates spec-document completeness. When writing_excellence scores are provided, includes 4-perspective test results (Hopper/Lovelace/Schriver/Gentle) per WRITING_EXCELLENCE.md §3."
     )]
     async fn spec_curate_evaluate(
         &self,
@@ -373,40 +346,24 @@ impl SpecServer {
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_evaluate", &self.webid);
-
         validate_field!(span, "spec_id", &spec_id, 256);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             &spec_id,
-            DelegationAction::Read,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Read
+        );
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
-        let spec = match self.store.load(spec_id_parsed) {
+        let spec = match self.load_spec(&spec_id) {
             Ok(s) => s,
-            Err(_) => {
-                return span.error(
-                    McpErrorKind::NotFound,
-                    McpToolError::not_found(format!("Spec not found: {}", spec_id))
-                        .to_json_string(),
-                );
-            }
+            Err((kind, msg)) => return span.error(kind, msg),
         };
-
         let complete = spec.is_complete();
-
-        // When Writing Excellence scores are provided, a document that fails
-        // the publication standard (1 of 4) is discarded regardless of
-        // spec completeness. Per WRITING_EXCELLENCE.md §3: passing only 1
-        // blocks publication.
         let we_blocks = writing_excellence
             .as_ref()
             .map(|we| we.passes() <= 1)
             .unwrap_or(false);
-
         let decision = if we_blocks {
             CurationDecision::Discard
         } else if complete {
@@ -416,11 +373,7 @@ impl SpecServer {
         } else {
             CurationDecision::Revise
         };
-
-        // Decision is driven by specification completeness alone,
-        // regardless of the completeness domain requested.
         let domain = completeness_domain.unwrap_or_default();
-
         let rationale = rationale_hint.unwrap_or_else(|| {
             if we_blocks {
                 "Writing Excellence: 1 or fewer dimensions pass — publication blocked".to_string()
@@ -430,39 +383,28 @@ impl SpecServer {
                 "Unsatisfied criteria remain".to_string()
             }
         });
-
-        let coherence = spec.coherence();
-
-        // implementation_status is populated only when the caller
-        // requests Implementation-domain assessment — but it does
-        // not affect the curation decision.
-        let implementation_status = if domain == CompletenessDomain::Implementation {
-            Some(if complete {
+        let implementation_status = (domain == CompletenessDomain::Implementation).then(|| {
+            if complete {
                 "spec complete; implementation status unknown".to_string()
             } else {
                 "spec incomplete; implementation status irrelevant".to_string()
-            })
-        } else {
-            None
-        };
-
-        span.ok_json(
-            serde_json::to_value(CurateEvaluateResponse {
+            }
+        });
+        respond(
+            span,
+            &CurateEvaluateResponse {
                 spec_id,
                 decision: decision.to_string(),
                 rationale,
-                coherence_score: coherence,
+                coherence_score: spec.coherence(),
                 specification_completeness: complete,
                 implementation_status,
                 writing_excellence,
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
-    #[tool(
-        description = "Reconcile spec-domain tensions between specification documents without collapsing them"
-    )]
+    #[tool(description = "Reconcile spec-domain tensions between specification documents")]
     async fn spec_curate_reconcile(
         &self,
         Parameters(CurateReconcileRequest {
@@ -472,44 +414,26 @@ impl SpecServer {
         }): Parameters<CurateReconcileRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_reconcile", &self.webid);
-
-        // This tool reconciles spec-domain tensions ("these two spec documents
-        // contradict each other"), not implementation-domain tensions ("the code
-        // doesn't match either spec"). Only spec-domain tensions are reconcilable.
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             "reconcile",
-            DelegationAction::Write,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
-
-        let mut found = Vec::new();
-        let mut missing = Vec::new();
-
-        for id in &spec_ids {
-            let parsed = SpecId::from_string(id).unwrap_or_default();
-            if self.store.load(parsed).is_ok() {
-                found.push(id.clone());
-            } else {
-                missing.push(id.as_str());
-            }
-        }
-
-        if !missing.is_empty() {
-            return span.error(
-                McpErrorKind::NotFound,
-                McpToolError::not_found(format!("Specs not found: {:?}", missing)).to_json_string(),
-            );
-        }
+            DelegationAction::Write
+        );
 
         let mut loaded_specs = Vec::new();
-        for id in &found {
+        let mut missing = Vec::new();
+        for id in &spec_ids {
             let parsed = SpecId::from_string(id).unwrap_or_default();
-            if let Ok(spec) = self.store.load(parsed) {
-                loaded_specs.push(spec);
+            match self.store.load(parsed) {
+                Ok(s) => loaded_specs.push(s),
+                Err(_) => missing.push(id.as_str()),
             }
+        }
+        if !missing.is_empty() {
+            let (kind, msg) = not_found_err(&format!("{:?}", missing));
+            return span.error(kind, msg);
         }
 
         let mut tensions = Vec::new();
@@ -527,112 +451,86 @@ impl SpecServer {
                     .iter()
                     .flat_map(|g| g.text.split_whitespace())
                     .collect();
-                let intersection = words_a.intersection(&words_b).count();
                 let union = words_a.union(&words_b).count();
                 let jaccard = if union > 0 {
-                    intersection as f64 / union as f64
+                    words_a.intersection(&words_b).count() as f64 / union as f64
                 } else {
                     0.0
                 };
                 if jaccard > 0.3 {
-                    let overlapping: Vec<String> = words_a
-                        .intersection(&words_b)
-                        .map(|w| w.to_string())
-                        .collect();
                     tensions.push(TensionReport {
                         spec_a: a.id.to_string(),
                         spec_b: b.id.to_string(),
-                        overlapping_goals: overlapping,
+                        overlapping_goals: words_a
+                            .intersection(&words_b)
+                            .map(|w| w.to_string())
+                            .collect(),
                         jaccard_score: jaccard,
                     });
                 }
             }
         }
-
         let resolution = if tensions.is_empty() {
             "no_tensions_detected"
         } else {
             "tensions_identified"
         };
-
-        span.ok_json(
-            serde_json::to_value(CurateReconcileResponse {
+        respond(
+            span,
+            &CurateReconcileResponse {
                 resolution: resolution.to_string(),
-                spec_ids: found,
+                spec_ids,
                 tension: tension_description,
                 tensions,
                 status: "reconciled".to_string(),
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
-    #[tool(
-        description = "Grow specification collection toward coherence. Suggestions target spec-document gaps (missing sections, unstated constraints), not code gaps."
-    )]
+    #[tool(description = "Grow specification collection toward coherence")]
     async fn spec_curate_cultivate(
         &self,
         Parameters(CurateCultivateRequest {
             coherence_threshold,
             capability_token,
-            completeness_domain,
+            completeness_domain: _,
         }): Parameters<CurateCultivateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_cultivate", &self.webid);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             "cultivate",
-            DelegationAction::Write,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Write
+        );
 
         let threshold = coherence_threshold.unwrap_or(0.7);
-
-        // When domain is Specification (default), growth suggestions target
-        // spec-document gaps (missing sections, unstated constraints,
-        // unlinked cross-references), not code gaps.
-        let _domain = completeness_domain.unwrap_or_default();
-
-        let all_specs: Vec<Spec> = match self.store.list_all() {
+        let all_specs = match self.load_all_specs_val() {
             Ok(specs) => specs,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
-                );
-            }
+            Err(v) => return span.internal_error(v),
         };
         let coherence = Spec::collection_coherence(&all_specs);
-        let categories_covered: Vec<String> = all_specs
+        let categories_covered: std::collections::HashSet<String> = all_specs
             .iter()
             .map(|s| s.category.as_str().to_string())
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
             .collect();
-        let categories_missing: Vec<String> = SpecCategory::all()
-            .iter()
-            .map(|c| c.as_str().to_string())
-            .filter(|c| !categories_covered.contains(c))
-            .collect();
-
-        let above_threshold = coherence >= threshold;
-
-        span.ok_json(
-            serde_json::to_value(CurateCultivateResponse {
+        let categories_missing = missing_categories(&categories_covered);
+        respond(
+            span,
+            &CurateCultivateResponse {
                 coherence_score: coherence,
                 threshold,
-                above_threshold,
+                above_threshold: coherence >= threshold,
                 spec_count: all_specs.len(),
-                categories_covered,
+                categories_covered: categories_covered.into_iter().collect(),
                 categories_missing,
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
     #[tool(
-        description = "Assess a specification document against the Writing Excellence 4-perspective test (Hopper: accessibility, Lovelace: precision, Schriver: findability, Gentle: agent-correctness). Per WRITING_EXCELLENCE.md §3: 3 of 4 passing is the publication standard; 1 of 4 blocks publication."
+        description = "Assess a specification document against the Writing Excellence 4-perspective test (Hopper: accessibility, Lovelace: precision, Schriver: findability, Gentle: agent-correctness). 3/4 = publishable; 1/4 blocks."
     )]
     async fn spec_curate_writing_excellence(
         &self,
@@ -644,38 +542,28 @@ impl SpecServer {
         }): Parameters<WritingExcellenceRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_curate_writing_excellence", &self.webid);
-
         validate_field!(span, "spec_id", &spec_id, 256);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             &spec_id,
-            DelegationAction::Read,
-        ) {
-            return span.error(e.kind, e.to_json_string());
+            DelegationAction::Read
+        );
+
+        if let Err((kind, msg)) = self.load_spec(&spec_id).map(|_| ()) {
+            return span.error(kind, msg);
         }
-
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
-        if self.store.load(spec_id_parsed).is_err() {
-            return span.error(
-                McpErrorKind::NotFound,
-                McpToolError::not_found(format!("Spec not found: {}", spec_id)).to_json_string(),
-            );
-        }
-
-        let dimensions_passing = scores.passes();
-        let meets_standard = scores.meets_publication_standard();
-        let blocks = dimensions_passing <= 1;
-
-        span.ok_json(
-            serde_json::to_value(WritingExcellenceResponse {
+        let dims = scores.passes();
+        respond(
+            span,
+            &WritingExcellenceResponse {
                 spec_id,
-                dimensions_passing,
-                meets_publication_standard: meets_standard,
-                blocks_publication: blocks,
+                dimensions_passing: dims,
+                meets_publication_standard: scores.meets_publication_standard(),
+                blocks_publication: dims <= 1,
                 scores,
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
@@ -689,38 +577,30 @@ impl SpecServer {
         }): Parameters<GraphQueryRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_graph_query", &self.webid);
+        check_cap!(
+            self,
+            span,
+            capability_token,
+            "query",
+            DelegationAction::Read
+        );
 
-        if let Err(e) =
-            self.verify_capability(capability_token.as_deref(), "query", DelegationAction::Read)
-        {
-            return span.error(e.kind, e.to_json_string());
-        }
-
-        let all_specs: Vec<Spec> = match self.store.list_all() {
+        let all_specs = match self.load_all_specs_val() {
             Ok(specs) => specs,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
-                );
-            }
+            Err(v) => return span.internal_error(v),
         };
-        let results: Vec<&Spec> = all_specs
+        let nodes: Vec<GraphNodeResponse> = all_specs
             .iter()
             .filter(|s| {
-                let cat_match = category
+                category
                     .as_ref()
                     .map(|c| s.category.as_str() == c.as_str())
-                    .unwrap_or(true);
-                let anchor_match = domain_anchor
-                    .as_ref()
-                    .map(|a| s.domain_anchor.as_str() == a.as_str())
-                    .unwrap_or(true);
-                cat_match && anchor_match
+                    .unwrap_or(true)
+                    && domain_anchor
+                        .as_ref()
+                        .map(|a| s.domain_anchor.as_str() == a.as_str())
+                        .unwrap_or(true)
             })
-            .collect();
-
-        let nodes: Vec<GraphNodeResponse> = results
-            .iter()
             .map(|s| GraphNodeResponse {
                 id: s.id.to_string(),
                 name: s.name.clone(),
@@ -728,18 +608,17 @@ impl SpecServer {
                 complete: s.is_complete(),
             })
             .collect();
-
-        span.ok_json(
-            serde_json::to_value(GraphQueryResponse {
+        respond(
+            span,
+            &GraphQueryResponse {
                 count: nodes.len(),
                 specs: nodes,
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
     #[tool(
-        description = "Validate specification collection for internal consistency and spec-document coherence, not code-implementation completeness"
+        description = "Validate specification collection for internal consistency and coherence"
     )]
     async fn spec_graph_validate(
         &self,
@@ -749,64 +628,52 @@ impl SpecServer {
         }): Parameters<GraphValidateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_graph_validate", &self.webid);
-
-        // Collection coherence validation checks that the specification graph
-        // is internally consistent — not that the codebase satisfies it.
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             "validate",
-            DelegationAction::Read,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Read
+        );
 
         let threshold = coherence_threshold.unwrap_or(0.7);
-        let all_specs: Vec<Spec> = match self.store.list_all() {
+        let all_specs = match self.load_all_specs_val() {
             Ok(specs) => specs,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
-                );
-            }
+            Err(v) => return span.internal_error(v),
         };
         let coherence = Spec::collection_coherence(&all_specs);
-
         let mut violations = Vec::new();
         let mut suggestions = Vec::new();
-
         if coherence < threshold {
             violations.push(format!(
                 "Coherence {:.2} below threshold {:.2}",
                 coherence, threshold
             ));
         }
-
-        let categories_coveraged: std::collections::HashSet<&str> =
-            all_specs.iter().map(|s| s.category.as_str()).collect();
-
-        for cat in SpecCategory::all() {
-            if !categories_coveraged.contains(cat.as_str()) {
-                suggestions.push(format!("Missing category: {}", cat.as_str()));
-            }
-        }
-
+        let categories_covered: std::collections::HashSet<String> = all_specs
+            .iter()
+            .map(|s| s.category.as_str().to_string())
+            .collect();
+        suggestions.extend(
+            missing_categories(&categories_covered)
+                .into_iter()
+                .map(|c| format!("Missing category: {}", c)),
+        );
         for spec in &all_specs {
             if !spec.is_complete() {
                 suggestions.push(format!("Incomplete spec: {} ({})", spec.id, spec.name));
             }
         }
-
-        span.ok_json(
-            serde_json::to_value(GraphValidateResponse {
+        respond(
+            span,
+            &GraphValidateResponse {
                 valid: violations.is_empty(),
                 coherence_score: coherence,
                 threshold,
                 violations,
                 suggestions,
                 spec_count: all_specs.len(),
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
@@ -825,60 +692,37 @@ impl SpecServer {
         }): Parameters<TestInvariantRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_test_invariant", &self.webid);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             "test/invariant",
-            DelegationAction::Write,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
-
+            DelegationAction::Write
+        );
         validate_field!(span, "spec_id", &spec_id, 256);
         validate_field!(span, "seam", &seam, 256);
         validate_field!(span, "invariant", &invariant, 1024);
         validate_field!(span, "category", &category, 64);
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
-        let _spec = match self.store.load(spec_id_parsed) {
-            Ok(s) => s,
-            Err(SpecError::NotFound(_)) => {
-                return span.error(
-                    McpErrorKind::NotFound,
-                    McpToolError::not_found(format!("Spec not found: {}", spec_id))
-                        .to_json_string(),
-                );
-            }
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Failed to load spec: {}", e)}),
-                );
-            }
-        };
-
+        match self.load_spec(&spec_id) {
+            Ok(_) => {}
+            Err((kind, msg)) => return span.error(kind, msg),
+        }
         let invariant_id = format!("{}:{}:{}", spec_id, seam, category.to_lowercase());
-
-        // MVP: TestTraceability record is ephemeral (not persisted to a separate table).
-        // The canonical traceability record is the // REQ: comment in test source code.
-        // A future iteration can add a test_traceability SQLite table.
-
         let cycle_tag = cycle
             .as_deref()
             .map(|c| format!(" [{} cycle]", c))
             .unwrap_or_default();
-
-        span.ok_json(
-            serde_json::to_value(TestInvariantResponse {
+        respond(
+            span,
+            &TestInvariantResponse {
                 invariant_id,
                 status: format!("recorded{}", cycle_tag),
-            })
-            .unwrap_or_default(),
+            },
         )
     }
 
-    #[tool(
-        description = "Verify test coverage for a specification seam or spec category, returning gaps and debt"
-    )]
+    #[tool(description = "Verify test coverage for a specification seam or spec category")]
     async fn spec_test_verify(
         &self,
         Parameters(TestVerifyRequest {
@@ -888,82 +732,57 @@ impl SpecServer {
         }): Parameters<TestVerifyRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("spec_test_verify", &self.webid);
-
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
+        check_cap!(
+            self,
+            span,
+            capability_token,
             "test/verify",
-            DelegationAction::Read,
-        ) {
-            return span.error(e.kind, e.to_json_string());
-        }
+            DelegationAction::Read
+        );
 
-        let all_specs: Vec<Spec> = match self.store.list_all() {
+        let all_specs = match self.load_all_specs_val() {
             Ok(specs) => specs,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
-                );
-            }
+            Err(v) => return span.internal_error(v),
         };
-
-        let category_filter: Option<SpecCategory> =
-            category.as_deref().and_then(SpecCategory::parse_str);
-
         let filtered: Vec<&Spec> = all_specs
             .iter()
             .filter(|s| {
-                category_filter
+                category
+                    .as_deref()
+                    .and_then(SpecCategory::parse_str)
                     .as_ref()
                     .map(|cf| s.category == *cf)
                     .unwrap_or(true)
             })
             .collect();
-
         let mut traceability = Vec::new();
         let mut tested = 0;
         let mut gaps = 0;
-        let debt = 0;
-
         for spec in &filtered {
             let is_complete = spec.is_complete();
-            let classification = if is_complete {
-                Some(TestClassification::PublicInterface)
-            } else {
-                None
-            };
-            let has_gap = !is_complete;
-
             if is_complete {
                 tested += 1;
             } else {
                 gaps += 1;
             }
-
             traceability.push(TestTraceability {
                 requirement_id: spec.id.to_string(),
-                classification,
-                test_path: if is_complete {
-                    Some(format!("spec:{}", spec.id))
-                } else {
-                    None
-                },
-                has_gap,
+                classification: is_complete.then_some(TestClassification::PublicInterface),
+                test_path: is_complete.then(|| format!("spec:{}", spec.id)),
+                has_gap: !is_complete,
                 test_debt_location: None,
             });
         }
-
-        let complete = gaps == 0 && !filtered.is_empty();
-
-        span.ok_json(
-            serde_json::to_value(TestVerifyResponse {
+        respond(
+            span,
+            &TestVerifyResponse {
                 total_requirements: filtered.len(),
                 tested,
                 gaps,
-                debt,
+                debt: 0,
                 traceability,
-                complete,
-            })
-            .unwrap_or_default(),
+                complete: gaps == 0 && !filtered.is_empty(),
+            },
         )
     }
 }
@@ -976,9 +795,14 @@ async fn main() -> anyhow::Result<()> {
         |ctx: ServerContext| {
             let conn = match ctx.credentials.get("HKASK_SPEC_DB_PATH") {
                 Some(path) => {
-                    let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                        anyhow::anyhow!("HKASK_SPEC_DB_PATH set but HKASK_DB_PASSPHRASE missing")
-                    })?;
+                    let passphrase =
+                        ctx.credentials
+                            .get("HKASK_DB_PASSPHRASE")
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "HKASK_SPEC_DB_PATH set but HKASK_DB_PASSPHRASE missing"
+                                )
+                            })?;
                     let db = hkask_storage::Database::open(path, passphrase)
                         .map_err(|e| anyhow::anyhow!("Failed to open spec database: {e}"))?;
                     db.conn_arc()
@@ -986,23 +810,27 @@ async fn main() -> anyhow::Result<()> {
                 None => {
                     tracing::warn!(
                         target: "hkask.mcp.spec",
-                        "No persistent database configured — spec store is in-memory and will be lost on restart. \
-                         Set HKASK_SPEC_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
+                        "No persistent DB — spec store in-memory (set HKASK_SPEC_DB_PATH + HKASK_DB_PASSPHRASE for persistence)"
                     );
                     let conn = rusqlite::Connection::open_in_memory()?;
                     std::sync::Arc::new(std::sync::Mutex::new(conn))
                 }
             };
             let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
-            store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
-
-            let secret_hex = ctx.credentials.get("HKASK_OCAP_SECRET").ok_or_else(|| {
-                anyhow::anyhow!("HKASK_OCAP_SECRET is required for spec capability verification")
-            })?;
+            store
+                .init_schema()
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            let secret_hex =
+                ctx.credentials
+                    .get("HKASK_OCAP_SECRET")
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "HKASK_OCAP_SECRET is required for spec capability verification"
+                        )
+                    })?;
             let secret = hex::decode(secret_hex)
                 .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
             let checker = CapabilityChecker::new(&secret);
-
             Ok(SpecServer::new(store, ctx.webid, checker))
         },
         vec![
@@ -1022,4 +850,3 @@ async fn main() -> anyhow::Result<()> {
     )
     .await
 }
-

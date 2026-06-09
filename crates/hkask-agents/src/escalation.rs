@@ -60,10 +60,13 @@ pub struct EscalationQueue {
     conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
 }
 
+/// Escalation queue errors.
+///
+/// `Infra` delegates to `CoreError::Infra`.
 #[derive(Error, Debug)]
 pub enum EscalationError {
     #[error(transparent)]
-    Infra(#[from] InfrastructureError),
+    Core(#[from] crate::error::CoreError),
 
     #[error("Escalation not found: {0}")]
     NotFound(String),
@@ -71,7 +74,15 @@ pub enum EscalationError {
 
 impl From<rusqlite::Error> for EscalationError {
     fn from(e: rusqlite::Error) -> Self {
-        InfrastructureError::Database(e.to_string()).into()
+        EscalationError::Core(crate::error::CoreError::Infra(
+            InfrastructureError::Database(e.to_string()),
+        ))
+    }
+}
+
+impl From<InfrastructureError> for EscalationError {
+    fn from(e: InfrastructureError) -> Self {
+        EscalationError::Core(crate::error::CoreError::Infra(e))
     }
 }
 

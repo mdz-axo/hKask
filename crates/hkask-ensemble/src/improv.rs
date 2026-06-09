@@ -196,7 +196,7 @@ async fn relevance_check<C: InferenceClient>(
     participants: &[(WebID, String, String)],
     chat_history: &[(WebID, String)],
 ) -> Result<Vec<RelevanceJudgment>, ImprovError<C::Error>> {
-    let context_str = format_context(config, chat_history);
+    let context_str = format_context_with_earlier(config, chat_history, &[]);
     let mut judgments = Vec::new();
 
     for (webid, name, description) in participants {
@@ -352,15 +352,14 @@ async fn sequential_speak<C: InferenceClient>(
     for speaker in speakers {
         let context_str = format_context_with_earlier(config, &turn_context, &responses);
 
+        let prefix = if context_str.is_empty() {
+            String::new()
+        } else {
+            format!("Conversation so far:\n{context_str}\n\n")
+        };
         let prompt = format!(
-            "{}User: {}\n\nProvide your response as {}:",
-            if context_str.is_empty() {
-                String::new()
-            } else {
-                format!("Conversation so far:\n{}\n\n", context_str)
-            },
-            user_message,
-            speaker.name,
+            "{prefix}User: {user_message}\n\nProvide your response as {}:",
+            speaker.name
         );
 
         let request = GenerateRequest {
@@ -390,8 +389,7 @@ async fn sequential_speak<C: InferenceClient>(
             confidence,
         );
 
-        // Confidence-based escalation: if confidence is below threshold,
-        // re-generate the response using a larger model
+        // Confidence-based escalation: re-generate with larger model if below threshold
         if let Some(ref conf_config) = config.confidence_config
             && confidence < conf_config.threshold
             && let Some(escalated) = crate::confidence_router::check_and_escalate(
@@ -425,16 +423,15 @@ async fn synthesize<C: InferenceClient>(
     user_message: &str,
     responses: &[AgentResponse],
 ) -> String {
-    let mut summary = String::new();
-    for r in responses {
-        summary.push_str(&format!("[{}]: {}\n", r.agent_webid, r.content));
-    }
+    let summary: String = responses.iter().fold(String::new(), |mut acc, r| {
+        use std::fmt::Write;
+        let _ = writeln!(acc, "[{}]: {}", r.agent_webid, r.content);
+        acc
+    });
 
     let prompt = format!(
-        "The user asked: {}\n\n\
-         Multiple agents responded:\n{}\n\n\
-         Provide a brief synthesis that highlights key insights and any disagreements:",
-        user_message, summary
+        "The user asked: {user_message}\n\nMultiple agents responded:\n{summary}\n\
+         Provide a brief synthesis that highlights key insights and any disagreements:"
     );
 
     let request = GenerateRequest {
@@ -449,26 +446,14 @@ async fn synthesize<C: InferenceClient>(
 
     match inference_client.generate(&request).await {
         Ok(response) => response.response.trim().to_string(),
-        Err(_) => {
-            let mut fallback = String::from("Synthesis: ");
-            for r in responses {
-                fallback.push_str(&format!("[{}]: {}; ", r.agent_webid, r.content));
-            }
-            fallback
-        }
+        Err(_) => responses
+            .iter()
+            .fold(String::from("Synthesis: "), |mut acc, r| {
+                use std::fmt::Write;
+                let _ = write!(acc, "[{}]: {}; ", r.agent_webid, r.content);
+                acc
+            }),
     }
-}
-
-fn format_context(config: &ImprovSessionConfig, turns: &[(WebID, String)]) -> String {
-    if turns.is_empty() {
-        return String::new();
-    }
-    let window = turns.len().saturating_sub(config.context_window);
-    turns[window..]
-        .iter()
-        .map(|(_, content)| content.clone())
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn format_context_with_earlier(
@@ -476,7 +461,7 @@ fn format_context_with_earlier(
     previous_turns: &[(WebID, String)],
     earlier_responses: &[AgentResponse],
 ) -> String {
-    let mut parts = Vec::new();
+    let mut parts: Vec<String> = Vec::with_capacity(previous_turns.len() + earlier_responses.len());
     let window = previous_turns.len().saturating_sub(config.context_window);
     for (_, content) in &previous_turns[window..] {
         parts.push(content.clone());

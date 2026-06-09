@@ -9,8 +9,9 @@ use crate::block_on;
 use crate::cli::EnsembleAction;
 use hkask_cns::{CircuitBreaker, GasCost};
 use hkask_ensemble::{
-    CircuitBreakerInferenceAdapter, GasGovernancePort, ImprovMode, ImprovSessionConfig,
-    InferencePortAdapter, bootstrap_standing_session_with_store,
+    AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
+    ImprovMode, ImprovSessionConfig, ImprovTurn, InferencePortAdapter, ParticipantRole,
+    bootstrap_standing_session_with_store,
 };
 use hkask_services::ServiceContext;
 use hkask_types::WebID;
@@ -92,58 +93,63 @@ pub(crate) fn build_improv_client(
     }
 }
 
+fn map_ensemble_role(role: &str) -> ParticipantRole {
+    match role {
+        "orchestrator" => ParticipantRole::Curator,
+        other => ParticipantRole::Custom(other.to_string()),
+    }
+}
+
 pub async fn ensemble_chat_create(ctx: &ServiceContext, session: String) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::create_chat(&ens_ctx, &session)
-        .await
-        .map_err(|e| e.to_string())?;
+    let manager = ctx.session_manager.read().await;
+    manager.create_chat(&session).await;
     Ok(format!("Chat session '{}' created", session))
 }
 
-/// Register bot in chat
 pub async fn ensemble_chat_register(
     ctx: &ServiceContext,
     session: String,
     bot: String,
     role: String,
 ) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::register_participant(
-        &ens_ctx,
-        &session,
-        WebID::new(),
-        &role,
-        vec![],
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(&session)
+        .await
+        .ok_or_else(|| format!("Session '{}' not found", session))?;
+    let participant = ChatParticipant {
+        webid: WebID::new(),
+        role: map_ensemble_role(&role),
+        pod_id: None,
+        capabilities: vec![],
+    };
+    let mut chat_write = chat.write().await;
+    chat_write.register_participant(participant);
     Ok(format!(
         "Bot '{}' registered as {} in session '{}'",
         bot, role, session
     ))
 }
 
-/// Send message to chat
 pub async fn ensemble_chat_send(
     ctx: &ServiceContext,
     session: String,
     message: String,
 ) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::send_message(&ens_ctx, &session, WebID::new(), &message)
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(&session)
         .await
-        .map_err(|e| e.to_string())?;
-
+        .ok_or_else(|| format!("Session '{}' not found", session))?;
+    let msg = ChatMessage::new(WebID::new(), message);
+    let mut chat_write = chat.write().await;
+    chat_write.add_message(msg);
     Ok("Message sent".to_string())
 }
 
-/// List chat sessions
 pub async fn ensemble_chat_list(ctx: &ServiceContext) -> Result<Vec<String>, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::list_chat_sessions(&ens_ctx)
-        .await
-        .map_err(|e| e.to_string())
+    let manager = ctx.session_manager.read().await;
+    Ok(manager.list_chat_sessions().await)
 }
 
 pub async fn ensemble_improv_turn(
@@ -151,22 +157,44 @@ pub async fn ensemble_improv_turn(
     session_id: &str,
     user_message: &str,
     inference_port: Option<Arc<dyn InferencePort>>,
-) -> Result<hkask_ensemble::ImprovTurn, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+) -> Result<ImprovTurn, String> {
     let client = build_improv_client(ctx, inference_port);
-    hkask_services::EnsembleService::improv_turn(&ens_ctx, session_id, user_message, &client)
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(session_id)
         .await
-        .map_err(|e| e.to_string())
+        .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+    let turn = {
+        let chat_read = chat.read().await;
+        chat_read
+            .improv_turn(&client, user_message)
+            .await
+            .map_err(|e| format!("Improv error: {}", e))?
+    };
+    {
+        let mut chat_write = chat.write().await;
+        let curator_webid = *chat_write.curator();
+        chat_write.add_message(ChatMessage::new(curator_webid, user_message.to_string()));
+        for response in &turn.responses {
+            chat_write.add_message(ChatMessage::new(
+                response.agent_webid,
+                response.content.clone(),
+            ));
+        }
+    }
+    Ok(turn)
 }
 
 pub async fn ensemble_improv_config(
     ctx: &ServiceContext,
     session_id: &str,
 ) -> Result<ImprovSessionConfig, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::improv_config(&ens_ctx, session_id)
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(session_id)
         .await
-        .map_err(|e| e.to_string())
+        .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+    Ok(chat.read().await.improv_config().clone())
 }
 
 pub async fn ensemble_improv_set_threshold(
@@ -174,10 +202,13 @@ pub async fn ensemble_improv_set_threshold(
     session_id: &str,
     threshold: f64,
 ) -> Result<(), String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::set_improv_threshold(&ens_ctx, session_id, threshold)
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(session_id)
         .await
-        .map_err(|e| e.to_string())
+        .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+    chat.write().await.set_participation_threshold(threshold);
+    Ok(())
 }
 
 pub async fn ensemble_improv_set_mode(
@@ -185,23 +216,40 @@ pub async fn ensemble_improv_set_mode(
     session_id: &str,
     mode: ImprovMode,
 ) -> Result<(), String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::set_improv_mode(&ens_ctx, session_id, mode)
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(session_id)
         .await
-        .map_err(|e| e.to_string())
+        .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+    chat.write().await.set_improv_mode(mode);
+    Ok(())
 }
 
 pub async fn ensemble_participants(
     ctx: &ServiceContext,
     session_id: &str,
 ) -> Result<Vec<(String, String, String)>, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    let participants = hkask_services::EnsembleService::list_participants(&ens_ctx, session_id)
+    let manager = ctx.session_manager.read().await;
+    let chat = manager
+        .get_chat(session_id)
         .await
-        .map_err(|e| e.to_string())?;
+        .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+    let chat_read = chat.read().await;
+    let participants = chat_read.get_participants();
     Ok(participants
-        .into_iter()
-        .map(|p| (p.name, p.role, p.capabilities))
+        .values()
+        .map(|p| {
+            let role = format!("{:?}", p.role);
+            (
+                role.clone(),
+                role,
+                if p.capabilities.is_empty() {
+                    "none".into()
+                } else {
+                    p.capabilities.join(", ")
+                },
+            )
+        })
         .collect())
 }
 
@@ -209,10 +257,8 @@ pub async fn ensemble_deliberation_create(
     ctx: &ServiceContext,
     session: String,
 ) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::create_deliberation(&ens_ctx, &session)
-        .await
-        .map_err(|e| e.to_string())?;
+    let manager = ctx.session_manager.read().await;
+    manager.create_deliberation(&session).await;
     Ok(format!("Deliberation session '{}' created", session))
 }
 
@@ -220,10 +266,12 @@ pub async fn ensemble_deliberation_start(
     ctx: &ServiceContext,
     session: String,
 ) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::start_deliberation(&ens_ctx, &session)
+    let manager = ctx.session_manager.read().await;
+    let d = manager
+        .get_deliberation(&session)
         .await
-        .map_err(|e| e.to_string())?;
+        .ok_or_else(|| format!("Session '{}' not found", session))?;
+    d.write().await.start();
     Ok("Deliberation started".to_string())
 }
 
@@ -234,17 +282,13 @@ pub async fn ensemble_deliberation_record(
     content: String,
     confidence: f64,
 ) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::record_deliberation_response(
-        &ens_ctx,
-        &session,
-        WebID::new(),
-        content,
-        confidence,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
+    let manager = ctx.session_manager.read().await;
+    let d = manager
+        .get_deliberation(&session)
+        .await
+        .ok_or_else(|| format!("Session '{}' not found", session))?;
+    let response = AgentResponse::new(WebID::new(), content, confidence);
+    d.write().await.record_response(response);
     Ok("Response recorded".to_string())
 }
 
@@ -252,10 +296,13 @@ pub async fn ensemble_deliberation_synthesize(
     ctx: &ServiceContext,
     session: String,
 ) -> Result<String, String> {
-    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
-    hkask_services::EnsembleService::synthesize_deliberation(&ens_ctx, &session)
+    let manager = ctx.session_manager.read().await;
+    let d = manager
+        .get_deliberation(&session)
         .await
-        .map_err(|e| e.to_string())
+        .ok_or_else(|| format!("Session '{}' not found", session))?;
+    let result = d.read().await.synthesize();
+    Ok(result.synthesized_response)
 }
 
 pub async fn ensemble_deliberation_list(ctx: &ServiceContext) -> Result<Vec<String>, String> {
@@ -311,55 +358,43 @@ fn build_service_context() -> Result<hkask_services::ServiceContext, crate::erro
         })
 }
 
+/// Shorthand: build context and execute an async closure, printing the result.
+fn with_ensemble_ctx(
+    rt: &tokio::runtime::Runtime,
+    label: &'static str,
+    f: impl std::future::Future<Output = Result<String, String>>,
+) {
+    let _ctx = super::helpers::or_exit(build_service_context(), "Failed to build service context");
+    println!("{}", super::helpers::or_exit(rt.block_on(f), label));
+}
+
 /// CLI handler for `kask ensemble` subcommand
 pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAction) {
     use crate::commands;
+    let build_ctx =
+        || super::helpers::or_exit(build_service_context(), "Failed to build service context");
 
     match action {
         EnsembleAction::ChatCreate { session } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::ensemble_chat_create(&ctx, session.clone()),
-                    "Chat create failed"
-                )
-            );
+            with_ensemble_ctx(rt, "Chat create failed", async move {
+                let ctx = build_ctx();
+                commands::ensemble_chat_create(&ctx, session).await
+            });
         }
         EnsembleAction::ChatRegister { session, bot, role } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::ensemble_chat_register(
-                        &ctx,
-                        session.clone(),
-                        bot.clone(),
-                        role.clone(),
-                    ),
-                    "Chat register failed"
-                )
-            );
+            with_ensemble_ctx(rt, "Chat register failed", async move {
+                let ctx = build_ctx();
+                commands::ensemble_chat_register(&ctx, session, bot, role).await
+            });
         }
         EnsembleAction::ChatSend { session, message } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::ensemble_chat_send(&ctx, session.clone(), message.clone(),),
-                    "Chat send failed"
-                )
-            );
+            with_ensemble_ctx(rt, "Chat send failed", async move {
+                let ctx = build_ctx();
+                commands::ensemble_chat_send(&ctx, session, message).await
+            });
         }
         EnsembleAction::ChatList => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
+            let ctx = build_ctx();
             let sessions = block_on!(rt, commands::ensemble_chat_list(&ctx), "Chat list failed");
             println!("Active chat sessions:");
             for s in sessions {
@@ -367,28 +402,16 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             }
         }
         EnsembleAction::DeliberationCreate { session } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::ensemble_deliberation_create(&ctx, session.clone()),
-                    "Deliberation create failed"
-                )
-            );
+            with_ensemble_ctx(rt, "Deliberation create failed", async move {
+                let ctx = build_ctx();
+                commands::ensemble_deliberation_create(&ctx, session).await
+            });
         }
         EnsembleAction::DeliberationStart { session } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::ensemble_deliberation_start(&ctx, session.clone()),
-                    "Deliberation start failed"
-                )
-            );
+            with_ensemble_ctx(rt, "Deliberation start failed", async move {
+                let ctx = build_ctx();
+                commands::ensemble_deliberation_start(&ctx, session).await
+            });
         }
         EnsembleAction::DeliberationRecord {
             session,
@@ -396,38 +419,25 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             content,
             confidence,
         } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::ensemble_deliberation_record(
-                        &ctx,
-                        session.clone(),
-                        agent.clone(),
-                        content.clone(),
-                        confidence,
-                    ),
-                    "Deliberation record failed"
-                )
-            );
+            with_ensemble_ctx(rt, "Deliberation record failed", async move {
+                let ctx = build_ctx();
+                commands::ensemble_deliberation_record(&ctx, session, agent, content, confidence)
+                    .await
+            });
         }
         EnsembleAction::DeliberationSynthesize { session } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
+            let ctx = build_ctx();
             println!(
                 "Synthesized response:\n{}",
                 block_on!(
                     rt,
-                    commands::ensemble_deliberation_synthesize(&ctx, session.clone()),
+                    commands::ensemble_deliberation_synthesize(&ctx, session),
                     "Deliberation synthesize failed"
                 )
             );
         }
         EnsembleAction::DeliberationList => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
+            let ctx = build_ctx();
             let sessions = block_on!(
                 rt,
                 commands::ensemble_deliberation_list(&ctx),
@@ -439,28 +449,26 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
             }
         }
         EnsembleAction::StandingStart { config } => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
+            let ctx = build_ctx();
             let status = super::helpers::or_exit(
                 commands::ensemble_standing_start(&ctx, &config),
                 "Standing session bootstrap failed",
             );
-            println!("Standing session bootstrapped:");
-            println!("  Session ID: {}", status.session_id);
-            println!("  Participants: {}", status.participant_count);
-            println!("  Initial messages: {}", status.message_count);
+            println!(
+                "Standing session bootstrapped:\n  Session ID: {}\n  Participants: {}\n  Initial messages: {}",
+                status.session_id, status.participant_count, status.message_count
+            );
         }
         EnsembleAction::StandingStatus => {
-            let ctx =
-                super::helpers::or_exit(build_service_context(), "Failed to build service context");
+            let ctx = build_ctx();
             let status = super::helpers::or_exit(
                 commands::ensemble_standing_status(&ctx),
                 "Standing status failed",
             );
-            println!("Standing session status:");
-            println!("  Session ID: {}", status.session_id);
-            println!("  Participants: {}", status.participant_count);
-            println!("  Messages: {}", status.message_count);
+            println!(
+                "Standing session status:\n  Session ID: {}\n  Participants: {}\n  Messages: {}",
+                status.session_id, status.participant_count, status.message_count
+            );
             println!("\nParticipants:");
             for p in &status.participants {
                 println!("  - {} ({})", p.name, p.role);

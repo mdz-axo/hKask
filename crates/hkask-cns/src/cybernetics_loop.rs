@@ -66,39 +66,38 @@ pub struct CyberneticsLoop {
 }
 
 impl CyberneticsLoop {
-    /// Inbox is "dead" (no sender) — use `with_inbox()` for inter-loop messages.
     pub fn new(
         cns: Arc<RwLock<CnsRuntime>>,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
-        let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
-        Self {
-            cns,
-            gas_budget_manager: GasBudgetManager::new(),
-            set_points: SetPoints::default(),
-            max_iterations: DEFAULT_MAX_ITERATIONS,
-            dispatch_tx,
-            inbox: Arc::new(RwLock::new(dead_rx)),
-            dampener: Arc::new(Dampener::new()),
-            event_sink: None,
-            communication_queue_depth: None,
-        }
+        let (_, dead_rx) = mpsc::unbounded_channel();
+        Self::build(cns, SetPoints::default(), dispatch_tx, dead_rx)
     }
 
-    /// Inbox is "dead" (no sender) — use `with_inbox()` for inter-loop messages.
     pub fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
-        let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
+        let (_, dead_rx) = mpsc::unbounded_channel();
+        Self::build(cns, set_points, dispatch_tx, dead_rx)
+    }
+
+    /// Shared struct init. `inbox` is dead (no sender) when called from `new()`/
+    /// `with_set_points()`; use `with_inbox()` for a live inbox.
+    fn build(
+        cns: Arc<RwLock<CnsRuntime>>,
+        set_points: SetPoints,
+        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+        inbox: mpsc::UnboundedReceiver<LoopMessage>,
+    ) -> Self {
         Self {
             cns,
             gas_budget_manager: GasBudgetManager::new(),
             set_points,
             max_iterations: DEFAULT_MAX_ITERATIONS,
             dispatch_tx,
-            inbox: Arc::new(RwLock::new(dead_rx)),
+            inbox: Arc::new(RwLock::new(inbox)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
             communication_queue_depth: None,
@@ -124,19 +123,11 @@ impl CyberneticsLoop {
         cns: Arc<RwLock<CnsRuntime>>,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
-        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
-        let loop_instance = Self {
-            cns,
-            gas_budget_manager: GasBudgetManager::new(),
-            set_points: SetPoints::default(),
-            max_iterations: DEFAULT_MAX_ITERATIONS,
-            dispatch_tx,
-            inbox: Arc::new(RwLock::new(inbox_rx)),
-            dampener: Arc::new(Dampener::new()),
-            event_sink: None,
-            communication_queue_depth: None,
-        };
-        (loop_instance, inbox_tx)
+        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel();
+        (
+            Self::build(cns, SetPoints::default(), dispatch_tx, inbox_rx),
+            inbox_tx,
+        )
     }
 
     pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
@@ -570,18 +561,7 @@ impl HkaskLoop for CyberneticsLoop {
                 && target_id == DispatchTarget::Loop(LoopId::Curation)
             {
                 // Algedonic alert — Cybernetics → Curation via Communication Loop.
-                // The AlgedonicAlert payload carries the deficit that triggered escalation,
-                // enabling Curation's sense() to read real-time alerts from its inbox.
-                let deficit = action
-                    .parameters
-                    .get("deficit")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
-                let threshold = action
-                    .parameters
-                    .get("threshold")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
+                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
                 LoopPayload::AlgedonicAlert {
                     current: deficit,
                     threshold,
@@ -611,16 +591,7 @@ impl HkaskLoop for CyberneticsLoop {
                 && target_id == DispatchTarget::Loop(LoopId::Curation)
                 && let Some(ref sink) = self.event_sink
             {
-                let deficit = action
-                    .parameters
-                    .get("deficit")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
-                let threshold = action
-                    .parameters
-                    .get("threshold")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0) as u64;
+                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
                 let event = NuEvent::new(
                     WebID::new(),
                     Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
@@ -641,4 +612,11 @@ impl HkaskLoop for CyberneticsLoop {
             }
         }
     }
+}
+
+/// Extract (deficit, threshold) from action parameters. Returns (0, 0) on missing fields.
+fn extract_deficit_threshold(params: &serde_json::Value) -> (u64, u64) {
+    let get_f64 =
+        |key: &str| -> u64 { params.get(key).and_then(|v| v.as_f64()).unwrap_or(0.0) as u64 };
+    (get_f64("deficit"), get_f64("threshold"))
 }

@@ -1,7 +1,4 @@
-//! Multi-agent chat coordination
-//!
-//! Orchestrates conversation between Curator (replicant) and R7 bots
-//! via template-mediated A2A communication. No swarms, no consensus mechanisms.
+//! Multi-agent chat coordination — Curator ↔ R7 bots via A2A templates.
 
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
@@ -9,14 +6,12 @@ use hkask_types::capability::{CapabilitySpec, DelegationResource};
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::ports::{RegistryIndex, ToolInfo};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::info;
 
-/// Tracks whether the missing-gas-governance warning has been emitted,
-/// so we warn once per `EnsembleChat` lifetime rather than per message.
 static GAS_GOVERNANCE_WARNED: AtomicBool = AtomicBool::new(false);
 
 use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
@@ -79,15 +74,12 @@ impl Default for GasBudgetConfig {
 impl GasBudgetConfig {
     /// Parse from the `gas` section of standing-ensemble-session.yaml
     pub fn from_yaml_gas(gas: &serde_json::Value) -> Self {
+        fn yaml_u64(gas: &Value, key: &str, d: u64) -> u64 {
+            gas.get(key).and_then(|v| v.as_u64()).unwrap_or(d)
+        }
         Self {
-            session_cap: gas
-                .get("session_cap")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(Self::DEFAULT_SESSION_CAP),
-            per_message_cost: gas
-                .get("per_message_cost")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(Self::DEFAULT_PER_MESSAGE_COST),
+            session_cap: yaml_u64(gas, "session_cap", Self::DEFAULT_SESSION_CAP),
+            per_message_cost: yaml_u64(gas, "per_message_cost", Self::DEFAULT_PER_MESSAGE_COST),
             alert_threshold: gas
                 .get("alert_threshold")
                 .and_then(|v| v.as_f64())
@@ -96,14 +88,16 @@ impl GasBudgetConfig {
                 .get("hard_limit")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true),
-            per_bot_allocation: gas
-                .get("per_bot_allocation")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(Self::DEFAULT_PER_BOT_ALLOCATION),
-            curator_allocation: gas
-                .get("curator_allocation")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(Self::DEFAULT_CURATOR_ALLOCATION),
+            per_bot_allocation: yaml_u64(
+                gas,
+                "per_bot_allocation",
+                Self::DEFAULT_PER_BOT_ALLOCATION,
+            ),
+            curator_allocation: yaml_u64(
+                gas,
+                "curator_allocation",
+                Self::DEFAULT_CURATOR_ALLOCATION,
+            ),
         }
     }
 
@@ -217,6 +211,22 @@ impl EnsembleChat {
         self
     }
 
+    /// Emit a CNS span event (if sink is wired).
+    fn emit_span(&self, from: WebID, ns: &str, name: &str, phase: Phase, payload: Value) {
+        if let Some(ref sink) = self.event_sink {
+            let event = NuEvent::new(
+                from,
+                Span::new(SpanNamespace::new(ns), name),
+                phase,
+                payload,
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "cns.gas", error = %e, "Failed to persist NuEvent: {ns}.{name}");
+            }
+        }
+    }
+
     /// Set template registry for capability intersection checks (R4)
     pub fn with_template_registry(
         mut self,
@@ -233,52 +243,25 @@ impl EnsembleChat {
     }
 
     /// Set CNS gas governance port for CyberneticsLoop observability.
-    ///
-    /// After `add_message()` consumes gas internally, the governance port
-    /// is also notified so the CNS can sense ensemble gas usage. Ensemble
-    /// gas is dual-tracked: internal counter for degradation levels,
-    /// CyberneticsLoop for CNS observability.
     pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
         self.gas_governance = Some(port);
         self
     }
 
     /// Set available tools for intersection-based tool scoping (R4).
-    ///
-    /// When set, `intersection_tools()` returns only the tools whose
-    /// required_capability domains intersect across all participants.
     pub fn with_available_tools(mut self, tools: Vec<ToolInfo>) -> Self {
         self.available_tools = Some(tools);
         self
     }
 
-    /// Compute the tools visible to all participants (intersection).
+    /// Compute tools visible to all participants (domain intersection).
     ///
-    /// Each participant can only use tools matching their capabilities.
-    /// The shared tool section lists only tools that ALL participants can see.
+    /// A tool is visible if every participant has a capability domain matching
+    /// the tool's required_capability domain. Tools with no required_capability
+    /// are always visible. If no avaialbe tools are set, returns None.
     ///
-    /// A tool is visible to a participant if:
-    /// - The participant has a capability whose domain matches the tool's `required_capability`
-    /// - Or the tool has no `required_capability` (always visible)
-    ///
-    /// ## Design note: visibility vs. authority
-    ///
-    /// The intersection uses **domain matching only**, not `capabilities_match()`
-    /// with its action hierarchy. A participant with `tool:cns:read` will cause
-    /// CNS tools to appear in the intersection (domain "cns" matches), even
-    /// though that participant cannot *invoke* those tools (read ≱ execute).
-    ///
-    /// This is intentional: the intersection determines **visibility** (which tools
-    /// appear in the shared context), while the `GovernedTool` membrane enforces
-    /// **authority** (whether invocation is permitted). Showing tools you can see
-    /// but not invoke is acceptable; hiding tools you can't invoke is also valid
-    /// but produces a more conservative (smaller) intersection.
-    ///
-    /// If a stricter model is desired, replace the domain-string comparison
-    /// with `capabilities_match()` and check action levels.
-    ///
-    /// Returns `None` if no available tools have been set.
-    /// Returns an empty Vec if the intersection is empty (no common tools).
+    /// Visibility ≠ authority — the GovernedTool membrane enforces invocation
+    /// permissions separately.
     pub fn intersection_tools(&self) -> Option<Vec<ToolInfo>> {
         let all_tools = self.available_tools.as_ref()?;
 
@@ -341,10 +324,7 @@ impl EnsembleChat {
         Some(visible_tools)
     }
 
-    /// Check whether a gas-consuming operation of the given cost may proceed.
-    ///
-    /// Returns `(can_proceed, degradation_level)`. When `hard_limit` is enabled
-    /// and the additional cost would exceed the session cap, `can_proceed` is `false`.
+    /// Returns `(can_proceed, level)`. Hard-limit checks if cost exceeds cap.
     pub fn can_proceed_with_gas(&self, additional_cost: u64) -> (bool, DegradationLevel) {
         match &self.gas_budget {
             Some(budget) => {
@@ -357,9 +337,7 @@ impl EnsembleChat {
         }
     }
 
-    /// Record gas consumption after an operation completes.
-    ///
-    /// Emits a CNS span when the degradation level changes from Normal.
+    /// Record gas consumption; emits CNS span on degradation.
     pub fn consume_gas(&mut self, cost: u64) {
         self.gas_used += cost;
         let level = self
@@ -378,23 +356,17 @@ impl EnsembleChat {
                     "Gas budget degradation"
                 );
             }
-            if let Some(ref sink) = self.event_sink {
-                let span = Span::new(SpanNamespace::new("cns.gas"), "ensemble.degradation");
-                let event = NuEvent::new(
-                    self.curator_webid,
-                    span,
-                    Phase::Compute,
-                    serde_json::json!({
-                        "gas_used": self.gas_used,
-                        "session_cap": self.gas_budget.as_ref().map(|b| b.session_cap).unwrap_or(0),
-                        "degradation_level": format!("{:?}", level),
-                    }),
-                    0,
-                );
-                if let Err(e) = sink.persist(&event) {
-                    tracing::warn!(target: "cns.gas", error = %e, "Failed to persist gas degradation NuEvent");
-                }
-            }
+            self.emit_span(
+                self.curator_webid,
+                "cns.gas",
+                "ensemble.degradation",
+                Phase::Compute,
+                json!({
+                    "gas_used": self.gas_used,
+                    "session_cap": self.gas_budget.as_ref().map(|b| b.session_cap).unwrap_or(0),
+                    "degradation_level": format!("{:?}", level),
+                }),
+            );
         }
     }
 
@@ -413,11 +385,7 @@ impl EnsembleChat {
         self.participants.insert(participant.webid, participant);
     }
 
-    /// Add a message to the chat.
-    ///
-    /// When a gas budget is configured with `hard_limit`, messages that would
-    /// exceed the session cap are silently rejected and a CNS span is emitted.
-    /// When no gas budget is set, all messages are accepted (backward compatible).
+    /// Add a message. Dedup checks, gas enforcement, CNS observability.
     pub fn add_message(&mut self, message: ChatMessage) {
         // Layer 2 DRY: dedup check — skip duplicates
         if !self.dedup.check_and_register(&message) {
@@ -427,23 +395,17 @@ impl EnsembleChat {
                 content_len = message.content.len(),
                 "Message rejected as duplicate (dedup)"
             );
-            if let Some(ref sink) = self.event_sink {
-                let span = Span::new(SpanNamespace::new("cns.ensemble.chat"), "dedup_rejected");
-                let event = NuEvent::new(
-                    message.from,
-                    span,
-                    Phase::Compute,
-                    serde_json::json!({
-                        "from": message.from.to_string(),
-                        "content_len": message.content.len(),
-                        "dedup_rejected": true,
-                    }),
-                    0,
-                );
-                if let Err(e) = sink.persist(&event) {
-                    tracing::warn!(target: "cns.ensemble.chat", error = %e, "Failed to persist dedup_rejected NuEvent");
-                }
-            }
+            self.emit_span(
+                message.from,
+                "cns.ensemble.chat",
+                "dedup_rejected",
+                Phase::Compute,
+                json!({
+                    "from": message.from.to_string(),
+                    "content_len": message.content.len(),
+                    "dedup_rejected": true,
+                }),
+            );
             return;
         }
 
@@ -457,46 +419,32 @@ impl EnsembleChat {
                     session_cap = budget.session_cap,
                     "Message rejected — gas budget hard limit reached"
                 );
-                if let Some(ref sink) = self.event_sink {
-                    let span =
-                        Span::new(SpanNamespace::new("cns.gas"), "ensemble.message_rejected");
-                    let event = NuEvent::new(
-                        message.from,
-                        span,
-                        Phase::Compute,
-                        serde_json::json!({
-                            "gas_used": self.gas_used,
-                            "session_cap": budget.session_cap,
-                            "message_rejected": true,
-                        }),
-                        0,
-                    );
-                    if let Err(e) = sink.persist(&event) {
-                        tracing::warn!(target: "cns.gas", error = %e, "Failed to persist message_rejected NuEvent");
-                    }
-                }
+                self.emit_span(
+                    message.from,
+                    "cns.gas",
+                    "ensemble.message_rejected",
+                    Phase::Compute,
+                    json!({
+                        "gas_used": self.gas_used,
+                        "session_cap": budget.session_cap,
+                        "message_rejected": true,
+                    }),
+                );
                 return;
             }
             self.gas_used += cost;
-            // Emit degradation span if threshold crossed
-            if level != DegradationLevel::Normal
-                && let Some(ref sink) = self.event_sink
-            {
-                let span = Span::new(SpanNamespace::new("cns.gas"), "ensemble.degradation");
-                let event = NuEvent::new(
+            if level != DegradationLevel::Normal {
+                self.emit_span(
                     message.from,
-                    span,
+                    "cns.gas",
+                    "ensemble.degradation",
                     Phase::Compute,
-                    serde_json::json!({
+                    json!({
                         "gas_used": self.gas_used,
                         "session_cap": budget.session_cap,
                         "degradation_level": format!("{:?}", level),
                     }),
-                    0,
                 );
-                if let Err(e) = sink.persist(&event) {
-                    tracing::warn!(target: "cns.gas", error = %e, "Failed to persist gas degradation NuEvent");
-                }
             }
         }
 
@@ -520,31 +468,21 @@ impl EnsembleChat {
             .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
             .is_ok()
         {
-            // No gas governance wired — ensemble sessions in API mode bypass all gas tracking.
-            // This is a known gap: https://github.com/mdz-axo/hKask/issues/XXX
-            // The CLI wires CyberneticsLoopGasAdapter, but API does not.
             tracing::warn!(
                 target: "cns.gas",
-                "No GasGovernancePort wired — ensemble session running without gas governance. \
-                 This is expected in API mode. CLI mode wires gas governance automatically."
+                "No GasGovernancePort wired — expected in API mode. CLI wires gas governance automatically."
             );
         }
 
         self.messages.push(message);
     }
 
-    /// Pre-register a message in the dedup filter without adding it to history.
-    ///
-    /// Use this when restoring messages from storage so that reloaded messages
-    /// are not falsely flagged as duplicates.
+    /// Pre-register message in dedup filter (for restoring from storage).
     pub fn register_dedup(&mut self, message: &ChatMessage) {
         self.dedup.register(message);
     }
 
     /// Add a restored message (from persistence) without gas accounting.
-    ///
-    /// Used when loading messages from storage to avoid re-charging gas
-    /// and to pre-register in dedup tracking.
     pub fn add_restored_message(&mut self, message: ChatMessage) {
         self.dedup.register(&message);
         self.messages.push(message);
@@ -643,7 +581,7 @@ impl EnsembleChat {
         inference_client: &Arc<C>,
         user_message: &str,
     ) -> Result<ImprovTurn, ImprovError<C::Error>> {
-        // Read-only gas budget check before inference
+        // Gas budget check before inference
         if let Some(ref budget) = self.gas_budget {
             let (can_proceed, level) = self.can_proceed_with_gas(budget.per_message_cost);
             if !can_proceed {
@@ -671,7 +609,6 @@ impl EnsembleChat {
             }
         }
 
-        // CNS gas governance: check can_proceed before inference
         if let Some(ref governance) = self.gas_governance {
             let cost = self
                 .gas_budget
@@ -704,9 +641,8 @@ impl EnsembleChat {
             .values()
             .filter(|p| !matches!(p.role, ParticipantRole::Curator))
             .map(|p| {
-                let name = format!("{:?}", p.role);
-                let desc = format!("Agent with role {:?}", p.role);
-                (p.webid, name, desc)
+                let s = format!("{:?}", p.role);
+                (p.webid, s.clone(), format!("Agent with role {s}"))
             })
             .collect();
 

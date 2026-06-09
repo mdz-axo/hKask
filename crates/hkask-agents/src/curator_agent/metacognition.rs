@@ -1,16 +1,5 @@
-//! Metacognition Loop — Curator Agent's periodic system governance
-//!
-//! The Curator Agent performs metacognition on system performance:
-//! - Queries CNS spans for health metrics
-//! - Checks variety counters (algedonic alerts if deficit > 100)
-//! - Collects bot status reports from standing session
-//! - Synthesizes system state updates
-//! - Triggers escalations when thresholds are exceeded
-//! - Posts summaries to standing session
-//!
-//! Moved from `curator::metacognition` as part of the Curation/Agent separation:
-//! metacognition is a persona concern (the Curator Agent observes and adapts),
-//! not a regulatory concern (the Curation Loop regulates).
+//! Curator Agent metacognition: sense→compare→compute→act governance loop.
+//! Moved from `curator::metacognition` — persona concern, not regulatory.
 
 use crate::acp::A2AMessage;
 use crate::curator::context::CuratorContext;
@@ -30,6 +19,8 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
+const MC_TARGET: &str = "curator.metacognition";
+
 /// Default interval between metacognition cycles (1 hour).
 pub(crate) const DEFAULT_METACOGNITION_INTERVAL_SECS: u64 = 3600;
 
@@ -48,24 +39,24 @@ pub(crate) const DEFAULT_ESCALATION_CRITICAL_ALERTS: usize = 3;
 /// Default bot failure count threshold for escalation.
 pub(crate) const DEFAULT_ESCALATION_BOT_FAILURES: usize = 2;
 
+/// Metacognition cycle errors.
 #[derive(Debug, Error)]
 pub enum MetacognitionError {
-    #[error("Escalation error: {0}")]
-    Escalation(#[from] crate::escalation::EscalationError),
-    #[error("No snapshot available for metacognition cycle")]
-    NoSnapshot,
-    #[error("ACP error: {0}")]
-    Acp(#[from] crate::acp::AcpError),
+    #[error(transparent)]
+    Core(#[from] crate::error::CoreError),
 }
 
-/// Escalation trigger thresholds
+impl From<crate::acp::AcpError> for MetacognitionError {
+    fn from(e: crate::acp::AcpError) -> Self {
+        MetacognitionError::Core(crate::error::CoreError::Acp(e))
+    }
+}
+
+/// Escalation trigger thresholds.
 #[derive(Debug, Clone)]
 pub(crate) struct EscalationThresholds {
-    /// Variety deficit threshold (default: 100)
     pub variety_deficit: u64,
-    /// Critical alert count threshold (default: 3)
     pub critical_alerts: usize,
-    /// Bot failure count threshold (default: 2)
     pub bot_failures: usize,
 }
 
@@ -90,58 +81,34 @@ pub enum EscalationTrigger {
     BotFailures,
 }
 
-/// Severity of an escalation alert, following the algedonic signal model:
-/// - **Warning**: deficit > threshold / 2 (early signal)
-/// - **Critical**: deficit > threshold (full escalation)
+/// Algedonic signal model: Warning (threshold/2) or Critical (threshold).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EscalationSeverity {
     Warning,
     Critical,
 }
 
-/// An alert produced by the escalation policy when a threshold is breached.
-///
-/// Carries the trigger, current measured value, configured threshold,
-/// and whether this is a warning or critical alert.
+/// Alert produced when a threshold is breached.
 #[derive(Debug, Clone)]
 pub struct EscalationAlert {
-    /// What triggered this alert.
     pub trigger: EscalationTrigger,
-    /// The current measured value.
     pub value: f64,
-    /// The configured threshold that was compared against.
     pub threshold: f64,
-    /// Whether this is a warning (deficit > threshold/2) or critical (deficit > threshold).
     pub severity: EscalationSeverity,
 }
 
-/// Determines whether the system should escalate based on health metrics.
-///
-/// Encapsulates the escalation thresholds and decision logic, making it
-/// independently testable from the metacognition loop's sense→compare→compute→act
-/// pipeline. The algedonic signal model uses two levels:
-/// - **Warning** when a metric exceeds half the configured threshold
-/// - **Critical** when a metric exceeds the full threshold
-///
-/// For variety deficit specifically, this implements the algedonic alert system
-/// described in the architecture: deficit > threshold/2 → warning to Curator,
-/// deficit > threshold → critical to human.
+/// Encapsulates escalation threshold logic — independently testable.
+/// Algedonic: Warning at threshold/2, Critical at threshold.
 pub struct EscalationPolicy {
     thresholds: EscalationThresholds,
 }
 
 impl EscalationPolicy {
-    /// Create a new escalation policy with the given thresholds.
     pub(crate) fn new(thresholds: EscalationThresholds) -> Self {
         Self { thresholds }
     }
 
-    /// Check all escalation conditions and return a list of active alerts.
-    ///
-    /// Each metric is evaluated against its configured threshold. Variety deficit
-    /// uses the algedonic two-level model (warning at threshold/2, critical at
-    /// threshold). Critical alerts and bot failures trigger a critical alert
-    /// when their count meets or exceeds the threshold.
+    /// Check all escalation conditions, return active alerts.
     pub fn check_conditions(
         &self,
         variety_deficit: f64,
@@ -197,12 +164,7 @@ impl Default for EscalationPolicy {
     }
 }
 
-/// Health snapshot — unified type for system health state.
-///
-/// Collapses the former `SystemHealthSnapshot` and `StoredHealthSnapshot` into
-/// a single type with rich types. `StoredHealthSnapshot` is deprecated in favor
-/// of this type; use `From<HealthSnapshot> for StoredHealthSnapshot` for
-/// storage-layer conversion.
+/// Health snapshot — unified system health state.
 #[derive(Debug, Clone)]
 pub struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -222,7 +184,7 @@ pub(crate) struct BotStatusReport {
     pub issues: Vec<String>,
 }
 
-/// Metacognition loop configuration
+/// Metacognition loop configuration.
 #[derive(Debug, Clone)]
 pub struct MetacognitionConfig {
     /// Interval between metacognition cycles (default: 1 hour)
@@ -231,10 +193,7 @@ pub struct MetacognitionConfig {
     pub(crate) thresholds: EscalationThresholds,
     /// Expected variety per domain (for deficit calculation)
     pub expected_variety_per_domain: u64,
-    /// Maximum number of concurrent escalations before batching is required.
-    /// When the number of simultaneous escalations exceeds this threshold,
-    /// they are consolidated into an EscalationBatch for the human operator.
-    /// Default: 3 (VSM algedonic paradox — fewer signals = higher fidelity).
+    /// Max concurrent escalations before batching (VSM algedonic paradox). Default: 3.
     pub max_concurrent_escalations: usize,
 }
 
@@ -249,36 +208,17 @@ impl Default for MetacognitionConfig {
     }
 }
 
-/// Metacognition loop — Curator Agent's system governance mechanism
-///
-/// Uses `CuratorContext` for capability-disciplined access to all
-/// Curation subloops. The context provides:
-/// - CNS governance writes (threshold calibration)
-/// - Message dispatch (inter-loop directive delivery)
-/// - Escalation queue (human review routing)
+/// Metacognition loop — Curator Agent's system governance mechanism.
 pub struct MetacognitionLoop {
     context: Arc<CuratorContext>,
     config: MetacognitionConfig,
     escalation_policy: EscalationPolicy,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
-    /// Snapshot from the most recent sense() phase, used by compute()/act()
-    /// and exposed via `run_cycle()`. `tokio::sync::watch` is the idiomatic
-    /// single-producer/single-consumer broadcast primitive: the producer
-    /// (`sense()`) calls `send`; consumers can `borrow()` for the latest
-    /// value or `subscribe()` to be notified of changes. The `None` initial
-    /// value preserves the previous `Option<HealthSnapshot>` semantics —
-    /// `run_cycle()` still returns `MetacognitionError::NoSnapshot` until
-    /// the first sense completes.
     last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
 }
 
 impl MetacognitionLoop {
-    /// Create a new metacognition loop with a CuratorContext.
-    ///
-    /// Uses `CuratorContext` which provides capability-disciplined access
-    /// to all Curation subloops: CNS governance writes (threshold calibration),
-    /// message dispatch (inter-loop directives), and escalation queue
-    /// (human review routing).
+    /// Create a new metacognition loop.
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
         let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
         let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
@@ -296,19 +236,14 @@ impl MetacognitionLoop {
         self.bot_reports.read().await.clone()
     }
 
-    /// Run a full metacognition cycle and return the health snapshot.
-    ///
-    /// Convenience wrapper around `tick()` that also returns the
-    /// `HealthSnapshot` produced during the sense phase.
+    /// Run a full cycle, returning the health snapshot.
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
-        info!(target: "curator.metacognition", "Starting metacognition cycle");
+        info!(target: MC_TARGET, "Starting metacognition cycle");
         self.tick().await;
-        // `borrow()` returns a `Ref`; cloning the inner `Option` is cheap
-        // because `HealthSnapshot` already clones its inner vecs.
         self.last_snapshot_tx
             .borrow()
             .clone()
-            .ok_or(MetacognitionError::NoSnapshot)
+            .ok_or(crate::error::CoreError::NoSnapshot.into())
     }
     /// Generate a system state summary for posting to standing session
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
@@ -355,7 +290,7 @@ impl MetacognitionLoop {
             Some(acp) => acp,
             None => {
                 warn!(
-                    target: "curator.metacognition",
+                    target: MC_TARGET,
                     bot = %bot_name,
                     "ACP port not configured — cannot direct bot"
                 );
@@ -378,7 +313,7 @@ impl MetacognitionLoop {
         acp.send_message(msg).await?;
 
         info!(
-            target: "curator.metacognition",
+            target: MC_TARGET,
             bot = %bot_name,
             reason = %reason,
             "Directive sent to bot via ACP"
@@ -387,60 +322,46 @@ impl MetacognitionLoop {
         Ok(())
     }
 
-    // Directive issuance — Curation → Governance/Observability
-
-    /// Issue a CuratorDirective through the message dispatch with DAMPEN filtering.
-    ///
-    /// Delegates to `CuratorContext::issue_directive()` which:
-    /// 1. Checks the dampener (6.3 DAMPEN) for repeated directives
-    /// 2. If dampened, returns `None` without sending
-    /// 3. If not dampened, sends through dispatch and returns the `TraceId`
-    ///
-    /// # Subloops served
-    ///
-    /// - 5.2 Bot Evaluation / Kata Coaching (ADAPT) — UpdateCapabilities
-    /// - 5.3 Threshold Calibration (ADAPT) — CalibrateThreshold
-    /// - Energy budget adjustment — AdjustGasBudget
-    /// - 6.3 DAMPEN — Suppresses repeated directives within time window
+    /// Issue a CuratorDirective through message dispatch with DAMPEN filtering.
+    /// Delegates to `CuratorContext::issue_directive()`.
     pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
         self.context.issue_directive(directive).await
     }
 
-    // Act helpers — extracted from HkaskLoop::act()
+    // Act helpers — parameter extraction
 
-    /// Handle a Calibrate (throttle) action: issue threshold directive via
-    /// dispatch (which calibrates CNS on arrival), and return an escalation entry.
-    // NOTE: EscalationQueue is a Curation-owned durable queue. Direct writes
-    // are intentional — it is an exception to the dispatch-only rule per the
-    // authority DAG: Curation (L5) owns the escalation queue as its algedonic
-    // regulation mechanism. This does NOT bypass the Communication Loop because
-    // the queue is not a loop-to-loop message channel.
-    async fn act_on_throttle(&self, action: &LoopAction) -> Option<EscalationEntry> {
-        let domain = action
+    fn param_str<'a>(action: &'a LoopAction, key: &str, default: &'a str) -> &'a str {
+        action
             .parameters
-            .get("domain")
+            .get(key)
             .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let new_threshold = action
+            .unwrap_or(default)
+    }
+
+    fn param_u64(action: &LoopAction, key: &str, default: u64) -> u64 {
+        action
             .parameters
-            .get("new_threshold")
+            .get(key)
             .and_then(|v| v.as_u64())
-            .unwrap_or(self.config.thresholds.variety_deficit);
-        let deficit = action
-            .parameters
-            .get("deficit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+            .unwrap_or(default)
+    }
+
+    async fn act_on_throttle(&self, action: &LoopAction) -> Option<EscalationEntry> {
+        let domain = Self::param_str(action, "domain", "");
+        let new_threshold = Self::param_u64(
+            action,
+            "new_threshold",
+            self.config.thresholds.variety_deficit,
+        );
+        let deficit = Self::param_u64(action, "deficit", 0);
 
         if domain == "variety" {
-            // Issue CalibrateThreshold directive through dispatch (5.3)
             let directive = CuratorDirective::CalibrateThreshold {
                 domain: "variety".to_string(),
                 new_threshold,
             };
             self.issue_directive(directive).await;
 
-            // Build escalation entry for variety deficit (written in act())
             let error_context = format!(
                 "Total variety deficit ({}) exceeds threshold ({})",
                 deficit, self.config.thresholds.variety_deficit

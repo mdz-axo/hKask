@@ -210,4 +210,3 @@ pub fn load_curation_thresholds() -> CurationThresholdConfig {
         }
     }
 }
-

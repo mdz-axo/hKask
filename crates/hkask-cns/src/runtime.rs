@@ -134,8 +134,6 @@ impl CnsRuntime {
         let alert = self.check_variety(domain).await;
 
         // Notify subscribers interested in this domain's span namespace
-        // Extract interest mask before the await loop to avoid holding
-        // parking_lot guards across .await points
         if let Some(span_ns) = SpanNamespace::parse(domain) {
             let event = hkask_types::event::NuEvent::new(
                 WebID::default(),
@@ -152,24 +150,10 @@ impl CnsRuntime {
             }
             drop(subscribers);
 
-            // If alert is critical, emit depletion signals
             if let Some(ref a) = alert
                 && a.severity == crate::algedonic::AlertSeverity::Critical
             {
-                let signal = DepletionSignal {
-                    agent: WebID::default(),
-                    remaining: a.threshold.saturating_sub(a.deficit),
-                    cap: a.threshold,
-                    usage_ratio: if a.threshold > 0 {
-                        a.deficit as f64 / a.threshold as f64
-                    } else {
-                        1.0
-                    },
-                };
-                let subscribers = self.subscribers.read().await;
-                for observer in subscribers.iter() {
-                    observer.on_depletion(&signal).await;
-                }
+                emit_critical_depletion(self, a).await;
             }
         }
     }
@@ -198,20 +182,7 @@ impl CnsRuntime {
         if let Some(ref alert) = alert
             && alert.severity == crate::algedonic::AlertSeverity::Critical
         {
-            let subscribers = self.subscribers.read().await;
-            let signal = DepletionSignal {
-                agent: WebID::default(),
-                remaining: alert.threshold.saturating_sub(alert.deficit),
-                cap: alert.threshold,
-                usage_ratio: if alert.threshold > 0 {
-                    alert.deficit as f64 / alert.threshold as f64
-                } else {
-                    1.0
-                },
-            };
-            for observer in subscribers.iter() {
-                observer.on_depletion(&signal).await;
-            }
+            emit_critical_depletion(self, alert).await;
         }
 
         alert
@@ -309,5 +280,23 @@ impl CnsRuntime {
 impl Default for CnsRuntime {
     fn default() -> Self {
         Self::with_threshold(DEFAULT_THRESHOLD)
+    }
+}
+
+/// Build and broadcast a `DepletionSignal` for a critical algedonic alert.
+async fn emit_critical_depletion(runtime: &CnsRuntime, alert: &crate::algedonic::RuntimeAlert) {
+    let signal = DepletionSignal {
+        agent: WebID::default(),
+        remaining: alert.threshold.saturating_sub(alert.deficit),
+        cap: alert.threshold,
+        usage_ratio: if alert.threshold > 0 {
+            alert.deficit as f64 / alert.threshold as f64
+        } else {
+            1.0
+        },
+    };
+    let subscribers = runtime.subscribers.read().await;
+    for observer in subscribers.iter() {
+        observer.on_depletion(&signal).await;
     }
 }

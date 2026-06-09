@@ -8,10 +8,15 @@ pub mod git_cas;
 
 use crate::cns::CircuitState;
 use crate::error::InfrastructureError;
+use crate::event::SpanNamespace;
 use crate::id::WebID;
 use crate::lexicon::TemplateType;
+use crate::loops::LoopId;
 use crate::template::LLMParameters;
+use futures_util::Stream;
 use serde::{Deserialize, Serialize};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 /// Circuit breaker boundary for the Cybernetics membrane.
@@ -263,67 +268,42 @@ pub struct InferenceStreamChunk {
 impl InferencePort for Arc<dyn InferencePort> {
     fn generate(
         &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
-    > {
-        (**self).generate(prompt, parameters)
+        p: &str,
+        pa: &LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
+        (**self).generate(p, pa)
     }
-
     fn generate_with_model(
         &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-        model_override: Option<&str>,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
-    > {
-        (**self).generate_with_model(prompt, parameters, model_override)
+        p: &str,
+        pa: &LLMParameters,
+        m: Option<&str>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
+        (**self).generate_with_model(p, pa, m)
     }
-
     fn generate_n(
         &self,
-        prompt: &str,
-        parameters: &LLMParameters,
+        p: &str,
+        pa: &LLMParameters,
         n: usize,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<Output = Result<Vec<InferenceResult>, InferenceError>>
-                + Send
-                + '_,
-        >,
-    > {
-        (**self).generate_n(prompt, parameters, n)
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<InferenceResult>, InferenceError>> + Send + '_>>
+    {
+        (**self).generate_n(p, pa, n)
     }
-
     fn generate_stream(
         &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-    ) -> std::pin::Pin<
-        Box<
-            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
-                + Send
-                + '_,
-        >,
-    > {
-        (**self).generate_stream(prompt, parameters)
+        p: &str,
+        pa: &LLMParameters,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
+        (**self).generate_stream(p, pa)
     }
-
     fn generate_stream_with_model(
         &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-        model_override: Option<&str>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
-                + Send
-                + '_,
-        >,
-    > {
-        (**self).generate_stream_with_model(prompt, parameters, model_override)
+        p: &str,
+        pa: &LLMParameters,
+        m: Option<&str>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
+        (**self).generate_stream_with_model(p, pa, m)
     }
 }
 
@@ -421,8 +401,8 @@ impl SkillZone {
     /// Filesystem directory for this zone.
     pub fn directory(&self) -> &'static str {
         match self {
-            SkillZone::Private => ".agents/skills",
-            SkillZone::Public => "skills",
+            Self::Private => ".agents/skills",
+            Self::Public => "skills",
         }
     }
 }
@@ -465,46 +445,40 @@ impl Skill {
         }
     }
 
-    pub fn with_word_act(mut self, template_id: &str) -> Self {
-        self.word_act = Some(template_id.to_string());
+    /// Builder: set a `Option<String>` field from a `&str`.
+    pub fn with_word_act(mut self, v: &str) -> Self {
+        self.word_act = Some(v.to_string());
         self
     }
-
-    pub fn with_flow_def(mut self, template_id: &str) -> Self {
-        self.flow_def = Some(template_id.to_string());
+    pub fn with_flow_def(mut self, v: &str) -> Self {
+        self.flow_def = Some(v.to_string());
         self
     }
-
-    pub fn with_know_act(mut self, template_id: &str) -> Self {
-        self.know_act = Some(template_id.to_string());
+    pub fn with_know_act(mut self, v: &str) -> Self {
+        self.know_act = Some(v.to_string());
         self
     }
-
-    pub fn with_polarity(mut self, polarity: crate::bundle::SkillPolarity) -> Self {
-        self.polarity = Some(polarity);
+    pub fn with_polarity(mut self, v: crate::bundle::SkillPolarity) -> Self {
+        self.polarity = Some(v);
         self
     }
-
-    pub fn with_content_hash(mut self, hash: String) -> Self {
-        self.content_hash = Some(hash);
+    pub fn with_content_hash(mut self, v: String) -> Self {
+        self.content_hash = Some(v);
         self
     }
-
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_visibility(mut self, visibility: crate::visibility::Visibility) -> Self {
-        self.visibility = visibility;
+    pub fn with_visibility(mut self, v: crate::visibility::Visibility) -> Self {
+        self.visibility = v;
         self
     }
-
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_zone(mut self, zone: SkillZone) -> Self {
-        self.zone = zone;
+    pub fn with_zone(mut self, v: SkillZone) -> Self {
+        self.zone = v;
         self
     }
-
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
-        self.namespace = Some(namespace.into());
+    pub fn with_namespace(mut self, v: impl Into<String>) -> Self {
+        self.namespace = Some(v.into());
         self
     }
 
@@ -536,25 +510,24 @@ impl Skill {
     /// Compute and set SHA-256 content hash from key fields.
     pub fn compute_content_hash(&mut self) {
         use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(self.id.as_bytes());
-        hasher.update(self.domain.as_str().as_bytes());
-        hasher.update(self.visibility.as_str().as_bytes());
-        hasher.update(self.zone.as_str().as_bytes());
-        if let Some(ref ns) = self.namespace {
-            hasher.update(ns.as_bytes());
+        let mut h = Sha256::new();
+        h.update(self.id.as_bytes());
+        h.update(self.domain.as_str().as_bytes());
+        h.update(self.visibility.as_str().as_bytes());
+        h.update(self.zone.as_str().as_bytes());
+        if let Some(ref v) = self.namespace {
+            h.update(v.as_bytes());
         }
-        if let Some(ref wa) = self.word_act {
-            hasher.update(wa.as_bytes());
+        if let Some(ref v) = self.word_act {
+            h.update(v.as_bytes());
         }
-        if let Some(ref fd) = self.flow_def {
-            hasher.update(fd.as_bytes());
+        if let Some(ref v) = self.flow_def {
+            h.update(v.as_bytes());
         }
-        if let Some(ref ka) = self.know_act {
-            hasher.update(ka.as_bytes());
+        if let Some(ref v) = self.know_act {
+            h.update(v.as_bytes());
         }
-        let result = hasher.finalize();
-        self.content_hash = Some(hex::encode(result));
+        self.content_hash = Some(hex::encode(h.finalize()));
     }
 }
 
@@ -681,9 +654,6 @@ pub struct ConsolidationOutcome {
     pub failed_count: usize,
 }
 
-use crate::event::SpanNamespace;
-use crate::loops::LoopId;
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DepletionSignal {
     pub agent: WebID,
@@ -772,4 +742,3 @@ pub enum EmbeddingGenerationError {
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
 }
-

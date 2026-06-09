@@ -12,6 +12,25 @@ use serde::{Deserialize, Serialize};
 use crate::lexicon::TemplateType;
 use crate::visibility::Visibility;
 
+/// Generates `as_str()` and `parse_str()` for a PascalCase enum.
+macro_rules! enum_str_ops {
+    ($ty:ident, { $($variant:ident => ($pascal:literal, $snake:literal)),+ $(,)? }) => {
+        impl $ty {
+            pub fn as_str(&self) -> &'static str {
+                match self {
+                    $($ty::$variant => $pascal),+
+                }
+            }
+            pub fn parse_str(s: &str) -> Option<Self> {
+                match s {
+                    $($pascal | $snake => Some($ty::$variant)),+,
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
 // Enums
 
 /// Skill polarity — the cybernetic role a skill plays in a bundle
@@ -24,35 +43,18 @@ pub enum SkillPolarity {
     Procedural,
 }
 
+enum_str_ops!(SkillPolarity, {
+    Generative => ("Generative", "generative"),
+    Evaluative => ("Evaluative", "evaluative"),
+    Regulative => ("Regulative", "regulative"),
+    Procedural => ("Procedural", "procedural"),
+});
 impl SkillPolarity {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            SkillPolarity::Generative => "Generative",
-            SkillPolarity::Evaluative => "Evaluative",
-            SkillPolarity::Regulative => "Regulative",
-            SkillPolarity::Procedural => "Procedural",
-        }
-    }
-
-    /// Parse a skill polarity from string, accepting both PascalCase and snake_case forms.
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "Generative" | "generative" => Some(SkillPolarity::Generative),
-            "Evaluative" | "evaluative" => Some(SkillPolarity::Evaluative),
-            "Regulative" | "regulative" => Some(SkillPolarity::Regulative),
-            "Procedural" | "procedural" => Some(SkillPolarity::Procedural),
-            _ => None,
-        }
-    }
-
-    /// Whether this polarity is divergent (expands solution space).
     pub fn is_divergent(&self) -> bool {
-        matches!(self, SkillPolarity::Generative)
+        matches!(self, Self::Generative)
     }
-
-    /// Whether this polarity is convergent (narrows solution space).
     pub fn is_convergent(&self) -> bool {
-        matches!(self, SkillPolarity::Evaluative)
+        matches!(self, Self::Evaluative)
     }
 }
 
@@ -66,28 +68,12 @@ pub enum ConflictType {
     ResourceContention,
 }
 
-impl ConflictType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ConflictType::CancelOut => "CancelOut",
-            ConflictType::ContradictoryDirective => "ContradictoryDirective",
-            ConflictType::OrderingCollision => "OrderingCollision",
-            ConflictType::ResourceContention => "ResourceContention",
-        }
-    }
-
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "CancelOut" | "cancel_out" => Some(ConflictType::CancelOut),
-            "ContradictoryDirective" | "contradictory_directive" => {
-                Some(ConflictType::ContradictoryDirective)
-            }
-            "OrderingCollision" | "ordering_collision" => Some(ConflictType::OrderingCollision),
-            "ResourceContention" | "resource_contention" => Some(ConflictType::ResourceContention),
-            _ => None,
-        }
-    }
-}
+enum_str_ops!(ConflictType, {
+    CancelOut => ("CancelOut", "cancel_out"),
+    ContradictoryDirective => ("ContradictoryDirective", "contradictory_directive"),
+    OrderingCollision => ("OrderingCollision", "ordering_collision"),
+    ResourceContention => ("ResourceContention", "resource_contention"),
+});
 
 /// Conflict resolution strategy — how to resolve a declared conflict
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -100,30 +86,13 @@ pub enum ConflictResolution {
     UserIntent,
 }
 
-impl ConflictResolution {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ConflictResolution::DomainSeparation => "DomainSeparation",
-            ConflictResolution::PhaseSeparation => "PhaseSeparation",
-            ConflictResolution::SpecificityOverride => "SpecificityOverride",
-            ConflictResolution::ManifestOverride => "ManifestOverride",
-            ConflictResolution::UserIntent => "UserIntent",
-        }
-    }
-
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "DomainSeparation" | "domain_separation" => Some(ConflictResolution::DomainSeparation),
-            "PhaseSeparation" | "phase_separation" => Some(ConflictResolution::PhaseSeparation),
-            "SpecificityOverride" | "specificity_override" => {
-                Some(ConflictResolution::SpecificityOverride)
-            }
-            "ManifestOverride" | "manifest_override" => Some(ConflictResolution::ManifestOverride),
-            "UserIntent" | "user_intent" => Some(ConflictResolution::UserIntent),
-            _ => None,
-        }
-    }
-}
+enum_str_ops!(ConflictResolution, {
+    DomainSeparation => ("DomainSeparation", "domain_separation"),
+    PhaseSeparation => ("PhaseSeparation", "phase_separation"),
+    SpecificityOverride => ("SpecificityOverride", "specificity_override"),
+    ManifestOverride => ("ManifestOverride", "manifest_override"),
+    UserIntent => ("UserIntent", "user_intent"),
+});
 
 /// Complementarity type — how two skills enhance each other
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -134,26 +103,11 @@ pub enum ComplementarityType {
     CrossDomainEnhance,
 }
 
-impl ComplementarityType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ComplementarityType::SequentialFeed => "SequentialFeed",
-            ComplementarityType::ParallelAmplify => "ParallelAmplify",
-            ComplementarityType::CrossDomainEnhance => "CrossDomainEnhance",
-        }
-    }
-
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "SequentialFeed" | "sequential_feed" => Some(ComplementarityType::SequentialFeed),
-            "ParallelAmplify" | "parallel_amplify" => Some(ComplementarityType::ParallelAmplify),
-            "CrossDomainEnhance" | "cross_domain_enhance" => {
-                Some(ComplementarityType::CrossDomainEnhance)
-            }
-            _ => None,
-        }
-    }
-}
+enum_str_ops!(ComplementarityType, {
+    SequentialFeed => ("SequentialFeed", "sequential_feed"),
+    ParallelAmplify => ("ParallelAmplify", "parallel_amplify"),
+    CrossDomainEnhance => ("CrossDomainEnhance", "cross_domain_enhance"),
+});
 
 /// Cascade phase — where a step sits in the Pre/Core/Post pipeline
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -165,24 +119,11 @@ pub enum CascadePhase {
     Post,
 }
 
-impl CascadePhase {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            CascadePhase::Pre => "Pre",
-            CascadePhase::Core => "Core",
-            CascadePhase::Post => "Post",
-        }
-    }
-
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "Pre" | "pre" => Some(CascadePhase::Pre),
-            "Core" | "core" => Some(CascadePhase::Core),
-            "Post" | "post" => Some(CascadePhase::Post),
-            _ => None,
-        }
-    }
-}
+enum_str_ops!(CascadePhase, {
+    Pre => ("Pre", "pre"),
+    Core => ("Core", "core"),
+    Post => ("Post", "post"),
+});
 
 // Structs — Bundle skill, conflict, complementarity
 
@@ -732,5 +673,4 @@ mod tests {
             principles: None,
         }
     }
-
 }

@@ -66,74 +66,44 @@ pub enum AgentAction {
 
 #[derive(Subcommand)]
 pub enum PodAction {
-    /// Create agent pod from template crate
     Create {
-        /// Template crate name
         #[arg(short, long)]
         template: String,
-
-        /// Agent persona YAML file path
         #[arg(short, long)]
         persona: PathBuf,
-
-        /// Pod name (optional, defaults to UUID)
         #[arg(short, long)]
         name: Option<String>,
     },
-
-    /// Activate agent pod for A2A communication
     Activate {
-        /// Pod ID or name
         #[arg()]
         pod_id: String,
     },
-
-    /// Deactivate agent pod
     Deactivate {
-        /// Pod ID or name
         #[arg()]
         pod_id: String,
     },
-
-    /// Show agent pod status
     Status {
-        /// Pod ID or name
         #[arg()]
         pod_id: String,
-
-        /// Show verbose details
         #[arg(short, long)]
         verbose: bool,
     },
-
-    /// List all agent pods
     List,
 }
 
 #[derive(Subcommand)]
 pub enum McpAction {
-    /// List MCP servers
     ListServers,
-
-    /// List available tools
     ListTools,
-
-    /// Get tool definition
     GetTool {
-        /// Tool name
         #[arg()]
         name: String,
     },
-
-    /// Invoke an MCP tool directly
     Invoke {
-        /// MCP server name
         #[arg(long)]
         server: String,
-        /// Tool name to invoke
         #[arg(long)]
         tool: String,
-        /// JSON input arguments
         #[arg(long)]
         input: String,
     },
@@ -141,41 +111,24 @@ pub enum McpAction {
 
 #[derive(Subcommand)]
 pub enum CnsAction {
-    /// Get CNS health status
     Health,
-
-    /// Get algedonic alerts
     Alerts,
-
-    /// Get variety counters
     Variety,
-
-    /// Subscribe to CNS events for an agent
     Subscribe {
-        /// Agent WebID to observe events for
         #[arg(long)]
         agent: String,
-
-        /// Span namespaces to subscribe to (comma-separated, e.g., "cns.tool,cns.inference")
         #[arg(long)]
         spans: String,
     },
-
-    /// Display or update CNS set-points
     SetPoints {
-        /// Set gas_min_remaining (0.0-1.0)
         #[arg(long)]
         gas_min_remaining: Option<f64>,
-        /// Set variety_max_deficit
         #[arg(long)]
         variety_max_deficit: Option<f64>,
-        /// Set error_rate_max (0.0-1.0)
         #[arg(long)]
         error_rate_max: Option<f64>,
-        /// Set connector_latency_max_secs
         #[arg(long)]
         connector_latency_max_secs: Option<f64>,
-        /// Set communication_backpressure_threshold (message count)
         #[arg(long)]
         communication_backpressure_threshold: Option<f64>,
     },
@@ -183,37 +136,22 @@ pub enum CnsAction {
 
 #[derive(Subcommand)]
 pub enum SovereigntyAction {
-    /// Get current sovereignty state
     Status,
-
-    /// Grant consent for data sharing (per-category)
     Grant {
-        /// Data category to grant consent for
         #[arg(long)]
         category: String,
     },
-
-    /// Revoke consent for data sharing
     Revoke {
-        /// Data category to revoke consent for
         #[arg(long)]
         category: String,
     },
-
-    /// Check data access permissions
     Check {
-        /// Data category to check
         #[arg(long)]
         category: String,
     },
-
-    /// Verify Magna Carta compliance (run sovereignty audit)
     Verify {
-        /// Verify only this principle (p1, p2, p3, p4). Omit to verify all.
         #[arg(long)]
         principle: Option<String>,
-
-        /// Output as JSON (for MCP/API consumption)
         #[arg(long)]
         json: bool,
     },
@@ -221,23 +159,15 @@ pub enum SovereigntyAction {
 
 #[derive(Subcommand)]
 pub enum DocsAction {
-    /// Generate OpenAPI specification (JSON)
     Openapi {
-        /// Output file path (default: stdout)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-
-    /// Generate CLI help documentation (markdown)
     Cli {
-        /// Output file path (default: stdout)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-
-    /// Generate all documentation
     All {
-        /// Output directory
         #[arg(short, long)]
         output: PathBuf,
     },
@@ -246,133 +176,73 @@ pub enum DocsAction {
 /// Git archival and CAS actions
 #[derive(Subcommand)]
 pub enum GitAction {
-    /// Archive registry to GitHub repository
     Archive {
-        /// GitHub repository owner
         #[arg(short, long)]
         owner: String,
-
-        /// GitHub repository name
         #[arg(short, long)]
         repo: String,
-
-        /// Branch to archive to
         #[arg(short, long, default_value = "main")]
         branch: String,
-
-        /// Path in repository
         #[arg(short, long, default_value = "registry")]
         path: String,
-
-        /// Content to archive (or use --file)
         #[arg(short, long)]
         content: Option<String>,
-
-        /// File to archive
         #[arg(short, long)]
         file: Option<PathBuf>,
     },
-
-    /// Restore registry from GitHub repository
     Restore {
-        /// GitHub repository owner
         #[arg(short, long)]
         owner: String,
-
-        /// GitHub repository name
         #[arg(short, long)]
         repo: String,
-
-        /// Git ref (branch, tag, or SHA)
         #[arg(short, long)]
         r#ref: String,
-
-        /// Target path to restore to
         #[arg(short, long, default_value = ".")]
         target: String,
     },
-
-    /// List archived registry versions
     List {
-        /// GitHub repository owner
         #[arg(short, long)]
         owner: String,
-
-        /// GitHub repository name
         #[arg(short, long)]
         repo: String,
     },
-
-    /// Create registry snapshot (commit)
     Snapshot {
-        /// GitHub repository owner
         #[arg(short, long)]
         owner: String,
-
-        /// GitHub repository name
         #[arg(short, long)]
         repo: String,
-
-        /// Commit message
         #[arg(short, long)]
         message: String,
     },
-
-    /// Verify content integrity of a CAS repository
     CasVerify {
-        /// Repository to verify (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
         #[arg(short, long, default_value = "registry")]
         repo: String,
     },
-
-    /// Show diff between two snapshots in a CAS repository
     CasDiff {
-        /// Repository (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
         #[arg(short, long, default_value = "registry")]
         repo: String,
-
-        /// From commit (SHA or ref)
         #[arg(short, long)]
         from: String,
-
-        /// To commit (SHA or ref)
         #[arg(short, long)]
         to: String,
     },
-
-    /// List snapshot history for a CAS repository
     CasLog {
-        /// Repository (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
         #[arg(short, long, default_value = "registry")]
         repo: String,
-
-        /// Maximum number of entries to show
         #[arg(short, long, default_value = "20")]
         max_count: usize,
     },
-
-    /// Create a local CAS snapshot
     CasSnapshot {
-        /// Repository to snapshot
         #[arg(short, long, default_value = "registry")]
         repo: String,
-
-        /// Snapshot message
         #[arg(short, long)]
         message: String,
     },
-
-    /// Restore files from local CAS by listing tree and retrieving blobs
     CasRestore {
-        /// Repository to restore from (registry, memory, cns-audit, sovereignty, goals-specs, sessions, vault)
         #[arg(short, long, default_value = "registry")]
         repo: String,
-
-        /// Git ref to list tree at (default: HEAD)
         #[arg(short, long)]
         r#ref: Option<String>,
-
-        /// Optional path prefix filter
         #[arg(short, long)]
         prefix: Option<String>,
     },
@@ -381,88 +251,49 @@ pub enum GitAction {
 /// Ensemble multi-agent actions (Phase 7)
 #[derive(Subcommand)]
 pub enum EnsembleAction {
-    /// Create a new chat session
     ChatCreate {
-        /// Session ID
         #[arg(short, long)]
         session: String,
     },
-
-    /// Register a bot in a chat session
     ChatRegister {
-        /// Session ID
         #[arg(short, long)]
         session: String,
-
-        /// Bot WebID
         #[arg(short, long)]
         bot: String,
-
-        /// Bot role (memory_bot, spandrel_bot, okapi_bot, scholar_bot)
         #[arg(short, long)]
         role: String,
     },
-
-    /// Send a message to chat
     ChatSend {
-        /// Session ID
         #[arg(short, long)]
         session: String,
-
-        /// Message content
         #[arg(short, long)]
         message: String,
     },
-
-    /// List active chat sessions
     ChatList,
-
-    /// Create a deliberation session
     DeliberationCreate {
-        /// Session ID
         #[arg(short, long)]
         session: String,
     },
-
-    /// Start deliberation
     DeliberationStart {
-        /// Session ID
         #[arg(short, long)]
         session: String,
     },
-
-    /// Record a response in deliberation
     DeliberationRecord {
-        /// Session ID
         #[arg(short, long)]
         session: String,
-
-        /// Agent WebID
         #[arg(short, long)]
         agent: String,
-
-        /// Response content
         #[arg(short, long)]
         content: String,
-
-        /// Confidence score (0.0-1.0)
         #[arg(short, long)]
         confidence: f64,
     },
-
-    /// Synthesize deliberation responses
     DeliberationSynthesize {
-        /// Session ID
         #[arg(short, long)]
         session: String,
     },
-
-    /// List active deliberation sessions
     DeliberationList,
-
-    /// Bootstrap the standing ensemble session from YAML
     StandingStart {
-        /// Path to standing-ensemble-session.yaml
         #[arg(
             short,
             long,
@@ -470,95 +301,57 @@ pub enum EnsembleAction {
         )]
         config: PathBuf,
     },
-
-    /// Show standing session status
     StandingStatus,
 }
 
 /// Curator governance actions
 #[derive(Subcommand)]
 pub enum CuratorAction {
-    /// Open interactive chat with Curator
     Chat,
-
-    /// List pending escalations
     Escalations,
-
-    /// Resolve an escalation by ID
     Resolve {
-        /// Escalation ID
         #[arg()]
         id: String,
     },
-
-    /// Dismiss an escalation by ID
     Dismiss {
-        /// Escalation ID
         #[arg()]
         id: String,
     },
-
-    /// Run a metacognition cycle and display system health
     Metacognition,
 }
 
 /// Replicant identity actions
 #[derive(Subcommand)]
 pub enum ReplicantAction {
-    /// Register a new replicant identity
     Register {
-        /// Replicant name (login identifier)
         #[arg()]
         replicant_name: String,
-
-        /// Human first name
         #[arg(long)]
         first_name: String,
-
-        /// Human last name
         #[arg(long)]
         last_name: String,
-
-        /// Human email (for recovery only)
         #[arg(long)]
         email: String,
-
-        /// Human phone in E.164 format (optional, for recovery)
         #[arg(long)]
         phone: Option<String>,
     },
-
-    /// Login as a replicant identity
     Login {
-        /// Replicant name to login as
         #[arg()]
         replicant_name: String,
     },
-
-    /// Logout from a session
     Logout {
-        /// Session ID to invalidate
         #[arg()]
         session_id: String,
     },
-
-    /// List active sessions for a replicant
     Sessions {
-        /// Replicant name
         #[arg()]
         replicant_name: String,
     },
-
-    /// List replicant identities for a human user
     List {
-        /// User ID
         #[arg(long)]
         user_id: Option<String>,
     },
-
-    /// Show replicant identity info
     Show {
-        /// Replicant name
         #[arg()]
         replicant_name: String,
     },
@@ -566,45 +359,26 @@ pub enum ReplicantAction {
 
 #[derive(Subcommand)]
 pub enum KeystoreAction {
-    /// Load API keys from .env file into OS keychain
     Load {
-        /// Path to .env file (default: .env in current directory)
         #[arg(short, long, default_value = ".env")]
         path: PathBuf,
-
-        /// Key prefix to filter (default: HKASK_)
         #[arg(short = 'x', long, default_value = "HKASK_")]
         prefix: String,
-
-        /// Overwrite existing keys
         #[arg(long)]
         overwrite: bool,
     },
-
-    /// List keys stored in OS keychain
     List,
-
-    /// Get a specific key value from OS keychain
     Get {
-        /// Key name (e.g. HKASK_BRAVE_API_KEY)
         #[arg()]
         key: String,
     },
-
-    /// Set a specific key value in OS keychain
     Set {
-        /// Key name
         #[arg()]
         key: String,
-
-        /// Value to store
         #[arg()]
         value: String,
     },
-
-    /// Delete a key from OS keychain
     Delete {
-        /// Key name
         #[arg()]
         key: String,
     },
@@ -613,94 +387,53 @@ pub enum KeystoreAction {
 /// Specification actions (DDMVSS)
 #[derive(Subcommand)]
 pub enum SpecAction {
-    /// Capture a goal as a binding specification
     Capture {
-        /// Spec name (human-readable goal description)
         #[arg(short, long)]
         name: String,
-
-        /// Spec category (domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation)
         #[arg(short, long, default_value = "domain")]
         category: String,
-
-        /// Domain anchor (okapi, hkask)
         #[arg(short, long, default_value = "hkask")]
         domain: String,
-
-        /// Completion criteria (comma-separated)
         #[arg(short, long)]
         criteria: Option<String>,
     },
-
-    /// List all specifications
     List {
-        /// Filter by category
         #[arg(short, long)]
         category: Option<String>,
     },
-
-    /// Evaluate a specification for coherence (curation)
     Evaluate {
-        /// Specification ID
         #[arg()]
         spec_id: String,
     },
-
-    /// Validate a specification by ID
     Validate {
-        /// Specification ID to validate
         #[arg(short, long)]
         id: String,
     },
-
-    /// Cultivate (evaluate) a specification by ID
     Cultivate {
-        /// Specification ID to cultivate
         #[arg(short, long)]
         id: String,
     },
-
-    /// Render a specification template with spec data
     Render {
-        /// Template path (e.g., spec/goal-capture.j2)
         #[arg()]
         template: String,
-
-        /// Specification ID to populate template with
         #[arg(short, long)]
         spec_id: Option<String>,
     },
-
-    /// Create a test traceability record linking a test to a specification
     TestInvariant {
-        /// Specification ID to link the test invariant to
         #[arg(short, long)]
         spec_id: String,
-
-        /// The seam or module boundary this test exercises
         #[arg(short, long)]
         seam: String,
-
-        /// A description of the invariant being tested
         #[arg(short, long)]
         invariant: String,
-
-        /// DDMVSS test classification: PublicInterface, SeamIntegration, ImplementationCoupled
         #[arg(short, long, default_value = "PublicInterface")]
         category: String,
-
-        /// Optional TDD cycle (red, green, refactor)
         #[arg(short, long)]
         cycle: Option<String>,
     },
-
-    /// Verify test coverage for a seam or spec category
     TestVerify {
-        /// Filter by seam name
         #[arg(short, long)]
         seam: Option<String>,
-
-        /// Filter by DDMVSS category
         #[arg(short, long)]
         category: Option<String>,
     },
@@ -709,29 +442,17 @@ pub enum SpecAction {
 /// Style composition — generate prose with exemplar retrieval and centroid validation
 #[derive(Subcommand)]
 pub enum ComposeAction {
-    /// Generate prose using style corpus embeddings for exemplar retrieval
     Run {
-        /// The prompt to generate prose about
         #[arg(short, long)]
         prompt: String,
-
-        /// Path to cognition config YAML (e.g., registry/registries/cognition/hemingway-style-synthesizer.yaml)
         #[arg(short, long)]
         cognition: PathBuf,
-
-        /// Path to hKask semantic database
         #[arg(short, long)]
         db: PathBuf,
-
-        /// Database passphrase
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: String,
-
-        /// Okapi base URL (default: http://127.0.0.1:11435)
         #[arg(long)]
         okapi_url: Option<String>,
-
-        /// Skip centroid distance validation
         #[arg(long)]
         no_validate: bool,
     },
@@ -740,21 +461,13 @@ pub enum ComposeAction {
 /// Style corpus embedding — download, chunk, embed, store
 #[derive(Subcommand)]
 pub enum EmbedCorpusAction {
-    /// Download corpus texts, chunk, embed via Okapi, and store in sqlite-vec
     Run {
-        /// Path to corpus config YAML (e.g., registry/styles/hemingway/corpus.yaml)
         #[arg(short, long)]
         config: PathBuf,
-
-        /// Path to hKask semantic database
         #[arg(short, long)]
         db: PathBuf,
-
-        /// Database passphrase
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: String,
-
-        /// Okapi base URL (default: http://127.0.0.1:11435)
         #[arg(long)]
         okapi_url: Option<String>,
     },
@@ -763,49 +476,28 @@ pub enum EmbedCorpusAction {
 /// Skill bundle management actions
 #[derive(Subcommand)]
 pub enum BundleAction {
-    /// Compose a new skill bundle from specified skills
     Compose {
-        /// Skill IDs to bundle
         #[arg(num_args = 1..)]
         skills: Vec<String>,
-
-        /// Bundle name
         #[arg(short, long)]
         name: Option<String>,
-
-        /// Visibility (private or shared)
         #[arg(short, long, default_value = "private")]
         visibility: String,
     },
-
-    /// Apply an existing bundle to the current session
     Apply {
-        /// Bundle ID to apply
         #[arg()]
         bundle_id: String,
     },
-
-    /// List all bundles
     List,
-
-    /// Show details of a specific bundle
     Show {
-        /// Bundle ID
         #[arg()]
         bundle_id: String,
     },
-
-    /// Evolve a bundle (re-compose when skills have changed)
     Evolve {
-        /// Bundle ID to evolve
         #[arg()]
         bundle_id: String,
     },
-
-    /// List available skills for bundling
     Skills,
-
-    /// Deactivate the current bundle
     Off,
 }
 
@@ -814,29 +506,17 @@ pub enum BundleAction {
 /// Goal operations are available to anyone with DB access — no token ceremony.
 #[derive(Subcommand)]
 pub enum GoalAction {
-    /// Create a new goal owned by the current user.
     Create {
-        /// Goal text.
         text: String,
-
-        /// Visibility: private | shared | public.
         #[arg(long, default_value = "private")]
         visibility: String,
     },
-
-    /// List the current user's goals.
     List {
-        /// Optional state filter: pending | active | completed | blocked | abandoned.
         #[arg(long)]
         state: Option<String>,
     },
-
-    /// Transition a goal to a new state (e.g. active, completed).
     SetState {
-        /// Goal ID.
         id: String,
-
-        /// Target state: pending | active | completed | blocked | abandoned.
         state: String,
     },
 }
@@ -848,24 +528,14 @@ pub enum GoalAction {
 /// - `skills/` — export surface, generated by `kask skill publish` (public zone)
 #[derive(Subcommand)]
 pub enum SkillAction {
-    /// List skills, optionally filtered by visibility.
     List {
-        /// Filter by visibility: private | public | shared.
         #[arg(long)]
         visibility: Option<String>,
     },
-
-    /// Show skill status — compares private source hash vs published hash.
     Status {
-        /// Skill name.
         name: String,
     },
-
-    /// Publish a skill from the private zone to the public zone.
-    /// Copies the skill directory to `skills/`, updates visibility to public,
-    /// and records content hashes for change detection.
     Publish {
-        /// Skill name (directory name under .agents/skills/).
         name: String,
     },
 }

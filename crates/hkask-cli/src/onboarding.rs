@@ -171,19 +171,21 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     println!("  This passphrase derives all your internal keys — don't lose it!");
     let passphrase = prompt_passphrase_with_confirm()?;
 
-    // If an orphaned DB exists from a previous failed onboarding attempt,
-    // remove it before starting fresh.
+    // Remove orphaned DB from previous failed attempt.
     if let Ok(pre_config) = ServiceConfig::from_env()
         && OnboardingService::remove_orphaned_db(&pre_config)
     {
         eprintln!("  Removing orphaned database from previous failed setup...");
     }
 
+    // Cleanup helper on failure.
+    let cleanup = |config: &ServiceConfig| OnboardingService::cleanup_failed_onboarding(config);
+
     // Derive secrets and store in keychain
     let resolved = OnboardingService::derive_and_store_secrets(&passphrase).inspect_err(|_| {
-        // Clean up keychain entries and DB if secret storage fails
-        let config = ServiceConfig::from_env().unwrap_or_else(|_| ServiceConfig::in_memory());
-        OnboardingService::cleanup_failed_onboarding(&config);
+        if let Ok(c) = ServiceConfig::from_env() {
+            cleanup(&c);
+        }
     })?;
 
     // Initialize registry with the derived secrets directly
@@ -195,18 +197,12 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     );
     let handle = OnboardingService::init_registry(&config)
         .await
-        .inspect_err(|_| {
-            // Clean up keychain entries and DB if registry init fails
-            OnboardingService::cleanup_failed_onboarding(&config);
-        })?;
+        .inspect_err(|_| cleanup(&config))?;
 
     // Register the new replicant
     OnboardingService::register_replicant(&handle.acp, &handle.store, &name, &description)
         .await
-        .inspect_err(|_| {
-            // Clean up keychain and DB if registration fails
-            OnboardingService::cleanup_failed_onboarding(&config);
-        })?;
+        .inspect_err(|_| cleanup(&config))?;
 
     println!();
     println!(
@@ -318,20 +314,18 @@ fn read_line() -> Result<String, std::io::Error> {
 
 /// Prompt the user and return their response (trims whitespace)
 fn prompt_line(prompt: &str) -> Result<String, std::io::Error> {
-    print!("{} ", prompt);
     use std::io::Write;
+    print!("{prompt} ");
     std::io::stdout().flush()?;
-    let line = read_line()?;
-    Ok(line.trim().to_string())
+    read_line().map(|l| l.trim().to_string())
 }
 
 /// Prompt for a passphrase (no echo)
 fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
-    print!("{} ", prompt);
     use std::io::Write;
+    print!("{prompt} ");
     std::io::stdout().flush()?;
-    let pass = rpassword::read_password()?;
-    Ok(pass)
+    rpassword::read_password()
 }
 
 /// Prompt for passphrase with confirmation
@@ -354,9 +348,7 @@ fn prompt_passphrase_with_confirm() -> Result<String, std::io::Error> {
     }
 }
 
-/**
- * Prompt for a numeric choice within a range
- */
+/// Prompt for a numeric choice within a range
 fn prompt_choice(
     prompt: &str,
     range: std::ops::RangeInclusive<usize>,
@@ -365,13 +357,11 @@ fn prompt_choice(
         let input = prompt_line(prompt)?;
         match input.parse::<usize>() {
             Ok(n) if range.contains(&n) => return Ok(n),
-            _ => {
-                println!(
-                    "  Please enter a number between {} and {}.",
-                    range.start(),
-                    range.end()
-                );
-            }
+            _ => println!(
+                "  Please enter a number between {} and {}.",
+                range.start(),
+                range.end()
+            ),
         }
     }
 }

@@ -182,14 +182,18 @@ impl BootstrapSequence {
     /// Emit a failure variety counter and log the error
     /// Phase 1: Infrastructure — Initialize CNS, algedonic manager, observers
     fn phase_infrastructure(&self) -> Result<(), BootstrapError> {
-        info!(target: "bootstrap", "Infrastructure phase: CNS runtime active");
-        info!(target: "bootstrap", "Infrastructure phase: AlgedonicManager with escalation adapter created");
-        info!(target: "bootstrap", "Infrastructure phase: VarietyMonitor initialized");
-        info!(target: "bootstrap", "Infrastructure phase: UnifiedVarietyTracker initialized");
-        info!(target: "bootstrap", "Infrastructure phase: CompositionObserver initialized");
-
-        info!(target: "bootstrap", "Infrastructure phase: EnergyBudget initialized");
-        info!(target: "bootstrap", "Infrastructure phase: ReviewQueue initialized");
+        let phase = "Infrastructure";
+        for component in &[
+            "CNS runtime active",
+            "AlgedonicManager with escalation adapter created",
+            "VarietyMonitor initialized",
+            "UnifiedVarietyTracker initialized",
+            "CompositionObserver initialized",
+            "EnergyBudget initialized",
+            "ReviewQueue initialized",
+        ] {
+            info!(target: "bootstrap", "{phase} phase: {component}");
+        }
 
         Ok(())
     }
@@ -207,23 +211,17 @@ impl BootstrapSequence {
                     "Security phase: Derived all 4 internal secrets from HKASK_MASTER_KEY"
                 );
 
-                // Store derived secrets in OS keychain so resolve_secret_chain()
-                // can find them later without re-running Argon2id derivation.
+                // Store derived secrets in OS keychain for later resolution.
                 let keychain = Keychain::default();
-                let store_entries = [
+                for (key, value) in &[
                     ("acp-secret", &secrets.acp_secret),
                     ("capability-key", &secrets.capability_key),
                     ("mcp-security-key", &secrets.mcp_security_key),
                     ("hkask-ocap-secret", &secrets.ocap_secret),
-                ];
-                for (key, value) in &store_entries {
+                ] {
                     if let Err(e) = keychain.store_by_key(key, value) {
-                        error!(
-                            target: "bootstrap",
-                            key = %key,
-                            error = %e,
-                            "Failed to store derived secret in OS keychain"
-                        );
+                        error!(target: "bootstrap", key = %key, error = %e,
+                            "Failed to store derived secret in OS keychain");
                     }
                 }
                 info!(target: "bootstrap", "Security phase: Stored derived secrets in OS keychain");

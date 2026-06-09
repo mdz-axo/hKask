@@ -104,24 +104,21 @@ pub use verification::{
 };
 
 use crate::WebID;
+use base64::Engine;
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-fn to_string(webid: &WebID) -> String {
-    webid.to_string()
-}
-
-fn base64_encode(data: &[u8]) -> String {
-    use base64::Engine;
+fn b64(data: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(data)
 }
-
-fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
-    use base64::Engine;
+fn de64(s: &str) -> Result<Vec<u8>, String> {
     base64::engine::general_purpose::STANDARD
         .decode(s)
         .map_err(|e| e.to_string())
+}
+fn wid(w: &WebID) -> String {
+    w.to_string()
 }
 
 /// Parsed colon-separated capability string (e.g. `"tool:inference:call"`).
@@ -391,20 +388,17 @@ impl DelegationTokenBuilder {
         self.expires_at = Some(ts);
         self
     }
-
     pub fn attenuation(mut self, level: u8, max: u8) -> Self {
         self.attenuation_level = level;
         self.max_attenuation = max;
         self
     }
-
     pub fn context_nonce(mut self, nonce: String) -> Self {
         self.context_nonce = Some(nonce);
         self
     }
-
-    pub(crate) fn caveat(mut self, caveat: Caveat) -> Self {
-        self.caveats.push(caveat);
+    pub(crate) fn caveat(mut self, c: Caveat) -> Self {
+        self.caveats.push(c);
         self
     }
 
@@ -471,8 +465,8 @@ impl DelegationToken {
         hasher.update(resource.as_str().as_bytes());
         hasher.update(resource_id.as_bytes());
         hasher.update(action.as_str().as_bytes());
-        hasher.update(to_string(from).as_bytes());
-        hasher.update(to_string(to).as_bytes());
+        hasher.update(wid(from).as_bytes());
+        hasher.update(wid(to).as_bytes());
         hex::encode(hasher.finalize())
     }
 
@@ -483,8 +477,8 @@ impl DelegationToken {
         builder.update(payload.resource.as_str().as_bytes());
         builder.update(payload.resource_id.as_bytes());
         builder.update(payload.action.as_str().as_bytes());
-        builder.update(to_string(&payload.from).as_bytes());
-        builder.update(to_string(&payload.to).as_bytes());
+        builder.update(wid(&payload.from).as_bytes());
+        builder.update(wid(&payload.to).as_bytes());
         // Include caveats in signature for tamper-evidence
         for caveat in &payload.caveats {
             builder.update(caveat.caveat_id.as_bytes());
@@ -494,6 +488,7 @@ impl DelegationToken {
     }
 
     /// Constant-time comparison to prevent timing attacks.
+    /// Also aliased as `verify_cryptographic` for paxos-verify compatibility.
     pub fn verify(&self, secret: &[u8]) -> bool {
         let payload = SigningPayload {
             id: self.id.clone(),
@@ -526,12 +521,11 @@ impl DelegationToken {
 
     pub fn to_base64(&self) -> Result<String, serde_json::Error> {
         let json = serde_json::to_string(self)?;
-        Ok(base64_encode(json.as_bytes()))
+        Ok(b64(json.as_bytes()))
     }
 
     pub fn from_base64(encoded: &str) -> Result<Self, String> {
-        let json = base64_decode(encoded)?;
-        serde_json::from_slice(&json).map_err(|e| e.to_string())
+        serde_json::from_slice(&de64(encoded)?).map_err(|e| e.to_string())
     }
 
     pub fn can_attenuate(&self) -> bool {
