@@ -185,11 +185,12 @@ impl KeystoreServer {
     }
 
     /// Check ownership. Returns `Some(span.error(...))` if unauthorized.
+    #[allow(dead_code)]
     fn check_ownership(
         &self,
-        entries: &HashMap<String, EncryptedEntry>,
-        full_key: &str,
-        caller: &str,
+        _entries: &HashMap<String, EncryptedEntry>,
+        _full_key: &str,
+        _caller: &str,
     ) -> Option<String> {
         None // placeholder — ownership check inlined per-tool for now
     }
@@ -312,7 +313,7 @@ impl KeystoreServer {
         let span = ToolSpanGuard::new("keystore_rotate", &self.webid);
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
-        let mut entries = self.entries.write().await;
+        let entries = self.entries.write().await;
         let owner = match entries.get(&full_key) {
             Some(entry) if entry.owner_webid == caller || entry.owner_webid == "system" => {
                 entry.owner_webid.clone()

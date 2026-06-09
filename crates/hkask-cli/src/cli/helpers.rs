@@ -3,7 +3,6 @@
 use hkask_types::TemplateType as Type;
 
 /// Parse a string into a DataCategory (delegates to DataCategory::parse)
-#[expect(deprecated)]
 pub fn parse_data_category(s: &str) -> hkask_types::DataCategory {
     hkask_types::DataCategory::parse(s)
 }

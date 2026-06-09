@@ -4,7 +4,6 @@
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
-use crate::contract_validator::ContractValidator;
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex, SkillZone};
 use hkask_types::{
