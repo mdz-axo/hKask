@@ -43,28 +43,27 @@ complete?(G, category) :=
 curated?(G) :=
   coherence_score(G.artifacts) ≥ threshold
   ∧ ∀ artifact ∈ G.artifacts:
-    curation_decision ∈ {Merge, Revise, Defer, Discard}
+    curation_decision ∈ {Accept, Revise, Reject}
     ∧ decision.rationale documented
 ```
 
 A goal-set G is **MDS-complete** iff `complete?(G, c)` holds for all 5 categories **and** `curated?(G)` holds.
 
-Curation decisions (Merge/Revise/Defer/Discard) are made by the Curator or human — not by a tool in the spec server. The spec server validates coherence; the Curator makes decisions.
+Curation decisions (Accept/Revise/Reject) are made by the Curator or human — not by a tool in the spec server. The spec server validates coherence; the Curator makes decisions.
 
 ---
 
 ## 3. Spec Tool Surface (`hkask-mcp-spec`)
 
-Six tools. Three were deleted (evaluate, reconcile, cultivate) as agent-hallucinated curation logic. Curation is external to the spec server.
+Five tools. Three curation tools (evaluate, reconcile, cultivate) were deleted as agent-hallucinated curation logic. One tool (bind) was deleted because OCAP boundaries are declared inline during goal capture, not attached separately. Curation is external to the spec server.
 
 | # | Tool | Input | Output | hLexicon Terms |
 |---|------|-------|--------|----------------|
-| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[]}` | `specify`, `elicit` |
+| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[], ocap_boundaries}` | `specify`, `elicit`, `require`, `constrain` |
 | 2 | `spec/goal/decompose` | `{goal_id}` | `{sub_goals[], dependencies[]}` | `decompose`, `sequence` |
-| 3 | `spec/require/bind` | `{goal_id, constraint}` | `{requirement_id, ocap_boundaries}` | `require`, `constrain` |
-| 4 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | `evaluate` |
-| 5 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` |
-| 6 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | `ground` |
+| 3 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | `evaluate` |
+| 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` |
+| 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | `ground` |
 
 ---
 
@@ -103,16 +102,15 @@ MDS is capability-driven, not constraint-driven:
 
 ```
 MDS_cycle(S, D) :=
-  let G = capture(D)              // Extract goals from domain D
+  let G = capture(D)              // Extract goals from domain D (incl. OCAP boundaries)
   let C = decompose(G)            // Break into sub-goals with dependencies
-  let B = bind(G, constraints)    // Attach OCAP boundaries per goal
   validate writing_quality(S)     // Gate: spec must be readable
   validate coherence(S)           // Gate: collection must be coherent
   human_or_curator decides:       // External to spec server
-    Merge | Revise | Defer | Discard
+    Accept | Revise | Reject
 ```
 
-The spec server handles capture → decompose → bind → quality → coherence. Curation is external.
+The spec server handles capture → decompose → quality → coherence. Curation is external.
 
 ---
 
@@ -261,10 +259,14 @@ category: curation
 domain_anchor: hkask
 
 curation_model:
-  decisions: [Merge, Revise, Defer, Discard]
+  decisions: [Accept, Revise, Reject]
   curator:
     type: Replicant
     authority: "Human-augmented — curator proposes, human decides"
+  guidance: |
+    Accept — spec is coherent and complete, publish it.
+    Revise — spec needs work, return with rationale.
+    Reject — spec is not useful, remove it.
 
 coherence_metric:
   method: "Jaccard similarity of declared vs. registered verbs"
