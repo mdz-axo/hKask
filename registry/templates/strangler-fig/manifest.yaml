@@ -1,0 +1,56 @@
+# Template crate manifest for strangler-fig skill
+# ℏKask v0.27.0
+
+crate:
+  name: strangler-fig
+  version: "0.27.0"
+  description: >
+    Incremental architectural migration using Martin Fowler's Strangler Fig
+    pattern. Migrate one domain at a time: create new implementation alongside
+    old, wire consumers one by one, delete only after full verification. System
+    remains fully functional at every intermediate step.
+
+templates:
+  - id: strangler-fig/strangler-fig-plan
+    path: strangler-fig-plan.j2
+    type: KnowAct
+    lexicon_terms: [assess, map, classify, orient, plan, sequence]
+    description: >
+      Map domains, identify consumers, classify overlap (Identical/Divergent/
+      Surface-only), and sequence migration by risk. Produce a prioritized
+      migration plan with per-domain CREATE→WIRE→DELETE steps.
+
+  - id: strangler-fig/strangler-fig-execute
+    path: strangler-fig-execute.j2
+    type: KnowAct
+    lexicon_terms: [execute, wire, verify, constrain, migrate]
+    description: >
+      Execute one domain migration step: create new component, wire one consumer
+      at a time, verify each consumer, delete old code only after full wiring.
+      Produces a step completion report with verification results.
+
+  - id: strangler-fig/strangler-fig-verify
+    path: strangler-fig-verify.j2
+    type: KnowAct
+    lexicon_terms: [verify, evaluate, audit, detect, calibrate]
+    description: >
+      Verify system functional at intermediate migration step. Run workspace
+      build + test + lint, detect regressions, confirm old path intact until
+      deletion, verify reversibility of current step.
+
+hlexicon_terms:
+  - assess
+  - map
+  - classify
+  - orient
+  - plan
+  - sequence
+  - execute
+  - wire
+  - verify
+  - constrain
+  - migrate
+  - evaluate
+  - audit
+  - detect
+  - calibrate

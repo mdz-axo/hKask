@@ -36,9 +36,8 @@ use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
-    ActionType, CuratorDirective, Deviation, DeviationDirection, DispatchTarget, HkaskLoop,
-    LoopAction, LoopId, LoopMessage, LoopPayload, RuntimeAlert, Signal, SignalMetric,
-    ToolConsumptionEvent,
+    ActionType, CuratorDirective, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId,
+    LoopMessage, LoopPayload, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::sync::Arc;
@@ -532,31 +531,30 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::OverrideEnergyBudget => "override_energy_budget",
                 ActionType::ReplenishBudget => "replenish_budget",
             };
-            let payload = if action.action_type == ActionType::Escalate
-                && target_id == DispatchTarget::Loop(LoopId::Curation)
-            {
-                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
-                LoopPayload::AlgedonicAlert {
-                    current: deficit,
-                    threshold,
-                    deficit,
-                }
-            } else {
-                LoopPayload::CyberneticsRegulation {
-                    regulation_type: directive_type.to_string(),
-                    target: WebID::new(),
-                    parameters: action.parameters.clone(),
-                }
-            };
+            let payload =
+                if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
+                    let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
+                    LoopPayload::AlgedonicAlert {
+                        current: deficit,
+                        threshold,
+                        deficit,
+                    }
+                } else {
+                    LoopPayload::CyberneticsRegulation {
+                        regulation_type: directive_type.to_string(),
+                        target: WebID::new(),
+                        parameters: action.parameters.clone(),
+                    }
+                };
             let msg = LoopMessage::new(action.priority, LoopId::Cybernetics, payload)
-                .with_target(target_id);
+                .with_target(LoopId::Curation);
             if let Err(e) = self.dispatch_tx.send(msg) {
                 tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to dispatch LoopAction — Communication Loop may be closed");
             }
 
             // Strangler fig: also send RuntimeAlert on direct channel when available.
             if action.action_type == ActionType::Escalate
-                && target_id == DispatchTarget::Loop(LoopId::Curation)
+                && target_id == LoopId::Curation
                 && let Some(ref alerts_tx) = self.alerts_tx
             {
                 let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
@@ -572,7 +570,7 @@ impl HkaskLoop for CyberneticsLoop {
             }
 
             if action.action_type == ActionType::Escalate
-                && target_id == DispatchTarget::Loop(LoopId::Curation)
+                && target_id == LoopId::Curation
                 && let Some(ref sink) = self.event_sink
             {
                 let (deficit, threshold) = extract_deficit_threshold(&action.parameters);

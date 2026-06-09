@@ -455,11 +455,6 @@ impl HkaskLoop for MetacognitionLoop {
         LoopId::Curation
     }
 
-    /// Metacognition is a worker within the Curation loop.
-    fn worker_kind(&self) -> Option<hkask_types::loops::dispatch::WorkerKind> {
-        Some(hkask_types::loops::dispatch::WorkerKind::Metacognition)
-    }
-
     /// Sense: read CNS health, variety counters, alerts, and bot status.
     /// Builds and stores a HealthSnapshot.
     async fn sense(&self) -> Vec<Signal> {

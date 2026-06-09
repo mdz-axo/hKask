@@ -77,9 +77,9 @@ pub fn format_tool_prompt_section(tools: &[ToolInfo]) -> String {
 /// A parsed tool call directive from a model response.
 #[derive(Debug, Clone)]
 pub struct ToolCall {
-    /// The MCP server ID (e.g., "hkask-mcp-inference")
+    /// The MCP server ID (e.g., "hkask-mcp-condenser")
     pub server: String,
-    /// The tool name (e.g., "inference_generate")
+    /// The tool name (e.g., "condenser_compress")
     pub tool: String,
     /// The JSON arguments for the tool call
     pub args: serde_json::Value,

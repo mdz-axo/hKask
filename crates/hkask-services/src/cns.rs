@@ -7,9 +7,8 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use hkask_cns::CnsRuntime;
+use hkask_cns::{CnsRuntime, RuntimeAlert};
 use hkask_types::cns::CnsHealth;
-use hkask_types::loops::RuntimeAlert;
 
 /// Service for CNS health checks, algedonic alerts, and variety counters.
 ///
@@ -22,7 +21,7 @@ pub struct CnsService {
 
 impl CnsService {
     /// Create from the shared CNS runtime.
-    pub(crate) fn new(runtime: Arc<RwLock<CnsRuntime>>) -> Self {
+    pub fn new(runtime: Arc<RwLock<CnsRuntime>>) -> Self {
         Self { runtime }
     }
 

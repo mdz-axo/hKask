@@ -1386,22 +1386,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-cns"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-cns",
- "hkask-mcp",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "hkask-mcp-condenser"
 version = "0.27.0"
 dependencies = [
@@ -1427,23 +1411,6 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-storage",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-ensemble"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "chrono",
- "hkask-agents",
- "hkask-mcp",
  "hkask-types",
  "rmcp",
  "schemars",
@@ -1500,87 +1467,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-git"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-github"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-types",
- "reqwest",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-goal"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hex",
- "hkask-mcp",
- "hkask-storage",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "hkask-mcp-inference"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-templates",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-keystore"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "hkask-keystore",
- "hkask-mcp",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "hkask-mcp-markitdown"
 version = "0.27.0"
 dependencies = [
@@ -1595,58 +1481,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-ocap"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "zeroize",
-]
-
-[[package]]
-name = "hkask-mcp-registry"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-storage",
- "hkask-templates",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-replicant"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "hkask-agents",
- "hkask-keystore",
- "hkask-mcp",
- "hkask-storage",
- "hkask-templates",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "serde_yaml",
  "tokio",
  "tracing",
 ]

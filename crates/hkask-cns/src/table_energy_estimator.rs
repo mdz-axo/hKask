@@ -5,11 +5,11 @@
 //
 //! | Tier | Servers | Cost | Rationale |
 //! |------|---------|------|----------|
-//! | Internal | ocap, keystore, cns, registry | 1-2 | In-process |
-//! | Local I/O | spec, git, goal | 5 | No network |
-//! | Moderate | condenser | 10 | Compute + I/O |
+//! | Memory | episodic, semantic | 5 | Internal storage read |
+//! | Local I/O | spec | 5 | No network |
+//! | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + I/O |
 //! | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-//! | External | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O |
+//! | External | web, fmp, telnyx, rss-reader | 20-50 | Network I/O |
 //! | Heavy | fal | 100 | GPU compute |
 //! | Inference | hkask-mcp-inference | 0 | Token-based estimator |
 //
@@ -25,33 +25,24 @@ use std::collections::HashMap;
 /// while being simple to understand and calibrate.
 pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     let mut table = HashMap::new();
-    // Internal tools — cheap
-    table.insert("hkask-mcp-ocap", 1);
-    table.insert("hkask-mcp-keystore", 2);
-    table.insert("hkask-mcp-cns", 1);
-    table.insert("hkask-mcp-registry", 2);
-    table.insert("hkask-mcp-ensemble", 2);
-    table.insert("hkask-mcp-spec", 5);
-    table.insert("hkask-mcp-git", 5);
-
-    // Moderate tools
-    table.insert("hkask-mcp-condenser", 10);
-    table.insert("hkask-mcp-goal", 5);
-
-    // External API tools — expensive
-    table.insert("hkask-mcp-web", 50);
-    table.insert("hkask-mcp-github", 30);
-    table.insert("hkask-mcp-fmp", 40);
-    table.insert("hkask-mcp-telnyx", 50);
-    table.insert("hkask-mcp-fal", 100);
-    table.insert("hkask-mcp-rss-reader", 20);
-
     // Memory servers — internal storage read
     table.insert("hkask-mcp-episodic", 5);
     table.insert("hkask-mcp-semantic", 5);
 
-    // Replicant chat — internal LLM-mediated tool (same tier as memory servers)
-    table.insert("hkask-mcp-replicant", 5);
+    // Local I/O — no network
+    table.insert("hkask-mcp-spec", 5);
+
+    // Moderate — compute + local I/O
+    table.insert("hkask-mcp-condenser", 10);
+    table.insert("hkask-mcp-doc-knowledge", 15);
+    table.insert("hkask-mcp-markitdown", 15);
+
+    // External API tools — expensive
+    table.insert("hkask-mcp-web", 50);
+    table.insert("hkask-mcp-fmp", 40);
+    table.insert("hkask-mcp-telnyx", 50);
+    table.insert("hkask-mcp-fal", 100);
+    table.insert("hkask-mcp-rss-reader", 20);
 
     // Inference is handled separately by InferenceEnergyEstimator
     table.insert("hkask-mcp-inference", 0); // Overridden by InferenceEnergyEstimator
@@ -72,11 +63,11 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 ///
 /// | Tier | Servers | Cost Range | Rationale |
 /// |------|---------|------------|----------|
-/// | Internal | ocap, keystore, cns, registry | 1-2 | In-process, negligible compute |
-/// | Local I/O | spec, git, goal | 5 | Local I/O, no network |
-/// | Moderate | condenser | 10 | Some computation + local I/O |
+/// | Memory | episodic, semantic | 5 | Internal storage read |
+/// | Local I/O | spec | 5 | Local I/O, no network |
+/// | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + local I/O |
 /// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-/// | External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
+/// | External API | web, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
 /// | Heavy external | fal | 100 | GPU compute, expensive |
 /// | Inference | hkask-mcp-inference | 0 (table) | Handled by `InferenceEnergyEstimator` |
 ///

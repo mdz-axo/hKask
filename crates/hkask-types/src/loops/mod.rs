@@ -237,18 +237,14 @@ pub enum DeviationDirection {
 /// Efferent action produced by a loop's compute phase.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoopAction {
-    pub target: crate::loops::dispatch::DispatchTarget,
+    pub target: LoopId,
     pub action_type: ActionType,
     pub parameters: serde_json::Value,
     pub priority: MessagePriority,
 }
 
 impl LoopAction {
-    pub fn new(
-        target: impl Into<crate::loops::dispatch::DispatchTarget>,
-        action_type: ActionType,
-        parameters: serde_json::Value,
-    ) -> Self {
+    pub fn new(target: LoopId, action_type: ActionType, parameters: serde_json::Value) -> Self {
         let priority = match &action_type {
             ActionType::Throttle => MessagePriority::Warning,
             ActionType::Escalate => MessagePriority::Critical,
@@ -310,14 +306,6 @@ pub enum ActionType {
 #[async_trait::async_trait]
 pub trait Loop: Send + Sync {
     fn id(&self) -> LoopId;
-
-    /// Worker kind — `Some` for non-governing workers, `None` for governing loops.
-    ///
-    /// Workers (Metacognition, ToolDispatch) operate within a parent loop
-    /// and have no authority rank. Governing loops return `None`.
-    fn worker_kind(&self) -> Option<crate::loops::dispatch::WorkerKind> {
-        None
-    }
 
     /// Sense: observe current state and produce afferent signals.
     async fn sense(&self) -> Vec<Signal>;

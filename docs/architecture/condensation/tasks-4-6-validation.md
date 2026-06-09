@@ -87,7 +87,7 @@ cargo clippy --workspace -- -D warnings  # ⚠️ Pre-existing warnings in hkask
 | `hkask-agents` restructuring | ⚠️ Deferred | Pod/Agent/Service boundaries are muddled (candidate #4). Continuation prompt at `condensation/continuation-pod-agent-service.md`. |
 | LoopMessage→tokio | ⚠️ Deferred | Candidate #3 deferred. Continuation prompt at `condensation/continuation-loopmessage-tokio.md`. |
 | Service module depth | ⚠️ Partial | `skill.rs` thinned (1 private helper). `archival.rs` borderline. No further extraction done. |
-| CNS queries extraction | ⚠️ Gap | CNS health/variety queries still live in CLI/API surfaces. Should be extracted to `hkask-services::cns`. |
+| CNS queries extraction | ✅ Resolved | `hkask-services::cns::CnsService` created. CLI `commands/cns.rs` uses `ServiceContext` + `CnsService` (with standalone fallback). API routes delegate through `state.service_context.cns`. |
 
 ### 5.2 — Test Coverage
 
@@ -115,7 +115,7 @@ Current test coverage is not spec-anchored per the MDS `// REQ:` convention. No 
 
 1. **`SpecCategory` enum (9→5):** ✅ Resolved (2026-06-09). The Rust enum already uses 5 MDS categories. Audit confirmed clean.
 2. **MCP server consolidation:** 21 servers → target of 9 (keep web, fmp, condenser, doc-knowledge, markitdown, fal, telnyx, rss-reader, spec). Episodic+semantic merge into single memory server. GitHub backup as tool within memory. Delete: cns, git, inference, goal, keystore, ocap, registry, replicant, ensemble.
-3. **CNS queries extraction:** CLI `kask cns` and API cns routes should delegate to `hkask-services::cns::CnsService`.
+3. **CNS queries extraction:** ✅ Resolved (2026-06-09). `hkask-services::cns::CnsService` wraps `CnsRuntime` behind clean async interface. CLI uses `ServiceContext` + fallback. API uses `state.service_context.cns`.
 4. **`hkask-agents` restructuring:** Pod/Agent/Service/ACP boundaries need clarification per candidate #4 model.
 
 ### Probabilistic Judgments

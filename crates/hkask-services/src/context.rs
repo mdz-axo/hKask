@@ -48,7 +48,7 @@ use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
-use hkask_types::loops::{RuntimeAlert, ToolConsumptionEvent};
+use hkask_types::loops::{RuntimeAlert, SpecEvent, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 
 use crate::ServiceConfig;
@@ -299,6 +299,9 @@ impl ServiceContext {
         let (tool_consumption_tx, tool_consumption_rx) =
             tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
 
+        // Strangler fig: direct spec channel SpecCurator → Curation.
+        let (spec_tx, spec_rx) = tokio::sync::mpsc::unbounded_channel::<SpecEvent>();
+
         // Cybernetics loop
         let set_points = load_set_points();
         let cybernetics_loop = CyberneticsLoop::with_set_points(
@@ -413,6 +416,8 @@ impl ServiceContext {
             Default::default(),
             Arc::clone(&consolidation_bridge),
             Some(alerts_rx),
+            Some(spec_rx),
+            Some(spec_tx),
         );
         let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
         loop_system.register_loop(curation_loop).await;
@@ -501,6 +506,8 @@ impl ServiceContext {
         };
 
         // ── 10. Session manager for ensemble coordination ────────────────────
+        let cns_svc = CnsService::new(Arc::clone(&cns_runtime));
+
         let session_manager = Arc::new(RwLock::new(SessionManager::new(system_webid)));
 
         Ok(Self {
@@ -508,6 +515,7 @@ impl ServiceContext {
             mcp_runtime,
             mcp_dispatcher,
             cns_runtime,
+            cns: cns_svc,
             cybernetics_loop,
             loop_system,
             dispatch,

@@ -21,7 +21,8 @@ use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{
-    Deviation, HkaskLoop, LoopAction, LoopId, RuntimeAlert, Signal, SignalMetric, SpecEvent,
+    Deviation, GoalTransitionEvent, HkaskLoop, LoopAction, LoopId, RuntimeAlert, Signal,
+    SignalMetric, SpecEvent,
 };
 use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
@@ -71,6 +72,10 @@ pub struct CurationLoop {
     /// When set, SpecEvents are drained during sense() alongside the
     /// legacy LoopMessage inbox.
     spec_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<SpecEvent>>>>,
+    /// Direct goal channel: GoalStore → Curation (strangler fig).
+    /// When set, GoalTransitionEvents are drained during sense() alongside the
+    /// legacy LoopMessage inbox.
+    goal_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<GoalTransitionEvent>>>>,
 }
 
 impl CurationLoop {
@@ -90,6 +95,7 @@ impl CurationLoop {
             confidence_gate: None,
             alerts_rx: None,
             spec_rx: None,
+            goal_rx: None,
         }
     }
 
@@ -111,6 +117,7 @@ impl CurationLoop {
             confidence_gate: None,
             alerts_rx: None,
             spec_rx: None,
+            goal_rx: None,
         };
         (loop_instance, inbox_tx)
     }
@@ -129,6 +136,7 @@ impl CurationLoop {
             confidence_gate: None,
             alerts_rx: None,
             spec_rx: None,
+            goal_rx: None,
         }
     }
 
@@ -156,6 +164,13 @@ impl CurationLoop {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_spec_channel(mut self, rx: mpsc::UnboundedReceiver<SpecEvent>) -> Self {
         self.spec_rx = Some(Arc::new(RwLock::new(rx)));
+        self
+    }
+
+    /// Wire the direct goal channel: GoalStore → Curation.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_goal_channel(mut self, rx: mpsc::UnboundedReceiver<GoalTransitionEvent>) -> Self {
+        self.goal_rx = Some(Arc::new(RwLock::new(rx)));
         self
     }
 
@@ -352,6 +367,24 @@ impl HkaskLoop for CurationLoop {
                     drift_magnitude = event.drift_magnitude,
                     "SpecDrift received from direct channel"
                 );
+            }
+        }
+
+        // Strangler fig: drain direct goal channel (GoalStore → Curation).
+        if let Some(goal_rx) = &self.goal_rx {
+            let mut rx = goal_rx.write().await;
+            while let Ok(event) = rx.try_recv() {
+                match event.to_state.as_str() {
+                    "stale" => {
+                        goal_stale_count += 1;
+                        tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal stale (direct channel)");
+                    }
+                    "expired" => {
+                        goal_expired_count += 1;
+                        tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal expired (direct channel)");
+                    }
+                    _ => {}
+                }
             }
         }
 

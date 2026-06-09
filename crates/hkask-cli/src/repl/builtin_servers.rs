@@ -12,17 +12,17 @@ use hkask_mcp::runtime::McpRuntime;
 /// Each entry maps `(server_id, binary_name)`. The binary must be on PATH
 /// or specified via the `HKASK_MCP_{ID}_BIN` environment variable.
 const BUILTIN_SERVERS: &[(&str, &str)] = &[
-    ("inference", "hkask-mcp-inference"),
-    ("cns", "hkask-mcp-cns"),
-    ("condenser", "hkask-mcp-condenser"),
     ("episodic", "hkask-mcp-episodic"),
     ("semantic", "hkask-mcp-semantic"),
-    ("ocap", "hkask-mcp-ocap"),
-    ("keystore", "hkask-mcp-keystore"),
-    ("git", "hkask-mcp-git"),
-    ("registry", "hkask-mcp-registry"),
-    ("goal", "hkask-mcp-goal"),
+    ("condenser", "hkask-mcp-condenser"),
+    ("spec", "hkask-mcp-spec"),
+    ("web", "hkask-mcp-web"),
+    ("fmp", "hkask-mcp-fmp"),
+    ("telnyx", "hkask-mcp-telnyx"),
+    ("fal", "hkask-mcp-fal"),
+    ("rss-reader", "hkask-mcp-rss-reader"),
     ("doc-knowledge", "hkask-mcp-doc-knowledge"),
+    ("markitdown", "hkask-mcp-markitdown"),
 ];
 
 /// Start all built-in MCP servers and discover their tools.

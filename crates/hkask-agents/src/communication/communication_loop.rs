@@ -11,7 +11,7 @@
 
 use crate::communication::dispatch::MessageDispatch;
 use hkask_types::cns::QueueDepth;
-use hkask_types::loops::dispatch::{DispatchTarget, LoopMessage, WorkerKind};
+use hkask_types::loops::dispatch::LoopMessage;
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -34,15 +34,9 @@ pub(crate) struct CommunicationLoop {
     loop_senders: Arc<
         RwLock<std::collections::HashMap<LoopId, tokio::sync::mpsc::UnboundedSender<LoopMessage>>>,
     >,
-    /// Per-worker inbox senders for worker message delivery
-    worker_senders: Arc<
-        RwLock<
-            std::collections::HashMap<WorkerKind, tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
-        >,
-    >,
-    /// Maximum messages to deliver per tick (prevents unbounded delivery)
+    /// Max messages delivered per tick (backpressure limit)
     max_deliveries_per_tick: usize,
-    /// Shared atomic counter for queue depth — readable without awaiting dispatch
+    /// Lock-free counter read by CyberneticsLoop for backpressure sensing
     queue_depth_counter: Arc<AtomicU64>,
 }
 
@@ -52,7 +46,6 @@ impl CommunicationLoop {
         Self {
             dispatch,
             loop_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            worker_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
             max_deliveries_per_tick: 64,
             queue_depth_counter: Arc::new(AtomicU64::new(0)),
         }
@@ -70,19 +63,6 @@ impl CommunicationLoop {
     ) {
         let mut senders = self.loop_senders.write().await;
         senders.insert(loop_id, sender);
-    }
-
-    /// Register a worker's inbox channel for message delivery.
-    ///
-    /// When a `LoopMessage` targets a `DispatchTarget::Worker(kind)`,
-    /// it will be sent through the provided sender.
-    pub async fn register_worker_inbox(
-        &self,
-        worker_kind: WorkerKind,
-        sender: tokio::sync::mpsc::UnboundedSender<LoopMessage>,
-    ) {
-        let mut senders = self.worker_senders.write().await;
-        senders.insert(worker_kind, sender);
     }
 
     /// Get a clone of the shared queue depth counter.
@@ -160,29 +140,7 @@ impl HkaskLoop for CommunicationLoop {
             };
 
             let target_id = match msg.target_loop {
-                Some(DispatchTarget::Loop(id)) => id,
-                Some(DispatchTarget::Worker(kind)) => {
-                    // Route to worker inbox
-                    let worker_senders = self.worker_senders.read().await;
-                    if let Some(sender) = worker_senders.get(&kind) {
-                        if let Err(e) = sender.send(msg) {
-                            tracing::warn!(
-                                target: "communication.loop",
-                                worker_kind = %kind,
-                                error = %e,
-                                "Failed to deliver message to worker inbox"
-                            );
-                        }
-                    } else {
-                        tracing::warn!(
-                            target: "communication.loop",
-                            worker_kind = %kind,
-                            "No inbox registered for worker — message dropped"
-                        );
-                    }
-                    delivered += 1;
-                    continue;
-                }
+                Some(id) => id,
                 None => {
                     // Broadcast — no specific target; log and skip
                     tracing::debug!(

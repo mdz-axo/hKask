@@ -3,18 +3,12 @@
 use crate::cli::McpAction;
 
 const BUILTIN_SERVERS: &[(&str, &str)] = &[
-    ("inference", "hkask-mcp-inference"),
-    ("cns", "hkask-mcp-cns"),
-    ("condenser", "hkask-mcp-condenser"),
     ("episodic", "hkask-mcp-episodic"),
     ("semantic", "hkask-mcp-semantic"),
-    ("ocap", "hkask-mcp-ocap"),
-    ("keystore", "hkask-mcp-keystore"),
-    ("git", "hkask-mcp-git"),
-    ("registry", "hkask-mcp-registry"),
-    ("goal", "hkask-mcp-goal"),
-    ("doc-knowledge", "hkask-mcp-doc-knowledge"),
+    ("condenser", "hkask-mcp-condenser"),
     ("spec", "hkask-mcp-spec"),
+    ("doc-knowledge", "hkask-mcp-doc-knowledge"),
+    ("markitdown", "hkask-mcp-markitdown"),
 ];
 
 fn build_service_context(

@@ -116,12 +116,14 @@ impl CuratorAgent {
     /// `alerts_rx` is the strangler fig direct channel from Cybernetics.
     /// When `Some`, RuntimeAlerts are drained alongside the legacy LoopMessage inbox.
     /// `spec_rx` is the strangler fig direct channel from SpecCurator.
+    /// `spec_tx` wires the SpecCurator to send SpecEvents on the direct channel.
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
         consolidation: Arc<ConsolidationBridge>,
         alerts_rx: Option<tokio::sync::mpsc::UnboundedReceiver<RuntimeAlert>>,
         spec_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SpecEvent>>,
+        spec_tx: Option<tokio::sync::mpsc::UnboundedSender<SpecEvent>>,
     ) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),
@@ -138,10 +140,13 @@ impl CuratorAgent {
             curation_loop = curation_loop.with_spec_channel(rx);
         }
         let curation_loop = Arc::new(curation_loop);
-        let spec_curator = match context.loop_dispatch_tx() {
+        let mut spec_curator = match context.loop_dispatch_tx() {
             Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
             None => spec_curator::DefaultSpecCurator::default(),
         };
+        if let Some(tx) = spec_tx {
+            spec_curator = spec_curator.with_spec_channel(tx);
+        }
 
         Self {
             curation_loop,

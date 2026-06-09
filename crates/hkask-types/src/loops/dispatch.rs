@@ -232,7 +232,7 @@ pub struct LoopMessage {
     pub priority: MessagePriority,
     pub origin: LoopId,
     pub payload: LoopPayload,
-    pub target_loop: Option<DispatchTarget>,
+    pub target_loop: Option<LoopId>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub sender: Option<WebID>,
 }
@@ -259,8 +259,8 @@ impl LoopMessage {
     }
 
     #[must_use]
-    pub fn with_target(mut self, target: impl Into<DispatchTarget>) -> Self {
-        self.target_loop = Some(target.into());
+    pub fn with_target(mut self, target: LoopId) -> Self {
+        self.target_loop = Some(target);
         self
     }
 
