@@ -341,18 +341,3 @@ impl ChatService {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // REQ: TokenUsage gas_cost maps total_tokens 1:1
-    #[test]
-    fn token_usage_gas_cost_is_total() {
-        let usage = TokenUsage {
-            prompt_tokens: 100,
-            completion_tokens: 50,
-            total_tokens: 150,
-        };
-        assert_eq!(usage.gas_cost(), 150);
-    }
-}

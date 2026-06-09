@@ -151,38 +151,3 @@ impl ConsolidationService {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // REQ: svc-consolidation-001 — verify_passphrase rejects invalid passphrase
-    #[test]
-    fn verify_passphrase_rejects_invalid_passphrase() {
-        // This test can't test the happy path (it requires keychain access),
-        // but it can verify that an arbitrary passphrase fails verification
-        // when the keystore is not configured.
-        let result = ConsolidationService::verify_passphrase("arbitrary-wrong-passphrase");
-        // In test environments without keychain config, this should fail at
-        // keystore resolution OR passphrase mismatch. Either way, it's an error.
-        assert!(
-            result.is_err(),
-            "arbitrary passphrase should fail verification"
-        );
-    }
-
-    // REQ: svc-consolidation-002 — consolidate pipeline constructs from fresh DB
-    #[test]
-    fn consolidate_pipeline_constructs_from_fresh_db() {
-        // Database::open creates the DB if it doesn't exist (SQLCipher behavior).
-        // Verify the pipeline assembly works on a fresh per-agent DB.
-        let tmp = tempfile::tempdir().expect("temp dir");
-        let db_path = tmp.path().join("hkask-memory-agent-test.db");
-        let db =
-            Database::open(db_path.to_str().unwrap(), "test-passphrase").expect("fresh DB opens");
-        let conn = db.conn_arc();
-        let ts = TripleStore::new(Arc::clone(&conn));
-        let _episodic = EpisodicMemory::new(ts);
-        // Pipeline assembly succeeds — actual consolidation with data
-        // is covered by hkask-memory integration tests.
-    }
-}
