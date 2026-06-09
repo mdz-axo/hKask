@@ -5,7 +5,7 @@ last_updated: 2026-05-20
 version: "1.0.0"
 status: "Active"
 domain: "Application"
-ddmvss_categories: [interface]
+mds_categories: [interface]
 ---
 
 

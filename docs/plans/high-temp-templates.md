@@ -5,7 +5,7 @@ last_updated: 2026-05-29
 version: "0.1.0"
 status: "Draft"
 domain: "Composition"
-ddmvss_categories: [composition, curation]
+mds_categories: [composition, curation]
 ---
 
 # High-Temperature Templates — Design Specification

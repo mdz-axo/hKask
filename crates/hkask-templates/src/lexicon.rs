@@ -128,13 +128,12 @@ pub fn parse_markdown_catalog(
                 .split('|')
                 .map(|s| s.trim())
                 .collect();
-            if cells.len() >= 2 {
-                if let Some(term) = extract_backtick_quoted(cells[0]) {
-                    if !term.eq_ignore_ascii_case("term") {
-                        let definition = cells[1].trim_matches('"');
-                        terms.push((term, definition.to_string(), domain));
-                    }
-                }
+            if cells.len() >= 2
+                && let Some(term) = extract_backtick_quoted(cells[0])
+                && !term.eq_ignore_ascii_case("term")
+            {
+                let definition = cells[1].trim_matches('"');
+                terms.push((term, definition.to_string(), domain));
             }
         }
     }

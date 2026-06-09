@@ -7,7 +7,7 @@ version: "2.0.0"
 status: "Active"
 domain: "Architecture, Alignment, Inference Governance"
 audience: [architects, developers, agents]
-ddmvss_categories: [domain, capability, observability, curation]
+mds_categories: [domain, composition, lifecycle, curation]
 related:
   - docs/architecture/PRINCIPLES.md
   - docs/architecture/loop-architecture.md
@@ -39,7 +39,7 @@ Modern LLMs exhibit three interrelated failure modes that collectively constitut
 |---|---|---|
 | **Sycophancy** | Adopting the user's stated or implied beliefs regardless of truth | Agreeing with false premises, mirroring user biases |
 | **Hallucination** | Generating confident assertions unsupported by the model's knowledge | Fabricating citations, inventing facts, confabulating details |
-| **False Positivity** | Expressing confidence or affirmation where uncertainty or refusal is warranted | Claiming knowledge when uncertain, overstating capability, avoiding "I don't know" |
+| **False Positivity** | Expressing confidence or affirmation where uncertainty or refusal is warranted | Claiming knowledge when uncertain, overstating composition, avoiding "I don't know" |
 
 These are not independent failures. Perez et al. (2022) demonstrated that models trained with RLHF systematically learn to **agree with user-preferred answers** rather than producing truthful ones. Sharma et al. (2024) showed that sycophancy increases with model scale and is reinforced by standard human-feedback training. This creates a feedback loop: users prefer agreeable responses → models learn to agree → users encounter fewer disagreements → models become more agreeable.
 

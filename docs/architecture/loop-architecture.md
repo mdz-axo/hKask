@@ -71,7 +71,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-001
 verified_date: 2026-06-07
-verified_against: crates/hkask-cns/src/energy.rs:55; trust-security-observability.md §4.6-4.7
+verified_against: crates/hkask-cns/src/energy.rs:55; MDS.md §7.3 §4.6-4.7
 status: VERIFIED
 -->
 
@@ -251,7 +251,7 @@ MCP servers are operational units that reside within the loop architecture. Each
 **Assignment criteria.** A server shall be assigned to the loop whose membrane (§4) encloses the authority the server's tools exercise. Specifically:
 
 1. **Domain authority** — the loop whose primary state the server reads or writes. A server that reads/writes the prompt queue, the fact store, or the message queue belongs to the loop that owns that state, not to a loop that merely observes it.
-2. **Authoritative transform** — the loop whose core transform the server performs. Inference servers (LLM calls), condensation servers (context windowing), and curation servers (DDMVSS spec capture) belong to the loop whose function they embody.
+2. **Authoritative transform** — the loop whose core transform the server performs. Inference servers (LLM calls), condensation servers (context windowing), and curation servers (MDS spec capture) belong to the loop whose function they embody.
 3. **Membrane containment** — a server shall not span two loops whose capability membranes (§4) forbid the cross-loop authority. Servers that legitimately touch multiple loops (e.g. `hkask-mcp-registry` for template discovery + skill composition) shall be marked as a *bridge* with the loops it connects explicitly named.
 4. **No anchoring by call site** — the assignment is determined by what the server *governs*, not by which loop happens to invoke it. A web I/O server invoked from the Inference loop is still a Communication-loop server, because the authority is routing, not inference.
 
@@ -272,7 +272,7 @@ MCP servers are operational units that reside within the loop architecture. Each
 | `hkask-mcp-ensemble` | L4 (Communication) | Multi-agent chat coordination — Communication routes agent messages |
 | `hkask-mcp-rss-reader` | L2 (Episodic) | RSS feeds are consumed into episodic memory |
 | `hkask-mcp-registry` | L1↔L5 (bridge) | Cross-loop bridge: template discovery (Inference, L1) + skill/bundle composition (Curation, L5) |
-| `hkask-mcp-spec` | L5 (Curation) | DDMVSS spec capture — Curation governs specification authoring |
+| `hkask-mcp-spec` | L5 (Curation) | MDS spec capture — Curation governs specification authoring |
 | `hkask-mcp-goal` | L5 (Curation) | Goal coordination — Curation governs goal prioritization |
 | `hkask-mcp-replicant` | L5 (Curation) | Replicant chat — Curation manages agent persona |
 | `hkask-mcp-ocap` | L6 (Cybernetics) | OCAP enforcement is authority governance — Cybernetics regulates capability membranes |
@@ -341,7 +341,7 @@ The capability membrane for each loop defines four boundaries:
 | Boundary | Scope |
 |----------|-------|
 | **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue, Cybernetics set-points, variety counters, energy budget status, SpecDriftAlert from DefaultSpecCurator (via Communication Loop inbox) |
-| **Can write** | CuratorDirective (CalibrateThreshold, OverrideGasBudget, UpdateCapabilities, SeekMoreEvidence, ReplenishBudget), goal priority, metacognitive override decisions |
+| **Can write** | CuratorDirective (CalibrateThreshold, OverrideEnergyBudget, UpdateCapabilities, SeekMoreEvidence, ReplenishBudget), goal priority, metacognitive override decisions |
 | **Can signal** | Metacognitive override to Cybernetics Loop, goal revision to Communication Loop |
 | **Never reaches** | Token flow, embedding indices, SQLCipher encryption keys, message routing internals |
 
@@ -399,7 +399,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-003
 verified_date: 2026-06-07
-verified_against: PRINCIPLES.md §1.4; trust-security-observability.md §4.4; domain-and-capability.md §5; loop-architecture.md §4.4
+verified_against: PRINCIPLES.md §1.4; MDS.md §7.3 §4.4; MDS.md §7.1-7.2 §5; loop-architecture.md §4.4
 status: REMEDIATED
 -->
 

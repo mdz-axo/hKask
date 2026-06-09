@@ -1,16 +1,16 @@
 ---
-title: "Test Program Specification — DDMVSS Self-Applying Specification"
+title: "Test Program Specification — MDS Self-Applying Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-07
 version: "0.1.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # Test Program Specification
 
-**Purpose:** The test program is specified using DDMVSS — it is self-applying (Task 9 pattern from DDMVSS §9). This document classifies every aspect of the test program under DDMVSS categories.
+**Purpose:** The test program is specified using MDS — it is self-applying (Task 9 pattern from MDS §9). This document classifies every aspect of the test program under MDS categories.
 
 **Self-application test:** "Given a `GoalSpec` with one criterion `satisfied: true`, `is_complete()` returns `true`." This is both the first tracer-bullet test and the proof that the specification framework can specify itself.
 
@@ -31,7 +31,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **Shallow seam** | Interface as complex as implementation. Deepening candidate, not a testing target | WordAct |
 | **Seam depth** | Ratio of behaviors to interface surface area. Higher ratio = deeper = better test leverage | KnowAct |
 | **Test cycle** | `tracer-bullet` (first test for new behavior), `regression` (test after fix), `property` (proptest/fuzz) | FlowDef |
-| **DDMVSS category** | One of 9 categories that governs test invariants: Domain, Capability, Interface, Composition, Trust, Observability, Persistence, Lifecycle, Curation | KnowAct |
+| **MDS category** | One of 9 categories that governs test invariants: Domain, Capability, Interface, Composition, Trust, Observability, Persistence, Lifecycle, Curation | KnowAct |
 
 ### hLexicon Allocation
 
@@ -42,7 +42,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | `diagnose` | KnowAct | Construct a feedback loop to identify root causes of test failures |
 | `curate` | FlowDef | Evaluate test invariants via Merge/Revise/Defer/Discard curation gradient |
 | `verify` | KnowAct | Mechanically check whether behavioral tests exist for a seam and verify stated invariants |
-| `register` | FlowDef | Record a skill-to-DDMVSS mapping as a SpecArtifact |
+| `register` | FlowDef | Record a skill-to-MDS mapping as a SpecArtifact |
 | `evaluate` | KnowAct | Assess whether a skill's constraints were upheld in a diff or session |
 | `handoff` | FlowDef | Transfer session context to a fresh agent for continuity |
 
@@ -79,7 +79,7 @@ Every test verb is an attenuatable capability:
 | `curate_test` | `test:{invariant_id}` | MCP, CLI, API | Yes (Curator only for Discard) |
 | `deepen_seam` | `test:{seam_id}` | MCP, CLI, API | Yes |
 
-Capability tokens for test operations follow the same `DelegationToken` pattern as spec operations (see DDMVSS §7.2). The `spec:validate` action covers test verification.
+Capability tokens for test operations follow the same `DelegationToken` pattern as spec operations (see MDS §7.2). The `spec:validate` action covers test verification.
 
 ---
 
@@ -116,7 +116,7 @@ Capability tokens for test operations follow the same `DelegationToken` pattern 
 
 ## 4. Composition — Test Invariants Compose
 
-Test invariants compose via goal decomposition (DDMVSS §5.11 `mvss-compose` pattern):
+Test invariants compose via goal decomposition (MDS §5.11 `mvss-compose` pattern):
 
 - A `GoalSpec` with sub-goals decomposes into individual invariants per sub-goal.
 - Registry stores test templates as `template_type: FlowDef`.
@@ -126,7 +126,7 @@ Test invariants compose via goal decomposition (DDMVSS §5.11 `mvss-compose` pat
 # registry/manifests/tdd-tracer-bullet.yaml
 manifest:
   name: tdd-tracer-bullet
-  description: Vertical tracer-bullet TDD cycle governed by DDMVSS Curation
+  description: Vertical tracer-bullet TDD cycle governed by MDS Curation
 
 steps:
   - ordinal: 1
@@ -153,7 +153,7 @@ Test capability tokens are attenuatable. Threat model additions:
 |-------|-----------|--------|-----------|
 | Test invariants | Malicious contributor | Invariant injection | Capability check on `spec/test/invariant` |
 | Test results | Compromised runner | Result tampering | CNS span emission on test outcomes |
-| Skill mappings | Malicious contributor | Skill registration with wrong DDMVSS category | `CurateEvaluate` on skill registration |
+| Skill mappings | Malicious contributor | Skill registration with wrong MDS category | `CurateEvaluate` on skill registration |
 
 ---
 
@@ -168,7 +168,7 @@ Every test run emits `cns.test.*` spans:
 | `cns.test.curate` | Curation decision on test invariant |
 | `cns.test.deepen` | Seam deepening operation |
 
-Variety counters track test diversity per DDMVSS category. Algedonic alert when test variety drops below threshold/2.
+Variety counters track test diversity per MDS category. Algedonic alert when test variety drops below threshold/2.
 
 ---
 
@@ -207,7 +207,7 @@ A test invariant that fails Curation is **documented**, not silently dropped. Th
 
 ---
 
-## 10. DDMVSS Completeness Predicates — Self-Application
+## 10. MDS Completeness Predicates — Self-Application
 
 | # | Category | Completeness Predicate | Mechanically Verifiable? |
 |---|----------|----------------------|--------------------------|
@@ -223,9 +223,9 @@ A test invariant that fails Curation is **documented**, not silently dropped. Th
 
 ---
 
-## 11. Skill-to-DDMVSS Mapping
+## 11. Skill-to-MDS Mapping
 
-| Skill | Root Principle | DDMVSS Categories | hLexicon Terms |
+| Skill | Root Principle | MDS Categories | hLexicon Terms |
 |-------|---------------|-------------------|----------------|
 | **TDD** | Vertical tracer-bullet discipline (RED→GREEN per behavior) | Domain (goal specification), Capability (tracer-bullet cycle), Curation (evaluate invariants) | `trace` (KnowAct), `verify` (KnowAct) |
 | **coding-guidelines** | Minimum code that solves the problem; no speculative features | Capability (minimal code constraint), Trust (no speculative features), Composition (surgical changes preserve seams) | `constrain` (WordAct), `require` (WordAct) |
@@ -257,11 +257,11 @@ See `docs/OPEN_QUESTIONS.md` for the full list. Test-program-specific questions:
 
 3. **Skill enforcement vs. guidance:** Should skills be enforced (pre-commit hooks, CI checks, `spec/skill/evaluate` blocking merge) or treated as guidance (curation decisions overridable per sovereignty)?
 
-4. **Property-based testing:** Where do `proptest` and `cargo fuzz` fit? DDMVSS invariants are natural property candidates, but property testing is a different cycle than tracer-bullet. Separate skill or specialized TDD cycle?
+4. **Property-based testing:** Where do `proptest` and `cargo fuzz` fit? MDS invariants are natural property candidates, but property testing is a different cycle than tracer-bullet. Separate skill or specialized TDD cycle?
 
 5. **Integration test isolation:** MCP server tests require `rmcp` transport. Extract `hkask-test-utils` when 3+ servers need shared fixtures (currently 2 — below C4 threshold).
 
-6. **CNS variety counters for test diversity:** Should `cns.test.*` spans track test variety per DDMVSS category and emit algedonic alerts when below threshold?
+6. **CNS variety counters for test diversity:** Should `cns.test.*` spans track test variety per MDS category and emit algedonic alerts when below threshold?
 
 7. **Skill-bundler composition with TDD:** When multiple skills are active, does TDD apply per-skill or per-task? Curation decides per `CurateReconcile`.
 
@@ -269,4 +269,4 @@ See `docs/OPEN_QUESTIONS.md` for the full list. Test-program-specific questions:
 
 ---
 
-*Test Program Specification v0.1.0 — DDMVSS self-applying, tracer-bullet disciplined, curated not governed.*
+*Test Program Specification v0.1.0 — MDS self-applying, tracer-bullet disciplined, curated not governed.*

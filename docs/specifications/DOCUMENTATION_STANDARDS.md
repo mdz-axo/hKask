@@ -5,14 +5,14 @@ last_updated: 2026-06-07
 version: "0.7.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 
 ## 1. Purpose
 
 This standard governs every markdown document under `docs/`. It
-operationalises the DDMVSS taxonomy[^ddmvss] and enforces the
+operationalises the MDS taxonomy[^ddmvss] and enforces the
 non-negotiable biases of this project:
 
 1. **Mermaid-First Visualization Mandate** — diagrams live inline in
@@ -44,7 +44,7 @@ is the operational quality standard that governs publication decisions.
 These biases are implemented through the metadata, diagram, citation,
 and writing excellence conventions below. Violations block publication.
 
-**Role:** This document is the verification gate. It tells you how to confirm that documentation is correct and complete. What to create and where to put it is governed by [`DDMVSS_SCAFFOLD.md`](DDMVSS_SCAFFOLD.md).
+**Role:** This document is the verification gate. It tells you how to confirm that documentation is correct and complete. What to create and where to put it is governed by [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md).
 
 ---
 
@@ -61,7 +61,7 @@ title:
 **Last-Updated:** YYYY-MM-DD
 **Status:** Active | Draft | Deprecated | Superseded
 **Audience:** Brief role list
-**DDMVSS Categories:** domain | capability | interface | composition | trust | observability | persistence | lifecycle | curation
+**MDS Categories:** domain | capability | interface | composition | trust | observability | persistence | lifecycle | curation
 **Domain:** Cross-cutting | specific domain
 ```
 
@@ -73,7 +73,7 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| DDMVSS Categories | One or more of the 9 DDMVSS categories defined in [`../architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3. See [`../DDMVSS_SCAFFOLD.md`](DDMVSS_SCAFFOLD.md) for category → directory mapping. |
+| MDS Categories | One or more of the 9 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §3. See [`../MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) for category → directory mapping. |
 | Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle
@@ -233,7 +233,7 @@ This ensures:
 
 ### 6.2 What belongs where
 
-For the authoritative DDMVSS category → directory mapping, see [`DDMVSS_SCAFFOLD.md`](DDMVSS_SCAFFOLD.md) §2. The table below is a simplified content-type view:
+For the authoritative MDS category → directory mapping, see [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) §2. The table below is a simplified content-type view:
 
 | Content | Location |
 |---------|----------|
@@ -307,7 +307,7 @@ poor quality and blocks publication. See `WRITING_EXCELLENCE.md` §3 for
 the full rubric, scoring guidance, and strongest-fit mappings per document
 type.
 
-Writing Excellence is integrated into the DDMVSS curation process via two
+Writing Excellence is integrated into the MDS curation process via two
 mechanisms:
 
 1. **`spec/curate/writing-excellence`** — Standalone assessment tool that
@@ -325,7 +325,7 @@ This checklist is the publication quality gate per Hackos's Information Process 
 Before a document is merged:
 
 - [ ] Six-field metadata header present and correct
-- [ ] `DDMVSS Categories` field present with ≥1 category
+- [ ] `MDS Categories` field present with ≥1 category
 - [ ] Every `##` section has ≥ 1 footnoted citation with URL
 - [ ] Every Mermaid block has a `DIAGRAM_ALIGNMENT` metadata comment
 - [ ] All internal links resolve
@@ -340,9 +340,9 @@ Before a document is merged:
 
 ---
 
-## 11. DDMVSS Alignment
+## 11. MDS Alignment
 
-All architecture documents MUST map to at least one of the 9 DDMVSS categories defined in [`../architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3:
+All architecture documents MUST map to at least one of the 9 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §3:
 
 1. **Domain** — Bounded context, ν-events, entities, hLexicon terms
 2. **Capability** — Verbs, OCAP tokens, attenuation policy
@@ -366,17 +366,17 @@ last_updated: 2026-05-25
 version: "0.4.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 ```
 
 ### 11.2 Verification
 
-The verification checklist (§10) is extended with DDMVSS alignment checks:
+The verification checklist (§10) is extended with MDS alignment checks:
 
-- [ ] Document maps to ≥1 DDMVSS category
+- [ ] Document maps to ≥1 MDS category
 - [ ] `ddmvss_categories` field present in metadata (if applicable)
-- [ ] Category-specific completeness criteria addressed (see [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2)
+- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/MDS.md) §3.2)
 
 ### 11.3 Category-Specific Requirements
 
@@ -394,7 +394,7 @@ The verification checklist (§10) is extended with DDMVSS alignment checks:
 
 ### 11.4 Self-Application
 
-This documentation standard itself maps to DDMVSS categories:
+This documentation standard itself maps to MDS categories:
 
 - **Domain:** Documentation corpus, metadata schema, lifecycle states
 - **Capability:** Publication gates, verification commands, citation requirements
@@ -406,13 +406,13 @@ This documentation standard itself maps to DDMVSS categories:
 - **Lifecycle:** Draft → Active → Deprecated → Superseded → Removed
 - **Curation:** Writing Excellence protocol (Hopper, Lovelace, Schriver, Gentle tests)
 
-**Completeness:** 9/9 categories satisfied. This standard is DDMVSS-complete.
+**Completeness:** 9/9 categories satisfied. This standard is MDS-complete.
 
 ---
 
 ## References
 
-[^ddmvss]: hKask Project. (2026). *DDMVSS — Domain-Driven Minimal Viable System Structure*. <../architecture/DDMVSS.md>. The structural taxonomy that classifies every document by its DDMVSS category.
+[^ddmvss]: hKask Project. (2026). *MDS — Domain-Driven Minimal Viable System Structure*. <../architecture/MDS.md>. The structural taxonomy that classifies every document by its MDS category.
 
 [^semver]: Preston-Werner, T. (2013). *Semantic Versioning 2.0.0*. <https://semver.org/>. The MAJOR.MINOR.PATCH convention adapted here for documentation.
 

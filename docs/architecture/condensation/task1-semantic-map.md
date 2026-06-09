@@ -76,7 +76,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | `CnsRuntime` | Regulator | Guardrail | DS | IS |
 | `CyberneticsLoop` | Regulator | Guardrail | IH | IS |
 | `VarietyMonitor` / `VarietyTracker` | Sensor | Guardrail | DS | IS |
-| `GasBudget` / `GasBudgetManager` | Regulator | Guardrail | DS | IS |
+| `EnergyBudget` / `EnergyBudgetManager` | Regulator | Guardrail | DS | IS |
 | `GovernedTool` | Regulator | Prohibition | IH | IS |
 | `CircuitBreaker` | Regulator | Guardrail | DS | IS |
 | `AllostericGate` | Regulator | Guardrail | IH | IS |
@@ -184,13 +184,13 @@ Not a subsumption — structural clarification of muddled boundaries in `hkask-a
 
 ---
 
-#### #5 — GasBudget ↔ EnergyBudget naming drift ⭐⭐⭐ DECLARATIVE
+#### #5 — EnergyBudget ↔ EnergyBudget naming drift ⭐⭐⭐ DECLARATIVE
 
 ```
-:GasBudget  hkask:sameAs  :EnergyBudget .
+:EnergyBudget  hkask:sameAs  :EnergyBudget .
 ```
 
-Loop-architecture.md §1 uses "EnergyBudget." Code uses "GasBudget." Same concept, different name.
+Loop-architecture.md §1 uses "EnergyBudget." Code uses "EnergyBudget." Same concept, different name.
 
 **Action:** Reconcile naming. No code change needed.
 
@@ -206,7 +206,7 @@ Loop-architecture.md §1 uses "EnergyBudget." Code uses "GasBudget." Same concep
 | #2 | NuEvent/Span unification | ⭐⭐ Probabilistic | Examine code; collapse if possible | Medium |
 | #3 | LoopMessage → tokio | ⭐⭐ Probabilistic | Replace custom messaging | Medium-High |
 | #4 | Pod/Agent/Service | ⭐⭐⭐ Declarative | Clarify model boundaries | Medium |
-| #5 | GasBudget naming | ⭐⭐⭐ Declarative | Reconcile naming only | Minimal |
+| #5 | EnergyBudget naming | ⭐⭐⭐ Declarative | Reconcile naming only | Minimal |
 
 ---
 
@@ -245,13 +245,13 @@ erDiagram
     hkask-cns ||--o{ CnsRuntime : "Loop-6"
     hkask-cns ||--o{ CyberneticsLoop : "orchestrates"
     hkask-cns ||--o{ VarietyMonitor : "senses"
-    hkask-cns ||--o{ "GasBudget ⚠️" : "regulates"
+    hkask-cns ||--o{ "EnergyBudget ⚠️" : "regulates"
     hkask-cns ||--o{ GovernedTool : "enforces"
     hkask-cns ||--o{ CircuitBreaker : "protects"
     hkask-cns ||--o{ AllostericGate : "regulates"
     hkask-cns ||--o{ RuntimeAlert : "emits"
 
-    "GasBudget ⚠️" ||--|| "EnergyBudget(doc)" : "sameAs"
+    "EnergyBudget ⚠️" ||--|| "EnergyBudget(doc)" : "sameAs"
 
     hkask-agents ||--o{ AgentPod : "⚠️overloaded"
     hkask-agents ||--o{ PodManager : "⚠️overloaded"

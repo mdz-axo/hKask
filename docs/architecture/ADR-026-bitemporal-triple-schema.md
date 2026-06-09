@@ -5,7 +5,7 @@ last_updated: 2026-05-29
 version: "0.27.0"
 status: "Active"
 domain: "Technology"
-ddmvss_categories: [persistence]
+mds_categories: [lifecycle]
 ---
 
 # ADR-026: Bitemporal Triple Schema

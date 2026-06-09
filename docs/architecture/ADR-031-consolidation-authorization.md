@@ -5,7 +5,7 @@ last_updated: 2026-06-05
 version: "0.27.0"
 status: "Active"
 domain: "Security"
-ddmvss_categories: [trust]
+mds_categories: [trust]
 ---
 
 # ADR-031: Consolidation Authorization via Master Passphrase Derivation

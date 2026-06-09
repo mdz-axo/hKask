@@ -5,7 +5,7 @@ last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Technology"
-ddmvss_categories: [lifecycle]
+mds_categories: [lifecycle]
 ---
 
 # CI/CD and Installation Guide — hKask

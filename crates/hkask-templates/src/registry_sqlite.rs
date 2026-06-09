@@ -171,6 +171,7 @@ impl SqliteRegistry {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn row_to_entry(
         conn: &Connection,
         id: &str,
@@ -412,6 +413,7 @@ impl BundleRegistryIndex for SqliteRegistry {
 // ── Owned-skill retrieval ──────────────────────────────────────────────────
 
 impl SqliteRegistry {
+    #[allow(clippy::too_many_arguments)]
     fn row_to_skill(
         id: String,
         domain_str: String,

@@ -5,7 +5,7 @@ last_updated: 2026-06-07
 version: "0.23.0"
 status: "Active"
 domain: "Data"
-ddmvss_categories: [persistence]
+mds_categories: [lifecycle]
 ---
 
 

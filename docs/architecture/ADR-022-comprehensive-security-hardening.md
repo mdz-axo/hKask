@@ -5,7 +5,7 @@ last_updated: 2026-05-28
 version: "0.27.0"
 status: "Active"
 domain: "Technology"
-ddmvss_categories: [trust]
+mds_categories: [trust]
 ---
 
 # ADR-022: Comprehensive Security Hardening
@@ -132,7 +132,7 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 **Impact:** Clear hexagonal architecture mapping
 
 #### T22: Documentation Alignment
-**Solution:** Expanded `trust-security-observability.md`, `reference/ports-inventory.md`  
+**Solution:** Expanded `MDS.md §7.3`, `reference/ports-inventory.md`  
 **Impact:** Documentation matches implementation
 
 ## Consequences
@@ -232,12 +232,12 @@ grep -r "block_in_place\|block_on" crates/hkask-agents/src/ crates/hkask-templat
 
 ## Related Documents
 
-- [`trust-security-observability.md`](trust-security-observability.md) — Comprehensive security model
+- [`MDS.md §7.3`](MDS.md §7.3) — Comprehensive security model
 - [`reference/ports-inventory.md`](reference/ports-inventory.md) — Hexagonal port inventory
-- [`trust-security-observability.md`](trust-security-observability.md) — Security architecture
-- [`trust-security-observability.md`](trust-security-observability.md) — DDMVSS-aligned security architecture
+- [`MDS.md §7.3`](MDS.md §7.3) — Security architecture
+- [`MDS.md §7.3`](MDS.md §7.3) — MDS-aligned security architecture
 - [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) — This document
-- [`domain-and-capability.md`](domain-and-capability.md) — Agent pod lifecycle and capability management
+- [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) — Agent pod lifecycle and capability management
 
 ## References
 

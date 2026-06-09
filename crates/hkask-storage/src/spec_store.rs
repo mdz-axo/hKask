@@ -350,7 +350,7 @@ impl SqliteSpecStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::spec_types::{DomainAnchor, GoalSpec};
+    use crate::spec_types::DomainAnchor;
     use chrono::Duration;
     use rusqlite::Connection;
     use std::sync::{Arc, Mutex};

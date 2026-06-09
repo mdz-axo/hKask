@@ -5,12 +5,12 @@ status: accurate
 last_updated: 2026-06-07
 audience: [architects, developers]
 domain: "Application"
-ddmvss_categories: [interface]
+mds_categories: [interface]
 ---
 
 # Hexagonal Port Inventory — hKask v0.23.0
 
-> **Note:** Active ports are authoritative in [`interface-and-composition.md`](../interface-and-composition.md) §2. This reference provides implementation detail, removal history, and phantom type corrections.
+> **Note:** Active ports are authoritative in [`MDS.md §7.2`](../MDS.md §7.2) §2. This reference provides implementation detail, removal history, and phantom type corrections.
 
 ## Active Traits
 
@@ -67,7 +67,7 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 | Trait | Why Removed |
 |---|---|
 | `SovereigntyPort` | **Not actually removed** — trait still exists at `hkask-types/src/sovereignty.rs:374`; `SovereigntyChecker` implements it |
-| `RateLimitPort` | Deleted — rate limiting consolidated into gas budget enforcement (`GasBudget` in `hkask-cns/src/energy.rs`) |
+| `RateLimitPort` | Deleted — rate limiting consolidated into gas budget enforcement (`EnergyBudget` in `hkask-cns/src/energy.rs`) |
 | `KeystorePort` | Dead — `KeychainAdapter` had no callers |
 | `OCAPPort` | Dead — `OCAPAdapter` had no callers |
 | `ManifestExecutor` | Dead — `ManifestExecutorImpl` is concrete |
@@ -102,7 +102,7 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 | `CnsEmit` / `CnsEmitterAdapter` / `SpanScope` | **Never existed** — actual CNS port is `CnsPort` impl'd by `CnsRuntime` |
 | `SecurityGateway` | **Never existed** in `hkask-mcp` — actual OCAP enforcement is `GovernedTool` in `hkask-cns` |
 | `McpTransport` | **Never existed** as a trait or enum in current codebase |
-| `EnergyBudget` | **Never existed** — actual type is `GasBudget` (`hkask-cns/src/energy.rs`) |
+| `EnergyBudget` | **Never existed** — actual type is `EnergyBudget` (`hkask-cns/src/energy.rs`) |
 
 ## Dependency Flow
 
@@ -119,5 +119,5 @@ hkask-mcp → hkask-templates (McpPort impl)
 ## See Also
 
 - `hKask-architecture-master.md` — authoritative architecture spec
-- `interface-and-composition.md` — port composition patterns
+- `MDS.md §7.2` — port composition patterns
 - `subsystem-erds.md` — entity relationship diagrams

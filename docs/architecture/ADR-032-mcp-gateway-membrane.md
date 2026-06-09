@@ -5,18 +5,18 @@ last_updated: 2026-06-07
 version: "0.27.0"
 status: "Draft"
 domain: "Technology"
-ddmvss_categories: [capability, trust]
+mds_categories: [composition, trust]
 ---
 
 # ADR-032: MCP Gateway Membrane Policy
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`domain-and-capability.md`](domain-and-capability.md) §5.5, OPEN_QUESTIONS.md FUT-004
+**Related:** [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) §5.5, OPEN_QUESTIONS.md FUT-004
 
 ## Context
 
-hKask's 21 MCP servers provide tool capabilities to agents. The capability model documented in `domain-and-capability.md` §5.5 describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 2 of 21 MCP servers currently implement this membrane via `GovernedTool`:
+hKask's 21 MCP servers provide tool capabilities to agents. The capability model documented in `MDS.md §7.1-7.2` §5.5 describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 2 of 21 MCP servers currently implement this membrane via `GovernedTool`:
 
 | Server | Membrane | Rationale |
 |--------|----------|-----------|
@@ -119,8 +119,8 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 
 ## Related Documents
 
-- [`domain-and-capability.md`](domain-and-capability.md) §5.5 — Capability membrane model
-- [`trust-security-observability.md`](trust-security-observability.md) §1 — Security model
+- [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) §5.5 — Capability membrane model
+- [`MDS.md §7.3`](MDS.md §7.3) §1 — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-004 — MCP gateway membrane question
 
 ## References

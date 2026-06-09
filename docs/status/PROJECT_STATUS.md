@@ -5,7 +5,7 @@ last_updated: 2026-06-08
 version: "0.1.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [observability, lifecycle]
+mds_categories: [lifecycle]
 ---
 
 # hKask Project Status
@@ -62,8 +62,8 @@ See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) for the exhaustiv
 
 | ID | Task | Status |
 |----|------|--------|
-| P2-09 | TemplateType vocabulary mapping (Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct) in `interface-and-composition.md` | ✅ Done |
-| P2-10 | DDMVSS §11 R3 deferred items (all 10) added to `OPEN_QUESTIONS.md` | ✅ Done |
+| P2-09 | TemplateType vocabulary mapping (Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct) in `MDS.md §7.2` | ✅ Done |
+| P2-10 | MDS §11 R3 deferred items (all 10) added to `OPEN_QUESTIONS.md` | ✅ Done |
 | P2-11 | `PROJECT_STATUS.md` populated with build/test/clippy results | ✅ Done |
 | **#4** | Wire `ContractValidator::validate_terms()` into template registration path | ✅ Done |
 | **#5** | Implement `parse_markdown_catalog` / `render_workspace_yaml` / `regenerate_workspace_yaml` | ✅ Done |

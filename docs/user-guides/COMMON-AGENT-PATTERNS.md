@@ -5,7 +5,7 @@ last_updated: 2026-06-03
 version: "0.23.0"
 status: "Active"
 domain: "Application"
-ddmvss_categories: [domain]
+mds_categories: [domain]
 ---
 
 # Common Agent Patterns and Templates
@@ -62,7 +62,7 @@ specialist-bot-crate/
     │   └── operation-selector.j2
     ├── prompts/
     │   └── specialist-prompt.j2
-    └── cognitions/
+    └── know_acts/
         └── specialist-cognition.j2
 ```
 
@@ -233,7 +233,7 @@ curator-bot-crate/
     │   └── metacognition-selector.j2
     ├── prompts/
     │   └── system_state_gather.j2
-    └── cognitions/
+    └── know_acts/
         └── metacognition-*.j2
 ```
 
@@ -265,13 +265,13 @@ rights:
   - read: bot_reports_all
   - write: own_episodic_memory
   - write: public_semantic_memory
-  - execute: metacognition_ops
+  - execute: metaknowledge_ops
   - coordinate: bot_ensemble_sessions
 
 responsibilities:
   - monitor: domain_health_via_cns
   - synthesize: bot_reports_into_system_state
-  - perform: metacognition_on_system_performance
+  - perform: metaknowledge_on_system_performance
   - calibrate: bot_energy_budgets_and_thresholds
   - escalate: critical_alerts_to_administrator
   - orchestrate: standing_ensemble_session
@@ -301,11 +301,11 @@ depends_on:
 
 readiness_probe:
   type: health_check
-  endpoint: curator::metacognition_status
+  endpoint: curator::metaknowledge_status
   expected:
     cns_spans_accessible: true
     bot_reports_available: true
-    metacognition_templates_loaded: true
+    metaknowledge_templates_loaded: true
   timeout_seconds: 15
   retry_count: 3
 ```
@@ -462,7 +462,7 @@ assistant-crate/
 └── templates/
     ├── prompts/
     │   └── assistant-prompt.j2
-    └── cognitions/
+    └── know_acts/
         └── user-query-processing.j2
 ```
 
@@ -602,7 +602,7 @@ bridge-agent-crate/
     │   └── workspace-request-selector.j2
     ├── prompts/
     │   └── bridge-translation.j2
-    └── cognitions/
+    └── know_acts/
         └── protocol-compliance.j2
 ```
 
@@ -741,8 +741,8 @@ Template files use Jinja2[^jinja2] and YAML[^yaml12] formats.
 | `metacognition-diagnose.j2` | System diagnosis | `registry/templates/curator/` |
 | `metacognition-calibrate.j2` | System calibration | `registry/templates/curator/` |
 | `metacognition-escalate.j2` | Escalation processing | `registry/templates/curator/` |
-| `cognition_detect.j2` | Pattern detection | `registry/templates/` |
-| `cognition_calibrate.j2` | Calibration logic | `registry/templates/` |
+| `knowact_detect.j2` | Pattern detection | `registry/templates/` |
+| `knowact_calibrate.j2` | Calibration logic | `registry/templates/` |
 
 ### Process Templates
 

@@ -5,7 +5,7 @@ last_updated: 2026-06-07
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [curation]
+mds_categories: [curation]
 ---
 
 # ADR Template
@@ -26,7 +26,7 @@ last_updated: YYYY-MM-DD
 version: "MAJOR.MINOR.PATCH"
 status: "Draft | Active | Deprecated | Superseded"
 domain: "Cross-cutting | Business | Data | Application | Technology"
-ddmvss_categories: [lifecycle]
+mds_categories: [lifecycle]
 ---
 
 # ADR-NNN: Title

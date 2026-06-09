@@ -5,7 +5,7 @@ last_updated: 2026-06-08
 version: "0.1.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [capability, composition, domain]
+mds_categories: [composition, composition, domain]
 ---
 
 # Adversarial Simplification Inventory
@@ -93,7 +93,7 @@ Items annotated `#[allow(dead_code)]` — code that compiles but has no runtime 
 ### DC-010: `hkask-mcp-spec` types module-wide `allow(dead_code)`
 
 - **File:** `mcp-servers/hkask-mcp-spec/src/types.rs:1` — `#![allow(dead_code)]` at module level
-- **Status:** ⚠️ Reserved — entire types module suppressed. Contains `TestClassification`, `TestPriority`, `TestCoverage` enums for DDMVSS testing protocol (TP-1 through TP-5).
+- **Status:** ⚠️ Reserved — entire types module suppressed. Contains `TestClassification`, `TestPriority`, `TestCoverage` enums for MDS testing protocol (TP-1 through TP-5).
 - **Action:** Defer. Types are referenced in the spec server's OpenAPI schema but have no runtime callers. Remove when spec server is self-applied (DA-4).
 
 ### DC-011: `A2A` compile-time guard + `RouteFields` 
@@ -162,7 +162,7 @@ Code that is wired and functional but could be simpler.
 
 - **File:** `crates/hkask-storage/src/spec_types.rs:96-102`
 - **Rationale:** 2-variant enum (`Okapi`, `Hkask`) could be collapsed into a boolean or flag. But enum ensures extensibility for future domain anchors.
-- **Status:** ⚠️ Keep — the DDMVSS spec explicitly describes `DomainAnchor` as an open set. Adding a third variant (e.g., `Federation`) would require refactoring a boolean.
+- **Status:** ⚠️ Keep — the MDS spec explicitly describes `DomainAnchor` as an open set. Adding a third variant (e.g., `Federation`) would require refactoring a boolean.
 - **Recommendation:** Retain. Enum is correct for an extensible taxonomy.
 
 ---

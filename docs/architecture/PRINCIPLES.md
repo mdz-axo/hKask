@@ -79,7 +79,7 @@ status: VERIFIED
 - `hkask-mcp-cns` — CNS operations
 - `hkask-mcp-git` — Git CAS
 - `hkask-mcp-registry` — Registry operations (cross-loop bridge, L1↔L5)
-- `hkask-mcp-spec` — DDMVSS spec capture
+- `hkask-mcp-spec` — MDS spec capture
 - `hkask-mcp-goal` — Goal coordination
 - `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — FMP integration
@@ -377,7 +377,7 @@ status: VERIFIED
 | **PS-08** | Mermaid-First | Diagrams inline, not external links |
 | **PS-09** | DIAGRAM_ALIGNMENT | Every diagram verified with metadata |
 | **PS-10** | Writing Excellence | 3 of 4 dimensions pass (Hopper/Lovelace/Schriver/Gentle) |
-| **PS-11** | DDMVSS Alignment | Every document classified by DDMVSS category |
+| **PS-11** | MDS Alignment | Every document classified by MDS category |
 | **PS-12** | Git is Archive | Retired docs recoverable via `git show` |
 
 **Verification Command:**

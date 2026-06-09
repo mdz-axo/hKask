@@ -5,7 +5,7 @@ last_updated: 2026-06-08
 version: "0.23.0"
 status: "Active"
 domain: "Application"
-ddmvss_categories: [domain]
+mds_categories: [domain]
 ---
 
 # hKask hLexicon — Minimal Composition Vocabulary
@@ -80,7 +80,7 @@ flowchart LR
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LEX-001
 verified_date: 2026-06-07
-verified_against: crates/hkask-templates/src/lexicon.rs (load_hlexicon_from_yaml — active); parse_markdown_catalog, render_workspace_yaml, regenerate_workspace_yaml — planned stubs, not yet implemented (see FocusingAssumption FA-Co1 in interface-and-composition.md); registry/registries/hlexicon-workspace.yaml
+verified_against: crates/hkask-templates/src/lexicon.rs (load_hlexicon_from_yaml — active); parse_markdown_catalog, render_workspace_yaml, regenerate_workspace_yaml — planned stubs, not yet implemented (see FocusingAssumption FA-Co1 in MDS.md §7.2); registry/registries/hlexicon-workspace.yaml
 status: VERIFIED
 -->
 
@@ -388,7 +388,7 @@ Speech acts distinguish between:
 | Term | Definition | Example Usage |
 |------|------------|---------------|
 | `compose` | Assemble parts into a structured whole | "compose: Build handoff document from sections" |
-| `structure` | Organize into a defined arrangement | "structure: Arrange findings by DDMVSS category" |
+| `structure` | Organize into a defined arrangement | "structure: Arrange findings by MDS category" |
 | `document` | Create a persistent, transferable record | "document: Write the architecture decision record" |
 | `handoff` | Determine what context to transfer to the next agent | "handoff: Select session facts for continuity" |
 

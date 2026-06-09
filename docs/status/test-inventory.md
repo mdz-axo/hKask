@@ -8,7 +8,7 @@ domain: "Cross-cutting"
 
 # Test Inventory
 
-Per DDMVSS §12 and `docs/specifications/test-program.md` — seam depth analysis and behavioral coverage for hKask crates.
+Per MDS §12 and `docs/specifications/test-program.md` — seam depth analysis and behavioral coverage for hKask crates.
 
 ## Summary
 
@@ -95,7 +95,7 @@ Per DDMVSS §12 and `docs/specifications/test-program.md` — seam depth analysi
 
 | Seam | Module | Tests | Key Invariants |
 |------|--------|-------|----------------|
-| `GasCost` + `GasBudget` | `energy` | 31 | `ZERO`=0; from_raw/as_raw round-trips; `From<u64>`/`Into<u64>`; Display; Ord; cap=remaining on new; replenish_rate=cap/10; hard_limit default; `can_proceed` hard/soft/reserved; consume deducts/fails; reserve+settle hold-settle; settle refund/extra; replenish cap/weighted/min-1; usage_ratio; available saturating_sub |
+| `GasCost` + `EnergyBudget` | `energy` | 31 | `ZERO`=0; from_raw/as_raw round-trips; `From<u64>`/`Into<u64>`; Display; Ord; cap=remaining on new; replenish_rate=cap/10; hard_limit default; `can_proceed` hard/soft/reserved; consume deducts/fails; reserve+settle hold-settle; settle refund/extra; replenish cap/weighted/min-1; usage_ratio; available saturating_sub |
 | `CircuitBreaker` | `circuit_breaker` | 9 | Starts Closed; failures→Open at threshold; Open→HalfOpen after timeout; HalfOpen→Closed after successes; HalfOpen→Open on failure; success resets count; `default_for_inference` |
 | `TableGasEstimator` | `table_gas_estimator` | 6 | Known servers; unknown default=10; per-tool overrides server; inference=0; tier ordering; `Default`=`New` |
 | `CompositeGasEstimator` | `composite_gas_estimator` | 7 | Routes inference→token; routes others→table; `InferenceGasEstimator` prompt+max_tokens; default max=100; minimum cost=1; empty args; `Default`=`New` |
@@ -103,7 +103,7 @@ Per DDMVSS §12 and `docs/specifications/test-program.md` — seam depth analysi
 | `VarietyTracker` + `VarietyMonitor` | `variety` | 13 | Starts empty; increment creates key; same key no increase; different keys increase; deficit saturating_sub; surplus→0 deficit; reset; Monitor independent domains; `domains()` list; default matches new; variety_for untracked=0 |
 | `Dampener` | `dampener` | 8 | First not dampened; same within window dampened; different target not dampened; same variant+target dampened; override cooldown suppresses ALL overrides within window; non-metacognitive not subject to cooldown; custom window; window expiry allows refire |
 | `SetPoints` | `set_points` | 5 | Defaults match constants; empty config→defaults; partial config overrides; YAML parse; invalid YAML fails |
-| `GasBudgetManager` | `gas_budget_management` | 13 | register+can_proceed; no budget=soft limit; hold-settle; no budget reserve/settle=ZERO; replenish skips overrides; clear override resumes; status None when unregistered; acquire; replenish by directive; energy_ratios; Default=New; `expire_overrides` removes expired; `agent_gas_status` none when unregistered |
+| `EnergyBudgetManager` | `energy_budget_management` | 13 | register+can_proceed; no budget=soft limit; hold-settle; no budget reserve/settle=ZERO; replenish skips overrides; clear override resumes; status None when unregistered; acquire; replenish by directive; energy_ratios; Default=New; `expire_overrides` removes expired; `agent_gas_status` none when unregistered |
 
 ### Bug Found and Fixed
 

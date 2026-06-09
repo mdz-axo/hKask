@@ -5,7 +5,7 @@ last_updated: 2026-06-07
 version: "1.1.0"
 status: "Active"
 domain: "Business"
-ddmvss_categories: [domain]
+mds_categories: [domain]
 ---
 
 

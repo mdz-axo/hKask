@@ -526,8 +526,9 @@ where
     let mut resolved = HashMap::new();
     let mut missing_required = Vec::new();
     for cred in &credentials {
-        if let Some(ref pre) = preloaded {
-            if let Some(val) = pre.get(&cred.env_var) {
+        if let Some(ref pre) = preloaded
+            && let Some(val) = pre.get(&cred.env_var)
+        {
                 tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
                 resolved.insert(cred.env_var.clone(), val.clone());
                 continue;

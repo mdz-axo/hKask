@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Open Questions and Underspecified Aspects
 
-**Purpose:** Unresolved aspects requiring decision-making before they can be addressed. Each question is tagged with its DDMVSS category and includes the decision options under consideration.
+**Purpose:** Unresolved aspects requiring decision-making before they can be addressed. Each question is tagged with its MDS category and includes the decision options under consideration.
 
 **Related:** [`MDS.md`](architecture/MDS.md), [`REQUIREMENTS.md`](specifications/REQUIREMENTS.md)
 
@@ -20,7 +20,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ### OQ-1: hKask-surface Documentation Depth ✅
 
-**DDMVSS Category:** Interface  
+**MDS Category:** Interface  
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
@@ -32,7 +32,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ### OQ-2: Federation Documentation Scope ✅
 
-**DDMVSS Category:** Composition  
+**MDS Category:** Composition  
 **Status:** **Resolved — Option 1**  
 **Resolution Date:** 2026-05-29
 
@@ -44,7 +44,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### OQ-3: Arsenal Crate Documentation Ownership ✅
 
-**DDMVSS Category:** Capability  
+**MDS Category:** Capability  
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
@@ -56,7 +56,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### OQ-4: Cross-Workspace Dependency Visualization ✅
 
-**DDMVSS Category:** Observability  
+**MDS Category:** Observability  
 **Status:** **Resolved — Current approach**  
 **Resolution Date:** 2026-05-29
 
@@ -68,7 +68,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### OQ-5: Automation and Drift Prevention ✅
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** **Resolved — Option 1, active**  
 **Resolution Date:** 2026-05-29
 
@@ -80,7 +80,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### OQ-6: ADR Gaps ✅
 
-**DDMVSS Category:** Lifecycle  
+**MDS Category:** Lifecycle  
 **Status:** **Resolved — Option 3**  
 **Resolution Date:** 2026-05-29
 
@@ -99,23 +99,23 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### OQ-7: Template Refresh ✅
 
-**DDMVSS Category:** Composition  
+**MDS Category:** Composition  
 **Status:** **Resolved — Deferred**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Defer template regeneration to the next documentation refresh cycle. The current templates in `docs/artifacts/` and `registry/templates/spec/` are functional. DDMVSS metadata requirements are documented in `DDMVSS.md` and the four architecture specifications.
+**Decision:** Defer template regeneration to the next documentation refresh cycle. The current templates in `docs/artifacts/` and `registry/templates/spec/` are functional. MDS metadata requirements are documented in `MDS.md` and the four architecture specifications.
 
-**Update (2026-05-29):** A documentation portal ([`README.md`](README.md)) was added that indexes every active document by DDMVSS category and demonstrates the compliant metadata header. When OQ-7 is taken up, the portal and the four architecture specifications are the recommended "best example" sources from which to regenerate the artifact templates.
+**Update (2026-05-29):** A documentation portal ([`README.md`](README.md)) was added that indexes every active document by MDS category and demonstrates the compliant metadata header. When OQ-7 is taken up, the portal and the four architecture specifications are the recommended "best example" sources from which to regenerate the artifact templates.
 
 ---
 
 ### OQ-8: hkask-mcp-spec Self-Application ✅
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (11 DDMVSS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
+**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (11 MDS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
 
 **Rationale:** There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 
@@ -123,7 +123,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### OQ-9: Stub MCP Server Completion ✅
 
-**DDMVSS Category:** Capability  
+**MDS Category:** Capability  
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
@@ -135,7 +135,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 #### F1: OCAP Secret Generation vs. HKDF Derivation ✅ RESOLVED
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** **Resolved**  
 **Resolution Date:** 2026-05-29
 
@@ -151,7 +151,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### F3: Memory Pipeline Completeness ✅ RESOLVED
 
-**DDMVSS Category:** Persistence  
+**MDS Category:** Persistence  
 **Status:** **Resolved**  
 **Resolution Date:** 2026-05-29
 
@@ -163,7 +163,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### F4: unwrap() Remediation Priority ✅ RESOLVED
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** **Resolved**  
 **Resolution Date:** 2026-05-29
 
@@ -173,7 +173,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 ### F6: Goal Capability — Revocation and Lineage Unification ✅ RESOLVED
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** **Resolved** — `GoalCapabilityToken` entirely removed in v0.27.0  
 **Raised:** 2026-05-29 · **Resolved:** 2026-06-04
 
@@ -203,11 +203,11 @@ All sub-questions are **moot**:
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 
-**DDMVSS Category:** Lifecycle  
+**MDS Category:** Lifecycle  
 **Status:** **Deprecated**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** The LOC budget has been deprecated. All code budget references removed from `docs/architecture/DDMVSS.md`, `docs/architecture/reference/hKask-erd.md`, and `docs/architecture/PRINCIPLES.md`.
+**Decision:** The LOC budget has been deprecated. All code budget references removed from `docs/architecture/MDS.md`, `docs/architecture/reference/hKask-erd.md`, and `docs/architecture/PRINCIPLES.md`.
 
 **Replacement discipline:** Every component must be essential and minimal — ask "is this necessary?" before "how big is it?" Code size is an output, not a constraint.
 
@@ -215,7 +215,7 @@ All sub-questions are **moot**:
 
 ### P3-a: ACP Transport Abstraction ⚠️ DEFERRED
 
-**DDMVSS Category:** Interface  
+**MDS Category:** Interface  
 **Status:** Deferred (no current need)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
@@ -223,7 +223,7 @@ Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or 
 
 ### P3-b: CyberneticsToken/CurationToken Runtime Enforcement ⚠️ DEFERRED
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** Deferred (structural foundation in place)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
@@ -231,7 +231,7 @@ Tokens are now minted at loop construction (9b/9c) but not yet presented to capa
 
 ### P3-d: Episodic vs Semantic Encryption Keys ⚠️ DEFERRED
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** Deferred (same master key, different visibility enforcement)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
@@ -239,7 +239,7 @@ Currently same master key for both. Episodic (private) and semantic (shared) hav
 
 ### P3-e: Loop Membrane Persistence ⚠️ DEFERRED
 
-**DDMVSS Category:** Persistence  
+**MDS Category:** Persistence  
 **Status:** Deferred (acceptable data loss for v0.27.0)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
@@ -247,7 +247,7 @@ Loop inboxes and variety counters are in-memory. On crash, all pending directive
 
 ### P3-f: Semantic Loop MCP Server ⚠️ RESOLVED
 
-**DDMVSS Category:** Interface  
+**MDS Category:** Interface  
 **Status:** Resolved — intentional gap  
 **Resolution Date:** 2026-06-03
 
@@ -255,7 +255,7 @@ Semantic Memory (Loop 2b) has no direct MCP server. Queries go through `hkask-mc
 
 ### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
 
-**DDMVSS Category:** Interface  
+**MDS Category:** Interface  
 **Status:** Deferred (hardcoded defaults sufficient for v0.27.0)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
@@ -263,7 +263,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 
 ### 8g: WebSearchPort Extraction ⚠️ DEFERRED
 
-**DDMVSS Category:** Composition  
+**MDS Category:** Composition  
 **Status:** Deferred (no current consumer outside `hkask-mcp-web`)  
 **Resolution Date:** 2026-06-03
 
@@ -271,7 +271,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 
 ### 9d: AgentKind Behavioral Dispatch ⚠️ RESOLVED — Keep Cosmetic
 
-**DDMVSS Category:** Domain  
+**MDS Category:** Domain  
 **Status:** Resolved — `AgentKind` remains a cosmetic enum  
 **Resolution Date:** 2026-06-03
 
@@ -281,7 +281,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 
 ### TQ-1: Mechanical vs. LLM Completeness Evaluation
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Open  
 **Opened:** 2026-06-06
 
@@ -291,17 +291,17 @@ Can `CompletenessCheck::is_complete()` be evaluated mechanically, or does it req
 
 ### TQ-2: Coherence Threshold Calibration
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Open  
 **Opened:** 2026-06-06
 
-The 0.7 coherence threshold (`default_coherence_threshold` in `CurationThresholdConfig`) is a starting guess per DDMVSS §9.2 gap #13. What is the empirical coherence score for a well-curated test invariant set? Calibrate after operational data from at least one full crate's test rewrite.
+The 0.7 coherence threshold (`default_coherence_threshold` in `CurationThresholdConfig`) is a starting guess per MDS §9.2 gap #13. What is the empirical coherence score for a well-curated test invariant set? Calibrate after operational data from at least one full crate's test rewrite.
 
 ---
 
 ### TQ-3: Skill Enforcement vs. Guidance
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** Open  
 **Opened:** 2026-06-06
 
@@ -311,17 +311,17 @@ Should skills be enforced mechanically (pre-commit hooks, CI checks, `spec/skill
 
 ### TQ-4: Property-Based Testing Boundaries
 
-**DDMVSS Category:** Capability  
+**MDS Category:** Capability  
 **Status:** Open  
 **Opened:** 2026-06-06
 
-Where do `proptest` and `cargo fuzz` fit? DDMVSS invariants are natural property candidates (e.g., "\forall CurationDecision, coherence_score in [0, 1]"). But property testing is not tracer-bullet — it's a different cycle. Should it be governed by its own skill (`property-testing`) or folded into the TDD skill as a specialized cycle type?
+Where do `proptest` and `cargo fuzz` fit? MDS invariants are natural property candidates (e.g., "\forall CurationDecision, coherence_score in [0, 1]"). But property testing is not tracer-bullet — it's a different cycle. Should it be governed by its own skill (`property-testing`) or folded into the TDD skill as a specialized cycle type?
 
 ---
 
 ### TQ-5: Integration Test Isolation
 
-**DDMVSS Category:** Composition  
+**MDS Category:** Composition  
 **Status:** Open  
 **Opened:** 2026-06-06
 
@@ -331,17 +331,17 @@ MCP server tests require `rmcp` transport. Should integration tests use the exis
 
 ### TQ-6: CNS Variety Counters for Test Diversity
 
-**DDMVSS Category:** Observability  
+**MDS Category:** Observability  
 **Status:** Open  
 **Opened:** 2026-06-06
 
-Should `cns.test.*` spans track test diversity (number of distinct seams tested per DDMVSS category) and emit algedonic alerts when test variety drops below threshold? This would make test coverage a homeostatic concern — cybernetically coherent, but requires defining thresholds per DDMVSS category.
+Should `cns.test.*` spans track test diversity (number of distinct seams tested per MDS category) and emit algedonic alerts when test variety drops below threshold? This would make test coverage a homeostatic concern — cybernetically coherent, but requires defining thresholds per MDS category.
 
 ---
 
 ### TQ-7: Skill-Bundler Composition with TDD
 
-**DDMVSS Category:** Composition  
+**MDS Category:** Composition  
 **Status:** Open  
 **Opened:** 2026-06-06
 
@@ -351,7 +351,7 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ### TQ-8: hkask-keystore Has Zero Tests
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** Open — CRITICAL  
 **Opened:** 2026-06-06
 
@@ -361,17 +361,17 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ### TQ-9: hkask-mcp-spec Has Zero Tests
 
-**DDMVSS Category:** Interface  
+**MDS Category:** Interface  
 **Status:** Open — HIGH  
 **Opened:** 2026-06-06
 
-`hkask-mcp-spec` is the DDMVSS governance surface (8+4 tool surfaces) and has zero test modules. Priority: behavioral tests at the `SpecStore` port and `SpecServer` tool handler seams.
+`hkask-mcp-spec` is the MDS governance surface (8+4 tool surfaces) and has zero test modules. Priority: behavioral tests at the `SpecStore` port and `SpecServer` tool handler seams.
 
 ---
 
 ### Q11: DelegationResource extensibility
 
-**DDMVSS Category:** Capability  
+**MDS Category:** Capability  
 **Status:** Open  
 **Opened:** 2026-06-07
 
@@ -385,17 +385,17 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ### FUT-002: Should `lambda_for_category` be public?
 
-**DDMVSS Category:** Capability  
+**MDS Category:** Capability  
 **Status:** Open  
 **Opened:** 2026-06-07
 
-`lambda_for_category` is a private `fn` with a fixed 5-category dispatch table. If the DDMVSS category set expands (as it did from 5 to 9), the dispatch table silently diverges from `SpecCategory::all()`. Recommendation: either make it `pub` with a documented contract, or replace it with `SpecCategory::all()` iteration.
+`lambda_for_category` is a private `fn` with a fixed 5-category dispatch table. If the MDS category set expands (as it did from 5 to 9), the dispatch table silently diverges from `SpecCategory::all()`. Recommendation: either make it `pub` with a documented contract, or replace it with `SpecCategory::all()` iteration.
 
 ---
 
 ### FUT-003: Is `Dampener.override_cooldown` per-issuer or global?
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** Open  
 **Opened:** 2026-06-07
 
@@ -405,17 +405,17 @@ Currently, `Dampener.override_cooldown` is global — any issuer's metacognitive
 
 ### FUT-004: Is the MCP gateway a membrane for all servers, or a passthrough for some?
 
-**DDMVSS Category:** Capability, Trust  
+**MDS Category:** Capability, Trust  
 **Status:** Open  
 **Opened:** 2026-06-07
 
-Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The remaining 19 pass tool calls through without OCAP checks. This means the "capability membrane" described in `domain-and-capability.md` §5.5 is selectively permeable. Should all servers gate? Should servers without side effects (e.g., `hkask-mcp-spec` read-only queries) be exempted by design?
+Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The remaining 19 pass tool calls through without OCAP checks. This means the "capability membrane" described in `MDS.md §7.1-7.2` §5.5 is selectively permeable. Should all servers gate? Should servers without side effects (e.g., `hkask-mcp-spec` read-only queries) be exempted by design?
 
 ---
 
 ### FUT-005: Is `SpecId` a brand or a plain `String`?
 
-**DDMVSS Category:** Domain  
+**MDS Category:** Domain  
 **Status:** Open  
 **Opened:** 2026-06-07
 
@@ -425,7 +425,7 @@ Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The
 
 ### FUT-007: Per-issuer override cooldown (sibling of FUT-003)
 
-**DDMVSS Category:** Trust  
+**MDS Category:** Trust  
 **Status:** Open  
 **Opened:** 2026-06-07
 
@@ -435,7 +435,7 @@ Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question 
 
 ### FUT-009: Span namespace `cns.cli.*` vs `cns.cybernetics.*` — ADR needed
 
-**DDMVSS Category:** Observability  
+**MDS Category:** Observability  
 **Status:** Open  
 **Opened:** 2026-06-07
 
@@ -445,17 +445,17 @@ The canonical CNS span listing in `PRINCIPLES.md` §1.4 uses `cns.cybernetics.*`
 
 ### FUT-010: MCP≡CLI≡API equivalence verification
 
-**DDMVSS Category:** Interface  
+**MDS Category:** Interface  
 **Status:** Open  
 **Opened:** 2026-06-07
 
-The DDMVSS focusing assumption `MCP ≡ CLI ≡ API` is an axiom of the specification, not a verifiable property of the codebase. Whether the code currently satisfies this equivalence is a code-implementation question, not a spec-document question. The spec document (`interface-and-composition.md`) correctly states the axiom. Code-level verification that all three surfaces exercise the same capability set is tracked here as a code task.
+The MDS focusing assumption `MCP ≡ CLI ≡ API` is an axiom of the specification, not a verifiable property of the codebase. Whether the code currently satisfies this equivalence is a code-implementation question, not a spec-document question. The spec document (`MDS.md §7.2`) correctly states the axiom. Code-level verification that all three surfaces exercise the same capability set is tracked here as a code task.
 
 ---
 
 ### FUT-011: SpecStore bitemporal query methods
 
-**DDMVSS Category:** Persistence  
+**MDS Category:** Persistence  
 **Status:** Resolved  
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
@@ -472,7 +472,7 @@ Also added `recorded_at` column to `spec_curation_records` table and `list_curat
 
 ### FUT-012: Curation record persistence wiring
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Open  
 **Opened:** 2026-06-07
 
@@ -482,12 +482,12 @@ Also added `recorded_at` column to `spec_curation_records` table and `list_curat
 
 ### FUT-013: Coherence threshold calibration
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Resolved  
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-Added calibration procedure to DDMVSS §5.9: collect ≥10 SpecCurationRecord coherence scores, compute 25th percentile (nearest-rank) as empirical threshold. Code: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)`. Also added `load_all_curation_records()` to `SqliteCurationRecordStore` for retrieval of all historical scores. Recalibration recommended after every curation cycle.
+Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coherence scores, compute 25th percentile (nearest-rank) as empirical threshold. Code: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)`. Also added `load_all_curation_records()` to `SqliteCurationRecordStore` for retrieval of all historical scores. Recalibration recommended after every curation cycle.
 
 ---
 
@@ -506,41 +506,41 @@ Added calibration procedure to DDMVSS §5.9: collect ≥10 SpecCurationRecord co
 | OQ-9 | Resolved | Confirmed fully implemented | 2026-05-28 |
 | F6 | Resolved | GoalCapabilityToken removed; WebID-based owner scoping replaces token infrastructure | 2026-06-04 |
 
-**DDMVSS completeness:** 8/8 open questions resolved, 1 deferred with documented rationale. F6 resolved post-sprint. Code-implementation gaps (FUT-010 through FUT-013) reclassified from spec-document gaps per the DDMVSS axiom `Spec-document completeness ⊥ Code-implementation completeness`.
+**MDS completeness:** 8/8 open questions resolved, 1 deferred with documented rationale. F6 resolved post-sprint. Code-implementation gaps (FUT-010 through FUT-013) reclassified from spec-document gaps per the MDS axiom `Spec-document completeness ⊥ Code-implementation completeness`.
 
 ---
 
-## DDMVSS Round 3 Deferred Items
+## MDS Round 3 Deferred Items
 
-*Tracked per DDMVSS Semantic Alignment Audit (2026-06-06) remediation R11. These items were deferred in DDMVSS §11 Round 3 but not previously tracked in OPEN_QUESTIONS.md. Now includes all 10 original DDMVSS §11 R3 items cross-referenced.*
+*Tracked per MDS Semantic Alignment Audit (2026-06-06) remediation R11. These items were deferred in MDS §11 Round 3 but not previously tracked in OPEN_QUESTIONS.md. Now includes all 10 original MDS §11 R3 items cross-referenced.*
 
-| # | Item | Category | Status | DDMVSS §11 Ref |
+| # | Item | Category | Status | MDS §11 Ref |
 |---|------|----------|--------|---------------|
 | R3.1 | Span::Spec variant gap | Observability | **Resolved** (added in audit) | Audit R1 |
-| R3.2 | SpecStore bitemporal semantics | Persistence | **Resolved** — 4 bitemporal query methods + recorded_at column + list_curation_records_since. 6 tests. Updated 2026-06-08 | DDMVSS §11 #2 |
-| R3.3 | Spec signing (Ed25519) | Trust | **Resolved** — Ed25519SpecSigner implemented | DDMVSS §11 #3 |
-| R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | **Resolved** — CapabilityChecker::grant_spec() implemented | DDMVSS §11 #4 |
+| R3.2 | SpecStore bitemporal semantics | Persistence | **Resolved** — 4 bitemporal query methods + recorded_at column + list_curation_records_since. 6 tests. Updated 2026-06-08 | MDS §11 #2 |
+| R3.3 | Spec signing (Ed25519) | Trust | **Resolved** — Ed25519SpecSigner implemented | MDS §11 #3 |
+| R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | **Resolved** — CapabilityChecker::grant_spec() implemented | MDS §11 #4 |
 | R3.5 | hLexicon spec-curation terms bootstrapping | Domain | **Resolved** (partially bootstrapped) | Audit §2.3 |
-| R3.6 | MCP≡CLI≡API cross-surface equivalence test | Interface | ⚠️ Deferred | DDMVSS §11 #6 |
+| R3.6 | MCP≡CLI≡API cross-surface equivalence test | Interface | ⚠️ Deferred | MDS §11 #6 |
 | R3.7 | Curation authority OCAP boundary integration | Trust | ⚠️ Deferred | — |
-| R3.8 | Curation records persistence | Persistence | **Resolved** (partial) — SqliteCurationRecordStore exists. Not yet wired into evaluate(). | DDMVSS §11 #8 |
-| R3.9 | Coherence threshold calibration (0.7) | Curation | ⚠️ Deferred (uncalibrated) | DDMVSS §11 #7 |
+| R3.8 | Curation records persistence | Persistence | **Resolved** (partial) — SqliteCurationRecordStore exists. Not yet wired into evaluate(). | MDS §11 #8 |
+| R3.9 | Coherence threshold calibration (0.7) | Curation | ⚠️ Deferred (uncalibrated) | MDS §11 #7 |
 | R3.10 | Spec version replacement (post version_sha removal) | Lifecycle | **Resolved** — Spec.version: Option<String> added | Audit R15 |
-| R3.11 | `SpecStore` needs `Send + Sync` bounds on the trait itself | Trust | ⚠️ Deferred — breaking change to trait signature; bounds currently on field type only | DDMVSS §11 #1 |
-| R3.12 | `SpecObserver` → CNS span integration depth | Observability | ⚠️ Deferred — currently emits `tracing::info!`; needs SpanEmitter variety counters and algedonic alert triggers | DDMVSS §11 #5 |
-| R3.13 | Spec drift detection (`cns.spec.drift` span) | Observability | ⚠️ Deferred — drift magnitude metric specified but not implemented; requires comparing `Spec` goals against implementation state | DDMVSS §11 #10 |
+| R3.11 | `SpecStore` needs `Send + Sync` bounds on the trait itself | Trust | ⚠️ Deferred — breaking change to trait signature; bounds currently on field type only | MDS §11 #1 |
+| R3.12 | `SpecObserver` → CNS span integration depth | Observability | ⚠️ Deferred — currently emits `tracing::info!`; needs SpanEmitter variety counters and algedonic alert triggers | MDS §11 #5 |
+| R3.13 | Spec drift detection (`cns.spec.drift` span) | Observability | ⚠️ Deferred — drift magnitude metric specified but not implemented; requires comparing `Spec` goals against implementation state | MDS §11 #10 |
 
 ---
 
-## DDMVSS Audit Remediation Tracking (R4–R18)
+## MDS Audit Remediation Tracking (R4–R18)
 
-*Remediation items from the 2026-06-06 DDMVSS Semantic Alignment Audit that are now resolved but were not previously tracked in this document.*
+*Remediation items from the 2026-06-06 MDS Semantic Alignment Audit that are now resolved but were not previously tracked in this document.*
 
 | # | Item | Category | Status | Audit Ref |
 |---|------|----------|--------|----------|
-| R4 | DDMVSS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
-| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and domain-and-capability.md now cross-reference PRINCIPLES.md §1.4 | Audit R6 |
-| R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in interface-and-composition.md §3.3 | Audit R8 |
+| R4 | MDS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
+| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference PRINCIPLES.md §1.4 | Audit R6 |
+| R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in MDS.md §7.2 §3.3 | Audit R8 |
 | R13 | SpecDriftAlert not in CNS loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
 
 ---
@@ -551,18 +551,18 @@ Added calibration procedure to DDMVSS §5.9: collect ≥10 SpecCurationRecord co
 
 ### DA-1: Spec-document vs code-implementation boundary decision rule
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Resolved  
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-The corrected DDMVSS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `docs/status/spec-code-drift.yaml`, curation decisions in `docs/status/curation-decisions.yaml`. The DDMVSS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
+The corrected MDS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `docs/status/spec-code-drift.yaml`, curation decisions in `docs/status/curation-decisions.yaml`. The MDS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
 
 ---
 
 ### DA-2: Status file population
 
-**DDMVSS Category:** Capability, Observability  
+**MDS Category:** Capability, Observability  
 **Status:** Partially resolved  
 **Opened:** 2026-06-07
 
@@ -572,7 +572,7 @@ Producing real content for `docs/status/` files. Two new status files have been 
 
 ### DA-3: hkask-agents build regression
 
-**DDMVSS Category:** Domain, Capability  
+**MDS Category:** Domain, Capability  
 **Status:** Resolved  
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
@@ -583,7 +583,7 @@ The `hkask-agents` crate build regression has been resolved. All 9 code drift it
 
 ### DA-4: Spec server self-application
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Open (deferred, not blocked)  
 **Opened:** 2026-06-07
 
@@ -595,15 +595,15 @@ The `hkask-mcp-spec` server can be used to capture and curate the specification 
 
 ### DA-5: Coherence threshold calibration as spec-document gap
 
-**DDMVSS Category:** Curation  
+**MDS Category:** Curation  
 **Status:** Resolved  
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-Resolved by adding a `calibration` section to the `coherence_metric` block in DDMVSS §5.9 Curation Spec Template. The calibration procedure is now documented: collect ≥10 SpecCurationRecord coherence scores, compute the 25th percentile (nearest-rank), use that as the empirical threshold. Code implementation: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)` in `crates/hkask-agents/src/curator_agent/spec_curator.rs`. This closes the spec-document gap — the spec now states the calibration method, not just the threshold value.
+Resolved by adding a `calibration` section to the `coherence_metric` block in MDS §5.9 Curation Spec Template. The calibration procedure is now documented: collect ≥10 SpecCurationRecord coherence scores, compute the 25th percentile (nearest-rank), use that as the empirical threshold. Code implementation: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)` in `crates/hkask-agents/src/curator_agent/spec_curator.rs`. This closes the spec-document gap — the spec now states the calibration method, not just the threshold value.
 
 ---
 
 ## References
 
-[^ddmvss]: hKask Team. (2026). *DDMVSS — Domain-Driven Minimum Viable Specification Set*. `docs/architecture/DDMVSS.md`.
+[^ddmvss]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set*. `docs/architecture/MDS.md`.

@@ -5,14 +5,14 @@ last_updated: 2026-06-08
 version: "1.0.0"
 status: "Active"
 domain: "Data"
-ddmvss_categories: [persistence]
+mds_categories: [lifecycle]
 ---
 
 # hKask Subsystem Entity Relationship Diagrams
 
 **Purpose:** Mermaid ERDs for all 11 core crates, grounded in actual Rust source types. Supplements [`hKask-erd.md`](hKask-erd.md) (conceptual model) and [`registry-erd.md`](registry-erd.md) (high-temp tables).
 
-**Related:** [`hKask-erd.md`](hKask-erd.md), [`../interface-and-composition.md`](../interface-and-composition.md), [`../persistence-and-lifecycle.md`](../persistence-and-lifecycle.md)
+**Related:** [`hKask-erd.md`](hKask-erd.md), [`../MDS.md §7.2`](../MDS.md §7.2), [`../MDS.md §7.4`](../MDS.md §7.4)
 
 ---
 
@@ -1133,7 +1133,7 @@ erDiagram
 
     SPEC_SERVER {
         string id "hkask-mcp-spec"
-        string purpose "DDMVSS spec capture"
+        string purpose "MDS spec capture"
     }
 
     GITHUB_SERVER {
@@ -1186,7 +1186,7 @@ graph TB
 
     subgraph "Domain Logic"
         MEMORY[hkask-memory<br/>7 structs]
-        CNS[hkask-cns<br/>observability]
+        CNS[hkask-cns<br/>lifecycle]
         TEMPLATES[hkask-templates<br/>registry + cascade]
     end
 
@@ -1286,7 +1286,7 @@ status: VERIFIED
 
 ## Review Acknowledgment
 
-A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`domain-and-capability.md`](../domain-and-capability.md) §5.5) and the relevant ADRs. The review ERDs have been archived to `docs/archive/2026-06-07-documentation-refresh/review/`.
+A deeper structural analysis of these ERDs was performed during the v0.23 review cycle (Task 2). Key insights — including capability-membrane gaps in `MemoryStoragePort`and the implicit forwarding model in `AgentPod` — have been incorporated into the capability model (see [`MDS.md §7.1-7.2`](../MDS.md §7.1-7.2) §5.5) and the relevant ADRs. The review ERDs have been archived to `docs/archive/2026-06-07-documentation-refresh/review/`.
 
 ---
 

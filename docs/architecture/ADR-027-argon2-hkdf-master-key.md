@@ -5,7 +5,7 @@ last_updated: 2026-05-29
 version: "0.27.0"
 status: "Active"
 domain: "Technology"
-ddmvss_categories: [trust]
+mds_categories: [trust]
 ---
 
 # ADR-027: Argon2id + HKDF-SHA256 Master Key Derivation

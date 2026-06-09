@@ -5,14 +5,14 @@ last_updated: 2026-06-06
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # hKask Testing Standards
 
-**Purpose:** Codify testing practices derived from Matt Pocock's TDD methodology, architecture deepening principles, and disciplined diagnosis — adapted to hKask's DDMVSS categories and constraint-driven design (P1–P7, C1–C7).
+**Purpose:** Codify testing practices derived from Matt Pocock's TDD methodology, architecture deepening principles, and disciplined diagnosis — adapted to hKask's MDS categories and constraint-driven design (P1–P7, C1–C7).
 
-**Related:** [`PRINCIPLES.md`](../architecture/PRINCIPLES.md), [`DDMVSS.md`](../architecture/DDMVSS.md), [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`AGENTS.md`](../../AGENTS.md)
+**Related:** [`PRINCIPLES.md`](../architecture/PRINCIPLES.md), [`MDS.md`](../architecture/MDS.md), [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`AGENTS.md`](../../AGENTS.md)
 
 **Skills referenced:** `tdd`, `diagnose`, `improve-codebase-architecture`, `coding-guidelines`, `zoom-out`, `grill-me`, `skill-bundler`
 
@@ -86,7 +86,7 @@ Ask: *"If I rewrote the entire internals of this module, would this test still p
 Implementation-coupled tests are not forbidden — they exist because some code currently lacks a clean seam. But they must be tracked:
 
 - Add a `// TEST-DEBT: tests private <detail>` comment above the test
-- Link the debt in the test traceability section of the relevant DDMVSS category
+- Link the debt in the test traceability section of the relevant MDS category
 - The debt is resolved when a deeper interface makes the test unnecessary
 
 ---
@@ -127,9 +127,9 @@ mod tests {
 
 ---
 
-## 4. DDMVSS Category → Test Strategy
+## 4. MDS Category → Test Strategy
 
-Each DDMVSS category has a distinct testing emphasis:
+Each MDS category has a distinct testing emphasis:
 
 ### 4.1 Domain (REQ-DOM-*)
 
@@ -287,7 +287,7 @@ When making changes:
 | **tdd-session** | `tdd` + `coding-guidelines` + `diagnose` | Feature development with TDD, guardrails, and debugging fallback |
 | **debug-session** | `diagnose` + `coding-guidelines` | Finding and fixing bugs systematically |
 | **architecture-review** | `improve-codebase-architecture` + `zoom-out` + `grill-me` | Refactoring with big-picture context and stress-testing |
-| **spec-session** | `tdd` + `skill-bundler` | Writing DDMVSS specs with test traceability |
+| **spec-session** | `tdd` + `skill-bundler` | Writing MDS specs with test traceability |
 
 ---
 
@@ -295,7 +295,7 @@ When making changes:
 
 ### 6.1 Requirement → Test Mapping
 
-Every DDMVSS requirement in `TRACEABILITY_MATRIX.md` must map to at least one test. If no test exists, the "Tests" column must say `— GAP` (not `—`).
+Every MDS requirement in `TRACEABILITY_MATRIX.md` must map to at least one test. If no test exists, the "Tests" column must say `— GAP` (not `—`).
 
 Current state (as of v0.23.0):
 
@@ -395,7 +395,7 @@ The following skills are project-local in `hKask/.agents/skills/` and govern tes
 [^karpathy-guidelines]: Karpathy, A. (2025). *Coding Guidelines — Think, simplify, surgical, verify.* Project-local skill: `.agents/skills/coding-guidelines/SKILL.md`
 [^diagnose]: hKask Team. (2026). *Diagnose — Build a feedback loop first.* Project-local skill: `.agents/skills/diagnose/SKILL.md`
 [^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md`
-[^ddmvss]: hKask Team. (2026). *DDMVSS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/DDMVSS.md`
+[^ddmvss]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/MDS.md`
 
 ---
 

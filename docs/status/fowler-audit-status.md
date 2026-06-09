@@ -5,7 +5,7 @@ last_updated: 2026-06-08
 version: "0.1.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [capability, composition, domain]
+mds_categories: [composition, composition, domain]
 ---
 
 # Fowler Pattern Refactoring Tracker

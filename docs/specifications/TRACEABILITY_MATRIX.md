@@ -5,14 +5,14 @@ last_updated: 2026-06-07
 version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # hKask Traceability Matrix
 
-**Purpose:** Bidirectional traceability from DDMVSS goal specs → code → tests, organized by DDMVSS category.
+**Purpose:** Bidirectional traceability from MDS goal specs → code → tests, organized by MDS category.
 
-**Related:** [`REQUIREMENTS.md`](REQUIREMENTS.md), [`domain-and-capability.md`](../architecture/domain-and-capability.md), [`interface-and-composition.md`](../architecture/interface-and-composition.md), [`trust-security-observability.md`](../architecture/trust-security-observability.md), [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md)
+**Related:** [`REQUIREMENTS.md`](REQUIREMENTS.md), [`MDS.md §7.1-7.2`](../architecture/MDS.md §7.1-7.2), [`MDS.md §7.2`](../architecture/MDS.md §7.2), [`MDS.md §7.3`](../architecture/MDS.md §7.3), [`MDS.md §7.4`](../architecture/MDS.md §7.4)
 
 **Scope-exempt from Sourced-Ideas Mandate** — this is a cross-reference table, not a design document.
 
@@ -86,7 +86,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-CUR-001 | DDMVSS specification tools | `hkask-mcp-spec`, `hkask-storage`, `hkask-agents` | `lib`, `spec_types`, `spec_store`, `curator_agent/spec_curator` | 8 MCP tools, `SpecStore`, `SqliteSpecStore`, `DefaultSpecCurator` | \u2014 | \u2705 Implemented |
+| REQ-CUR-001 | MDS specification tools | `hkask-mcp-spec`, `hkask-storage`, `hkask-agents` | `lib`, `spec_types`, `spec_store`, `curator_agent/spec_curator` | 8 MCP tools, `SpecStore`, `SqliteSpecStore`, `DefaultSpecCurator` | \u2014 | \u2705 Implemented |
 | REQ-CUR-002 | Curation decision gradient | `hkask-storage`, `hkask-types` | `spec_types`, `curation` | `SpecCurationRecord`, `CurationDecision` | \u2014 | \u2705 Implemented |
 
 ---
@@ -106,6 +106,6 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | Curation | 2 | 0 | 0 | 2 |
 | **Total** | **25** | **0** | **5** | **30** |
 
-**DDMVSS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
+**MDS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
 
-**Test coverage note (updated 2026-06-04):** The goal-capability hardening (originally ADR-029, P0-03; ADR-029 archived — `GoalCapabilityToken` removed) now uses WebID-based owner scoping. `GoalCapabilityToken` and associated forgery/expiry/attenuation tests were removed in v0.23.0. Remaining dedicated `#[test]` coverage: transition tests in `hkask-types` (`goal`), owner-only-delete tests in `hkask-storage` (`goals`). `cargo test --workspace` is green. Other DDMVSS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).
+**Test coverage note (updated 2026-06-04):** The goal-capability hardening (originally ADR-029, P0-03; ADR-029 archived — `GoalCapabilityToken` removed) now uses WebID-based owner scoping. `GoalCapabilityToken` and associated forgery/expiry/attenuation tests were removed in v0.23.0. Remaining dedicated `#[test]` coverage: transition tests in `hkask-types` (`goal`), owner-only-delete tests in `hkask-storage` (`goals`). `cargo test --workspace` is green. Other MDS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).

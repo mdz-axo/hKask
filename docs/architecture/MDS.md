@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** A minimal, capability-driven specification framework for hKask. Specs are grants ("CAN verb on resource via interface"), not fences ("MUST NOT"). Five categories, six tools, one completeness predicate.
 
-**Supersedes:** [`DDMVSS.md`](DDMVSS.md) — the previous 9-category Domain-Driven Minimum Viable Specification Set is archived. All DDMVSS references in the codebase should be updated to MDS.
+**Supersedes:** [`MDS.md`](MDS.md) — the previous 9-category Domain-Driven Minimum Viable Specification Set is archived. All MDS references in the codebase should be updated to MDS.
 
 **Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`magna-carta.md`](magna-carta.md), [`loop-architecture.md`](loop-architecture.md)
 
@@ -23,9 +23,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | # | Category | Completeness Predicate | Min Artifacts | Cross-References |
 |---|----------|----------------------|---------------|-----------------|
 | 1 | **Domain** | Every entity has a named term in hLexicon and a bounded-context map | hLexicon allocation, domain ontology sketch | → Composition (verbs), → Lifecycle (persistence) |
-| 2 | **Composition** | Every domain verb has a granted capability, registered interface, and composable path | Capability grant table, interface equivalence matrix, registry schema | → Domain (ontology), → Trust (tokens) |
+| 2 | **Composition** | Every domain verb has a granted composition, registered interface, and composable path | Capability grant table, interface equivalence matrix, registry schema | → Domain (ontology), → Trust (tokens) |
 | 3 | **Trust** | Every capability operation has a threat-model entry and an OCAP-bound mitigation | Threat model, keystore config, capability attenuation policy | → Composition (capabilities), → Lifecycle (audit) |
-| 4 | **Lifecycle** | Bootstrap, evolution, deprecation, observability, and persistence are expressible as spec transitions | Bootstrap manifest, evolution rules, deprecation policy, CNS span registry | → Domain (entities), → Trust (audit) |
+| 4 | **Lifecycle** | Bootstrap, evolution, deprecation, lifecycle, and persistence are expressible as spec transitions | Bootstrap manifest, evolution rules, deprecation policy, CNS span registry | → Domain (entities), → Trust (audit) |
 | 5 | **Curation** | Every spec artifact has been evaluated for coherence by a curator with documented rationale | Curation decision log, coherence score | → Domain (hLexicon grounding), → Lifecycle (health) |
 
 ---
@@ -304,4 +304,4 @@ coherence_metric:
 
 ---
 
-*MDS v0.27.0 — supersedes DDMVSS. Five categories, six tools, one predicate.*
+*MDS v0.27.0 — supersedes MDS. Five categories, six tools, one predicate.*

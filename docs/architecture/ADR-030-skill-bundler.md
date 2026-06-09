@@ -5,7 +5,7 @@ last_updated: 2026-06-04
 version: "0.27.0"
 status: "Proposed"
 domain: "Technology"
-ddmvss_categories: [composition, capability]
+mds_categories: [composition]
 ---
 
 # ADR-030: Skill Bundler — Meta-Skill Composition
@@ -39,7 +39,7 @@ pub struct BundleManifest {
     pub cascade: Vec<CascadePhase>,
     pub visibility: Visibility,
     pub content_hashes: HashMap<SkillId, ContentHash>,
-    pub gas_budget: Option<EnergyBudget>,
+    pub energy_budget: Option<EnergyBudget>,
 }
 ```
 

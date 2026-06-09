@@ -43,11 +43,11 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 
 | Document | Status |
 |----------|--------|
-| `DDMVSS.md` | Deleted — superseded by MDS.md (9→5 categories, 9→6 tools) |
-| `domain-and-capability.md` | Deleted — covered by MDS.md §7.1-7.2 |
-| `interface-and-composition.md` | Deleted — covered by MDS.md §7.2 |
-| `persistence-and-lifecycle.md` | Deleted — covered by MDS.md §7.4 |
-| `trust-security-observability.md` | Deleted — covered by MDS.md §7.3 + PRINCIPLES.md §2.1 |
+| `MDS.md` | Deleted — superseded by MDS.md (9→5 categories, 9→6 tools) |
+| `MDS.md §7.1-7.2` | Deleted — covered by MDS.md §7.1-7.2 |
+| `MDS.md §7.2` | Deleted — covered by MDS.md §7.2 |
+| `MDS.md §7.4` | Deleted — covered by MDS.md §7.4 |
+| `MDS.md §7.3` | Deleted — covered by MDS.md §7.3 + PRINCIPLES.md §2.1 |
 
 ---
 
@@ -164,7 +164,7 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ---
 
-*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`DDMVSS_SCAFFOLD.md`](../specifications/DDMVSS_SCAFFOLD.md) §6 for the full verification gate table.
+*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`MDS_SCAFFOLD.md`](../specifications/MDS_SCAFFOLD.md) §6 for the full verification gate table.
 
 ---
 
@@ -173,14 +173,14 @@ Detailed lookup tables and diagrams in `reference/`:
 ```
 docs/architecture/
 ├── hKask-architecture-master.md           # THIS FILE (index)
-├── DDMVSS.md                              # Framework
+├── MDS.md                              # Framework
 ├── PRINCIPLES.md                          # Framework
 ├── loop-architecture.md                   # Framework (6-loop authority model)
 ├── magna-carta.md                         # Framework
-├── domain-and-capability.md               # SPEC (Domain + Capability)
-├── interface-and-composition.md           # SPEC (Interface + Composition)
-├── trust-security-observability.md        # SPEC (Trust + Observability)
-├── persistence-and-lifecycle.md           # SPEC (Persistence + Lifecycle)
+├── MDS.md §7.1-7.2               # SPEC (Domain + Capability)
+├── MDS.md §7.2           # SPEC (Interface + Composition)
+├── MDS.md §7.3        # SPEC (Trust + Observability)
+├── MDS.md §7.4           # SPEC (Persistence + Lifecycle)
 ├── ADR-022-comprehensive-security-hardening.md  # Decision record
 ├── ADR-024-unified-registry.md            # Decision record
 ├── ADR-025-attenuation-depth-limit.md     # Decision record

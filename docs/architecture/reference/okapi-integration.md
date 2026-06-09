@@ -5,12 +5,12 @@ status: "Active"
 last_updated: 2026-06-07
 audience: [architects, developers]
 domain: "Application"
-ddmvss_categories: [domain]
+mds_categories: [domain]
 ---
 
 # Okapi Integration — API Contract
 
-> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`interface-and-composition.md`](../interface-and-composition.md) §2.5.
+> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`MDS.md §7.2`](../MDS.md §7.2) §2.5.
 
 **Version:** 0.23.0
 **Last Updated:** 2026-06-07

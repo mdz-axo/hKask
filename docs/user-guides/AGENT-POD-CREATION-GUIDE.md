@@ -5,7 +5,7 @@ last_updated: 2026-06-03
 version: "0.23.0"
 status: "Active"
 domain: "Application"
-ddmvss_categories: [domain]
+mds_categories: [domain]
 ---
 
 # Agent Pod Creation Guide — hKask
@@ -93,8 +93,8 @@ my-agent-crate/
     │   └── prompt_*.j2
     ├── processes/          # FlowDef templates
     │   └── process_*.yaml
-    └── cognitions/         # KnowAct templates
-        └── cognition_*.j2
+    └── know_acts/         # KnowAct templates
+        └── knowact_*.j2
 ```
 
 ---
@@ -181,7 +181,7 @@ rights:
 ```yaml
 rights:
   - execute: template_dispatch
-  - execute: metacognition_ops
+  - execute: metaknowledge_ops
   - execute: system_calibration
   - coordinate: bot_ensemble_sessions
 ```
@@ -558,7 +558,7 @@ steps:
 
   - ordinal: 3
     action: populate
-    template_ref: registry/templates/cognition_calibrate.j2
+    template_ref: registry/templates/knowact_calibrate.j2
     renderer: minijinja
     bindings:
       alerts: "${step_2_output.alerts}"
@@ -584,7 +584,7 @@ Templates are Jinja2 files that define the agent's behavior[^jinja2].
 |------|-----------|---------|---------|
 | **Prompt** (WordAct) | `.j2` | LLM calls, speech acts | `prompt_render.j2` |
 | **Process** (FlowDef) | `.yaml` | Multi-step workflows | `process_dispatch.yaml` |
-| **Cognition** (KnowAct) | `.j2` | Thinking, learning | `cognition_calibrate.j2` |
+| **Cognition** (KnowAct) | `.j2` | Thinking, learning | `knowact_calibrate.j2` |
 
 ### 4.2 Selector Template
 
@@ -661,7 +661,7 @@ You are {{ agent_name }}, a [role] in the hKask system.
 ### 4.4 Cognition Template
 
 ```jinja2
-{# File: templates/cognitions/my-cognition.j2 #}
+{# File: templates/know_acts/my-cognition.j2 #}
 
 You are performing metacognition on [domain].
 
@@ -708,7 +708,7 @@ my-agent-crate/
     │   └── my-prompt.j2
     ├── processes/
     │   └── my-process.yaml
-    └── cognitions/
+    └── know_acts/
         └── my-cognition.j2
 ```
 
@@ -1013,7 +1013,7 @@ rights:
   - read: bot_reports_all
   - write: own_episodic_memory
   - write: public_semantic_memory
-  - execute: metacognition_ops
+  - execute: metaknowledge_ops
   - coordinate: bot_ensemble_sessions
 
 responsibilities:
@@ -1245,7 +1245,7 @@ kask pod deactivate <pod-id>
 - [ ] `templates/selectors/selector.j2` — Template selector
 - [ ] `templates/prompts/*.j2` — Prompt templates
 - [ ] `templates/processes/*.yaml` — Process templates
-- [ ] `templates/cognitions/*.j2` — Cognition templates
+- [ ] `templates/know_acts/*.j2` — Cognition templates
 - [ ] `Cargo.toml` — Rust crate metadata
 
 ### Common Capability Patterns
@@ -1286,8 +1286,8 @@ After creating your agent pod[^humble2010]:
 5. **Coordinate with other bots**: Establish A2A communication channels
 
 For advanced topics, see:
-- [Agent Pod Implementation](../architecture/domain-and-capability.md)
-- [Security Architecture](../architecture/trust-security-observability.md)
+- [Agent Pod Implementation](../architecture/MDS.md §7.1-7.2)
+- [Security Architecture](../architecture/MDS.md §7.3)
 - [CNS Observers](../architecture/PRINCIPLES.md)
 - [Template Header Standard](../architecture/reference/template-header-standard.md)
 

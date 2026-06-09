@@ -196,7 +196,7 @@ impl GitCASPort for GixCasAdapter {
             if !prefix_filter.is_empty() {
                 args.extend(["--", &prefix_filter]);
             }
-            let output = git_cmd(&repo_dir, &args.iter().map(|s| *s).collect::<Vec<_>>())?;
+            let output = git_cmd(&repo_dir, &args)?;
             check_git(&output, "ls-tree")?;
             let stdout = String::from_utf8_lossy(&output.stdout);
             let mut entries = Vec::new();

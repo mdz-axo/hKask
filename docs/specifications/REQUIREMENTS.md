@@ -5,14 +5,14 @@ last_updated: 2026-06-07
 version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
-ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # hKask Requirements Specification
 
-**Purpose:** Implemented requirements as DDMVSS goal specs, with traceability to specific crates, modules, and tests. Each requirement is grounded in code that compiles and passes tests today.
+**Purpose:** Implemented requirements as MDS goal specs, with traceability to specific crates, modules, and tests. Each requirement is grounded in code that compiles and passes tests today.
 
-**Related:** [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`domain-and-capability.md`](../architecture/domain-and-capability.md), [`DDMVSS.md`](../architecture/DDMVSS.md)
+**Related:** [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`MDS.md §7.1-7.2`](../architecture/MDS.md §7.1-7.2), [`MDS.md`](../architecture/MDS.md)
 
 **Verification:** `cargo test --workspace`
 
@@ -20,11 +20,11 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ## 1. Goal Spec Format
 
-Each requirement follows the DDMVSS goal spec pattern:
+Each requirement follows the MDS goal spec pattern:
 
 ```
 Goal ID: REQ-<CATEGORY>-<NNN>
-Category: <DDMVSS category>
+Category: <MDS category>
 Text: When <situation>, I want to <motivation>, so I can <outcome>
 Criteria: [list of verifiable criteria]
 Implementation: <crate>::<module>::<type>
@@ -115,7 +115,7 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-CAP-002: Capability Attenuation Chains
 
 - **Category:** Capability, Trust
-- **Text:** When delegating a capability, I want attenuation enforced, so I can limit delegated authority.
+- **Text:** When delegating a composition, I want attenuation enforced, so I can limit delegated authority.
 - **Criteria:**
   - [x] Attenuation depth configurable (default: 7)
   - [x] `Delegation` type with grantor/grantee/scope
@@ -147,7 +147,7 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-IFC-001: MCP ≡ CLI ≡ API Equivalence
 
 - **Category:** Interface
-- **Text:** When exercising a capability, I want identical semantics across MCP, CLI, and API, so I can choose the appropriate surface.
+- **Text:** When exercising a composition, I want identical semantics across MCP, CLI, and API, so I can choose the appropriate surface.
 - **Criteria:**
   - [x] CLI binary `kask` with 14 subcommand groups
   - [x] HTTP API with 11 route groups
@@ -344,7 +344,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ## 10. Curation Requirements
 
-### REQ-CUR-001: DDMVSS Specification Tools
+### REQ-CUR-001: MDS Specification Tools
 
 - **Category:** Curation
 - **Text:** When authoring specifications, I want MCP tools for capture/decompose/curate/validate, so I can follow the MVSDD cycle.

@@ -5,14 +5,14 @@ last_updated: 2026-06-07
 version: "0.27.0"
 status: "Draft"
 domain: "Technology"
-ddmvss_categories: [trust, observability]
+mds_categories: [trust, lifecycle]
 ---
 
 # ADR-033: Dampener Override Cooldown Semantics
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`domain-and-capability.md`](domain-and-capability.md) §4.3, OPEN_QUESTIONS.md FUT-003, FUT-007
+**Related:** [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) §4.3, OPEN_QUESTIONS.md FUT-003, FUT-007
 
 ## Context
 
@@ -106,8 +106,8 @@ cargo test -p hkask-cns
 
 ## Related Documents
 
-- [`domain-and-capability.md`](domain-and-capability.md) §4.3 — Dampener override model
-- [`trust-security-observability.md`](trust-security-observability.md) §1 — Security model
+- [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) §4.3 — Dampener override model
+- [`MDS.md §7.3`](MDS.md §7.3) §1 — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-003, FUT-007 — Override cooldown questions
 
 ## References

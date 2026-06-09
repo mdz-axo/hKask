@@ -5,7 +5,7 @@ last_updated: 2026-06-07
 version: "0.23.0"
 status: "Active"
 domain: "Application"
-ddmvss_categories: [composition]
+mds_categories: [composition]
 ---
 
 # Template Header Standard — hLexicon Functional Roles
