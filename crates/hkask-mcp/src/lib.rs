@@ -8,7 +8,7 @@
 //! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, ServerContext, run_stdio_server)
 
 pub mod adapter_container;
-pub mod dispatch; // Loop 1 (inference tool dispatch)
+pub mod dispatch; // Tool dispatch through GovernedTool membrane
 pub mod git_cas;
 pub mod raw_tool_port; // Ungoverned tool executor (inner port for GovernedTool)
 pub mod runtime;

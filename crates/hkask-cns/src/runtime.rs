@@ -268,7 +268,7 @@ impl CnsRuntime {
     /// Get a read-only snapshot of an agent's energy budget status.
     ///
     /// Returns `None` if the agent has no registered budget.
-    /// Used by the `cns_energy` MCP tool.
+    /// Used by the CNS service.
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
         let state = self.state.read().await;
         let budgets = state.energy_budgets.read().await;

@@ -16,6 +16,7 @@ use hkask_types::curation::{
 };
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
+use hkask_types::loops::CurationInput;
 use hkask_types::loops::SpecEvent;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -30,9 +31,8 @@ pub struct DefaultSpecCurator {
     drift_threshold: f64,
     max_iterations: u8,
     event_sink: Option<Arc<dyn NuEventSink>>,
-    /// Direct spec event channel: SpecCurator → CurationLoop (strangler fig).
-    /// When set, SpecEvents are sent alongside the legacy LoopMessage path.
-    spec_tx: Option<tokio::sync::mpsc::UnboundedSender<SpecEvent>>,
+    /// Direct spec event channel: SpecCurator → CurationLoop.
+    spec_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
 }
 
 impl DefaultSpecCurator {
@@ -127,12 +127,11 @@ impl DefaultSpecCurator {
     }
 
     /// Wire the direct spec event channel: SpecCurator → CurationLoop.
-    ///
-    /// When set, `evaluate()` sends a `SpecEvent` on this channel alongside
-    /// the legacy `LoopMessage::SpecDriftAlert` through dispatch_tx.
-    /// This is the strangler fig pattern.
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_spec_channel(mut self, tx: tokio::sync::mpsc::UnboundedSender<SpecEvent>) -> Self {
+    pub fn with_spec_channel(
+        mut self,
+        tx: tokio::sync::mpsc::UnboundedSender<CurationInput>,
+    ) -> Self {
         self.spec_tx = Some(tx);
         self
     }
@@ -267,7 +266,7 @@ impl SpecCurator for DefaultSpecCurator {
                 }
             }
 
-            // Send SpecDriftAlert through direct channel to Curation's inbox
+            // Send SpecDrift through unified CurationInput channel to Curation's inbox
             if let Some(ref spec_tx) = self.spec_tx {
                 let event = SpecEvent {
                     spec_id: spec.id.to_string(),
@@ -275,11 +274,11 @@ impl SpecCurator for DefaultSpecCurator {
                     drift_threshold: self.drift_threshold,
                     missing_verbs: drift_report.missing_verbs.clone(),
                 };
-                if let Err(e) = spec_tx.send(event) {
+                if let Err(e) = spec_tx.send(CurationInput::SpecDrift(event)) {
                     tracing::warn!(
                         target: "cns.spec",
                         error = %e,
-                        "Failed to send SpecEvent on direct channel"
+                        "Failed to send CurationInput::SpecDrift"
                     );
                 }
             }

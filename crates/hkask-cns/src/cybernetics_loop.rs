@@ -36,8 +36,8 @@ use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
-    ActionType, CuratorDirective, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId,
-    RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
+    ActionType, CurationInput, CuratorDirective, Deviation, DeviationDirection, HkaskLoop,
+    LoopAction, LoopId, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::sync::Arc;
@@ -58,8 +58,8 @@ pub struct CyberneticsLoop {
     dampener: Arc<Dampener>,
     /// When present, algedonic alerts are persisted to NuEventStore for restart durability.
     event_sink: Option<Arc<dyn NuEventSink>>,
-    /// Direct alerts channel: Cybernetics → Curation.
-    alerts_tx: Option<mpsc::UnboundedSender<RuntimeAlert>>,
+    /// Direct alerts channel: Cybernetics → Curation (CurationInput).
+    alerts_tx: Option<mpsc::UnboundedSender<CurationInput>>,
     /// Direct tool consumption channel: GovernedTool → Cybernetics.
     tool_consumption_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<ToolConsumptionEvent>>>>,
     /// Direct curator directive channel: Curation → Cybernetics.
@@ -96,18 +96,14 @@ impl CyberneticsLoop {
         self
     }
 
-    /// Wire the direct alerts channel for Cybernetics → Curation RuntimeAlert delivery.
+    /// Wire the direct alerts channel for Cybernetics → Curation CurationInput delivery.
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_alerts_channel(mut self, tx: mpsc::UnboundedSender<RuntimeAlert>) -> Self {
+    pub fn with_alerts_channel(mut self, tx: mpsc::UnboundedSender<CurationInput>) -> Self {
         self.alerts_tx = Some(tx);
         self
     }
 
     /// Wire the direct tool consumption channel: GovernedTool → Cybernetics.
-    ///
-    /// When set, `process_inbox()` drains ToolConsumptionEvents from this
-    /// channel alongside the legacy LoopMessage inbox. This is the strangler
-    /// fig pattern — both pathways operate until the legacy dispatch is removed.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_tool_consumption_channel(
         mut self,
@@ -118,9 +114,6 @@ impl CyberneticsLoop {
     }
 
     /// Wire the direct curator directive channel: Curation → Cybernetics.
-    ///
-    /// When set, `process_inbox()` drains CuratorDirectives from this channel
-    /// instead of going through the legacy LoopMessage dispatch path.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_curator_directive_channel(
         mut self,
@@ -450,7 +443,7 @@ impl HkaskLoop for CyberneticsLoop {
             tracing::info!(target: "cns.cybernetics", action_type = ?action.action_type, target_loop = %action.target, "Cybernetics Loop efferent signal");
             let target_id = action.target;
 
-            // Send RuntimeAlert on direct alerts channel when Escalate + Curation target.
+            // Send CurationInput::Alert on direct alerts channel.
             if action.action_type == ActionType::Escalate
                 && target_id == LoopId::Curation
                 && let Some(ref alerts_tx) = self.alerts_tx
@@ -462,8 +455,8 @@ impl HkaskLoop for CyberneticsLoop {
                     deficit,
                     timestamp: chrono::Utc::now(),
                 };
-                if let Err(e) = alerts_tx.send(alert) {
-                    tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send RuntimeAlert on direct channel");
+                if let Err(e) = alerts_tx.send(CurationInput::Alert(alert)) {
+                    tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send CurationInput::Alert");
                 }
             }
 

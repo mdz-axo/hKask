@@ -1,6 +1,6 @@
 # Condensation Continuation — Internal Access Replacement & ACP Ports
 
-**Status:** Pending. hKask MCP server consolidation reduced 21→10 servers. Internal servers were removed from the workspace but their callers still use MCP dispatch. This task replaces those dispatch calls with direct function calls.
+**Status:** Complete. All internal MCP dispatch calls replaced with direct function calls (2026-06-09).
 
 ---
 

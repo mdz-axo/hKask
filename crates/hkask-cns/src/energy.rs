@@ -266,7 +266,7 @@ impl EnergyBudget {
 /// Read-only snapshot of an agent's energy budget status.
 ///
 /// Returned by `CyberneticsLoop::agent_gas_status()` and `CnsRuntime::agent_gas_status()`
-/// for use by the `cns_energy` MCP tool and InferenceLoop gas sync.
+/// for use by the CNS service and InferenceLoop gas sync.
 pub struct AgentEnergyStatus {
     /// Maximum gas capacity.
     pub cap: EnergyCost,

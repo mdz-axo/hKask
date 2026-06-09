@@ -125,7 +125,7 @@ status: VERIFIED
 
 **Implementation:**
 - `hkask-cli` — Terminal-based REPL and subcommands
-- `hkask-mcp-*` — Machine-to-machine tool calls (21 servers)
+- `hkask-mcp-*` — Machine-to-machine tool calls (10 servers)
 - `hkask-api` — HTTP API with auto-generated OpenAPI docs
 
 **Constraints:**
@@ -156,7 +156,7 @@ The five anchors ground in the [four-loop authority model](loop-architecture.md)
 | Anchor | Loop(s) | Rationale |
 |--------|---------|-----------|
 | 1. Agent Enablement | Curation | Bot/Replicant pods, ACP, persona — the Curator enables agents |
-| 2. Essential Tools | Inference + Memory + Cybernetics | 21 MCP servers span multiple loops: inference, memory storage, OCAP/keystore enforcement |
+| 2. Essential Tools | Inference + Memory + Cybernetics | 10 MCP servers + internal cognition (inference, CNS, OCAP, keystore, registry, git, goals) |
 | 3. User Sovereignty | Cybernetics | OCAP, SQLCipher, affirmative consent, gating — all regulation is Cybernetics |
 | 4. CNS | Cybernetics | Homeostatic self-regulation IS the Cybernetics loop |
 | 5. Composition | Memory | Unified registry, hLexicon, cascade — shared knowledge composition |

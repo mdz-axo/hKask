@@ -3,14 +3,14 @@ title: "Condensation Continuation — MCP Server Consolidation"
 audience: [architects, developers]
 last_updated: 2026-06-09
 version: "0.27.0"
-status: "Deferred"
+status: "Complete"
 domain: "Architecture"
 mds_categories: [composition, trust]
 ---
 
 # Condensation Continuation — MCP Server Consolidation
 
-**Status:** Deferred. hKask currently has 21 MCP servers. The grill-me session established a target of 9 (plus 1 merged memory server). This is a significant restructuring that should be done as a focused task.
+**Status:** Complete (2026-06-09). MCP server consolidation reduced 21→10 servers. Internal servers (inference, CNS, OCAP, keystore, registry, git, goals) removed from MCP workspace and callers updated to use direct crate calls. Replicant and ensemble converted to ACP ports.
 
 ---
 

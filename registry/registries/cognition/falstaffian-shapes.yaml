@@ -37,7 +37,7 @@ shapes:
     input_structure:
       description: "Abstract concept node with strong social/moral edges to action nodes"
       graph: "<Subject> <lacks> <Abstract_Predicate>"
-      example: "Falstaff lacks honor" / "You should have honor"
+      example: '"Falstaff lacks honor" / "You should have honor"'
 
     transformation_operation:
       step_1: "Extract target concept node C from social/moral frame"

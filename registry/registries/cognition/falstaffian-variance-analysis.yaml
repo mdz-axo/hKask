@@ -206,7 +206,7 @@ variance_matrix:
 
     - core_pattern: "Subject Expansion to Universal"
       pass_1_name: "Subject Expansion"
-      pass_2_name: "Vivid Elaboration" (related — elaboration enables expansion)
+      pass_2_name: '"Vivid Elaboration" (related — elaboration enables expansion)'
       pass_3_name: "Universal Love"
       confidence: "high"
       rationale: "All 3 passes identify banish plump Jack as expansion move"
@@ -222,7 +222,7 @@ variance_matrix:
 
     - core_pattern: "Object Valence Inversion"
       pass_1_name: "Object Inversion"
-      pass_2_name: "Vivid Elaboration" (enables inversion)
+      pass_2_name: '"Vivid Elaboration" (enables inversion)'
       pass_3_name: "Survival Wisdom"
       confidence: "high"
       rationale: "All 3 passes identify spare men/great men inversion"
@@ -240,7 +240,7 @@ variance_matrix:
 
     - core_pattern: "Causal Chain Mediation"
       pass_1_name: "Causal Chain Insertion"
-      pass_2_name: "Physiological Joy" (related — physiological elaboration)
+      pass_2_name: '"Physiological Joy" (related — physiological elaboration)'
       pass_3_name: null (seen as self-justification, not core shape)
       confidence: "medium"
       rationale: "Pass 1/2 identify; Pass 3 questions whether it's core Falstaffian"
@@ -275,7 +275,7 @@ variance_matrix:
     - core_pattern: "Frame Persistence Through Denial"
       pass_1_name: "Frame Persistence"
       pass_2_name: null (not identified as rhetorical form)
-      pass_3_name: "Tragic Hope" (related but different emphasis)
+      pass_3_name: '"Tragic Hope" (related but different emphasis)'
       confidence: "low"
       rationale: "Only Pass 1 identifies as distinct shape; may be denial rather than rotation"
       status: "candidate_for_removal"

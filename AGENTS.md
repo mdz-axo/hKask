@@ -49,7 +49,8 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-mcp-doc-knowledge` | Document parsing/chunking MCP server |
 | `hkask-mcp-markitdown` | Document conversion + OCR MCP server |
 
-**21 MCP servers:** inference (Okapi), condenser, web, ocap, keystore, cns, git, registry, spec, goal, github, fmp, telnyx, fal, rss-reader, ensemble, episodic, semantic, replicant, doc-knowledge, markitdown
+**10 MCP servers:** memory, condenser, web, spec, fmp, telnyx, fal, rss-reader, doc-knowledge, markitdown
+**Internal cognition:** inference (Okapi), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP)
 **External:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 
 ---

@@ -105,10 +105,9 @@ impl CuratorAgent {
     /// When episodic budget pressure triggers escalation, the consolidation
     /// bridge will fire to migrate episodic triples into semantic memory.
     ///
-    /// `alerts_rx` is the strangler fig direct channel from Cybernetics.
-    /// When `Some`, RuntimeAlerts are drained alongside the legacy LoopMessage inbox.
-    /// `spec_rx` is the strangler fig direct channel from SpecCurator.
-    /// `spec_tx` wires the SpecCurator to send SpecEvents on the direct channel.
+    /// `alerts_rx` — direct channel from Cybernetics (RuntimeAlerts).
+    /// `spec_rx` — direct channel from SpecCurator (SpecEvents).
+    /// `spec_tx` — wires the SpecCurator to send SpecEvents.
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,

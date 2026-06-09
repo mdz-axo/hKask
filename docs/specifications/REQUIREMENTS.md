@@ -131,10 +131,11 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Capability, Interface
 - **Text:** When an agent needs a tool, I want MCP server dispatch, so I can route tool calls to the correct server.
 - **Criteria:**
-  21 MCP servers registered in workspace
+  10 MCP servers registered in workspace
   - [x] `McpRuntime` manages server lifecycle
   - [x] `GovernedTool` enforces OCAP before dispatch (`SecurityGateway` described in spec; see TODO.md P2-06)
   - [x] Stdio transport via rmcp (in-process and HTTP transports deferred)
+  - [x] Former MCP servers (inference, CNS, OCAP, keystore, registry, git, goals) now use direct crate calls
 - **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-cns::governed_tool::GovernedTool`
 - **Tests:** —
 - **Status:** Implemented
@@ -151,7 +152,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] CLI binary `kask` with 14 subcommand groups
   - [x] HTTP API with 11 route groups
-  - [x] MCP with 21 servers
+  - [x] MCP with 10 servers (internal cognition via direct crate calls)
   - [x] All route through `hkask-agents` domain core
 - **Implementation:** `hkask-cli::main`, `hkask-api::lib::create_router`, `hkask-mcp::runtime`
 - **Status:** Implemented

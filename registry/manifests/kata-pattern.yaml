@@ -5,13 +5,13 @@ manifest:
   id: kata-pattern
   name: Kata Pattern
   description: >
-  functional_role: flowdef
     Unified Kata execution pattern. Selects and executes one of three
     Kata patterns: Improvement (4-step), Coaching (5-question), or Starter
     (practice routine). All Kata outcomes recorded to memory and CNS.
-    
+
     Supports limited composition: Improvement ↔ Coaching switching when
     obstacles or capability gaps are identified. Starter is self-contained.
+  functional_role: flowdef
   editor: Curator
   visibility: public
 
@@ -138,7 +138,7 @@ steps:
     renderer: null
     template_ref: null
     target: emit_kata_cns_span
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     tool: cns_emit
     token_cap: 2000
     timeout_seconds: 10
@@ -269,7 +269,7 @@ error_handling:
 cns:
   emit_spans: true
   span_namespace: cns.prompt.kata
-  
+
   # Carbon tracking (integrated)
   carbon_tracking:
     enabled: true
@@ -277,7 +277,7 @@ cns:
     unit: kg-CO₂e
     grid_intensity_source: IEA-Emission-Factors-2026
     pue: 1.15
-  
+
   # Capability metrics wired to counters
   capability_metrics:
     primary:
@@ -289,7 +289,7 @@ cns:
         counter_id: kata.automaticity.score
         unit: score_0_to_1
         aggregation: mean
-  
+
   # Variety counters with baselines
   variety_counters:
     baseline:
@@ -308,7 +308,7 @@ cns:
         unit: per_week_gain
         warning_threshold: 0.03
         critical_threshold: 0.01
-    
+
     counter_ids:
       - counter_id: kata.practices.completed
         increment_on: kata_execution_success
@@ -316,7 +316,7 @@ cns:
         increment_on: practice_streak_milestone
       - counter_id: kata.automaticity.score
         increment_on: automaticity_measurement
-  
+
   # Algedonic alerts
   algedonic_alerts:
     - trigger: variety_deficit_warning
@@ -336,7 +336,7 @@ cns:
     - trigger: automaticity_decline
       condition: automaticity_score_drop_0.2
       escalate_to: Curator
-  
+
   # Iteration tracking
   iteration_tracking:
     enabled: true
@@ -344,7 +344,7 @@ cns:
     iteration_budget: 50000
     variance_threshold: 0.3
     confidence_threshold: 0.5
-    
+
     variety_counters:
       - counter_id: kata.iterations.used
         increment_on: iteration_executed
@@ -377,7 +377,7 @@ composition:
     nested_kata:
       allowed: false
       reason: violates_minimalism
-  
+
   switching_protocol:
     - complete_current_step
     - save_state_to_memory
@@ -390,14 +390,14 @@ security:
     required: true
     method: webid_signature
     check_step: ordinal_1
-  
+
   consent:
     model: revocable_at_any_time
     grant_required_for:
       improvement: Curator
       coaching: Learner OR Curator
       starter: Self
-    
+
     revocation:
       who_can_revoke:
         improvement: [Curator]
@@ -410,7 +410,7 @@ security:
       re_consent:
         automatic: false
         requires: explicit_grant
-  
+
   authorization:
     kata:improvement:
       requires: Curator-consent
@@ -418,7 +418,7 @@ security:
       requires: learner-consent OR Curator-consent
     kata:starter:
       requires: self-consent
-  
+
   ocap:
     delegation_chain:
       Curator:
@@ -433,7 +433,7 @@ security:
       runtime_check: true
       on_violation: abort_and_escalate
       audit_log: true
-  
+
   audit:
     enabled: true
     log:

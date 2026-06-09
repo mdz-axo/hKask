@@ -99,12 +99,12 @@ governance:
 
   # New Template Checklist
   new_template_checklist:
-    - [ ] Add functional_role header to template
-    - [ ] Categorize as WordAct, FlowDef, or KnowAct
-    - [ ] Add to subsystem hLexicon registry
-    - [ ] Update workspace hLexicon registry
-    - [ ] Run validation script
-    - [ ] Document in design notes
+    - "[ ] Add functional_role header to template"
+    - "[ ] Categorize as WordAct, FlowDef, or KnowAct"
+    - "[ ] Add to subsystem hLexicon registry"
+    - "[ ] Update workspace hLexicon registry"
+    - "[ ] Run validation script"
+    - "[ ] Document in design notes"
 
 # Functional Role Definitions
 functional_roles:
@@ -180,4 +180,4 @@ compliance:
       - output_schema (outbound)
 
   compliance_rate_target: 100%
-  current_compliance_rate: 0%  # Will be calculated by validation script
+  current_compliance_rate: 0% # Will be calculated by validation script

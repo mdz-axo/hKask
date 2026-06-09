@@ -20,8 +20,7 @@ use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::{
-    Deviation, GoalTransitionEvent, HkaskLoop, LoopAction, LoopId, RuntimeAlert, Signal,
-    SignalMetric, SpecEvent,
+    CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
@@ -58,12 +57,9 @@ pub struct CurationLoop {
     /// interior mutability: `HkaskLoop::act(&self)` takes `&self`, but
     /// `CurationConfidenceGate::decide()` requires `&mut self`.
     confidence_gate: Option<Mutex<CurationConfidenceGate>>,
-    /// Direct alerts channel: Cybernetics → Curation.
-    alerts_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<RuntimeAlert>>>>,
-    /// Direct spec channel: SpecCurator → Curation.
-    spec_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<SpecEvent>>>>,
-    /// Direct goal channel: GoalStore → Curation.
-    goal_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<GoalTransitionEvent>>>>,
+    /// Inbox for receiving CurationInput messages from Cybernetics, SpecCurator,
+    /// and GoalStore. Drained during the sense phase.
+    inbox: Option<Arc<RwLock<mpsc::UnboundedReceiver<CurationInput>>>>,
 }
 
 impl CurationLoop {
@@ -80,9 +76,7 @@ impl CurationLoop {
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
             confidence_gate: None,
-            alerts_rx: None,
-            spec_rx: None,
-            goal_rx: None,
+            inbox: None,
         }
     }
 
@@ -97,38 +91,20 @@ impl CurationLoop {
             consolidation: Some(consolidation),
             last_review_ms: AtomicU64::new(0),
             confidence_gate: None,
-            alerts_rx: None,
-            spec_rx: None,
-            goal_rx: None,
+            inbox: None,
         }
     }
 
-    /// Set the curation confidence gate for metacognitive evaluation.
+    /// Attach the curation confidence gate for metacognitive evaluation.
     pub fn with_confidence_gate(mut self, gate: CurationConfidenceGate) -> Self {
         self.confidence_gate = Some(Mutex::new(gate));
         self
     }
 
-    /// Wire the direct alerts channel for Cybernetics → Curation RuntimeAlert delivery.
-    /// Wire the direct alerts channel: Cybernetics → Curation.
+    /// Wire the unified inbox for CurationInput messages.
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_alerts_channel(mut self, rx: mpsc::UnboundedReceiver<RuntimeAlert>) -> Self {
-        self.alerts_rx = Some(Arc::new(RwLock::new(rx)));
-        self
-    }
-
-    /// Wire the direct spec channel: SpecCurator → Curation.
-    /// Wire the direct spec channel: SpecCurator → Curation.
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_spec_channel(mut self, rx: mpsc::UnboundedReceiver<SpecEvent>) -> Self {
-        self.spec_rx = Some(Arc::new(RwLock::new(rx)));
-        self
-    }
-
-    /// Wire the direct goal channel: GoalStore → Curation.
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_goal_channel(mut self, rx: mpsc::UnboundedReceiver<GoalTransitionEvent>) -> Self {
-        self.goal_rx = Some(Arc::new(RwLock::new(rx)));
+    pub fn with_inbox(mut self, rx: mpsc::UnboundedReceiver<CurationInput>) -> Self {
+        self.inbox = Some(Arc::new(RwLock::new(rx)));
         self
     }
 
@@ -260,54 +236,44 @@ impl HkaskLoop for CurationLoop {
             .map(|port| port.consolidation_candidate_count(self.context.handle().curator_id()))
             .unwrap_or(0);
 
-        // Drain direct channels for GoalTransition, SpecDriftAlert, and RuntimeAlert messages.
+        // Drain unified inbox for CurationInput messages.
         let mut goal_stale_count: u64 = 0;
         let mut goal_expired_count: u64 = 0;
         let mut spec_drift_alert_count: u64 = 0;
-
-        // Drain direct alerts channel (Cybernetics → Curation RuntimeAlerts).
         let mut direct_alerts: u64 = 0;
-        if let Some(alerts_rx) = &self.alerts_rx {
-            let mut rx = alerts_rx.write().await;
-            while let Ok(alert) = rx.try_recv() {
-                direct_alerts += 1;
-                tracing::info!(
-                    target: CUR_TARGET,
-                    deficit = alert.deficit,
-                    threshold = alert.threshold,
-                    "RuntimeAlert received from Cybernetics (direct channel)"
-                );
-            }
-        }
-
-        // Drain direct spec channel (SpecCurator → Curation).
-        if let Some(spec_rx) = &self.spec_rx {
-            let mut rx = spec_rx.write().await;
-            while let Ok(event) = rx.try_recv() {
-                spec_drift_alert_count += 1;
-                tracing::warn!(
-                    target: CUR_TARGET,
-                    spec_id = %event.spec_id,
-                    drift_magnitude = event.drift_magnitude,
-                    "SpecDrift received from direct channel"
-                );
-            }
-        }
-
-        // Drain direct goal channel (GoalStore → Curation).
-        if let Some(goal_rx) = &self.goal_rx {
-            let mut rx = goal_rx.write().await;
-            while let Ok(event) = rx.try_recv() {
-                match event.to_state.as_str() {
-                    "stale" => {
-                        goal_stale_count += 1;
-                        tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal stale (direct channel)");
+        if let Some(inbox) = &self.inbox {
+            let mut rx = inbox.write().await;
+            while let Ok(msg) = rx.try_recv() {
+                match msg {
+                    CurationInput::Alert(alert) => {
+                        direct_alerts += 1;
+                        tracing::info!(
+                            target: CUR_TARGET,
+                            deficit = alert.deficit,
+                            threshold = alert.threshold,
+                            "RuntimeAlert received from Cybernetics"
+                        );
                     }
-                    "expired" => {
-                        goal_expired_count += 1;
-                        tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal expired (direct channel)");
+                    CurationInput::SpecDrift(event) => {
+                        spec_drift_alert_count += 1;
+                        tracing::warn!(
+                            target: CUR_TARGET,
+                            spec_id = %event.spec_id,
+                            drift_magnitude = event.drift_magnitude,
+                            "SpecDrift received from SpecCurator"
+                        );
                     }
-                    _ => {}
+                    CurationInput::GoalTransition(event) => match event.to_state.as_str() {
+                        "stale" => {
+                            goal_stale_count += 1;
+                            tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal stale");
+                        }
+                        "expired" => {
+                            goal_expired_count += 1;
+                            tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal expired");
+                        }
+                        _ => {}
+                    },
                 }
             }
         }

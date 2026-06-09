@@ -284,17 +284,17 @@ impl ServiceContext {
         // ── 5. Loop system ──────────────────────────────────────────────────
         let loop_system = Arc::new(LoopSystem::new());
 
-        // Direct alerts channel Cybernetics → Curation.
+        // Direct alerts channel: Cybernetics → Curation.
         let (alerts_tx, alerts_rx) = tokio::sync::mpsc::unbounded_channel::<RuntimeAlert>();
 
-        // Strangler fig: direct tool consumption channel GovernedTool → Cybernetics.
+        // Direct tool consumption channel: GovernedTool → Cybernetics.
         let (tool_consumption_tx, tool_consumption_rx) =
             tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
 
-        // Strangler fig: direct spec channel SpecCurator → Curation.
+        // Direct spec channel: SpecCurator → Curation.
         let (spec_tx, spec_rx) = tokio::sync::mpsc::unbounded_channel::<SpecEvent>();
 
-        // Strangler fig: direct curator directive channel Curation → Cybernetics.
+        // Direct curator directive channel: Curation → Cybernetics.
         let (curator_directive_tx, curator_directive_rx) =
             tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
 

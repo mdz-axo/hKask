@@ -233,19 +233,24 @@ redaction:
   enabled: true
   patterns:
     - name: api_key
-      regex: '(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*["''\'']?\S+'
+      regex: |-
+        (?i)(api[_-]?key|token|secret|password)\s*[:=]\s*["\']?\S+
       replacement: "[REDACTED]"
     - name: private_key
-      regex: '-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----'
+      regex: |-
+        -----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----
       replacement: "[REDACTED PRIVATE KEY]"
     - name: connection_string
-      regex: '(?:postgres|mysql|mongodb|redis)://\S+:\S+@\S+'
+      regex: |-
+        (?:postgres|mysql|mongodb|redis)://\S+:\S+@\S+
       replacement: "[REDACTED CONNECTION STRING]"
     - name: pii_email
-      regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+      regex: |-
+        [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
       replacement: "[REDACTED EMAIL]"
     - name: pii_phone
-      regex: '(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+      regex: |-
+        (?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}
       replacement: "[REDACTED PHONE]"
   on_detection: redact_and_log
   audit_redactions: true

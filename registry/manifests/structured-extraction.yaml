@@ -66,7 +66,8 @@ steps:
               entity_type: { type: string }
               schema_field: { type: string }
               confidence: { type: number }
-              location: { type: object }
+              location:
+                type: object
                 properties:
                   start: { type: integer }
                   end: { type: integer }
@@ -198,7 +199,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

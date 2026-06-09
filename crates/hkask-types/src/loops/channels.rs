@@ -1,11 +1,7 @@
-//! Domain channel message types — direct typed channels replacing LoopMessage routing.
+//! Domain channel message types — direct typed channels for inter-loop communication.
 //!
-//! Each pathway gets its own typed channel instead of routing through a generic
-//! Communication Loop. Channel identity replaces both LoopId and DispatchTarget.
-//!
-//! These types are introduced alongside the legacy `LoopMessage`/`LoopPayload` types
-//! (strangler fig pattern). Once all producers and consumers are migrated, the legacy
-//! types and the Communication Loop are removed.
+//! Each pathway gets its own typed `tokio::mpsc` channel. Channel identity replaces
+//! both the former `LoopId` and `DispatchTarget` routing of the old Communication Loop.
 
 use crate::WebID;
 
@@ -71,11 +67,11 @@ pub struct GoalTransitionEvent {
 
 // ── Curation input enum — what CurationLoop reads from its inbox ─────────────
 
-/// Messages CurationLoop receives from its unified inbox channel.
+/// Messages CurationLoop receives from multiple producers.
 ///
-/// Multiple producers send into a single channel that Curation drains during
-/// its sense phase. This replaces the old pattern of matching on
-/// `LoopPayload` variants in the CurationLoop inbox.
+/// Multiple producers send into separate channels drained by Curation's
+/// sense phase. This enum describes the message set but each variant
+/// currently arrives on its own dedicated `mpsc` channel.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CurationInput {
     /// Algedonic alert from Cybernetics (variety deficit escalation)
