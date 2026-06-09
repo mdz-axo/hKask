@@ -48,7 +48,7 @@ steps:
     action: retrieve
     description: >
       Retrieve exemplar passages from Hemingway style embedding corpus.
-      1. Embed the prompt using qwen3-embedding:0.6b via hkask-mcp-inference
+      1. Embed the prompt via EmbeddingPort (qwen3-embedding:0.6b)
       2. KNN search against style:hemingway prefix via semantic_search
       3. Select k_min..k_max passages within distance_threshold
     renderer: null
@@ -104,7 +104,6 @@ steps:
     renderer: minijinja
     template_ref: composition/hemingway-style-synthesizer
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4096
     timeout_seconds: 30
     output_schema:
@@ -115,7 +114,7 @@ steps:
     action: validate
     description: >
       Validate output meets Hemingway style checks.
-      1. Embed the generated prose via hkask-mcp-inference
+      1. Embed the generated prose via EmbeddingPort
       2. Retrieve centroid vector via semantic_recall (entity: style:hemingway:centroid)
       3. Compute cosine distance between prose vector and centroid
       4. Reject if centroid distance exceeds hard limit (0.25)
@@ -151,7 +150,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

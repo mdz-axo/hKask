@@ -27,7 +27,12 @@ impl CompositeEnergyEstimator {
     }
 
     /// The inference routing key used for energy estimation.
-    pub const INFERENCE_SERVER: &'static str = "hkask-mcp-inference";
+    ///
+    /// Inference is no longer an MCP server — it's a direct internal
+    /// call through `InferencePort`, not MCP dispatch. This key remains
+    /// for energy estimation routing when a GovernedTool wraps an
+    /// inference-like tool port.
+    pub const INFERENCE_SERVER: &'static str = "inference";
 }
 
 impl Default for CompositeEnergyEstimator {

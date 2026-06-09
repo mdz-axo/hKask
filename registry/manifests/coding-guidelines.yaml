@@ -89,7 +89,6 @@ steps:
     renderer: minijinja
     template_ref: coding-guidelines/guidelines-assess
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -142,7 +141,6 @@ steps:
     renderer: minijinja
     template_ref: coding-guidelines/guidelines-apply
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 45
     input_mapping:
@@ -185,7 +183,6 @@ steps:
     renderer: minijinja
     template_ref: coding-guidelines/guidelines-verify
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:

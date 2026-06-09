@@ -45,7 +45,6 @@ steps:
     renderer: minijinja
     template_ref: rag/reformulate-query
     model_tier: fast_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 15
     input_mapping:
@@ -128,7 +127,6 @@ steps:
     renderer: minijinja
     template_ref: rag/synthesize-grounded
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
@@ -165,7 +163,6 @@ steps:
     renderer: minijinja
     template_ref: rag/verify-citations
     model_tier: fast_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:

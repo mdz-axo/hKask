@@ -48,7 +48,6 @@ steps:
     renderer: minijinja
     template_ref: rca/define-problem
     model_tier: fast_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
@@ -83,7 +82,6 @@ steps:
     renderer: minijinja
     template_ref: rca/ishikawa-6m
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -123,7 +121,6 @@ steps:
     renderer: minijinja
     template_ref: rca/five-whys-chain
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
@@ -157,7 +154,6 @@ steps:
     renderer: minijinja
     template_ref: rca/corrective-action
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 3000
     timeout_seconds: 45
     input_mapping:

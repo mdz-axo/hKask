@@ -78,7 +78,7 @@ impl EpisodicLoop {
 #[async_trait::async_trait]
 impl HkaskLoop for EpisodicLoop {
     fn id(&self) -> LoopId {
-        LoopId::Episodic
+        LoopId::Memory
     }
 
     /// Sense: read storage usage and decay rate.
@@ -92,13 +92,13 @@ impl HkaskLoop for EpisodicLoop {
 
         vec![
             Signal::new(
-                LoopId::Episodic,
+                LoopId::Memory,
                 SignalMetric::StorageUsage,
                 usage as f64,
                 self.storage_budget as f64,
             ),
             Signal::new(
-                LoopId::Episodic,
+                LoopId::Memory,
                 SignalMetric::DecayRate,
                 decay_rate,
                 decay_rate, // set-point = current (no deviation expected)
@@ -123,7 +123,7 @@ impl HkaskLoop for EpisodicLoop {
                     // Budget exceeded — consolidate to free space
                     let overage = (dev.signal.value - dev.signal.set_point) as usize;
                     actions.push(LoopAction::new(
-                        LoopId::Episodic,
+                        LoopId::Memory,
                         ActionType::Calibrate,
                         serde_json::json!({
                             "reason": "episodic_budget_exceeded_consolidate",
@@ -145,7 +145,7 @@ impl HkaskLoop for EpisodicLoop {
                 } else if ratio > 0.8 {
                     // Approaching budget — throttle self
                     actions.push(LoopAction::new(
-                        LoopId::Episodic,
+                        LoopId::Memory,
                         ActionType::Throttle,
                         serde_json::json!({
                             "reason": "episodic_budget_approaching",

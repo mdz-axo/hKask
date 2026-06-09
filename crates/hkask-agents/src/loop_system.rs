@@ -1,9 +1,9 @@
-//! Loop System — Bootstrap and lifecycle for the loop model
+//! Loop System — Bootstrap and lifecycle for the 4-loop model
 //
 //! Manages loop registration, tick scheduling, and lifecycle.
 //! Inter-loop communication uses direct `tokio::mpsc` channels.
 //!
-//! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic}
+//! **Authority DAG:** Curation → Cybernetics → {Inference, Memory}
 
 use hkask_cns::CyberneticsLoop;
 use hkask_types::loops::HkaskLoop;
@@ -43,8 +43,8 @@ impl HkaskLoop for CyberneticsLoopHandle {
 /// Default tick interval for the Inference loop (500ms).
 pub const INFERENCE_TICK_MS: u64 = 500;
 
-/// Default tick interval for the Episodic and Semantic loops (5s).
-pub const EPISODIC_SEMANTIC_TICK_SECS: u64 = 5;
+/// Default tick interval for the Memory sub-loops (5s).
+pub const MEMORY_TICK_SECS: u64 = 5;
 
 /// Default tick interval for the Cybernetics loop (2s).
 pub const CYBERNETICS_TICK_SECS: u64 = 2;
@@ -58,30 +58,32 @@ pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
 pub fn default_tick_interval(loop_id: LoopId) -> Duration {
     match loop_id {
         LoopId::Inference => Duration::from_millis(INFERENCE_TICK_MS),
-        LoopId::Episodic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
-        LoopId::Semantic => Duration::from_secs(EPISODIC_SEMANTIC_TICK_SECS),
+        LoopId::Memory => Duration::from_secs(MEMORY_TICK_SECS),
         LoopId::Cybernetics => Duration::from_secs(CYBERNETICS_TICK_SECS),
         LoopId::Curation => Duration::from_secs(CURATION_TICK_SECS),
     }
 }
 
 /// Authority DAG tick order: meta-loops first, then domain loops.
-/// Curation (5) → Cybernetics (6) → Inference (1) → Episodic (2a) → Semantic (2b)
-pub const AUTHORITY_ORDER: [LoopId; 5] = [
+/// Curation → Cybernetics → Inference → Memory
+pub const AUTHORITY_ORDER: [LoopId; 4] = [
     LoopId::Curation,
     LoopId::Cybernetics,
     LoopId::Inference,
-    LoopId::Episodic,
-    LoopId::Semantic,
+    LoopId::Memory,
 ];
+
+/// Multiple loops may share a `LoopId` (e.g., Episodic + Semantic both register
+/// as `Memory`). They are ticked in registration order within the same ID.
+type LoopRegistry = Arc<RwLock<HashMap<LoopId, Vec<Arc<dyn HkaskLoop>>>>>;
 
 /// Loop System — manages loop registration, tick scheduling, and lifecycle.
 ///
 /// Inter-loop communication uses direct `tokio::mpsc` channels wired during
 /// `ServiceContext::build()`. This struct handles only registration and ticking.
 pub struct LoopSystem {
-    /// All registered loops keyed by LoopId
-    loops: Arc<RwLock<HashMap<LoopId, Arc<dyn HkaskLoop>>>>,
+    /// All registered loops keyed by LoopId. Vec supports multiple loops per ID.
+    loops: LoopRegistry,
     /// Cancellation token for graceful shutdown
     cancel: tokio_util::sync::CancellationToken,
     /// Per-loop tick intervals (keyed by LoopId)
@@ -96,8 +98,7 @@ impl LoopSystem {
             cancel: CancellationToken::new(),
             tick_intervals: [
                 LoopId::Inference,
-                LoopId::Episodic,
-                LoopId::Semantic,
+                LoopId::Memory,
                 LoopId::Cybernetics,
                 LoopId::Curation,
             ]
@@ -116,14 +117,15 @@ impl LoopSystem {
     /// Register a loop with the system.
     ///
     /// Adds the loop to the registry so it can be ticked by `start()` or `tick()`.
-    /// No inbox is created — inter-loop communication uses direct channels.
+    /// Multiple loops may share the same `LoopId`.
     pub async fn register_loop(&self, loop_instance: Arc<dyn HkaskLoop>) {
         let id = loop_instance.id();
         let mut loops = self.loops.write().await;
-        loops.insert(id, loop_instance);
+        loops.entry(id).or_default().push(loop_instance);
         info!(
             target: "loop_system",
             loop_id = %id,
+            total = loops.get(&id).map(|v| v.len()).unwrap_or(0),
             "Registered loop"
         );
     }
@@ -141,7 +143,7 @@ impl LoopSystem {
         let cancel = self.cancel.clone();
 
         let loops_map = self.loops.read().await.clone();
-        for (id, loop_instance) in loops_map {
+        for (id, loop_instances) in loops_map {
             let cancel = cancel.clone();
             let tick_interval = self
                 .tick_intervals
@@ -149,30 +151,33 @@ impl LoopSystem {
                 .copied()
                 .unwrap_or(Duration::from_secs(DEFAULT_FALLBACK_TICK_SECS));
 
-            tokio::spawn(async move {
-                info!(
-                    target: "loop_system",
-                    loop_id = %id,
-                    tick_interval_ms = tick_interval.as_millis() as u64,
-                    "Loop tick task started"
-                );
-                let mut interval = tokio::time::interval(tick_interval);
-                loop {
-                    tokio::select! {
-                        _ = interval.tick() => {
-                            loop_instance.tick().await;
-                        }
-                        _ = cancel.cancelled() => {
-                            info!(
-                                target: "loop_system",
-                                loop_id = %id,
-                                "Loop tick task cancelled"
-                            );
-                            break;
+            for loop_instance in loop_instances {
+                let cancel = cancel.clone();
+                tokio::spawn(async move {
+                    info!(
+                        target: "loop_system",
+                        loop_id = %id,
+                        tick_interval_ms = tick_interval.as_millis() as u64,
+                        "Loop tick task started"
+                    );
+                    let mut interval = tokio::time::interval(tick_interval);
+                    loop {
+                        tokio::select! {
+                            _ = interval.tick() => {
+                                loop_instance.tick().await;
+                            }
+                            _ = cancel.cancelled() => {
+                                info!(
+                                    target: "loop_system",
+                                    loop_id = %id,
+                                    "Loop tick task cancelled"
+                                );
+                                break;
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
 
         info!(
@@ -185,12 +190,14 @@ impl LoopSystem {
 
     /// Run a single regulation cycle across all loops in authority order.
     ///
-    /// Authority DAG: Curation → Cybernetics → {Inference, Episodic, Semantic}
+    /// Authority DAG: Curation → Cybernetics → {Inference, Memory}
     pub async fn tick(&self) {
         for loop_id in AUTHORITY_ORDER {
             let loops = self.loops.read().await;
-            if let Some(loop_instance) = loops.get(&loop_id) {
-                loop_instance.tick().await;
+            if let Some(instances) = loops.get(&loop_id) {
+                for loop_instance in instances {
+                    loop_instance.tick().await;
+                }
             }
         }
     }
@@ -214,9 +221,9 @@ impl LoopSystem {
         self.cancel.cancel();
     }
 
-    /// Check how many loops are registered.
+    /// Total number of loop instances across all IDs.
     pub async fn registered_count(&self) -> usize {
-        self.loops.read().await.len()
+        self.loops.read().await.values().map(|v| v.len()).sum()
     }
 
     /// Get the IDs of all registered loops.

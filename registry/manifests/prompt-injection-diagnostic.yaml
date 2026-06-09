@@ -51,7 +51,6 @@ steps:
     renderer: minijinja
     template_ref: prompt-defense/classify-threat
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -86,7 +85,6 @@ steps:
     renderer: minijinja
     template_ref: prompt-defense/analyze-attack-surface
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -130,7 +128,6 @@ steps:
     renderer: minijinja
     template_ref: prompt-defense/recommend-defenses
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:

@@ -35,14 +35,13 @@ steps:
       rendered_prompt: string
 
   - ordinal: 2
-    action: execute
+    action: select
     description: >
-      Execute condensation via inference.
+      Condense session via InferencePort.
       Extract summary, decisions, and action items.
-    renderer: null
-    template_ref: null
+    renderer: inline
+    template_ref: "{{ step_1_populated }}"
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4096
     timeout_seconds: 60
     output_schema:

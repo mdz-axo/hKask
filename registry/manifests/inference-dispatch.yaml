@@ -34,10 +34,11 @@ steps:
       context: "${input.context}"
 
   - ordinal: 3
-    action: execute
+    action: select
     target: inference_call
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
-    tool: inference_call
+    renderer: inline
+    template_ref: "{{ step_2_populated }}"
+    model_tier: from_input
     output_schema:
       type: object
       properties:

@@ -38,7 +38,6 @@ steps:
     renderer: minijinja
     template_ref: cognition/falstaffian-perspective
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -70,7 +69,6 @@ steps:
     renderer: minijinja
     template_ref: cognition/falstaffian-perspective
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 8000
     timeout_seconds: 90
     input_mapping:

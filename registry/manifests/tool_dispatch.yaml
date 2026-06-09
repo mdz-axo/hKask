@@ -12,7 +12,6 @@ steps:
     description: Select target tool based on request
     template_ref: process/dispatch
     model_tier: fast_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     renderer: minijinja
 
   - ordinal: 2

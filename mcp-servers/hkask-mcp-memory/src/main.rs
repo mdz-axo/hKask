@@ -1,6 +1,6 @@
 //! hKask MCP Memory — Unified episodic + semantic memory MCP server
 //!
-//! 14 tools:
+//! 16 tools:
 //! - `episodic_ping` — Liveness and storage info for episodic memory
 //! - `episodic_store` — Store an episodic triple (private, perspective-bound)
 //! - `episodic_recall` — Recall triples by entity (filtered by caller's WebID)
@@ -15,6 +15,8 @@
 //! - `semantic_purge` — Delete embeddings matching an entity_ref prefix
 //! - `semantic_chunk` — Chunk text into passages for embedding
 //! - `semantic_count` — Triple and embedding counts
+//! - `memory_backup` — Export the memory database to a local backup file
+//! - `memory_restore` — Restore the memory database from a local backup file
 //!
 //! **Sovereignty:** Episodic operations use the calling agent's `WebID` as
 //! the `perspective`. An agent cannot read another agent's episodic memory.
@@ -34,6 +36,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
+use std::time::Duration;
 
 // ── Shared request types ───────────────────────────────────────────
 
@@ -101,19 +104,46 @@ pub struct ChunkTextRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CountRequest {}
 
+// ── Backup/restore request types ──────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BackupRequest {
+    /// File path for the backup. Defaults to "hkask-memory-backup.db"
+    /// if not provided.
+    pub target_path: Option<String>,
+    /// Optional passphrase for the backup file. If not provided,
+    /// the backup is unencrypted (plain SQLite).
+    pub passphrase: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RestoreRequest {
+    /// Path to the backup file to restore from.
+    pub source_path: String,
+    /// Passphrase for the backup file. Required if the backup was encrypted.
+    pub passphrase: Option<String>,
+}
+
 // ── Server ──────────────────────────────────────────────────────────
 
 pub struct MemoryServer {
     episodic: EpisodicMemory,
     semantic: Arc<SemanticMemory>,
+    db: Option<Arc<std::sync::Mutex<rusqlite::Connection>>>,
     webid: WebID,
 }
 
 impl MemoryServer {
-    pub fn new(episodic: EpisodicMemory, semantic: Arc<SemanticMemory>, webid: WebID) -> Self {
+    pub fn new(
+        episodic: EpisodicMemory,
+        semantic: Arc<SemanticMemory>,
+        db: Option<Arc<std::sync::Mutex<rusqlite::Connection>>>,
+        webid: WebID,
+    ) -> Self {
         Self {
             episodic,
             semantic,
+            db,
             webid,
         }
     }
@@ -204,8 +234,9 @@ impl MemoryServer {
         let usage = match self.episodic.storage_usage(&self.webid) {
             Ok(u) => u,
             Err(e) => {
-                return span
-                    .internal_error(json!({"error": format!("Failed to query storage usage: {}", e)}));
+                return span.internal_error(
+                    json!({"error": format!("Failed to query storage usage: {}", e)}),
+                );
             }
         };
         let budget = self.episodic.storage_budget();
@@ -225,8 +256,9 @@ impl MemoryServer {
         let usage = match self.episodic.storage_usage(&self.webid) {
             Ok(u) => u,
             Err(e) => {
-                return span
-                    .internal_error(json!({"error": format!("Failed to query storage usage: {}", e)}));
+                return span.internal_error(
+                    json!({"error": format!("Failed to query storage usage: {}", e)}),
+                );
             }
         };
         let budget = self.episodic.storage_budget();
@@ -454,13 +486,8 @@ impl MemoryServer {
         } else {
             text.clone()
         };
-        let passages = SemanticMemory::chunk_text(
-            &processed,
-            &entity_ref_prefix,
-            min_w,
-            max_w,
-            &boundary,
-        );
+        let passages =
+            SemanticMemory::chunk_text(&processed, &entity_ref_prefix, min_w, max_w, &boundary);
         let serialized: Vec<_> = passages
             .into_iter()
             .map(|(entity_ref, passage_text)| {
@@ -490,6 +517,121 @@ impl MemoryServer {
         };
         span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
     }
+
+    // ── Backup/restore tools ───────────────────────────────────
+
+    #[tool(description = "Export the memory database to a local backup file")]
+    async fn memory_backup(
+        &self,
+        Parameters(BackupRequest {
+            target_path,
+            passphrase: _passphrase,
+        }): Parameters<BackupRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("memory_backup", &self.webid);
+        let target = target_path.unwrap_or_else(|| "hkask-memory-backup.sqlite".to_string());
+        // passphrase is reserved for future encrypted backup support.
+        // Currently all backups are unencrypted plain SQLite.
+
+        let Some(ref db_conn) = self.db else {
+            return self.internal_error(span, "backup", "in-memory database");
+        };
+
+        // Open the destination as a plain unencrypted SQLite file
+        let mut dst_conn = match rusqlite::Connection::open(&target) {
+            Ok(conn) => conn,
+            Err(e) => {
+                return self.internal_error(span, "open backup destination", e);
+            }
+        };
+
+        // Copy source → destination using SQLite's backup API
+        let result = {
+            let src_conn = db_conn.lock().map_err(|_| "lock poisoned").unwrap();
+            rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
+                .map_err(|e| format!("Backup setup failed: {}", e))
+                .and_then(|backup| {
+                    backup
+                        .run_to_completion(100, Duration::from_millis(250), None)
+                        .map_err(|e| format!("Backup failed: {}", e))
+                })
+        };
+
+        match result {
+            Ok(()) => span.ok_json(json!({
+                "backed_up": true,
+                "target_path": target,
+            })),
+            Err(e) => self.internal_error(span, "backup", e),
+        }
+    }
+
+    #[tool(description = "Restore the memory database from a local backup file")]
+    async fn memory_restore(
+        &self,
+        Parameters(RestoreRequest {
+            source_path,
+            passphrase: _passphrase,
+        }): Parameters<RestoreRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("memory_restore", &self.webid);
+        // passphrase is reserved for future encrypted restore support.
+
+        let Some(ref db_conn) = self.db else {
+            return self.internal_error(span, "restore", "in-memory database");
+        };
+
+        // Validate source file exists and is a SQLite database before destroying current data
+        let src_conn = match rusqlite::Connection::open(&source_path) {
+            Ok(conn) => {
+                // Quick validation: try reading sqlite_master
+                if let Err(e) = conn.query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE type='table'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                ) {
+                    return self.internal_error(
+                        span,
+                        "validate backup source",
+                        format!("Not a valid SQLite database: {}", e),
+                    );
+                }
+                conn
+            }
+            Err(e) => {
+                return self.internal_error(span, "open backup source", e);
+            }
+        };
+
+        // Clear current database, then copy backup → current
+        let result = {
+            let mut dst_conn = db_conn.lock().map_err(|_| "lock poisoned").unwrap();
+            if let Err(e) = dst_conn.execute_batch(
+                "PRAGMA writable_schema = 1; \
+                 DELETE FROM sqlite_master WHERE type IN ('table', 'index', 'trigger'); \
+                 PRAGMA writable_schema = 0;",
+            ) {
+                Err(format!("Failed to clear existing data: {}", e))
+            } else {
+                rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
+                    .map_err(|e| format!("Restore setup failed: {}", e))
+                    .and_then(|backup| {
+                        backup
+                            .run_to_completion(100, Duration::from_millis(250), None)
+                            .map_err(|e| format!("Restore failed: {}", e))
+                    })
+            }
+        };
+
+        match result {
+            Ok(()) => span.ok_json(json!({
+                "restored": true,
+                "source_path": source_path,
+                "warning": "Memory restored. Restart the MCP server for full consistency across all connections.",
+            })),
+            Err(e) => self.internal_error(span, "restore", e),
+        }
+    }
 }
 
 #[tokio::main]
@@ -509,7 +651,12 @@ async fn main() -> anyhow::Result<()> {
                 triple_store2,
                 embedding_store,
             ));
-            Ok(MemoryServer::new(episodic, semantic, ctx.webid))
+            Ok(MemoryServer::new(
+                episodic,
+                semantic,
+                Some(db.conn_arc()),
+                ctx.webid,
+            ))
         },
         vec![
             hkask_mcp::CredentialRequirement::required(

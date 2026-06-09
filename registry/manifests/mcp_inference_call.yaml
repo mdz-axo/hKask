@@ -36,14 +36,13 @@ steps:
       rendered_prompt: string
 
   - ordinal: 2
-    action: execute
+    action: select
     description: >
-      Execute inference via MCP with capability validation.
+      Call inference via InferencePort with the populated prompt.
       Route to appropriate model based on model_tier.
-    renderer: null
-    template_ref: null
+    renderer: inline
+    template_ref: "{{ step_1_populated }}"
     model_tier: from_input
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 8192
     timeout_seconds: 60
     output_schema:

@@ -48,7 +48,7 @@ utoipa-axum = "0.2"
 rmcp = "1"
 
 # Storage
-rusqlite = { version = "0.39", features = ["bundled-sqlcipher-vendored-openssl", "blob"] }
+rusqlite = { version = "0.39", features = ["bundled-sqlcipher-vendored-openssl", "blob", "backup"] }
 sqlite-vec = "0.1"
 
 # Cryptography / Hashing

@@ -52,7 +52,6 @@ steps:
     renderer: minijinja
     template_ref: decision-journal/record-decision
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 3000
     timeout_seconds: 45
     input_mapping:
@@ -67,13 +66,19 @@ steps:
           properties:
             decision_statement: { type: string }
             reasoning: { type: string }
-            assumptions: { type: array }
-              items: { type: string }
-            alternatives: { type: array }
-              items: { type: object }
+            assumptions:
+              type: array
+              items:
+                type: string
+            alternatives:
+              type: array
+              items:
+                type: object
                 properties:
-                  alternative: { type: string }
-                  reason_rejected: { type: string }
+                  alternative:
+                    type: string
+                  reason_rejected:
+                    type: string
             emotional_state: { type: string }
             confidence_level: { type: string }
             decision_type: { type: string }
@@ -90,7 +95,6 @@ steps:
     renderer: minijinja
     template_ref: decision-journal/define-expected-outcomes
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -157,7 +161,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

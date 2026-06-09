@@ -60,7 +60,6 @@ steps:
     renderer: minijinja
     template_ref: curator/metacognition-selector.j2
     model_tier: reasoning_local
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 4000
     timeout_seconds: 30
     output_schema:
@@ -122,7 +121,6 @@ steps:
     renderer: minijinja
     template_ref: curator/curator-metacognition.yaml#kata_directives
     model_tier: balanced
-    mcp: hkask-mcp-inference  # inference is now internal via InferencePort
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:

@@ -1479,6 +1479,7 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "rmcp",
+ "rusqlite",
  "schemars",
  "serde",
  "serde_json",
