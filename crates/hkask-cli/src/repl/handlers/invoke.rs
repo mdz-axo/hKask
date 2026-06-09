@@ -1,7 +1,7 @@
 //! `/invoke <tool> [args]` — direct tool invocation from the REPL.
 //!
 //! Mints a capability token from the session's ACP secret, then routes
-//! the invocation through GovernedTool (OCAP + gas budget + CNS observability).
+//! the invocation through GovernedTool (OCAP + energy budget + CNS observability).
 
 use hkask_types::ports::ToolPort;
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
@@ -85,7 +85,7 @@ pub(crate) fn handle_invoke(
     );
 
     // Invoke through the GovernedTool membrane — all governance
-    // (OCAP verification, gas budget, CNS observability) applies.
+    // (OCAP verification, energy budget, CNS observability) applies.
     print!("  \x1b[2mInvoking \x1b[36m{}\x1b[0m", tool_name);
     if !server.is_empty() {
         print!(" on \x1b[36m{}\x1b[0m", server);

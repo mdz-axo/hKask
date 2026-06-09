@@ -43,13 +43,13 @@ use helper::{KaskHelper, SessionHistory};
 
 /// REPL state — initialized once, reused across all turns.
 ///
-/// Holds the shared inference port, InferenceLoop (with gas budget
+/// Holds the shared inference port, InferenceLoop (with energy budget
 /// and circuit breaker), memory adapters, and Okapi config so they
 /// aren't reconstructed per chat turn. Also groups mutable REPL state
 /// to keep function signatures manageable.
 pub(crate) struct ReplState {
     pub(crate) inference_port: Arc<dyn InferencePort>,
-    /// InferenceLoop wrapping the port — provides gas budget tracking,
+    /// InferenceLoop wrapping the port — provides energy budget tracking,
     /// circuit breaker state, and model selection via CNS observability.
     /// Arc-wrapped so it can be shared with the LoopSystem.
     pub(crate) inference_loop: Arc<InferenceLoop>,
@@ -69,7 +69,7 @@ pub(crate) struct ReplState {
     pub(crate) resolved_secrets: Option<hkask_services::ResolvedSecrets>,
     /// GovernedTool membrane — the singular governance boundary for MCP tool
     /// invocations. All tool calls route through this membrane, which enforces
-    /// OCAP authority, gas budgets, and CNS observability.
+    /// OCAP authority, energy budgets, and CNS observability.
     pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
     /// HHH alignment mode — whether the Helpful/Harmless/Honest gate is active.
     pub(crate) hhh_mode: HhhMode,

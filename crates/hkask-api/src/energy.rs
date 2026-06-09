@@ -11,7 +11,7 @@ use hkask_cns::{CyberneticsLoop, EnergyCost};
 use hkask_types::WebID;
 
 /// Default gas cap for API ensemble sessions (150k = same as CLI default).
-pub(crate) const API_ENSEMBLE_GAS_CAP: u64 = 150_000;
+pub(crate) const API_ENSEMBLE_ENERGY_CAP: u64 = 150_000;
 
 /// Adapter bridging `CyberneticsLoop` to the ensemble's `GasGovernancePort`.
 ///
@@ -20,14 +20,14 @@ pub(crate) const API_ENSEMBLE_GAS_CAP: u64 = 150_000;
 /// task spawn for `acquire` (actual budget consumption via async call).
 ///
 /// This is the API-mode equivalent of the CLI's `CyberneticsLoopGasAdapter`.
-pub(crate) struct ApiGasGovernanceAdapter {
+pub(crate) struct ApiEnergyGovernanceAdapter {
     loop_ref: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
     agent: WebID,
     gas_used: AtomicU64,
     gas_cap: AtomicU64,
 }
 
-impl ApiGasGovernanceAdapter {
+impl ApiEnergyGovernanceAdapter {
     pub(crate) fn new(
         loop_ref: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
         agent: WebID,
@@ -42,7 +42,7 @@ impl ApiGasGovernanceAdapter {
     }
 }
 
-impl hkask_agents::ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
+impl hkask_agents::ensemble::GasGovernancePort for ApiEnergyGovernanceAdapter {
     fn can_proceed(&self, gas: u64) -> bool {
         let used = self.gas_used.load(Ordering::Relaxed);
         let cap = self.gas_cap.load(Ordering::Relaxed);

@@ -375,7 +375,7 @@ impl HkaskLoop for CurationLoop {
                                 );
                             }
                             // Issue directives for high-confidence escalations
-                            // (adjust gas budgets for the associated bot)
+                            // (adjust energy budgets for the associated bot)
                             for entry in entries.iter().filter(|e| e.confidence > 0.5) {
                                 let directive = CuratorDirective::OverrideEnergyBudget {
                                     agent: entry.bot_id.into(),

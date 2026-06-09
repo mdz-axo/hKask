@@ -1,4 +1,4 @@
-//! REPL dependency injection — wires CNS, loops, dispatch, gas budgets,
+//! REPL dependency injection — wires CNS, loops, dispatch, energy budgets,
 //! GovernedTool, and builds the initial ReplState.
 //!
 //! Uses `ServiceContext::build()` for shared infrastructure (CNS, loop system,
@@ -11,7 +11,7 @@ use hkask_agents::HhhConfig;
 use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
 use hkask_agents::hhh_gate;
-use hkask_cns::{CompositeGasEstimator, EnergyBudget, EnergyCost, GovernedTool};
+use hkask_cns::{CompositeEnergyEstimator, EnergyBudget, EnergyCost, GovernedTool};
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_memory::ConsolidationService;
 use hkask_services::{InferenceContext, InferenceService};
@@ -154,7 +154,7 @@ pub(super) fn init_repl_state(
     // This wraps ServiceContext's MCP runtime with gas governance and CNS observability,
     // sharing the same cybernetics loop as the loop system.
     let raw_tool_port = Arc::new(RawMcpToolPort::new((*mcp_runtime).clone()));
-    let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
+    let estimator: Arc<dyn hkask_cns::EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
     let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
         ctx.cybernetics_loop.clone(),
@@ -164,7 +164,7 @@ pub(super) fn init_repl_state(
         ctx.loop_system.dispatch_sender(),
     ));
 
-    // Register the agent's gas budget with the CyberneticsLoop.
+    // Register the agent's energy budget with the CyberneticsLoop.
     // cap=10000, replenish_rate=1000/turn (10% of cap), alert at 80% usage,
     // hard_limit=true (block operations when exhausted).
     rt.block_on(async {

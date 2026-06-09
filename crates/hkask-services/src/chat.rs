@@ -27,7 +27,7 @@ pub struct TokenUsage {
 }
 
 impl TokenUsage {
-    /// Total tokens as gas cost. Uses a 1:1 mapping — one gas unit per token.
+    /// Total tokens as energy cost. Uses a 1:1 mapping — one gas unit per token.
     pub fn gas_cost(&self) -> u64 {
         self.total_tokens as u64
     }

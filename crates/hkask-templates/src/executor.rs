@@ -9,7 +9,7 @@
 //!   a filled prompt or data payload.
 //! - **execute**: Invoke an MCP tool with parameters bound from the context map.
 //!
-//! The executor respects gas budgets (`step.gas_cap`) and timeout constraints
+//! The executor respects energy budgets (`step.gas_cap`) and timeout constraints
 //! (`step.timeout_seconds`). Convergence checks (`manifest.convergence`) gate
 //! iterative refinement loops.
 //!

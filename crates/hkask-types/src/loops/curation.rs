@@ -94,7 +94,7 @@ pub enum CuratorDirective {
         additions: Vec<String>,
         removals: Vec<String>,
     },
-    /// Override gas budget beyond Cybernetics set-points.
+    /// Override energy budget beyond Cybernetics set-points.
     ///
     /// This is the Curation-level metacognitive override. Cybernetics
     /// uses `ActionType::AdjustEnergyBudget` for automatic within-bounds
@@ -115,7 +115,7 @@ pub enum CuratorDirective {
         /// Current R̄ from the Curation Confidence Gate.
         confidence: String,
     },
-    /// Replenish an agent's gas budget by a specific amount.
+    /// Replenish an agent's energy budget by a specific amount.
     ///
     /// Used when an agent has exhausted its budget but Curation
     /// determines it should continue operating. This is the Curator's
@@ -129,7 +129,7 @@ pub enum CuratorDirective {
         /// Defaults to 1.0 (full replenishment).
         priority: Option<f64>,
     },
-    /// Clear a Curation override on an agent's gas budget.
+    /// Clear a Curation override on an agent's energy budget.
     ///
     /// Removes the agent from the active-overrides registry so that
     /// normal replenishment resumes. This is the inverse of `OverrideEnergyBudget`.

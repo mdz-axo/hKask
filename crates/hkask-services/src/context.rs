@@ -26,7 +26,7 @@ use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
-    CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasEstimator, GovernedTool, load_set_points,
+    CnsRuntime, CompositeEnergyEstimator, CyberneticsLoop, EnergyEstimator, GovernedTool, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
@@ -79,7 +79,7 @@ pub struct ServiceContext {
     /// CNS runtime for variety sensing and algedonic alerts.
     pub cns_runtime: Arc<RwLock<CnsRuntime>>,
 
-    /// Cybernetics loop for gas budget regulation.
+    /// Cybernetics loop for energy budget regulation.
     pub cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
 
     /// Loop system for 6-loop regulation.
@@ -402,7 +402,7 @@ impl ServiceContext {
         // ── 7. GovernedTool membrane + MCP dispatcher ────────────────────────
         let mcp_runtime = McpRuntime::new();
         let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
-        let estimator: Arc<dyn GasEstimator> = Arc::new(CompositeGasEstimator::new());
+        let estimator: Arc<dyn EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
         let governed_tool = Arc::new(GovernedTool::new(
             raw_tool_port,
             Arc::clone(&cybernetics_loop),

@@ -224,7 +224,7 @@ impl CnsRuntime {
 
     /// Emit a backpressure signal to all subscribers.
     ///
-    /// Called by the Cybernetics Loop when gas budget depletion
+    /// Called by the Cybernetics Loop when energy budget depletion
     /// reaches critical levels, signaling downstream loops to throttle.
     pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
         let subscribers = self.subscribers.read().await;
@@ -233,7 +233,7 @@ impl CnsRuntime {
         }
     }
 
-    /// Register a gas budget for an agent.
+    /// Register a energy budget for an agent.
     ///
     /// Called during agent pod creation so the CNS can track and replenish budgets.
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
@@ -242,7 +242,7 @@ impl CnsRuntime {
         budgets.insert(agent, budget);
     }
 
-    /// Replenish a specific agent's gas budget by a specific amount.
+    /// Replenish a specific agent's energy budget by a specific amount.
     ///
     /// Returns the new remaining gas after replenishment, or 0 if the agent
     /// has no registered budget.
@@ -257,7 +257,7 @@ impl CnsRuntime {
                 agent = %agent,
                 amount = amount.0,
                 remaining = remaining.0,
-                "Replenished agent gas budget via CNS runtime"
+                "Replenished agent energy budget via CNS runtime"
             );
             remaining
         } else {
@@ -265,7 +265,7 @@ impl CnsRuntime {
         }
     }
 
-    /// Get a read-only snapshot of an agent's gas budget status.
+    /// Get a read-only snapshot of an agent's energy budget status.
     ///
     /// Returns `None` if the agent has no registered budget.
     /// Used by the `cns_energy` MCP tool.

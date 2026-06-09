@@ -1,6 +1,6 @@
 //! Inference Loop — prompt → context → model → response → parse → act (Loop 1)
 //!
-//! Owns its gas budget reservation and tracks the active inference model.
+//! Owns its energy budget reservation and tracks the active inference model.
 //! Monitors circuit breaker state, gas consumption, and model availability.
 //! Lives in `hkask-agents` because domain loops (Inference, Episodic, Semantic,
 //! Communication, Curation) are domain logic — they belong with the agents crate.
@@ -20,10 +20,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// the loop self-throttles via `AdjustEnergyBudget`.
 const GAS_SET_POINT: f64 = 0.2;
 
-/// Inference Loop — owns gas budget and model selection state.
+/// Inference Loop — owns energy budget and model selection state.
 ///
 /// Wraps an `InferencePort` and optional `CircuitBreakerPort` to provide
-/// loop-level observability. Owns its own gas budget reservation (separate
+/// loop-level observability. Owns its own energy budget reservation (separate
 /// from Cybernetics' global tracking) and tracks the active inference model.
 ///
 /// When the circuit breaker is open or gas is depleted, the loop produces
@@ -67,7 +67,7 @@ impl Default for InferenceLoop {
 }
 
 impl InferenceLoop {
-    /// Set the gas budget for this loop.
+    /// Set the energy budget for this loop.
     ///
     /// `cap` is the total gas allocation; `remaining` is the current balance.
     /// Both are stored so that `sense()` can emit the gas-remaining ratio.
@@ -121,7 +121,7 @@ impl InferenceLoop {
         // cap, we accept it as the loop is sharing state with CyberneticsLoop.
     }
 
-    /// Get the gas budget cap.
+    /// Get the energy budget cap.
     pub fn gas_cap(&self) -> u64 {
         self.gas_cap
     }
@@ -168,7 +168,7 @@ impl HkaskLoop for InferenceLoop {
         LoopId::Inference
     }
 
-    /// Sense: read circuit breaker state, inference availability, gas budget, and model state.
+    /// Sense: read circuit breaker state, inference availability, energy budget, and model state.
     ///
     /// Produces signals for:
     /// - `circuit_breaker_state` — 0.0=closed, 1.0=open, 0.5=half-open (set_point 0.0)
@@ -314,7 +314,7 @@ impl HkaskLoop for InferenceLoop {
                         action_type = ?action.action_type,
                         target_loop = %action.target,
                         parameters = %action.parameters,
-                        "Inference Loop self-throttle: gas budget below set-point"
+                        "Inference Loop self-throttle: energy budget below set-point"
                     );
                 }
                 ActionType::Calibrate => {

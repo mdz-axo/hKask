@@ -11,7 +11,7 @@ use hkask_types::ports::StructuredToolCall;
 
 use super::ReplState;
 use super::cns_display;
-use super::gas;
+use super::energy;
 use super::hhh_loop;
 use super::tool_augmented;
 
@@ -83,16 +83,16 @@ pub(super) fn ensemble_turn(
 
 /// Handle a single-agent inference turn.
 ///
-/// Returns `false` if the turn should be skipped (gas budget exhausted).
+/// Returns `false` if the turn should be skipped (energy budget exhausted).
 pub(super) fn single_agent_turn(
     input: &str,
     state: &mut ReplState,
     rt: &tokio::runtime::Handle,
     acp_secret: &[u8],
 ) -> bool {
-    // Hold-settle pattern via GasGuard: reserve heuristic estimate
+    // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
     // before inference, settle with actual token cost after.
-    let Some(mut gas_guard) = gas::GasGuard::try_reserve(
+    let Some(mut gas_guard) = energy::EnergyGuard::try_reserve(
         &state.service_context.cybernetics_loop,
         &state.inference_loop,
         &state.agent_webid,
@@ -214,7 +214,7 @@ pub(super) fn single_agent_turn(
             processed.tool_results_formatted
         );
 
-        if let Some(mut followup_guard) = gas::GasGuard::try_reserve(
+        if let Some(mut followup_guard) = energy::EnergyGuard::try_reserve(
             &state.service_context.cybernetics_loop,
             &state.inference_loop,
             &state.agent_webid,
@@ -285,7 +285,7 @@ pub(super) fn single_agent_turn(
         );
     }
 
-    // Check gas budget and warn if low
+    // Check energy budget and warn if low
     let gas_remaining = state.inference_loop.gas_remaining();
     let gas_cap = state.inference_loop.gas_cap();
     if gas_cap > 0 && gas_remaining > 0 && (gas_remaining as f64 / gas_cap as f64) < 0.2 {

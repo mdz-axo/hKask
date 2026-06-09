@@ -6,37 +6,37 @@
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod allosteric; // ARL — Allosteric Regulation Logic (MWC gates)
 pub mod circuit_breaker; // Loop 6 — regulation
-pub mod composite_gas_estimator; // Composite routing: inference → token-based, others → table
+pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
 pub mod cybernetics_loop; // Loop 6
 pub(crate) mod dampener; // Loop 6 — regulation
-pub mod energy; // Loop 6 — gas budget (replaces energy budget)
-pub mod energy_budget_management; // Loop 6 — gas budget registration/reservation/settlement
+pub mod energy; // Loop 6 — energy budgets (hJoules)
+pub mod energy_budget_management; // Loop 6 — energy budget registration/reservation/settlement
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
-pub(crate) mod inference_estimator; // Loop 6 → Inference gas estimation
+pub(crate) mod inference_estimator; // Loop 6 → Inference energy estimation
 
 pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
-pub(crate) mod table_gas_estimator; // Per-server gas cost table
+pub(crate) mod table_energy_estimator; // Per-server energy cost table
 pub mod variety; // Ashby's Law — variety tracking
 
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use circuit_breaker::CircuitBreaker;
-pub use composite_gas_estimator::CompositeGasEstimator;
+pub use composite_energy_estimator::CompositeEnergyEstimator;
 pub use cybernetics_loop::CyberneticsLoop;
 pub use energy::{
-    AgentEnergyStatus, DEFAULT_GAS_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyError, QueueDepth,
-    RBarThreshold,
+    AgentEnergyStatus, DEFAULT_ENERGY_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyError,
+    QueueDepth, RBarThreshold,
 };
 pub use energy_budget_management::EnergyBudgetManager;
-pub use governed_tool::{GasEstimator, GovernedTool};
+pub use governed_tool::{EnergyEstimator, GovernedTool};
 pub use hkask_types::allosteric::{
     AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function,
 };
 pub use runtime::CnsRuntime;
 pub use set_points::{
     CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
-    DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ERROR_RATE_MAX, DEFAULT_GAS_MIN_REMAINING_RATIO,
+    DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX,
     DEFAULT_MAX_ITERATIONS, DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig,
     load_curation_thresholds, load_set_points,
 };

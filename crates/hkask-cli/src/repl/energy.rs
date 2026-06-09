@@ -4,7 +4,7 @@
 //! 1. Reserve a heuristic estimate before inference
 //! 2. Settle with the actual token cost after
 //!
-//! GasGuard encapsulates this pattern, eliminating the 3× duplicated
+//! EnergyGuard encapsulates this pattern, eliminating the 3× duplicated
 //! can_proceed → reserve → settle → sync sequences in the main REPL loop.
 
 use hkask_agents::InferenceLoop;
@@ -20,7 +20,7 @@ use tokio::sync::RwLock;
 /// reconcile with the actual token cost. If dropped without settling,
 /// the reserved amount is kept (pessimistic: over-charges rather than
 /// under-charges) and a debug assertion fires.
-pub(crate) struct GasGuard {
+pub(crate) struct EnergyGuard {
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
     inference_loop: Arc<InferenceLoop>,
     webid: WebID,
@@ -29,10 +29,10 @@ pub(crate) struct GasGuard {
     settled: bool,
 }
 
-impl GasGuard {
+impl EnergyGuard {
     /// Attempt to reserve gas for a pending operation.
     ///
-    /// Returns `None` if the gas budget is exhausted (hard limit reached).
+    /// Returns `None` if the energy budget is exhausted (hard limit reached).
     /// On success, the heuristic amount is reserved and the guard is returned.
     pub(crate) fn try_reserve(
         cybernetics_loop: &Arc<RwLock<CyberneticsLoop>>,
@@ -111,11 +111,11 @@ impl GasGuard {
     }
 }
 
-impl Drop for GasGuard {
+impl Drop for EnergyGuard {
     fn drop(&mut self) {
         debug_assert!(
             self.settled,
-            "GasGuard dropped without settle() — gas reservation leaked"
+            "EnergyGuard dropped without settle() — gas reservation leaked"
         );
     }
 }

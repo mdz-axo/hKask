@@ -10,7 +10,7 @@ use hkask_types::cns::QueueDepth;
 ///
 /// When gas remaining drops below this ratio, the Cybernetics Loop produces
 /// a throttle action to reduce consumption.
-pub const DEFAULT_GAS_MIN_REMAINING_RATIO: f64 = 0.2;
+pub const DEFAULT_ENERGY_MIN_REMAINING_RATIO: f64 = 0.2;
 
 /// Default maximum variety deficit before escalation (100).
 ///
@@ -98,7 +98,7 @@ impl SetPointsConfig {
 impl Default for SetPoints {
     fn default() -> Self {
         Self {
-            gas_min_remaining: DEFAULT_GAS_MIN_REMAINING_RATIO,
+            gas_min_remaining: DEFAULT_ENERGY_MIN_REMAINING_RATIO,
             variety_max_deficit: DEFAULT_VARIETY_MAX_DEFICIT,
             error_rate_max: DEFAULT_ERROR_RATE_MAX,
             connector_latency_max_secs: DEFAULT_CONNECTOR_LATENCY_MAX_SECS,

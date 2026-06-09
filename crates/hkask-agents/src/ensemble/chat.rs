@@ -17,7 +17,7 @@ static GAS_GOVERNANCE_WARNED: AtomicBool = AtomicBool::new(false);
 use crate::ensemble::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
 use crate::ensemble::ports::InferenceClient;
 
-/// Degradation level for gas budget enforcement
+/// Degradation level for energy budget enforcement
 ///
 /// Maps to the degradation rules in standing-ensemble-session.yaml:
 /// - 80%: reduce_memory_to_batch_only
@@ -48,7 +48,7 @@ pub struct EnergyBudgetConfig {
 impl EnergyBudgetConfig {
     /// Default session capacity (total gas units per session).
     pub const DEFAULT_SESSION_CAP: u64 = 150_000;
-    /// Default gas cost per message.
+    /// Default energy cost per message.
     pub const DEFAULT_PER_MESSAGE_COST: u64 = 100;
     /// Default alert threshold (70% consumed).
     pub const DEFAULT_ALERT_THRESHOLD: f64 = 0.7;
@@ -344,7 +344,7 @@ impl EnsembleChat {
         self.gas_used
     }
 
-    /// Get gas budget config if set
+    /// Get energy budget config if set
     pub fn energy_budget(&self) -> Option<&EnergyBudgetConfig> {
         self.energy_budget.as_ref()
     }
@@ -365,7 +365,7 @@ impl EnsembleChat {
             let cost = budget.per_message_cost;
             let (can_proceed, level) = self.can_proceed_with_gas(cost);
             if !can_proceed {
-                tracing::warn!(target: "cns.gas", gas_used = self.gas_used, session_cap = budget.session_cap, "Message rejected — gas budget hard limit reached");
+                tracing::warn!(target: "cns.gas", gas_used = self.gas_used, session_cap = budget.session_cap, "Message rejected — energy budget hard limit reached");
                 self.emit_span(message.from, "cns.gas", "ensemble.message_rejected", Phase::Compute, json!({"gas_used": self.gas_used, "session_cap": budget.session_cap, "message_rejected": true}));
                 return;
             }
@@ -488,7 +488,7 @@ impl EnsembleChat {
 
     /// Execute an improvisation turn using this session's config and participants
     ///
-    /// Checks gas budget before proceeding. If the hard limit would be exceeded,
+    /// Checks energy budget before proceeding. If the hard limit would be exceeded,
     /// returns `ImprovError::Ensemble(EnsembleError::CapabilityDenied)`.
     pub async fn improv_turn<C: InferenceClient>(
         &self,

@@ -8,7 +8,7 @@
 //! **Throttling is not handled here.** Per-agent rate limiting is a CNS concern
 //! (Loop 6 regulation) owned by `GovernedTool` energy budget accounting. The
 //! `McpDispatcher` routes all invocations through the `GovernedTool` membrane
-//! which handles OCAP, gas budget, and CNS observability. This server runs as
+//! which handles OCAP, energy budget, and CNS observability. This server runs as
 //! a separate process; placing throttling here would duplicate the canonical
 //! implementation and violate the authority DAG (Cybernetics governs Communication).
 

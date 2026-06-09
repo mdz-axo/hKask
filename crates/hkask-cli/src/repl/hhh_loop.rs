@@ -10,7 +10,7 @@ use hkask_agents::hhh_gate;
 use hkask_types::ports::InferencePort;
 
 use super::ReplState;
-use super::gas;
+use super::energy;
 
 /// Evaluate a response through the HHH gate model, looping with
 /// corrections until it passes or max iterations are reached.
@@ -32,17 +32,17 @@ pub(super) fn evaluate_hhh(
     let mut current_response = final_response.clone();
 
     loop {
-        let Some(mut gate_guard) = gas::GasGuard::try_reserve(
+        let Some(mut gate_guard) = energy::EnergyGuard::try_reserve(
             &state.service_context.cybernetics_loop,
             &state.inference_loop,
             &state.agent_webid,
             rt,
             500,
         ) else {
-            println!("  \x1b[33m\u{26a0} HHH gate skipped: gas budget exhausted\x1b[0m");
+            println!("  \x1b[33m\u{26a0} HHH gate skipped: energy budget exhausted\x1b[0m");
             tracing::warn!(
                 target: "cns.hhh.gas_exhausted",
-                "HHH gate evaluation skipped — gas budget exhausted"
+                "HHH gate evaluation skipped — energy budget exhausted"
             );
             break;
         };
@@ -90,7 +90,7 @@ pub(super) fn evaluate_hhh(
         let correction_input =
             hhh_gate::hhh_correction_prompt(input, &current_response, &evaluation);
 
-        let Some(mut correction_guard) = gas::GasGuard::try_reserve(
+        let Some(mut correction_guard) = energy::EnergyGuard::try_reserve(
             &state.service_context.cybernetics_loop,
             &state.inference_loop,
             &state.agent_webid,
@@ -98,13 +98,13 @@ pub(super) fn evaluate_hhh(
             500,
         ) else {
             *final_response = format!(
-                "{}\n\n\u{26a0}\u{fe0f} HHH correction skipped: gas budget exhausted",
+                "{}\n\n\u{26a0}\u{fe0f} HHH correction skipped: energy budget exhausted",
                 current_response
             );
-            println!("  \x1b[33m\u{26a0} HHH correction skipped: gas budget exhausted\x1b[0m");
+            println!("  \x1b[33m\u{26a0} HHH correction skipped: energy budget exhausted\x1b[0m");
             tracing::warn!(
                 target: "cns.hhh.gas_exhausted",
-                "HHH correction skipped — gas budget exhausted"
+                "HHH correction skipped — energy budget exhausted"
             );
             break;
         };

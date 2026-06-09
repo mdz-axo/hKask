@@ -77,7 +77,7 @@ impl std::fmt::Display for LoopId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SignalMetric {
-    /// Fraction of gas budget remaining (Cybernetics Loop 6)
+    /// Fraction of energy budget remaining (Cybernetics Loop 6)
     EnergyRemaining,
     /// Raw variety deficit count (Cybernetics Loop 6)
     VarietyDeficit,
@@ -285,7 +285,7 @@ pub enum ActionType {
     /// This is a *stronger* capability than `AdjustEnergyBudget`.
     /// Only Curation can issue this — it can exceed Cybernetics' set-point range.
     OverrideEnergyBudget,
-    /// Replenish an agent's gas budget (Curation directive)
+    /// Replenish an agent's energy budget (Curation directive)
     ///
     /// Used when an agent has exhausted its budget but should continue.
     /// This is the Curator's ability to inject gas into the system.

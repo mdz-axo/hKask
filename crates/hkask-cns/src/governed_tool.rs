@@ -9,7 +9,7 @@
 //! 2. Budget (Cybernetics) — reserve gas
 //! 3. Emits span (CNS) — cns.tool.invoked
 //! 4. Delegates to inner tool
-//! 5. Settles gas cost (Cybernetics) — settle actual vs. reserved
+//! 5. Settles energy cost (Cybernetics) — settle actual vs. reserved
 //! 6. Emits outcome span (CNS) — cns.tool.completed
 //!
 //! This is the membrane where Cybernetics governs all tool invocations.
@@ -43,13 +43,13 @@ use tracing::{debug, info, warn};
 /// Gas is a dimensionless cost unit analogous to Ethereum gas: it prevents
 /// infinite loops by making resource exhaustion explicit. Different tool
 /// categories have different cost models:
-/// - Inference: estimated by token count (InferenceGasEstimator)
-/// - All other tools: flat costs from TableGasEstimator
+/// - Inference: estimated by token count (InferenceEnergyEstimator)
+/// - All other tools: flat costs from TableEnergyEstimator
 ///
-/// Use `TableGasEstimator` for production (per-server gas costs) or
-/// `InferenceGasEstimator` for inference-specific token-based estimation.
-pub trait GasEstimator: Send + Sync {
-    /// Estimate the gas cost of a tool invocation before it happens.
+/// Use `TableEnergyEstimator` for production (per-server energy costs) or
+/// `InferenceEnergyEstimator` for inference-specific token-based estimation.
+pub trait EnergyEstimator: Send + Sync {
+    /// Estimate the energy cost of a tool invocation before it happens.
     fn estimate_cost(&self, server: &str, tool: &str, args: &Value) -> u64;
 }
 
@@ -71,7 +71,7 @@ pub trait GasEstimator: Send + Sync {
 ///     inner,
 ///     cybernetics_loop,
 ///     event_sink,
-///     Arc::new(TableGasEstimator::new()),
+///     Arc::new(TableEnergyEstimator::new()),
 ///     agent_webid,
 ///     dispatch_tx,
 /// );
@@ -81,7 +81,7 @@ pub struct GovernedTool<P: ToolPort> {
     inner: Arc<P>,
     cybernetics: Arc<RwLock<CyberneticsLoop>>,
     event_sink: Arc<dyn NuEventSink>,
-    estimator: Arc<dyn GasEstimator>,
+    estimator: Arc<dyn EnergyEstimator>,
     agent: WebID,
     dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
 }
@@ -92,7 +92,7 @@ impl<P: ToolPort> GovernedTool<P> {
         inner: Arc<P>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
         event_sink: Arc<dyn NuEventSink>,
-        estimator: Arc<dyn GasEstimator>,
+        estimator: Arc<dyn EnergyEstimator>,
         agent: WebID,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
@@ -186,7 +186,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             )));
         }
 
-        // Step 2: Reserve gas budget (hold-settle pattern)
+        // Step 2: Reserve energy budget (hold-settle pattern)
         let estimated_cost = EnergyCost(estimated_cost);
         let loop6 = self.cybernetics.read().await;
         if !loop6.can_proceed(&self.agent, estimated_cost).await {
@@ -195,7 +195,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 agent = ?self.agent,
                 tool = %tool,
                 estimated_cost = estimated_cost.0,
-                "Tool invocation rejected — gas budget exceeded"
+                "Tool invocation rejected — energy budget exceeded"
             );
             return Err(ToolPortError::EnergyBudgetExceeded(format!(
                 "Gas budget exceeded for agent {:?}, tool {}, estimated cost {}",
@@ -251,7 +251,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         );
         let result = self.inner.invoke(server, tool, args, token).await;
 
-        // Step 5: Settle gas cost (hold-settle)
+        // Step 5: Settle energy cost (hold-settle)
         let actual_cost = match &result {
             Ok(_) => estimated_cost.0,      // Full cost on success
             Err(_) => estimated_cost.0 / 2, // Half cost on failure

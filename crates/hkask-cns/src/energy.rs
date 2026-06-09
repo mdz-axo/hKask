@@ -27,10 +27,10 @@ pub use hkask_types::cns::{QueueDepth, RBarThreshold};
 pub struct EnergyCost(pub u64);
 
 impl EnergyCost {
-    /// Zero gas cost — used for free/internal operations.
+    /// Zero energy cost — used for free/internal operations.
     pub const ZERO: EnergyCost = EnergyCost(0);
 
-    /// Create a gas cost from a raw `u64`.
+    /// Create a energy cost from a raw `u64`.
     pub fn from_raw(value: u64) -> Self {
         EnergyCost(value)
     }
@@ -72,8 +72,8 @@ impl fmt::Display for EnergyCost {
     }
 }
 
-/// Default gas budget alert threshold — alert when 80% of gas is consumed.
-pub const DEFAULT_GAS_ALERT_THRESHOLD: f64 = 0.8;
+/// Default energy budget alert threshold — alert when 80% of gas is consumed.
+pub const DEFAULT_ENERGY_ALERT_THRESHOLD: f64 = 0.8;
 
 /// Default priority for serde default.
 const fn default_priority() -> f64 {
@@ -84,7 +84,7 @@ const fn default_priority() -> f64 {
 ///
 /// Gas units are dimensionless — they represent computational cost on a
 /// shared scale. Inference tools are more expensive than internal tools.
-/// The `GasEstimator` trait maps each (server, tool) pair to a gas cost.
+/// The `EnergyEstimator` trait maps each (server, tool) pair to a energy cost.
 ///
 /// Gas replenishes periodically via `replenish()`, called by the
 /// Cybernetics Loop on its regulation cycle.
@@ -114,15 +114,15 @@ pub struct EnergyBudget {
 }
 
 impl EnergyBudget {
-    /// Create a new gas budget with the given cap.
+    /// Create a new energy budget with the given cap.
     ///
-    /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_GAS_ALERT_THRESHOLD, hard_limit = true.
+    /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_ENERGY_ALERT_THRESHOLD, hard_limit = true.
     pub fn new(cap: EnergyCost) -> Self {
         let cap_raw = cap.0;
         Self {
             remaining: cap,
             replenish_rate: EnergyCost(cap_raw / 10),
-            alert_threshold: DEFAULT_GAS_ALERT_THRESHOLD,
+            alert_threshold: DEFAULT_ENERGY_ALERT_THRESHOLD,
             hard_limit: true,
             reserved: EnergyCost::ZERO,
             priority: 1.0,
@@ -130,7 +130,7 @@ impl EnergyBudget {
         }
     }
 
-    /// Create a gas budget with unlimited capacity (u64::MAX).
+    /// Create a energy budget with unlimited capacity (u64::MAX).
     ///
     /// Useful for agents that should never be throttled. The budget still
     /// tracks usage for observability but never hard-rejects.
@@ -229,7 +229,7 @@ impl EnergyBudget {
         Ok(gas)
     }
 
-    /// Replenish gas budget by the configured replenish_rate.
+    /// Replenish energy budget by the configured replenish_rate.
     ///
     /// Called by the Cybernetics Loop on its regulation cycle.
     /// Never exceeds cap.
@@ -239,12 +239,12 @@ impl EnergyBudget {
         }
     }
 
-    /// Replenish gas budget by a specific amount (used by CuratorDirective::ReplenishBudget).
+    /// Replenish energy budget by a specific amount (used by CuratorDirective::ReplenishBudget).
     pub fn replenish_by(&mut self, amount: EnergyCost) {
         self.remaining = EnergyCost((self.remaining.0 + amount.0).min(self.cap.0));
     }
 
-    /// Replenish gas budget by `amount * priority`, weighted by the given priority.
+    /// Replenish energy budget by `amount * priority`, weighted by the given priority.
     ///
     /// The effective replenishment is `(amount * priority).round()`, never exceeding cap.
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
@@ -263,7 +263,7 @@ impl EnergyBudget {
     }
 }
 
-/// Read-only snapshot of an agent's gas budget status.
+/// Read-only snapshot of an agent's energy budget status.
 ///
 /// Returned by `CyberneticsLoop::agent_gas_status()` and `CnsRuntime::agent_gas_status()`
 /// for use by the `cns_energy` MCP tool and InferenceLoop gas sync.

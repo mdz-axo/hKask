@@ -180,7 +180,7 @@ pub fn parse_tool_calls(response: &str) -> ParsedResponse {
 /// Invoke a parsed tool call through the GovernedTool membrane.
 ///
 /// Mints a DelegationToken from the session's ACP secret for OCAP
-/// authorization, then routes through GovernedTool (gas budgets, CNS).
+/// authorization, then routes through GovernedTool (energy budgets, CNS).
 pub async fn invoke_tool_call(
     call: &ToolCall,
     governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,

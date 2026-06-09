@@ -169,7 +169,7 @@ pub enum ServiceError {
     #[error(transparent)]
     Allosteric(#[from] AllostericError),
 
-    /// Upstream gas budget error.
+    /// Upstream energy budget error.
     #[error(transparent)]
     Gas(#[from] EnergyError),
 

@@ -1,11 +1,11 @@
-//! InferenceGasEstimator — Token-based gas cost estimation for inference
+//! InferenceEnergyEstimator — Token-based energy cost estimation for inference
 //!
-//! Implements `GasEstimator` using the token estimation heuristic:
+//! Implements `EnergyEstimator` using the token estimation heuristic:
 //! prompt characters / 4 + max_tokens.
 //! This estimator can be used with `GovernedTool` to govern inference
 //! through the unified tool membrane.
 
-use crate::governed_tool::GasEstimator;
+use crate::governed_tool::EnergyEstimator;
 use serde_json::Value;
 
 /// Characters per token heuristic (English text ≈ 4 chars/token).
@@ -23,9 +23,9 @@ const CHARS_PER_TOKEN: usize = 4;
 /// ```
 ///
 /// If args don't contain the expected fields, falls back to a flat cost of 1.
-pub(crate) struct InferenceGasEstimator;
+pub(crate) struct InferenceEnergyEstimator;
 
-impl GasEstimator for InferenceGasEstimator {
+impl EnergyEstimator for InferenceEnergyEstimator {
     fn estimate_cost(&self, _server: &str, _tool: &str, args: &Value) -> u64 {
         // Try to extract prompt and max_tokens from args
         let prompt_chars = args

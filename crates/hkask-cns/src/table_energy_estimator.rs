@@ -1,7 +1,7 @@
-//! TableGasEstimator — per-server gas cost table
+//! TableEnergyEstimator — per-server energy cost table
 //
-//! Each (server, tool) pair maps to a flat gas cost. Inference uses token-based
-//! `InferenceGasEstimator` instead (cost 0 in table signals this).
+//! Each (server, tool) pair maps to a flat energy cost. Inference uses token-based
+//! `InferenceEnergyEstimator` instead (cost 0 in table signals this).
 //
 //! | Tier | Servers | Cost | Rationale |
 //! |------|---------|------|----------|
@@ -13,13 +13,13 @@
 //! | Heavy | fal | 100 | GPU compute |
 //! | Inference | hkask-mcp-inference | 0 | Token-based estimator |
 //
-//! Unknown servers default to 10. Use `CompositeGasEstimator` for production.
+//! Unknown servers default to 10. Use `CompositeEnergyEstimator` for production.
 
-use crate::governed_tool::GasEstimator;
+use crate::governed_tool::EnergyEstimator;
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Default gas costs per MCP server.
+/// Default energy costs per MCP server.
 ///
 /// These are intentionally conservative — they prevent infinite loops
 /// while being simple to understand and calibrate.
@@ -53,8 +53,8 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     // Replicant chat — internal LLM-mediated tool (same tier as memory servers)
     table.insert("hkask-mcp-replicant", 5);
 
-    // Inference is handled separately by InferenceGasEstimator
-    table.insert("hkask-mcp-inference", 0); // Overridden by InferenceGasEstimator
+    // Inference is handled separately by InferenceEnergyEstimator
+    table.insert("hkask-mcp-inference", 0); // Overridden by InferenceEnergyEstimator
 
     table
 }
@@ -78,36 +78,36 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 /// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 /// | External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
 /// | Heavy external | fal | 100 | GPU compute, expensive |
-/// | Inference | hkask-mcp-inference | 0 (table) | Handled by `InferenceGasEstimator` |
+/// | Inference | hkask-mcp-inference | 0 (table) | Handled by `InferenceEnergyEstimator` |
 ///
-/// Inference uses a token-based cost model (`InferenceGasEstimator`):
+/// Inference uses a token-based cost model (`InferenceEnergyEstimator`):
 /// `prompt_chars / 4 + max_tokens`. This reflects that LLM compute scales
 /// with token count, not with a flat per-call cost.
 ///
 /// Unknown servers default to 10 (moderate — conservative middle ground).
 ///
-/// For production, use `CompositeGasEstimator` which routes inference to
-/// `InferenceGasEstimator` and all other tools to this table.
+/// For production, use `CompositeEnergyEstimator` which routes inference to
+/// `InferenceEnergyEstimator` and all other tools to this table.
 ///
 /// # Lookup Priority
 ///
-/// Looks up gas cost by server name. If the server has a specific cost,
+/// Looks up energy cost by server name. If the server has a specific cost,
 /// uses that. If not found, falls back to the `default_cost`.
 ///
 /// For tools within a server, you can optionally provide per-tool costs
 /// via `with_tool_cost()`. If no per-tool cost is found, the server cost
 /// is used.
-pub(crate) struct TableGasEstimator {
-    /// Per-server gas costs.
+pub(crate) struct TableEnergyEstimator {
+    /// Per-server energy costs.
     server_costs: HashMap<String, u64>,
-    /// Per-(server, tool) gas costs (overrides server cost).
+    /// Per-(server, tool) energy costs (overrides server cost).
     tool_costs: HashMap<(String, String), u64>,
     /// Default cost when neither server nor tool cost is found.
     default_cost: u64,
 }
 
-impl TableGasEstimator {
-    /// Create a TableGasEstimator with the default gas table.
+impl TableEnergyEstimator {
+    /// Create a TableEnergyEstimator with the default gas table.
     pub(crate) fn new() -> Self {
         let server_costs: HashMap<String, u64> = default_gas_table()
             .into_iter()
@@ -129,7 +129,7 @@ impl TableGasEstimator {
         }
     }
 
-    /// Look up the gas cost for a (server, tool) pair.
+    /// Look up the energy cost for a (server, tool) pair.
     pub(crate) fn lookup(&self, server: &str, tool: &str) -> u64 {
         // Per-tool cost takes priority
         if let Some(cost) = self.tool_costs.get(&(server.to_string(), tool.to_string())) {
@@ -144,13 +144,13 @@ impl TableGasEstimator {
     }
 }
 
-impl Default for TableGasEstimator {
+impl Default for TableEnergyEstimator {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GasEstimator for TableGasEstimator {
+impl EnergyEstimator for TableEnergyEstimator {
     fn estimate_cost(&self, server: &str, tool: &str, _args: &Value) -> u64 {
         self.lookup(server, tool)
     }

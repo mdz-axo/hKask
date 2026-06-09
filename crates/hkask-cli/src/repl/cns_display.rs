@@ -66,7 +66,7 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
 
     // Tick the LoopSystem to run sense→compare→compute→act for
     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
-    // CNS variety and gas budgets, producing regulatory actions
+    // CNS variety and energy budgets, producing regulatory actions
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate).
     rt.block_on(state.service_context.loop_system.tick());
 

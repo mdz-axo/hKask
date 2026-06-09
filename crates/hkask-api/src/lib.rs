@@ -55,7 +55,7 @@ use std::sync::Arc;
 use hkask_services::ServiceContext;
 use utoipa::OpenApi;
 
-use gas::ApiGasGovernanceAdapter;
+use energy::ApiEnergyGovernanceAdapter;
 use git_cas::{GitCasBundle, init_git_cas};
 
 use openapi::ApiDoc;
@@ -140,10 +140,10 @@ impl ApiState {
     ) -> Result<Self, ApiError> {
         // Surface-specific: gas governance from cybernetics loop + system webid
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
-            Arc::new(ApiGasGovernanceAdapter::new(
+            Arc::new(ApiEnergyGovernanceAdapter::new(
                 ctx.cybernetics_loop.clone(),
                 ctx.system_webid,
-                gas::API_ENSEMBLE_GAS_CAP,
+                energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 
         // Surface-specific: Git CAS adapters (legacy template archival)

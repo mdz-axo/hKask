@@ -387,7 +387,7 @@ pub fn bootstrap_standing_session_with_store(
 
     let mut session = StandingSession::from_config(config.clone()).with_store(store.clone());
 
-    // Wire gas budget from YAML if present
+    // Wire energy budget from YAML if present
     if let Some(ref gas) = config.gas {
         session = session.with_energy_budget(gas.to_config());
     }

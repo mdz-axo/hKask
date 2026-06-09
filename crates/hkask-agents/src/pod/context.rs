@@ -44,7 +44,7 @@ pub struct PodContext {
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
     /// GovernedTool membrane — routes tool invocations through CNS governance
-    /// (gas budget, variety tracking, event spans). When present, `invoke_tool`
+    /// (energy budget, variety tracking, event spans). When present, `invoke_tool`
     /// routes through this membrane instead of the raw `mcp_runtime`, ensuring
     /// pod-initiated calls are subject to Cybernetics governance.
     governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
@@ -327,7 +327,7 @@ impl PodContext {
     /// Invoke an MCP tool by name.
     ///
     /// When a `GovernedTool` membrane is configured, routes through it to get
-    /// CNS governance (gas budget enforcement, variety tracking, algedonic spans).
+    /// CNS governance (energy budget enforcement, variety tracking, algedonic spans).
     /// When no membrane is present, falls back to the raw `mcp_runtime` path
     /// which performs OCAP verification but bypasses CNS observability.
     pub fn invoke_tool(

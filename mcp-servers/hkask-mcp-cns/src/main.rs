@@ -8,12 +8,12 @@
 //! - `cns_list_alerts` — List active algedonic alerts
 //! - `cns_health` — Get CNS health status
 
-//! - `cns_replenish_budget` — Replenish an agent's gas budget
-//! - `cns_energy` — Get an agent's gas budget status
+//! - `cns_replenish_budget` — Replenish an agent's energy budget
+//! - `cns_energy` — Get an agent's energy budget status
 //! - `cns_backpressure` — Emit a backpressure signal
 //! - `cns_verify_magna_carta` — Verify Magna Carta compliance (sovereignty audit)
 
-use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, GasCost};
+use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, EnergyCost};
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;
 use hkask_types::WebID;
@@ -263,7 +263,7 @@ impl CnsServer {
         }))
     }
 
-    #[tool(description = "Replenish an agent's gas budget (Curator authority required)")]
+    #[tool(description = "Replenish an agent's energy budget (Curator authority required)")]
     async fn cns_replenish_budget(
         &self,
         Parameters(ReplenishBudgetRequest { agent_id, amount }): Parameters<ReplenishBudgetRequest>,
@@ -279,7 +279,7 @@ impl CnsServer {
 
         let remaining = self
             .runtime
-            .replenish_agent_budget(&agent, GasCost(amount))
+            .replenish_agent_budget(&agent, EnergyCost(amount))
             .await;
 
         span.ok_json(serde_json::json!({
@@ -289,7 +289,7 @@ impl CnsServer {
         }))
     }
 
-    #[tool(description = "Get an agent's gas budget status (energy level, usage, limits)")]
+    #[tool(description = "Get an agent's energy budget status (energy level, usage, limits)")]
     async fn cns_energy(
         &self,
         Parameters(EnergyRequest { agent_id }): Parameters<EnergyRequest>,

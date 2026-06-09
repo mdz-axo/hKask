@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Record of an active Curation override on an agent's gas budget.
+/// Record of an active Curation override on an agent's energy budget.
 ///
 /// When Curation issues an `OverrideEnergyBudget` directive, the override is
 /// recorded here so that `replenish_all_budgets()` does not overwrite it
@@ -40,8 +40,8 @@ struct OverrideRecord {
 
 /// Gas Budget Manager — registration, reservation, settlement, and replenishment.
 ///
-/// Owns the gas budget map and active override tracking. Extracted from
-/// `CyberneticsLoop` to concentrate gas budget logic and allow direct access
+/// Owns the energy budget map and active override tracking. Extracted from
+/// `CyberneticsLoop` to concentrate energy budget logic and allow direct access
 /// from `GovernedTool` without going through the full loop.
 pub struct EnergyBudgetManager {
     energy_budgets: Arc<RwLock<HashMap<WebID, EnergyBudget>>>,
@@ -63,13 +63,13 @@ impl EnergyBudgetManager {
         }
     }
 
-    /// Register a gas budget for an agent.
+    /// Register a energy budget for an agent.
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let mut budgets = self.energy_budgets.write().await;
         budgets.insert(agent, budget);
     }
 
-    /// Check whether an agent can proceed with the given gas cost estimate.
+    /// Check whether an agent can proceed with the given energy cost estimate.
     ///
     /// Returns `true` if the agent has no registered budget (soft limit)
     /// or if the budget has sufficient remaining capacity.
@@ -154,7 +154,7 @@ impl EnergyBudgetManager {
                     target: "cns.cybernetics",
                     agent = %agent,
                     replenish_rate = replenished.0,
-                    "Replenished gas budget"
+                    "Replenished energy budget"
                 );
             }
         }
@@ -170,7 +170,7 @@ impl EnergyBudgetManager {
                 agent = %agent,
                 amount = %amount,
                 remaining = %budget.remaining,
-                "Replenished agent gas budget by directive"
+                "Replenished agent energy budget by directive"
             );
         }
     }
@@ -196,7 +196,7 @@ impl EnergyBudgetManager {
                 target: "cns.cybernetics",
                 agent = %agent,
                 new_budget = %new_budget,
-                "Registered new gas budget from OverrideEnergyBudget directive"
+                "Registered new energy budget from OverrideEnergyBudget directive"
             );
         }
         drop(budgets);
@@ -251,7 +251,7 @@ impl EnergyBudgetManager {
                 amount = %amount,
                 priority = priority,
                 replenished = %replenished,
-                "Replenished agent gas budget by directive"
+                "Replenished agent energy budget by directive"
             );
         }
     }
@@ -278,7 +278,7 @@ impl EnergyBudgetManager {
         });
     }
 
-    /// Iterate over gas budgets to produce energy signals.
+    /// Iterate over energy budgets to produce energy signals.
     /// Returns `(remaining, cap)` for each registered agent.
     pub async fn energy_ratios(&self) -> Vec<(EnergyCost, EnergyCost)> {
         let budgets = self.energy_budgets.read().await;
