@@ -41,9 +41,11 @@ Adds a `condenser_thread_summary` tool that calls an inference engine's chat end
 
 | Engine | Endpoint | Config |
 |--------|----------|--------|
-| Okapi | `/api/chat` | `OKAPI_URL`, `OKAPI_MODEL`, `OKAPI_API_KEY` |
-| Ollama | `/api/chat` | `OLLAMA_URL`, `OLLAMA_MODEL` |
-| Other | HTTP chat API | Engine-specific env vars |
+| Okapi | `/api/chat` | `INFERENCE_URL`, `INFERENCE_MODEL`, `INFERENCE_API_KEY` |
+| Ollama | `/api/chat` | `INFERENCE_URL`, `INFERENCE_MODEL` |
+| Other | HTTP chat API | `INFERENCE_URL`, `INFERENCE_MODEL` + engine-specific vars |
+
+All accept legacy `OKAPI_*` aliases for backward compatibility.
 
 **Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3), the chat request must include `"think": false` (or equivalent) to prevent the model from spending all output tokens on internal reasoning. This is engine-specific configuration, not a global setting.
 
@@ -100,11 +102,13 @@ Assemble a structured continuation document with:
 ## Key Files
 
 | File | Purpose |
-|------|---------|
+|------|--------|
 | `mcp-servers/hkask-mcp-condenser/src/main.rs` | MCP server entry point, all tool implementations |
+| `mcp-servers/hkask-mcp-condenser/src/engine.rs` | Pure domain logic — compression dispatch, profile management, stats |
+| `mcp-servers/hkask-mcp-condenser/src/inference.rs` | Inference-backed summarization — message formatting, response validation |
 | `mcp-servers/hkask-mcp-condenser/src/types.rs` | Request/response types including `ThreadSummaryRequest`/`ThreadSummaryOutput` |
 | `mcp-servers/hkask-mcp-condenser/src/algorithms.rs` | Compression and classification algorithms |
-| `mcp-servers/hkask-mcp-condenser/Cargo.toml` | Dependencies including `reqwest` for Option B HTTP calls |
+| `mcp-servers/hkask-mcp-condenser/Cargo.toml` | Dependencies including `reqwest` for inference HTTP calls |
 
 ## Debug
 

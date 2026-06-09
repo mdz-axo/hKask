@@ -102,3 +102,120 @@ impl Default for VarietyMonitor {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── VarietyTracker ─────────────────────────────────────────────────
+
+    #[test]
+    fn tracker_starts_empty() {
+        let tracker = VarietyTracker::new();
+        assert_eq!(tracker.variety(), 0);
+    }
+
+    #[test]
+    fn increment_creates_new_key() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("inference");
+        assert_eq!(tracker.variety(), 1);
+    }
+
+    #[test]
+    fn increment_same_key_doesnt_increase_variety() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("inference");
+        tracker.increment("inference");
+        assert_eq!(tracker.variety(), 1); // Same key, still 1
+    }
+
+    #[test]
+    fn increment_different_keys_increases_variety() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("inference");
+        tracker.increment("memory");
+        tracker.increment("governance");
+        assert_eq!(tracker.variety(), 3);
+    }
+
+    #[test]
+    fn deficit_saturating_sub() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("a");
+        tracker.increment("b");
+        // variety = 2, expected = 10 → deficit = 8
+        assert_eq!(tracker.deficit(10), 8);
+    }
+
+    #[test]
+    fn deficit_zero_when_variety_meets_expected() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("a");
+        tracker.increment("b");
+        tracker.increment("c");
+        assert_eq!(tracker.deficit(3), 0);
+    }
+
+    #[test]
+    fn deficit_saturates_at_zero_when_surplus() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("a");
+        tracker.increment("b");
+        tracker.increment("c");
+        tracker.increment("d");
+        tracker.increment("e");
+        // variety = 5, expected = 3 → deficit should not go negative
+        assert_eq!(tracker.deficit(3), 0);
+    }
+
+    #[test]
+    fn reset_clears_all_counts() {
+        let mut tracker = VarietyTracker::new();
+        tracker.increment("a");
+        tracker.increment("b");
+        tracker.reset();
+        assert_eq!(tracker.variety(), 0);
+    }
+
+    #[test]
+    fn default_matches_new() {
+        let a = VarietyTracker::new();
+        let b = VarietyTracker::default();
+        assert_eq!(a.variety(), b.variety());
+    }
+
+    // ── VarietyMonitor ─────────────────────────────────────────────────
+
+    #[test]
+    fn monitor_starts_empty() {
+        let monitor = VarietyMonitor::new();
+        assert!(monitor.domains().is_empty());
+    }
+
+    #[test]
+    fn monitor_variety_for_untracked_domain_is_zero() {
+        let monitor = VarietyMonitor::new();
+        assert_eq!(monitor.variety_for_domain("unknown"), 0);
+    }
+
+    #[test]
+    fn monitor_tracks_domains_independently() {
+        let mut monitor = VarietyMonitor::new();
+        monitor.counter("inference").increment("chat");
+        monitor.counter("inference").increment("embed");
+        monitor.counter("memory").increment("store");
+        assert_eq!(monitor.variety_for_domain("inference"), 2);
+        assert_eq!(monitor.variety_for_domain("memory"), 1);
+    }
+
+    #[test]
+    fn monitor_domains_lists_tracked() {
+        let mut monitor = VarietyMonitor::new();
+        monitor.counter("a").increment("x");
+        monitor.counter("b").increment("x");
+        let mut domains = monitor.domains();
+        domains.sort();
+        assert_eq!(domains, vec!["a", "b"]);
+    }
+}

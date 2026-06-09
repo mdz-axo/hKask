@@ -1,6 +1,6 @@
 # CONTINUATION.md — hKask Post-Extraction Follow-Up
 
-**Sessions:** 12–25 | **Status:** Extraction ✅ COMPLETE | Follow-up: 3 remaining (1 medium, 4 speculative)
+**Sessions:** 12–25 | **Status:** Extraction ✅ COMPLETE | Follow-up: active extractions in progress (3 done, 2+ remaining)
 
 ---
 
@@ -27,12 +27,14 @@ error matching in `routes/episodic.rs`).
 | 2 | F5 — Pod test ACP secret fixture | 🔴 High | ✅ Done (Session 24) | ~1–2h |
 | 3 | F9 — Typed DTOs for EpisodicStoragePort | 🔴 High | ✅ Done (Session 24) | ~2–3h |
 | 4 | OPEN_QUESTIONS.md (F1–F10) | 🟡 Medium | ✅ Done (Session 25) | ~30m |
-| 5 | Test inventory update | 🟡 Medium | ✅ Done (Session 26) | ~1h |
+| 5 | Test inventory update | 🟡 Medium | ✅ Done (Session 25) | ~1h |
 | 6 | Condenser build fix | 🟡 Medium | ✅ Already resolved | 0 |
-| 7 | F3 — Unified auth context | ⚪ Low/Speculative | Deferred | — |
-| 8 | F4 — MCP server service access | ⚪ Low/Speculative | Deferred | — |
-| 9 | F1 — Streaming responses | ⚪ Low/Speculative | Deferred | — |
-| 10 | F8 — GovernedTool membrane | ⚪ Low/Speculative | Deferred | — |
+| 7 | Ensemble get_chat + list_deliberations | 🔴 High | ✅ Done (Session 25) | ~30m |
+| 8 | Sovereignty grant_consent_and_fetch | 🔴 High | ✅ Done (Session 25) | ~20m |
+| 9 | ConsolidationService rate limit + db_path | 🔴 High | ✅ Done (Session 25) | ~30m |
+| 10 | Ensemble standing_start orchestration | 🔴 High | Not started | ~2h |
+| 11 | Sovereignty consent enforcement extraction | 🔴 High | Not started | ~1h |
+| 12 | Chat PromptStrategy framing | 🟡 Medium | Not started | ~1h |
 
 ---
 

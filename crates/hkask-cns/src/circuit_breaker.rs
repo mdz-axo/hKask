@@ -45,6 +45,8 @@ pub struct CircuitBreaker {
     failure_count: AtomicU32,
     success_count: AtomicU32,
     last_failure_time: AtomicU64,
+    /// Reference Instant for computing elapsed time (stored as nanos since creation).
+    created_at: Instant,
     config: CircuitBreakerConfig,
     name: String,
 }
@@ -52,11 +54,13 @@ pub struct CircuitBreaker {
 impl CircuitBreaker {
     /// Create a new circuit breaker with the given name and configuration.
     pub(crate) fn new(name: String, config: CircuitBreakerConfig) -> Self {
+        let created_at = Instant::now();
         Self {
             state: AtomicU32::new(CircuitState::Closed as u32),
             failure_count: AtomicU32::new(0),
             success_count: AtomicU32::new(0),
             last_failure_time: AtomicU64::new(0),
+            created_at,
             config,
             name,
         }
@@ -76,14 +80,15 @@ impl CircuitBreaker {
         match state {
             CircuitState::Closed => true,
             CircuitState::Open => {
-                let last_failure = self.last_failure_time.load(Ordering::Relaxed);
-                if last_failure == 0 {
+                let last_failure_nanos = self.last_failure_time.load(Ordering::Relaxed);
+                if last_failure_nanos == 0 {
                     return false;
                 }
 
-                let elapsed = Instant::now().duration_since(
-                    Instant::now() - Duration::from_secs_f64(last_failure as f64 / 1_000_000_000.0),
-                );
+                // Reconstruct the last-failure Instant from nanos since creation
+                let last_failure_instant =
+                    self.created_at + Duration::from_nanos(last_failure_nanos);
+                let elapsed = Instant::now().duration_since(last_failure_instant);
 
                 if elapsed >= self.config.open_timeout {
                     self.set_state(CircuitState::HalfOpen);
@@ -130,9 +135,10 @@ impl CircuitBreaker {
     pub fn record_failure(&self) {
         let failure_count = self.failure_count.fetch_add(1, Ordering::Relaxed) + 1;
 
-        let now = Instant::now();
-        let now_secs = now.duration_since(Instant::now()).as_nanos() as u64;
-        self.last_failure_time.store(now_secs, Ordering::Relaxed);
+        // Store nanoseconds since creation as the failure timestamp
+        let elapsed_nanos = Instant::now().duration_since(self.created_at).as_nanos() as u64;
+        self.last_failure_time
+            .store(elapsed_nanos, Ordering::Relaxed);
 
         let state = self.state();
 
@@ -159,6 +165,115 @@ impl CircuitBreaker {
 
     fn set_state(&self, state: CircuitState) {
         self.state.store(state as u32, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> CircuitBreakerConfig {
+        CircuitBreakerConfig {
+            failure_threshold: 3,
+            open_timeout: Duration::from_millis(100),
+            success_threshold: 2,
+        }
+    }
+
+    #[test]
+    fn circuit_starts_closed() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        assert_eq!(cb.state(), CircuitState::Closed);
+    }
+
+    #[test]
+    fn closed_allows_requests() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        assert!(cb.allow_request());
+    }
+
+    #[test]
+    fn failures_open_circuit_at_threshold() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        for _ in 0..3 {
+            cb.record_failure();
+        }
+        assert_eq!(cb.state(), CircuitState::Open);
+    }
+
+    #[test]
+    fn open_rejects_requests() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        // Force open
+        for _ in 0..3 {
+            cb.record_failure();
+        }
+        assert_eq!(cb.state(), CircuitState::Open);
+        assert!(!cb.allow_request());
+    }
+
+    #[test]
+    fn success_in_closed_resets_failure_count() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        cb.record_failure();
+        cb.record_failure(); // 2 failures
+        cb.record_success(); // Resets failure count
+        cb.record_failure(); // Only 1 failure now
+        assert_eq!(cb.state(), CircuitState::Closed); // Not 3 failures yet
+    }
+
+    #[test]
+    fn failure_in_halfopen_opens_circuit() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        // Open the circuit
+        for _ in 0..3 {
+            cb.record_failure();
+        }
+        assert_eq!(cb.state(), CircuitState::Open);
+        // Wait for open_timeout to transition to HalfOpen
+        std::thread::sleep(Duration::from_millis(150));
+        assert!(cb.allow_request()); // Transitions to HalfOpen
+        assert_eq!(cb.state(), CircuitState::HalfOpen);
+        // A single failure in HalfOpen opens immediately
+        cb.record_failure();
+        assert_eq!(cb.state(), CircuitState::Open);
+    }
+
+    #[test]
+    fn successes_in_halfopen_close_circuit() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        // Open the circuit
+        for _ in 0..3 {
+            cb.record_failure();
+        }
+        // Wait for timeout → HalfOpen
+        std::thread::sleep(Duration::from_millis(150));
+        cb.allow_request(); // Triggers HalfOpen transition
+        assert_eq!(cb.state(), CircuitState::HalfOpen);
+        // Two successes close the circuit (success_threshold = 2)
+        cb.record_success();
+        assert_eq!(cb.state(), CircuitState::HalfOpen); // Not yet
+        cb.record_success();
+        assert_eq!(cb.state(), CircuitState::Closed);
+    }
+
+    #[test]
+    fn default_for_inference_uses_default_config() {
+        let cb = CircuitBreaker::default_for_inference("okapi");
+        assert_eq!(cb.state(), CircuitState::Closed);
+        assert!(cb.allow_request());
+    }
+
+    #[test]
+    fn halfopen_allows_requests() {
+        let cb = CircuitBreaker::new("test".to_string(), test_config());
+        for _ in 0..3 {
+            cb.record_failure();
+        }
+        std::thread::sleep(Duration::from_millis(150));
+        cb.allow_request(); // Transitions to HalfOpen
+        assert_eq!(cb.state(), CircuitState::HalfOpen);
+        assert!(cb.allow_request()); // HalfOpen allows
     }
 }
 

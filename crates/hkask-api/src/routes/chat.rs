@@ -4,9 +4,11 @@
 //! switches the LLM used for inference. Use `GET /api/models` to discover
 //! valid model identifiers.
 
+use axum::extract::Extension;
 use axum::{Json, extract::State, routing::Router};
 
 use crate::ApiState;
+use crate::middleware::auth::AuthContext;
 use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -64,7 +66,11 @@ pub fn chat_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
+async fn chat(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Json(req): Json<ChatRequest>,
+) -> Json<ChatResponse> {
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
     let model: &str = &model_str;
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
@@ -84,6 +90,7 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
         inference_port_override: None,
         episodic_storage_override: None,
         semantic_storage_override: None,
+        auth_context: Some(auth),
     };
 
     let result = match ChatService::chat(&state.service_context, svc_req).await {

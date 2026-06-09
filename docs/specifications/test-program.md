@@ -243,6 +243,7 @@ A test invariant that fails Curation is **documented**, not silently dropped. Th
 | **skill-discovery** | Find, evaluate, and install dual-layer skills (SKILL.md + registry templates); gap detection | Capability (skill lifecycle), Curation (quality evaluation) | `detect` (KnowAct), `evaluate` (KnowAct) |
 | **skill-maintenance** | Audit hKask's dual-layer skill architecture for staleness, coverage gaps, and quality degradation | Lifecycle (skill lifecycle states), Curation (health scoring, deprecation) | `audit` (KnowAct), `classify` (KnowAct) |
 | **skill-manager** | Dual-layer CRUD for the skill corpus across Zed agent and registry layers | Capability (skill operations), Curation (corpus management) | `validate` (WordAct), `create` (WordAct) |
+| **condenser-continuation** | Resume condenser implementation after context reset; inference-agnostic restoration and verification | Domain (session state restoration), Capability (build verification), Lifecycle (continuity across sessions) | `compact` (KnowAct), `restore` (KnowAct) |
 
 ---
 

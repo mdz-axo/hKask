@@ -21,6 +21,7 @@
 
 mod algorithms;
 mod engine;
+mod inference;
 mod types;
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, api_post};
@@ -247,29 +248,11 @@ impl CondenserServer {
             );
         }
 
-        // Build the conversation text for summarization
-        let mut conversation_text = String::new();
-        for msg in &messages {
-            let role = msg
-                .get("role")
-                .and_then(|r| r.as_str())
-                .unwrap_or("unknown");
-            let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("");
-            conversation_text.push_str(&format!("[{role}]: {content}\n\n"));
-        }
-
+        let conversation_text = inference::format_conversation_text(&messages);
         let max_tok = max_tokens.unwrap_or(500);
 
-        // Build the inference chat request
-        let summarization_prompt = format!(
-            "Summarize this conversation history for context compaction. \
-             Preserve: key decisions, file paths mentioned, error states encountered, \
-             code changes made, and the current task goal. \
-             Discard: verbose tool output, intermediate file reads, repeated information, \
-             and anything not directly relevant to the current task.\n\n\
-             Current task: {current_query}\n\n\
-             Conversation history:\n{conversation_text}"
-        );
+        let summarization_prompt =
+            inference::build_summarization_prompt(&conversation_text, &current_query);
 
         let chat_request = serde_json::json!({
             "model": self.inference_model,
@@ -300,39 +283,13 @@ impl CondenserServer {
         };
 
         // Extract and validate the summary content
-        let summary = match resp_body
-            .get("message")
-            .and_then(|m| m.get("content"))
-            .and_then(|c| c.as_str())
-        {
-            Some(content) if !content.trim().is_empty() => content.to_string(),
-            Some(_) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal("Inference engine returned an empty summary")
-                        .to_json_string(),
-                );
-            }
-            None => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(
-                        "Inference engine response missing message.content field",
-                    )
-                    .to_json_string(),
-                );
-            }
+        let summary = match inference::extract_summary(&resp_body) {
+            Ok(s) => s,
+            Err((kind, err)) => return span.error(kind, err.to_json_string()),
         };
 
-        let summary_tokens_approx = summary.split_whitespace().count();
-
-        let result = ThreadSummaryOutput {
-            summary,
-            original_message_count: msg_count,
-            summary_tokens_approx,
-            inference_model: self.inference_model.clone(),
-            inference_url: url,
-        };
+        let result =
+            inference::build_summary_output(summary, msg_count, self.inference_model.clone(), url);
 
         span.ok_json(serde_json::to_value(&result).unwrap_or_default())
     }

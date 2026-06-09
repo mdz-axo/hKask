@@ -288,3 +288,182 @@ impl GasBudgetManager {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::WebID;
+
+    #[tokio::test]
+    async fn register_and_can_proceed() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+        assert!(manager.can_proceed(&agent, GasCost(500)).await);
+        assert!(!manager.can_proceed(&agent, GasCost(1001)).await);
+    }
+
+    #[tokio::test]
+    async fn no_budget_allows_proceed_soft_limit() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        // No budget registered → soft limit, always allowed
+        assert!(manager.can_proceed(&agent, GasCost(99999)).await);
+    }
+
+    #[tokio::test]
+    async fn reserve_and_settle_hold_settle() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+        // Reserve
+        manager.reserve_gas(&agent, GasCost(100)).await.unwrap();
+        // Settle with actual = 80 (refund 20)
+        manager
+            .settle_gas(&agent, GasCost(100), GasCost(80))
+            .await
+            .unwrap();
+        let status = manager.agent_gas_status(&agent).await.unwrap();
+        assert_eq!(status.remaining, GasCost(920));
+        assert_eq!(status.reserved, GasCost(0));
+    }
+
+    #[tokio::test]
+    async fn reserve_no_budget_returns_zero() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        // No budget → soft limit, reserve returns Ok(ZERO)
+        let result = manager.reserve_gas(&agent, GasCost(50)).await.unwrap();
+        assert_eq!(result, GasCost::ZERO);
+    }
+
+    #[tokio::test]
+    async fn settle_no_budget_returns_zero() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        let result = manager
+            .settle_gas(&agent, GasCost(50), GasCost(30))
+            .await
+            .unwrap();
+        assert_eq!(result, GasCost::ZERO);
+    }
+
+    #[tokio::test]
+    async fn replenish_all_skips_overridden_agents() {
+        let manager = GasBudgetManager::new();
+        let agent_a = WebID::new();
+        let agent_b = WebID::new();
+        manager
+            .register_gas_budget(agent_a, GasBudget::new(GasCost(1000)))
+            .await;
+        manager
+            .register_gas_budget(agent_b, GasBudget::new(GasCost(1000)))
+            .await;
+
+        // Consume some gas
+        {
+            let mut budgets = manager.gas_budgets.write().await;
+            budgets.get_mut(&agent_a).unwrap().remaining = GasCost(500);
+            budgets.get_mut(&agent_b).unwrap().remaining = GasCost(500);
+        }
+
+        // Override agent_a
+        manager
+            .apply_override_gas_budget(agent_a, GasCost(200))
+            .await;
+
+        // Replenish all — agent_a should be skipped (override)
+        manager.replenish_all_budgets().await;
+
+        let status_a = manager.agent_gas_status(&agent_a).await.unwrap();
+        let status_b = manager.agent_gas_status(&agent_b).await.unwrap();
+        // agent_a was overridden to 200 and not replenished
+        assert_eq!(status_a.remaining, GasCost(200));
+        // agent_b was replenished (rate = 100)
+        assert_eq!(status_b.remaining, GasCost(600));
+    }
+
+    #[tokio::test]
+    async fn clear_override_resumes_replenishment() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+
+        manager.apply_override_gas_budget(agent, GasCost(200)).await;
+        manager.apply_clear_override(agent).await;
+
+        // Consume some gas
+        {
+            let mut budgets = manager.gas_budgets.write().await;
+            budgets.get_mut(&agent).unwrap().remaining = GasCost(100);
+        }
+
+        // Now replenishment should work
+        manager.replenish_all_budgets().await;
+        let status = manager.agent_gas_status(&agent).await.unwrap();
+        assert!(status.remaining.0 > 100); // Replenished
+    }
+
+    #[tokio::test]
+    async fn agent_gas_status_none_when_not_registered() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        assert!(manager.agent_gas_status(&agent).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn acquire_budget_consumes_directly() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+        manager.acquire_budget(&agent, GasCost(300)).await.unwrap();
+        let status = manager.agent_gas_status(&agent).await.unwrap();
+        assert_eq!(status.remaining, GasCost(700));
+    }
+
+    #[tokio::test]
+    async fn replenish_agent_budget_by_directive() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+        // Consume
+        {
+            let mut budgets = manager.gas_budgets.write().await;
+            budgets.get_mut(&agent).unwrap().remaining = GasCost(500);
+        }
+        manager.replenish_agent_budget(&agent, GasCost(200)).await;
+        let status = manager.agent_gas_status(&agent).await.unwrap();
+        assert_eq!(status.remaining, GasCost(700));
+    }
+
+    #[tokio::test]
+    async fn energy_ratios_returns_all_registered() {
+        let manager = GasBudgetManager::new();
+        let agent = WebID::new();
+        manager
+            .register_gas_budget(agent, GasBudget::new(GasCost(1000)))
+            .await;
+        let ratios = manager.energy_ratios().await;
+        assert_eq!(ratios.len(), 1);
+        assert_eq!(ratios[0], (GasCost(1000), GasCost(1000)));
+    }
+
+    #[tokio::test]
+    async fn default_matches_new() {
+        let a = GasBudgetManager::new();
+        let b = GasBudgetManager::default();
+        let agent = WebID::new();
+        assert!(a.agent_gas_status(&agent).await.is_none());
+        assert!(b.agent_gas_status(&agent).await.is_none());
+    }
+}

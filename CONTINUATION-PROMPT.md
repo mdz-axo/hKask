@@ -1,364 +1,154 @@
-# CONTINUATION PROMPT — hKask Post-Extraction Follow-Up (Session 25+)
+# CONTINUATION PROMPT — Session 26: Complete Remaining Service Extractions
 
-**Status:** Service layer extraction ✅ COMPLETE (Session 23). Follow-ups F9 and F5
-✅ COMPLETE (Session 24). This document covers remaining follow-up work identified
-during Sessions 12–24.
+**Read these files first (in this order):**
 
----
+1. **`HANDOFF.md`** — Full session history, key decisions (#1–#76), service module inventory (§3), file reference map (§6), open questions (§7).
+2. **`CONTINUATION.md`** — Current task status.
+3. **`OPEN_QUESTIONS.md`** — Structured F1–F10 entries with force classifications.
 
-## Skills to Load (Required Before Starting)
+**Load these skills before any code changes:**
 
-Load these skills **before** any follow-up work. They provide the methodology and
-discipline that govern all changes to `hkask-services` and related crates:
-
-1. **`refactor-service-layer`** — **Required.** Governing methodology for all service-layer
-   changes. Defines the strangler fig sequence (P1), depth test (P2), dependency
-   direction (P3), surgical changes (P5), and the per-extraction checklist. **Any change
-   that touches `hkask-services` MUST follow this skill's principles**, even if it's
-   not a full extraction. The depth test applies to any new module or type introduction.
-   The dependency direction rule (CLI → services → domain) is inviolable.
-
-2. **`coding-guidelines`** — **Required.** Surgical changes only: every changed line
-   traces to the task. No "while we're here" refactors. No renaming. No comment additions.
-   Match existing style. Think before coding — state assumptions explicitly.
-
-3. **`constraint-forces`** — **Required.** Classify every design decision by force type.
-   Use when deciding whether a change belongs in the service layer vs. domain crate
-   vs. surface. Particularly critical for any OCAP-related change — the OCAP gates
-   that port traits enforce are Guardrails.
-
-4. **`zoom-out`** — **Required before starting any follow-up task.** Produce the module
-   map, caller graph, and data flow "before picture" for the target area. This ensures
-   you understand what the service layer currently owns vs. what the domain crates own
-   before making changes.
-
-5. **`diagnose`** — **Recommended.** If any follow-up change breaks the workspace build
-   or tests, use this skill to trace the root cause before making speculative fixes.
-
-6. **`magna-carta-verifier`** — **If working on any OCAP/sovereignty change.** Provides
-   context on sovereignty compliance structures. Any change to port traits or
-   `MemoryError` affects OCAP enforcement and must be verified against P1 (User
-   Sovereignty) and P2 (Affirmative Consent).
-
----
-
-## Read These Files First (In This Order)
-
-1. **`HANDOFF.md`** — Full session history (Sessions 12–24), key decisions (#1–#74),
-   deep service module inventory (§3), file reference map (§6), completion metrics
-   and open questions (§7).
-
-2. **`CONTINUATION.md`** — Session 24 summary with F9/F5 completion, task status
-   matrix, and verification results.
-
-3. **`.agents/skills/refactor-service-layer/SKILL.md`** — The governing methodology.
-   Re-read the depth test (P2), dependency direction (P3), and anti-patterns sections
-   before starting any task that touches the service layer.
+1. `refactor-service-layer` — Required. Governing methodology.
+2. `coding-guidelines` — Required. Surgical changes only.
+3. `constraint-forces` — Required. Classify every design decision.
+4. `zoom-out` — Required before each extraction.
 
 ---
 
 ## Context
 
-The hKask service layer extraction project (Sessions 12–23) produced:
+Session 25 completed F10 (RecalledSemantic typed DTO), created OPEN_QUESTIONS.md,
+and refreshed the test inventory. The user then clarified that the remaining
+extraction items are **not speculative** — the mandate is to extract ALL business
+logic to services and delete legacy code.
 
-- **10 deep service modules** — ChatService, AgentService, UserService, ComposeService,
-  OnboardingService, ArchivalService, EmbedService, SkillService, VerificationService,
-  ConsolidationService.
-- **2 medium-deep modules** — SpecService, EnsembleService (with improv ops).
-- **4 shallow modules** (pre-existing) — PodService, CuratorService, SovereigntyService,
-  GoalService.
-- **8 depth-test skips** — CnsService, KeystoreService, McpService, GitCasService,
-  LoopSystemService, ServeService, TemplateService, MemoryService.
-- **1 OCAP fix** — `routes/episodic.rs` stringly-typed errors replaced with typed
-  `MemoryError::CapabilityDenied` matching (Session 23, #72).
-- **1 typed DTO** — `RecalledEpisode` replaces `Vec<serde_json::Value>` from
-  `EpisodicStoragePort::recall_episodic` (Session 24, #73).
-- **1 test fixture fix** — `PodManager::new_mock()` uses deterministic test ACP secret
-  so 4 pod tests pass without `HKASK_ACP_SECRET_KEY` (Session 24, #74).
-- **138 service-layer tests** across all modules.
-- **17/27 CLI commands** fully extracted to service layer.
-- **10/27 CLI commands** documented as surface-only.
+Session 25 began this work with three successful extractions before the session
+ended mid-test-run:
 
-**Verification baseline:**
-```
-cargo check --workspace    ✅
-cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings  ✅
-cargo test --workspace  ✅ (138 passed in hkask-services, 51 passed in condenser, 0 failed)
-```
+| Extraction | Status | Service |
+|-----------|--------|---------|
+| `EnsembleService::get_chat` + `list_deliberations` | ✅ Done | `EnsembleService` |
+| `SovereigntyService::grant_consent_and_fetch` | ✅ Done | `SovereigntyService` |
+| `ConsolidationService::check_rate_limit` + `db_path_for_agent` | ✅ Done | `ConsolidationService` |
 
-Note: The `hkask-mcp-condenser` build fix (Task 4) was completed in a prior session.
-The condenser compiles, passes clippy, and has 51 passing tests.
+Build and clippy are clean. **Tests were not verified** — the test run was
+interrupted. Start by verifying tests, then continue with remaining extractions.
 
 ---
 
-## Follow-Up Tasks (Priority-Ordered)
+## Remaining Extractions (Priority-Ordered)
 
-### Task 1: F10 — Typed DTOs for SemanticStoragePort (Medium Priority)
+### 1. `ensemble.rs` `standing_start` — HIGH
 
-**Problem:** `SemanticStoragePort::recall_semantic()` still returns
-`Vec<serde_json::Value>`. `ChatService::recall_semantic` destructures it with
-`t.get("value").and_then(|v| v.as_str())` — the same fragile pattern that F9 fixed
-for episodic recall. If storage field names change, the chat service silently produces
-`None` instead of failing at compile time.
+**File:** `crates/hkask-api/src/routes/ensemble.rs` L486-565
 
-**Goal:** Add a `RecalledSemantic` struct and change `recall_semantic` to return
-`Vec<RecalledSemantic>` instead of `Vec<serde_json::Value>`.
+~80 lines of orchestration that must move to `EnsembleService`:
+1. Build `StandingSessionConfig` from request DTOs (surface-specific mapping — stays in route)
+2. `StandingSession::from_config(config)` → service
+3. MCP tool discovery + `with_available_tools()` → service (needs `mcp_runtime`)
+4. `with_store(standing_session_store)` → service (needs `standing_session_store`)
+5. `with_gas_governance(gas_governance)` → service (needs gas governance port)
+6. `persist_session()` + `post_initial_messages()` → service
+7. Store in `standing_sessions` HashMap → stays in route (surface-specific live state)
 
-**Scope:**
-- `hkask-agents/src/ports/memory_storage.rs` — Define `RecalledSemantic` struct;
-  change `SemanticStoragePort::recall_semantic` return type.
-- `hkask-agents/src/adapters/memory_loop_adapter.rs` — Update implementation to
-  construct `RecalledSemantic` from `Triple`. Replace `triple_to_json` with
-  `triple_to_recalled_semantic` (or remove `triple_to_json` if no longer used).
-- `hkask-services/src/chat.rs` — Simplify `ChatService::recall_semantic` to use
-  typed field access instead of `.get("value").and_then()`.
-- `hkask-agents/src/pod/context.rs` — Update `PodContext::recall_semantic` return type.
-- Any MCP semantic server that calls `recall_semantic` — update return type handling.
-
-**Depth test before starting:** `RecalledSemantic` lives in `hkask-agents` (same as
-`RecalledEpisode`). Deleting it would force N callers (ChatService + MCP semantic
-server + PodContext) to duplicate the field mapping → passes. Semantic triples have
-no `perspective` field (always `None`), so the struct differs from `RecalledEpisode`
-— it should be a separate type, not a shared generic.
+**What needs to change:**
+- Add `mcp_runtime`, `standing_session_store`, and `gas_governance` fields to `EnsembleContext`
+- Add `EnsembleService::start_standing_session()` method that does steps 2-6
+- Route calls service, then stores result in `standing_sessions`
+- Gas governance currently lives only on `ApiState`. It must be constructible from `ServiceContext` (the `CyberneticsLoop` is already there). Either add `gas_governance` to `EnsembleContext` or construct it inside the service method.
 
 **Constraint classification:**
-- Port trait return types belong in domain crates → Guideline (best practice)
-- OCAP visibility enforcement must not be weakened → Guardrail (P2)
-- Current `.get("value").and_then()` is fragile → Evidence (measured by silent-None failures)
+- Standing session orchestration is domain logic → Evidence (measured by duplicated steps if deleted)
+- `gas_governance` is surface-derived from `ServiceContext::cybernetics_loop` → Guideline (can be moved)
+- `standing_sessions` live state map is surface-specific → Guideline (stays in route)
 
-**Strategy:**
-1. Zoom out on `SemanticStoragePort`, `MemoryLoopAdapter`, `PodContext::recall_semantic`,
-   and `ChatService::recall_semantic` to produce the before picture.
-2. Define `RecalledSemantic` in `hkask-agents/src/ports/memory_storage.rs`. Semantic
-   triples have no perspective, so the struct omits that field (or uses
-   `perspective: Option<WebID>` with `None` — match the storage representation).
-3. Change `SemanticStoragePort::recall_semantic` return type from
-   `Result<Vec<Value>, MemoryError>` to `Result<Vec<RecalledSemantic>, MemoryError>`.
-4. Update `MemoryLoopAdapter::recall_semantic` to construct `RecalledSemantic`
-   instead of calling `triple_to_json`. If `triple_to_json` has no remaining callers,
-   delete it.
-5. Update `PodContext::recall_semantic` return type.
-6. Simplify `ChatService::recall_semantic` to use typed field access.
-7. Check for any MCP semantic server callers and update.
-8. Verify: `cargo check --workspace && cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings && cargo test --workspace`.
+### 2. `sovereignty.rs` consent enforcement — HIGH
 
-**Estimated effort:** ~1–2 hours.
+**File:** `crates/hkask-api/src/routes/sovereignty.rs` L219-226
 
----
+```rust
+if !access.has_consent && access.classification != "PUBLIC" {
+    return Err(ApiError::Forbidden { ... });
+}
+```
 
-### Task 2: OPEN_QUESTIONS.md — Document F1–F10 (Medium Priority)
+This P1 Prohibition enforcement (deny access without consent for non-public data)
+is inline in the API. The CLI would need to duplicate it. Extract to
+`SovereigntyService::check_access_and_authorize()` that returns a `Result` denying
+access when consent is missing for non-public categories.
 
-**Problem:** The refactor-service-layer skill (Phase 8) specifies creating
-`OPEN_QUESTIONS.md` with open question items. This file doesn't exist yet. The
-current count is F1–F10 (F9 and F10 are the typed DTO items; F5 and F9 are now
-resolved).
+**What needs to change:**
+- Add `SovereigntyService::check_access_and_authorize()` that calls `check_access`
+  and returns `Err(ServiceError::ConsentDenied)` when `!has_consent && classification != "PUBLIC"`
+- Route calls this method instead of doing inline enforcement
+- Add `ServiceError::ConsentDenied` variant
+- Add `ApiError` mapping for `ServiceError::ConsentDenied`
 
-**Goal:** Create `OPEN_QUESTIONS.md` at the project root with structured entries
-for each open question, including topic, status, force type, affected crates, and
-recommended resolution approach.
+### 3. `chat.rs` PromptStrategy framing — MEDIUM
 
-**Strategy:**
-1. Use the F1–F10 items from `HANDOFF.md` §7 as the source.
-2. For each item, add: topic, status (deferred/resolved), force type (from
-   `constraint-forces`), affected crates, and a brief recommendation.
-3. Mark F5 and F9 as Resolved with session references.
-4. Keep the format consistent with existing hKask documentation style.
+**File:** `crates/hkask-api/src/routes/chat.rs` L68-76
 
-**Estimated effort:** ~30 minutes.
+`PromptStrategy::from_input`, template_id prefix formatting, strategy.name()
+fallback are domain logic currently only in the API. The CLI does its own framing
+differently (in the REPL's `chat_turn`).
 
----
+**Depth test:** Deleting this from the route would make the API unable to determine
+which prompt strategy to use without re-implementing the logic. However, the CLI
+has different framing. This is **Divergent** — both surfaces do different things for
+the same intent. Consider whether unification adds more complexity than it removes.
 
-### Task 3: Test Inventory Update (Medium Priority)
+**Recommendation:** If CLI and API framing diverge meaningfully, add a
+`ChatService::resolve_prompt_strategy()` method that both surfaces can call with
+their own parameters. If the CLI doesn't need this, leave it surface-specific.
 
-**Problem:** `docs/status/test-inventory.md` may not reflect the 138 service-layer
-tests (was 70+ at last update; 4 pod tests now pass after F5 fix) or the domain-layer
-typed DTO changes from F9.
+### 4. `episodic.rs` — MEDIUM (new service assessment)
 
-**Goal:** Update the test inventory with all service-layer test seams and counts,
-plus the domain-layer `RecalledEpisode` changes.
+**File:** `crates/hkask-api/src/routes/episodic.rs`
 
-**Strategy:**
-1. Count tests per service module: `cargo test -p hkask-services -- --list 2>&1 | grep 'test$' | wc -l`.
-2. Count domain-layer tests: `cargo test -p hkask-agents -- --list 2>&1 | grep 'test$' | wc -l`.
-3. Compare against `docs/status/test-inventory.md`.
-4. Add or update the `hkask-services` section with per-module test counts and
-   seam descriptions.
-5. Add `hkask-agents` changes: `RecalledEpisode` type, `PodManager::new_mock` fixture.
-6. Reference the `// REQ:` tags that anchor tests to spec requirements.
+All 3 handlers construct `StorageRequest`/`RecallRequest` from HTTP DTOs, resolve
+confidence defaults, and map `MemoryError → ApiError`. The request construction
+uses domain types (`Confidence::new()`, `StorageRequest::episodic()`) that are
+already properly typed (F9). The error mapping is surface-specific (HTTP status codes).
 
-**Estimated effort:** ~1 hour.
+**Depth test:** An `EpisodicService` would wrap the port calls with error
+normalization, but both surfaces (API and potential CLI) would still need their own
+error→presentation mapping. The request construction uses domain types already.
+A service layer would be a shallow adapter — fails depth test per #71.
 
----
+**Recommendation:** Leave as-is. The typed DTOs (F9) already eliminated the fragile
+destructuring. Error mapping is surface-specific. No CLI counterpart exists.
 
-### Task 4: hkask-mcp-condenser Build Fix ✅ DONE
+### 5. `cns.rs` — LOW (depth-test skip)
 
-The condenser build fix was completed in a prior session. `McpToolError::internal`
-and `McpErrorKind::Internal` are used throughout. The condenser compiles, passes
-clippy, and has 51 passing tests covering types, algorithms, and engine integration.
-Additionally, two bugs were fixed: `classify_tool` priority inversion (more-specific
-categories now checked before ShellCommand catch-all) and float truncation in
-`target_lines` calculation (`.round()` instead of `as usize` truncation).
+Already evaluated in Session 23 (#65). Variety aggregation and SSE subscription
+are shallow operations. The SSE wiring is deeply tied to HTTP response streaming.
+Creating a `CnsService` would be a shallow adapter. **Skip.**
 
----
+### 6. `git.rs` — LOW (depth-test skip)
 
-### Task 5: F3 — Unified Authentication Context (Low Priority / Speculative)
-
-**Problem:** API uses HTTP auth middleware (`AuthContext`), CLI uses keystore
-(`ServiceConfig::acp_secret`). The two paths produce `DelegationToken` differently
-and there's no shared "who am I and what can I do" context.
-
-**Goal:** Investigate whether a unified `AuthContext` type in the service layer
-could reduce the per-surface auth wiring. Currently deferred — the two surfaces
-produce valid tokens through different mechanisms, and unifying them is a design
-question, not a bug.
-
-**Constraint classification:** Hypothesis — needs verification that unification
-actually reduces complexity. Current two-path approach is Evidence (it works).
-
-**Estimated effort:** Deferred until requested.
-
----
-
-### Task 6: F4 — MCP Server Service Access (Low Priority / Speculative)
-
-**Problem:** MCP servers use domain primitives (`TripleStore`, `AcpRuntime`),
-not `hkask-services`. This is correct (anti-pattern from refactor-service-layer skill:
-MCP servers must NOT depend on `hkask-services`). But some MCP servers duplicate
-logic that services own (e.g., ACP registration, spec verification).
-
-**Goal:** Investigate whether MCP servers could call service operations through
-a lightweight service-client interface, or whether the current domain-primitive
-approach is preferable. Currently deferred — no duplication is causing bugs.
-
-**Constraint classification:** Hypothesis — needs verification. Current architecture
-is Evidence (MCP servers compile and work with domain primitives).
-
-**Estimated effort:** Deferred until requested.
-
----
-
-### Task 7: F1 — Streaming Responses (Low Priority / Speculative)
-
-**Problem:** The service layer returns complete results. For long-running
-operations (chat, compose, embed), streaming would improve responsiveness.
-
-**Goal:** Investigate whether service operations should return
-`impl Stream<Item = Result<Chunk>>` or whether streaming is purely a surface
-concern (Axum SSE, terminal line-by-line).
-
-**Constraint classification:** Hypothesis — the service layer currently doesn't
-stream, and this is fine for correctness. Streaming is a performance/UX concern.
-
-**Estimated effort:** Deferred until requested.
-
----
-
-### Task 8: F8 — GovernedTool Membrane Boundary (Low Priority / Speculative)
-
-**Problem:** `GovernedTool` in `hkask-cns` routes tool invocations through CNS
-governance (gas budget, variety sensing). The boundary between the service layer
-and `GovernedTool` is unclear — should services own the membrane, or should it
-stay in the CNS crate?
-
-**Goal:** Investigate the correct boundary. Currently deferred — `GovernedTool`
-works correctly in `hkask-cns` and the service layer calls it through `PodContext`.
-
-**Constraint classification:** Hypothesis — current architecture is Evidence
-(it works). The boundary question is about future extensibility.
-
-**Estimated effort:** Deferred until requested.
+Archive handler's dual-source assembly (template crate + SHA resolution) is a
+minor data composition. `ArchivalService` already exists for the CLI path. The API
+route uses different sources (`git_cas` vs `GitCasAdapter`). **Divergent — skip.**
 
 ---
 
 ## Per-Task Discipline
 
-For every task that touches code:
-
-```
-[ ] Zoom out on the target area (module map, caller graph, data flow)
-[ ] Apply depth test — is the proposed change deep or shallow?
-[ ] Classify constraints with constraint-forces skill
-[ ] State assumptions explicitly before implementing
-[ ] Implement with surgical changes — every line traces to the task
-[ ] Verify: cargo check --workspace
-[ ] Run clippy: cargo clippy -p hkask-agents -p hkask-services -p hkask-api -- -D warnings
-[ ] Run tests: cargo test --workspace
-[ ] Update HANDOFF.md (add key decision, update file map if needed)
-[ ] Update CONTINUATION.md (mark task done or document new findings)
-```
-
-For tasks that introduce new types to `hkask-agents` (domain crate):
-
-```
-[ ] Apply depth test — would the type be needed by N callers or just 1?
-[ ] Check dependency direction — does the type belong in domain crate or services?
-[ ] Add MemoryError variant if the operation can fail
-[ ] Write test with // REQ: tag
-[ ] Verify both CLI and API surfaces still work
-```
-
----
-
-## Key Constraints (From Extraction Project — Still Apply)
-
-- **P3 (Dependency direction):** CLI → services → domain. No circular deps.
-- **P5 (One domain per change):** Each change touches exactly one concern.
-- **Headless:** No visual UI, no dashboards, no monitoring stacks.
-- **P8 (Test quality):** Every `#[test]` verifies a stated behavioral property.
-- **Depth test (P2):** If deleting the proposed module/type makes complexity
-  vanish, don't create it.
-- **Surgical changes:** No style fixes, no renaming, no comment additions.
-- **MCP servers must NOT depend on `hkask-services`.** (Anti-pattern from
-  refactor-service-layer skill.)
-
----
-
-## Known Patterns (From 13 Sessions of Extractions + Follow-Ups)
-
-- Services that open DB before ServiceContext exists (onboarding, consolidation,
-  compose, embed) accept `db_path` + `db_passphrase` as parameters.
-- `SpecStore` is a trait; `ServiceContext` stores `SqliteSpecStore`. When a service
-  needs a spec store, accept `&SqliteSpecStore` (concrete type).
-- `Keychain::default()` creates a keychain with service name "hkask".
-- Error mapping: service uses `ServiceError` variants with `#[from]` where possible.
-  CLI surfaces add `From<ServiceError> for TheirError` impls.
-- `Database::open` in onboarding/consolidation/compose/embed is a legitimate legacy
-  pattern — services accept caller-provided path+passphrase.
-- Services that resolve credentials internally (ArchivalService, OnboardingService)
-  use `resolve_credential()` from `hkask_mcp::server`.
-- Type relocations: domain types move from CLI to services. Surface presentation
-  types stay in CLI.
-- `ServiceError` sentinel variants: each service adds a `ServiceError::<Domain>(String)`
-  variant. Current count: 29 variants (plus `InfrastructureError` sub-variants).
-- `MemoryError::CapabilityDenied { resource, action }` is the typed OCAP denial
-  variant in `hkask-agents`. The API route maps this to 403. The MCP server would
-  map it differently.
-- `RecalledEpisode` uses domain types (`Confidence`, `Visibility`, `Option<WebID>`)
-  for compile-time safety. Port trait return types belong in the domain crate, not
-  the service layer. (#73)
-- `PodManager::new_mock()` uses a deterministic test ACP secret
-  (`b"hkask-mock-acp-secret-32-bytes!!"`) so tests pass without environment
-  variables. Test-only secrets are Guardrails — acceptable with documentation. (#74)
-- `triple_to_json` is still used by `recall_semantic`. `triple_to_recalled_episode`
-  is used by `recall_episodic`. If F10 is done, `triple_to_json` may become unused
-  and should be deleted.
-
----
+1. **Zoom out** before each extraction — read the route, the service, and the context
+2. **Apply depth test** — would deleting the new method force callers to duplicate logic?
+3. **One extraction per commit** — no cross-domain refactors
+4. **Verify after each** — `cargo check -p hkask-services -p hkask-api && cargo test -p hkask-services -p hkask-api`
+5. **Update HANDOFF.md** after all extractions — add Session 26 entry, key decisions, file reference map
 
 ## Build Commands
 
 ```bash
-# Per-crate verification
-cargo check -p hkask-services && cargo clippy -p hkask-services -- -D warnings
-cargo check -p hkask-cli && cargo clippy -p hkask-cli -- -D warnings
-cargo check -p hkask-api && cargo clippy -p hkask-api -- -D warnings
-cargo check -p hkask-agents && cargo clippy -p hkask-agents -- -D warnings
-
-# Full workspace verification (run after every change)
 cargo check --workspace
-cargo test --workspace
 cargo clippy --workspace -- -D warnings
+cargo test --workspace
 ```
+
+**Start by verifying the interrupted test run from Session 25.**
 
 ---
 

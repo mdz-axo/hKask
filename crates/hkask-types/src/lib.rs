@@ -51,10 +51,10 @@ pub use bundle::{
 };
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{
-    CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
-    DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION, TOKEN_ERR_EXPIRED,
-    TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome, capabilities_match,
-    capability_from_server_id, require_read_access, require_write_access,
+    AuthContext, CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource,
+    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
+    capabilities_match, capability_from_server_id, require_read_access, require_write_access,
     token_err_insufficient_access, token_err_tool_access_denied, verify_delegation_token,
     verify_delegation_token_now,
 };

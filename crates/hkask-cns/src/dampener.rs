@@ -178,3 +178,139 @@ impl Default for Dampener {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::WebID;
+
+    fn calibrate_directive(domain: &str) -> CuratorDirective {
+        CuratorDirective::CalibrateThreshold {
+            domain: domain.to_string(),
+            new_threshold: 50,
+        }
+    }
+
+    fn override_directive(agent: WebID) -> CuratorDirective {
+        CuratorDirective::OverrideGasBudget {
+            agent,
+            new_budget: 500,
+        }
+    }
+
+    fn seek_evidence_directive(context: &str) -> CuratorDirective {
+        CuratorDirective::SeekMoreEvidence {
+            context: context.to_string(),
+            channel: "test".to_string(),
+            confidence: "0.5".to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn first_directive_not_dampened() {
+        let dampener = Dampener::new();
+        assert!(
+            !dampener
+                .should_dampen_directive(&calibrate_directive("test"))
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn same_directive_within_window_dampened() {
+        let dampener = Dampener::new();
+        dampener
+            .should_dampen_directive(&calibrate_directive("test"))
+            .await;
+        // Same directive again → dampened
+        assert!(
+            dampener
+                .should_dampen_directive(&calibrate_directive("test"))
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn different_target_not_dampened() {
+        let dampener = Dampener::new();
+        let agent_a = WebID::new();
+        let agent_b = WebID::new();
+        // UpdateCapabilities with different agents have different fingerprints
+        let dir_a = CuratorDirective::UpdateCapabilities {
+            agent: agent_a,
+            additions: vec![],
+            removals: vec![],
+        };
+        let dir_b = CuratorDirective::UpdateCapabilities {
+            agent: agent_b,
+            additions: vec![],
+            removals: vec![],
+        };
+        dampener.should_dampen_directive(&dir_a).await;
+        // Different agent target -> different fingerprint -> not dampened
+        assert!(!dampener.should_dampen_directive(&dir_b).await);
+    }
+
+    #[tokio::test]
+    async fn same_variant_same_target_dampened() {
+        let dampener = Dampener::new();
+        let agent = WebID::new();
+        let dir = CuratorDirective::UpdateCapabilities {
+            agent,
+            additions: vec![],
+            removals: vec![],
+        };
+        dampener.should_dampen_directive(&dir).await;
+        // Same variant + same target -> dampened
+        assert!(dampener.should_dampen_directive(&dir).await);
+    }
+
+    #[tokio::test]
+    async fn override_cooldown_suppresses_all_subsequent_overrides() {
+        let dampener = Dampener::new();
+        let agent = WebID::new();
+
+        // First override passes
+        assert!(
+            !dampener
+                .should_dampen_directive(&override_directive(agent))
+                .await
+        );
+        // Second override, different type, same cooldown → suppressed
+        assert!(
+            dampener
+                .should_dampen_directive(&seek_evidence_directive("context_a"))
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn non_metacognitive_not_subject_to_override_cooldown() {
+        let dampener = Dampener::new();
+        let agent = WebID::new();
+
+        // First: override (metacognitive) passes
+        assert!(
+            !dampener
+                .should_dampen_directive(&override_directive(agent))
+                .await
+        );
+        // CalibrateThreshold is NOT metacognitive → not subject to override cooldown
+        assert!(
+            !dampener
+                .should_dampen_directive(&calibrate_directive("domain"))
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn custom_window_creates_dampener() {
+        let dampener = Dampener::with_window(Duration::from_secs(10));
+        // First directive still passes
+        assert!(
+            !dampener
+                .should_dampen_directive(&calibrate_directive("x"))
+                .await
+        );
+    }
+}

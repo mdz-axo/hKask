@@ -13,7 +13,8 @@ use hkask_agents::ports::{
 };
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
-    Confidence, DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID,
+    AuthContext, Confidence, DelegationAction, DelegationResource, DelegationToken, LLMParameters,
+    WebID,
 };
 
 use crate::error::ServiceError;
@@ -73,6 +74,11 @@ pub struct ChatRequest {
     /// Override semantic storage — when provided, takes precedence over ServiceContext's default.
     /// The REPL uses this to pass its per-agent persistent storage.
     pub semantic_storage_override: Option<Arc<dyn SemanticStoragePort>>,
+    /// Verified authentication context from the caller. When provided, the service
+    /// uses the caller's identity to derive operation-specific capability tokens
+    /// instead of minting ad-hoc system-level tokens. API routes extract this from
+    /// middleware-verified request extensions; CLI paths construct it from keystore secrets.
+    pub auth_context: Option<AuthContext>,
 }
 
 /// Chat service — encapsulates the full chat turn pipeline.
@@ -151,14 +157,24 @@ impl ChatService {
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
         // Create capability token for memory operations
-        let capability_token = DelegationToken::new(
-            DelegationResource::Registry,
-            "memory".to_string(),
-            DelegationAction::Execute,
-            WebID::new(), // system
-            agent_webid,
-            &ctx.config.acp_secret,
-        );
+        // When the caller provides a verified AuthContext, use the caller's identity
+        // to derive operation-specific tokens via CapabilityChecker. Otherwise,
+        // fall back to the legacy system-level token from config secrets.
+        let capability_token = match &req.auth_context {
+            Some(auth) => ctx.capability_checker.grant_registry(
+                DelegationAction::Execute,
+                auth.webid,
+                agent_webid,
+            ),
+            None => DelegationToken::new(
+                DelegationResource::Registry,
+                "memory".to_string(),
+                DelegationAction::Execute,
+                WebID::new(), // system
+                agent_webid,
+                &ctx.config.acp_secret,
+            ),
+        };
 
         // Recall relevant knowledge from semantic memory
         let semantic_port: Arc<dyn SemanticStoragePort> = req

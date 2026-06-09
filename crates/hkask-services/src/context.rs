@@ -415,7 +415,8 @@ impl ServiceContext {
                 Arc::clone(&episodic_storage) as Arc<dyn EpisodicStoragePort>,
                 Arc::clone(&semantic_storage) as Arc<dyn SemanticStoragePort>,
             )
-            .with_capability_checker(hkask_types::CapabilityChecker::new(&config.acp_secret)),
+            .with_capability_checker(hkask_types::CapabilityChecker::new(&config.acp_secret))
+            .with_governed_tool(governed_tool.clone()),
         );
 
         // ── 9. Registry ─────────────────────────────────────────────────────

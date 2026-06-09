@@ -9,6 +9,25 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 /// Capability-domain alias for SYSTEM_MAX_RECURSION.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
+/// Verified authentication context — the caller's identity and capability token.
+///
+/// Carries the verified `DelegationToken` and `WebID` of the caller. When
+/// provided to service operations, the service uses this identity to derive
+/// operation-specific capability tokens (via `CapabilityChecker::grant_*`)
+/// instead of minting ad-hoc system-level tokens from config secrets.
+///
+/// This type lives in the domain crate because it represents a verified
+/// identity boundary — not a surface-specific concern. Both API (via
+/// middleware verification) and CLI (via keystore secret resolution) produce
+/// `AuthContext` through different mechanisms but arrive at the same type.
+#[derive(Debug, Clone)]
+pub struct AuthContext {
+    /// The verified capability token.
+    pub token: super::DelegationToken,
+    /// The WebID of the token holder.
+    pub webid: super::WebID,
+}
+
 /// F-SYN-010: typed attenuation level (newtype wrapper around `u8`).
 ///
 /// The inner `u8` is a *system constant* — the absolute maximum is

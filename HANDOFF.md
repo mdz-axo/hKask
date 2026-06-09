@@ -53,6 +53,19 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 - **Condenser build fix:** Already resolved — `cargo build -p hkask-mcp-condenser` and `cargo clippy -p hkask-mcp-condenser` both pass. `ToolSpanGuard::internal_error` was not renamed.
 - **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test --workspace` ✅ (all 0 failures, 138 hkask-services tests, 51 condenser tests).
 
+### Session 26 (Condenser Test+Debug+Gap Closure)
+- **Test suite created:** 53 tests (was 0) covering types (13), algorithms (23), engine (12). Every test has `// REQ:` tag per P8.
+- **Bug fix — classify_tool priority inversion:** `classify_tool()` checked ShellCommand substrings first; "run" in "pytest_run" caused wrong classification. Fixed: more-specific categories (TestOutput, BuildOutput) checked before ShellCommand catch-all. Then refactored to two-phase: token-split exact match → substring heuristic fallback.
+- **Bug fix — float truncation in target_lines:** All three algorithms used `as usize` (truncating) instead of `.round() as usize`. Light profile with 2 lines: `1.9 → 1` caused unnecessary compression. Fixed across RtkStyleAlgorithm, SaliencyRankAlgorithm, FlashrankAlgorithm.
+- **API surface fix — ThreadSummaryRequest.messages:** Changed from `String` (JSON-in-string) to `Vec<serde_json::Value>`. Removed 14-line parse block from `condenser_thread_summary`.
+- **Schema fix — JsonSchema on response types:** Added `JsonSchema` derive to `Profile`, `ContextCategory`, `CompressedOutput`, `CondenserStats`, `ThreadSummaryOutput` for proper MCP schema fidelity.
+- **Gas cost differentiation:** Added per-tool gas cost for `condenser_thread_summary` (25) vs server default (10) in `TableGasEstimator`. Implemented `tool_costs` HashMap population (was empty despite existing field).
+- **Documentation — 12 items fixed:** Removed all `--exclude hkask-mcp-condenser` from CONTINUATION-PROMPT.md, CONTINUATION.md, HANDOFF.md; marked Task 4 ✅; updated README checklist; fixed ERD (TEMPLATE_ABSTRACTION→ALGORITHM_REGISTRY); updated skill doc (6→7 tools); created per-crate README; updated LOC counts; added gas tier to loop-architecture.md.
+- **Status docs created:** `docs/status/mcp-tools-inventory.md` (21 servers, 119 tools); `docs/status/test-inventory.md` (12 crates, 42 seams, 192 tests, gap analysis).
+- **DDMVSS skill mapping:** Added condenser-continuation to §11 skill-to-DDMVSS table in test-program.md.
+- **TODO.md:** Marked P2-12 and P2-13 as ✅ Complete.
+- **Verification:** `cargo check --workspace` ✅. `cargo clippy --workspace -- -D warnings` ✅. `cargo test --workspace` ✅ (53 condenser, 138 services, 16 templates, 3 API, 0 failures).
+
 ---
 
 ## 2. Honest Assessment: Remaining Work
@@ -231,6 +244,12 @@ documented as surface-only. See §7 (Project Complete) for final metrics.
 74. **`PodManager::new_mock()` uses a deterministic test ACP secret.** Replaced `AcpRuntime::default()` (which panics without `HKASK_ACP_SECRET_KEY`) with `AcpRuntime::new(MOCK_ACP_SECRET)` where `MOCK_ACP_SECRET = b"hkask-mock-acp-secret-32-bytes!!"`. Both `AcpRuntime` and `CapabilityChecker` share the same secret so tokens signed by the runtime are verifiable by the checker. 4 previously-failing pod tests now pass. Test-only secret is a Guardrail — acceptable for test fixtures with explicit "Never use in production" annotation. `resolve_acp_secret_for_checker()` still exists for `PodManagerBuilder::build()` (production path).
 
 75. **`RecalledSemantic` typed DTO replaces `Vec<serde_json::Value>` from `SemanticStoragePort::recall_semantic`.** The port trait now returns `Result<Vec<RecalledSemantic>, MemoryError>`. `RecalledSemantic` uses domain types (`Confidence`, `Visibility`) and omits the `perspective` field because semantic triples are perspective-free by definition (consolidated from episodic, shared/public knowledge). This eliminates the fragile `.get("value").and_then(|v| v.as_str())` destructuring in `ChatService::recall_semantic`. The type lives in `hkask-agents/src/ports/memory_storage.rs` (domain crate, not services) because it's the return type of a port trait. `triple_to_json` deleted — no remaining callers after F10. Depth test passes: deleting `RecalledSemantic` would force N callers to duplicate the field mapping.
+
+76. **`EnsembleService::get_chat` + `list_deliberations` replace direct `session_manager` access in API routes.** Previously `ensemble.rs` routes `get_chat` and `list_deliberations` read `state.service_context.session_manager` directly, bypassing `EnsembleService`. Now both go through `EnsembleService` with consistent `ServiceError::SessionNotFound` error handling.
+
+77. **`SovereigntyService::grant_consent_and_fetch` combines grant + re-fetch.** The API route `sovereignty_grant_consent` previously called `grant_consent` then `get_granted_categories` separately. Combined into single service method `grant_consent_and_fetch` that atomically grants and returns updated categories.
+
+78. **`ConsolidationService::check_rate_limit` + `db_path_for_agent` extracted from API route.** Rate limiter (AtomicU64 epoch seconds, 30s minimum interval) and per-agent DB path template (`hkask-memory-agent-{webid}.db`) moved from `crates/hkask-api/src/routes/consolidation.rs` to `ConsolidationService`. Both CLI and API now share the same rate limit and path convention. `ServiceError::RateLimited` variant added for rate-limit errors.
 
 ---
 

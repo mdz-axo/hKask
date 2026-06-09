@@ -25,9 +25,9 @@ pub struct ClassifyRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PersistRequest {
-    /// Tool name that produced the compressed output.
+    /// Tool name that produced the content.
     pub tool_name: String,
-    /// Compressed content to persist.
+    /// Content to persist (compressed output or thread summary).
     pub compressed_output: String,
     /// Optional confidence for the stored triple (0.0–1.0, default 1.0).
     pub confidence: Option<f64>,
@@ -369,7 +369,7 @@ impl Default for CondenserStats {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ThreadSummaryRequest {
-    /// The conversation messages to summarize, as a JSON array of {role, content} objects.
+    /// Conversation messages to summarize, as an array of {role, content} objects.
     pub messages: Vec<serde_json::Value>,
     /// The current user query for relevance-weighted summarization.
     pub current_query: String,

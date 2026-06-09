@@ -15,7 +15,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_types::{DelegationToken, SYSTEM_MAX_ATTENUATION, WebID};
+use hkask_types::{DelegationToken, SYSTEM_MAX_ATTENUATION};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
@@ -126,13 +126,11 @@ pub enum TokenVerification {
 }
 
 /// Extracted auth context attached to validated requests.
-#[derive(Debug, Clone)]
-pub struct AuthContext {
-    /// The verified capability token.
-    pub token: DelegationToken,
-    /// The WebID of the token holder.
-    pub webid: WebID,
-}
+///
+/// This is a type alias for the domain-level `AuthContext` in `hkask_types`,
+/// which carries the verified capability token and the caller's WebID.
+/// Both API (middleware) and CLI (keystore) paths produce the same type.
+pub type AuthContext = hkask_types::AuthContext;
 
 /// Build a response safely, falling back to a minimal status-only response if
 /// the body cannot be constructed (e.g., header size overflow).

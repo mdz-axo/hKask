@@ -53,8 +53,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-09** | DDMVSS audit R8: Add TemplateType vocabulary mapping to interface-and-composition.md | Curator | Medium | ⬜ Open | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct |
 | **P2-10** | DDMVSS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ⬜ Open | 10 items from DDMVSS §11 R3 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ⬜ Open | Requires current `cargo check`, `cargo test`, `cargo clippy` results |
-| **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 21 MCP servers' tools | Dev | Medium | ⬜ Open | Audit all servers: tools, gas costs, credentials, per-tool detail |
-| **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ⬜ Open | Run test seam analysis per DDMVSS §12 and `docs/specifications/test-program.md` |
+| **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 21 MCP servers' tools | Dev | Medium | ✅ Complete | 21 servers, 119 tools, gas costs, credentials, per-server detail |
+| **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ⬜ Open | Pattern refactoring review across codebase |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` \u2014 dead code and unwired seam inventory | Dev | Low | \u2b1c Open | Dead-code identification, unimplemented seams |
 

@@ -110,6 +110,7 @@ pub async fn chat_with_agent(
         inference_port_override: inference_port,
         episodic_storage_override: episodic_storage,
         semantic_storage_override: semantic_storage,
+        auth_context: None, // CLI uses legacy system-level token from config secrets
     };
 
     match ChatService::chat(&ctx, req).await {
