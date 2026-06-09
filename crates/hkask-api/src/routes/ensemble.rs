@@ -263,44 +263,41 @@ async fn improv_turn(
     Path(session): Path<String>,
     Json(req): Json<ImprovTurnRequest>,
 ) -> impl IntoResponse {
-    let manager = &state.service_context.session_manager;
-    let chat = manager.read().await.get_chat(&session).await;
-    match chat {
-        Some(chat) => {
-            if let Some(inferencer) = state.ensemble_inferencer_with_breaker() {
-                let chat_read = chat.read().await;
-                match chat_read.improv_turn(&inferencer, &req.user_message).await {
-                    Ok(turn) => {
-                        let response = ImprovTurnResponse {
-                            user_message: turn.user_message,
-                            judgment_count: turn.judgments.len(),
-                            response_count: turn.responses.len(),
-                            curator_synthesis: turn.curator_synthesis,
-                        };
-                        Json(response).into_response()
-                    }
-                    Err(e) => {
-                        let response = EnsembleResponse {
-                            success: false,
-                            message: format!("Improv error: {}", e),
-                        };
-                        (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response()
-                    }
+    let ens_ctx = hkask_services::EnsembleContext::from(state.service_context.as_ref());
+    match state.ensemble_inferencer_with_breaker() {
+        Some(inferencer) => {
+            match hkask_services::EnsembleService::improv_turn(
+                &ens_ctx,
+                &session,
+                &req.user_message,
+                &inferencer,
+            )
+            .await
+            {
+                Ok(turn) => {
+                    let response = ImprovTurnResponse {
+                        user_message: turn.user_message,
+                        judgment_count: turn.judgments.len(),
+                        response_count: turn.responses.len(),
+                        curator_synthesis: turn.curator_synthesis,
+                    };
+                    Json(response).into_response()
                 }
-            } else {
-                let response = EnsembleResponse {
-                    success: false,
-                    message: "No inference client configured".to_string(),
-                };
-                (StatusCode::SERVICE_UNAVAILABLE, Json(response)).into_response()
+                Err(e) => {
+                    let response = EnsembleResponse {
+                        success: false,
+                        message: e.to_string(),
+                    };
+                    (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response()
+                }
             }
         }
         None => {
             let response = EnsembleResponse {
                 success: false,
-                message: format!("Chat session '{}' not found", session),
+                message: "No inference client configured".to_string(),
             };
-            (StatusCode::NOT_FOUND, Json(response)).into_response()
+            (StatusCode::SERVICE_UNAVAILABLE, Json(response)).into_response()
         }
     }
 }

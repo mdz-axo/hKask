@@ -30,8 +30,10 @@ pub mod ensemble;
 pub mod error;
 pub mod goal;
 pub mod inference;
+pub mod onboarding;
 pub mod pods;
 pub mod sovereignty;
+pub mod spec;
 pub mod user;
 
 pub use agent::{AgentReceipt, AgentService};
@@ -45,12 +47,14 @@ pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
 pub use consolidation::ConsolidationService;
 pub use context::ServiceContext;
 pub use curator::{CuratorContext, CuratorService, MetacognitionSummary};
-pub use ensemble::{EnsembleContext, EnsembleService, map_participant_role};
+pub use ensemble::{EnsembleContext, EnsembleService, ParticipantInfo, map_participant_role};
 pub use error::ServiceError;
 pub use goal::{GoalContext, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
+pub use onboarding::{OnboardingService, RegistryHandle, ResolvedSecrets, SignInOutcome};
 pub use pods::{PodContext, PodService};
 pub use sovereignty::{
     AccessCheck, SovereigntyContext, SovereigntyService, SovereigntyStatus, parse_data_category,
 };
+pub use spec::{CapturedSpec, EvaluatedSpec, SpecService};
 pub use user::UserService;

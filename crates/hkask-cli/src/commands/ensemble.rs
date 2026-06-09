@@ -9,8 +9,8 @@ use crate::block_on;
 use crate::cli::EnsembleAction;
 use hkask_cns::{CircuitBreaker, GasCost};
 use hkask_ensemble::{
-    ChatMessage, CircuitBreakerInferenceAdapter, GasGovernancePort, ImprovMode,
-    ImprovSessionConfig, InferencePortAdapter, bootstrap_standing_session_with_store,
+    CircuitBreakerInferenceAdapter, GasGovernancePort, ImprovMode, ImprovSessionConfig,
+    InferencePortAdapter, bootstrap_standing_session_with_store,
 };
 use hkask_services::ServiceContext;
 use hkask_types::WebID;
@@ -152,50 +152,21 @@ pub async fn ensemble_improv_turn(
     user_message: &str,
     inference_port: Option<Arc<dyn InferencePort>>,
 ) -> Result<hkask_ensemble::ImprovTurn, String> {
-    let manager = ctx.session_manager.clone();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(session_id).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
-
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
     let client = build_improv_client(ctx, inference_port);
-    let turn = {
-        let chat_read = chat.read().await;
-        chat_read
-            .improv_turn(&client, user_message)
-            .await
-            .map_err(|e| format!("Improv error: {}", e))?
-    };
-
-    {
-        let mut chat_write = chat.write().await;
-        let curator_webid = *chat_write.curator();
-        chat_write.add_message(ChatMessage::new(curator_webid, user_message.to_string()));
-        for response in &turn.responses {
-            chat_write.add_message(ChatMessage::new(
-                response.agent_webid,
-                response.content.clone(),
-            ));
-        }
-    }
-
-    Ok(turn)
+    hkask_services::EnsembleService::improv_turn(&ens_ctx, session_id, user_message, &client)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_improv_config(
     ctx: &ServiceContext,
     session_id: &str,
 ) -> Result<ImprovSessionConfig, String> {
-    let manager = ctx.session_manager.clone();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(session_id).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
-
-    let chat_read = chat.read().await;
-    Ok(chat_read.improv_config().clone())
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::improv_config(&ens_ctx, session_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_improv_set_threshold(
@@ -203,16 +174,10 @@ pub async fn ensemble_improv_set_threshold(
     session_id: &str,
     threshold: f64,
 ) -> Result<(), String> {
-    let manager = ctx.session_manager.clone();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(session_id).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
-
-    let mut chat_write = chat.write().await;
-    chat_write.set_participation_threshold(threshold);
-    Ok(())
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::set_improv_threshold(&ens_ctx, session_id, threshold)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_improv_set_mode(
@@ -220,43 +185,24 @@ pub async fn ensemble_improv_set_mode(
     session_id: &str,
     mode: ImprovMode,
 ) -> Result<(), String> {
-    let manager = ctx.session_manager.clone();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(session_id).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
-
-    let mut chat_write = chat.write().await;
-    chat_write.set_improv_mode(mode);
-    Ok(())
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    hkask_services::EnsembleService::set_improv_mode(&ens_ctx, session_id, mode)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ensemble_participants(
     ctx: &ServiceContext,
     session_id: &str,
 ) -> Result<Vec<(String, String, String)>, String> {
-    let manager = ctx.session_manager.clone();
-    let chat = {
-        let manager_read = manager.read().await;
-        manager_read.get_chat(session_id).await
-    }
-    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
-
-    let chat_read = chat.read().await;
-    let participants = chat_read.get_participants();
-    let mut result = Vec::new();
-    for p in participants.values() {
-        let name = format!("{:?}", p.role);
-        let role_str = format!("{:?}", p.role);
-        let caps = if p.capabilities.is_empty() {
-            "none".to_string()
-        } else {
-            p.capabilities.join(", ")
-        };
-        result.push((name, role_str, caps));
-    }
-    Ok(result)
+    let ens_ctx = hkask_services::EnsembleContext::from(ctx);
+    let participants = hkask_services::EnsembleService::list_participants(&ens_ctx, session_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(participants
+        .into_iter()
+        .map(|p| (p.name, p.role, p.capabilities))
+        .collect())
 }
 
 pub async fn ensemble_deliberation_create(

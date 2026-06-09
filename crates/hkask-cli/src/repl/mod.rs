@@ -66,7 +66,7 @@ pub(crate) struct ReplState {
     /// Pre-resolved secrets from onboarding, carried forward to avoid
     /// re-resolving from the OS keychain (which may use a mock backend
     /// with EntryOnly persistence on Linux).
-    pub(crate) resolved_secrets: Option<crate::onboarding::ResolvedSecrets>,
+    pub(crate) resolved_secrets: Option<hkask_services::ResolvedSecrets>,
     /// GovernedTool membrane — the singular governance boundary for MCP tool
     /// invocations. All tool calls route through this membrane, which enforces
     /// OCAP authority, gas budgets, and CNS observability.

@@ -7,10 +7,8 @@
 
 use std::sync::Arc;
 
-use hkask_services::{ChatRequest, ChatService, ServiceContext};
+use hkask_services::{ChatRequest, ChatService, ResolvedSecrets, ServiceContext};
 use hkask_types::ports::InferencePort;
-
-use crate::onboarding::ResolvedSecrets;
 
 /// Response from a chat inference call.
 ///

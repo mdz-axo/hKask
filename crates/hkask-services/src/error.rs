@@ -178,6 +178,10 @@ pub enum ServiceError {
     #[error("Session not found: {0}")]
     SessionNotFound(String),
 
+    /// Improv operation failed.
+    #[error("Improv error: {0}")]
+    Improv(String),
+
     /// Upstream standing-session error (ensemble layer).
     #[error(transparent)]
     StandingSession(#[from] StandingSessionError),

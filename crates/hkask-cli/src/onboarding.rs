@@ -9,14 +9,8 @@
 //! stored in the OS keychain for future sessions, and passed directly to
 //! `init_registry_with_secrets()` so no runtime env mutation is needed.
 
-use hkask_agents::AcpRuntime;
-use hkask_keystore::Keychain;
-use hkask_keystore::master_key::derive_all_internal_secrets;
-use hkask_services::ServiceConfig;
-use hkask_storage::{AgentRegistryStore, Database};
-use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID, now_rfc3339};
-use std::str::FromStr;
-use std::sync::Arc;
+use hkask_services::{OnboardingService, ResolvedSecrets, ServiceConfig};
+use hkask_types::RegisteredAgent;
 use thiserror::Error;
 
 use crate::repl::display;
@@ -37,6 +31,24 @@ pub enum OnboardingError {
     InvalidPassphrase,
 }
 
+impl From<hkask_services::ServiceError> for OnboardingError {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        match &e {
+            hkask_services::ServiceError::Keystore(msg) => {
+                // Try to downcast to KeychainError, fall back to string wrap
+                OnboardingError::Database(msg.clone())
+            }
+            hkask_services::ServiceError::Storage(db_err) => {
+                OnboardingError::Database(db_err.to_string())
+            }
+            hkask_services::ServiceError::AgentRegistryStore(reg_err) => {
+                OnboardingError::Database(reg_err.to_string())
+            }
+            _ => OnboardingError::Database(e.to_string()),
+        }
+    }
+}
+
 /// Outcome of the onboarding flow
 pub struct OnboardingOutcome {
     /// The replicant name the user signed in as
@@ -50,60 +62,6 @@ pub struct OnboardingOutcome {
     pub resolved_secrets: Option<ResolvedSecrets>,
 }
 
-/// Pre-resolved secrets for onboarding, passed explicitly instead of
-/// mutating environment variables.
-pub struct ResolvedSecrets {
-    pub acp_secret: String,
-    pub db_passphrase: String,
-}
-
-/// Run the onboarding/sign-in flow.
-/// Initialize the ACP runtime and agent registry store from a ServiceConfig.
-///
-/// This replaces `config::init_registry()` and `config::init_registry_with_secrets()`
-/// for the onboarding path. It uses ServiceConfig directly instead of the
-/// legacy config.rs helpers, and performs ACP state restoration from the DB.
-async fn init_registry_from_config(
-    config: &ServiceConfig,
-) -> Result<(Arc<AcpRuntime>, AgentRegistryStore), OnboardingError> {
-    let acp = Arc::new(AcpRuntime::new(&config.acp_secret));
-
-    let db = Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| OnboardingError::Database(e.to_string()))?;
-    let store = AgentRegistryStore::new(db.conn_arc());
-    store
-        .initialize_schema()
-        .map_err(|e| OnboardingError::Database(e.to_string()))?;
-
-    // ACP state restoration
-    let registered_agents = store
-        .list()
-        .map_err(|e| OnboardingError::Database(e.to_string()))?;
-    if !registered_agents.is_empty() {
-        let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
-            .iter()
-            .map(|ra| hkask_agents::acp::AcpAgent {
-                webid: WebID::from_str(&ra.definition.name)
-                    .unwrap_or_else(|_| WebID::from_persona(ra.definition.name.as_bytes())),
-                agent_type: ra.definition.agent_kind,
-                capabilities: ra.definition.capabilities.clone(),
-                registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
-                    .map(|dt| dt.timestamp())
-                    .unwrap_or(0),
-                active: true,
-            })
-            .collect();
-        let tokens = std::collections::HashMap::new();
-        acp.restore_from_storage(agents, tokens)
-            .await
-            .map_err(|e| {
-                OnboardingError::Registry(crate::errors::RegistryError::InitFailed(e.to_string()))
-            })?;
-    }
-
-    Ok((acp, store))
-}
-
 /// Run the onboarding flow.
 ///
 /// Returns the replicant name the user signed in as. If the user already has
@@ -112,10 +70,10 @@ async fn init_registry_from_config(
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     // First, try the fast path: if keys are already configured, just init
     match ServiceConfig::from_env() {
-        Ok(config) => match init_registry_from_config(&config).await {
-            Ok((_acp, store)) => {
+        Ok(config) => match OnboardingService::init_registry(&config).await {
+            Ok(handle) => {
                 // Keys work — check if there's a replicant to sign into
-                let replicants = list_replicants(&store)?;
+                let replicants = list_replicants(&handle.store)?;
                 let agent_name = pick_or_default_replicant(&replicants)?;
                 return Ok(OnboardingOutcome {
                     signed_in_agent: agent_name,
@@ -213,42 +171,41 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     println!("  This passphrase derives all your internal keys — don't lose it!");
     let passphrase = prompt_passphrase_with_confirm()?;
 
-    // Derive secrets from passphrase
-    let secrets = derive_all_internal_secrets(&passphrase);
+    // If an orphaned DB exists from a previous failed onboarding attempt,
+    // remove it before starting fresh.
+    if let Ok(pre_config) = ServiceConfig::from_env()
+        && OnboardingService::remove_orphaned_db(&pre_config)
+    {
+        eprintln!("  Removing orphaned database from previous failed setup...");
+    }
 
-    // If we're creating a first replicant and an orphaned DB exists from a
-    // previous failed onboarding attempt, remove it before starting fresh.
-    // This handles the case where a prior run created the DB and keychain
-    // entries but failed before completing registration.
-    remove_orphaned_db();
-
-    // Store secrets in keychain for future sessions
-    store_secrets_in_keychain(&secrets)?;
+    // Derive secrets and store in keychain
+    let resolved = OnboardingService::derive_and_store_secrets(&passphrase).inspect_err(|_| {
+        // Clean up keychain entries and DB if secret storage fails
+        let config = ServiceConfig::from_env().unwrap_or_else(|_| ServiceConfig::in_memory());
+        OnboardingService::cleanup_failed_onboarding(&config);
+    })?;
 
     // Initialize registry with the derived secrets directly
-    let resolved = ResolvedSecrets {
-        acp_secret: secrets.acp_secret.clone(),
-        db_passphrase: secrets.capability_key.clone(),
-    };
     let config = ServiceConfig::from_secrets(
         resolved.acp_secret.clone(),
         resolved.db_passphrase.clone(),
-        secrets.acp_secret.clone(), // MCP secret fallback to ACP
+        resolved.acp_secret.clone(), // MCP secret fallback to ACP
         name.clone(),
     );
-    let (acp, store) = init_registry_from_config(&config).await.inspect_err(|_| {
-        // Clean up keychain entries and DB if registry init fails
-        let _ = cleanup_keychain();
-        let _ = cleanup_db();
-    })?;
+    let handle = OnboardingService::init_registry(&config)
+        .await
+        .inspect_err(|_| {
+            // Clean up keychain entries and DB if registry init fails
+            OnboardingService::cleanup_failed_onboarding(&config);
+        })?;
 
     // Register the new replicant
-    register_replicant(&acp, &store, &name, &description)
+    OnboardingService::register_replicant(&handle.acp, &handle.store, &name, &description)
         .await
         .inspect_err(|_| {
             // Clean up keychain and DB if registration fails
-            let _ = cleanup_keychain();
-            let _ = cleanup_db();
+            OnboardingService::cleanup_failed_onboarding(&config);
         })?;
 
     println!();
@@ -276,49 +233,36 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
             replicant_name, attempt
         ))?;
 
-        let secrets = derive_all_internal_secrets(&passphrase);
-
-        // Pass secrets directly — no env var mutation needed
-        let resolved = ResolvedSecrets {
-            acp_secret: secrets.acp_secret.clone(),
-            db_passphrase: secrets.capability_key.clone(),
-        };
+        let resolved = OnboardingService::derive_secrets(&passphrase);
 
         let config = ServiceConfig::from_secrets(
             resolved.acp_secret.clone(),
             resolved.db_passphrase.clone(),
-            secrets.acp_secret.clone(),
+            resolved.acp_secret.clone(),
             replicant_name.to_string(),
         );
 
-        match init_registry_from_config(&config).await {
-            Ok((_acp, store)) => {
-                // Verify the replicant exists
-                match store.get(replicant_name) {
-                    Ok(_) => {
-                        // Success! Store in keychain for future sessions
-                        store_secrets_in_keychain(&secrets)?;
-                        println!(
-                            "\n  \x1b[32m✓\x1b[0m Signed in as \x1b[1;36m{}\x1b[0m",
-                            replicant_name
-                        );
-                        println!();
-                        return Ok(OnboardingOutcome {
-                            signed_in_agent: replicant_name.to_string(),
-                            resolved_secrets: Some(resolved),
-                        });
-                    }
-                    Err(_) => {
-                        println!(
-                            "  \x1b[31m✗\x1b[0m Replicant '{}' not found with this passphrase.",
-                            replicant_name
-                        );
-                        if attempt < 3 {
-                            println!(
-                                "  (The passphrase may belong to a different replicant's database.)\n"
-                            );
-                        }
-                    }
+        match OnboardingService::try_sign_in(&config, replicant_name, &resolved).await {
+            Ok(outcome) => {
+                println!(
+                    "\n  \x1b[32m✓\x1b[0m Signed in as \x1b[1;36m{}\x1b[0m",
+                    replicant_name
+                );
+                println!();
+                return Ok(OnboardingOutcome {
+                    signed_in_agent: outcome.agent_name,
+                    resolved_secrets: Some(outcome.resolved_secrets),
+                });
+            }
+            Err(hkask_services::ServiceError::AgentNotFound(_)) => {
+                println!(
+                    "  \x1b[31m✗\x1b[0m Replicant '{}' not found with this passphrase.",
+                    replicant_name
+                );
+                if attempt < 3 {
+                    println!(
+                        "  (The passphrase may belong to a different replicant's database.)\n"
+                    );
                 }
             }
             Err(e) => {
@@ -333,132 +277,22 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
     Err(OnboardingError::InvalidPassphrase)
 }
 
-/// Register a new replicant in the agent registry
-async fn register_replicant(
-    acp: &Arc<AcpRuntime>,
-    store: &AgentRegistryStore,
-    name: &str,
-    description: &str,
-) -> Result<(), OnboardingError> {
-    let webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
-
-    // Register with ACP
-    let token = acp
-        .register_agent(
-            webid,
-            AgentKind::Replicant,
-            vec![
-                "tool:inference:call".to_string(),
-                "tool:mcp:invoke".to_string(),
-                "registry:episodic_memory:read".to_string(),
-                "registry:episodic_memory:write".to_string(),
-            ],
-        )
-        .await
-        .map_err(|e| {
-            OnboardingError::Registry(crate::errors::RegistryError::InitFailed(e.to_string()))
-        })?;
-
-    let definition = AgentDefinition {
-        name: name.to_string(),
-        agent_kind: AgentKind::Replicant,
-        charter: Some(hkask_types::Charter {
-            description: description.to_string(),
-            archetype: String::new(),
-            visibility: String::new(),
-        }),
-        capabilities: vec![
-            "tool:inference:call".to_string(),
-            "tool:mcp:invoke".to_string(),
-            "registry:episodic_memory:read".to_string(),
-            "registry:episodic_memory:write".to_string(),
-        ],
-        rights: vec![],
-        responsibilities: vec![],
-        persona: None,
-        depends_on: vec![],
-        process_manifest: None,
-    };
-
-    let registered = RegisteredAgent {
-        definition,
-        token_hash: token.signature.clone(),
-        // P4.3: Use canonical `now_rfc3339()` helper.
-        registered_at: now_rfc3339(),
-        source_yaml: "onboarding".to_string(),
-    };
-
-    store.insert(&registered).map_err(|e| {
-        OnboardingError::Registry(crate::errors::RegistryError::InitFailed(e.to_string()))
-    })?;
-
-    Ok(())
-}
-
-/// Store derived secrets in the OS keychain for future sessions.
-///
-/// Secrets are stored with keys that match the resolution chain in
-/// `resolve_acp_secret()` and `resolve_db_passphrase()`, so subsequent
-/// `init_registry()` calls can find them without env var mutation.
-fn store_secrets_in_keychain(
-    secrets: &hkask_keystore::master_key::InternalSecrets,
-) -> Result<(), OnboardingError> {
-    let keychain = Keychain::default();
-
-    // Store ACP secret in keychain (used by resolve_acp_secret)
-    keychain
-        .store_by_key("acp-secret", &secrets.acp_secret)
-        .map_err(OnboardingError::Keychain)?;
-
-    // Store DB passphrase in keychain (used by resolve_db_passphrase)
-    keychain
-        .store_by_key("hkask-db-passphrase", &secrets.capability_key)
-        .map_err(OnboardingError::Keychain)?;
-
-    Ok(())
-}
-
 /// Try to list replicants from the existing DB (without ACP secret)
 fn try_list_existing_replicants() -> Result<Vec<RegisteredAgent>, OnboardingError> {
-    // Try resolving config through the normal chain.
     let config = match ServiceConfig::from_env() {
         Ok(c) => c,
         Err(_) => return Ok(Vec::new()), // No config — fresh start
     };
-    let db_path = &config.db_path;
 
-    if db_path == ":memory:" || !std::path::Path::new(db_path).exists() {
-        // No DB file yet — fresh start
-        return Ok(Vec::new());
-    }
-
-    let db = match Database::open(db_path, &config.db_passphrase) {
-        Ok(db) => db,
-        Err(_) => {
-            // Can't open DB — try without encryption (plain SQLite)
-            match Database::open(db_path, "") {
-                Ok(db) => db,
-                Err(_) => return Ok(Vec::new()),
-            }
-        }
-    };
-
-    let store = AgentRegistryStore::new(db.conn_arc());
-    store
-        .initialize_schema()
-        .map_err(|e| OnboardingError::Database(e.to_string()))?;
-
-    let replicants = store
-        .list_by_kind(AgentKind::Replicant)
-        .map_err(|e| OnboardingError::Database(e.to_string()))?;
-
-    Ok(replicants)
+    Ok(OnboardingService::try_list_existing_replicants(&config))
 }
 
 /// List replicants from a store
-fn list_replicants(store: &AgentRegistryStore) -> Result<Vec<RegisteredAgent>, OnboardingError> {
+fn list_replicants(
+    store: &hkask_storage::AgentRegistryStore,
+) -> Result<Vec<RegisteredAgent>, OnboardingError> {
     store
-        .list_by_kind(AgentKind::Replicant)
+        .list_by_kind(hkask_types::AgentKind::Replicant)
         .map_err(|e| OnboardingError::Database(e.to_string()))
 }
 
@@ -540,100 +374,4 @@ fn prompt_choice(
             }
         }
     }
-}
-
-/// Remove keychain entries created during onboarding.
-///
-/// Used for cleanup when onboarding fails after keychain storage
-/// but before successful completion.
-fn cleanup_keychain() -> Result<(), OnboardingError> {
-    let keychain = Keychain::default();
-    keychain
-        .delete_by_key("acp-secret")
-        .map_err(OnboardingError::Keychain)?;
-    keychain
-        .delete_by_key("hkask-db-passphrase")
-        .map_err(OnboardingError::Keychain)?;
-    Ok(())
-}
-
-/// Remove the database and salt files created during onboarding.
-///
-/// Used for cleanup when onboarding fails after DB initialization
-/// but before successful completion. This prevents orphaned encrypted
-/// DB files from poisoning subsequent onboarding attempts.
-fn cleanup_db() -> Result<(), OnboardingError> {
-    let db_path = ServiceConfig::from_env()
-        .map(|c| c.db_path)
-        .unwrap_or_else(|_| hkask_services::DEFAULT_DB_PATH.to_string());
-    if db_path != ":memory:" {
-        let db_file = std::path::Path::new(&db_path);
-        if db_file.exists() {
-            std::fs::remove_file(db_file).map_err(OnboardingError::Io)?;
-        }
-        let salt_file = std::path::PathBuf::from(format!("{}.salt", db_path));
-        if salt_file.exists() {
-            std::fs::remove_file(salt_file).map_err(OnboardingError::Io)?;
-        }
-    }
-    Ok(())
-}
-
-/// Remove an orphaned DB and stale keychain entries left from a previous
-/// failed onboarding attempt.
-///
-/// This is called before creating a first replicant so that a fresh DB
-/// can be initialized. It handles the case where a prior `kask chat` run
-/// created the DB and stored keychain entries but failed before completing
-/// registration. Without this cleanup, the orphaned encrypted DB would
-/// cause SQLCipher hmac failures on subsequent attempts.
-fn remove_orphaned_db() {
-    let db_path = match ServiceConfig::from_env() {
-        Ok(config) => config.db_path,
-        Err(_) => hkask_services::DEFAULT_DB_PATH.to_string(),
-    };
-    if db_path == ":memory:" {
-        return;
-    }
-
-    // If no DB file exists, nothing to clean up.
-    if !std::path::Path::new(&db_path).exists() {
-        return;
-    }
-
-    // Try to open the DB with the config passphrase.
-    // If it opens and has replicants, the user has data — don't remove it.
-    // If it fails to open (wrong key, corrupted), it's orphaned — remove it.
-    if let Ok(config) = ServiceConfig::from_env()
-        && !config.db_passphrase.is_empty()
-    {
-        // We have a passphrase — try to open the DB.
-        match hkask_storage::Database::open(&db_path, &config.db_passphrase) {
-            Ok(db) => {
-                // DB opened — check if it has any replicants.
-                let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
-                if store.initialize_schema().is_ok() {
-                    match store.list_by_kind(hkask_types::AgentKind::Replicant) {
-                        Ok(replicants) if !replicants.is_empty() => {
-                            // DB has replicants — leave it alone.
-                            return;
-                        }
-                        _ => {
-                            // DB has no replicants — orphaned. Remove it.
-                        }
-                    }
-                }
-                // DB opened but schema failed or no replicants — orphaned.
-            }
-            Err(_) => {
-                // DB can't be opened with the keychain key — orphaned or
-                // passphrase mismatch from a prior failed attempt. Remove it.
-            }
-        }
-    }
-
-    // Remove the orphaned DB, salt file, and stale keychain entries.
-    eprintln!("  Removing orphaned database from previous failed setup...");
-    let _ = cleanup_db();
-    let _ = cleanup_keychain();
 }

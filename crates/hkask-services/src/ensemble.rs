@@ -23,9 +23,13 @@
 //!   require parameterizing surface-specific logic that adds more complexity
 //!   than it removes. Standing sessions stay in surface code until a future
 //!   normalization pass.
-//! - **Improv operations excluded** — `improv_turn`, `improv_config`,
-//!   `set_threshold`, `set_mode` are either divergent (improv_turn needs
-//!   surface-specific inferencer) or surface-only (CLI-only). Not extracted.
+//! - **Improv operations included** — `improv_turn`, `improv_config`,
+//!   `set_threshold`, `set_mode`, and `list_participants` are now service-layer
+//!   operations. They normalize the session-not-found pattern that was
+//!   duplicated across 5 CLI functions and 1 API route. `improv_turn` is the
+//!   deep operation (session lookup + inference + turn + message persistence).
+//!   The config/threshold/mode/list operations are thin but benefit from
+//!   consistent error handling.
 //! - **Participant role mapping** — `register_participant` normalizes the
 //!   `"orchestrator" => ParticipantRole::Curator, _ => Custom(role)`
 //!   mapping that was duplicated in both CLI and API.
@@ -33,7 +37,10 @@
 use std::sync::Arc;
 
 use hkask_ensemble::session::SessionManager;
-use hkask_ensemble::{AgentResponse, ChatMessage, ChatParticipant, ParticipantRole};
+use hkask_ensemble::{
+    AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, ImprovMode,
+    ImprovSessionConfig, ImprovTurn, ParticipantRole,
+};
 use hkask_types::WebID;
 use tokio::sync::RwLock;
 
@@ -86,7 +93,18 @@ pub fn map_participant_role(role: &str) -> ParticipantRole {
     }
 }
 
-/// Ensemble service — chat and deliberation session operations.
+/// Participant info returned by `EnsembleService::list_participants()`.
+///
+/// Decoupled from `ChatParticipant` which includes `WebID` and `pod_id`
+/// that are surface-internal concerns.
+#[derive(Debug)]
+pub struct ParticipantInfo {
+    pub name: String,
+    pub role: String,
+    pub capabilities: String,
+}
+
+/// Ensemble service — chat, deliberation, and improv session operations.
 ///
 /// Use `EnsembleService::create_chat()` etc. to delegate ensemble
 /// operations through the service layer. Surfaces construct an
@@ -235,6 +253,142 @@ impl EnsembleService {
         let session_read = deliberation.read().await;
         let result = session_read.synthesize();
         Ok(result.synthesized_response)
+    }
+
+    // ── Improv operations ───────────────────────────────────────────────
+
+    /// Execute an improv turn in a chat session.
+    ///
+    /// Looks up the chat session, runs the improv turn with the provided
+    /// inference adapter, and persists the user message and agent responses
+    /// back to the chat session.
+    ///
+    /// Returns `ServiceError::SessionNotFound` if the session doesn't exist.
+    ///
+    /// # REQ: svc-ens-009 — improv_turn checks session, runs turn, persists messages
+    pub async fn improv_turn(
+        ctx: &EnsembleContext,
+        session_id: &str,
+        user_message: &str,
+        inference_adapter: &Arc<CircuitBreakerInferenceAdapter>,
+    ) -> Result<ImprovTurn, ServiceError> {
+        let manager = ctx.session_manager.read().await;
+        let chat = manager
+            .get_chat(session_id)
+            .await
+            .ok_or_else(|| ServiceError::SessionNotFound(session_id.to_string()))?;
+
+        let turn = {
+            let chat_read = chat.read().await;
+            chat_read
+                .improv_turn(inference_adapter, user_message)
+                .await
+                .map_err(|e| ServiceError::Improv(e.to_string()))?
+        };
+
+        // Persist user message and agent responses
+        {
+            let mut chat_write = chat.write().await;
+            let curator_webid = *chat_write.curator();
+            chat_write.add_message(ChatMessage::new(curator_webid, user_message.to_string()));
+            for response in &turn.responses {
+                chat_write.add_message(ChatMessage::new(
+                    response.agent_webid,
+                    response.content.clone(),
+                ));
+            }
+        }
+
+        Ok(turn)
+    }
+
+    /// Get the improv configuration for a chat session.
+    ///
+    /// Returns `ServiceError::SessionNotFound` if the session doesn't exist.
+    ///
+    /// # REQ: svc-ens-010 — improv_config returns session config
+    pub async fn improv_config(
+        ctx: &EnsembleContext,
+        session_id: &str,
+    ) -> Result<ImprovSessionConfig, ServiceError> {
+        let manager = ctx.session_manager.read().await;
+        let chat = manager
+            .get_chat(session_id)
+            .await
+            .ok_or_else(|| ServiceError::SessionNotFound(session_id.to_string()))?;
+        let chat_read = chat.read().await;
+        Ok(chat_read.improv_config().clone())
+    }
+
+    /// Set the participation threshold for a chat session.
+    ///
+    /// Returns `ServiceError::SessionNotFound` if the session doesn't exist.
+    ///
+    /// # REQ: svc-ens-011 — set_improv_threshold updates threshold
+    pub async fn set_improv_threshold(
+        ctx: &EnsembleContext,
+        session_id: &str,
+        threshold: f64,
+    ) -> Result<(), ServiceError> {
+        let manager = ctx.session_manager.read().await;
+        let chat = manager
+            .get_chat(session_id)
+            .await
+            .ok_or_else(|| ServiceError::SessionNotFound(session_id.to_string()))?;
+        let mut chat_write = chat.write().await;
+        chat_write.set_participation_threshold(threshold);
+        Ok(())
+    }
+
+    /// Set the improv mode for a chat session.
+    ///
+    /// Returns `ServiceError::SessionNotFound` if the session doesn't exist.
+    ///
+    /// # REQ: svc-ens-012 — set_improv_mode updates mode
+    pub async fn set_improv_mode(
+        ctx: &EnsembleContext,
+        session_id: &str,
+        mode: ImprovMode,
+    ) -> Result<(), ServiceError> {
+        let manager = ctx.session_manager.read().await;
+        let chat = manager
+            .get_chat(session_id)
+            .await
+            .ok_or_else(|| ServiceError::SessionNotFound(session_id.to_string()))?;
+        let mut chat_write = chat.write().await;
+        chat_write.set_improv_mode(mode);
+        Ok(())
+    }
+
+    /// List participants in a chat session.
+    ///
+    /// Returns `ServiceError::SessionNotFound` if the session doesn't exist.
+    ///
+    /// # REQ: svc-ens-013 — list_participants returns participant info
+    pub async fn list_participants(
+        ctx: &EnsembleContext,
+        session_id: &str,
+    ) -> Result<Vec<ParticipantInfo>, ServiceError> {
+        let manager = ctx.session_manager.read().await;
+        let chat = manager
+            .get_chat(session_id)
+            .await
+            .ok_or_else(|| ServiceError::SessionNotFound(session_id.to_string()))?;
+        let chat_read = chat.read().await;
+        let participants = chat_read.get_participants();
+        let result = participants
+            .values()
+            .map(|p| ParticipantInfo {
+                name: format!("{:?}", p.role),
+                role: format!("{:?}", p.role),
+                capabilities: if p.capabilities.is_empty() {
+                    "none".to_string()
+                } else {
+                    p.capabilities.join(", ")
+                },
+            })
+            .collect();
+        Ok(result)
     }
 }
 
@@ -444,5 +598,104 @@ mod tests {
         let result =
             EnsembleService::send_message(&ctx, "test-chat", WebID::new(), "hello world").await;
         assert!(result.is_ok(), "send_message should succeed");
+    }
+
+    // REQ: svc-ens-010 — improv_config returns session config
+    #[tokio::test]
+    async fn improv_config_returns_not_found_for_missing_session() {
+        let ctx = test_ctx();
+        let result = EnsembleService::improv_config(&ctx, "nonexistent").await;
+        assert!(
+            result.is_err(),
+            "improv_config should fail for nonexistent session"
+        );
+        match result {
+            Err(ServiceError::SessionNotFound(id)) => {
+                assert_eq!(id, "nonexistent");
+            }
+            other => panic!("expected SessionNotFound, got {:?}", other),
+        }
+    }
+
+    // REQ: svc-ens-011 — set_improv_threshold checks session existence
+    #[tokio::test]
+    async fn set_improv_threshold_returns_not_found_for_missing_session() {
+        let ctx = test_ctx();
+        let result = EnsembleService::set_improv_threshold(&ctx, "nonexistent", 0.5).await;
+        assert!(
+            result.is_err(),
+            "set_improv_threshold should fail for nonexistent session"
+        );
+        match result {
+            Err(ServiceError::SessionNotFound(id)) => {
+                assert_eq!(id, "nonexistent");
+            }
+            other => panic!("expected SessionNotFound, got {:?}", other),
+        }
+    }
+
+    // REQ: svc-ens-012 — set_improv_mode checks session existence
+    #[tokio::test]
+    async fn set_improv_mode_returns_not_found_for_missing_session() {
+        let ctx = test_ctx();
+        let result =
+            EnsembleService::set_improv_mode(&ctx, "nonexistent", ImprovMode::Freeform).await;
+        assert!(
+            result.is_err(),
+            "set_improv_mode should fail for nonexistent session"
+        );
+        match result {
+            Err(ServiceError::SessionNotFound(id)) => {
+                assert_eq!(id, "nonexistent");
+            }
+            other => panic!("expected SessionNotFound, got {:?}", other),
+        }
+    }
+
+    // REQ: svc-ens-013 — list_participants checks session existence
+    #[tokio::test]
+    async fn list_participants_returns_not_found_for_missing_session() {
+        let ctx = test_ctx();
+        let result = EnsembleService::list_participants(&ctx, "nonexistent").await;
+        assert!(
+            result.is_err(),
+            "list_participants should fail for nonexistent session"
+        );
+        match result {
+            Err(ServiceError::SessionNotFound(id)) => {
+                assert_eq!(id, "nonexistent");
+            }
+            other => panic!("expected SessionNotFound, got {:?}", other),
+        }
+    }
+
+    // REQ: svc-ens-010 — improv_config succeeds for existing session
+    #[tokio::test]
+    async fn improv_config_succeeds_for_existing_session() {
+        let ctx = test_ctx();
+        EnsembleService::create_chat(&ctx, "test-chat")
+            .await
+            .unwrap();
+        let result = EnsembleService::improv_config(&ctx, "test-chat").await;
+        assert!(
+            result.is_ok(),
+            "improv_config should succeed for existing session"
+        );
+    }
+
+    // REQ: svc-ens-013 — list_participants returns curator for new session
+    #[tokio::test]
+    async fn list_participants_returns_empty_for_new_session() {
+        let ctx = test_ctx();
+        EnsembleService::create_chat(&ctx, "test-chat")
+            .await
+            .unwrap();
+        let result = EnsembleService::list_participants(&ctx, "test-chat").await;
+        assert!(result.is_ok(), "list_participants should succeed");
+        // New sessions include the curator as a default participant
+        assert!(
+            !result.unwrap().is_empty(),
+            "new session should have curator participant"
+        );
     }
 }

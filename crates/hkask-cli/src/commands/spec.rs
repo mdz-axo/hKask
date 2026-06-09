@@ -1,10 +1,11 @@
 //! Spec command handlers for `kask spec`
-//!
+//
 //! Implements the CLI display logic for specification capture, validation,
 //! cultivation, and rendering. Uses `ServiceContext::spec_store` for
 //! spec persistence — no direct `open_spec_store()` calls.
 
 use crate::cli::SpecAction;
+use hkask_services::SpecService;
 use hkask_storage::SpecStore;
 
 fn build_service_context() -> hkask_services::ServiceContext {
@@ -23,29 +24,24 @@ pub fn run(action: SpecAction) {
             domain,
             criteria,
         } => {
-            use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
-
-            let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
-            let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
-            let mut goal = GoalSpec::new(&name);
-            if let Some(crits) = criteria {
-                for c in crits.split(',') {
-                    goal = goal.with_criterion(c.trim());
-                }
-            }
-            let spec = Spec::new(&name, cat, anchor).with_goal(goal);
-            let complete = spec.is_complete();
-
             let ctx = build_service_context();
-            let store = &ctx.spec_store;
-            super::helpers::or_exit(store.save(&spec), "Failed to save specification");
+            let result = super::helpers::or_exit(
+                SpecService::capture(
+                    &name,
+                    &category,
+                    &domain,
+                    criteria.as_deref(),
+                    &ctx.spec_store,
+                ),
+                "Failed to capture specification",
+            );
 
             println!("Specification captured:");
-            println!("  ID: {}", spec.id);
-            println!("  Name: {}", spec.name);
-            println!("  Category: {}", spec.category.as_str());
-            println!("  Domain: {}", spec.domain_anchor.as_str());
-            println!("  Complete: {}", complete);
+            println!("  ID: {}", result.spec.id);
+            println!("  Name: {}", result.spec.name);
+            println!("  Category: {}", result.spec.category.as_str());
+            println!("  Domain: {}", result.spec.domain_anchor.as_str());
+            println!("  Complete: {}", result.is_complete);
         }
         SpecAction::List { category } => {
             println!("Specifications:");
@@ -59,20 +55,14 @@ pub fn run(action: SpecAction) {
             println!("  Note: Evaluation requires hkask-mcp-spec server.");
         }
         SpecAction::Validate { id } => {
-            use hkask_agents::DefaultSpecCurator;
-            use hkask_storage::spec_types::SpecCurator;
-
             let spec_id = super::helpers::or_exit(
                 hkask_storage::spec_types::SpecId::from_string(&id),
                 "Invalid spec ID",
             );
             let ctx = build_service_context();
-            let store = &ctx.spec_store;
-            let spec = super::helpers::or_exit(store.load(spec_id), "Failed to load specification");
-            let curator = DefaultSpecCurator::default();
             let record = super::helpers::or_exit(
-                curator.evaluate(&spec, &[]),
-                "Failed to evaluate specification",
+                SpecService::validate(spec_id, &ctx.spec_store),
+                "Failed to validate specification",
             );
 
             println!("Specification validation:");
@@ -83,19 +73,17 @@ pub fn run(action: SpecAction) {
             println!("  Curated at: {}", record.curated_at);
         }
         SpecAction::Cultivate { id } => {
-            use hkask_agents::DefaultSpecCurator;
-            use hkask_storage::spec_types::{SpecCategory, SpecCurator};
-
             let spec_id = super::helpers::or_exit(
                 hkask_storage::spec_types::SpecId::from_string(&id),
                 "Invalid spec ID",
             );
             let ctx = build_service_context();
-            let store = &ctx.spec_store;
-            let spec = super::helpers::or_exit(store.load(spec_id), "Failed to load specification");
-            let curator = DefaultSpecCurator::default();
+            let spec = super::helpers::or_exit(
+                ctx.spec_store.load(spec_id),
+                "Failed to load specification",
+            );
             let record = super::helpers::or_exit(
-                curator.evaluate(&spec, &[]),
+                SpecService::cultivate(spec_id, &ctx.spec_store),
                 "Failed to cultivate specification",
             );
 
@@ -108,8 +96,8 @@ pub fn run(action: SpecAction) {
             println!("  Spec coherence: {:.2}", spec.coherence());
             println!();
             println!("  Required categories for full collection coherence:");
-            for cat in SpecCategory::all() {
-                println!("    - {}", cat.as_str());
+            for cat in SpecService::list_categories() {
+                println!("    - {}", cat);
             }
         }
         SpecAction::Render { template, spec_id } => {
