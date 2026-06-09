@@ -34,9 +34,7 @@ pub use channels::{
     CurationInput, GoalTransitionEvent, RuntimeAlert, SpecEvent, ToolConsumptionEvent,
 };
 pub use curation::{CuratorDirective, CuratorHandle};
-pub use dispatch::{
-    DispatchTarget, LoopMessage, LoopPayload, MessagePriority, TraceId, WorkerKind,
-};
+pub use dispatch::{LoopMessage, LoopPayload, MessagePriority, TraceId};
 pub use episodic::ExperienceClassification;
 
 pub use self::Loop as HkaskLoop;
@@ -255,7 +253,7 @@ impl LoopAction {
             ActionType::ReplenishBudget => MessagePriority::Info,
         };
         Self {
-            target: target.into(),
+            target,
             action_type,
             parameters,
             priority,

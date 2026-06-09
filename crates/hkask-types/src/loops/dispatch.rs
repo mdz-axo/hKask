@@ -13,64 +13,6 @@ use crate::id::WebID;
 use crate::loops::LoopId;
 use std::fmt;
 
-// WorkerKind — Non-governing worker identifiers
-
-/// Worker kinds — specialized message handlers that are NOT governing loops.
-///
-/// Workers operate within a parent loop. They have no authority rank
-/// and cannot be targeted by regulatory actions (Throttle, CircuitBreak, etc.).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WorkerKind {
-    /// Metacognition worker within Curation (Loop 5)
-    Metacognition,
-    /// Tool dispatch worker within Communication (Loop 4)
-    ToolDispatch,
-}
-
-impl fmt::Display for WorkerKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WorkerKind::Metacognition => write!(f, "metacognition"),
-            WorkerKind::ToolDispatch => write!(f, "tool_dispatch"),
-        }
-    }
-}
-
-// DispatchTarget — Loop or Worker target
-
-/// Target for inter-loop/worker messages.
-///
-/// Loops (LoopId) are governing entities with authority rank.
-/// Workers (WorkerKind) are specialized handlers without authority.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DispatchTarget {
-    Loop(LoopId),
-    Worker(WorkerKind),
-}
-
-impl fmt::Display for DispatchTarget {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DispatchTarget::Loop(id) => write!(f, "{}", id),
-            DispatchTarget::Worker(w) => write!(f, "{}", w),
-        }
-    }
-}
-
-impl From<LoopId> for DispatchTarget {
-    fn from(id: LoopId) -> Self {
-        DispatchTarget::Loop(id)
-    }
-}
-
-impl From<WorkerKind> for DispatchTarget {
-    fn from(w: WorkerKind) -> Self {
-        DispatchTarget::Worker(w)
-    }
-}
-
 // TraceId — Cross-loop correlation identifier
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

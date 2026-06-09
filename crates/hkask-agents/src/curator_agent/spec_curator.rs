@@ -18,7 +18,6 @@ use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use hkask_types::loops::LoopId;
 use hkask_types::loops::SpecEvent;
-use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -32,10 +31,6 @@ pub struct DefaultSpecCurator {
     drift_threshold: f64,
     max_iterations: u8,
     event_sink: Option<Arc<dyn NuEventSink>>,
-    /// Dispatch channel for sending SpecDriftAlert messages through the Communication Loop.
-    /// When set, spec drift alerts flow as structured LoopMessages to Curation's inbox
-    /// instead of relying solely on the NuEvent store.
-    dispatch_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
     /// Direct spec event channel: SpecCurator → CurationLoop (strangler fig).
     /// When set, SpecEvents are sent alongside the legacy LoopMessage path.
     spec_tx: Option<tokio::sync::mpsc::UnboundedSender<SpecEvent>>,
@@ -48,7 +43,6 @@ impl DefaultSpecCurator {
             drift_threshold: 0.5,
             max_iterations: SYSTEM_MAX_RECURSION,
             event_sink: None,
-            dispatch_tx: None,
             spec_tx: None,
         }
     }
@@ -117,7 +111,6 @@ impl DefaultSpecCurator {
             drift_threshold: config.drift_threshold.clamp(0.0, 1.0),
             max_iterations: SYSTEM_MAX_RECURSION,
             event_sink: None,
-            dispatch_tx: None,
             spec_tx: None,
         }
     }
@@ -131,18 +124,6 @@ impl DefaultSpecCurator {
     /// Provide a `NuEventSink` for emitting algedonic events on drift escalation.
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
-        self
-    }
-
-    /// Provide a dispatch channel for sending SpecDriftAlert messages through
-    /// the Communication Loop to Curation's inbox.
-    ///
-    /// When both `event_sink` and `dispatch_tx` are set, spec drift alerts
-    /// are sent through both pathways: the NuEvent store for durability and
-    /// the Communication Loop for real-time loop-based sensing.
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_dispatch(mut self, tx: tokio::sync::mpsc::UnboundedSender<LoopMessage>) -> Self {
-        self.dispatch_tx = Some(tx);
         self
     }
 
@@ -287,29 +268,7 @@ impl SpecCurator for DefaultSpecCurator {
                 }
             }
 
-            // Send SpecDriftAlert through Communication Loop to Curation's inbox
-            if let Some(ref tx) = self.dispatch_tx {
-                let msg = LoopMessage::new(
-                    MessagePriority::Warning,
-                    LoopId::Curation,
-                    LoopPayload::SpecDriftAlert {
-                        spec_id: spec.id.to_string(),
-                        drift_magnitude: drift_report.drift_magnitude,
-                        drift_threshold: self.drift_threshold,
-                        missing_verbs: drift_report.missing_verbs.clone(),
-                    },
-                )
-                .with_target(LoopId::Curation);
-                if let Err(e) = tx.send(msg) {
-                    tracing::warn!(
-                        target: "cns.spec",
-                        error = %e,
-                        "Failed to send SpecDriftAlert through Communication Loop"
-                    );
-                }
-            }
-
-            // Strangler fig: also send SpecEvent on direct channel.
+            // Send SpecDriftAlert through direct channel to Curation's inbox
             if let Some(ref spec_tx) = self.spec_tx {
                 let event = SpecEvent {
                     spec_id: spec.id.to_string(),

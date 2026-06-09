@@ -404,8 +404,7 @@ impl ServiceContext {
                 Arc::clone(&dispatch),
                 Arc::clone(&escalation_queue),
             )
-            .with_acp(acp_port)
-            .with_loop_dispatch_tx(loop_system.dispatch_sender()),
+            .with_acp(acp_port),
         );
         let consolidation_bridge = Arc::new(ConsolidationBridge::new(
             Arc::clone(&episodic_memory),

@@ -153,7 +153,7 @@ Per [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §10.
 
 ### 6.1 Self-Application Precedent
 
-The `hkask-mcp-spec` server provides 11 MDS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/bind`, `spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`, `spec/curate/writing-excellence`, `spec/graph/query`, `spec/graph/validate`, `spec/test/invariant`, `spec/test/verify`) that can in principle be used to capture and curate the specification corpus itself. This self-application is a future opportunity, not blocked by any circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. For v0.23.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle.
+The `hkask-mcp-spec` server provides 5 MDS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/writing-quality`, `spec/graph/query`, `spec/graph/coherence`) per MDS §3 that can in principle be used to capture and curate the specification corpus itself. Three curation tools (evaluate, reconcile, cultivate) and bind were deleted per MDS §3 — curation is external to the spec server. This self-application is a future opportunity, not blocked by any circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. For v0.27.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle.
 
 ---
 

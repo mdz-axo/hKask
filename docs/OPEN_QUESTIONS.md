@@ -589,7 +589,7 @@ The `hkask-agents` crate build regression has been resolved. All 9 code drift it
 
 The `hkask-mcp-spec` server can be used to capture and curate the specification corpus itself. There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 
-**Note (2026-06-08):** The spec-code drift curation (Tasks 1–4) could be performed via `hkask-mcp-spec` tools (`spec/curate/evaluate`, `spec/curate/reconcile`, `spec/curate/cultivate`) once self-application is implemented. The drift set and curation decisions were produced manually this cycle; future cycles should use the spec server. This requires SpecStore persistence wiring (FUT-011, FUT-012).
+**Note (2026-06-08, updated 2026-06-09):** The spec-code drift curation (Tasks 1–4) could be performed via `hkask-mcp-spec` tools (`spec/goal/capture`, `spec/require/writing-quality`, `spec/graph/coherence`) once self-application is implemented. The drift set and curation decisions were produced manually this cycle; future cycles should use the spec server. This requires SpecStore persistence wiring (FUT-011, FUT-012). Curation tools (evaluate, reconcile, cultivate) were deleted per MDS §3 — curation is external to the spec server.
 
 ---
 

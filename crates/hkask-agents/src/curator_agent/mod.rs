@@ -68,16 +68,12 @@ impl CuratorAgent {
             CurationLoop::new(curator_handle, Arc::clone(&context))
                 .with_confidence_gate(CurationConfidenceGate::new(vec![])),
         );
-        let spec_curator = match context.loop_dispatch_tx() {
-            Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
-            None => spec_curator::DefaultSpecCurator::default(),
-        };
 
         Self {
             curation_loop,
             metacognition,
             context,
-            spec_curator,
+            spec_curator: spec_curator::DefaultSpecCurator::default(),
         }
     }
 
@@ -95,16 +91,12 @@ impl CuratorAgent {
             CurationLoop::new(curator_handle, Arc::clone(&context))
                 .with_confidence_gate(CurationConfidenceGate::new(vec![])),
         );
-        let spec_curator = match context.loop_dispatch_tx() {
-            Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
-            None => spec_curator::DefaultSpecCurator::default(),
-        };
 
         Self {
             curation_loop,
             metacognition,
             context,
-            spec_curator,
+            spec_curator: spec_curator::DefaultSpecCurator::default(),
         }
     }
 
@@ -140,10 +132,7 @@ impl CuratorAgent {
             curation_loop = curation_loop.with_spec_channel(rx);
         }
         let curation_loop = Arc::new(curation_loop);
-        let mut spec_curator = match context.loop_dispatch_tx() {
-            Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
-            None => spec_curator::DefaultSpecCurator::default(),
-        };
+        let mut spec_curator = spec_curator::DefaultSpecCurator::default();
         if let Some(tx) = spec_tx {
             spec_curator = spec_curator.with_spec_channel(tx);
         }

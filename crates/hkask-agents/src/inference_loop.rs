@@ -39,12 +39,6 @@ pub struct InferenceLoop {
     gas_cap: u64,
     /// Currently active inference model (None = not yet selected / unavailable).
     current_model: Option<String>,
-    /// Dispatch channel for routing LoopActions through Communication.
-    ///
-    /// When set, `act()` converts each `LoopAction` to a `LoopMessage` and sends
-    /// it through this channel. The Communication Loop receives and delivers to
-    /// the target loop's inbox.
-    dispatch_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
 }
 
 impl InferenceLoop {
