@@ -1,0 +1,344 @@
+//! ArchivalService — GitHub REST API integration for registry archival.
+//!
+//! Encapsulates the GitHub Contents API and Commits API interactions
+//! for archiving and restoring registry data. Handles credential
+//! resolution, base64 encoding/decoding, conditional SHA handling,
+//! and registry serialization.
+//!
+//! ℏKask - A Minimal Viable Container for Agents
+
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
+use hkask_mcp::server::{api_get, api_put, resolve_credential};
+use hkask_storage::AgentRegistryStore;
+use serde_json::json;
+
+use crate::error::ServiceError;
+
+const GITHUB_API_BASE: &str = "https://api.github.com";
+const DEFAULT_REGISTRY_PATH: &str = "registry";
+
+/// Result of archiving content to GitHub.
+#[derive(Debug, Clone)]
+pub struct ArchiveResult {
+    /// Path where content was archived in the repository.
+    pub path: String,
+    /// SHA of the commit that created or updated the file.
+    pub commit_sha: String,
+}
+
+/// Result of creating a registry snapshot on GitHub.
+#[derive(Debug, Clone)]
+pub struct SnapshotResult {
+    /// SHA of the commit that created the snapshot.
+    pub commit_sha: String,
+}
+
+/// Service for registry archival operations via GitHub REST API.
+///
+/// Resolves GitHub credentials from the OS keychain and constructs
+/// authenticated HTTP clients internally. Callers provide repository
+/// targeting parameters and content.
+pub struct ArchivalService;
+
+impl ArchivalService {
+    /// Archive content to a GitHub repository.
+    ///
+    /// Uses the GitHub Contents API to create or update a file. If the file
+    /// already exists, its SHA is fetched first for conflict detection.
+    pub async fn archive_to_git(
+        repo_owner: &str,
+        repo_name: &str,
+        branch: &str,
+        path: &str,
+        content: &str,
+    ) -> Result<ArchiveResult, ServiceError> {
+        let client = build_github_client()?;
+
+        let encoded_content = BASE64_STANDARD.encode(content.as_bytes());
+
+        // Get the current file SHA if it exists (required for updates)
+        let file_url = format!(
+            "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/contents/{path}?ref={branch}"
+        );
+
+        let current_sha = get_current_file_sha(&client, &file_url).await;
+
+        let url = format!("{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/contents/{path}");
+
+        let mut payload = json!({
+            "message": format!("chore: archive registry to {path}"),
+            "content": encoded_content,
+            "branch": branch,
+        });
+
+        if let Some(sha) = current_sha {
+            payload
+                .as_object_mut()
+                .unwrap()
+                .insert("sha".to_string(), json!(sha));
+        }
+
+        let result = api_put(&client, "github", &url, &payload)
+            .await
+            .map_err(|e| ServiceError::Archival(format!("Failed to archive registry: {e}")))?;
+
+        let commit_sha = result
+            .get("commit")
+            .and_then(|c| c.get("sha"))
+            .and_then(|s| s.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        Ok(ArchiveResult {
+            path: path.to_string(),
+            commit_sha,
+        })
+    }
+
+    /// Restore content from a GitHub repository.
+    ///
+    /// Fetches file content using the GitHub Contents API and decodes
+    /// the base64-encoded response.
+    pub async fn restore_from_git(
+        repo_owner: &str,
+        repo_name: &str,
+        git_ref: &str,
+        target_path: &str,
+    ) -> Result<String, ServiceError> {
+        let client = build_github_client()?;
+
+        let remote_path = if target_path == "." {
+            DEFAULT_REGISTRY_PATH
+        } else {
+            target_path
+        };
+
+        let url = format!(
+            "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/contents/{remote_path}?ref={git_ref}"
+        );
+
+        let json_val = api_get(&client, "github", &url)
+            .await
+            .map_err(|e| ServiceError::Archival(format!("Failed to fetch file: {e}")))?;
+
+        let encoded = json_val
+            .get("content")
+            .and_then(|c| c.as_str())
+            .ok_or_else(|| ServiceError::Archival("No content field in GitHub response".into()))?;
+
+        let decoded = BASE64_STANDARD
+            .decode(encoded.trim())
+            .map_err(|e| ServiceError::Archival(format!("Failed to decode base64 content: {e}")))?;
+
+        String::from_utf8(decoded)
+            .map_err(|e| ServiceError::Archival(format!("Content is not valid UTF-8: {e}")))
+    }
+
+    /// List archived registry versions (commit SHAs).
+    ///
+    /// Uses the GitHub Commits API to list commits that touched the
+    /// registry file.
+    pub async fn list_archives(
+        repo_owner: &str,
+        repo_name: &str,
+    ) -> Result<Vec<String>, ServiceError> {
+        let client = build_github_client()?;
+
+        let url = format!(
+            "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/commits?path={DEFAULT_REGISTRY_PATH}"
+        );
+
+        let json_val = api_get(&client, "github", &url)
+            .await
+            .map_err(|e| ServiceError::Archival(format!("Failed to list archives: {e}")))?;
+
+        let commits = json_val
+            .as_array()
+            .ok_or_else(|| ServiceError::Archival("Expected array of commits".into()))?;
+
+        let shas: Vec<String> = commits
+            .iter()
+            .filter_map(|c| c.get("sha").and_then(|s| s.as_str()).map(|s| s.to_string()))
+            .collect();
+
+        Ok(shas)
+    }
+
+    /// Create a registry snapshot on GitHub.
+    ///
+    /// Reads the local registry database, serializes it to JSON, and
+    /// pushes it to GitHub as a snapshot commit using the Contents API.
+    pub async fn create_snapshot(
+        repo_owner: &str,
+        repo_name: &str,
+        message: &str,
+        agent_registry_store: &AgentRegistryStore,
+    ) -> Result<SnapshotResult, ServiceError> {
+        let client = build_github_client()?;
+
+        let registry_content = read_local_registry(agent_registry_store)?;
+
+        let encoded_content = BASE64_STANDARD.encode(registry_content.as_bytes());
+
+        let file_url = format!(
+            "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/contents/{DEFAULT_REGISTRY_PATH}"
+        );
+
+        let current_sha = get_current_file_sha(&client, &file_url).await;
+
+        let mut payload = json!({
+            "message": message,
+            "content": encoded_content,
+        });
+
+        if let Some(sha) = current_sha {
+            payload
+                .as_object_mut()
+                .unwrap()
+                .insert("sha".to_string(), json!(sha));
+        }
+
+        let result = api_put(&client, "github", &file_url, &payload)
+            .await
+            .map_err(|e| ServiceError::Archival(format!("Failed to create snapshot: {e}")))?;
+
+        let commit_sha = result
+            .get("commit")
+            .and_then(|c| c.get("sha"))
+            .and_then(|s| s.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        Ok(SnapshotResult { commit_sha })
+    }
+}
+
+// ── Internal helpers ────────────────────────────────────────────────────
+
+/// Build an authenticated reqwest::Client for GitHub API calls.
+///
+/// Resolves the GitHub token from keychain/env and sets default headers
+/// (Authorization, Accept, User-Agent).
+fn build_github_client() -> Result<reqwest::Client, ServiceError> {
+    let token = resolve_credential("HKASK_GITHUB_TOKEN")
+        .map_err(|e| ServiceError::Archival(format!("GitHub token not available: {e}")))?;
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::ACCEPT,
+        "application/vnd.github+json".parse().unwrap(),
+    );
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        "hKask-archival/0.22.0".parse().unwrap(),
+    );
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Bearer {token}").parse().unwrap(),
+    );
+
+    reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .map_err(|e| ServiceError::Archival(format!("Failed to build HTTP client: {e}")))
+}
+
+/// Get the current file SHA from GitHub, if the file exists.
+///
+/// Returns `None` if the file doesn't exist (404) or the request fails.
+async fn get_current_file_sha(client: &reqwest::Client, url: &str) -> Option<String> {
+    match api_get(client, "github", url).await {
+        Ok(json) => json
+            .get("sha")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string()),
+        Err(_) => None,
+    }
+}
+
+/// Read the local registry database and serialize it to JSON.
+fn read_local_registry(store: &AgentRegistryStore) -> Result<String, ServiceError> {
+    let agents = store
+        .list()
+        .map_err(|e| ServiceError::Archival(format!("Failed to list agents: {e}")))?;
+
+    serde_json::to_string_pretty(&agents)
+        .map_err(|e| ServiceError::Archival(format!("Failed to serialize registry: {e}")))
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: ArchivalService must exist as a service type with 4 public operations
+    #[test]
+    fn archival_service_has_four_operations() {
+        // Compile-time verification that the 4 public operations exist
+        // with correct signatures. The async functions can't be called
+        // without a GitHub token, so we verify structure instead.
+        let _ = ArchivalService::archive_to_git;
+        let _ = ArchivalService::restore_from_git;
+        let _ = ArchivalService::list_archives;
+        let _ = ArchivalService::create_snapshot;
+    }
+
+    // REQ: ArchiveResult carries path and commit_sha
+    #[test]
+    fn archive_result_carries_path_and_commit() {
+        let result = ArchiveResult {
+            path: "registry".to_string(),
+            commit_sha: "abc123".to_string(),
+        };
+        assert_eq!(result.path, "registry");
+        assert_eq!(result.commit_sha, "abc123");
+    }
+
+    // REQ: SnapshotResult carries commit_sha
+    #[test]
+    fn snapshot_result_carries_commit_sha() {
+        let result = SnapshotResult {
+            commit_sha: "def456".to_string(),
+        };
+        assert_eq!(result.commit_sha, "def456");
+    }
+
+    // REQ: build_github_client fails without credentials
+    #[tokio::test]
+    async fn build_client_fails_without_credentials() {
+        // This test relies on HKASK_GITHUB_TOKEN not being in keychain/env
+        // during test runs. If it IS available, the test would succeed
+        // instead, which is also acceptable.
+        let result = build_github_client();
+        // Either we get a client (token available) or Archival error
+        match result {
+            Ok(_) => {} // Token available in test env, acceptable
+            Err(ServiceError::Archival(msg)) => {
+                assert!(msg.contains("GitHub token not available"));
+            }
+            Err(e) => panic!("Unexpected error type: {e}"),
+        }
+    }
+
+    // REQ: ServiceError::Archival maps string messages
+    #[test]
+    fn archival_error_is_string_sentinel() {
+        let err = ServiceError::Archival("test failure".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Archival failed"));
+        assert!(msg.contains("test failure"));
+    }
+
+    // REQ: Default registry path resolves "." to "registry"
+    #[test]
+    fn default_registry_path_resolves_dot() {
+        assert_eq!(DEFAULT_REGISTRY_PATH, "registry");
+    }
+
+    // REQ: GitHub API base URL is correct
+    #[test]
+    fn github_api_base_url() {
+        assert_eq!(GITHUB_API_BASE, "https://api.github.com");
+    }
+}

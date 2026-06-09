@@ -1,14 +1,14 @@
 # CONTINUATION.md — hKask Service Layer Extraction
 
-**Sessions:** 12–21 | **Next:** Session 22+
+**Sessions:** 12–22 | **Next:** Session 23+
 
 ---
 
 ## Context
 
-You are continuing the hKask service layer extraction project. Sessions 12–17 built the infrastructure (ServiceContext/ServiceConfig, dependency injection wiring, dead code cleanup, ReplState deduplication). Session 18 extracted ChatService. Session 19 extracted AgentService, deduplicated consolidation.rs CLI, and extracted UserService. Session 20 extracted ComposeService and extended EnsembleService with improv operations. Session 21 extracted OnboardingService (deep, 8 ops) and SpecService (medium-deep, 5 ops), and skipped CnsService (depth test fails).
+You are continuing the hKask service layer extraction project. Sessions 12–17 built the infrastructure (ServiceContext/ServiceConfig, dependency injection wiring, dead code cleanup, ReplState deduplication). Session 18 extracted ChatService. Session 19 extracted AgentService, deduplicated consolidation.rs CLI, and extracted UserService. Session 20 extracted ComposeService and extended EnsembleService with improv operations. Session 21 extracted OnboardingService (deep, 8 ops) and SpecService (medium-deep, 5 ops), and skipped CnsService (depth test fails). Session 22 extracted ArchivalService (deep, 4 ops) and EmbedService (deep, 2 ops + config types).
 
-**The project is NOT complete.** ~14 of 27 CLI commands still contain inline business logic. The infrastructure wiring and 5 deep + 1 medium-deep extractions + 1 extension are done; the remaining business logic extraction continues.
+**The project is NOT complete.** ~15 of 27 CLI commands still contain inline business logic (partially or fully). The infrastructure wiring and 7 deep + 1 medium-deep extractions + 1 extension are done; the remaining business logic extraction continues.
 
 **Read these files first (in this order):**
 
@@ -22,7 +22,7 @@ You are continuing the hKask service layer extraction project. Sessions 12–17 
 
 Sessions 12–19 accomplished **infrastructure wiring** + **3 deep extractions** (ChatService, AgentService, UserService) + **1 CLI deduplication** (consolidation.rs). Session 20 added **1 deep extraction** (ComposeService) and **1 extension** (EnsembleService improv ops). Session 21 added **1 deep extraction** (OnboardingService, 8 ops) and **1 medium-deep extraction** (SpecService, 5 ops), and **1 depth-test skip** (CnsService — shallow pass-through). The service modules in `hkask-services` now include 5 deep modules, 1 medium-deep module, 2 medium modules, and 4 shallow/medium modules.
 
-**What's left:** Extracting inline business logic from ~14 CLI files + 2 API routes into ~7 new or extended service modules, then deleting the legacy inline code. Estimated 11–20 hours of focused work.
+**What's left:** Extracting inline business logic from ~7 remaining unextracted CLI files + partially extracted files + 2 API routes into ~5 new or extended service modules, then deleting the legacy inline code. Estimated 8–14 hours of focused work.
 
 ---
 
@@ -38,8 +38,8 @@ Follow the strangler fig pattern per the refactor-service-layer skill: **one dom
 
 2. **~~`cns.rs` → `CnsService`~~ ⚠️ SKIPPED (Session 21)** — Depth test fails: `cns.rs` is mostly `println!` formatting, domain logic already well-encapsulated in `hkask_cns`.
 3. **~~`spec.rs` → `SpecService`~~ ✅ DONE (Session 21)** — Spec construction pipeline + curator evaluation. ~2h.
-4. **`git_archival.rs` → `ArchivalService`** — GitHub REST API calls, base64 encoding, registry serialization. ~2-3h.
-5. **`embed_corpus.rs` → `EmbedService`** — HTTP download, corpus chunking, embedding batch loop, centroid computation. ~2-3h.
+4. **~~`git_archival.rs` → `ArchivalService`~~ ✅ DONE (Session 22)** — GitHub REST API calls, base64 encoding, registry serialization. ~2-3h.
+5. **~~`embed_corpus.rs` → `EmbedService`~~ ✅ DONE (Session 22)** — HTTP download, corpus chunking, embedding batch loop, centroid computation. ~2-3h.
 
 ### P3 — Lower impact (CLI-only, no API duplication)
 
@@ -154,17 +154,20 @@ After completing each extraction, update `HANDOFF.md` (add key decision, update 
 - MiniJinja rendering for spec templates.
 - Check if `hkask-mcp-spec` MCP server duplicates this logic.
 
-### git_archival.rs → ArchivalService (P2 #4)
+### ~~git_archival.rs → ArchivalService~~ (P2 #4) ✅ DONE (Session 22)
 
 - GitHub REST API calls, base64 encoding, registry serialization.
-- Uses `reqwest` for HTTP — service crate needs the dep or takes a pre-built client.
-- CLI-only currently.
+- `ArchivalService` resolves GitHub credentials internally via `resolve_credential`.
+- Dead `McpRuntime`/`CapabilityChecker` params dropped.
+- `git_archival.rs` deleted entirely from CLI.
+- `reqwest` and `base64` deps moved from CLI to services crate.
 
-### embed_corpus.rs → EmbedService (P2 #5)
+### ~~embed_corpus.rs → EmbedService~~ (P2 #5) ✅ DONE (Session 22)
 
 - HTTP download, corpus chunking, embedding batch loop, centroid computation.
-- Similar to ComposeService in DB + SemanticMemory construction.
-- Uses user-provided DB credentials (like ComposeService and ConsolidationService).
+- `CorpusConfig` and 6 sub-types moved from CLI to services.
+- `Database::open` in embed remains legitimate legacy pattern (accepts caller-provided db_path + passphrase).
+- CLI reduced from ~290 to ~60 lines.
 
 ### P3 extractions
 

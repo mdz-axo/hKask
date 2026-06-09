@@ -33,12 +33,6 @@ pub mod template;
 pub mod user;
 pub mod web_search;
 
-// Git archival commands (Phase 9)
-pub use super::git_archival::{
-    archive_registry_to_git, create_registry_snapshot, list_registry_archives,
-    restore_registry_from_git,
-};
-
 // Re-exports from template
 pub use template::{
     get_mcp_tool, get_template, list_mcp_servers, list_mcp_tools, list_templates,

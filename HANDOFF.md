@@ -29,6 +29,10 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 - **CnsService evaluated and SKIPPED.** Depth test fails — `cns.rs` is mostly `println!` formatting. The domain logic (CnsRuntime health/alerts/variety calls) is already well-encapsulated in `hkask_cns`. API routes already access CnsRuntime through ServiceContext. No duplicated business logic between surfaces.
 - **P2 #3 — SpecService:** Created `hkask_services::SpecService` with 5 operations (`capture`, `build_spec`, `validate`, `cultivate`, `list_categories`). Moves the spec construction pipeline (parse category → parse domain → build goal → build spec → save) and the evaluation pipeline (load → curator evaluate) from CLI into the service layer. `CapturedSpec` and `EvaluatedSpec` types introduced. CLI `commands/spec.rs` Capture, Validate, Cultivate actions now delegate to SpecService. API `routes/spec.rs` capture route delegates to `SpecService::build_spec()`. 5 service-layer tests. Render action stays in CLI (MiniJinja template rendering is surface-specific).
 
+### Session 22 (ArchivalService + EmbedService Extraction)
+- **P2 #4 — ArchivalService:** Created `hkask_services::ArchivalService` with 4 operations (`archive_to_git`, `restore_from_git`, `list_archives`, `create_snapshot`). Moves the full GitHub REST API integration (credential resolution → authenticated client build → base64 encode/decode → conditional SHA handling → JSON payload construction → response parsing → registry serialization) from CLI into the service layer. `ArchiveResult` and `SnapshotResult` types introduced for structured returns. `ServiceError::Archival(String)` added as sentinel. Added `reqwest` and `base64` deps to services crate. CLI `commands/git_cmd.rs` Archive/Restore/List/Snapshot actions now delegate to ArchivalService. Dead `McpRuntime` and `CapabilityChecker` parameters dropped from CLI calls. CLI `git_archival.rs` (238 lines) deleted entirely — all callers now use ArchivalService. `reqwest` and `base64` removed from CLI Cargo.toml (orphaned). 7 service-layer tests.
+- **P2 #5 — EmbedService:** Created `hkask_services::EmbedService` with 2 operations (`embed_corpus`, `parse_config`). Moves the full style corpus embedding pipeline (config parsing → DB open → purge → download/caching/chunking → batch embedding → centroid computation) from CLI into the service layer. `CorpusConfig` and 6 sub-types (`EmbeddingConfig`, `Work`, `FoundationalRule`, `ChunkingConfig`, `ValidationConfig`, `EmbedResult`) moved from CLI to services. `ServiceError::Embed(String)` added as sentinel. CLI `commands/embed_corpus.rs` reduced from ~290 lines to ~60 lines. `Database::open` in embed_corpus remains a legitimate legacy pattern — service accepts caller-provided `db_path` + `db_passphrase`. 9 service-layer tests.
+
 ---
 
 ## 2. Honest Assessment: Remaining Work
@@ -49,9 +53,9 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 
 | Status | CLI Commands | API Routes |
 |--------|-------------|------------|
-| ✅ Fully extracted | 13/27 (curator, docs, goal, pod, sovereignty, chat, agent, user, consolidation, compose, ensemble, onboarding, spec) | 9/18 (pods, sovereignty, curator, goal, consolidation, chat, ensemble, spec, + acp shallow) |
-| 🟡 Partially extracted | 6/27 (git_cmd, loops, serve, spec, template, models) | 3/18 (episodic, git, cns) |
-| 🔴 Unextracted | 9/27 (cns, embed_corpus, git_archival, keystore, magna_carta, mcp, skill, web_search, bootstrap) | 1/18 (none fully unextracted) |
+| ✅ Fully extracted | 15/27 (curator, docs, goal, pod, sovereignty, chat, agent, user, consolidation, compose, ensemble, onboarding, spec, git_archival, embed_corpus) | 9/18 (pods, sovereignty, curator, goal, consolidation, chat, ensemble, spec, + acp shallow) |
+| 🟡 Partially extracted | 5/27 (git_cmd, loops, serve, template, models) | 3/18 (episodic, git, cns) |
+| 🔴 Unextracted | 7/27 (cns, keystore, magna_carta, mcp, skill, web_search, bootstrap) | 1/18 (none fully unextracted) |
 
 → cns skipped (depth test fails)
 | ⬜ Stub/N/A | 0/27 (bundle, registry deleted) | 6/18 (templates, mcp, acp, bundles, bots, spec stubs) |
@@ -63,8 +67,8 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | ~~P1~~ | ~~`onboarding.rs`~~ | ~~Secret derivation, keychain storage, DB cleanup, replicant registration, sign-in flow~~ | ~~`OnboardingService`~~ | ~~✅ DONE (Session 21)~~ |
 | ~~P2~~ | ~~`cns.rs`~~ | ~~CNS runtime access, set-point config, queue depth~~ | ~~`CnsService`~~ | ~~SKIPPED — depth test fails, shallow pass-through~~ |
 | ~~P2~~ | ~~`spec.rs`~~ | ~~Spec curation, MiniJinja rendering, Spec construction~~ | ~~`SpecService`~~ | ~~✅ DONE (Session 21)~~ |
-| **P2** | `git_archival.rs` | GitHub REST API calls, base64 encoding, registry serialization | `ArchivalService` | 2-3h |
-| **P2** | `embed_corpus.rs` | HTTP download, corpus chunking, embedding batch loop, centroid computation | `EmbedService` | 2-3h |
+| ~~P2~~ | ~~`git_archival.rs`~~ | ~~GitHub REST API calls, base64 encoding, registry serialization~~ | ~~`ArchivalService`~~ | ~~✅ DONE (Session 22)~~ |
+| ~~P2~~ | ~~`embed_corpus.rs`~~ | ~~HTTP download, corpus chunking, embedding batch loop, centroid computation~~ | ~~`EmbedService`~~ | ~~✅ DONE (Session 22)~~ |
 | **P3** | `skill.rs` | Filesystem discovery, hash computation, visibility mutation | `SkillService` | 2h |
 | **P3** | `keystore.rs` | Keychain CRUD, .env file parsing | `KeystoreService` | 1-2h |
 | **P3** | `magna_carta.rs` | Manifest loading, structural audits | `VerificationService` | 2h |
@@ -84,6 +88,8 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | `ComposeService` | `compose()` | DEEP — full style synthesizer pipeline (8+ steps) | CLI |
 | `OnboardingService` | `derive_and_store_secrets`, `derive_secrets`, `init_registry`, `register_replicant`, `try_sign_in`, `try_list_existing_replicants`, `remove_orphaned_db`, `cleanup_failed_onboarding` | DEEP — secret derivation + keychain + DB init + ACP restoration + replicant registration + sign-in + cleanup | CLI |
 | `SpecService` | `capture`, `build_spec`, `validate`, `cultivate`, `list_categories` | MEDIUM-DEEP — spec construction pipeline + curator evaluation | CLI, API |
+| `ArchivalService` | `archive_to_git`, `restore_from_git`, `list_archives`, `create_snapshot` | DEEP — GitHub REST API + credential resolution + base64 + conditional SHA + registry serialization | CLI |
+| `EmbedService` | `embed_corpus`, `parse_config` | DEEP — full style embedding pipeline (config → DB → purge → download/cache/chunk → batch embed → centroid) | CLI |
 | `ConsolidationService` | `verify_passphrase`, `consolidate` | DEEP — keystore + key derivation + DB + pipeline assembly | CLI, API |
 | `EnsembleService` | `create_session`, `list_sessions`, `add_participant`, `improv_turn`, `improv_config`, `set_improv_threshold`, `set_improv_mode`, `list_participants` | MEDIUM-DEEP — thin delegates + deep improv_turn (session + inference + persistence) | CLI, API |
 | `PodService` | `parse_pod_id`, `get_pod_status`, `list_pods`, `create_pod`, `activate_pod`, `deactivate_pod` | MEDIUM — UUID normalization + error mapping | CLI, API |
@@ -164,6 +170,16 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 
 57. **MiniJinja rendering stays in CLI surface.** The Render action uses `minijinja::Environment`, filesystem template loading, and spec-to-context mapping. This is surface-specific (CLI reads templates from `registry/templates/`, API would need a different template resolution). Not extracted to SpecService.
 
+58. **ArchivalService resolves GitHub credentials internally.** `build_github_client()` calls `resolve_credential("HKASK_GITHUB_TOKEN")` from `hkask_mcp::server` which resolves from OS keychain. Callers don't provide a client or token. This matches the pattern where the service owns credential resolution for its domain.
+
+59. **`McpRuntime` and `CapabilityChecker` params were dead in git_archival.** The original `git_archival.rs` functions took `_runtime: &McpRuntime` and `_checker: &CapabilityChecker` but never used them. ArchivalService drops these parameters entirely.
+
+60. **`git_archival.rs` deleted entirely.** All 4 archival operations now live in `ArchivalService`. The CLI `git_cmd.rs` calls `ArchivalService` directly. No code in the CLI crate needs `reqwest` or `base64` directly anymore.
+
+61. **EmbedService accepts caller-provided `db_path` + `db_passphrase`.** Like ConsolidationService and ComposeService, the service doesn't impose a path convention. `Database::open` in embed_corpus remains a legitimate legacy pattern.
+
+62. **`CorpusConfig` and sub-types moved from CLI to services.** These are domain configuration types for the embedding pipeline, not CLI arg parsing. Future API routes would use the same types. `ValidationConfig` derives `Clone` for inclusion in `EmbedResult`.
+
 ---
 
 ## 5. Remaining Legitimate Legacy Patterns (Do NOT Migrate)
@@ -171,7 +187,7 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | Pattern | Location | Why legitimate |
 |---------|----------|---------------|
 | `InferenceContext::from_parts()` fallback | `repl/init.rs:53,77` | REPL-specific gate port, before ServiceContext |
-| `Database::open` for per-agent memory | `repl/init.rs:194`, `commands/embed_corpus.rs:106` | Per-agent DBs with user-provided passphrase |
+| `Database::open` for per-agent memory | `repl/init.rs:194`, `commands/embed_corpus.rs:106` | Per-agent DBs with user-provided passphrase — now via EmbedService |
 | `Database::open` in onboarding service | `services/onboarding.rs` (via `init_registry`) | Bootstrap — must open DB before ServiceContext |
 | `hkask_keystore::*` in onboarding/bootstrap/keystore/consolidation | Multiple | Bootstrap or keystore surface operations |
 
@@ -181,6 +197,8 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 
 | File | Role | Status |
 |------|------|--------|
+| `crates/hkask-services/src/archival.rs` | ArchivalService | ✅ DEEP: GitHub REST API + credential resolution + base64 + conditional SHA + registry serialization |
+| `crates/hkask-services/src/embed.rs` | EmbedService | ✅ DEEP: full style embedding pipeline (config → DB → purge → download/cache/chunk → batch embed → centroid) |
 | `crates/hkask-services/src/agent.rs` | AgentService | ✅ DEEP: 6-step registration + loader boot + filtering |
 | `crates/hkask-services/src/user.rs` | UserService | ✅ DEEP: validation + lock + opaque errors + composite ops |
 | `crates/hkask-services/src/chat.rs` | ChatService | ✅ DEEP: full chat turn pipeline |
@@ -191,8 +209,8 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | `crates/hkask-services/src/consolidation.rs` | ConsolidationService | ✅ DEEP: keystore + key derivation + DB + pipeline assembly |
 | `crates/hkask-services/src/context.rs` | ServiceContext | ✅ All fields populated |
 | `crates/hkask-services/src/config.rs` | ServiceConfig | ✅ |
-| `crates/hkask-services/src/error.rs` | ServiceError | ✅ InvalidWebID + Embedding + Improv + From<PoisonError> + From<uuid::Error> |
-| `crates/hkask-services/src/lib.rs` | Services public API | ✅ Exports 13 service modules |
+| `crates/hkask-services/src/error.rs` | ServiceError | ✅ InvalidWebID + Embedding + Improv + Archival + Embed + From<PoisonError> + From<uuid::Error> |
+| `crates/hkask-services/src/lib.rs` | Services public API | ✅ Exports 15 service modules |
 | `crates/hkask-cli/src/onboarding.rs` | Onboarding CLI | ✅ Delegates to OnboardingService (377 lines, was 639) |
 | `crates/hkask-cli/src/commands/agent.rs` | Agent CLI | ✅ Delegates to AgentService |
 | `crates/hkask-cli/src/commands/user.rs` | User CLI | ✅ Delegates to UserService |
@@ -201,6 +219,9 @@ Infrastructure wiring: ServiceContext/ServiceConfig created, all surfaces wired 
 | `crates/hkask-cli/src/commands/compose.rs` | Compose CLI | ✅ Delegates to ComposeService (121 lines, was 378) |
 | `crates/hkask-cli/src/commands/ensemble.rs` | Ensemble CLI | ✅ Delegates improv ops to EnsembleService |
 | `crates/hkask-cli/src/commands/consolidation.rs` | Consolidation CLI | ✅ Delegates to ConsolidationService (71 lines, was 127) |
+| `crates/hkask-cli/src/commands/embed_corpus.rs` | Embed CLI | ✅ Delegates to EmbedService (~60 lines, was 290) |
+| `crates/hkask-cli/src/commands/git_cmd.rs` | Git CLI | ✅ Archive/Restore/List/Snapshot delegate to ArchivalService |
+| `crates/hkask-cli/src/git_archival.rs` | DELETED | ✅ Logic moved to ArchivalService |
 | `crates/hkask-api/src/routes/ensemble.rs` | Ensemble API | ✅ improv_turn delegates to EnsembleService |
 | `crates/hkask-cli/src/registration.rs` | DELETED | ✅ Logic moved to UserService |
 | `crates/hkask-api/src/routes/acp.rs` | ACP API routes | ✅ Shallow — stays in surface |

@@ -241,6 +241,16 @@ pub enum ServiceError {
     /// Registry load failure (no upstream typed source).
     #[error("Registry load failed: {0}")]
     RegistryLoadFailed(String),
+
+    // ── Archival domain ──────────────────────────────────────────────────
+    /// GitHub archival operation failed (API call, encoding, credential resolution).
+    #[error("Archival failed: {0}")]
+    Archival(String),
+
+    // ── Embedding pipeline domain ─────────────────────────────────────────
+    /// Embedding pipeline failed (config parsing, download, IO, batch processing).
+    #[error("Embed failed: {0}")]
+    Embed(String),
 }
 
 impl From<uuid::Error> for ServiceError {

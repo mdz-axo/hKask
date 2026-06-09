@@ -20,12 +20,14 @@
 //! `hkask-api` directly depend on domain crates for business operations.
 
 pub mod agent;
+pub mod archival;
 pub mod chat;
 pub mod compose;
 pub mod config;
 pub mod consolidation;
 pub mod context;
 pub mod curator;
+pub mod embed;
 pub mod ensemble;
 pub mod error;
 pub mod goal;
@@ -37,6 +39,7 @@ pub mod spec;
 pub mod user;
 
 pub use agent::{AgentReceipt, AgentService};
+pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use chat::{ChatRequest, ChatResponse, ChatService, TokenUsage};
 pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
@@ -47,6 +50,10 @@ pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
 pub use consolidation::ConsolidationService;
 pub use context::ServiceContext;
 pub use curator::{CuratorContext, CuratorService, MetacognitionSummary};
+pub use embed::{
+    ChunkingConfig, CorpusConfig, EmbedResult, EmbedService, EmbeddingConfig, FoundationalRule,
+    ValidationConfig, Work,
+};
 pub use ensemble::{EnsembleContext, EnsembleService, ParticipantInfo, map_participant_role};
 pub use error::ServiceError;
 pub use goal::{GoalContext, GoalService};

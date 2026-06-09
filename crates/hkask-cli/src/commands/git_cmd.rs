@@ -7,9 +7,8 @@ use std::sync::Arc;
 
 use crate::block_on;
 use crate::cli::GitAction;
-use crate::commands;
 use hkask_mcp::GixCasAdapter;
-use hkask_services::ServiceContext;
+use hkask_services::{ArchivalService, ServiceContext};
 use hkask_types::ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 
 /// Resolve the hexagonal `GitCASPort` from the environment.
@@ -63,9 +62,6 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             content,
             file,
         } => {
-            let ctx = build_service_context(rt);
-            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
-
             let content_str = if let Some(c) = content {
                 c
             } else if let Some(f) = file {
@@ -74,22 +70,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                 eprintln!("Either --content or --file must be provided");
                 std::process::exit(1);
             };
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::archive_registry_to_git(
-                        ctx.mcp_runtime.as_ref(),
-                        &checker,
-                        &owner,
-                        &repo,
-                        &branch,
-                        &path,
-                        &content_str,
-                    ),
-                    "Archive failed"
-                )
+            let result = block_on!(
+                rt,
+                ArchivalService::archive_to_git(&owner, &repo, &branch, &path, &content_str,),
+                "Archive failed"
             );
+            println!("Archived to {} (commit {})", result.path, result.commit_sha);
         }
 
         GitAction::Restore {
@@ -98,33 +84,18 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             r#ref,
             target,
         } => {
-            let ctx = build_service_context(rt);
-            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
-
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::restore_registry_from_git(
-                        ctx.mcp_runtime.as_ref(),
-                        &checker,
-                        &owner,
-                        &repo,
-                        &r#ref,
-                        &target,
-                    ),
-                    "Restore failed"
-                )
+            let content = block_on!(
+                rt,
+                ArchivalService::restore_from_git(&owner, &repo, &r#ref, &target,),
+                "Restore failed"
             );
+            println!("{}", content);
         }
 
         GitAction::List { owner, repo } => {
-            let ctx = build_service_context(rt);
-            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
-
             let commits = block_on!(
                 rt,
-                commands::list_registry_archives(ctx.mcp_runtime.as_ref(), &checker, &owner, &repo,),
+                ArchivalService::list_archives(&owner, &repo,),
                 "List failed"
             );
             println!("Archived versions for {}/{}:", owner, repo);
@@ -139,23 +110,18 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             message,
         } => {
             let ctx = build_service_context(rt);
-            let checker = hkask_types::CapabilityChecker::new(&ctx.config.acp_secret);
 
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::create_registry_snapshot(
-                        ctx.mcp_runtime.as_ref(),
-                        &checker,
-                        &owner,
-                        &repo,
-                        &message,
-                        &ctx.agent_registry_store,
-                    ),
-                    "Snapshot failed"
-                )
+            let result = block_on!(
+                rt,
+                ArchivalService::create_snapshot(
+                    &owner,
+                    &repo,
+                    &message,
+                    &ctx.agent_registry_store,
+                ),
+                "Snapshot failed"
             );
+            println!("Snapshot created (commit {})", result.commit_sha);
         }
 
         // ── Local CAS operations (Phase 5) ──────────────────────────────

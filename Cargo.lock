@@ -1293,7 +1293,6 @@ version = "0.23.0"
 dependencies = [
  "anyhow",
  "axum",
- "base64 0.22.1",
  "chrono",
  "clap",
  "dirs",
@@ -1311,7 +1310,6 @@ dependencies = [
  "hkask-types",
  "minijinja",
  "rand 0.9.4",
- "reqwest",
  "rpassword",
  "rusqlite",
  "rustyline",
@@ -1783,6 +1781,7 @@ dependencies = [
 name = "hkask-services"
 version = "0.23.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "hkask-agents",
  "hkask-cns",
@@ -1793,6 +1792,7 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml",
