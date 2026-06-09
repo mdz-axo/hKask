@@ -8,6 +8,8 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
+use hkask_types::id::WebID;
+use hkask_types::loops::{CurationInput, GoalTransitionEvent};
 
 pub fn goal_router() -> Router<ApiState> {
     Router::new()
@@ -142,8 +144,25 @@ async fn set_goal_state(
             message: format!("Invalid goal state '{}'", req.state),
         }
     })?;
+    let from_state = repo
+        .get_goal(goal_id)
+        .map_err(ApiError::from)?
+        .map(|g| g.state.as_str().to_string())
+        .unwrap_or_default();
     repo.update_goal_state(goal_id, new_state)
         .map_err(ApiError::from)?;
+
+    // Notify Curation of the goal transition.
+    if let Some(ref tx) = state.service_context.curation_inbox_tx {
+        let event = CurationInput::GoalTransition(GoalTransitionEvent {
+            goal_id: goal_id.to_string(),
+            from_state,
+            to_state: new_state.as_str().to_string(),
+            agent: WebID::new(),
+        });
+        let _ = tx.send(event);
+    }
+
     Ok(Json(GoalResponse {
         id: goal_id.to_string(),
         text: String::new(),

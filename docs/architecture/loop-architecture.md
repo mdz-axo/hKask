@@ -79,23 +79,20 @@ status: VERIFIED
 
 The `RateLimiter` and `CnsTokenBucket` types have been removed. `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
-### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Communication Boundary
+### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Transport Boundary
 
-`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 4-loop model, Communication is demoted to transport with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the Communication boundary**, not a Communication-internal concern.
+`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 4-loop model, Communication is demoted to transport (`tokio::mpsc` channels) with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the transport boundary**, not a Communication-internal concern.
 
-**Important distinction:** The `RateLimiter` lives in `hkask-mcp-web` (an MCP server), not in `CommunicationLoop` itself. The `CommunicationLoop` struct only has `max_deliveries_per_tick` — a delivery batch limit that prevents unbounded event loop blocking. This is analogous to a queue prefetch size, not a throttling decision. Batch limits are transport mechanics; throttling decisions are regulatory.
+**Important distinction:** The `RateLimiter` lives in `hkask-mcp-web` (an MCP server), not in any loop struct. Inter-loop communication uses direct typed `tokio::mpsc` channels with no intermediary — channel identity replaces the former `LoopId`/`DispatchTarget` routing. There is no `max_deliveries_per_tick` or queue depth counter — backpressure is inherent in channel capacity.
 
 **Authority classification:**
 
 | Concern | Loop | Rationale |
 |---------|------|------------|
-| Internal energy budgets | Cybernetics (Loop 6) | Regulation of agent resource consumption via `GovernedTool` gas accounting |
-| External-boundary rate limiting | Cybernetics membrane applied TO Communication boundary (Loop 4) | Security membrane protecting MCP servers from external client DoS — authority is L6, deployment point is L4 |
-| Delivery batch limits (`max_deliveries_per_tick`) | Communication (Loop 4) | Transport mechanics (queue prefetch), not regulatory decisions |
+| Internal energy budgets | Cybernetics | Regulation of agent resource consumption via `GovernedTool` gas accounting |
+| External-boundary rate limiting | Cybernetics membrane applied TO transport boundary | Security membrane protecting MCP servers from external client DoS — authority is Cybernetics, deployment point is transport |
 
-**CNS override authority:** Cybernetics retains override authority over Communication. If `CnsRuntime` emits a `BackpressureSignal` or depletion alert for the web domain, the `RateLimiter` must defer — internal regulation always supersedes external defense. The current implementation observes this indirectly: rate-limit events emit `tracing::warn!(target: "cns.web", ...)`, making them visible to CNS without requiring a code dependency on `hkask-cns`.
-
-**Boundary rule:** External-boundary rate limiting is a Cybernetics (L6) concern deployed at the Communication (L4) boundary. The `RateLimiter`'s deployment point is L4 (HTTP transport), but its authority and semantics are L6 (throttling, circuit-breaking, dampening). Communication itself does not own throttling — it exposes the boundary where Cybernetics membranes are applied. CNS retains the final word.
+CNS retains the final word on all throttling, circuit-breaking, and dampening decisions.
 
 ---
 
@@ -295,7 +292,7 @@ The capability membrane for each loop defines four boundaries:
 |----------|-------|
 | **Can read** | Prompt queue, token budget remaining, model configuration |
 | **Can write** | Completion output buffer, token consumption counter |
-| **Can signal** | Depletion signal to Cybernetics Loop (energy), completion signal to Communication Loop |
+| **Can signal** | Depletion signal to Cybernetics Loop (energy), completion notification via tokio channel |
 | **Never reaches** | Memory indices, conversation stream, capability tokens of other loops |
 
 #### Semantic/Fact Memory Loop
@@ -304,7 +301,7 @@ The capability membrane for each loop defines four boundaries:
 |----------|-------|
 | **Can read** | Embedding indices, knowledge graph, query queue |
 | **Can write** | Fact store, embedding vectors, retrieval cache |
-| **Can signal** | Depletion signal to Cybernetics Loop (energy), retrieval signal to Communication Loop |
+| **Can signal** | Depletion signal to Cybernetics Loop (energy), retrieval notification via tokio channel |
 | **Never reaches** | LLM call budget, conversation stream, capability tokens of other loops |
 
 #### Episodic Memory Loop
@@ -313,42 +310,42 @@ The capability membrane for each loop defines four boundaries:
 |----------|-------|
 | **Can read** | Conversation/event stream, SQLCipher storage, episodic query queue |
 | **Can write** | Episodic records, conversation log, decay markers |
-| **Can signal** | Depletion signal to Cybernetics Loop (energy), record signal to Communication Loop |
+| **Can signal** | Depletion signal to Cybernetics Loop (energy), record notification via tokio channel |
 | **Never reaches** | Knowledge graph, LLM call budget, capability tokens of other loops |
 
-#### Communication Loop (Shared Infrastructure)
+#### Transport (tokio::mpsc channels)
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | Message queue state only |
-| **Can write** | Message routing only |
-| **Can signal** | Delivery confirmation to sender loop, queue_depth counter to Cybernetics Loop (Arc<AtomicU64>, lock-free Relaxed ordering) |
+| **Can read** | Channel capacity (inherent backpressure) |
+| **Can write** | Channel delivery only |
+| **Can signal** | None — transport is a dumb pipe, no signaling authority |
 | **Never reaches** | Energy accounts, variety counters, prompt validation, knowledge graph internals, capability tokens |
 
 #### Curation Loop (regulatory) + Curator Agent (persona)
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue, Cybernetics set-points, variety counters, energy budget status, SpecDriftAlert from DefaultSpecCurator (via Communication Loop inbox) |
+| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue, Cybernetics set-points, variety counters, energy budget status, SpecDriftAlert from DefaultSpecCurator (via CurationInput channel) |
 | **Can write** | CuratorDirective (CalibrateThreshold, OverrideEnergyBudget, UpdateCapabilities, SeekMoreEvidence, ReplenishBudget), goal priority, metacognitive override decisions |
-| **Can signal** | Metacognitive override to Cybernetics Loop, goal revision to Communication Loop |
+| **Can signal** | Metacognitive override to Cybernetics Loop, goal revision via CurationInput channel |
 | **Never reaches** | Token flow, embedding indices, SQLCipher encryption keys, message routing internals |
 
 #### Cybernetics Loop
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | All `cns.*` spans, energy accounts, variety counters, algedonic alert state, communication_queue_depth from Communication Loop |
+| **Can read** | All `cns.*` spans, energy accounts, variety counters, algedonic alert state |
 | **Can write** | Energy budgets, variety counters, algedonic alert escalation state |
-| **Can signal** | Algedonic alert to Curation Loop, backpressure to domain loops, Throttle(Communication) when backpressure threshold exceeded |
+| **Can signal** | Algedonic alert (CurationInput::Alert) to Curation Loop, backpressure to domain loops |
 | **Never reaches** | Prompt content, message routing logic, goal priority, Curator persona internals |
 
 ### 4.3 Cross-Loop Authority Rules
 
-1. **Domain loops may signal their governing meta loop but never each other directly.** The Inference Loop does not call the Semantic Memory Loop — it signals the Communication Loop, which routes the request.
-2. **Communication is shared infrastructure, not a regulator.** It routes messages between loops but has no authority over any loop's behavior. It cannot override energy budgets, throttle agents, or issue directives.
-3. **The Cybernetics Loop regulates all three domain loops and may signal the Curation Loop. It may not regulate the Curation Loop.** Cybernetics can throttle inference energy but cannot override a Curator decision. Curation regulates Cybernetics through `CuratorDirective` messages (CalibrateThreshold, OverrideEnergyBudget, ReplenishBudget, SeekMoreEvidence) — this is the explicit governance path, not a bypass.
-4. **The Curation Loop regulates Cybernetics via metacognitive override.** This is the single escalation path. If the Cybernetics Loop's homeostatic regulation conflicts with a Curator-assessed goal, the Curator wins. Curation does not regulate Communication — it can signal through it, but Communication is a pipe, not a governor.
+1. **Domain loops may signal their governing meta loop but never each other directly.** The Inference Loop does not call the Memory Loop — it signals through `tokio::mpsc` channels wired at composition time. Each loop's channel endpoints are injected by the service layer; loops never hold references to each other.
+2. **Transport is a dumb pipe, not a regulator.** `tokio::mpsc` channels route messages between loops but have no authority over any loop's behavior. They cannot override energy budgets, throttle agents, or issue directives.
+3. **The Cybernetics Loop regulates both domain loops and may signal the Curation Loop. It may not regulate the Curation Loop.** Cybernetics can throttle inference energy but cannot override a Curator decision. Curation regulates Cybernetics through `CuratorDirective` messages (CalibrateThreshold, OverrideEnergyBudget, ReplenishBudget, SeekMoreEvidence) sent on a direct `mpsc` channel — this is the explicit governance path, not a bypass.
+4. **The Curation Loop regulates Cybernetics via metacognitive override.** This is the single escalation path. If the Cybernetics Loop's homeostatic regulation conflicts with a Curator-assessed goal, the Curator wins.
 
 ### 4.4 Capability Membrane Graph
 
@@ -356,40 +353,34 @@ The capability membrane for each loop defines four boundaries:
 graph TD
     subgraph Domain["Domain Loops"]
         IL[Inference Loop]
-        SML[Semantic/Fact Memory Loop]
-        EML[Episodic Memory Loop]
+        ML[Memory Loop<br/>Episodic + Semantic]
     end
 
     CUL[Curation Loop]
     CYL[Cybernetics Loop]
-    CL[Communication Loop - Shared Infrastructure]
+    TR[Transport — tokio::mpsc channels]
 
     IL -->|"signal: depletion"| CYL
-    IL -->|"signal: completion"| CL
-    SML -->|"signal: depletion"| CYL
-    SML -->|"signal: retrieval"| CL
-    EML -->|"signal: depletion"| CYL
-    EML -->|"signal: record"| CL
-
-    CL -->|"deliver: routing"| IL
-    CL -->|"deliver: routing"| SML
-    CL -->|"deliver: routing"| EML
+    ML -->|"signal: depletion"| CYL
 
     CYL -->|"regulate: energy"| IL
-    CYL -->|"regulate: energy"| SML
-    CYL -->|"regulate: energy"| EML
-    CYL -->|"signal: algedonic"| CUL
+    CYL -->|"regulate: energy"| ML
+    CYL -->|"signal: algedonic<br/>CurationInput::Alert"| CUL
 
-    CUL -->|"regulate: metacognitive override"| CYL
+    CUL -->|"regulate: metacognitive override<br/>CuratorDirective"| CYL
     CUL -->|"read: set-points, variety"| CYL
-    EML -->|"consolidation bridge (one-way, ConsolidationToken)"| SML
+
+    IL -.->|"via transport"| TR
+    ML -.->|"via transport"| TR
+    CUL -.->|"via transport"| TR
+    CYL -.->|"via transport"| TR
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-003
 verified_date: 2026-06-07
-verified_against: PRINCIPLES.md §1.4; MDS.md §7.3 §4.4; MDS.md §7.1-7.2 §5; loop-architecture.md §4.4
-status: REMEDIATED
+verified_against: loop-architecture.md §4.4
+status: UPDATED — Communication Loop removed, Memory merged, transport as tokio channels
 -->
 
 ### 4.5 Cycle-Freedom Verification
@@ -435,7 +426,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Fixed cadence per loop:** Each loop has its own tick interval. Predictable but may waste cycles during idle periods.
 - **C. Hybrid:** Event-driven with a liveness heartbeat. Loops tick on demand but also tick at a minimum cadence to detect staleness.
 
-**Status:** Resolved. Option C — event-driven with per-loop liveness heartbeat. Each loop ticks on demand when its input queue is non-empty, with a minimum liveness heartbeat whose interval varies by loop type. Inference: per-call. Communication: per-message. Cybernetics: 30s heartbeat. Curation: per-algedonic-alert. Domain memory: per-query.
+**Status:** Resolved. Option C — event-driven with per-loop liveness heartbeat. Each loop ticks on demand when its input queue is non-empty, with a minimum liveness heartbeat whose interval varies by loop type. Inference: per-call. Cybernetics: 2s heartbeat. Curation: per-algedonic-alert. Domain memory: per-query. Transport (tokio channels) has no tick — it is push-driven.
 
 ### 5.3 Energy Unit Semantics
 

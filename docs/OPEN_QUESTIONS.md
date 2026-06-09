@@ -243,7 +243,7 @@ Currently same master key for both. Episodic (private) and semantic (shared) hav
 **Status:** Deferred (acceptable data loss for v0.27.0)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-Loop inboxes and variety counters are in-memory. On crash, all pending directives are lost. For v0.27.0, this is acceptable — directives are advisory (Curation suggests, doesn't command). If crash resilience becomes critical, add a WAL or periodic checkpoint mechanism to `MessageDispatch` and `VarietyTracker`. Priority: low.
+Loop inboxes and variety counters are in-memory. On crash, all pending messages on `tokio::mpsc` channels are lost along with any pending directives. For v0.27.0, this is acceptable — directives are advisory (Curation suggests, doesn't command). If crash resilience becomes critical, add a WAL or periodic checkpoint mechanism to channel state and `VarietyTracker`. Priority: low.
 
 ### P3-f: Semantic Loop MCP Server ⚠️ RESOLVED
 
@@ -251,7 +251,7 @@ Loop inboxes and variety counters are in-memory. On crash, all pending directive
 **Status:** Resolved — intentional gap  
 **Resolution Date:** 2026-06-03
 
-Semantic Memory (Loop 2b) has no direct MCP server — queries go through `hkask-mcp-cns`, `hkask-mcp-memory`, or `hkask-mcp-registry`. This is intentional — semantic queries are lower-level than what MCP tools expose. The CNS, Memory, and Registry servers provide higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
+Memory (Episodic + Semantic, Loop 2) has no direct MCP server — queries go through `hkask-mcp-cns`, `hkask-mcp-memory`, or `hkask-mcp-registry`. This is intentional — semantic queries are lower-level than what MCP tools expose. The CNS, Memory, and Registry servers provide higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
 
 ### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
 

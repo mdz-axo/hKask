@@ -12,6 +12,7 @@
 //! - `build_loop_system()` in `api/loop_system.rs` (~130 lines)
 //! - `commands/loops.rs` (~113 lines)
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -26,7 +27,7 @@ use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CnsRuntime, CompositeEnergyEstimator, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    load_set_points,
+    SnapshotLoop, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
@@ -49,6 +50,7 @@ use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
+use hkask_types::ports::git_cas::GitCASPort;
 
 use crate::ServiceConfig;
 use crate::ServiceError;
@@ -107,6 +109,12 @@ pub struct ServiceContext {
 
     /// Goal repository for the goal coordination substrate.
     pub goal_repo: Arc<SqliteGoalRepository>,
+
+    /// Channel for emitting CurationInput (GoalTransition, alerts, spec drift).
+    pub curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
+
+    /// Git CAS port for snapshot loop (shared across surfaces).
+    pub git_cas_port: Arc<dyn GitCASPort>,
 
     /// Pod manager for agent lifecycle.
     pub pod_manager: Arc<PodManager>,
@@ -238,6 +246,11 @@ impl ServiceContext {
         let goal_conn = open_db()?.conn_arc();
 
         // ── 3. Stores ───────────────────────────────────────────────────────
+        // Shared channel for CurationInput — Cybernetics sends Alert,
+        // SpecCurator sends SpecDrift, GoalStore sends GoalTransition.
+        let (curation_inbox_tx, curation_inbox_rx) =
+            tokio::sync::mpsc::unbounded_channel::<CurationInput>();
+
         let consent_store = ConsentStore::new(consent_conn);
         consent_store
             .initialize_schema()
@@ -283,12 +296,6 @@ impl ServiceContext {
 
         // ── 5. Loop system ──────────────────────────────────────────────────
         let loop_system = Arc::new(LoopSystem::new());
-
-        // Direct alerts channel: Cybernetics → Curation.
-        // Shared channel for CurationInput — Cybernetics sends Alert,
-        // SpecCurator sends SpecDrift, GoalStore sends GoalTransition.
-        let (curation_inbox_tx, curation_inbox_rx) =
-            tokio::sync::mpsc::unbounded_channel::<CurationInput>();
 
         // Direct tool consumption channel: GovernedTool → Cybernetics.
         let (tool_consumption_tx, tool_consumption_rx) =
@@ -408,10 +415,24 @@ impl ServiceContext {
             Default::default(),
             Arc::clone(&consolidation_bridge),
             Some(curation_inbox_rx),
-            Some(curation_inbox_tx),
+            Some(curation_inbox_tx.clone()),
         );
         let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
         loop_system.register_loop(curation_loop).await;
+
+        // ── 6b. Snapshot loop (Cybernetics sub-function) ─────────────────────
+        let git_cas_port: Arc<dyn GitCASPort> = match hkask_mcp::GixCasAdapter::from_env() {
+            Ok(adapter) => Arc::new(adapter),
+            Err(e) => {
+                tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
+                Arc::new(
+                    hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
+                        .expect("Fallback CAS adapter"),
+                )
+            }
+        };
+        let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
+        loop_system.register_loop(Arc::new(snapshot_loop)).await;
 
         // ── 7. GovernedTool membrane + MCP dispatcher ────────────────────────
         let mcp_runtime = McpRuntime::new();
@@ -514,6 +535,8 @@ impl ServiceContext {
             escalation_queue,
             consent_manager,
             goal_repo,
+            curation_inbox_tx: Some(curation_inbox_tx.clone()),
+            git_cas_port,
             pod_manager,
             capability_checker,
             system_webid,

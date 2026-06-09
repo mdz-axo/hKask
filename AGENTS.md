@@ -83,7 +83,7 @@ kask sovereignty verify                    # Magna Carta compliance
 | Test Program | `docs/specifications/test-program.md` |
 | Test Inventory | `docs/status/test-inventory.md` |
 | CNS spans (canonical) | `docs/architecture/PRINCIPLES.md` §1.4 |
-| Registry & templating | `docs/architecture/interface-and-composition.md` |
+| Registry & templating | `docs/architecture/ADR-024-unified-registry.md` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
 
 ---
