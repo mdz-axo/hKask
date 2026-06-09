@@ -44,197 +44,186 @@ pub struct SkillInfo {
     pub content_hash: Option<String>,
 }
 
-/// Service for skill visibility management and publishing.
+pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> {
+    let mut skills = Vec::new();
+    let entries = fs::read_dir(zone_dir)
+        .map_err(|e| ServiceError::Skill(format!("Error scanning {}: {e}", zone_dir.display())))?;
+
+    for entry in entries {
+        let entry =
+            entry.map_err(|e| ServiceError::Skill(format!("Error reading directory: {e}")))?;
+        let path = entry.path();
+        if path.is_dir() && path.join("SKILL.md").exists() {
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?")
+                .to_string();
+            let skill_md = path.join("SKILL.md");
+            let visibility = read_skill_visibility(&skill_md);
+            let namespace = read_skill_namespace(&skill_md);
+            let content_hash = compute_content_hash(&skill_md);
+            skills.push(SkillInfo {
+                path,
+                name,
+                visibility,
+                namespace,
+                content_hash,
+            });
+        }
+    }
+
+    skills.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(skills)
+}
+
+/// Read the visibility field from a SKILL.md file.
+pub fn read_skill_visibility(skill_md_path: &Path) -> Visibility {
+    let content = match fs::read_to_string(skill_md_path) {
+        Ok(c) => c,
+        Err(_) => return Visibility::Private,
+    };
+
+    let fm = SkillLoader::parse_front_matter(&content);
+    match fm {
+        Ok(front_matter) => front_matter
+            .visibility
+            .as_deref()
+            .and_then(Visibility::parse_str)
+            .unwrap_or(Visibility::Private),
+        Err(_) => Visibility::Private,
+    }
+}
+
+/// Read the namespace field from a SKILL.md file.
+pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
+    let content = fs::read_to_string(skill_md_path).ok()?;
+    let fm = SkillLoader::parse_front_matter(&content).ok()?;
+    fm.namespace
+}
+
+/// Compute BLAKE3 hash of a SKILL.md file's contents.
+pub fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
+    let content = fs::read_to_string(skill_md_path).ok()?;
+    let hash = hkask_types::blake3_hash(content.as_bytes());
+    Some(hex::encode(hash))
+}
+
+/// Compute BLAKE3 hash of an arbitrary file's contents.
+pub fn compute_file_hash(path: &Path) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let hash = hkask_types::blake3_hash(content.as_bytes());
+    Some(hex::encode(hash))
+}
+
+/// Find a skill in the public zone by its base name.
 ///
-/// Operates on the two-zone skill model (private/public) with
-/// namespaced publishing and BLAKE3 content integrity.
-pub struct SkillService;
-
-impl SkillService {
-    /// Discover skill directories within a zone directory.
-    pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> {
-        let mut skills = Vec::new();
-        let entries = fs::read_dir(zone_dir).map_err(|e| {
-            ServiceError::Skill(format!("Error scanning {}: {e}", zone_dir.display()))
-        })?;
-
-        for entry in entries {
-            let entry =
-                entry.map_err(|e| ServiceError::Skill(format!("Error reading directory: {e}")))?;
-            let path = entry.path();
-            if path.is_dir() && path.join("SKILL.md").exists() {
-                let name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("?")
-                    .to_string();
-                let skill_md = path.join("SKILL.md");
-                let visibility = Self::read_skill_visibility(&skill_md);
-                let namespace = Self::read_skill_namespace(&skill_md);
-                let content_hash = Self::compute_content_hash(&skill_md);
-                skills.push(SkillInfo {
-                    path,
-                    name,
-                    visibility,
-                    namespace,
-                    content_hash,
-                });
-            }
-        }
-
-        skills.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(skills)
+/// Searches for any `<namespace>--<name>` directory that ends with `--<name>`.
+pub fn find_public_skill(root: &Path, name: &str) -> Option<PathBuf> {
+    let public_dir = root.join(SkillZone::Public.directory());
+    if !public_dir.exists() {
+        return None;
     }
 
-    /// Read the visibility field from a SKILL.md file.
-    pub fn read_skill_visibility(skill_md_path: &Path) -> Visibility {
-        let content = match fs::read_to_string(skill_md_path) {
-            Ok(c) => c,
-            Err(_) => return Visibility::Private,
-        };
-
-        let fm = SkillLoader::parse_front_matter(&content);
-        match fm {
-            Ok(front_matter) => front_matter
-                .visibility
-                .as_deref()
-                .and_then(Visibility::parse_str)
-                .unwrap_or(Visibility::Private),
-            Err(_) => Visibility::Private,
-        }
-    }
-
-    /// Read the namespace field from a SKILL.md file.
-    pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
-        let content = fs::read_to_string(skill_md_path).ok()?;
-        let fm = SkillLoader::parse_front_matter(&content).ok()?;
-        fm.namespace
-    }
-
-    /// Compute BLAKE3 hash of a SKILL.md file's contents.
-    pub fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
-        let content = fs::read_to_string(skill_md_path).ok()?;
-        let hash = hkask_types::blake3_hash(content.as_bytes());
-        Some(hex::encode(hash))
-    }
-
-    /// Compute BLAKE3 hash of an arbitrary file's contents.
-    pub fn compute_file_hash(path: &Path) -> Option<String> {
-        let content = fs::read_to_string(path).ok()?;
-        let hash = hkask_types::blake3_hash(content.as_bytes());
-        Some(hex::encode(hash))
-    }
-
-    /// Find a skill in the public zone by its base name.
-    ///
-    /// Searches for any `<namespace>--<name>` directory that ends with `--<name>`.
-    pub fn find_public_skill(root: &Path, name: &str) -> Option<PathBuf> {
-        let public_dir = root.join(SkillZone::Public.directory());
-        if !public_dir.exists() {
-            return None;
-        }
-
-        let suffix = format!("--{}", name);
-        let entries = fs::read_dir(&public_dir).ok()?;
-        for entry in entries {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            if path.is_dir()
-                && path.join("SKILL.md").exists()
-                && let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
-                && dir_name.ends_with(&suffix)
-                && Skill::parse_qualified_id(dir_name).is_some()
-            {
-                return Some(path);
-            }
-        }
-        None
-    }
-
-    /// Publish a skill from the private zone to the public zone.
-    ///
-    /// Copies the skill directory, updates visibility and namespace in the
-    /// exported copy's SKILL.md. The public copy is a snapshot, not a live link.
-    pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, ServiceError> {
-        let private_dir = root.join(SkillZone::Private.directory()).join(name);
-
-        if !private_dir.exists() {
-            return Err(ServiceError::Skill(format!(
-                "Skill '{name}' not found in private zone"
-            )));
-        }
-
-        let replicant_name = Self::resolve_replicant_name();
-        let namespaced_name = format!("{}--{}", replicant_name, name);
-        let public_dir = root
-            .join(SkillZone::Public.directory())
-            .join(&namespaced_name);
-
-        // Ensure public zone exists
-        let public_zone = root.join(SkillZone::Public.directory());
-        if !public_zone.exists() {
-            fs::create_dir_all(&public_zone).map_err(|e| {
-                ServiceError::Skill(format!(
-                    "Failed to create public zone {}: {e}",
-                    public_zone.display()
-                ))
-            })?;
-        }
-
-        // Remove existing public copy before replacing
-        if public_dir.exists() {
-            fs::remove_dir_all(&public_dir).map_err(|e| {
-                ServiceError::Skill(format!(
-                    "Failed to remove existing public copy {}: {e}",
-                    public_dir.display()
-                ))
-            })?;
-        }
-
-        // Copy the skill directory
-        copy_dir_recursive(&private_dir, &public_dir).map_err(|e| {
-            ServiceError::Skill(format!("Failed to copy skill to public zone: {e}"))
-        })?;
-
-        // Update the SKILL.md visibility and namespace in the exported copy
-        let public_skill_md = public_dir.join("SKILL.md");
-        update_visibility_in_skill_md(&public_skill_md, "public");
-        update_namespace_in_skill_md(&public_skill_md, &replicant_name);
-
-        Ok(SkillPublishResult {
-            name: name.to_string(),
-            namespaced_name,
-            namespace: replicant_name,
-            public_dir,
-        })
-    }
-
-    /// Resolve the replicant name for skill namespacing.
-    ///
-    /// Resolution order:
-    /// 1. `HKASK_REPLICANT_NAME` env var (explicit override)
-    /// 2. Git config `user.name` (if in a git repo)
-    /// 3. Fallback: "local"
-    pub fn resolve_replicant_name() -> String {
-        if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME")
-            && !name.is_empty()
+    let suffix = format!("--{}", name);
+    let entries = fs::read_dir(&public_dir).ok()?;
+    for entry in entries {
+        let entry = entry.ok()?;
+        let path = entry.path();
+        if path.is_dir()
+            && path.join("SKILL.md").exists()
+            && let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+            && dir_name.ends_with(&suffix)
+            && Skill::parse_qualified_id(dir_name).is_some()
         {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// Publish a skill from the private zone to the public zone.
+///
+/// Copies the skill directory, updates visibility and namespace in the
+/// exported copy's SKILL.md. The public copy is a snapshot, not a live link.
+pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, ServiceError> {
+    let private_dir = root.join(SkillZone::Private.directory()).join(name);
+
+    if !private_dir.exists() {
+        return Err(ServiceError::Skill(format!(
+            "Skill '{name}' not found in private zone"
+        )));
+    }
+
+    let replicant_name = resolve_replicant_name();
+    let namespaced_name = format!("{}--{}", replicant_name, name);
+    let public_dir = root
+        .join(SkillZone::Public.directory())
+        .join(&namespaced_name);
+
+    // Ensure public zone exists
+    let public_zone = root.join(SkillZone::Public.directory());
+    if !public_zone.exists() {
+        fs::create_dir_all(&public_zone).map_err(|e| {
+            ServiceError::Skill(format!(
+                "Failed to create public zone {}: {e}",
+                public_zone.display()
+            ))
+        })?;
+    }
+
+    // Remove existing public copy before replacing
+    if public_dir.exists() {
+        fs::remove_dir_all(&public_dir).map_err(|e| {
+            ServiceError::Skill(format!(
+                "Failed to remove existing public copy {}: {e}",
+                public_dir.display()
+            ))
+        })?;
+    }
+
+    // Copy the skill directory
+    copy_dir_recursive(&private_dir, &public_dir)
+        .map_err(|e| ServiceError::Skill(format!("Failed to copy skill to public zone: {e}")))?;
+
+    // Update the SKILL.md visibility and namespace in the exported copy
+    let public_skill_md = public_dir.join("SKILL.md");
+    update_visibility_in_skill_md(&public_skill_md, "public");
+    update_namespace_in_skill_md(&public_skill_md, &replicant_name);
+
+    Ok(SkillPublishResult {
+        name: name.to_string(),
+        namespaced_name,
+        namespace: replicant_name,
+        public_dir,
+    })
+}
+
+/// Resolve the replicant name for skill namespacing.
+///
+/// Resolution order:
+/// 1. `HKASK_REPLICANT_NAME` env var (explicit override)
+/// 2. Git config `user.name` (if in a git repo)
+/// 3. Fallback: "local"
+pub fn resolve_replicant_name() -> String {
+    if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME")
+        && !name.is_empty()
+    {
+        return name;
+    }
+
+    if let Ok(output) = std::process::Command::new("git")
+        .args(["config", "user.name"])
+        .output()
+        && output.status.success()
+    {
+        let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !name.is_empty() {
             return name;
         }
-
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["config", "user.name"])
-            .output()
-            && output.status.success()
-        {
-            let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !name.is_empty() {
-                return name;
-            }
-        }
-
-        "local".to_string()
     }
+
+    "local".to_string()
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────
@@ -347,4 +336,3 @@ fn update_namespace_in_skill_md(path: &Path, namespace: &str) {
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────
-

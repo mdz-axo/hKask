@@ -12,7 +12,6 @@ hkask-memory = { path = "../hkask-memory" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-agents = { path = "../hkask-agents" }
-hkask-ensemble = { path = "../hkask-ensemble" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-mcp = { path = "../hkask-mcp" }
 thiserror.workspace = true

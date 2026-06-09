@@ -14,8 +14,8 @@ use tracing::info;
 
 static GAS_GOVERNANCE_WARNED: AtomicBool = AtomicBool::new(false);
 
-use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
-use crate::ports::InferenceClient;
+use crate::ensemble::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
+use crate::ensemble::ports::InferenceClient;
 
 /// Degradation level for gas budget enforcement
 ///
@@ -169,8 +169,8 @@ pub struct EnsembleChat {
     event_sink: Option<Arc<dyn NuEventSink + Send + Sync>>,
     gas_budget: Option<GasBudgetConfig>,
     gas_used: u64,
-    dedup: crate::chat_dedup::ChatDedup,
-    gas_governance: Option<Arc<dyn crate::ports::GasGovernancePort>>,
+    dedup: crate::ensemble::chat_dedup::ChatDedup,
+    gas_governance: Option<Arc<dyn crate::ensemble::ports::GasGovernancePort>>,
     /// Available tools for intersection-based tool scoping (R4).
     /// When set, `intersection_tools()` filters this list by participant capabilities.
     available_tools: Option<Vec<ToolInfo>>,
@@ -197,7 +197,7 @@ impl EnsembleChat {
             event_sink: None,
             gas_budget: None,
             gas_used: 0,
-            dedup: crate::chat_dedup::ChatDedup::new(),
+            dedup: crate::ensemble::chat_dedup::ChatDedup::new(),
             gas_governance: None,
             available_tools: None,
         }
@@ -232,7 +232,7 @@ impl EnsembleChat {
         self.gas_budget = Some(config);
         self
     }
-    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
+    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ensemble::ports::GasGovernancePort>) -> Self {
         self.gas_governance = Some(port);
         self
     }
@@ -563,4 +563,4 @@ pub enum EnsembleError {
     CapabilityDenied(String),
 }
 
-pub use crate::session::SessionManager;
+pub use crate::ensemble::session::SessionManager;

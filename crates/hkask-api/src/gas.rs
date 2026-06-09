@@ -42,7 +42,7 @@ impl ApiGasGovernanceAdapter {
     }
 }
 
-impl hkask_ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
+impl hkask_agents::ensemble::GasGovernancePort for ApiGasGovernanceAdapter {
     fn can_proceed(&self, gas: u64) -> bool {
         let used = self.gas_used.load(Ordering::Relaxed);
         let cap = self.gas_cap.load(Ordering::Relaxed);

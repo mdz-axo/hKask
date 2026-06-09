@@ -22,7 +22,7 @@ Single source of truth for build, test, and CI health. Updated per session.
 | `hkask-cns` | `cargo check -p hkask-cns` | ✅ Pass | 2026-06-08 |
 | `hkask-mcp-condenser` | `cargo check -p hkask-mcp-condenser` | ✅ Pass | 2026-06-08 |
 
-**Note (2026-06-08):** Restored `GasError` enum to `hkask-cns/src/energy.rs` (stripped in commit `a4cb05de` "cleaning") and `ContextCategory`, `CondenserStats`, `CompressedOutput`, `ThreadSummaryRequest`, `ThreadSummaryOutput` to `hkask-mcp-condenser/src/types.rs` (stripped in commit `ad961c14` "ouch").
+**Note (2026-06-08):** P6 deletions applied: removed `McpToolOutput.metadata` dead field, consolidated 3 dead re-export port modules (`audit_log.rs`, `standing_session.rs`, `git_cas.rs`) into `ports/mod.rs`. Strong Guideline consolidations: `DataCategory::parse()` single source of truth (was 3× duplicated), `BoundaryClassification` + `boundary.classify()` (was 4× duplicated), `run_stdio_server`/`run_stdio_server_with_preloaded` unified into single `run_stdio_server_impl`.
 
 ## Test
 

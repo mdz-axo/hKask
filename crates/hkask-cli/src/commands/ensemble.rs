@@ -8,7 +8,7 @@
 use crate::block_on;
 use crate::cli::EnsembleAction;
 use hkask_cns::{CircuitBreaker, GasCost};
-use hkask_ensemble::{
+use hkask_agents::ensemble::{
     AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
     ImprovMode, ImprovSessionConfig, ImprovTurn, InferencePortAdapter, ParticipantRole,
     bootstrap_standing_session_with_store,
@@ -321,7 +321,7 @@ pub async fn ensemble_deliberation_list(ctx: &ServiceContext) -> Result<Vec<Stri
 pub fn ensemble_standing_start(
     ctx: &ServiceContext,
     config_path: &std::path::Path,
-) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
+) -> Result<hkask_agents::ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
     let store = ctx.standing_session_store.clone();
     let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
@@ -330,7 +330,7 @@ pub fn ensemble_standing_start(
 /// Get the current standing session status.
 pub fn ensemble_standing_status(
     ctx: &ServiceContext,
-) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
+) -> Result<hkask_agents::ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
     let config_path = std::path::Path::new("registry/manifests/standing-ensemble-session.yaml");
     if !config_path.exists() {
         return Err(crate::errors::EnsembleError::SessionNotFound(

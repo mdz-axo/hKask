@@ -1,6 +1,6 @@
 //! Standing Ensemble Session — Bootstrap and lifecycle management.
 
-use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
+use crate::ensemble::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
 use hkask_types::NuEventSink;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::now_rfc3339;
@@ -198,7 +198,7 @@ impl StandingSession {
         self
     }
 
-    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
+    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ensemble::ports::GasGovernancePort>) -> Self {
         self.chat = self.chat.with_gas_governance(port);
         self
     }

@@ -15,6 +15,9 @@ pub mod okapi_config;
 pub mod ports;
 pub mod prompt_strategy;
 
+pub mod contract_validator;
+pub mod lexicon;
+
 pub mod registry;
 pub mod registry_sqlite;
 pub mod skill_loader;

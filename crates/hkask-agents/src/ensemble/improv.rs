@@ -11,9 +11,9 @@
 //! - P4: Filter level is adjustable with defaults
 //! - P5: Natural conversational flow — later speakers see earlier contributions
 
-use crate::chat::EnsembleError;
-use crate::deliberation::AgentResponse;
-use crate::ports::{GenerateOptions, GenerateRequest, InferenceClient};
+use crate::ensemble::chat::EnsembleError;
+use crate::ensemble::deliberation::AgentResponse;
+use crate::ensemble::ports::{GenerateOptions, GenerateRequest, InferenceClient};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -66,7 +66,7 @@ pub struct ImprovSessionConfig {
     pub relevance_max_tokens: i32,
     pub(crate) synthesis: SynthesisMode,
     #[serde(default)]
-    pub confidence_config: Option<crate::confidence_router::ConfidenceConfig>,
+    pub confidence_config: Option<crate::ensemble::confidence_router::ConfidenceConfig>,
 }
 
 impl Default for ImprovSessionConfig {
@@ -351,7 +351,7 @@ async fn sequential_speak<C: InferenceClient>(
         let confidence = response
             .completion_probabilities
             .as_ref()
-            .map(|probs| crate::confidence_router::compute_confidence(probs))
+            .map(|probs| crate::ensemble::confidence_router::compute_confidence(probs))
             .unwrap_or(speaker.confidence);
         let mut ar = AgentResponse::new(
             speaker.webid,
@@ -361,7 +361,7 @@ async fn sequential_speak<C: InferenceClient>(
         if let Some(ref cc) = config.confidence_config
             && confidence < cc.threshold
             && let Some(escalated) =
-                crate::confidence_router::check_and_escalate(cc, &ar, inference_client, &prompt)
+                crate::ensemble::confidence_router::check_and_escalate(cc, &ar, inference_client, &prompt)
                     .await
         {
             tracing::info!(target: "cns.ensemble.improv", agent = %speaker.webid,

@@ -7,27 +7,18 @@ use hkask_storage::{SpecStore, SqliteSpecStore};
 
 use crate::error::ServiceError;
 
-/// Result of capturing a new specification.
 #[derive(Debug)]
 pub struct CapturedSpec {
-    /// The captured specification.
     pub spec: Spec,
-    /// Whether the spec is complete (all goals have criteria).
     pub is_complete: bool,
 }
 
-/// Result of evaluating a specification (validation or cultivation).
 #[derive(Debug)]
 pub struct EvaluatedSpec {
-    /// The spec ID that was evaluated.
     pub spec_id: SpecId,
-    /// The curator's decision.
     pub decision: hkask_types::curation::CurationDecision,
-    /// The curator's rationale.
     pub rationale: String,
-    /// Coherence score from evaluation.
     pub coherence_score: f64,
-    /// When the evaluation was performed.
     pub curated_at: DateTime<Utc>,
 }
 
@@ -48,9 +39,7 @@ pub fn capture(
     }
     let spec = Spec::new(name, cat, anchor).with_goal(goal);
     let is_complete = spec.is_complete();
-
     store.save(&spec).map_err(ServiceError::Spec)?;
-
     Ok(CapturedSpec { spec, is_complete })
 }
 
@@ -68,7 +57,6 @@ pub fn validate(spec_id: SpecId, store: &SqliteSpecStore) -> Result<EvaluatedSpe
     let spec = store.load(spec_id).map_err(ServiceError::Spec)?;
     let curator = DefaultSpecCurator::default();
     let record = curator.evaluate(&spec, &[])?;
-
     Ok(EvaluatedSpec {
         spec_id: record.spec_id,
         decision: record.decision,

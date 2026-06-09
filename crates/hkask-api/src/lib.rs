@@ -75,11 +75,11 @@ pub struct ApiState {
     /// Standing ensemble sessions (keyed by session ID) — surface-specific live state
     pub standing_sessions: Arc<
         tokio::sync::RwLock<
-            HashMap<String, Arc<tokio::sync::RwLock<hkask_ensemble::StandingSession>>>,
+            HashMap<String, Arc<tokio::sync::RwLock<hkask_agents::ensemble::StandingSession>>>,
         >,
     >,
     /// Ensemble inferencer (optional — for ensemble inference) — surface-specific
-    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
+    pub ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     /// Spec store for DDMVSS specifications — surface-specific
     pub spec_store: Option<Arc<dyn hkask_storage::SpecStore + Send + Sync>>,
     /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
@@ -88,7 +88,7 @@ pub struct ApiState {
     pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
     /// CNS gas governance port for ensemble sessions — surface-specific
     /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
-    pub gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort>,
+    pub gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort>,
 }
 
 impl ApiState {
@@ -136,10 +136,10 @@ impl ApiState {
     /// - `cns_runtime` — cloned from ServiceContext's shared CnsRuntime
     pub async fn from_service_context(
         ctx: ServiceContext,
-        ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
+        ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     ) -> Result<Self, ApiError> {
         // Surface-specific: gas governance from cybernetics loop + system webid
-        let gas_governance: Arc<dyn hkask_ensemble::GasGovernancePort> =
+        let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiGasGovernanceAdapter::new(
                 ctx.cybernetics_loop.clone(),
                 ctx.system_webid,
@@ -171,13 +171,13 @@ impl ApiState {
     /// `CircuitBreakerInferenceAdapter` using inference-appropriate defaults.
     pub fn ensemble_inferencer_with_breaker(
         &self,
-    ) -> Option<Arc<hkask_ensemble::adapters::CircuitBreakerInferenceAdapter>> {
+    ) -> Option<Arc<hkask_agents::ensemble::adapters::CircuitBreakerInferenceAdapter>> {
         self.ensemble_inferencer.as_ref().map(|adapter| {
             let breaker: Arc<dyn hkask_types::ports::CircuitBreakerPort> = Arc::new(
                 hkask_cns::CircuitBreaker::default_for_inference("ensemble-inference"),
             );
             Arc::new(
-                hkask_ensemble::adapters::CircuitBreakerInferenceAdapter::new(
+                hkask_agents::ensemble::adapters::CircuitBreakerInferenceAdapter::new(
                     (**adapter).clone(),
                     breaker,
                 ),

@@ -1,7 +1,7 @@
 //! Specification management routes
 
 use axum::{Json, extract::State, routing::Router};
-use hkask_storage::spec_types::SpecCategory;
+use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
 
 use crate::ApiState;
 use serde::{Deserialize, Serialize};
@@ -94,12 +94,15 @@ async fn capture_spec(
     State(_state): State<ApiState>,
     Json(req): Json<SpecCaptureRequest>,
 ) -> Json<SpecCaptureResponse> {
-    let spec = hkask_services::SpecService::build_spec(
-        &req.description,
-        &req.category,
-        &req.domain_anchor,
-        &req.criteria,
-    );
+    let spec = {
+        let cat = SpecCategory::parse_str(&req.category).unwrap_or(SpecCategory::Domain);
+        let anchor = DomainAnchor::parse_str(&req.domain_anchor).unwrap_or(DomainAnchor::Hkask);
+        let mut goal = GoalSpec::new(&req.description);
+        for c in &req.criteria {
+            goal = goal.with_criterion(c);
+        }
+        Spec::new(&req.description, cat, anchor).with_goal(goal)
+    };
 
     Json(SpecCaptureResponse {
         spec_id: spec.id.to_string(),

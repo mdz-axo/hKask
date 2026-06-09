@@ -27,7 +27,7 @@ use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasEstimator, GovernedTool, load_set_points,
 };
-use hkask_ensemble::session::SessionManager;
+use hkask_agents::ensemble::session::SessionManager;
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
@@ -132,7 +132,7 @@ pub struct ServiceContext {
     pub spec_store: SqliteSpecStore,
 
     /// Ensemble session manager for chat and deliberation coordination.
-    pub session_manager: Arc<RwLock<hkask_ensemble::session::SessionManager>>,
+    pub session_manager: Arc<RwLock<hkask_agents::ensemble::session::SessionManager>>,
 
     /// ACP runtime for capability token management and agent registration.
     pub acp_runtime: Arc<hkask_agents::AcpRuntime>,

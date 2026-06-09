@@ -4,7 +4,7 @@
 //! Two-zone model: `.agents/skills/` (source) → `skills/` (export surface).
 
 use crate::cli::SkillAction;
-use hkask_services::SkillService;
+use hkask_services::skill;
 use hkask_types::ports::SkillZone;
 use hkask_types::visibility::Visibility;
 
@@ -40,7 +40,7 @@ fn list_skills(visibility_filter: Option<&str>) {
             continue;
         }
 
-        let skill_infos = match SkillService::discover_skills(&zone_dir) {
+        let skill_infos = match skill::discover_skills(&zone_dir) {
             Ok(dirs) => dirs,
             Err(e) => {
                 eprintln!("Error scanning {}: {}", zone_dir.display(), e);
@@ -85,16 +85,16 @@ fn skill_status(name: &str) {
     let root = project_root();
     let private_dir = root.join(SkillZone::Private.directory()).join(name);
 
-    let public_dir = SkillService::find_public_skill(&root, name);
+    let public_dir = skill::find_public_skill(&root, name);
 
     if !private_dir.exists() {
         eprintln!("Skill '{}' not found in private zone.", name);
         return;
     }
 
-    let private_vis = SkillService::read_skill_visibility(&private_dir.join("SKILL.md"));
-    let private_hash = SkillService::compute_file_hash(&private_dir.join("SKILL.md"));
-    let private_ns = SkillService::read_skill_namespace(&private_dir.join("SKILL.md"));
+    let private_vis = skill::read_skill_visibility(&private_dir.join("SKILL.md"));
+    let private_hash = skill::compute_file_hash(&private_dir.join("SKILL.md"));
+    let private_ns = skill::read_skill_namespace(&private_dir.join("SKILL.md"));
 
     println!("Skill: {}", name);
     println!("  Private zone: {}", private_dir.display());
@@ -108,8 +108,8 @@ fn skill_status(name: &str) {
     );
 
     if let Some(ref pub_dir) = public_dir {
-        let public_hash = SkillService::compute_file_hash(&pub_dir.join("SKILL.md"));
-        let pub_namespace = SkillService::read_skill_namespace(&pub_dir.join("SKILL.md"));
+        let public_hash = skill::compute_file_hash(&pub_dir.join("SKILL.md"));
+        let pub_namespace = skill::read_skill_namespace(&pub_dir.join("SKILL.md"));
         println!("  Public zone:  {}", pub_dir.display());
         if let Some(ref ns) = pub_namespace {
             println!("  Published by: {}", ns);
@@ -150,7 +150,7 @@ fn skill_status(name: &str) {
 fn skill_publish(name: &str) {
     let root = project_root();
 
-    match SkillService::publish_skill(&root, name) {
+    match skill::publish_skill(&root, name) {
         Ok(result) => {
             println!(
                 "Published '{}' as '{}' to public zone: {}",

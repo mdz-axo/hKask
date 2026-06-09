@@ -9,7 +9,7 @@
 //! - Layer 2: Session message dedup (this module)
 //! - Layer 3: Prompt assembly dedup (`hkask-templates/src/context_assembly.rs`)
 
-use crate::chat::ChatMessage;
+use crate::ensemble::chat::ChatMessage;
 use hkask_types::blake3_hash;
 use std::collections::HashSet;
 

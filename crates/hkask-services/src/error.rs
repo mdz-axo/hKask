@@ -34,7 +34,7 @@ use hkask_agents::pod::AgentPodError;
 use hkask_agents::registry_loader::RegistryLoaderError;
 use hkask_cns::AllostericError;
 use hkask_cns::GasError;
-use hkask_ensemble::StandingSessionError;
+use hkask_agents::ensemble::StandingSessionError;
 use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
 use hkask_storage::{
     AgentRegistryError, ConsentStoreError, DatabaseError, GoalRepositoryError, NuEventError,

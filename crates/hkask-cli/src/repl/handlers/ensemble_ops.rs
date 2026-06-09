@@ -98,7 +98,7 @@ pub(crate) fn handle_mode(
             Err(e) => println!("  Error: {}", e),
         }
     } else {
-        match hkask_ensemble::ImprovMode::parse_mode(arg.trim()) {
+        match hkask_agents::ensemble::ImprovMode::parse_mode(arg.trim()) {
             Some(mode) => {
                 rt.block_on(async {
                     match crate::commands::ensemble_improv_set_mode(
@@ -111,13 +111,13 @@ pub(crate) fn handle_mode(
                         Ok(()) => {
                             println!("  Ensemble mode set to \x1b[1m{}\x1b[0m", mode.as_str());
                             match mode {
-                                hkask_ensemble::ImprovMode::Freeform => {
+                                hkask_agents::ensemble::ImprovMode::Freeform => {
                                     println!("  \x1b[2m(agents self-select by relevance)\x1b[0m");
                                 }
-                                hkask_ensemble::ImprovMode::CuratorLed => {
+                                hkask_agents::ensemble::ImprovMode::CuratorLed => {
                                     println!("  \x1b[2m(Curator picks who speaks)\x1b[0m");
                                 }
-                                hkask_ensemble::ImprovMode::RoundRobin => {
+                                hkask_agents::ensemble::ImprovMode::RoundRobin => {
                                     println!("  \x1b[2m(all agents speak in turn)\x1b[0m");
                                 }
                             }

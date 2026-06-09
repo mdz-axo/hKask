@@ -73,7 +73,7 @@ pub enum EnsembleError {
     /// Upstream standing-session bootstrap failure.
     /// P3.5: replaces `.map_err(|e| SessionCreationFailed(e.to_string()))` calls.
     #[error(transparent)]
-    Standing(#[from] hkask_ensemble::StandingSessionError),
+    Standing(#[from] hkask_agents::ensemble::StandingSessionError),
 }
 
 /// Errors that can occur during curator operations
@@ -246,7 +246,7 @@ impl From<hkask_services::ServiceError> for EnsembleError {
         match e {
             SE::SessionNotFound(id) => EnsembleError::SessionNotFound(id),
             SE::StandingSession(err) => EnsembleError::Standing(err),
-            other => EnsembleError::Standing(hkask_ensemble::StandingSessionError::Bootstrap(
+            other => EnsembleError::Standing(hkask_agents::ensemble::StandingSessionError::Bootstrap(
                 other.to_string(),
             )),
         }

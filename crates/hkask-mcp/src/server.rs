@@ -472,58 +472,7 @@ where
     S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
-    let mut resolved = HashMap::new();
-    let mut missing_required = Vec::new();
-    for cred in &credentials {
-        match resolve_credential(&cred.env_var) {
-            Ok(val) => {
-                tracing::debug!(credential = %cred.env_var, "Credential resolved");
-                resolved.insert(cred.env_var.clone(), val);
-            }
-            Err(_) if cred.required => {
-                tracing::error!(credential = %cred.env_var, description = %cred.description, "Required credential not set — server cannot function");
-                missing_required.push(cred.env_var.clone());
-            }
-            Err(_) => {
-                tracing::warn!(credential = %cred.env_var, description = %cred.description, "Optional credential not set — server will operate with degraded functionality")
-            }
-        }
-    }
-    if !missing_required.is_empty() {
-        anyhow::bail!(
-            "Missing required credentials: {}. Set them via environment variables or hkask-keystore.",
-            missing_required.join(", ")
-        );
-    }
-    let webid = if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
-        hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
-    } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
-        hkask_types::WebID::from_persona(persona.as_bytes())
-    } else {
-        hkask_types::WebID::new()
-    };
-    tracing::info!(webid = %webid.redacted_display(), "Agent identity resolved");
-    let ctx = ServerContext {
-        credentials: resolved,
-        adapters: crate::AdapterContainer::new(),
-        webid,
-    };
-    let server = server_factory(ctx)?;
-    tracing::info!(
-        server = server_name,
-        version = version,
-        "MCP server starting"
-    );
-    let running = server.serve(rmcp::transport::stdio()).await?;
-    running.waiting().await?;
-    Ok(())
+    run_stdio_server_impl(server_name, version, server_factory, credentials, None).await
 }
 
 /// Like `run_stdio_server`, but with pre-resolved credentials from .env files.
@@ -542,6 +491,30 @@ where
     S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
     F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
+    run_stdio_server_impl(
+        server_name,
+        version,
+        server_factory,
+        credentials,
+        Some(preloaded),
+    )
+    .await
+}
+
+/// Unified stdio server bootstrap — resolves credentials, constructs ServerContext,
+/// and serves via rmcp stdio transport. Accepts optional preloaded credentials
+/// for .env file injection (used by `run_stdio_server_with_preloaded`).
+async fn run_stdio_server_impl<S, F>(
+    server_name: &str,
+    version: &str,
+    server_factory: F,
+    credentials: Vec<CredentialRequirement>,
+    preloaded: Option<HashMap<String, String>>,
+) -> anyhow::Result<()>
+where
+    S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
+    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+{
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
@@ -549,13 +522,16 @@ where
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
+
     let mut resolved = HashMap::new();
     let mut missing_required = Vec::new();
     for cred in &credentials {
-        if let Some(val) = preloaded.get(&cred.env_var) {
-            tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
-            resolved.insert(cred.env_var.clone(), val.clone());
-            continue;
+        if let Some(ref pre) = preloaded {
+            if let Some(val) = pre.get(&cred.env_var) {
+                tracing::debug!(credential = %cred.env_var, source = "preloaded", "Credential resolved from preloaded .env");
+                resolved.insert(cred.env_var.clone(), val.clone());
+                continue;
+            }
         }
         match resolve_credential(&cred.env_var) {
             Ok(val) => {
@@ -577,17 +553,27 @@ where
             missing_required.join(", ")
         );
     }
-    let webid = if let Some(uuid_str) = preloaded.get("HKASK_WEBID") {
-        hkask_types::WebID::from_str(uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
+
+    let webid = if let Some(ref pre) = preloaded {
+        if let Some(uuid_str) = pre.get("HKASK_WEBID") {
+            hkask_types::WebID::from_str(uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
+        } else if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
+            hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
+        } else if let Some(persona) = pre.get("HKASK_AGENT_PERSONA") {
+            hkask_types::WebID::from_persona(persona.as_bytes())
+        } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
+            hkask_types::WebID::from_persona(persona.as_bytes())
+        } else {
+            hkask_types::WebID::new()
+        }
     } else if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
         hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
-    } else if let Some(persona) = preloaded.get("HKASK_AGENT_PERSONA") {
-        hkask_types::WebID::from_persona(persona.as_bytes())
     } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
         hkask_types::WebID::from_persona(persona.as_bytes())
     } else {
         hkask_types::WebID::new()
     };
+
     tracing::info!(webid = %webid.redacted_display(), "Agent identity resolved");
     let ctx = ServerContext {
         credentials: resolved,

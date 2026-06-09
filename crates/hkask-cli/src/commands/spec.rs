@@ -5,8 +5,9 @@
 //! spec persistence — no direct `open_spec_store()` calls.
 
 use crate::cli::SpecAction;
-use hkask_services::SpecService;
+use hkask_agents::DefaultSpecCurator;
 use hkask_storage::SpecStore;
+use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurator};
 
 fn build_service_context() -> hkask_services::ServiceContext {
     let config =
@@ -25,23 +26,24 @@ pub fn run(action: SpecAction) {
             criteria,
         } => {
             let ctx = build_service_context();
-            let result = super::helpers::or_exit(
-                SpecService::capture(
-                    &name,
-                    &category,
-                    &domain,
-                    criteria.as_deref(),
-                    &ctx.spec_store,
-                ),
-                "Failed to capture specification",
-            );
+            let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
+            let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
+            let mut goal = GoalSpec::new(&name);
+            if let Some(crits) = criteria.as_deref() {
+                for c in crits.split(',') {
+                    goal = goal.with_criterion(c.trim());
+                }
+            }
+            let spec = Spec::new(&name, cat, anchor).with_goal(goal);
+            let is_complete = spec.is_complete();
+            ctx.spec_store.save(&spec).expect("Failed to save spec");
 
             println!("Specification captured:");
-            println!("  ID: {}", result.spec.id);
-            println!("  Name: {}", result.spec.name);
-            println!("  Category: {}", result.spec.category.as_str());
-            println!("  Domain: {}", result.spec.domain_anchor.as_str());
-            println!("  Complete: {}", result.is_complete);
+            println!("  ID: {}", spec.id);
+            println!("  Name: {}", spec.name);
+            println!("  Category: {}", spec.category.as_str());
+            println!("  Domain: {}", spec.domain_anchor.as_str());
+            println!("  Complete: {}", is_complete);
         }
         SpecAction::List { category } => {
             println!("Specifications:");
@@ -60,10 +62,15 @@ pub fn run(action: SpecAction) {
                 "Invalid spec ID",
             );
             let ctx = build_service_context();
-            let record = super::helpers::or_exit(
-                SpecService::validate(spec_id, &ctx.spec_store),
-                "Failed to validate specification",
-            );
+            let spec = ctx
+                .spec_store
+                .load(spec_id)
+                .map_err(hkask_services::ServiceError::Spec)
+                .expect("Failed to load specification");
+            let curator = DefaultSpecCurator::default();
+            let record = curator
+                .evaluate(&spec, &[])
+                .expect("Failed to evaluate specification");
 
             println!("Specification validation:");
             println!("  ID: {}", record.spec_id);
@@ -78,14 +85,15 @@ pub fn run(action: SpecAction) {
                 "Invalid spec ID",
             );
             let ctx = build_service_context();
-            let spec = super::helpers::or_exit(
-                ctx.spec_store.load(spec_id),
-                "Failed to load specification",
-            );
-            let record = super::helpers::or_exit(
-                SpecService::cultivate(spec_id, &ctx.spec_store),
-                "Failed to cultivate specification",
-            );
+            let spec = ctx
+                .spec_store
+                .load(spec_id)
+                .map_err(hkask_services::ServiceError::Spec)
+                .expect("Failed to load specification");
+            let curator = DefaultSpecCurator::default();
+            let record = curator
+                .evaluate(&spec, &[])
+                .expect("Failed to cultivate specification");
 
             println!("Specification cultivation:");
             println!("  ID: {}", record.spec_id);
@@ -96,8 +104,8 @@ pub fn run(action: SpecAction) {
             println!("  Spec coherence: {:.2}", spec.coherence());
             println!();
             println!("  Required categories for full collection coherence:");
-            for cat in SpecService::list_categories() {
-                println!("    - {}", cat);
+            for cat in SpecCategory::all() {
+                println!("    - {}", cat.as_str());
             }
         }
         SpecAction::Render { template, spec_id } => {

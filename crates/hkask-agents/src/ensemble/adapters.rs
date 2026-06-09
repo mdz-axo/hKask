@@ -7,7 +7,7 @@
 //! Circuit-breaker decorated adapter wraps `InferencePortAdapter` with
 //! a `CircuitBreakerPort` membrane for fail-fast inference protection.
 
-use crate::ports::{GenerateRequest, GenerateResponse, InferenceClient};
+use crate::ensemble::ports::{GenerateRequest, GenerateResponse, InferenceClient};
 use async_trait::async_trait;
 use hkask_types::ports::{CircuitBreakerPort, InferenceError, InferencePort};
 use hkask_types::template::LLMParameters;

@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::chat::EnsembleChat;
-use crate::deliberation::DeliberationSession;
-use crate::ports::GasGovernancePort;
+use crate::ensemble::chat::EnsembleChat;
+use crate::ensemble::deliberation::DeliberationSession;
+use crate::ensemble::ports::GasGovernancePort;
 
 /// Unified session manager for both chat and deliberation sessions.
 ///

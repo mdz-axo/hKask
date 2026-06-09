@@ -16,9 +16,10 @@
 pub mod acp; // Loop 6 (Cybernetics: ACP is access control)
 pub mod adapters;
 pub mod communication; // Loop 4
-pub mod consent; // Loop 6 (Cybernetics: consent is sovereignty/access guard)
-pub mod curator; // Loop 5 (pure regulatory: CurationLoop, CuratorContext, CurationGate)
-pub mod curator_agent; // Loop 5 (persona: MetacognitionLoop, bot metrics, spec curation)
+pub mod consent; // Loop 6
+pub mod curator; // Loop 5
+pub mod curator_agent; // Loop 5
+pub mod ensemble; // Multi-agent chat coordination
 pub mod error;
 pub mod escalation; // Loop 6 (escalation queue is algedonic regulation)
 pub mod hhh_gate; // HHH alignment gate (Helpful, Harmless, Honest)

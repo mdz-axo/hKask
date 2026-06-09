@@ -7,8 +7,8 @@
 //! provides `ConfidenceConfig` for ensemble-specific escalation thresholds
 //! and `check_and_escalate` for automatic model escalation.
 
-use crate::deliberation::AgentResponse;
-use crate::ports::{GenerateOptions, GenerateRequest, InferenceClient};
+use crate::ensemble::deliberation::AgentResponse;
+use crate::ensemble::ports::{GenerateOptions, GenerateRequest, InferenceClient};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

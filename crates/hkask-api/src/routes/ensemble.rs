@@ -4,8 +4,8 @@ use axum::extract::Extension;
 use axum::{
     Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router,
 };
-use hkask_ensemble::StandingSessionConfig;
-use hkask_ensemble::standing_session::StandingSession;
+use hkask_agents::ensemble::StandingSessionConfig;
+use hkask_agents::ensemble::standing_session::StandingSession;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -166,14 +166,14 @@ async fn register_bot(
     Json(req): Json<RegisterBotRequest>,
 ) -> impl IntoResponse {
     let role = match req.role.as_str() {
-        "orchestrator" => hkask_ensemble::ParticipantRole::Curator,
-        other => hkask_ensemble::ParticipantRole::Custom(other.to_string()),
+        "orchestrator" => hkask_agents::ensemble::ParticipantRole::Curator,
+        other => hkask_agents::ensemble::ParticipantRole::Custom(other.to_string()),
     };
     let manager = state.service_context.session_manager.read().await;
     let (code, body) = match manager.get_chat(&session).await {
         Some(chat) => {
             let mut w = chat.write().await;
-            w.register_participant(hkask_ensemble::ChatParticipant {
+            w.register_participant(hkask_agents::ensemble::ChatParticipant {
                 webid: hkask_types::WebID::new(),
                 role,
                 pod_id: None,
@@ -208,7 +208,7 @@ async fn send_message(
     let (code, body) = match manager.get_chat(&session).await {
         Some(chat) => {
             let mut w = chat.write().await;
-            w.add_message(hkask_ensemble::ChatMessage::new(
+            w.add_message(hkask_agents::ensemble::ChatMessage::new(
                 hkask_types::WebID::new(),
                 req.content.clone(),
             ));
@@ -272,12 +272,12 @@ async fn improv_turn(
                     {
                         let mut chat_write = chat.write().await;
                         let curator_webid = *chat_write.curator();
-                        chat_write.add_message(hkask_ensemble::ChatMessage::new(
+                        chat_write.add_message(hkask_agents::ensemble::ChatMessage::new(
                             curator_webid,
                             req.user_message.clone(),
                         ));
                         for r in &turn.responses {
-                            chat_write.add_message(hkask_ensemble::ChatMessage::new(
+                            chat_write.add_message(hkask_agents::ensemble::ChatMessage::new(
                                 r.agent_webid,
                                 r.content.clone(),
                             ));
@@ -364,7 +364,7 @@ async fn record_response(
     let manager = state.service_context.session_manager.read().await;
     let (code, body) = match manager.get_deliberation(&session).await {
         Some(d) => {
-            let r = hkask_ensemble::AgentResponse::new(
+            let r = hkask_agents::ensemble::AgentResponse::new(
                 hkask_types::WebID::new(),
                 req.content.clone(),
                 req.confidence,
@@ -492,7 +492,7 @@ async fn standing_start(
 ) -> Result<(StatusCode, Json<StandingStartResponse>), ApiError> {
     // Build a StandingSessionConfig from the request
     let config = StandingSessionConfig {
-        session: hkask_ensemble::standing_session::SessionMetadata {
+        session: hkask_agents::ensemble::standing_session::SessionMetadata {
             id: req.session_id.clone(),
             name: req.name,
             description: req.description.clone(),
@@ -500,7 +500,7 @@ async fn standing_start(
         participants: req
             .participants
             .into_iter()
-            .map(|p| hkask_ensemble::standing_session::ParticipantEntry {
+            .map(|p| hkask_agents::ensemble::standing_session::ParticipantEntry {
                 agent: p.agent,
                 agent_type: p.agent_type,
                 role: p.role,
@@ -508,8 +508,8 @@ async fn standing_start(
                 domains: p.domains,
             })
             .collect(),
-        bootstrap: hkask_ensemble::standing_session::BootstrapConfig {
-            initial_message: hkask_ensemble::standing_session::InitialMessage {
+        bootstrap: hkask_agents::ensemble::standing_session::BootstrapConfig {
+            initial_message: hkask_agents::ensemble::standing_session::InitialMessage {
                 from: "Curator".to_string(),
                 message_type: "system".to_string(),
                 content: req.initial_context,
