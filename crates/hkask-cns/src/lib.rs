@@ -18,9 +18,9 @@ pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_gas_estimator; // Per-server gas cost table
+pub mod variety; // Ashby's Law — variety tracking
 
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
-pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::CyberneticsLoop;
@@ -30,6 +30,9 @@ pub use energy::{
 };
 pub use gas_budget_management::GasBudgetManager;
 pub use governed_tool::{GasEstimator, GovernedTool};
+pub use hkask_types::allosteric::{
+    AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function,
+};
 pub use runtime::CnsRuntime;
 pub use set_points::{
     CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,

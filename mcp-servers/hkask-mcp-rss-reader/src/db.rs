@@ -451,7 +451,7 @@ pub fn list_subscriptions(
         }))
     };
 
-    let mut stmt = conn.prepare(sql)?;
+    let mut stmt = conn.prepare(&sql)?;
     let results = if let Some(f) = folder {
         stmt.query_map([f], map_row)?
             .filter_map(|r| r.ok())

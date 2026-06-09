@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
-version: "1.2.0"
+last_updated: 2026-06-09
+version: "2.0.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, curation]
@@ -11,7 +11,7 @@ ddmvss_categories: [domain, capability, curation]
 
 # hKask Architecture Principles
 
-**Purpose:** Foundational principles governing hKask architecture, derived from cybernetic first principles and constraint-driven design.
+**Purpose:** Nine principles governing hKask architecture, grounded in the Magna Carta and organized as foundational (P1–P4), operational (P5–P7), and regulatory (P8–P9).
 
 **Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](hKask-architecture-master.md)  
 **Verification:** `cargo check --workspace`
@@ -174,55 +174,117 @@ The five anchors ground in the [six-loop authority model](loop-architecture.md):
 
 ---
 
-## 2. Constraint-Driven Design (P1–P7, C1–C7)
+## 2. Design Principles
 
-**Purpose:** Tailoring rules that prevent architectural decay and maintain minimal viable complexity.[^constraints]
+**Purpose:** Nine principles governing hKask architecture, grounded in the [Magna Carta](magna-carta.md) and organized from foundation (what we protect) through operation (how we build) to regulation (how we sustain).
 
-### 2.1 Process Constraints (P1–P8)
+---
 
-| # | Constraint | Enforcement |
-|---|------------|-------------|
-| **P1** | No trait without two consumers | Compiler error if unused |
-| **P2** | No generic without two instantiations | Dead code warning |
-| **P3** | No module directory without encapsulation | Architecture review |
-| **P4** | No builder without fallibility or complexity | Lint rule |
-| **P5** | No feature flag without an activator | `cargo deny` check |
-| **P6** | Delete stubs, don't publish them | PR review gate |
-| **P7** | Prefer deletion over deprecation | Migration strategy |
-| **P8** | No test without an invariant | Every `#[test]` verifies a stated behavioral property of a public seam; tests without invariants are structural and must be rewritten or removed |
+### 2.1 Foundational Principles — The Magna Carta
 
-### 2.2 Conceptual Constraints (C1–C8)
+These four principles constitute hKask's charter of liberties. They are **Prohibitions**: violations compromise the system's core identity. See [`magna-carta.md`](magna-carta.md) for full text, verification manifests, and enforcement mechanisms.
 
-| # | Constraint | Enforcement |
-|---|------------|-------------|
-| **C1** | A type must be worn before it's tailored | Use before abstract |
-| **C2** | Distinguish dead from unwired | Dead code = removed; Unwired = shelf life |
-| **C3** | Unwired code has a shelf life | 30-day limit |
-| **C4** | Repetition is a missing primitive | DRY violation → extract |
-| **C5** | Every error variant is a unique recovery path | No catch-all variants |
-| **C6** | A stub is a debt receipt | Track in OPEN_QUESTIONS.md |
-| **C7** | When implementations diverge, one must yield | Consolidation required |
-| **C8** | Test depth matches module depth | Shallow modules get shallow tests; deep modules get deep tests. If a module is hard to test, deepen the module first (per improve-codebase-architecture skill), then test the deep seam |
+#### P1 — User Sovereignty
+
+Data is owned by the user, correctly categorized, portable, and consent is atomic. Grounded in Berners-Lee's SOLID architecture principles.[^solid] Every resource is classified as sovereign, shared, or public. Sovereign data is SQLCipher-encrypted, exportable in standard formats, and never shared without explicit consent. No cross-machine sync — Git handles backup. Local-first architecture.
+
+**Enforces:** Data ownership, atomic consent, portability, resource verification.
+
+#### P2 — Affirmative Consent
+
+Default is deny. Nothing passes without an explicit yes. Consent is scoped (to specific categories and resource versions), version-bound (re-affirmed on resource upgrade), and time-bound (expiring). Consent decisions are unbundled — each term is a separate, specific decision. Consent resolution follows a hierarchy: most-specific grant wins. If the consent port is misconfigured or missing, the system denies all access — sovereignty fails closed.[^ocap]
+
+**Enforces:** Default-deny posture, scoped/versioned/expiring consent, fail-closed access.
+
+#### P3 — Generative Space
+
+Within boundaries, hKask is maximally generative. All probabilistic/generative settings are exposed to users — temperature, top-k, top-p, repeat penalty, and any parameter the underlying model supports.[^headless] No settings are hidden or admin-gated. No privileged engineer access — if an internal engineer can adjust a parameter, the user can too. Constraints are user-curated (the HHH pipeline is a tool the user wields, not a restriction imposed on them). The user's first-person perspective takes precedence over the LLM's aggregate defaults — non-normativity is a feature, not a bug.
+
+**Enforces:** Full settings exposure, no privileged access, user curation, non-normativity, open-source commitment.
+
+#### P4 — Clear Boundaries (OCAP)
+
+Principles P1–P3 are enforced through unforgeable Object Capability (OCAP) tokens.[^ocap] Every resource access passes through a dual gate: `require_capability` (caller holds a valid token) and `require_sovereignty` (data category access permitted by the user's sovereignty boundary and explicit consent). Tokens are unforgeable (cannot be created from nothing), attenuating (delegation can only reduce permissions), and there is no admin override. Verification is holistic: P4 is verified by checking that P1–P3 are correctly implemented as OCAP boundaries.
+
+**Enforces:** Dual enforcement gate, unforgeable/attenuating tokens, no admin bypass, holistic verification.
+
+---
+
+### 2.2 Operational Principles — How We Build
+
+These principles govern the engineering discipline that implements the Magna Carta. They are **Guidelines**: aspirational, pragmatically relaxable with reason stated, but persistent deviation signals architectural drift.
+
+#### P5 — Essentialism & Minimalism
+
+Seek to remove, never to add. Resist the instinct to complicate. When complexity tempts, find the underlying pattern that lets a simple rule recurse and iterate. Simplicity is not hiding complexity; it is exposing complexity through rules that compose. A stub is a debt against the Generative Space (P3) — it denies users the full behavior they consented to use. Every error variant is a distinct semantic state with a unique recovery path — no catch-all variants.
+
+**Enforces:** P3 (Generative Space — stubs limit generativity). Cross-cuts all principles through disciplined minimalism.
+
+#### P6 — Space for Replicants & Bots
+
+hKask exists to create a generative container where replicants and bots — emerging agentic AI entities — can develop. Agent pods with isolated execution, A2A (machine-to-machine) and H2A (human-to-agent) interaction modes, WebID-anchored identity, and ACP communication protocol define this space. No escalation primitive between bots and replicants — algedonic alerts handle severity escalation to human.[^acp]
+
+**Enforces:** P3 (Generative Space — the telos of the system). The Curator enables agents within OCAP boundaries.
+
+#### P7 — Evolutionary Architecture
+
+The system learns from use. Types emerge from actual usage patterns, not speculative design. Repetition in use reveals missing primitives — extract them. Divergent implementations of the same intent must converge — one must yield. Over time, the architecture responds to user behavior: it is shaped by what users *do*, not what designers *anticipated*.
+
+**Enforces:** P4 (Clear Boundaries — crisp boundaries enable evolution without entanglement). Cross-cuts P5 (minimalism enables adaptation) and P6 (replicant/bot usage drives architectural form).
+
+---
+
+### 2.3 Regulatory Principles — How We Sustain
+
+These principles govern the system's capacity for self-observation and self-correction. They are **Guardrails**: measured boundaries backed by CNS thresholds and algedonic alerts.
+
+#### P8 — Semantic Grounding (RDF)
+
+All system knowledge is modeled as RDF triples with explicit provenance. Every statement about the system exists on two axes: ontological mode (IS — what is measured, vs. OUGHT — what should be) and epistemic mode (Declarative — direct measurement, Probabilistic — statistical inference, Subjunctive — what-if projection). Every claim carries provenance: Directly Stated (grep/read), Implicit (inferred from pattern), or Inherited (from architecture doc). ν-events are the sole canonical source — if semantic memory disagrees with ν-events, ν-events win.
+
+**Enforces:** P1 (User Sovereignty — the user can trace every claim to its source). P2 (Affirmative Consent — consent decisions are grounded in measurable facts, not speculation). P4 (OCAP — provenance chains are auditable).
+
+#### P9 — Homeostatic Self-Regulation (Cybernetics)
+
+The system balances persistence and evolution through cybernetic feedback.[^beer-cybernetics] All telemetry flows through CNS spans (`cns.*` namespace) with variety counters and algedonic alerts. The Cybernetics Loop is the autonomic nervous system — autonomous regulation of energy budgets, backpressure, and resource equilibrium. The Curator is the meta-cognitive function — reflective self-assessment, goal pursuit, and escalation. The Good Regulator contract: the CNS variety counter IS the regulator's model of system behavior — it must match reality. The algedonic alert pathway is unidirectional: Cybernetics signals Curation, Curation *regulates* Cybernetics through metacognitive override.
+
+**Enforces:** P4 (Clear Boundaries — CNS enforces OCAP boundaries through variety monitoring). P2 (Affirmative Consent — sovereignty checks are observable). P6 (Space for Replicants & Bots — agent pod health is monitored and regulated).
+
+---
+
+### 2.4 Principle Traceability Matrix
+
+| Principle | Magna Carta Root | Constraint Force |
+|-----------|-----------------|------------------|
+| P1 — User Sovereignty | MC §1 | **Prohibition** |
+| P2 — Affirmative Consent | MC §2 | **Prohibition** |
+| P3 — Generative Space | MC §3 | **Prohibition** |
+| P4 — Clear Boundaries (OCAP) | MC §4 | **Prohibition** |
+| P5 — Essentialism & Minimalism | MC §3 (cross-cut) | Guideline |
+| P6 — Space for Replicants & Bots | MC §3 | Guideline |
+| P7 — Evolutionary Architecture | MC §4 (cross-cut) | Guideline |
+| P8 — Semantic Grounding (RDF) | MC §1–§4 (cross-cut) | Guardrail |
+| P9 — Homeostatic Self-Regulation | MC §4 (cross-cut) | Guardrail |
 
 **Verification Command:**
 ```bash
-# Check for unused traits (P1)
-cargo check --workspace 2>&1 | grep "never used"
+# Magna Carta compliance
+kask sovereignty verify
 
-# Check for stubs (P6)
+# CNS span health
+kask cns status
+
+# Stub detection (P5 — Generative Space debt)
 grep -r "todo!\|unimplemented!\|FIXME" crates/ --include="*.rs"
 
-# Check for deprecations (P7)
+# Deprecation detection (P5 — prefer deletion)
 grep -r "#\[deprecated\]" crates/ --include="*.rs"
 
-# Check for tests without invariants (P8)
-# A test without a stated behavioral property in its name or doc comment
-# is structural and must be rewritten. This check identifies test functions
-# that lack a doc comment describing the invariant they verify.
-for f in $(find crates/ mcp-servers/ -name '*.rs' -exec grep -l '#\[cfg(test)\]' {} \;); do
-  # Report test functions that have no doc comment above them
-  awk '/\/\//!/ { doc=$0; next } /#\[test\]/ { getline; if (doc !~ /\/\//) print FILENAME ":" NR ": test without invariant doc: " $0; doc=""; next } !/\/\// { doc="" }' "$f"
-done
+# Headless verification (P3 — no visual UI)
+if grep -r "grafana\|prometheus\|dashboard\|visual.*ui\|web.*frontend" crates/ --include="*.rs"; then
+  echo "VIOLATION: Visual UI detected"
+  exit 1
+fi
 ```
 
 ---
@@ -384,9 +446,10 @@ grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ docs/ --include="*.
 [^acp]: ACP Runtime. (2026). *Agent Communication Protocol Specification*. <https://github.com/acp-runtime/acp>.
 [^mcp]: Model Context Protocol. (2026). *MCP Specification*. <https://modelcontextprotocol.io/>.
 [^ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
+[^solid]: Berners-Lee, T. (2016). *SOLID: Social Linked Data*. W3C. <https://solidproject.org/>.
 [^beer-cybernetics]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Algedonic alerts defined in Chapter 12.
 [^jinja2]: Jinja2 Developers. (2026). *Jinja Template Designer Reference*. <https://jinja.palletsprojects.com/>.
-[^constraints]: Gabriel, R. P. (1991). *The Rise of "Worse is Better"*. Lisp Pointers.
+
 [^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>.
 [^peripheral]: Peripheral Project. (2026). *Stewardship Principles*. Documented in `docs/standards/STEWARDSHIP.md`.
 [^minimalism]: Raymond, E. S. (2001). *The Art of Unix Programming*. Addison-Wesley. Rule: "When in doubt, cut."

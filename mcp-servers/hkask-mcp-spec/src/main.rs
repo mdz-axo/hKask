@@ -9,9 +9,8 @@ pub mod types;
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
-use hkask_storage::spec_types::{
-    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, SpecStore,
-};
+use hkask_storage::SpecStore;
+use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId};
 use hkask_types::{
     CapabilityChecker, CurationDecision, DelegationAction, DelegationResource, DelegationToken,
     McpErrorKind, OCAPBoundary, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE,

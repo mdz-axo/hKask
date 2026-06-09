@@ -238,6 +238,7 @@ impl RssServer {
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| {
             conn.execute("DELETE FROM subscriptions WHERE stream_id = ?1", [&sid])
+                .map_err(|e| anyhow::anyhow!(e))
         })
         .await;
         handle_db_result!(
@@ -258,7 +259,7 @@ impl RssServer {
         handle_db_result!(
             span,
             result,
-            |subs| serde_json::json!({"count": subs.len(), "subscriptions": subs})
+            |subs: Vec<serde_json::Value>| serde_json::json!({"count": subs.len(), "subscriptions": subs})
         )
     }
 
@@ -388,7 +389,7 @@ impl RssServer {
         })
         .await;
 
-        handle_db_result!(span, result, |mut entries| {
+        handle_db_result!(span, result, |mut entries: Vec<serde_json::Value>| {
             let has_more = entries.len() > limit;
             if has_more {
                 entries.truncate(limit);
@@ -434,7 +435,7 @@ impl RssServer {
             span,
             result,
             |count| serde_json::json!({"stream_id": stream_id, "unread_count": count})
-        );
+        )
     }
 
     #[tool(description = "Full-text search across feed entries")]
@@ -450,8 +451,8 @@ impl RssServer {
         handle_db_result!(
             span,
             result,
-            |results| serde_json::json!({"query": query, "results": results, "count": results.len()})
-        );
+            |results: Vec<serde_json::Value>| serde_json::json!({"query": query, "results": results, "count": results.len()})
+        )
     }
 
     #[tool(description = "Export subscriptions as OPML 2.0")]
@@ -459,7 +460,7 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_export_opml", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, export_opml).await;
-        handle_db_result!(span, result, |opml| serde_json::json!({"opml": opml}));
+        handle_db_result!(span, result, |opml| serde_json::json!({"opml": opml}))
     }
 
     #[tool(description = "Import subscriptions from OPML content")]
@@ -470,7 +471,7 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_import_opml", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| import_opml(conn, &opml_content)).await;
-        handle_db_result!(span, result, |v| v);
+        handle_db_result!(span, result, |v| v)
     }
 
     #[tool(description = "Discover RSS/Atom feeds from a URL via HTML link autodiscovery")]
@@ -498,6 +499,6 @@ impl RssServer {
         let span = ToolSpanGuard::new("rss_edit_tag", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| edit_tags(conn, &req)).await;
-        handle_db_result!(span, result, |v| v);
+        handle_db_result!(span, result, |v| v)
     }
 }
