@@ -54,24 +54,47 @@ impl std::fmt::Display for SpecId {
 }
 
 /// MDS 5-category spec taxonomy (MDS §1).
+///
+/// Collapsed from 9 DDMVSS categories:
+/// - Capability + Interface → Composition
+/// - Observability + Persistence → Lifecycle
+///
+/// Serde aliases and `parse_str` handle legacy names for backward compatibility.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SpecCategory {
     Domain,
+    #[serde(alias = "Capability", alias = "Interface")]
     Composition,
     Trust,
+    #[serde(alias = "Observability", alias = "Persistence")]
     Lifecycle,
     Curation,
 }
 
-str_enum!(SpecCategory {
-    Domain => "domain",
-    Composition => "composition",
-    Trust => "trust",
-    Lifecycle => "lifecycle",
-    Curation => "curation",
-});
-
 impl SpecCategory {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SpecCategory::Domain => "domain",
+            SpecCategory::Composition => "composition",
+            SpecCategory::Trust => "trust",
+            SpecCategory::Lifecycle => "lifecycle",
+            SpecCategory::Curation => "curation",
+        }
+    }
+
+    /// Parse a string into a `SpecCategory`, mapping legacy DDMVSS names to
+    /// their MDS equivalents.
+    pub fn parse_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "domain" => Some(SpecCategory::Domain),
+            "capability" | "interface" | "composition" => Some(SpecCategory::Composition),
+            "trust" => Some(SpecCategory::Trust),
+            "observability" | "persistence" | "lifecycle" => Some(SpecCategory::Lifecycle),
+            "curation" => Some(SpecCategory::Curation),
+            _ => None,
+        }
+    }
+
     pub fn all() -> &'static [SpecCategory] {
         &[
             SpecCategory::Domain,
@@ -363,4 +386,62 @@ pub trait SpecCurator: Send + Sync {
 
     /// Iteratively cultivate a collection until coherence meets threshold.
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_str_maps_legacy_ddmvss_names() {
+        assert_eq!(
+            SpecCategory::parse_str("capability"),
+            Some(SpecCategory::Composition)
+        );
+        assert_eq!(
+            SpecCategory::parse_str("interface"),
+            Some(SpecCategory::Composition)
+        );
+        assert_eq!(
+            SpecCategory::parse_str("observability"),
+            Some(SpecCategory::Lifecycle)
+        );
+        assert_eq!(
+            SpecCategory::parse_str("persistence"),
+            Some(SpecCategory::Lifecycle)
+        );
+    }
+
+    #[test]
+    fn parse_str_handles_mds_names() {
+        assert_eq!(
+            SpecCategory::parse_str("composition"),
+            Some(SpecCategory::Composition)
+        );
+        assert_eq!(
+            SpecCategory::parse_str("lifecycle"),
+            Some(SpecCategory::Lifecycle)
+        );
+    }
+
+    #[test]
+    fn parse_str_returns_none_for_unknown() {
+        assert_eq!(SpecCategory::parse_str("nonsense"), None);
+    }
+
+    #[test]
+    fn serde_deserializes_legacy_variant_names() {
+        let json = r#"{"id": "00000000-0000-0000-0000-000000000001", "name": "test", "category": "Capability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
+        let spec: Spec = serde_json::from_str(json).unwrap();
+        assert_eq!(spec.category, SpecCategory::Composition);
+
+        let json = r#"{"id": "00000000-0000-0000-0000-000000000002", "name": "test", "category": "Observability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
+        let spec: Spec = serde_json::from_str(json).unwrap();
+        assert_eq!(spec.category, SpecCategory::Lifecycle);
+    }
+
+    #[test]
+    fn spec_category_all_has_exactly_five_variants() {
+        assert_eq!(SpecCategory::all().len(), 5);
+    }
 }

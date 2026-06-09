@@ -17,6 +17,7 @@ use hkask_types::curation::{
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use hkask_types::loops::LoopId;
+use hkask_types::loops::SpecEvent;
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -35,6 +36,9 @@ pub struct DefaultSpecCurator {
     /// When set, spec drift alerts flow as structured LoopMessages to Curation's inbox
     /// instead of relying solely on the NuEvent store.
     dispatch_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
+    /// Direct spec event channel: SpecCurator → CurationLoop (strangler fig).
+    /// When set, SpecEvents are sent alongside the legacy LoopMessage path.
+    spec_tx: Option<tokio::sync::mpsc::UnboundedSender<SpecEvent>>,
 }
 
 impl DefaultSpecCurator {
@@ -45,6 +49,7 @@ impl DefaultSpecCurator {
             max_iterations: SYSTEM_MAX_RECURSION,
             event_sink: None,
             dispatch_tx: None,
+            spec_tx: None,
         }
     }
 
@@ -113,6 +118,7 @@ impl DefaultSpecCurator {
             max_iterations: SYSTEM_MAX_RECURSION,
             event_sink: None,
             dispatch_tx: None,
+            spec_tx: None,
         }
     }
 
@@ -137,6 +143,17 @@ impl DefaultSpecCurator {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_dispatch(mut self, tx: tokio::sync::mpsc::UnboundedSender<LoopMessage>) -> Self {
         self.dispatch_tx = Some(tx);
+        self
+    }
+
+    /// Wire the direct spec event channel: SpecCurator → CurationLoop.
+    ///
+    /// When set, `evaluate()` sends a `SpecEvent` on this channel alongside
+    /// the legacy `LoopMessage::SpecDriftAlert` through dispatch_tx.
+    /// This is the strangler fig pattern.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_spec_channel(mut self, tx: tokio::sync::mpsc::UnboundedSender<SpecEvent>) -> Self {
+        self.spec_tx = Some(tx);
         self
     }
 
@@ -288,6 +305,23 @@ impl SpecCurator for DefaultSpecCurator {
                         target: "cns.spec",
                         error = %e,
                         "Failed to send SpecDriftAlert through Communication Loop"
+                    );
+                }
+            }
+
+            // Strangler fig: also send SpecEvent on direct channel.
+            if let Some(ref spec_tx) = self.spec_tx {
+                let event = SpecEvent {
+                    spec_id: spec.id.to_string(),
+                    drift_magnitude: drift_report.drift_magnitude,
+                    drift_threshold: self.drift_threshold,
+                    missing_verbs: drift_report.missing_verbs.clone(),
+                };
+                if let Err(e) = spec_tx.send(event) {
+                    tracing::warn!(
+                        target: "cns.spec",
+                        error = %e,
+                        "Failed to send SpecEvent on direct channel"
                     );
                 }
             }

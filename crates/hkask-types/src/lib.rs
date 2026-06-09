@@ -74,9 +74,10 @@ pub use identity::{
 };
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, DispatchTarget,
-    ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage, LoopPayload,
-    MessagePriority, Signal, SignalMetric, WorkerKind,
+    ActionType, CurationInput, CuratorDirective, CuratorHandle, Deviation, DeviationDirection,
+    DispatchTarget, ExperienceClassification, GoalTransitionEvent, HkaskLoop, LoopAction, LoopId,
+    LoopMessage, LoopPayload, MessagePriority, RuntimeAlert, Signal, SignalMetric, SpecEvent,
+    ToolConsumptionEvent, WorkerKind,
 };
 pub use ports::git_cas::{
     CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, MockGitCas, RepoId,

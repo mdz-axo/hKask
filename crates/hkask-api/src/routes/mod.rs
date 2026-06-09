@@ -61,7 +61,7 @@ pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusR
 
 pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use spec::{
-    SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,
-    SpecValidateRequest, SpecValidateResponse,
+    SpecCaptureRequest, SpecCaptureResponse, SpecCoherenceResponse, SpecListResponse,
+    SpecWritingQualityResponse,
 };
 pub use templates::{GrantCapabilityRequest, TemplateResponse};

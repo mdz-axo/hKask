@@ -30,7 +30,7 @@ use hkask_types::capability::{
     DelegationAction, DelegationResource, DelegationToken, capabilities_match,
 };
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::loops::{LoopId, LoopMessage, LoopPayload, MessagePriority};
+use hkask_types::loops::{LoopId, LoopMessage, LoopPayload, MessagePriority, ToolConsumptionEvent};
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 
 use serde_json::Value;
@@ -84,6 +84,10 @@ pub struct GovernedTool<P: ToolPort> {
     estimator: Arc<dyn EnergyEstimator>,
     agent: WebID,
     dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+    /// Direct tool consumption channel: GovernedTool → Cybernetics (strangler fig).
+    /// When set, ToolConsumptionEvent is sent on this channel alongside the
+    /// legacy LoopMessage::ToolConsumption through dispatch_tx.
+    tool_consumption_tx: Option<mpsc::UnboundedSender<ToolConsumptionEvent>>,
 }
 
 impl<P: ToolPort> GovernedTool<P> {
@@ -103,7 +107,23 @@ impl<P: ToolPort> GovernedTool<P> {
             estimator,
             agent,
             dispatch_tx,
+            tool_consumption_tx: None,
         }
+    }
+
+    /// Wire the direct tool consumption channel: GovernedTool → Cybernetics.
+    ///
+    /// When set, `invoke()` sends a `ToolConsumptionEvent` on this channel
+    /// alongside the legacy `LoopMessage::ToolConsumption` through dispatch_tx.
+    /// This is the strangler fig pattern — both pathways operate until
+    /// CyberneticsLoop is fully migrated.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_tool_consumption_channel(
+        mut self,
+        tx: mpsc::UnboundedSender<ToolConsumptionEvent>,
+    ) -> Self {
+        self.tool_consumption_tx = Some(tx);
+        self
     }
 
     /// Builder: change the agent for this membrane.
@@ -304,6 +324,25 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 error = %e,
                 "Failed to send ToolConsumption signal to Cybernetics Loop"
             );
+        }
+
+        // Strangler fig: also send ToolConsumptionEvent on direct channel.
+        if let Some(ref tx) = self.tool_consumption_tx {
+            let event = ToolConsumptionEvent {
+                tool_name: tool.to_string(),
+                agent: self.agent,
+                gas_cost: actual_cost,
+                success,
+            };
+            if let Err(e) = tx.send(event) {
+                warn!(
+                    target: "cns.tool",
+                    agent = ?self.agent,
+                    tool = %tool,
+                    error = %e,
+                    "Failed to send ToolConsumptionEvent on direct channel"
+                );
+            }
         }
 
         // Step 6: Emit outcome span

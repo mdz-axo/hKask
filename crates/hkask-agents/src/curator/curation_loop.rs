@@ -20,7 +20,9 @@ use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
-use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric};
+use hkask_types::loops::{
+    Deviation, HkaskLoop, LoopAction, LoopId, RuntimeAlert, Signal, SignalMetric, SpecEvent,
+};
 use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -61,6 +63,14 @@ pub struct CurationLoop {
     /// interior mutability: `HkaskLoop::act(&self)` takes `&self`, but
     /// `CurationConfidenceGate::decide()` requires `&mut self`.
     confidence_gate: Option<Mutex<CurationConfidenceGate>>,
+    /// Direct alerts channel: Cybernetics → Curation (strangler fig).
+    /// When set, RuntimeAlerts are drained during sense() and counted as
+    /// algedonic events alongside the NuEvent store pathway.
+    alerts_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<RuntimeAlert>>>>,
+    /// Direct spec channel: SpecCurator → Curation (strangler fig).
+    /// When set, SpecEvents are drained during sense() alongside the
+    /// legacy LoopMessage inbox.
+    spec_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<SpecEvent>>>>,
 }
 
 impl CurationLoop {
@@ -78,6 +88,8 @@ impl CurationLoop {
             last_review_ms: AtomicU64::new(0),
             inbox: None,
             confidence_gate: None,
+            alerts_rx: None,
+            spec_rx: None,
         }
     }
 
@@ -97,6 +109,8 @@ impl CurationLoop {
             last_review_ms: AtomicU64::new(0),
             inbox: Some(Arc::new(RwLock::new(inbox_rx))),
             confidence_gate: None,
+            alerts_rx: None,
+            spec_rx: None,
         };
         (loop_instance, inbox_tx)
     }
@@ -113,12 +127,35 @@ impl CurationLoop {
             last_review_ms: AtomicU64::new(0),
             inbox: None,
             confidence_gate: None,
+            alerts_rx: None,
+            spec_rx: None,
         }
     }
 
     /// Set the curation confidence gate for metacognitive evaluation.
     pub fn with_confidence_gate(mut self, gate: CurationConfidenceGate) -> Self {
         self.confidence_gate = Some(Mutex::new(gate));
+        self
+    }
+
+    /// Wire the direct alerts channel for Cybernetics → Curation RuntimeAlert delivery.
+    ///
+    /// When set, `sense()` drains RuntimeAlerts from this channel alongside the
+    /// legacy LoopMessage inbox. This is the strangler fig pattern — both pathways
+    /// operate until the legacy dispatch is fully removed.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_alerts_channel(mut self, rx: mpsc::UnboundedReceiver<RuntimeAlert>) -> Self {
+        self.alerts_rx = Some(Arc::new(RwLock::new(rx)));
+        self
+    }
+
+    /// Wire the direct spec channel: SpecCurator → Curation.
+    ///
+    /// When set, `sense()` drains SpecEvents from this channel alongside the
+    /// legacy LoopMessage inbox.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_spec_channel(mut self, rx: mpsc::UnboundedReceiver<SpecEvent>) -> Self {
+        self.spec_rx = Some(Arc::new(RwLock::new(rx)));
         self
     }
 
@@ -288,9 +325,42 @@ impl HkaskLoop for CurationLoop {
             }
         }
 
+        // Strangler fig: drain direct alerts channel (Cybernetics → Curation RuntimeAlerts).
+        // RuntimeAlerts supplement the NuEvent store algedonic count with real-time signals.
+        let mut direct_alerts: u64 = 0;
+        if let Some(alerts_rx) = &self.alerts_rx {
+            let mut rx = alerts_rx.write().await;
+            while let Ok(alert) = rx.try_recv() {
+                direct_alerts += 1;
+                tracing::info!(
+                    target: CUR_TARGET,
+                    deficit = alert.deficit,
+                    threshold = alert.threshold,
+                    "RuntimeAlert received from Cybernetics (direct channel)"
+                );
+            }
+        }
+
+        // Strangler fig: drain direct spec channel (SpecCurator → Curation).
+        if let Some(spec_rx) = &self.spec_rx {
+            let mut rx = spec_rx.write().await;
+            while let Ok(event) = rx.try_recv() {
+                spec_drift_alert_count += 1;
+                tracing::warn!(
+                    target: CUR_TARGET,
+                    spec_id = %event.spec_id,
+                    drift_magnitude = event.drift_magnitude,
+                    "SpecDrift received from direct channel"
+                );
+            }
+        }
+
         let s = |metric, value: u64| Signal::new(LoopId::Curation, metric, value as f64, 0.0);
         vec![
-            s(SignalMetric::AlgedonicEvents, algedonic_count),
+            s(
+                SignalMetric::AlgedonicEvents,
+                algedonic_count + direct_alerts,
+            ),
             s(SignalMetric::PendingEscalations, pending_escalations as u64),
             s(
                 SignalMetric::ConsolidationCandidates,

@@ -48,10 +48,12 @@ use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
+use hkask_types::loops::{RuntimeAlert, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 
 use crate::ServiceConfig;
 use crate::ServiceError;
+use crate::cns::CnsService;
 
 /// Shared dependency graph assembled once at startup.
 ///
@@ -79,6 +81,9 @@ pub struct ServiceContext {
 
     /// CNS runtime for variety sensing and algedonic alerts.
     pub cns_runtime: Arc<RwLock<CnsRuntime>>,
+
+    /// CNS service — health, alerts, variety queries.
+    pub cns: CnsService,
 
     /// Cybernetics loop for energy budget regulation.
     pub cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
@@ -285,6 +290,15 @@ impl ServiceContext {
         let loop_system = Arc::new(LoopSystem::new(Arc::clone(&dispatch)));
         let dispatch_sender = loop_system.dispatch_sender();
 
+        // Strangler fig: direct alerts channel Cybernetics → Curation.
+        // Sits alongside the legacy dispatch_tx → CommunicationLoop pathway.
+        // When CurationLoop is fully migrated, the legacy pathway is removed.
+        let (alerts_tx, alerts_rx) = tokio::sync::mpsc::unbounded_channel::<RuntimeAlert>();
+
+        // Strangler fig: direct tool consumption channel GovernedTool → Cybernetics.
+        let (tool_consumption_tx, tool_consumption_rx) =
+            tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
+
         // Cybernetics loop
         let set_points = load_set_points();
         let cybernetics_loop = CyberneticsLoop::with_set_points(
@@ -293,7 +307,9 @@ impl ServiceContext {
             dispatch_sender.clone(),
         )
         .with_event_sink(Arc::clone(&cns_event_sink))
-        .with_communication_queue_depth(loop_system.communication_queue_depth_counter());
+        .with_communication_queue_depth(loop_system.communication_queue_depth_counter())
+        .with_alerts_channel(alerts_tx)
+        .with_tool_consumption_channel(tool_consumption_rx);
         let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
 
         loop_system
@@ -396,6 +412,7 @@ impl ServiceContext {
             curator_context,
             Default::default(),
             Arc::clone(&consolidation_bridge),
+            Some(alerts_rx),
         );
         let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
         loop_system.register_loop(curation_loop).await;
@@ -404,14 +421,17 @@ impl ServiceContext {
         let mcp_runtime = McpRuntime::new();
         let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
         let estimator: Arc<dyn EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
-        let governed_tool = Arc::new(GovernedTool::new(
-            raw_tool_port,
-            Arc::clone(&cybernetics_loop),
-            Arc::clone(&cns_event_sink),
-            estimator,
-            system_webid,
-            loop_system.dispatch_sender(),
-        ));
+        let governed_tool = Arc::new(
+            GovernedTool::new(
+                raw_tool_port,
+                Arc::clone(&cybernetics_loop),
+                Arc::clone(&cns_event_sink),
+                estimator,
+                system_webid,
+                loop_system.dispatch_sender(),
+            )
+            .with_tool_consumption_channel(tool_consumption_tx),
+        );
         let mcp_dispatcher = Arc::new(McpDispatcher::with_governed_tool(
             mcp_runtime.clone(),
             &config.mcp_secret,

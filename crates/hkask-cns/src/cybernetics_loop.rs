@@ -37,7 +37,8 @@ use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
     ActionType, CuratorDirective, Deviation, DeviationDirection, DispatchTarget, HkaskLoop,
-    LoopAction, LoopId, LoopMessage, LoopPayload, Signal, SignalMetric,
+    LoopAction, LoopId, LoopMessage, LoopPayload, RuntimeAlert, Signal, SignalMetric,
+    ToolConsumptionEvent,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::sync::Arc;
@@ -63,6 +64,14 @@ pub struct CyberneticsLoop {
     event_sink: Option<Arc<dyn NuEventSink>>,
     /// Lock-free counter written by CommunicationLoop, read by sense(). Relaxed ordering.
     communication_queue_depth: Option<Arc<AtomicU64>>,
+    /// Direct alerts channel: Cybernetics → Curation (strangler fig — alongside dispatch_tx).
+    /// When set, RuntimeAlert is sent on this channel concurrently with the legacy
+    /// LoopMessage::AlgedonicAlert path. Once CurationLoop migrates, the legacy path is removed.
+    alerts_tx: Option<mpsc::UnboundedSender<RuntimeAlert>>,
+    /// Direct tool consumption channel: GovernedTool → Cybernetics (strangler fig).
+    /// When set, ToolConsumptionEvents are drained during process_inbox() alongside
+    /// the legacy LoopMessage inbox.
+    tool_consumption_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<ToolConsumptionEvent>>>>,
 }
 
 impl CyberneticsLoop {
@@ -101,6 +110,8 @@ impl CyberneticsLoop {
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
             communication_queue_depth: None,
+            alerts_tx: None,
+            tool_consumption_rx: None,
         }
     }
 
@@ -115,6 +126,31 @@ impl CyberneticsLoop {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_communication_queue_depth(mut self, counter: Arc<AtomicU64>) -> Self {
         self.communication_queue_depth = Some(counter);
+        self
+    }
+
+    /// Wire the direct alerts channel for Cybernetics → Curation RuntimeAlert delivery.
+    ///
+    /// When set, `act()` sends a `RuntimeAlert` on this channel concurrently with the
+    /// legacy `LoopMessage::AlgedonicAlert` through `dispatch_tx`. This is the strangler
+    /// fig pattern — both pathways operate until CurationLoop is fully migrated.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_alerts_channel(mut self, tx: mpsc::UnboundedSender<RuntimeAlert>) -> Self {
+        self.alerts_tx = Some(tx);
+        self
+    }
+
+    /// Wire the direct tool consumption channel: GovernedTool → Cybernetics.
+    ///
+    /// When set, `process_inbox()` drains ToolConsumptionEvents from this
+    /// channel alongside the legacy LoopMessage inbox. This is the strangler
+    /// fig pattern — both pathways operate until the legacy dispatch is removed.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_tool_consumption_channel(
+        mut self,
+        rx: mpsc::UnboundedReceiver<ToolConsumptionEvent>,
+    ) -> Self {
+        self.tool_consumption_rx = Some(Arc::new(RwLock::new(rx)));
         self
     }
 
@@ -215,6 +251,27 @@ impl CyberneticsLoop {
         if processed > 0 {
             tracing::info!(target: "cns.cybernetics", processed = processed, "Processed inbox messages");
         }
+
+        // Strangler fig: drain direct tool consumption channel.
+        if let Some(ref rx) = self.tool_consumption_rx {
+            let mut tc_rx = rx.write().await;
+            let mut tc_processed = 0;
+            while let Ok(event) = tc_rx.try_recv() {
+                tc_processed += 1;
+                tracing::info!(
+                    target: "cns.cybernetics",
+                    tool = %event.tool_name,
+                    agent = %event.agent,
+                    gas_cost = event.gas_cost,
+                    success = event.success,
+                    "Tool consumption event received (direct channel)"
+                );
+            }
+            if tc_processed > 0 {
+                tracing::info!(target: "cns.cybernetics", processed = tc_processed, "Processed direct tool consumption events");
+            }
+        }
+
         self.energy_budget_manager.expire_overrides().await;
     }
 
@@ -496,6 +553,24 @@ impl HkaskLoop for CyberneticsLoop {
             if let Err(e) = self.dispatch_tx.send(msg) {
                 tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to dispatch LoopAction — Communication Loop may be closed");
             }
+
+            // Strangler fig: also send RuntimeAlert on direct channel when available.
+            if action.action_type == ActionType::Escalate
+                && target_id == DispatchTarget::Loop(LoopId::Curation)
+                && let Some(ref alerts_tx) = self.alerts_tx
+            {
+                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
+                let alert = RuntimeAlert {
+                    current: deficit,
+                    threshold,
+                    deficit,
+                    timestamp: chrono::Utc::now(),
+                };
+                if let Err(e) = alerts_tx.send(alert) {
+                    tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send RuntimeAlert on direct channel");
+                }
+            }
+
             if action.action_type == ActionType::Escalate
                 && target_id == DispatchTarget::Loop(LoopId::Curation)
                 && let Some(ref sink) = self.event_sink

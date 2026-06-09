@@ -25,10 +25,14 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
 //! No sideways edges. Authority flows downward.
 
+pub mod channels;
 pub mod curation;
 pub mod dispatch;
 pub mod episodic;
 
+pub use channels::{
+    CurationInput, GoalTransitionEvent, RuntimeAlert, SpecEvent, ToolConsumptionEvent,
+};
 pub use curation::{CuratorDirective, CuratorHandle};
 pub use dispatch::{
     DispatchTarget, LoopMessage, LoopPayload, MessagePriority, TraceId, WorkerKind,

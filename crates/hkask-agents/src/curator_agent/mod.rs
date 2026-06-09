@@ -26,6 +26,8 @@ use crate::curator::context::CuratorContext;
 use crate::curator::curation_gate::CurationConfidenceGate;
 use crate::curator::curation_loop::CurationLoop;
 use hkask_memory::ConsolidationBridge;
+use hkask_types::loops::RuntimeAlert;
+use hkask_types::loops::SpecEvent;
 use std::sync::Arc;
 
 /// Curator Agent — the persona layer of Curation (Loop 5).
@@ -110,20 +112,32 @@ impl CuratorAgent {
     ///
     /// When episodic budget pressure triggers escalation, the consolidation
     /// bridge will fire to migrate episodic triples into semantic memory.
+    ///
+    /// `alerts_rx` is the strangler fig direct channel from Cybernetics.
+    /// When `Some`, RuntimeAlerts are drained alongside the legacy LoopMessage inbox.
+    /// `spec_rx` is the strangler fig direct channel from SpecCurator.
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
         consolidation: Arc<ConsolidationBridge>,
+        alerts_rx: Option<tokio::sync::mpsc::UnboundedReceiver<RuntimeAlert>>,
+        spec_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SpecEvent>>,
     ) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),
             config,
         ));
         let curator_handle = context.handle().clone();
-        let curation_loop = Arc::new(
+        let mut curation_loop =
             CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation)
-                .with_confidence_gate(CurationConfidenceGate::new(vec![])),
-        );
+                .with_confidence_gate(CurationConfidenceGate::new(vec![]));
+        if let Some(rx) = alerts_rx {
+            curation_loop = curation_loop.with_alerts_channel(rx);
+        }
+        if let Some(rx) = spec_rx {
+            curation_loop = curation_loop.with_spec_channel(rx);
+        }
+        let curation_loop = Arc::new(curation_loop);
         let spec_curator = match context.loop_dispatch_tx() {
             Some(tx) => spec_curator::DefaultSpecCurator::default().with_dispatch(tx.clone()),
             None => spec_curator::DefaultSpecCurator::default(),

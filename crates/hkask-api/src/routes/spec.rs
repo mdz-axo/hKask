@@ -1,4 +1,8 @@
-//! Specification management routes
+//! Specification management routes — MDS-aligned HTTP API
+//!
+//! Provides REST endpoints for spec capture, listing, coherence assessment,
+//! and writing-quality checking. These routes surface the MDS §3 tool set
+//! through the HTTP API surface.
 
 use axum::{Json, extract::State, routing::Router};
 use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
@@ -7,22 +11,20 @@ use crate::ApiState;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// Spec capture request
+/// Spec capture request — MDS-aligned: uses description + context (not category/domain/criteria).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecCaptureRequest {
     pub description: String,
-    pub category: String,
-    pub domain_anchor: String,
-    pub criteria: Vec<String>,
+    pub context: Option<String>,
 }
 
 /// Spec capture response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecCaptureResponse {
-    pub spec_id: String,
-    pub name: String,
+    pub goal_id: String,
     pub category: String,
     pub domain_anchor: String,
+    pub requirements: Vec<String>,
 }
 
 /// Spec list response
@@ -34,29 +36,19 @@ pub struct SpecListResponse {
     pub complete: bool,
 }
 
-/// Spec validate request
+/// Spec coherence response — MDS §3: spec/graph/coherence
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecValidateRequest {
-    pub threshold: f64,
-}
-
-/// Spec validate response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecValidateResponse {
-    pub valid: bool,
+pub struct SpecCoherenceResponse {
     pub coherence_score: f64,
-    pub threshold: f64,
     pub violations: Vec<String>,
     pub suggestions: Vec<String>,
 }
 
-/// Spec cultivate response
+/// Spec writing quality response — MDS §3: spec/require/writing-quality
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecCultivateResponse {
-    pub coherence_score: f64,
-    pub spec_count: usize,
-    pub categories_covered: Vec<String>,
-    pub categories_missing: Vec<String>,
+pub struct SpecWritingQualityResponse {
+    pub dimensions_passing: usize,
+    pub meets_publication_standard: bool,
 }
 
 /// Create spec router
@@ -64,8 +56,11 @@ pub fn spec_router() -> Router<ApiState> {
     Router::new()
         .route("/api/specs", axum::routing::get(list_specs))
         .route("/api/specs/capture", axum::routing::post(capture_spec))
-        .route("/api/specs/validate", axum::routing::post(validate_specs))
-        .route("/api/specs/cultivate", axum::routing::get(cultivate_specs))
+        .route("/api/specs/coherence", axum::routing::get(get_coherence))
+        .route(
+            "/api/specs/{spec_id}/writing-quality",
+            axum::routing::get(get_writing_quality),
+        )
 }
 
 /// List specifications
@@ -81,11 +76,12 @@ async fn list_specs(State(_state): State<ApiState>) -> Json<Vec<SpecListResponse
     Json(vec![])
 }
 
-/// Capture a new specification
+/// Capture a new specification (MDS §3: spec/goal/capture)
 #[utoipa::path(
     post,
     path = "/api/specs/capture",
     tag = "specs",
+    request_body = SpecCaptureRequest,
     responses(
         (status = 200, description = "Captured specification", body = SpecCaptureResponse),
     ),
@@ -94,41 +90,44 @@ async fn capture_spec(
     State(_state): State<ApiState>,
     Json(req): Json<SpecCaptureRequest>,
 ) -> Json<SpecCaptureResponse> {
-    let spec = {
-        let cat = SpecCategory::parse_str(&req.category).unwrap_or(SpecCategory::Domain);
-        let anchor = DomainAnchor::parse_str(&req.domain_anchor).unwrap_or(DomainAnchor::Hkask);
-        let mut goal = GoalSpec::new(&req.description);
-        for c in &req.criteria {
-            goal = goal.with_criterion(c);
+    let context = req.context.as_deref();
+    let cat = infer_category(context);
+    let anchor = DomainAnchor::Hkask;
+    let mut goal = GoalSpec::new(&req.description);
+    // Seed criteria from description sentences
+    for sentence in req.description.split('.') {
+        let trimmed = sentence.trim();
+        if !trimmed.is_empty() && trimmed.len() < 200 {
+            goal = goal.with_criterion(trimmed);
         }
-        Spec::new(&req.description, cat, anchor).with_goal(goal)
-    };
+    }
+    let spec = Spec::new(&req.description, cat, anchor).with_goal(goal);
+    let requirements: Vec<String> = spec
+        .goals
+        .iter()
+        .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
+        .collect();
 
     Json(SpecCaptureResponse {
-        spec_id: spec.id.to_string(),
-        name: spec.name,
+        goal_id: spec.id.to_string(),
         category: spec.category.as_str().to_string(),
         domain_anchor: spec.domain_anchor.as_str().to_string(),
+        requirements,
     })
 }
 
-/// Validate specification collection
+/// Get specification collection coherence (MDS §3: spec/graph/coherence)
 #[utoipa::path(
-    post,
-    path = "/api/specs/validate",
+    get,
+    path = "/api/specs/coherence",
     tag = "specs",
     responses(
-        (status = 200, description = "Validation result", body = SpecValidateResponse),
+        (status = 200, description = "Coherence assessment", body = SpecCoherenceResponse),
     ),
 )]
-async fn validate_specs(
-    State(_state): State<ApiState>,
-    Json(req): Json<SpecValidateRequest>,
-) -> Json<SpecValidateResponse> {
-    Json(SpecValidateResponse {
-        valid: false,
+async fn get_coherence(State(_state): State<ApiState>) -> Json<SpecCoherenceResponse> {
+    Json(SpecCoherenceResponse {
         coherence_score: 0.0,
-        threshold: req.threshold,
         violations: vec!["No specifications in collection".to_string()],
         suggestions: SpecCategory::all()
             .iter()
@@ -137,23 +136,43 @@ async fn validate_specs(
     })
 }
 
-/// Cultivate specification collection
+/// Get writing quality assessment for a spec (MDS §3: spec/require/writing-quality)
 #[utoipa::path(
     get,
-    path = "/api/specs/cultivate",
+    path = "/api/specs/{spec_id}/writing-quality",
     tag = "specs",
+    params(
+        ("spec_id" = String, Path, description = "Specification ID"),
+    ),
     responses(
-        (status = 200, description = "Cultivation result", body = SpecCultivateResponse),
+        (status = 200, description = "Writing quality assessment", body = SpecWritingQualityResponse),
     ),
 )]
-async fn cultivate_specs(State(_state): State<ApiState>) -> Json<SpecCultivateResponse> {
-    Json(SpecCultivateResponse {
-        coherence_score: 0.0,
-        spec_count: 0,
-        categories_covered: vec![],
-        categories_missing: SpecCategory::all()
-            .iter()
-            .map(|c| c.as_str().to_string())
-            .collect(),
+async fn get_writing_quality(
+    State(_state): State<ApiState>,
+    axum::extract::Path(_spec_id): axum::extract::Path<String>,
+) -> Json<SpecWritingQualityResponse> {
+    Json(SpecWritingQualityResponse {
+        dimensions_passing: 0,
+        meets_publication_standard: false,
     })
+}
+
+/// Infer spec category from context string keywords (matches MCP server logic).
+fn infer_category(context: Option<&str>) -> SpecCategory {
+    let ctx = match context {
+        Some(c) => c.to_lowercase(),
+        None => return SpecCategory::Domain,
+    };
+    if ctx.contains("trust") || ctx.contains("security") || ctx.contains("threat") {
+        SpecCategory::Trust
+    } else if ctx.contains("compose") || ctx.contains("interface") || ctx.contains("api") {
+        SpecCategory::Composition
+    } else if ctx.contains("lifecycle") || ctx.contains("bootstrap") || ctx.contains("evolve") {
+        SpecCategory::Lifecycle
+    } else if ctx.contains("curat") || ctx.contains("review") || ctx.contains("coherence") {
+        SpecCategory::Curation
+    } else {
+        SpecCategory::Domain
+    }
 }

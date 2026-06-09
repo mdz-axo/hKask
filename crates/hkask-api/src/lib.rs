@@ -45,8 +45,8 @@ pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
     ModelSearchQuery, PodStatusResponse, SpecCaptureRequest, SpecCaptureResponse,
-    SpecCultivateResponse, SpecListResponse, SpecValidateRequest, SpecValidateResponse,
-    TemplateResponse, VarietyCounterResponse,
+    SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
+    VarietyCounterResponse,
 };
 
 use std::collections::HashMap;

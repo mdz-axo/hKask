@@ -237,13 +237,16 @@ async fn writing_quality_assesses_spec_with_token() {
 
     // First capture a spec so we have something to assess
     let token = make_capability_token("capture", DelegationAction::Write);
-    let params = CallToolRequestParams::new("spec_goal_capture").with_arguments(
+    let capture_params = CallToolRequestParams::new("spec_goal_capture").with_arguments(
         serde_json::from_str(&format!(
             r#"{{"description": "A well-defined goal with clear acceptance criteria.", "context": "composition interface api", "capability_token": "{token}"}}"#
         ))
         .expect("valid JSON arguments"),
     );
-    let result = peer.call_tool(params).await.expect("Tool call failed");
+    let result = peer
+        .call_tool(capture_params)
+        .await
+        .expect("Tool call failed");
     let text = text_from_result(&result);
 
     // Extract the goal_id from capture response
@@ -263,7 +266,10 @@ async fn writing_quality_assesses_spec_with_token() {
         .expect("valid JSON arguments"),
     );
 
-    let q_result = q_params.call_tool(params).await;
-    // Note: this test doesn't need exact output, just that it doesn't crash
-    let _ = q_result;
+    let q_result = peer.call_tool(q_params).await.expect("Tool call failed");
+    let q_text = text_from_result(&q_result);
+    assert!(
+        q_text.contains("dimensions_passing"),
+        "Writing quality must return dimensions_passing, got: {q_text}"
+    );
 }
