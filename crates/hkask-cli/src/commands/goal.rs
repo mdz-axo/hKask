@@ -18,7 +18,7 @@ fn build_goal_repo() -> Result<hkask_storage::SqliteGoalRepository, RegistryErro
 fn parse_visibility(vis: &str) -> Result<Visibility, RegistryError> {
     Visibility::parse_str(vis).ok_or_else(|| {
         RegistryError::InitFailed(format!(
-            "Invalid visibility '{vis}': expected private | shared | public"
+            "Invalid visibility '{vis}': expected private | public"
         ))
     })
 }

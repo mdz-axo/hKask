@@ -454,7 +454,7 @@ pub trait SkillRegistryIndex {
                 let mut result =
                     self.list_skills_by_visibility(crate::visibility::Visibility::Public);
                 result
-                    .extend(self.list_skills_by_visibility(crate::visibility::Visibility::Shared));
+                    .extend(self.list_skills_by_visibility(crate::visibility::Visibility::Public));
                 result
             }
         }

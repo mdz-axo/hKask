@@ -125,7 +125,7 @@ impl SemanticServer {
         validate_field!(span, "entity", &entity, 256);
         validate_field!(span, "attribute", &attribute, 256);
         let triple = Triple::new(&entity, &attribute, value, self.webid)
-            .with_visibility(Visibility::Shared)
+            .with_visibility(Visibility::Public)
             .with_confidence(confidence.unwrap_or(1.0));
         match self.memory.store(triple) {
             Ok(()) => {

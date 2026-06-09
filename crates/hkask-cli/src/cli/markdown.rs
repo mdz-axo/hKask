@@ -122,7 +122,7 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("kask goal <SUBCOMMAND>\n");
     md.push_str("```\n\n");
     md.push_str("Subcommands:\n");
-    md.push_str("- `create <TEXT> [--visibility private|shared|public]` — Create a goal you own\n");
+    md.push_str("- `create <TEXT> [--visibility private|public]` — Create a goal you own\n");
     md.push_str("- `list [--state <STATE>]` — List your goals\n");
     md.push_str("- `set-state <ID> <STATE>` — Transition a goal (legal transitions only)\n\n");
     md.push_str("### `kask docs` — Documentation generation\n\n");

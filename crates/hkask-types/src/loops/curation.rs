@@ -60,10 +60,8 @@ impl CuratorHandle {
 
     /// Curator can write to shared and public categories that it governs
     pub fn can_write(&self, category: &DataCategory) -> bool {
-        matches!(
-            category.default_visibility(),
-            Visibility::Shared | Visibility::Public
-        ) && !matches!(category, DataCategory::HLexiconTerms)
+        matches!(category.default_visibility(), Visibility::Public)
+            && !matches!(category, DataCategory::HLexiconTerms)
     }
 
     /// Issue a ConsolidationToken authorizing an Episodic → Semantic bridge traversal.
@@ -175,7 +173,8 @@ impl CuratorDirective {
     pub fn is_metacognitive(&self) -> bool {
         matches!(
             self,
-            CuratorDirective::OverrideEnergyBudget { .. } | CuratorDirective::SeekMoreEvidence { .. }
+            CuratorDirective::OverrideEnergyBudget { .. }
+                | CuratorDirective::SeekMoreEvidence { .. }
         )
     }
 }

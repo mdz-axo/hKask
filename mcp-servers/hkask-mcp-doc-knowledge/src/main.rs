@@ -602,7 +602,7 @@ impl DocKnowledgeServer {
             });
 
             let triple = Triple::new(&entity, "qa_pair", value, self.webid)
-                .with_visibility(Visibility::Shared)
+                .with_visibility(Visibility::Public)
                 .with_confidence(1.0);
 
             match semantic.store(triple) {

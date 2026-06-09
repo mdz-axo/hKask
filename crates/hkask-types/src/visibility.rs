@@ -1,20 +1,21 @@
 //! Visibility types — Loop 6 (Cybernetics): access classification
 //
 //! Visibility is a Cybernetics concern — the Access Guard (6.1) enforces
-//! visibility boundaries. Public/Shared/Sovereign data categories determine
+//! visibility boundaries. Public/Private data categories determine
 //! what each loop can read or write.
 //
-//! Defines the three-tier visibility model for artifacts within hKask.
-//! Access control enforcement is delegated to the `CapabilityToken` primitive
-//! in the `capability` module (ADR-022-T08: single capability primitive).
+//! Defines a two-tier visibility model:
+//! - Public: accessible to all agents (shared/factual knowledge)
+//! - Private: agent-specific access (episodic/experiential knowledge)
+//
+//! Access control enforcement is delegated to the `CapabilityToken` primitive.
 //
 //! # Visibility Model
 //
 //! | Level | Meaning | Enforcement |
 //! |-------|---------|-------------|
-//! | Private | Owner-only access | `SovereigntyChecker` + `CapabilityToken` |
+//! | Private | Agent-specific access | `SovereigntyChecker` + `CapabilityToken` |
 //! | Public | Universal access | No capability required |
-//! | Shared | Capability-gated access | `CapabilityToken` with correct resource/action |
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -33,7 +34,6 @@ pub enum Visibility {
     #[default]
     Private,
     Public,
-    Shared,
 }
 
 impl Visibility {
@@ -41,15 +41,13 @@ impl Visibility {
         match self {
             Visibility::Private => "private",
             Visibility::Public => "public",
-            Visibility::Shared => "shared",
         }
     }
 
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "private" | "Private" => Some(Visibility::Private),
-            "public" | "Public" => Some(Visibility::Public),
-            "shared" | "Shared" => Some(Visibility::Shared),
+            "public" | "Public" | "shared" | "Shared" => Some(Visibility::Public),
             _ => None,
         }
     }
@@ -99,20 +97,20 @@ impl AccessControl {
         }
     }
 
-    /// Create a semantic (shared, perspective-free) access control.
+    /// Create a semantic (public, perspective-free) access control.
     pub fn semantic(owner: WebID) -> Self {
         Self {
             perspective: None,
-            visibility: Visibility::Shared,
+            visibility: Visibility::Public,
             owner_webid: owner,
         }
     }
 
-    /// Convert to semantic access control: strip perspective, set visibility to Shared.
+    /// Convert to semantic access control: strip perspective, set visibility to Public.
     pub fn to_semantic(&self) -> Self {
         Self {
             perspective: None,
-            visibility: Visibility::Shared,
+            visibility: Visibility::Public,
             owner_webid: self.owner_webid,
         }
     }
@@ -122,9 +120,9 @@ impl AccessControl {
         self.perspective.is_some()
     }
 
-    /// Is this a semantic (shared, perspective-free) access control?
+    /// Is this a semantic (public, perspective-free) access control?
     pub fn is_semantic(&self) -> bool {
-        self.perspective.is_none() && self.visibility == Visibility::Shared
+        self.perspective.is_none() && self.visibility == Visibility::Public
     }
 
     #[must_use = "builder methods must be chained or assigned"]
@@ -145,7 +143,7 @@ impl AccessControl {
         // F-SYN-004: refuse perspective-locked flips.
         if self.is_episodic() {
             match visibility {
-                Visibility::Shared | Visibility::Public => {
+                Visibility::Public => {
                     // The flip would expose the perspective to a wider
                     // audience. The caller must clear the perspective
                     // explicitly. We panic rather than silently

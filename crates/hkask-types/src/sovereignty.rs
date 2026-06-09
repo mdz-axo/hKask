@@ -107,7 +107,7 @@ impl DataCategory {
             | Self::PersonalContext
             | Self::CapabilityTokens
             | Self::OcapBoundaries => Visibility::Private,
-            Self::SemanticMemory | Self::TemplateInvocations => Visibility::Shared,
+            Self::SemanticMemory | Self::TemplateInvocations => Visibility::Public,
             Self::HLexiconTerms | Self::TemplateRegistry => Visibility::Public,
             Self::Custom(_) => Visibility::Private, // conservative default
         }

@@ -130,7 +130,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
         description: file.manifest.description,
         version: file.manifest.version,
         editor: file.manifest.editor,
-        visibility: file.manifest.visibility.unwrap_or(Visibility::Shared),
+        visibility: file.manifest.visibility.unwrap_or(Visibility::Public),
         skills: file.skills,
         conflicts: file.conflicts,
         complementarities: file.complementarities,

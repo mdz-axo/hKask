@@ -61,7 +61,7 @@ impl R7BotIdentity {
             primary_crate,
             description,
             energy_budget,
-            memory_visibility: Visibility::Shared,
+            memory_visibility: Visibility::Public,
             domains,
         }
     }

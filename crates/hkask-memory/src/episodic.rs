@@ -64,7 +64,7 @@ impl EpisodicMemory {
 
     /// Store an episodic triple (private by default, with perspective).
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
-        if triple.access.visibility == Visibility::Shared {
+        if triple.access.visibility == Visibility::Public {
             return Err(EpisodicMemoryError::InvalidVisibility(
                 "Episodic memory is sovereign — Shared triples belong in semantic memory"
                     .to_string(),
