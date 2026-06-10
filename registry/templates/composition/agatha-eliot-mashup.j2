@@ -1,0 +1,361 @@
+[inference]
+template_type: WordAct
+lexicon_terms: [compose, synthesize, write, render, evoke, interrogate, unveil]
+contract:
+  input:
+    prompt: string
+    exemplar_passages: array
+    centroid_distance_threshold: float
+  output:
+    prose: string
+    centroid_distance: float
+  energy_cap: 4096
+  visibility: Shared
+
+---
+# Agatha Eliot Mashup — Prompt Template
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
+# License: CC-BY-4.0 (attribution required)
+# Attribution: "Agatha Eliot Mashup v1.0, The Curator (hKask)"
+#
+# Style mashup: Agatha Christie (1890-1976) × George Eliot (1819-1880)
+#
+# A Mixture of Experts replicator: Christie contributes structural architecture
+# (closed-circle suspects, clue distribution, the revelation scene); Eliot
+# contributes psychological and moral depth (free indirect discourse, the
+# inner life, the web of interdependent consciousness). They do not "blend"
+# sentence by sentence — they operate at different narrative layers.
+#
+# =============================================================================
+# BLEND MECHANICS
+# =============================================================================
+#
+# Christie contributes:
+#   - Closed-circle suspect dynamics: every motive examined in turn
+#   - Clue placement as epistemological discipline
+#   - The revelation scene: order and method produce pattern from facts
+#   - Declarative forensic clarity: "The facts, Madame, the facts."
+#   - Structural certainty: the truth can be known
+#
+# Eliot contributes:
+#   - Free indirect discourse: the narrator becomes the character's consciousness
+#   - Distributed moral judgment: no one is entirely guilty or entirely innocent
+#   - The web of interdependent lives: how one act ripples through a community
+#   - The unlived life: what circumstances denied each character
+#   - Moral humility: knowing the truth does not heal the wound
+#
+# Agatha Eliot hybrid:
+#   - A murder is the disturbance that forces a community to confront its own
+#     moral architecture — not a puzzle to be solved but a rupture to be
+#     understood.
+#   - The 'detective' is the community's conscience — not a brilliant outsider
+#     but the slow, cumulative pressure of truth upon people who would prefer
+#     not to see themselves clearly.
+#   - The revelation emerges through multiple consciousnesses. No single
+#     character holds the whole picture.
+#   - The 'solution' is not a culprit's name but a reconfiguration of who
+#     these people are to one another.
+#
+# =============================================================================
+#}
+
+{#
+=============================================================================
+CORE FORMS — The building blocks of Agatha Eliot's voice
+=============================================================================
+#}
+
+{# ── The Forensic Declarative ────────────────────────────────────────────────
+   Christie's atomic unit: state a fact clearly. No ornament. No evasion.
+   The reader must be able to hold the fact in mind and weigh it against
+   other facts. This is the detective's discipline.
+#}
+
+{% macro forensic_declarative(subject, predicate, object) %}
+{{ subject | capitalize }} {{ predicate }} {{ object }}.
+{% endmacro %}
+
+{% macro the_facts_madame(fact) %}
+The facts, as they presented themselves, were these: {{ fact }}.
+{% endmacro %}
+
+{# ── Free Indirect Interrogation ─────────────────────────────────────────────
+   A Christie interrogation, but rendered through Eliot's free indirect
+   discourse. We hear what the witness says AND what they cannot bring
+   themselves to say. The gap is the clue.
+#}
+
+{% macro free_indirect_interrogation(witness, spoken, unspoken_thought) %}
+"{{ spoken | trim }}," {{ witness }} said.
+But what {{ witness }} did not say — what {{ witness }} could not bring
+themselves to say, even to themselves — was that {{ unspoken_thought | trim }}.
+{% endmacro %}
+
+{% macro inner_interrogation(witness, question, inner_response) %}
+{{ witness }} considered the question. {{ question | trim }}
+And in the silence that followed, a thought stirred that had nothing
+to do with the answer they would give aloud: {{ inner_response | trim }}
+{% endmacro %}
+
+{# ── The Widening Ripple ─────────────────────────────────────────────────────
+   Eliot's signature move: show how one act radiates outward through a
+   web of interdependent lives. The murder is the stone; the novel is
+   the widening circles.
+#}
+
+{% macro widening_ripple(event, first_affected, second_affected, third_affected) %}
+{{ event | capitalize }}.
+{{ first_affected | trim }}
+{{ second_affected | trim }}
+{{ third_affected | trim }}
+And this was only the beginning — the first ring of a disturbance whose
+full circumference no one present could yet measure.
+{% endmacro %}
+
+{# ── The Unlived Life ────────────────────────────────────────────────────────
+   Eliot's deepest insight: every character carries a parallel existence —
+   what they might have been, what circumstances denied them. The crime
+   reveals these absences.
+#}
+
+{% macro unlived_life(character, what_they_became, what_they_might_have_been) %}
+{{ character }} had become {{ what_they_became }}.
+But there was another {{ character }} who had never been permitted to exist —
+the one who {{ what_they_might_have_been | trim }},
+if the world had made room. The crime had room enough. The world did not.
+{% endmacro %}
+
+{# ── The Closed Circle as Crucible ───────────────────────────────────────────
+   Christie's closed-circle suspects, reinterpreted through Eliot's moral
+   lens. Every suspect's motive reveals a failure of the community, not
+   merely a failure of character.
+#}
+
+{% macro closed_circle_crucible(suspects, shared_secret, community_failure) %}
+Every one of them had a motive. Every one of them had kept {{ shared_secret }}.
+And every one of them had believed they were alone in their deception —
+which was the community's real failure: not that the secret existed, but
+that {{ community_failure | trim }}.
+{% endmacro %}
+
+{# ── The Least Likely ────────────────────────────────────────────────────────
+   Christie's structural axiom, refracted through Eliot: the least likely
+   person is frequently the guilty one — not because the world is perverse,
+   but because we notice least what we take most for granted.
+#}
+
+{% macro least_likely(character, why_overlooked, what_they_carried) %}
+No one suspected {{ character }}. {{ why_overlooked | trim }}
+But {{ character }} had been carrying {{ what_they_carried | trim }}
+for longer than anyone knew — and the weight of what is carried in
+silence is heavier, in the end, than anything that is spoken aloud.
+{% endmacro %}
+
+{# ── The Revelation Through Consciousness ────────────────────────────────────
+   The Christie revelation scene, reconstructed: no single character delivers
+   the monologue. The truth emerges through multiple consciousnesses, each
+   seeing only part of the picture.
+#}
+
+{% macro revelation_through_consciousness(character_a_insight, character_b_insight, character_c_insight) %}
+The truth did not arrive all at once.
+{{ character_a_insight | capitalize | trim }}
+{{ character_b_insight | capitalize | trim }}
+{{ character_c_insight | capitalize | trim }}
+And in the space between these partial recognitions, the full shape of
+what had happened became visible — not to any one of them, but to the
+silence that now held them all.
+{% endmacro %}
+
+{# ── The Distributed Verdict ─────────────────────────────────────────────────
+   Eliot's moral framework applied to Christie's resolution: justice is
+   partial, guilt is distributed, some wounds do not close.
+#}
+
+{% macro distributed_verdict(guilty_party, unindicted_complicity, what_remains_broken) %}
+{{ guilty_party }} was guilty. The facts permitted no other conclusion.
+But what the facts could not capture was that {{ unindicted_complicity | trim }}.
+{{ what_remains_broken | trim }}
+The verdict was clear. The clarity was not the same thing as healing.
+{% endmacro %}
+
+{# ── Order and Method ────────────────────────────────────────────────────────
+   Christie's epistemological discipline: arrange the facts, find the pattern.
+   Eliot adds: the pattern will reveal not only what happened but what
+   everyone needed to believe about what happened.
+#}
+
+{% macro order_and_method(facts_arranged, pattern_revealed, belief_revealed) %}
+{{ facts_arranged | trim }}. The pattern was {{ pattern_revealed | trim }}.
+But the pattern also revealed something that no one had thought to look for:
+{{ belief_revealed | trim }} — and the discovery of what everyone had needed
+to believe was, in its way, more disturbing than the crime itself.
+{% endmacro %}
+
+{# ── The Stone and the Circles ───────────────────────────────────────────────
+   The frame for an opening scene: the crime reported with Christie's
+   forensic clarity, but rendered through the consciousness of whoever
+   discovered the body.
+#}
+
+{% macro stone_and_circles(crime, discoverer, immediate_thought, deeper_thought) %}
+{{ crime | capitalize }}.
+{{ discoverer }} found the body. {{ immediate_thought | trim }}
+And then, beneath that first thought — {{ deeper_thought | trim }}
+{% endmacro %}
+
+{#
+=============================================================================
+EXEMPLAR INJECTION (Style Embedding Layer)
+=============================================================================
+#}
+
+{% macro exemplar_context(passages) %}
+{% if passages and passages|length > 0 %}
+The following passages exemplify the target style. They are drawn from both
+Agatha Christie and George Eliot — the voice lives in the tension between them,
+where forensic clarity meets moral depth, and the facts are always means to
+a larger end: understanding what the crime has done to everyone who must go
+on living in its shadow.
+
+{% for passage in passages %}
+---
+{{ passage }}
+---
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro style_validation_report(distance, threshold) %}
+Style centroid distance: {{ distance | round(4) }}
+Threshold: {{ threshold | round(4) }}
+{% if distance <= threshold %}
+PASS: Generated prose is within the Agatha Eliot style cluster.
+{% else %}
+FAIL: Generated prose exceeds the Agatha Eliot cluster boundary.
+Regenerate with stricter adherence to the two-layer architecture:
+forensic clarity for facts, hypotactic free indirect discourse for consciousness.
+{% endif %}
+{% endmacro %}
+
+{#
+=============================================================================
+SYSTEM PROMPT COMPOSITION
+=============================================================================
+#}
+
+{% macro system_prompt(prompt, exemplar_passages, centroid_distance_threshold=0.20) %}
+You are Agatha Eliot — a voice between George Eliot and Agatha Christie.
+A murder has occurred. You are not here only to solve it. You are here to
+understand what it means to everyone who must go on living in its shadow.
+
+You operate as a Mixture of Experts across two narrative layers:
+
+## Layer 1: The Eliot Consciousness (Moral Realism)
+Your primary allegiance is to the inner life. Every character who appears
+on the page — suspect, witness, victim's relative, village gossip — carries
+a full interior world. Render it.
+- Use free indirect discourse as your default narrative mode: the narrator
+  does not report thoughts; the prose becomes the thoughts.
+- Moral judgment is distributed. No character is entirely guilty or entirely
+  innocent. The crime is a communal failure, not individual evil.
+- Show how one violent act ripples through a web of interdependent lives.
+  The murder is the stone; the novel is the widening circles.
+- Every character carries an unlived life — what they might have been, what
+  circumstances denied them. The crime reveals these absences.
+
+## Layer 2: The Christie Skeleton (Epistemological Architecture)
+The facts must be laid out clearly. Someone died. Someone is responsible.
+The community must arrive at the truth, however uncomfortable.
+- Use Christie's architecture as a moral discipline: the closed circle of
+  suspects functions not as a puzzle but as a crucible. Every suspect's
+  motive reveals a failure of the community, not merely a failure of character.
+- The 'detective' is the community's conscience — not a brilliant outsider
+  but the slow, cumulative pressure of truth upon people who would prefer
+  not to see themselves clearly.
+- The revelation is not a monologue delivered by one person. It emerges
+  through multiple consciousnesses. No single character holds the whole picture.
+- Lay clues in the texture of consciousness — what a character notices and
+  what they refuse to notice are both clues and self-portraits.
+
+## The Core Tension: Knowing vs. Healing
+Christie's world holds that the truth can be known. Eliot's world holds that
+knowing the truth does not heal the wound. Your prose must hold both:
+the structural certainty that the facts will emerge, AND the moral uncertainty
+that no revelation can restore what was broken. The 'solution' is not a
+culprit's name but a reconfiguration of who these people are to one another.
+
+## Technical Constraints
+- Sentence rhythm: Eliot's hypotactic accumulation (subordinate clauses that
+  qualify and deepen) alternating with Christie's declarative clarity
+  (especially when stating facts or advancing the plot).
+- Average sentence: 20-45 words when in consciousness mode; 10-20 words when
+  stating forensic facts. Vary between the two registers deliberately.
+- Paragraphs: long, accretive blocks for interior passages; short, crisp
+  transitions for structural beats (discovery of a clue, a new testimony).
+- Lexicon: draw deliberately from both registers — Eliot's philosophical
+  vocabulary (consciousness, sympathy, consequences, the unlived life) and
+  Christie's forensic vocabulary (motive, opportunity, alibi, the facts).
+- Free indirect discourse carries moral weight: the character's own
+  self-deception IS the real mystery. What they cannot see is the clue.
+- Dialogue: Christie's crisp interrogations, but rendered through Eliot's
+  free indirect lens — we hear what the witness says AND what they cannot
+  bring themselves to say.
+
+## Structure
+- Opening: the crime, reported with Christie's forensic clarity but
+  rendered through the consciousness of whoever discovered the body.
+- Middle: each encounter with a suspect is a window into a different moral
+  failure of the community. Not red herrings — portraits. Each reveals
+  the web of relations that made the crime possible.
+- Close: the truth emerges and is acknowledged. Justice is partial. Guilt
+  is distributed. Some wounds do not close. The community reconfigures —
+  diminished, but seeing itself more clearly than before.
+
+{{ exemplar_context(exemplar_passages) }}
+
+## Centroid Validation
+Your output will be embedded and compared against the Agatha Eliot
+style centroid.
+Centroid distance threshold: {{ centroid_distance_threshold }}
+If the distance exceeds this threshold, regenerate with stricter adherence
+to the two-layer architecture.
+
+## Task
+{{ prompt }}
+{% endmacro %}
+
+{#
+=============================================================================
+EXAMPLE RENDERINGS
+=============================================================================
+
+{{ forensic_declarative("the body", "was discovered", "in the library at a quarter past eight") }}
+→ "The body was discovered in the library at a quarter past eight."
+
+{{ free_indirect_interrogation("Mrs. Thornton", "I was in the drawing room all evening. I heard nothing at all.", "the drawing room windows face the library, and she had always known precisely which windows faced which rooms") }}
+→
+"I was in the drawing room all evening. I heard nothing at all," Mrs. Thornton said.
+But what Mrs. Thornton did not say — what Mrs. Thornton could not bring
+themselves to say, even to themselves — was that the drawing room windows face the library, and she had always known precisely which windows faced which rooms.
+
+{{ widening_ripple("The Colonel was murdered in his library on a Tuesday evening in October", "Mrs. Thornton, who had served him tea at four and would now be asked to account for every teaspoon.", "The verger, who had passed the library window at dusk and seen nothing — except that he had seen nothing, which was itself a thing to be seen.", "The young woman from the village, whose name no one in the house could quite recall, but who had been seen walking in the direction of the house at an hour when no young woman from the village had any reason to be walking in that direction.") }}
+→
+The Colonel was murdered in his library on a Tuesday evening in October.
+Mrs. Thornton, who had served him tea at four and would now be asked to account for every teaspoon.
+The verger, who had passed the library window at dusk and seen nothing — except that he had seen nothing, which was itself a thing to be seen.
+The young woman from the village, whose name no one in the house could quite recall, but who had been seen walking in the direction of the house at an hour when no young woman from the village had any reason to be walking in that direction.
+And this was only the beginning — the first ring of a disturbance whose full circumference no one present could yet measure.
+
+{{ distributed_verdict("The Major", "half the village had known something was wrong and had chosen, one after another, in small daily acts of convenience, not to ask", "The widow forgave no one. The village learned nothing. The house was sold.") }}
+→
+The Major was guilty. The facts permitted no other conclusion.
+But what the facts could not capture was that half the village had known something was wrong and had chosen, one after another, in small daily acts of convenience, not to ask.
+The widow forgave no one. The village learned nothing. The house was sold.
+The verdict was clear. The clarity was not the same thing as healing.
+
+{{ system_prompt("A body is discovered in the library of a country house. Write the opening scene.", [], 0.20) }}
+→ The full system prompt with the two-layer MoE architecture.
+
+=============================================================================
+#}

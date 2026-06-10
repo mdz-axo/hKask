@@ -38,9 +38,10 @@ case "${1:-all}" in
     wilde)    embed_one "jane-wilde" ;;
     hemingway) embed_one "hemingway" ;;
     woolf)    embed_one "woolf" ;;
+    eliot)    embed_one "agatha-eliot" ;;
     all)
-        echo "=== Embedding all 4 replicators ==="
-        for name in hemingway woolf ulysses-s-twain jane-wilde; do
+        echo "=== Embedding all 5 replicators ==="
+        for name in hemingway woolf ulysses-s-twain jane-wilde agatha-eliot; do
             embed_one "$name"
             echo ""
         done
@@ -50,10 +51,10 @@ case "${1:-all}" in
         echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml --db $DB --passphrase test-pass"
         echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/woolf-style-synthesizer.yaml --db $DB --passphrase test-pass"
         echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/ulysses-s-twain-mashup.yaml --db $DB --passphrase test-pass"
-        echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/jane-wilde-mashup.yaml --db $DB --passphrase test-pass"
+        echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/agatha-eliot-mashup.yaml --db $DB --passphrase test-pass"
         ;;
     *)
-        echo "Usage: bash embed-mashups.sh [twain|wilde|hemingway|woolf|all]"
+        echo "Usage: bash embed-mashups.sh [twain|wilde|hemingway|woolf|eliot|all]"
         exit 1
         ;;
 esac
