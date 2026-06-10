@@ -65,6 +65,14 @@ Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation
 | 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` | ✅ Implemented |
 | 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | `ground` | ✅ Implemented |
 
+### Additional Tool Surfaces
+
+| Server | Tools | Domain | Status |
+|--------|-------|--------|--------|
+| `hkask-mcp-replica` | `replica_build`, `replica_compose`, `replica_mashup`, `replica_compare`, `replica_registry`, `replica_explain` | Style replication | ✅ Implemented |
+
+Replica tools compose `EmbedService` and `ComposeService` from `hkask-services` as a third surface (tri-surface pattern: CLI, API, MCP). They enable agent-driven style corpus management, prose generation, centroid-based author comparison, and centroid-interpolated style blending.
+
 ---
 
 ## 4. hLexicon Extension — Spec Terms
@@ -79,6 +87,10 @@ Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation
 | `constrain` | FlowDef | Attach OCAP boundaries to a goal |
 | `curate` | KnowAct | Evaluate an artifact for collection coherence |
 | `contextualise` | KnowAct | Situate an artifact within its meaningful environment |
+| `replicate` | WordAct | Generate prose in a stylistic replica of an author's voice |
+| `embed_corpus` | WordAct | Convert an author's works into a vector embedding corpus |
+| `mashup` | WordAct | Blend two authorial styles via centroid interpolation |
+| `compare` | KnowAct | Measure stylistic distance between author centroids |
 | `reconcile` | KnowAct | Resolve goal tensions without collapsing them |
 
 ---

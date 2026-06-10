@@ -174,8 +174,9 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | `AgentService` | 9 methods (8 groups + build) | 2 surfaces | ✅ Pass — encapsulated |
 | `ChatService` | 4 functions | 8+ | ✅ Pass — CNS instrumented (P9) |
 | `InferenceService` | 3 functions | 11+ | ✅ Pass |
-| `ComposeService` | 1 function + 7 types | 2+ | ✅ Deep — 220 lines behind 1 call |
 | `EmbedService` | 2 functions + 9 types | 2+ | ✅ Deep — 200 lines behind 2 calls |
+| `ComposeService` | 1 function + 7 types | 3+ | ✅ Deep — 220 lines behind 1 call, 3 surfaces (CLI, API, MCP) |
+| `EmbedService` | 2 functions + 10 types | 3+ | ✅ Deep — 200 lines behind 2 calls, 3 surfaces (CLI, API, MCP) |
 | `OnboardingService` | 7 functions + 2 types | 2+ | ✅ Pass — reduced from 8 methods |
 | `VerificationService` | 3 functions + 5 types | 2+ | ✅ Pass |
 | `skill.rs` | 6 freestanding functions + 2 types | 4+ | ✅ Pass — freestanding, no wrapper struct |
@@ -200,7 +201,7 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 ### Key Constraints
 
-1. **MCP servers do NOT depend on `hkask-services`** — P1 Prohibition (out-of-process isolation). Service layer is in-process only.
+1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`, not an orchestrator.
 2. **Domain crates do NOT depend on `hkask-services`** — dependency direction is strictly surface → service → domain.
 
 ---

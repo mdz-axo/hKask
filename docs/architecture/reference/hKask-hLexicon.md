@@ -14,28 +14,28 @@ mds_categories: [domain]
 
 | Section | Description |
 |---------|-------------|
-| [Executive Summary](#executive-summary) | Overview of the 142-term minimal composition vocabulary |
-| [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-34-terms) | Speech act theory terms for LLM interactions (34 terms) |
+| [Executive Summary](#executive-summary) | Overview of the 147-term minimal composition vocabulary |
+| [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-37-terms) | Speech act theory terms for LLM interactions (37 terms) |
 | [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-42-terms) | Workflow pattern terms for skill composition (42 terms) |
-| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-66-terms) | Enactive cognition terms for metacognition (66 terms) |
+| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-68-terms) | Enactive cognition terms for metacognition (68 terms) |
 | [Cross-Domain Composition Patterns](#cross-domain-composition-patterns) | How terms from different domains compose together |
 | [hLexicon Grammar](#hlexicon-grammar) | Formal grammar for term usage and validation |
 | [Academic Grounding References](#academic-grounding-references) | Academic sources for each domain |
-| [hLexicon Term Index](#hlexicon-term-index-142-terms) | Alphabetical index of all 142 terms |
+| [hLexicon Term Index](#hlexicon-term-index-147-terms) | Alphabetical index of all 147 terms |
 | [Expansion Capacity](#expansion-capacity) | Reserved term slots for domain extensions |
 | [Usage Examples](#usage-examples) | Practical template integration examples |
 | [References](#references) | Citations and references |
 
 ## Executive Summary
 
-**hLexicon** is the minimal composition vocabulary (142 term-slots across 3 domains) for composing templates in the hKask system.
+**hLexicon** is the minimal composition vocabulary (147 term-slots across 3 domains) for composing templates in the hKask system.
 
 1. **WordAct** — Language for prompting/LLM interactions (speech act theory)[^austin]
 2. **FlowDef** — Language for process/skill composition (workflow patterns)[^van-der-aalst]
 3. **KnowAct** — Language for cognition and metacognition (enactive cognition)[^varela]
 
 **Design Principles:**
-- **Minimal:** 142 term-slots across 3 domains (34 WordAct + 42 FlowDef + 66 KnowAct)
+- **Minimal:** 147 term-slots across 3 domains (37 WordAct + 42 FlowDef + 68 KnowAct)
 - **Composable:** Terms combine to express complex patterns
 - **Academic Grounding:** Based on established theory (Austin, Searle, van der Aalst, Varela)
 - **LLM-Optimized:** Terms selected for LLM comprehension and consistent interpretation
@@ -106,7 +106,7 @@ Requirement: [`REQ-DOM-004`](../../specifications/REQUIREMENTS.md).
 
 ---
 
-## Domain 1: WordAct — Prompting Language (34 terms)
+## Domain 1: WordAct — Prompting Language (37 terms)
 
 **Theoretical Basis:** Speech Act Theory (J.L. Austin, John Searle)[^austin][^searle]
 
@@ -185,6 +185,14 @@ Speech acts distinguish between:
 | `substitute` | Replace a term or reference with an equivalent | "Substitute: Replace deprecated API call" |
 | `validate` | Confirm an artifact meets defined criteria | "Validate: Check manifest against schema" |
 | `write` | Produce or persist content | "Write: Persist the compiled output" |
+
+### 1.8 Generative Acts (3 terms) — Creating stylistic replicas
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `replicate` | Generate prose in a stylistic replica of an author | "Replicate: Hemingway style synthesis" |
+| `embed_corpus` | Convert an author's works into vector embeddings | "embed_corpus: Build Woolf embedding corpus" |
+| `mashup` | Blend two authorial styles via centroid interpolation | "Mashup: Hemingway at 0.3, Woolf at 0.7" |
 
 ---
 
@@ -278,7 +286,7 @@ Speech acts distinguish between:
 
 ---
 
-## Domain 3: KnowAct — Cognition Language (66 terms)
+## Domain 3: KnowAct — Cognition Language (68 terms)
 
 **Theoretical Basis:** Enactive Cognition (Varela, Thompson),[^varela] Second-Order Cybernetics (von Foerster),[^von-foerster] Autopoiesis (Maturana)[^maturana]
 
@@ -350,6 +358,8 @@ Speech acts distinguish between:
 | `score` | Assign a numeric assessment to an artifact | "score: Rate skill health on 0-1 scale" |
 | `synthesize` | Combine disparate elements into a coherent whole | "synthesize: Merge findings into root-cause narrative" |
 | `trace` | Follow a causal or provenance chain | "trace: Follow spec requirement back to test invariant" |
+| `compare` | Measure stylistic distance between author centroids | "compare: Calculate cosine distance between Hemingway and Woolf" |
+| `blend` | Interpolate between style vectors for mashup generation | "blend: Mix centroids at 0.7 Woolf / 0.3 Hemingway" |
 
 ### 3.7 Skill Management Cognition (8 terms) — Design, planning, and format translation
 
@@ -527,18 +537,18 @@ Terminology validation follows ISO principles for vocabulary management.[^iso704
 
 ---
 
-## hLexicon Term Index (142 terms)
+## hLexicon Term Index (147 terms)
 
-### WordAct (34)
-`query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`, `extract`, `gap`, `reproduce`, `substitute`, `validate`, `write`
+### WordAct (37)
+`query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`, `extract`, `gap`, `reproduce`, `substitute`, `validate`, `write`, `replicate`, `embed_corpus`, `mashup`
 
 ### FlowDef (42)
 `sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`, `defer`, `deprecate`, `enforce`, `install`, `list`, `prune`, `retire`, `search`
 
-### KnowAct (66)
-`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`, `amplify`, `analyze`, `attenuate`, `compress`, `instrument`, `isolate`, `observe`, `predict`, `resolve`, `score`, `synthesize`, `trace`, `deepen`, `design`, `explore`, `fix`, `map`, `plan`, `rank`, `translate`, `compact`, `distill`, `summarize`, `catalog`, `reference`, `redact`, `suggest`, `prioritize`, `recommend`, `compose`, `structure`, `document`, `handoff`, `assess`, `simplify`, `verify`, `audit`, `apply`
+### KnowAct (68)
+`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`, `amplify`, `analyze`, `attenuate`, `compress`, `instrument`, `isolate`, `observe`, `predict`, `resolve`, `score`, `synthesize`, `trace`, `compare`, `blend`, `deepen`, `design`, `explore`, `fix`, `map`, `plan`, `rank`, `translate`, `compact`, `distill`, `summarize`, `catalog`, `reference`, `redact`, `suggest`, `prioritize`, `recommend`, `compose`, `structure`, `document`, `handoff`, `assess`, `simplify`, `verify`, `audit`, `apply`
 
-**Total: 142 term-slots** (34 WordAct + 42 FlowDef + 66 KnowAct; `transform` and `compose` appear in both WordAct/FlowDef and KnowAct, so 140 globally-unique strings).
+**Total: 147 term-slots** (37 WordAct + 42 FlowDef + 68 KnowAct; `transform` and `compose` appear in both WordAct/FlowDef and KnowAct, so 145 globally-unique strings).
 
 ---
 

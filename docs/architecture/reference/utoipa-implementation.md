@@ -91,7 +91,9 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
 | GET | `/api/cns/health` | cns | 200, 500 |
 | GET | `/api/cns/alerts` | cns | 200, 500 |
 | GET | `/api/cns/variety` | cns | 200, 500 |
-| POST | `/api/chat` | chat | 200, 400, 500 |
+| POST | `/api/mcp/invoke` | mcp | 200, 400, 401, 404, 500 |
+
+MCP tools are discovered dynamically at runtime — the OpenAPI spec does not enumerate individual tools. New servers (e.g., `hkask-mcp-replica` with 6 style replication tools) appear automatically in `GET /api/mcp/tools` when started.
 
 ## 3. Diagram
 
