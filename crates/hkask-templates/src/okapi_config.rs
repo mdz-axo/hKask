@@ -4,7 +4,7 @@
 //!
 //! # Environment Variables
 //!
-//! - `OKAPI_BASE_URL` - Okapi API base URL (default: http://127.0.0.1:11435)
+//! - `OKAPI_BASE_URL` - Okapi/Ollama API base URL (default: http://127.0.0.1:11434)
 //! - `OKAPI_API_KEY` - API key for authentication (optional)
 //! - `OKAPI_TIMEOUT_SECS` - Request timeout in seconds (default: 30)
 //! - `OKAPI_POOL_MAX_IDLE` - Max idle connections per host (default: 10)
@@ -49,7 +49,7 @@ pub struct OkapiConfig {
 impl Default for OkapiConfig {
     fn default() -> Self {
         Self {
-            base_url: "http://127.0.0.1:11435".to_string(),
+            base_url: "http://127.0.0.1:11434".to_string(),
             api_key: None,
             timeout_secs: 30,
             pool_max_idle: 10,
@@ -60,7 +60,7 @@ impl Default for OkapiConfig {
 impl OkapiConfig {
     pub fn local_dev() -> Self {
         Self {
-            base_url: "http://127.0.0.1:11435".to_string(),
+            base_url: "http://127.0.0.1:11434".to_string(),
             api_key: None,
             timeout_secs: 30,
             pool_max_idle: 5,

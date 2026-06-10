@@ -10,7 +10,7 @@ mds_categories: [interface]
 
 # Hexagonal Port Inventory — hKask v0.23.0
 
-> **Note:** Active ports are authoritative in [`MDS.md §7.2`](../MDS.md §7.2) §2. This reference provides implementation detail, removal history, and phantom type corrections.
+> **Note:** Active ports are authoritative in [`MDS.md`](../MDS.md) §7 §2. This reference provides implementation detail, removal history, and phantom type corrections.
 
 ## Active Traits
 
@@ -119,5 +119,5 @@ hkask-mcp → hkask-templates (McpPort impl)
 ## See Also
 
 - `hKask-architecture-master.md` — authoritative architecture spec
-- `MDS.md §7.2` — port composition patterns
+- `MDS.md §7` — port composition patterns
 - `subsystem-erds.md` — entity relationship diagrams

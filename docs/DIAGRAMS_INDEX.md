@@ -20,25 +20,25 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-types/src/capability/mod.rs:223`, `Cargo.toml` workspace members | ✅ VERIFIED |
-| DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
-| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
-| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
-| DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
-| DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
-| DIAG-DC-007 | Standing Session Chat Lifecycle | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-web/src/main.rs` | ✅ VERIFIED |
-| DIAG-DC-008 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [`MDS.md §7.1-7.2`](architecture/MDS.md §7.1-7.2) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
+| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`MDS.md §7`](architecture/MDS.md §7) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-types/src/capability/mod.rs:223`, `Cargo.toml` workspace members | ✅ VERIFIED |
+| DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [`MDS.md §7`](architecture/MDS.md §7) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
+| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [`MDS.md §7`](architecture/MDS.md §7) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
+| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`MDS.md §7`](architecture/MDS.md §7) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
+| DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`MDS.md §7`](architecture/MDS.md §7) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`MDS.md §7`](architecture/MDS.md §7) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
+| DIAG-DC-007 | Standing Session Chat Lifecycle | [`MDS.md §7`](architecture/MDS.md §7) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-web/src/main.rs` | ✅ VERIFIED |
+| DIAG-DC-008 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [`MDS.md §7`](architecture/MDS.md §7) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [`MDS.md §7.2`](architecture/MDS.md §7.2) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
-| DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [`MDS.md §7.2`](architecture/MDS.md §7.2) §2 | `docs/architecture/reference/ports-inventory.md` (19 traits) | ✅ VERIFIED |
-| DIAG-IC-003 | Unified Registry with template_type discriminator | [`MDS.md §7.2`](architecture/MDS.md §7.2) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
-| DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [`MDS.md §7.2`](architecture/MDS.md §7.2) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
-| DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [`MDS.md §7.2`](architecture/MDS.md §7.2) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
-| DIAG-IC-006 | LLM Routing and Failover (Okapi Integration) | [`MDS.md §7.2`](architecture/MDS.md §7.2) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [`MDS.md §7`](architecture/MDS.md §7) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
+| DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [`MDS.md §7`](architecture/MDS.md §7) §2 | `docs/architecture/reference/ports-inventory.md` (19 traits) | ✅ VERIFIED |
+| DIAG-IC-003 | Unified Registry with template_type discriminator | [`MDS.md §7`](architecture/MDS.md §7) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
+| DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [`MDS.md §7`](architecture/MDS.md §7) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
+| DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [`MDS.md §7`](architecture/MDS.md §7) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
+| DIAG-IC-006 | LLM Routing and Failover (Okapi Integration) | [`MDS.md §7`](architecture/MDS.md §7) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 
 ## 3. Trust & Observability Diagrams
 
@@ -73,11 +73,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ## 6. Reference Diagrams
 
-| Diagram ID | Description | Document | Verified Against | Status |
-|-----------|-------------|----------|-----------------|--------|
-| DIAG-REF-001 | Core Entity Relationship Diagram | [`reference/hKask-erd.md`](architecture/reference/hKask-erd.md) | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
-| DIAG-REF-002 | Registry Schema ERD | [`reference/registry-erd.md`](architecture/reference/registry-erd.md) | `crates/hkask-templates/src/` (SQL schema) | ✅ VERIFIED |
-| DIAG-REF-003 | 11 Subsystem ERDs (per-crate) | [`reference/subsystem-erds.md`](architecture/reference/subsystem-erds.md) | All 11 core crates in `crates/` | ✅ VERIFIED |
+*No reference diagrams remain; ERD documentation has been retired. Recoverable from git history.*
+
 
 ## 7. Undocumented Interaction Patterns (V1.1+ Candidates)
 
@@ -104,10 +101,10 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Trust & Observability | 7 | 7 | 0 |
 | Persistence & Lifecycle | 5 | 5 | 0 |
 | Framework | 4 | 4 | 0 |
-| Reference | 3 | 3 | 0 |
-| **Total** | **33** | **33** | **5** |
+| Reference | 0 | 0 | 0 |
+| **Total** | **30** | **30** | **5** |
 
-**MDS completeness:** All 5 MDS categories have diagram coverage. 33 diagrams verified against current code (2026-06-07).
+**MDS completeness:** All 5 MDS categories have diagram coverage. 30 diagrams verified against current code (2026-06-07).
 
 ---
 

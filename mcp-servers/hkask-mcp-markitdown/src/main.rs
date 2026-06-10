@@ -10,7 +10,7 @@
 //! - `HKASK_OCR_MODEL` — Vision model for OCR (must be available in Okapi catalog).
 //!   Use `inference_models` to discover available models. No default — must be set
 //!   for OCR functionality. If unset, OCR requests return an error with guidance.
-//! - `OKAPI_BASE_URL` — Okapi API base URL (default: "http://127.0.0.1:11435")
+//! - `OKAPI_BASE_URL` — Okapi API base URL (default: "http://127.0.0.1:11434")
 //!
 //! # Architecture
 //!
@@ -37,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
                 .credentials
                 .get("OKAPI_BASE_URL")
                 .cloned()
-                .unwrap_or_else(|| "http://127.0.0.1:11435".to_string());
+                .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
             MarkitdownServer::new(ctx.webid, ocr_model, &okapi_base_url)
         },
         vec![
@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "OKAPI_BASE_URL",
-                "Okapi API base URL (default: http://127.0.0.1:11435)",
+                "Okapi API base URL (default: http://127.0.0.1:11434)",
             ),
         ],
     )

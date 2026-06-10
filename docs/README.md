@@ -50,7 +50,6 @@ for its category cluster.
 
 | ADR | MDS | Decision | Status |
 |-----|--------|----------|--------|
-| [ADR-022](architecture/ADR-022-comprehensive-security-hardening.md) | trust | Comprehensive security hardening | Active |
 | [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
 | [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
 | [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema | Active |
@@ -64,16 +63,14 @@ for its category cluster.
 
 | Document | MDS | Description |
 |----------|--------|-------------|
-| [`hKask-erd.md`](architecture/reference/hKask-erd.md) | persistence | Core entity relationship diagrams |
-| [`subsystem-erds.md`](architecture/reference/subsystem-erds.md) | persistence | Per-crate ERDs grounded in Rust source |
-| [`registry-erd.md`](architecture/reference/registry-erd.md) | persistence | Template registry ERD |
+
 | [`hKask-hLexicon.md`](architecture/reference/hKask-hLexicon.md) | domain | Minimal composition vocabulary |
 | [`ports-inventory.md`](architecture/reference/ports-inventory.md) | interface | Hexagonal port inventory |
 | [`okapi-integration.md`](architecture/reference/okapi-integration.md) | domain | Okapi LLM API contract |
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | interface | API and CLI documentation generation |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | composition | hLexicon functional role headers |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | domain | Canonical human-facing replicant |
-| [`hlexicon-validation-report.md`](architecture/hlexicon-validation-report.md) | domain | hLexicon alignment validation report |
+
 
 ---
 
@@ -110,7 +107,7 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | Document | MDS | Description |
 |----------|--------|-------------|
 | [`TODO.md`](plans/TODO.md) | all | Open work items only |
-| [`high-temp-templates.md`](plans/high-temp-templates.md) | composition, curation | High-temperature template design (draft) |
+
 
 ---
 

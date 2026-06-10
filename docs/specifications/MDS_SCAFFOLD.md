@@ -50,7 +50,6 @@ docs/
 │   ├── MDS.md §7.2       # SPEC (Interface + Composition)
 │   ├── MDS.md §7.3    # SPEC (Trust + Observability)
 │   ├── MDS.md §7.4       # SPEC (Persistence + Lifecycle)
-│   ├── ADR-022-*.md                       # DECISION RECORD
 │   ├── ADR-024-*.md                       # DECISION RECORD
 │   ├── ADR-025-*.md                       # DECISION RECORD
 │   ├── ADR-026-*.md                       # DECISION RECORD
@@ -86,7 +85,6 @@ docs/
 │   └── hhh-alignment-research.md          # HHH alignment research
 ├── plans/
 │   ├── TODO.md                            # Open work
-│   └── high-temp-templates.md             # Template design draft
 ├── status/                                 # Status files (planned, not yet populated)
 ├── user-guides/                           # User-facing guides
 │   ├── AGENT-POD-CREATION-GUIDE.md       # Pod creation guide

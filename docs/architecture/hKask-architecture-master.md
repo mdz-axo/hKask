@@ -44,8 +44,8 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 | Document | Status |
 |----------|--------|
 | `MDS.md` | Deleted — superseded by MDS.md (9→5 categories, 9→6 tools) |
-| `MDS.md §7.1-7.2` | Deleted — covered by MDS.md §7.1-7.2 |
-| `MDS.md §7.2` | Deleted — covered by MDS.md §7.2 |
+| `MDS.md §7.1-7.2` | Deleted — covered by MDS.md §7 |
+| `MDS.md §7.2` | Deleted — covered by MDS.md §7 |
 | `MDS.md §7.4` | Deleted — covered by MDS.md §7.4 |
 | `MDS.md §7.3` | Deleted — covered by MDS.md §7.3 + PRINCIPLES.md §2.1 |
 
@@ -211,9 +211,7 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | Artifact | Purpose |
 |----------|---------|
-| [`reference/hKask-erd.md`](reference/hKask-erd.md) | Core entity relationship diagrams |
-| [`reference/registry-erd.md`](reference/registry-erd.md) | Registry schema diagrams |
-| [`reference/subsystem-erds.md`](reference/subsystem-erds.md) | Per-crate ERDs |
+
 | [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 87-term vocabulary catalog |
 | [`reference/ports-inventory.md`](reference/ports-inventory.md) | Hexagonal port trait signatures |
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
@@ -228,7 +226,6 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | ADR | Topic |
 |-----|-------|
-| [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) | ADV-REVIEW-F2 security hardening (T01-T22) |
 | [`ADR-024-unified-registry.md`](ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
 | [`ADR-025-attenuation-depth-limit.md`](ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
 | [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
@@ -259,14 +256,10 @@ Detailed lookup tables and diagrams in `reference/`:
 ```
 docs/architecture/
 ├── hKask-architecture-master.md           # THIS FILE (index — includes REPL Architecture)
-├── MDS.md                              # Framework
+├── MDS.md                              # Framework (5 categories, 6 tools)
 ├── PRINCIPLES.md                          # Framework (P3 updated with ReplSettings)
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── magna-carta.md                         # Framework
-├── MDS.md §7.1-7.2               # SPEC (Domain + Capability)
-├── MDS.md §7.2           # SPEC (Interface + Composition)
-├── MDS.md §7.3        # SPEC (Trust + Observability)
-├── MDS.md §7.4           # SPEC (Persistence + Lifecycle)
 ├── ADR-022-comprehensive-security-hardening.md  # Decision record
 ├── ADR-024-unified-registry.md            # Decision record
 ├── ADR-025-attenuation-depth-limit.md     # Decision record
@@ -277,9 +270,6 @@ docs/architecture/
 ├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
 ├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
 └── reference/
-    ├── hKask-erd.md                       # Diagram artifact
-    ├── registry-erd.md                    # Diagram artifact
-    ├── subsystem-erds.md                  # Diagram artifact
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
     ├── utoipa-implementation.md           # API guide
@@ -288,7 +278,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 24 active architecture documents (4 specs + 4 framework + 1 index + 9 active ADRs + 6 active reference artifacts).
+**Total:** 18 active architecture documents (4 specs + 4 framework + 1 index + 9 active ADRs + 4 active reference artifacts).
 
 ---
 

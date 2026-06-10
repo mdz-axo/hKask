@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 /// Default embedding dimension (configurable via HKASK_EMBEDDING_DIM)
-pub(crate) const DEFAULT_EMBEDDING_DIM: usize = 384;
+pub(crate) const DEFAULT_EMBEDDING_DIM: usize = 1024;
 
 /// Get embedding dimension from environment or default
 pub(crate) fn embedding_dim() -> usize {

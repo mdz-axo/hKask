@@ -148,7 +148,8 @@ impl ComposeService {
         let embedding_store =
             EmbeddingStore::with_dim(Arc::clone(&conn), request.cognition.embedding.dim);
         let semantic = SemanticMemory::new(triple_store, embedding_store);
-        let embedding_store_direct = EmbeddingStore::new(Arc::clone(&conn));
+        let embedding_store_direct =
+            EmbeddingStore::with_dim(Arc::clone(&conn), request.cognition.embedding.dim);
 
         // 2. Create OkapiEmbedding and embed prompt
         let okapi_config = OkapiConfig {

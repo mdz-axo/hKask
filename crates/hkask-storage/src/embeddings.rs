@@ -44,7 +44,7 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
 /// Default embedding dimension (must match `vec_embeddings` schema).
-const DEFAULT_DIM: usize = 384;
+const DEFAULT_DIM: usize = 1024;
 
 /// EmbeddingStore — sqlite-vec backed embedding storage.
 pub struct EmbeddingStore {

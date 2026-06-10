@@ -14,7 +14,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 **Supersedes:** `hKask-architecture-master.md` §Service Layer (v0.27.0)
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`MDS.md`](MDS.md), [`condensed-erd.md`](condensed-erd.md)
+**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`MDS.md`](MDS.md)
 
 ---
 

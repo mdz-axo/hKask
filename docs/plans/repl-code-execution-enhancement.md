@@ -37,7 +37,7 @@ The current `kask chat` REPL is inference-only: agents generate text but cannot 
 
 ## 2. Borrowed Zed Patterns (With Rationale)
 
-The following patterns are adapted from Zed's `crates/repl/` with explanation of why each is valuable for a headless terminal REPL. Full source analysis in [`../reference/zed-repl-analysis.md`](../reference/zed-repl-analysis.md) (to be created).
+The following patterns are adapted from Zed's `crates/repl/` with explanation of why each is valuable for a headless terminal REPL. Full source analysis in Zed's `crates/repl/` (source code, not documentation).
 
 ### 2.1 Jupyter Kernel Protocol as Execution Backend
 
