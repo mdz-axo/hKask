@@ -56,7 +56,10 @@ pub use ensemble::{
 pub use agent::{AgentReceipt, agent_register, agent_unregister, bot_list, bot_status};
 
 // Re-exports from chat
-pub use chat::{ChatResponse, TokenUsage, chat_with_agent, chat_with_agent_streaming};
+pub use chat::{
+    ChatResponse, TokenUsage, chat_with_agent, chat_with_agent_streaming,
+    chat_with_agent_streaming_with_params, chat_with_agent_with_params,
+};
 
 // Re-exports from curator
 pub use curator::{curator_dismiss, curator_escalations, curator_metacognition, curator_resolve};

@@ -35,7 +35,7 @@ pub use manifest_loader::resolve_manifest;
 pub use okapi_config::OkapiConfig;
 
 pub use okapi_config::OkapiModelEntry;
-pub use okapi_config::{list_okapi_models, search_okapi_models};
+pub use okapi_config::{OkapiModelShow, fetch_model_show, list_okapi_models, search_okapi_models};
 pub use ports::{McpPort, RegistryEntry, RegistryIndex, Result, TemplateError};
 // ManifestLoadError kept pub(crate) — only used within crate for YAML loading errors
 pub use prompt_strategy::PromptStrategy;

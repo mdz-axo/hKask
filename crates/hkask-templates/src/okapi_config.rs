@@ -101,7 +101,9 @@ pub struct OkapiModelEntry {
     pub details: Option<OkapiModelDetails>,
 }
 
-/// Model details from Okapi.
+/// Model details from Okapi — populated from Ollama's `/api/tags` response.
+/// Fields are all optional with `#[serde(default)]` so we gracefully handle
+/// models from any inference backend that may not provide every field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OkapiModelDetails {
     #[serde(default)]
@@ -110,6 +112,12 @@ pub struct OkapiModelDetails {
     pub parameter_size: Option<String>,
     #[serde(default)]
     pub quantization_level: Option<String>,
+    /// Context length in tokens. Provided by Ollama as details.context_length.
+    #[serde(default)]
+    pub context_length: Option<u32>,
+    /// Model capabilities. Example: ["completion", "chat", "json", "tools"].
+    #[serde(default)]
+    pub capabilities: Option<Vec<String>>,
 }
 
 /// Response from Okapi's `/api/tags` endpoint.
@@ -155,4 +163,75 @@ pub async fn search_okapi_models(config: &OkapiConfig, query: &str) -> Vec<Okapi
         .into_iter()
         .filter(|m| m.name.to_lowercase().contains(&lower))
         .collect()
+}
+
+/// Per-model detail from Ollama's `/api/show` endpoint (proxied through Okapi).
+///
+/// Returns detailed model info including `model_info` (architecture, context_length,
+/// embedding dimensions) and `capabilities` (completion, chat, tools, etc.).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OkapiModelShow {
+    #[serde(default)]
+    pub modelfile: Option<String>,
+    #[serde(default)]
+    pub parameters: Option<String>,
+    #[serde(default)]
+    pub template: Option<String>,
+    /// Raw model_info map — keys are architecture-prefixed (e.g. "qwen3.context_length").
+    #[serde(default)]
+    pub model_info: Option<std::collections::HashMap<String, serde_json::Value>>,
+    /// Model capabilities — e.g. ["completion", "chat", "json", "tools"].
+    #[serde(default)]
+    pub capabilities: Option<Vec<String>>,
+}
+
+impl OkapiModelShow {
+    /// Extract context_length from model_info, searching for any key ending in `.context_length`.
+    pub fn context_length(&self) -> Option<u32> {
+        self.model_info.as_ref()?.iter().find_map(|(k, v)| {
+            if k.ends_with(".context_length") {
+                v.as_u64().map(|n| n as u32)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Check whether the model supports extended thinking / reasoning.
+    /// Looks for relevant keys in model_info (e.g. "qwen3.reasoning.enable")
+    /// or the presence of "reasoning" in capabilities.
+    pub fn supports_thinking(&self) -> bool {
+        if let Some(ref caps) = self.capabilities {
+            if caps.iter().any(|c| c == "reasoning" || c == "thinking") {
+                return true;
+            }
+        }
+        if let Some(ref info) = self.model_info {
+            if info.iter().any(|(k, v)| {
+                (k.contains("reasoning") || k.contains("thinking")) && v.as_bool().unwrap_or(false)
+            }) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/// Fetch per-model detail from Ollama via Okapi's `/api/show` endpoint.
+///
+/// Returns `None` if the endpoint is unreachable, the model is not found,
+/// or the response cannot be parsed (graceful degradation).
+pub async fn fetch_model_show(config: &OkapiConfig, model: &str) -> Option<OkapiModelShow> {
+    let client = config.build_client().ok()?;
+
+    let mut request = client.get(format!("{}/api/show", config.base_url));
+    request = request.query(&[("name", model)]);
+    if let Some(ref auth) = config.api_key {
+        request = request.bearer_auth(auth);
+    }
+
+    match request.send().await {
+        Ok(resp) => resp.json::<OkapiModelShow>().await.ok(),
+        Err(_) => None,
+    }
 }

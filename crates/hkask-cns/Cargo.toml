@@ -20,3 +20,4 @@ parking_lot.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
+hkask-storage = { path = "../hkask-storage" }

@@ -44,6 +44,10 @@ pub(super) fn init_repl_state(
 ) -> Option<ReplState> {
     let initial_model_str = initial_model.unwrap_or("deepseek-v4-pro");
 
+    // Default REPL settings — used to initialize energy budget before
+    // ReplState is fully constructed. The user can override via /repl.
+    let repl_settings = ReplSettings::default();
+
     // Resolve okapi_base_url from env for InferenceService calls.
     // This is used before onboarding to create the initial inference port.
     let okapi_base_url = std::env::var("OKAPI_BASE_URL")

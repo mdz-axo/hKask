@@ -18,7 +18,7 @@ use hkask_cns::DEFAULT_THRESHOLD;
 use hkask_cns::cybernetics_loop::CyberneticsLoop;
 use hkask_cns::governed_tool::{EnergyEstimator, GovernedTool};
 use hkask_cns::runtime::CnsRuntime;
-use hkask_storage::{Database, NuEventStore, in_memory_db};
+use hkask_storage::{NuEventStore, in_memory_db};
 use hkask_types::WebID;
 use hkask_types::capability::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
@@ -54,6 +54,8 @@ impl ToolPort for EchoToolPort {
         Some(ToolInfo {
             name: "echo".to_string(),
             description: "Echo tool for integration testing".to_string(),
+            input_schema: serde_json::json!({}),
+            server_id: "echo_server".to_string(),
             required_capability: Some("tool:cns:execute".to_string()),
         })
     }

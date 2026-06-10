@@ -1,6 +1,34 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
+use super::super::handlers::ModelMeta;
 use hkask_services::{InferenceContext, InferenceService};
+use hkask_templates::OkapiConfig;
+
+/// Fetch model metadata from Ollama via Okapi's /api/show endpoint.
+/// Populates repl_settings.model_meta on successful fetch.
+fn populate_model_meta(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
+    let config = OkapiConfig {
+        base_url: state.service_context.config().okapi_base_url.clone(),
+        ..OkapiConfig::default()
+    };
+    let model = state.current_model.clone();
+    if let Some(show) = rt.block_on(hkask_templates::fetch_model_show(&config, &model)) {
+        let context_length = show.context_length().unwrap_or(4096);
+        let supports_thinking = show.supports_thinking();
+        let capabilities = show.capabilities.unwrap_or_default();
+        state.repl_settings.model_meta = Some(ModelMeta {
+            context_length,
+            supports_thinking,
+            capabilities,
+        });
+        let thinking_str = if supports_thinking {
+            "thinking ✓"
+        } else {
+            ""
+        };
+        println!("  Window: {} tokens  {}", context_length, thinking_str);
+    }
+}
 
 pub(crate) fn handle_model(
     arg1: &str,
@@ -66,6 +94,7 @@ pub(crate) fn handle_model(
                 if let Some(ref quant) = models[0].quantization_level {
                     println!("  Quantization: {}", quant);
                 }
+                populate_model_meta(state, rt);
             }
             Ok(models) => {
                 println!(

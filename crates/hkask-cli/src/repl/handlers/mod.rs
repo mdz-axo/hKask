@@ -30,5 +30,5 @@ pub(crate) use info::{
 pub(crate) use into::handle_into;
 pub(crate) use invoke::handle_invoke;
 pub(crate) use model::handle_model;
-pub(crate) use repl_settings::{ReplSettings, handle_repl_set, handle_repl_show, to_llm_params};
+pub(crate) use repl_settings::{ModelMeta, ReplSettings, handle_repl_set, to_llm_params};
 pub(crate) use status::handle_status;

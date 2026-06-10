@@ -1336,6 +1336,7 @@ version = "0.27.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "hkask-storage",
  "hkask-types",
  "parking_lot",
  "serde",

@@ -29,6 +29,26 @@ pub(crate) fn handle_repl_show(state: &ReplState) {
     );
     println!("  \x1b[36mgas_heuristic\x1b[0m:    {}", s.gas_heuristic);
     println!("  \x1b[36mgas_cap\x1b[0m:         {}", s.gas_cap);
+    println!(
+        "  \x1b[36mauto_compact\x1b[0m:     {}",
+        if s.auto_compact { "on" } else { "off" }
+    );
+    if let Some(ref meta) = s.model_meta {
+        println!("  \x1b[36m─ model info ─\x1b[0m");
+        println!("  \x1b[36m  context_length\x1b[0m: {}", meta.context_length);
+        println!(
+            "  \x1b[36m  thinking\x1b[0m:       {}",
+            if meta.supports_thinking { "yes" } else { "no" }
+        );
+        if !meta.capabilities.is_empty() {
+            println!(
+                "  \x1b[36m  capabilities\x1b[0m:   {}",
+                meta.capabilities.join(", ")
+            );
+        }
+    } else {
+        println!("  \x1b[36m─ model info ─\x1b[0m  (not fetched yet — switch models to populate)");
+    }
     println!();
 }
 
@@ -139,8 +159,19 @@ pub(crate) fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
             Ok(0) => println!("  \x1b[31mError:\x1b[0m gas_cap must be > 0"),
             _ => println!("  \x1b[31mError:\x1b[0m expected positive integer"),
         },
+        "auto_compact" => match arg2 {
+            "on" | "true" => {
+                state.repl_settings.auto_compact = true;
+                println!("  auto_compact: on (context will be compacted at 87.5% of window)");
+            }
+            "off" | "false" => {
+                state.repl_settings.auto_compact = false;
+                println!("  auto_compact: off (manual compaction only)");
+            }
+            _ => println!("  \x1b[31mError:\x1b[0m expected 'on' or 'off'"),
+        },
         "reset" => {
-            *state.repl_settings = ReplSettings::default();
+            state.repl_settings = ReplSettings::default();
             println!("  \x1b[32mAll REPL settings reset to defaults\x1b[0m");
             handle_repl_show(state);
         }
@@ -179,6 +210,21 @@ pub(crate) struct ReplSettings {
     pub gas_heuristic: u64,
     /// Total session energy budget cap.
     pub gas_cap: u64,
+    /// Auto-compact when context reaches 87.5% of model's window.
+    /// When false, the user must compact manually.
+    pub auto_compact: bool,
+    /// Read-only model metadata — populated by /model switch.
+    /// None until the first model detail fetch succeeds.
+    pub model_meta: Option<ModelMeta>,
+}
+
+/// Model metadata fetched from Ollama's /api/show endpoint.
+/// Read-only — populated automatically when the model changes.
+#[derive(Debug, Clone)]
+pub(crate) struct ModelMeta {
+    pub context_length: u32,
+    pub supports_thinking: bool,
+    pub capabilities: Vec<String>,
 }
 
 impl Default for ReplSettings {
@@ -195,6 +241,8 @@ impl Default for ReplSettings {
             seed: None,
             gas_heuristic: 500,
             gas_cap: 10_000,
+            auto_compact: true,
+            model_meta: None,
         }
     }
 }

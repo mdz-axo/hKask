@@ -49,7 +49,10 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         })?;
 
     // Build improv client from AgentService's inference port
-    let improv_client = crate::commands::ensemble::build_improv_client(&ctx, None);
+    let improv_client =
+        hkask_services::EnsembleService::build_improv_client(&ctx, None).map_err(|e| {
+            Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
+        })?;
     let base_adapter = Arc::new(improv_client.inner().clone());
 
     // Start API MCP servers on the AgentService's runtime
