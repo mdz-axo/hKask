@@ -17,7 +17,7 @@ use hkask_types::{
 };
 
 use crate::error::ServiceError;
-use crate::{InferenceContext, InferenceService, AgentService};
+use crate::{AgentService, InferenceContext, InferenceService};
 
 /// Token usage breakdown for gas accounting.
 pub struct TokenUsage {
@@ -119,9 +119,9 @@ impl ChatService {
 
         // Load agent registry to find the agent definition
         let loader = hkask_agents::AgentRegistryLoader::new(
-            ctx.config.registry_yaml_path.clone(),
-            ctx.acp_runtime.clone(),
-            ctx.agent_registry_store.clone(),
+            ctx.config().registry_yaml_path.clone(),
+            ctx.acp_runtime().clone(),
+            ctx.agent_registry_store().clone(),
             Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
         );
         let agents = loader.boot().await.map_err(ServiceError::AgentRegistry)?;
@@ -166,12 +166,12 @@ impl ChatService {
 
         // Resolve inference port — prefer override, then shared port from AgentService
         let inference: Arc<dyn InferencePort> =
-            match (&req.inference_port_override, &ctx.inference_port) {
+            match (&req.inference_port_override, ctx.inference_port()) {
                 (Some(port), _) => Arc::clone(port),
                 (None, Some(port)) => Arc::clone(port),
                 (None, None) => {
                     let inf_ctx =
-                        InferenceContext::from_parts(None, &model, &ctx.config.okapi_base_url);
+                        InferenceContext::from_parts(None, &model, &ctx.config().okapi_base_url);
                     InferenceService::resolve_port(&inf_ctx, &model)
                         .map_err(|e| ServiceError::Inference(e.to_string()))?
                 }
@@ -181,11 +181,11 @@ impl ChatService {
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
         // Create capability token for memory operations.
-        let capability_token = ctx.capability_checker.grant_registry(
+        let capability_token = ctx.capability_checker().grant_registry(
             DelegationAction::Execute,
             req.auth_context
                 .as_ref()
-                .map_or(ctx.system_webid, |a| a.webid),
+                .map_or(ctx.system_webid().clone(), |a| a.webid),
             agent_webid,
         );
 
@@ -193,7 +193,7 @@ impl ChatService {
         let semantic_port: Arc<dyn SemanticStoragePort> = req
             .semantic_storage_override
             .clone()
-            .unwrap_or_else(|| ctx.semantic_storage.clone());
+            .unwrap_or_else(|| ctx.semantic_storage().clone());
         let semantic_context = Self::recall_semantic(&semantic_port, &req.input, &capability_token);
 
         // Compose full prompt with semantic context
@@ -211,7 +211,7 @@ impl ChatService {
         let episodic_port: Arc<dyn EpisodicStoragePort> = req
             .episodic_storage_override
             .clone()
-            .unwrap_or_else(|| ctx.episodic_storage.clone());
+            .unwrap_or_else(|| ctx.episodic_storage().clone());
 
         Ok(PreparedChat {
             prompt: full_prompt,
@@ -233,10 +233,7 @@ impl ChatService {
     ///
     /// For streaming, use `prepare_chat()` + `generate_stream_with_model()`
     /// directly on the inference port.
-    pub async fn chat(
-        ctx: &AgentService,
-        req: ChatRequest,
-    ) -> Result<ChatResponse, ServiceError> {
+    pub async fn chat(ctx: &AgentService, req: ChatRequest) -> Result<ChatResponse, ServiceError> {
         let prepared = Self::prepare_chat(ctx, &req).await?;
 
         // Execute inference

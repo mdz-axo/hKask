@@ -210,6 +210,18 @@ impl AgentService {
         &self.config
     }
 
+    // === Category 4: Internal implementation (crate-visible only) ===
+
+    /// Access ACP runtime for agent registration and capability management.
+    pub(crate) fn acp_runtime(&self) -> &Arc<hkask_agents::AcpRuntime> {
+        &self.acp_runtime
+    }
+
+    /// Access system WebID for capability signing.
+    pub(crate) fn system_webid(&self) -> &WebID {
+        &self.system_webid
+    }
+
     // === Category 2-3: Surface-specific fields (7 fields) ===
     // TODO: Move these to ReplState/ApiState respectively
 

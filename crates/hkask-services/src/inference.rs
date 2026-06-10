@@ -70,9 +70,9 @@ impl InferenceContext {
 impl From<&crate::AgentService> for InferenceContext {
     fn from(ctx: &crate::AgentService) -> Self {
         Self {
-            shared_port: ctx.inference_port.clone(),
-            default_model: ctx.config.default_model.clone(),
-            okapi_base_url: ctx.config.okapi_base_url.clone(),
+            shared_port: ctx.inference_port().clone(),
+            default_model: ctx.config().default_model.clone(),
+            okapi_base_url: ctx.config().okapi_base_url.clone(),
         }
     }
 }
