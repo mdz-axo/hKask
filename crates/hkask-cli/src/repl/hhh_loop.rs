@@ -32,7 +32,7 @@ pub(super) fn evaluate_hhh(
     let mut current_response = final_response.clone();
 
     loop {
-        let Some(mut gate_guard) = energy::EnergyGuard::try_reserve(
+        let Some(gate_guard) = energy::EnergyGuard::try_reserve(
             state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
@@ -90,7 +90,7 @@ pub(super) fn evaluate_hhh(
         let correction_input =
             hhh_gate::hhh_correction_prompt(input, &current_response, &evaluation);
 
-        let Some(mut correction_guard) = energy::EnergyGuard::try_reserve(
+        let Some(correction_guard) = energy::EnergyGuard::try_reserve(
             state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,

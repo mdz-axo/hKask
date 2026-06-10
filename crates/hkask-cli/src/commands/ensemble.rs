@@ -176,12 +176,7 @@ pub fn ensemble_standing_status(
 /// CLI handler for `kask ensemble` subcommand
 pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAction) {
     use crate::commands;
-    let build_ctx = || {
-        super::helpers::or_exit(
-            super::helpers::build_service_context(),
-            "Failed to build service context",
-        )
-    };
+    let build_ctx = || super::helpers::build_service_context();
 
     match action {
         EnsembleAction::ChatCreate { session } => {

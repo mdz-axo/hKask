@@ -9,7 +9,8 @@
 use std::sync::Arc;
 
 use hkask_agents::ports::{
-    EpisodicStoragePort, RecallRequest, RecalledSemantic, SemanticStoragePort, StorageRequest,
+    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
+    StorageRequest,
 };
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
@@ -566,6 +567,47 @@ impl ChatService {
                     "Episodic storage failed — response still returned"
                 );
             }
+        }
+    }
+
+    /// Recall recent chat turns from episodic memory as pre-formatted context.
+    ///
+    /// Returns `None` if episodic storage is empty or recall fails.
+    /// Each episode stores `user_input` + `agent_response` from `store_episodic()`.
+    /// Formatted as "[Previous conversation]\nUser: ...\nAgent: ...\n[/Previous conversation]"
+    ///
+    /// # REQ: P2-session-history — every history access routes through episodic storage
+    /// # REQ: P4-ocap-history — recall requires DelegationToken with Read on Manifest
+    pub fn recall_recent_turns(
+        episodic_port: &Arc<dyn EpisodicStoragePort>,
+        agent_webid: &WebID,
+        token: &DelegationToken,
+        limit: usize,
+    ) -> Option<String> {
+        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
+        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
+            Ok(v) if !v.is_empty() => v,
+            _ => return None,
+        };
+        let recent: Vec<String> = episodes
+            .iter()
+            .rev()
+            .take(limit)
+            .filter_map(|e| {
+                let v = e.value.as_object()?;
+                let input = v.get("user_input")?.as_str()?;
+                let response = v.get("agent_response")?.as_str()?;
+                Some(format!("User: {}\nAgent: {}", input, response))
+            })
+            .collect();
+        if recent.is_empty() {
+            None
+        } else {
+            let formatted = recent.into_iter().rev().collect::<Vec<_>>().join("\n\n");
+            Some(format!(
+                "[Previous conversation]\n{}\n[/Previous conversation]\n\n",
+                formatted
+            ))
         }
     }
 }

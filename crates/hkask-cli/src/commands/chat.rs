@@ -16,6 +16,46 @@ use hkask_services::{AgentService, ChatRequest, ChatService, ResolvedSecrets};
 use hkask_types::LLMParameters;
 use hkask_types::ports::{InferencePort, InferenceUsage};
 
+/// Build AgentService from secrets or environment.
+/// Single construction path for all chat variants.
+///
+/// # REQ: P7-converge — AgentService construction is single-source
+async fn build_chat_context(
+    name: &str,
+    secrets: Option<&ResolvedSecrets>,
+) -> Result<AgentService, ChatResponse> {
+    let config = match secrets {
+        Some(s) => {
+            let mcp_secret = hkask_keystore::resolve_mcp_secret()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+            hkask_services::ServiceConfig::from_secrets(
+                s.acp_secret.clone(),
+                s.db_passphrase.clone(),
+                mcp_secret,
+                name.to_string(),
+            )
+        }
+        None => match hkask_services::ServiceConfig::from_env() {
+            Ok(c) => c,
+            Err(e) => {
+                return Err(ChatResponse {
+                    text: format!("Config error: {}", e),
+                    usage: None,
+                    finish_reason: "error".to_string(),
+                    tool_calls: vec![],
+                });
+            }
+        },
+    };
+    AgentService::build(config).await.map_err(|e| ChatResponse {
+        text: format!("AgentService error: {}", e),
+        usage: None,
+        finish_reason: "error".to_string(),
+        tool_calls: vec![],
+    })
+}
+
 /// Response from a chat inference call.
 ///
 /// Re-exported from `hkask_services::ChatResponse` for surface convenience.
@@ -57,54 +97,9 @@ pub async fn chat_with_agent(
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
-    // Build AgentService from secrets or environment
-    let ctx = match secrets {
-        Some(s) => {
-            let mcp_secret = hkask_keystore::resolve_mcp_secret()
-                .map(|s| String::from_utf8_lossy(&s).to_string())
-                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
-            let config = hkask_services::ServiceConfig::from_secrets(
-                s.acp_secret.clone(),
-                s.db_passphrase.clone(),
-                mcp_secret,
-                name.to_string(),
-            );
-            match AgentService::build(config).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    return ChatResponse {
-                        text: format!("AgentService error: {}", e),
-                        usage: None,
-                        finish_reason: "error".to_string(),
-                        tool_calls: vec![],
-                    };
-                }
-            }
-        }
-        None => {
-            let config = match hkask_services::ServiceConfig::from_env() {
-                Ok(c) => c,
-                Err(e) => {
-                    return ChatResponse {
-                        text: format!("Config error: {}", e),
-                        usage: None,
-                        finish_reason: "error".to_string(),
-                        tool_calls: vec![],
-                    };
-                }
-            };
-            match AgentService::build(config).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    return ChatResponse {
-                        text: format!("AgentService error: {}", e),
-                        usage: None,
-                        finish_reason: "error".to_string(),
-                        tool_calls: vec![],
-                    };
-                }
-            }
-        }
+    let ctx = match build_chat_context(name, secrets).await {
+        Ok(ctx) => ctx,
+        Err(resp) => return resp,
     };
 
     let req = ChatRequest {
@@ -149,53 +144,9 @@ pub async fn chat_with_agent_with_params(
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
-    let ctx = match secrets {
-        Some(s) => {
-            let mcp_secret = hkask_keystore::resolve_mcp_secret()
-                .map(|s| String::from_utf8_lossy(&s).to_string())
-                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
-            let config = hkask_services::ServiceConfig::from_secrets(
-                s.acp_secret.clone(),
-                s.db_passphrase.clone(),
-                mcp_secret,
-                name.to_string(),
-            );
-            match AgentService::build(config).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    return ChatResponse {
-                        text: format!("AgentService error: {}", e),
-                        usage: None,
-                        finish_reason: "error".to_string(),
-                        tool_calls: vec![],
-                    };
-                }
-            }
-        }
-        None => {
-            let config = match hkask_services::ServiceConfig::from_env() {
-                Ok(c) => c,
-                Err(e) => {
-                    return ChatResponse {
-                        text: format!("Config error: {}", e),
-                        usage: None,
-                        finish_reason: "error".to_string(),
-                        tool_calls: vec![],
-                    };
-                }
-            };
-            match AgentService::build(config).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    return ChatResponse {
-                        text: format!("AgentService error: {}", e),
-                        usage: None,
-                        finish_reason: "error".to_string(),
-                        tool_calls: vec![],
-                    };
-                }
-            }
-        }
+    let ctx = match build_chat_context(name, secrets).await {
+        Ok(ctx) => ctx,
+        Err(resp) => return resp,
     };
 
     let req = ChatRequest {

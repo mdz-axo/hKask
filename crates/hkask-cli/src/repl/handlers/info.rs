@@ -1,21 +1,36 @@
-//! REPL info handlers — /history, /pods, /templates, /tools, /metacognition, /sovereignty
+//! REPL info handlers — /history, /pods, /templates, /tools
 
+use hkask_services::ChatService;
 use hkask_types::ports::ToolPort;
 
 pub(crate) fn handle_history(state: &super::super::ReplState) {
-    let count = state.session_history.turn_count();
-    if count == 0 {
-        println!("  No turns in this session yet.");
-    } else {
-        println!("  Session history ({} turns):", count);
-        for (i, (agent, response)) in state.session_history.turns_for_display().enumerate() {
-            let preview = if response.len() > 80 {
-                format!("{}…", &response[..80])
-            } else {
-                response.to_string()
-            };
-            println!("  {:>3}. {}: {}", i + 1, agent, preview);
+    let token = state.service_context.capability_checker().grant_registry(
+        hkask_types::DelegationAction::Read,
+        *state.service_context.system_webid(),
+        state.agent_webid,
+    );
+    match ChatService::recall_recent_turns(
+        &state.episodic_storage,
+        &state.agent_webid,
+        &token,
+        usize::MAX, // retrieve all turns for display
+    ) {
+        Some(history) => {
+            let turn_count = history.lines().filter(|l| l.starts_with("User:")).count();
+            println!("  Session history ({} turns):", turn_count);
+            for line in history.lines() {
+                if line.is_empty() {
+                    continue;
+                }
+                let preview = if line.len() > 80 {
+                    format!("{}…", &line[..80])
+                } else {
+                    line.to_string()
+                };
+                println!("    {}", preview);
+            }
         }
+        None => println!("  No turns in this session yet."),
     }
     println!();
 }
@@ -74,18 +89,4 @@ pub(crate) fn handle_tools(state: &mut super::super::ReplState, rt: &tokio::runt
         println!("  \x1b[2mAll tool calls route through GovernedTool (OCAP + gas)\x1b[0m");
     }
     println!();
-}
-
-pub(crate) fn handle_metacognition(rt: &tokio::runtime::Handle) {
-    rt.block_on(async {
-        match crate::commands::curator_metacognition().await {
-            Ok(summary) => println!("  {}", summary),
-            Err(e) => println!("  Error: {}", e),
-        }
-    });
-    println!();
-}
-
-pub(crate) fn handle_sovereignty() {
-    crate::commands::sovereignty::run(crate::cli::SovereigntyAction::Status);
 }

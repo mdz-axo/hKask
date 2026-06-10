@@ -40,7 +40,7 @@ use std::sync::Arc;
 
 use commands::handle_slash_command;
 use handlers::ReplSettings;
-use helper::{KaskHelper, SessionHistory};
+use helper::KaskHelper;
 
 /// REPL state — initialized once, reused across all turns.
 ///
@@ -62,7 +62,6 @@ pub(crate) struct ReplState {
     pub(crate) agent_webid: WebID,
     pub(crate) current_model: String,
     pub(crate) current_agent: String,
-    pub(crate) session_history: SessionHistory,
     pub(crate) active_session: Option<String>,
     /// Pre-resolved secrets from onboarding, carried forward to avoid
     /// re-resolving from the OS keychain (which may use a mock backend

@@ -75,8 +75,9 @@ fn map_pod_err(e: hkask_agents::pod::AgentPodError) -> ApiError {
 }
 
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
-    let pm = &state.agent_service.pod_manager();
-    let pod_statuses = pm.list_pods().await.unwrap_or_default();
+    let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
+        .await
+        .unwrap_or_default();
     let pods: Vec<PodStatusResponse> = pod_statuses
         .into_iter()
         .map(|s| PodStatusResponse {

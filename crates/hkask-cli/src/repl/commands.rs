@@ -238,8 +238,18 @@ pub(super) fn handle_slash_command(
         "escalations" | "esc" => handlers::handle_escalations(rt),
         "resolve" => handlers::handle_resolve(arg1, rt),
         "dismiss" => handlers::handle_dismiss(arg1, rt),
-        "metacognition" | "meta" => handlers::handle_metacognition(rt),
-        "sovereignty" | "sov" => handlers::handle_sovereignty(),
+        "metacognition" | "meta" => {
+            rt.block_on(async {
+                match crate::commands::curator_metacognition().await {
+                    Ok(summary) => println!("  {}", summary),
+                    Err(e) => println!("  Error: {}", e),
+                }
+            });
+            println!();
+        }
+        "sovereignty" | "sov" => {
+            crate::commands::sovereignty::run(crate::cli::SovereigntyAction::Status);
+        }
         "ensemble" | "ens" => handlers::handle_ensemble(
             arg1,
             arg2,

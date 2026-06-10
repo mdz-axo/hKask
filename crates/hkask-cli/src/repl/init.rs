@@ -23,7 +23,6 @@ use hkask_types::ports::{InferencePort, ToolInfo, ToolPort};
 
 use super::ReplState;
 use super::handlers::ReplSettings;
-use super::helper::SessionHistory;
 use super::memory;
 use super::tool_augmented;
 
@@ -231,7 +230,6 @@ pub(super) fn init_repl_state(
         agent_webid,
         current_model: initial_model_str.to_string(),
         current_agent: onboarding_outcome.signed_in_agent,
-        session_history: SessionHistory::new(),
         active_session: None,
         resolved_secrets: onboarding_outcome.resolved_secrets,
         governed_tool,

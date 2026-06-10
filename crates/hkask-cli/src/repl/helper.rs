@@ -8,60 +8,6 @@ use std::borrow::Cow;
 
 use super::commands::SLASH_COMMANDS;
 
-/// A turn in the session: user input and the agent's response.
-#[derive(Debug, Clone)]
-pub(crate) struct Turn {
-    pub(crate) user_input: String,
-    pub(crate) agent: String,
-    pub(crate) response: String,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SessionHistory {
-    turns: Vec<Turn>,
-}
-
-impl SessionHistory {
-    pub(super) fn new() -> Self {
-        Self { turns: Vec::new() }
-    }
-    pub(super) fn record(&mut self, user_input: &str, agent: &str, response: &str) {
-        self.turns.push(Turn {
-            user_input: user_input.to_string(),
-            agent: agent.to_string(),
-            response: response.to_string(),
-        });
-    }
-
-    pub(crate) fn turn_count(&self) -> usize {
-        self.turns.len()
-    }
-
-    /// Iterate turns as (agent, response) pairs for display.
-    pub(crate) fn turns_for_display(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.turns
-            .iter()
-            .map(|t| (t.agent.as_str(), t.response.as_str()))
-    }
-
-    /// Return the last `n` turns as formatted context text suitable for
-    /// prepending to the model's prompt.
-    pub(crate) fn recent_context(&self, n: usize) -> String {
-        if self.turns.is_empty() {
-            return String::new();
-        }
-        let start = self.turns.len().saturating_sub(n);
-        let recent: Vec<String> = self.turns[start..]
-            .iter()
-            .map(|t| format!("User: {}\n{}: {}", t.user_input, t.agent, t.response))
-            .collect();
-        format!(
-            "[Previous conversation]\n{}\n[/Previous conversation]\n\n",
-            recent.join("\n\n")
-        )
-    }
-}
-
 pub(super) struct KaskHelper {
     slash_completions: Vec<String>,
 }

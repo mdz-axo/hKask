@@ -187,9 +187,9 @@ Default is deny. Nothing passes without an explicit yes. Consent is scoped (to s
 
 #### P3 — Generative Space
 
-Within boundaries, hKask is maximally generative. All probabilistic/generative settings are exposed to users — temperature, top-k, top-p, repeat penalty, and any parameter the underlying model supports.[^headless] No settings are hidden or admin-gated. No privileged engineer access — if an internal engineer can adjust a parameter, the user can too. Constraints are user-curated (the HHH pipeline is a tool the user wields, not a restriction imposed on them). The user's first-person perspective takes precedence over the LLM's aggregate defaults — non-normativity is a feature, not a bug.
+Within boundaries, hKask is maximally generative. All probabilistic/generative settings are exposed to users through three equivalent surfaces: CLI (`kask settings`), API (`GET/PUT /api/settings`), and interactive REPL (`/repl`). Settings include temperature, top_p, top_k, min_p, typical_p, max_tokens, seed, tool_loop_limit, context_turns, gas_heuristic, gas_cap, and auto_compact. Settings persist to `~/.config/hkask/settings.json` and are shared across all surfaces. No settings are hidden or admin-gated. No privileged engineer access — if an internal engineer can adjust a parameter, the user can too. Constraints are user-curated (the HHH pipeline is a tool the user wields, not a restriction imposed on them). The user's first-person perspective takes precedence over the LLM's aggregate defaults — non-normativity is a feature, not a bug.
 
-**Enforces:** Full settings exposure, no privileged access, user curation, non-normativity, open-source commitment.
+**Enforces:** Full settings exposure across CLI/API/REPL, no privileged access, user curation, non-normativity, open-source commitment.
 
 #### P4 — Clear Boundaries (OCAP)
 

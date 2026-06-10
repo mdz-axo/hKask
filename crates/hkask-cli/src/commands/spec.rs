@@ -9,10 +9,6 @@ use hkask_services::{SpecCaptureRequest, SpecService};
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{SpecCategory, SpecCurator};
 
-fn build_service_context() -> hkask_services::AgentService {
-    super::helpers::build_service_context()
-}
-
 pub fn run(action: SpecAction) {
     match action {
         SpecAction::Capture {
@@ -21,7 +17,7 @@ pub fn run(action: SpecAction) {
             domain,
             criteria,
         } => {
-            let ctx = build_service_context();
+            let ctx = super::helpers::build_service_context();
             let resp = SpecService::capture(
                 &ctx,
                 SpecCaptureRequest {
@@ -42,7 +38,7 @@ pub fn run(action: SpecAction) {
             println!("  Complete: {}", resp.complete);
         }
         SpecAction::List { category } => {
-            let ctx = build_service_context();
+            let ctx = super::helpers::build_service_context();
             match SpecService::list(&ctx, category.as_deref()) {
                 Ok(entries) => {
                     if entries.is_empty() {
@@ -69,7 +65,7 @@ pub fn run(action: SpecAction) {
                 hkask_storage::spec_types::SpecId::from_string(&id),
                 "Invalid spec ID",
             );
-            let ctx = build_service_context();
+            let ctx = super::helpers::build_service_context();
             let spec = ctx
                 .spec_store()
                 .load(spec_id)
@@ -92,7 +88,7 @@ pub fn run(action: SpecAction) {
                 hkask_storage::spec_types::SpecId::from_string(&id),
                 "Invalid spec ID",
             );
-            let ctx = build_service_context();
+            let ctx = super::helpers::build_service_context();
             let spec = ctx
                 .spec_store()
                 .load(spec_id)
@@ -125,7 +121,7 @@ pub fn run(action: SpecAction) {
                 "Template not found",
             );
 
-            let ctx = build_service_context();
+            let ctx = super::helpers::build_service_context();
             let store = &ctx.spec_store();
 
             let render_ctx = if let Some(sid) = spec_id {

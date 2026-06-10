@@ -1,25 +1,18 @@
 //! Pod management command handlers — delegates to PodService.
 
-use hkask_services::{AgentService, PodService, PodStatusResponse, ServiceConfig};
+use hkask_services::{PodService, PodStatusResponse};
 
 use crate::cli::PodAction;
 
-fn build_service_context() -> Result<AgentService, String> {
-    let config = ServiceConfig::from_env().map_err(|e| format!("Config: {e}"))?;
-    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
-    rt.block_on(AgentService::build(config))
-        .map_err(|e| format!("Service: {e}"))
-}
-
 pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, String> {
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     PodService::get_pod_status(&ctx, pod_id)
         .await
         .map_err(|e| e.to_string())
 }
 
 pub async fn list_pods() -> Result<Vec<PodStatusResponse>, String> {
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     PodService::list_pods(&ctx).await.map_err(|e| e.to_string())
 }
 
@@ -29,7 +22,7 @@ pub async fn create_pod(
     name: Option<&str>,
 ) -> Result<String, String> {
     let yaml = std::fs::read_to_string(persona_path).map_err(|e| format!("Read persona: {e}"))?;
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     let resp = PodService::create_pod(
         &ctx,
         hkask_services::CreatePodRequest {
@@ -44,14 +37,14 @@ pub async fn create_pod(
 }
 
 pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     PodService::activate_pod(&ctx, pod_id)
         .await
         .map_err(|e| e.to_string())
 }
 
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     PodService::deactivate_pod(&ctx, pod_id)
         .await
         .map_err(|e| e.to_string())

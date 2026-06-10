@@ -4,8 +4,11 @@
 //! 1. Reserve a heuristic estimate before inference
 //! 2. Settle with the actual token cost after
 //!
-//! EnergyGuard encapsulates this pattern, eliminating the 3× duplicated
-//! can_proceed → reserve → settle → sync sequences in the main REPL loop.
+//! EnergyGuard encapsulates this pattern as an owned-consumption guard.
+//! `settle()` consumes the guard — the compiler guarantees settle is called
+//! exactly once. No Drop fallback, no release-build gas leaks.
+//!
+//! # REQ: P9-gas-settle — EnergyGuard guarantees settle() is called exactly once
 
 use hkask_agents::InferenceLoop;
 use hkask_cns::{CyberneticsLoop, EnergyCost};
@@ -17,16 +20,14 @@ use tokio::sync::RwLock;
 ///
 /// Created via `try_reserve()`, which checks `can_proceed` and reserves
 /// the heuristic amount. Call `settle(actual_cost)` after inference to
-/// reconcile with the actual token cost. If dropped without settling,
-/// the reserved amount is kept (pessimistic: over-charges rather than
-/// under-charges) and a debug assertion fires.
+/// reconcile with the actual token cost. `settle` consumes the guard —
+/// compiler-enforced: the guard cannot be dropped without settling.
 pub(crate) struct EnergyGuard {
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
     inference_loop: Arc<InferenceLoop>,
     webid: WebID,
     rt: tokio::runtime::Handle,
     heuristic: u64,
-    settled: bool,
 }
 
 impl EnergyGuard {
@@ -64,7 +65,6 @@ impl EnergyGuard {
             webid: *webid,
             rt: rt.clone(),
             heuristic,
-            settled: false,
         })
     }
 
@@ -74,18 +74,18 @@ impl EnergyGuard {
     }
 
     /// Settle gas with actual cost and sync InferenceLoop from L6 budget.
+    /// Consumes self — compiler-enforced: settle must be called exactly once.
     ///
-    /// No-op if already settled.
-    pub(crate) fn settle(&mut self, actual: u64) {
-        if self.settled {
-            return;
-        }
-        self.settle_inner(actual);
-        self.settled = true;
-    }
-
-    /// Sync InferenceLoop's sense signal from the authoritative L6 budget.
-    pub(crate) fn sync(&self) {
+    /// # REQ: P9-gas-settle — EnergyGuard guarantees settle() is called exactly once
+    pub(crate) fn settle(self, actual: u64) {
+        let _ = self.rt.block_on(async {
+            self.cybernetics_loop
+                .read()
+                .await
+                .settle_gas(&self.webid, EnergyCost(self.heuristic), EnergyCost(actual))
+                .await
+        });
+        // Sync InferenceLoop's sense signal from the authoritative L6 budget.
         if let Some(status) = self.rt.block_on(async {
             self.cybernetics_loop
                 .read()
@@ -96,26 +96,6 @@ impl EnergyGuard {
             self.inference_loop
                 .sync_gas_state(status.remaining.as_raw(), status.cap.as_raw());
         }
-    }
-
-    /// Internal settle — performs settle + sync without the guard check.
-    fn settle_inner(&self, actual: u64) {
-        let _ = self.rt.block_on(async {
-            self.cybernetics_loop
-                .read()
-                .await
-                .settle_gas(&self.webid, EnergyCost(self.heuristic), EnergyCost(actual))
-                .await
-        });
-        self.sync();
-    }
-}
-
-impl Drop for EnergyGuard {
-    fn drop(&mut self) {
-        debug_assert!(
-            self.settled,
-            "EnergyGuard dropped without settle() — gas reservation leaked"
-        );
+        // self dropped here — no Drop impl needed
     }
 }

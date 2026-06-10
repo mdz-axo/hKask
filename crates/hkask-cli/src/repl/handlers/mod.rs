@@ -23,10 +23,7 @@ pub(crate) use ensemble::handle_ensemble;
 pub(crate) use ensemble_ops::{handle_filter, handle_mode};
 pub(crate) use escalation::{handle_dismiss, handle_escalations, handle_resolve};
 pub(crate) use hhh::handle_hhh;
-pub(crate) use info::{
-    handle_history, handle_metacognition, handle_pods, handle_sovereignty, handle_templates,
-    handle_tools,
-};
+pub(crate) use info::{handle_history, handle_pods, handle_templates, handle_tools};
 pub(crate) use into::handle_into;
 pub(crate) use invoke::handle_invoke;
 pub(crate) use model::handle_model;

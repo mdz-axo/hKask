@@ -51,6 +51,62 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 
 ---
 
+## REPL Architecture
+
+The interactive REPL (`kask chat`) implements four features that govern inference behavior:
+
+### Context Injection
+
+Conversation history is appended as a **suffix** (after the cache breakpoint) so the KV cache prefix — system prompt + template — remains identical across turns. Models that cache KV state across requests (e.g., Ollama with `keep_alive`) see prefix cache hits on every turn, reducing per-turn inference latency. Controlled by `ReplSettings.context_turns` (default 3, 0 = no history).
+
+### Unbounded Tool-Use Loop
+
+The REPL loops tool calls until the model stops requesting them, gated by `ReplSettings.tool_loop_limit` (default 21). Each iteration checks the energy budget via `GovernedTool` before executing. If the limit is hit, the loop breaks and returns the partial response — the system tells the model it can continue by asking.
+
+### Auto-Compaction
+
+At 87.5% of the model's context window, old session history is compacted via the condenser MCP tool (`hkask-mcp-condenser`). The condenser summarizes older turns into a compact form, freeing context space for new messages. Controlled by `ReplSettings.auto_compact` (default on). When off, the user must compact manually.
+
+### Model Awareness
+
+On model switch (`/model`), the REPL fetches metadata from Ollama's `/api/show` endpoint:
+- `context_length` — the model's native context window size (used by auto-compaction)
+- `supports_thinking` — whether the model supports thinking/reasoning tokens
+- `capabilities` — model feature list (vision, tools, etc.)
+
+Populated into `ReplSettings.model_meta` as read-only fields. Unknown until the first model detail fetch succeeds.
+
+### ReplSettings
+
+User-configurable inference parameters exposed via three surfaces:
+
+| Setting | Type | Range | Default | Description |
+|---------|------|-------|---------|-------------|
+| `tool_loop_limit` | usize | ≥1 | 21 | Max tool-call iterations per turn |
+| `context_turns` | usize | ≥0 | 3 | Past turns in context (0 = no history) |
+| `temperature` | f32 | 0.0–2.0 | 0.7 | Sampling temperature |
+| `top_p` | f32 | 0.0–1.0 | 0.9 | Nucleus sampling |
+| `top_k` | u32 | ≥1 | 40 | Top-k filtering |
+| `min_p` | f32 | 0.0–1.0 | 0.0 | Min-p threshold (0.0 = disabled) |
+| `typical_p` | f32 | 0.0–1.0 | 0.0 | Locally typical sampling (0.0 = disabled) |
+| `max_tokens` | u32 | ≥1 | 512 | Max completion tokens per call |
+| `seed` | u32 or `off` | — | random | Deterministic seed |
+| `gas_heuristic` | u64 | ≥1 | 500 | Per-turn gas reservation |
+| `gas_cap` | u64 | ≥1 | 10,000 | Total session energy budget cap |
+| `auto_compact` | bool | — | true | Auto-compact at 87.5% of context window |
+| `model_meta` | read-only | — | None | Model context_length, thinking, capabilities |
+
+### Magna Carta P3 — Equal Surface Exposure
+
+All ReplSettings fields are equally exposed across:
+- **REPL:** `/repl` slash command (show/set individual fields)
+- **CLI:** `kask settings show|set|reset` commands
+- **API:** `GET /api/settings` and `PUT /api/settings` endpoints
+
+All three surfaces read/write the same `~/.config/hkask/settings.json` file. No settings are hidden, admin-gated, or surface-restricted.
+
+---
+
 ## Service Layer
 
 **Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
@@ -200,9 +256,9 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ```
 docs/architecture/
-├── hKask-architecture-master.md           # THIS FILE (index)
+├── hKask-architecture-master.md           # THIS FILE (index — includes REPL Architecture)
 ├── MDS.md                              # Framework
-├── PRINCIPLES.md                          # Framework
+├── PRINCIPLES.md                          # Framework (P3 updated with ReplSettings)
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── magna-carta.md                         # Framework
 ├── MDS.md §7.1-7.2               # SPEC (Domain + Capability)

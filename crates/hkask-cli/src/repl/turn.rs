@@ -7,6 +7,7 @@
 
 use hkask_agents::HhhMode;
 use hkask_agents::hhh_gate;
+use hkask_services::ChatService;
 use hkask_types::ports::StructuredToolCall;
 
 use super::ReplState;
@@ -52,9 +53,6 @@ pub(super) fn ensemble_turn(
                             response.agent_webid, response.confidence, response.content
                         );
                     }
-                    state
-                        .session_history
-                        .record(input, &agent_name, &processed.text);
                 }
                 if let Some(ref synthesis) = turn.curator_synthesis {
                     let processed = rt.block_on(tool_augmented::process_response(
@@ -68,9 +66,6 @@ pub(super) fn ensemble_turn(
                     if !processed.had_tool_calls {
                         println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
                     }
-                    state
-                        .session_history
-                        .record(input, "Curator", &processed.text);
                 }
             }
             for j in &turn.judgments {
@@ -182,7 +177,7 @@ pub(super) fn single_agent_turn(
 
         // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
         // before inference, settle with actual token cost after.
-        let Some(mut gas_guard) = energy::EnergyGuard::try_reserve(
+        let Some(gas_guard) = energy::EnergyGuard::try_reserve(
             state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
@@ -348,12 +343,7 @@ pub(super) fn single_agent_turn(
         );
     }
 
-    cns_display::update_cns_and_display(input, state, rt);
-
-    // Record the (possibly persona-filtered) response in session history.
-    state
-        .session_history
-        .record(input, &state.current_agent, &current_response);
+    cns_display::update_cns_and_display(state, rt);
 
     true
 }
@@ -370,10 +360,23 @@ fn build_input_with_auto_compact(
     acp_secret: &[u8],
     settings: &super::handlers::ReplSettings,
 ) -> String {
-    let history_suffix = state.session_history.recent_context(settings.context_turns);
-    if history_suffix.is_empty() {
-        return base_input.to_string();
-    }
+    // Recall recent turns from episodic memory via ChatService.
+    // Requires a capability token minted from the service context.
+    let token = state.service_context.capability_checker().grant_registry(
+        hkask_types::DelegationAction::Read,
+        *state.service_context.system_webid(),
+        state.agent_webid,
+    );
+    let history_suffix = ChatService::recall_recent_turns(
+        &state.episodic_storage,
+        &state.agent_webid,
+        &token,
+        settings.context_turns,
+    );
+    let history_suffix = match history_suffix {
+        Some(s) => s,
+        None => return base_input.to_string(),
+    };
     let candidate = format!("{}\n\n{}", base_input, history_suffix);
 
     // Only compact if auto_compact is on and model metadata is available.
@@ -391,11 +394,31 @@ fn build_input_with_auto_compact(
     }
 
     // Build the messages array for condenser_thread_summary.
-    // Only compact the oldest half of the session history turns.
-    let turns = state.session_history.turns_for_display();
-    let turn_list: Vec<(&str, &str)> = turns.collect();
+    // Only compact the oldest half of the turns from episodic memory.
+    let request =
+        hkask_agents::ports::RecallRequest::episodic("chatted", state.agent_webid, token.clone());
+    let episodes = match state.episodic_storage.recall_episodic(&request) {
+        Ok(v) if !v.is_empty() => v,
+        _ => {
+            println!(
+                "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but no history to compact\x1b[0m",
+                (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
+                estimated_tokens,
+                meta.context_length,
+            );
+            return candidate;
+        }
+    };
+
+    let turn_list: Vec<String> = episodes
+        .iter()
+        .filter_map(|e| {
+            let v = e.value.as_object()?;
+            Some(format!("[user]: {}", v.get("user_input")?.as_str()?))
+        })
+        .collect();
+
     if turn_list.len() < 4 {
-        // Not enough turns to compact — just warn and proceed.
         println!(
             "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but too few turns to compact\x1b[0m",
             (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
@@ -411,10 +434,10 @@ fn build_input_with_auto_compact(
 
     let messages: Vec<serde_json::Value> = old_turns
         .iter()
-        .map(|(agent, response)| {
+        .map(|content| {
             serde_json::json!({
                 "role": "assistant",
-                "content": format!("[{}]: {}", agent, response)
+                "content": content
             })
         })
         .collect();
@@ -460,15 +483,13 @@ fn build_input_with_auto_compact(
                 summary.len() / 4,
             );
 
-            // Rebuild history: keep recent turns, prepend summary as a synthetic turn,
-            // then format. Since SessionHistory is behind a shared reference and we
-            // can't mutate it here, we build the new input_with_context directly.
+            // Rebuild history: keep recent turns, prepend summary as a synthetic turn.
             let recent_text = if recent_turns.is_empty() {
                 String::new()
             } else {
                 let recent_lines: Vec<String> = recent_turns
                     .iter()
-                    .map(|(agent, response)| format!("User: [previous]\n{}: {}", agent, response))
+                    .map(|content| format!("User: [previous]\n{}", content))
                     .collect();
                 format!(
                     "\n\n[Previous conversation — compacted]\n{}\n[/Previous conversation — compacted]",
