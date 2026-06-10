@@ -78,7 +78,7 @@ pub(crate) fn build_improv_client(
     let breaker: Arc<dyn CircuitBreakerPort> =
         Arc::new(CircuitBreaker::default_for_inference("ensemble-inference"));
 
-    match inference_port.or(ctx.inference_port.clone()) {
+    match inference_port.or(ctx.inference_port().clone()) {
         Some(port) => {
             let adapter = InferencePortAdapter::new(port);
             Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
@@ -101,7 +101,7 @@ fn map_ensemble_role(role: &str) -> ParticipantRole {
 }
 
 pub async fn ensemble_chat_create(ctx: &AgentService, session: String) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     manager.create_chat(&session).await;
     Ok(format!("Chat session '{}' created", session))
 }
@@ -112,7 +112,7 @@ pub async fn ensemble_chat_register(
     bot: String,
     role: String,
 ) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(&session)
         .await
@@ -136,7 +136,7 @@ pub async fn ensemble_chat_send(
     session: String,
     message: String,
 ) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(&session)
         .await
@@ -148,7 +148,7 @@ pub async fn ensemble_chat_send(
 }
 
 pub async fn ensemble_chat_list(ctx: &AgentService) -> Result<Vec<String>, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     Ok(manager.list_chat_sessions().await)
 }
 
@@ -159,7 +159,7 @@ pub async fn ensemble_improv_turn(
     inference_port: Option<Arc<dyn InferencePort>>,
 ) -> Result<ImprovTurn, String> {
     let client = build_improv_client(ctx, inference_port);
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(session_id)
         .await
@@ -189,7 +189,7 @@ pub async fn ensemble_improv_config(
     ctx: &AgentService,
     session_id: &str,
 ) -> Result<ImprovSessionConfig, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(session_id)
         .await
@@ -202,7 +202,7 @@ pub async fn ensemble_improv_set_threshold(
     session_id: &str,
     threshold: f64,
 ) -> Result<(), String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(session_id)
         .await
@@ -216,7 +216,7 @@ pub async fn ensemble_improv_set_mode(
     session_id: &str,
     mode: ImprovMode,
 ) -> Result<(), String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(session_id)
         .await
@@ -229,7 +229,7 @@ pub async fn ensemble_participants(
     ctx: &AgentService,
     session_id: &str,
 ) -> Result<Vec<(String, String, String)>, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let chat = manager
         .get_chat(session_id)
         .await
@@ -257,7 +257,7 @@ pub async fn ensemble_deliberation_create(
     ctx: &AgentService,
     session: String,
 ) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     manager.create_deliberation(&session).await;
     Ok(format!("Deliberation session '{}' created", session))
 }
@@ -266,7 +266,7 @@ pub async fn ensemble_deliberation_start(
     ctx: &AgentService,
     session: String,
 ) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let d = manager
         .get_deliberation(&session)
         .await
@@ -282,7 +282,7 @@ pub async fn ensemble_deliberation_record(
     content: String,
     confidence: f64,
 ) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let d = manager
         .get_deliberation(&session)
         .await
@@ -296,7 +296,7 @@ pub async fn ensemble_deliberation_synthesize(
     ctx: &AgentService,
     session: String,
 ) -> Result<String, String> {
-    let manager = ctx.session_manager.read().await;
+    let manager = ctx.session_manager().read().await;
     let d = manager
         .get_deliberation(&session)
         .await
@@ -309,7 +309,7 @@ pub async fn ensemble_deliberation_list(ctx: &AgentService) -> Result<Vec<String
     // List deliberations is a thin delegation that doesn't normalize errors.
     // It stays as a direct SessionManager call because deleting this service
     // call wouldn't cause complexity to reappear in 8+ call sites.
-    let manager = ctx.session_manager.clone();
+    let manager = ctx.session_manager().clone();
     let sessions = {
         let manager_read = manager.read().await;
         manager_read.list_deliberation_sessions().await
@@ -322,7 +322,7 @@ pub fn ensemble_standing_start(
     ctx: &AgentService,
     config_path: &std::path::Path,
 ) -> Result<hkask_agents::ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
-    let store = ctx.standing_session_store.clone();
+    let store = ctx.standing_session_store().clone();
     let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
 }
@@ -339,7 +339,7 @@ pub fn ensemble_standing_status(
         ));
     }
 
-    let store = ctx.standing_session_store.clone();
+    let store = ctx.standing_session_store().clone();
     let session = bootstrap_standing_session_with_store(config_path, store)?;
     Ok(session.get_status())
 }

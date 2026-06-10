@@ -238,7 +238,7 @@ impl AgentRegistryLoader {
         let existing = self.store.list()?;
         if !existing.is_empty() {
             info!(
-                target: "hkask.registry",
+                target: "hkask.registry()",
                 count = existing.len(),
                 "Restored agent registry from storage"
             );
@@ -256,7 +256,7 @@ impl AgentRegistryLoader {
             match self.load_and_register(path).await {
                 Ok(agent) => {
                     info!(
-                        target: "hkask.registry",
+                        target: "hkask.registry()",
                         name = %agent.definition.name,
                         kind = %agent.definition.agent_kind,
                         capabilities = agent.definition.capabilities.len(),
@@ -267,7 +267,7 @@ impl AgentRegistryLoader {
                 }
                 Err(e) => {
                     warn!(
-                        target: "hkask.registry",
+                        target: "hkask.registry()",
                         path = %path,
                         error = %e,
                         "Failed to load agent YAML"
@@ -277,7 +277,7 @@ impl AgentRegistryLoader {
         }
 
         info!(
-            target: "hkask.registry",
+            target: "hkask.registry()",
             total = registered.len(),
             "Agent registry loaded"
         );
@@ -311,7 +311,7 @@ impl AgentRegistryLoader {
         {
             Ok(token) => token,
             Err(AcpError::AgentAlreadyRegistered(_)) => {
-                let tokens = self.acp_runtime.get_capabilities(&webid).await;
+                let tokens = self.acp_runtime().get_capabilities(&webid).await;
                 tokens.into_iter().next().ok_or_else(|| {
                     RegistryLoaderError::InvalidDefinition(format!(
                         "Agent '{}' already registered but has no capability tokens in ACP runtime",

@@ -13,7 +13,7 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // variety counters for depth, structure, and topic domains.
     let analysis = hkask_agents::decompose_prompt(input);
     {
-        let cns_guard = rt.block_on(state.service_context.cns_runtime.read());
+        let cns_guard = rt.block_on(state.service_context.cns_runtime().read());
         // Prompt depth bucket (shallow/medium/deep)
         rt.block_on(
             cns_guard.increment_variety("cns.inference.prompt_depth", analysis.depth_bucket),
@@ -67,5 +67,5 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // CNS variety and energy budgets, producing regulatory actions
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible
     // through tracing output (cns.cybernetics target).
-    rt.block_on(state.service_context.loop_system.tick());
+    rt.block_on(state.service_context.loop_system().tick());
 }

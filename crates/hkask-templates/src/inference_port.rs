@@ -102,9 +102,9 @@ impl OkapiInference {
         }
         let mut req = self
             .client
-            .post(format!("{}/api/generate", self.config.base_url))
+            .post(format!("{}/api/generate", self.config().base_url))
             .json(&request);
-        if let Some(auth_header) = self.config.get_authorization_header() {
+        if let Some(auth_header) = self.config().get_authorization_header() {
             req = req.header("Authorization", auth_header);
         }
         let response = req
@@ -290,8 +290,8 @@ impl OkapiInference {
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.model.clone());
         let client = Arc::clone(&self.client);
-        let base_url = self.config.base_url.clone();
-        let auth_header = self.config.get_authorization_header();
+        let base_url = self.config().base_url.clone();
+        let auth_header = self.config().get_authorization_header();
 
         Box::pin(
             futures_util::stream::once(async move {

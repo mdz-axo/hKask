@@ -136,7 +136,7 @@ async fn create_chat(
 
 /// Get chat details
 async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     let (exists, msg) = if manager.get_chat(&session).await.is_some() {
         (true, format!("Chat session '{}' details", session))
     } else {
@@ -155,7 +155,7 @@ async fn get_chat(State(state): State<ApiState>, Path(session): Path<String>) ->
 
 /// List chat sessions
 async fn list_chats(State(state): State<ApiState>) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     Json(manager.list_chat_sessions().await).into_response()
 }
 
@@ -169,7 +169,7 @@ async fn register_bot(
         "orchestrator" => hkask_agents::ensemble::ParticipantRole::Curator,
         other => hkask_agents::ensemble::ParticipantRole::Custom(other.to_string()),
     };
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     let (code, body) = match manager.get_chat(&session).await {
         Some(chat) => {
             let mut w = chat.write().await;
@@ -204,7 +204,7 @@ async fn send_message(
     Path(session): Path<String>,
     Json(req): Json<SendMessageRequest>,
 ) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     let (code, body) = match manager.get_chat(&session).await {
         Some(chat) => {
             let mut w = chat.write().await;
@@ -250,7 +250,7 @@ async fn improv_turn(
 ) -> impl IntoResponse {
     match state.ensemble_inferencer_with_breaker() {
         Some(inferencer) => {
-            let manager = state.agent_service.session_manager.read().await;
+            let manager = state.agent_service.session_manager().read().await;
             match manager.get_chat(&session).await {
                 Some(chat) => {
                     let turn = {
@@ -315,7 +315,7 @@ async fn create_deliberation(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     manager.create_deliberation(&req.session_id).await;
     (
         StatusCode::CREATED,
@@ -332,7 +332,7 @@ async fn start_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     let (code, body) = match manager.get_deliberation(&session).await {
         Some(d) => {
             d.write().await.start();
@@ -361,7 +361,7 @@ async fn record_response(
     Path(session): Path<String>,
     Json(req): Json<RecordResponseRequest>,
 ) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     let (code, body) = match manager.get_deliberation(&session).await {
         Some(d) => {
             let r = hkask_agents::ensemble::AgentResponse::new(
@@ -394,7 +394,7 @@ async fn synthesize_deliberation(
     State(state): State<ApiState>,
     Path(session): Path<String>,
 ) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     let value = match manager.get_deliberation(&session).await {
         Some(d) => d.read().await.synthesize().synthesized_response,
         None => {
@@ -413,7 +413,7 @@ async fn synthesize_deliberation(
 
 /// List deliberation sessions
 async fn list_deliberations(State(state): State<ApiState>) -> impl IntoResponse {
-    let manager = state.agent_service.session_manager.read().await;
+    let manager = state.agent_service.session_manager().read().await;
     Json(manager.list_deliberation_sessions().await)
 }
 
@@ -527,10 +527,10 @@ async fn standing_start(
     // This enables `intersection_tools()` to filter the tool section
     // to only tools visible across all participants.
     {
-        let tool_names = state.agent_service.mcp_runtime.discover_tools().await;
+        let tool_names = state.agent_service.mcp_runtime().discover_tools().await;
         let mut tools: Vec<hkask_types::ports::ToolInfo> = Vec::new();
         for name in &tool_names {
-            if let Some(info) = state.agent_service.mcp_runtime.get_tool_info(name).await {
+            if let Some(info) = state.agent_service.mcp_runtime().get_tool_info(name).await {
                 tools.push(info);
             }
         }
@@ -540,7 +540,7 @@ async fn standing_start(
     }
 
     // Wire storage — persist config and enable message archival
-    session = session.with_store(state.agent_service.standing_session_store.clone());
+    session = session.with_store(state.agent_service.standing_session_store().clone());
     // Wire gas governance — CNS observability for standing session gas usage
     session = session.with_gas_governance(state.gas_governance.clone());
     let config_yaml = serde_yaml::to_string(&config).unwrap_or_default();

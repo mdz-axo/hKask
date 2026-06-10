@@ -212,14 +212,47 @@ impl AgentService {
 
     // === Category 4: Internal implementation (crate-visible only) ===
 
+    // TODO: Category 4 — migrate these to service methods, remove from public API
+
     /// Access ACP runtime for agent registration and capability management.
     pub(crate) fn acp_runtime(&self) -> &Arc<hkask_agents::AcpRuntime> {
         &self.acp_runtime
     }
 
     /// Access system WebID for capability signing.
-    pub(crate) fn system_webid(&self) -> &WebID {
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn system_webid(&self) -> &WebID {
         &self.system_webid
+    }
+
+    /// Access escalation queue for Curator escalations.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
+        &self.escalation_queue
+    }
+
+    /// Access consent manager for user sovereignty.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn consent_manager(&self) -> &Arc<ConsentManager> {
+        &self.consent_manager
+    }
+
+    /// Access goal repository for the goal coordination substrate.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
+        &self.goal_repo
+    }
+
+    /// Access curation inbox transmitter.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>> {
+        &self.curation_inbox_tx
+    }
+
+    /// Access pod manager for agent lifecycle.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn pod_manager(&self) -> &Arc<PodManager> {
+        &self.pod_manager
     }
 
     // === Category 2-3: Surface-specific fields (7 fields) ===

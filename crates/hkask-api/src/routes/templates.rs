@@ -6,10 +6,10 @@
 //! thin delegation to a `SqliteRegistry` method plus HTTP response mapping. No
 //! cross-surface business logic duplication exists (CLI template commands take
 //! `&mut SqliteRegistry` directly and do terminal formatting). A TemplateService
-//! would just be `self.registry.list()` / `self.registry.get()` / etc. — pure
+//! would just be `self.registry().list()` / `self.registry().get()` / etc. — pure
 //! pass-throughs that increase interface cost without adding behavior.
 //!
-//! Decision: Guideline — keep direct `service_context.registry` access.
+//! Decision: Guideline — keep direct `service_context.registry()` access.
 //! Revisit if template matching logic grows beyond name/skill/polarity queries.
 
 use axum::extract::{Path, State};
@@ -62,7 +62,7 @@ pub fn templates_router() -> Router<ApiState> {
     ),
 )]
 async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
-    let registry = state.agent_service.registry.lock().await;
+    let registry = state.agent_service.registry().lock().await;
     let entries = registry.list(None);
 
     let templates = entries
@@ -98,7 +98,7 @@ async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<TemplateResponse>, ApiError> {
-    let registry = state.agent_service.registry.lock().await;
+    let registry = state.agent_service.registry().lock().await;
 
     let entry = registry.get(&id)?;
 
@@ -119,7 +119,7 @@ async fn register_template(
 ) -> Result<StatusCode, ApiError> {
     use axum::http::StatusCode;
 
-    let _registry = state.agent_service.registry.lock().await;
+    let _registry = state.agent_service.registry().lock().await;
     Ok(StatusCode::CREATED)
 }
 
@@ -128,7 +128,7 @@ async fn search_templates(
     State(state): State<ApiState>,
     Path(term): Path<String>,
 ) -> Json<Vec<TemplateResponse>> {
-    let registry = state.agent_service.registry.lock().await;
+    let registry = state.agent_service.registry().lock().await;
     let results = registry.search_by_lexicon(&term).unwrap_or_default();
 
     let templates = results

@@ -5,10 +5,10 @@
 //! AcpService was considered but **rejected** as shallow: every handler is a thin
 //! delegation to `AcpRuntime` methods (`register_agent`, `list_agents`,
 //! `unregister_agent`) plus HTTP response mapping. No CLI ACP commands exist.
-//! An AcpService would just be `self.acp_runtime.register_agent()` — a pure
+//! An AcpService would just be `self.acp_runtime().register_agent()` — a pure
 //! pass-through that increases interface cost without adding behavior.
 //!
-//! Decision: Guideline — keep direct `service_context.pod_manager.acp_runtime()` access.
+//! Decision: Guideline — keep direct `service_context.pod_manager().acp_runtime()` access.
 //! Revisit if ACP policy logic (e.g., capability scoping, agent tier enforcement)
 //! grows beyond simple registration/delegation.
 
@@ -103,7 +103,7 @@ async fn acp_register(
         });
     }
 
-    let acp = state.agent_service.pod_manager.acp_runtime();
+    let acp = state.agent_service.pod_manager().acp_runtime();
     let token = acp
         .register_agent(webid, agent_kind, req.capabilities)
         .await?;
@@ -130,7 +130,7 @@ async fn acp_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<AgentListResponse>, ApiError> {
-    let acp = state.agent_service.pod_manager.acp_runtime();
+    let acp = state.agent_service.pod_manager().acp_runtime();
     let agents = acp.list_agents().await;
 
     let agent_responses: Vec<AcpAgentResponse> = agents
@@ -171,7 +171,7 @@ async fn acp_unregister_agent(
 
     let webid = parse_webid(&agent_id)?;
 
-    let acp = state.agent_service.pod_manager.acp_runtime();
+    let acp = state.agent_service.pod_manager().acp_runtime();
     acp.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)

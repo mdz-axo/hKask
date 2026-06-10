@@ -29,7 +29,7 @@ pub(crate) fn handle_status(
         gas_bar, gas_remaining, gas_cap, gas_pct
     );
     // Check CNS health
-    let cns_health = rt.block_on(state.service_context.cns_runtime.read());
+    let cns_health = rt.block_on(state.service_context.cns_runtime().read());
     let cns_status = match rt.block_on(async { cns_health.health().await }) {
         health if health.critical_count > 0 => {
             format!(
@@ -47,8 +47,8 @@ pub(crate) fn handle_status(
     };
     println!("  CNS:        {}", cns_status);
     // Show LoopSystem registered loops
-    let loop_count = rt.block_on(state.service_context.loop_system.registered_count());
-    let loop_ids = rt.block_on(state.service_context.loop_system.registered_loop_ids());
+    let loop_count = rt.block_on(state.service_context.loop_system().registered_count());
+    let loop_ids = rt.block_on(state.service_context.loop_system().registered_loop_ids());
     let ids_str = loop_ids
         .iter()
         .map(|id| id.to_string())

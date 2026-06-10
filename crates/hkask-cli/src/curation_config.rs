@@ -31,7 +31,7 @@ pub fn load_curation_thresholds() -> CurationThresholdConfig {
         Ok(path) => match curation_threshold_from_file(&path) {
             Ok(config) => {
                 tracing::info!(
-                    target: "cns.config",
+                    target: "cns.config()",
                     path = %path,
                     coherence_threshold = config.coherence_threshold,
                     drift_threshold = config.drift_threshold,
@@ -41,7 +41,7 @@ pub fn load_curation_thresholds() -> CurationThresholdConfig {
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.config",
+                    target: "cns.config()",
                     path = %path,
                     error = %e,
                     "Failed to load CNS config file for curation thresholds, using defaults"
@@ -52,7 +52,7 @@ pub fn load_curation_thresholds() -> CurationThresholdConfig {
         Err(_) => {
             let defaults = CurationThresholdConfig::default();
             tracing::info!(
-                target: "cns.config",
+                target: "cns.config()",
                 coherence_threshold = defaults.coherence_threshold,
                 drift_threshold = defaults.drift_threshold,
                 "HKASK_CNS_CONFIG not set, using default curation thresholds"

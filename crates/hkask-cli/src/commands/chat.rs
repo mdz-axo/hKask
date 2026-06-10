@@ -240,7 +240,7 @@ pub async fn chat_with_agent_streaming(
         seed: None,
     };
 
-    let stream = prepared.inference_port.generate_stream_with_model(
+    let stream = prepared.inference_port().generate_stream_with_model(
         &prepared.prompt,
         &params,
         Some(&prepared.model),

@@ -27,7 +27,7 @@ pub(super) fn ensemble_turn(
         &state.service_context,
         session,
         input,
-        Some(state.inference_port.clone()),
+        Some(state.inference_port().clone()),
     )) {
         Ok(turn) => {
             if turn.responses.is_empty() {
@@ -93,7 +93,7 @@ pub(super) fn single_agent_turn(
     // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
     // before inference, settle with actual token cost after.
     let Some(mut gas_guard) = energy::EnergyGuard::try_reserve(
-        &state.service_context.cybernetics_loop,
+        &state.service_context.cybernetics_loop(),
         &state.inference_loop,
         &state.agent_webid,
         rt,
@@ -172,10 +172,10 @@ pub(super) fn single_agent_turn(
         &effective_input,
         Some(&state.current_agent),
         Some(&state.current_model),
-        Some(state.inference_port.clone()),
+        Some(state.inference_port().clone()),
         state.resolved_secrets.as_ref(),
-        Some(state.episodic_storage.clone()),
-        Some(state.semantic_storage.clone()),
+        Some(state.episodic_storage().clone()),
+        Some(state.semantic_storage().clone()),
         Some(state.agent_webid),
         hhh_suffix.as_deref(),
         Some(state.tool_prompt_section.as_str()),
@@ -215,7 +215,7 @@ pub(super) fn single_agent_turn(
         );
 
         if let Some(mut followup_guard) = energy::EnergyGuard::try_reserve(
-            &state.service_context.cybernetics_loop,
+            &state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
             rt,
@@ -225,10 +225,10 @@ pub(super) fn single_agent_turn(
                 &followup_prompt,
                 Some(&state.current_agent),
                 Some(&state.current_model),
-                Some(state.inference_port.clone()),
+                Some(state.inference_port().clone()),
                 state.resolved_secrets.as_ref(),
-                Some(state.episodic_storage.clone()),
-                Some(state.semantic_storage.clone()),
+                Some(state.episodic_storage().clone()),
+                Some(state.semantic_storage().clone()),
                 Some(state.agent_webid),
                 None,
                 Some(state.tool_prompt_section.as_str()),

@@ -33,7 +33,7 @@ pub(super) fn evaluate_hhh(
 
     loop {
         let Some(mut gate_guard) = energy::EnergyGuard::try_reserve(
-            &state.service_context.cybernetics_loop,
+            &state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
             rt,
@@ -91,7 +91,7 @@ pub(super) fn evaluate_hhh(
             hhh_gate::hhh_correction_prompt(input, &current_response, &evaluation);
 
         let Some(mut correction_guard) = energy::EnergyGuard::try_reserve(
-            &state.service_context.cybernetics_loop,
+            &state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
             rt,
@@ -114,10 +114,10 @@ pub(super) fn evaluate_hhh(
             &correction_input,
             Some(&state.current_agent),
             Some(&state.current_model),
-            Some(state.inference_port.clone()),
+            Some(state.inference_port().clone()),
             state.resolved_secrets.as_ref(),
-            Some(state.episodic_storage.clone()),
-            Some(state.semantic_storage.clone()),
+            Some(state.episodic_storage().clone()),
+            Some(state.semantic_storage().clone()),
             Some(state.agent_webid),
             Some(&correction_suffix),
             Some(state.tool_prompt_section.as_str()),

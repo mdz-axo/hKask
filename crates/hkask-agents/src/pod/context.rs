@@ -74,12 +74,12 @@ impl PodContext {
             pod_id: *pod_id,
             webid: pod.webid,
             capability_token: pod.capability_token.clone(),
-            inference_port: manager.inference_port.clone(),
-            episodic_storage: Arc::clone(&manager.episodic_storage),
-            semantic_storage: Arc::clone(&manager.semantic_storage),
-            mcp_runtime: Arc::clone(&manager.mcp_runtime),
+            inference_port: manager.inference_port().clone(),
+            episodic_storage: Arc::clone(&manager.episodic_storage()),
+            semantic_storage: Arc::clone(&manager.semantic_storage()),
+            mcp_runtime: Arc::clone(&manager.mcp_runtime()),
             governed_tool: manager.governed_tool.clone(),
-            capability_checker: manager.capability_checker.clone(),
+            capability_checker: manager.capability_checker().clone(),
             sovereignty_checker: manager.sovereignty_checker_for(pod_id).await,
         })
     }
@@ -90,7 +90,7 @@ impl PodContext {
         resource_id: &str,
         action: DelegationAction,
     ) -> Result<(), AgentPodError> {
-        if let Some(ref checker) = self.capability_checker {
+        if let Some(ref checker) = self.capability_checker() {
             // Full cryptographic verification: HMAC signature + expiry + holder + resource/action
             if !checker.check(
                 &self.capability_token,
@@ -154,7 +154,7 @@ impl PodContext {
             "inference",
             DelegationAction::Execute,
         )?;
-        self.inference_port.clone().ok_or_else(|| {
+        self.inference_port().clone().ok_or_else(|| {
             AgentPodError::InferenceUnavailable("No inference port configured".to_string())
         })
     }
@@ -219,7 +219,7 @@ impl PodContext {
 
     /// Get the per-agent storage budget (max episodic triples).
     pub fn episodic_storage_budget(&self) -> usize {
-        self.episodic_storage.episodic_storage_budget()
+        self.episodic_storage().episodic_storage_budget()
     }
 
     /// Store an episodic experience with classification (Loop 2a.1).

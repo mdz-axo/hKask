@@ -346,7 +346,7 @@ impl MetacognitionLoop {
         let new_threshold = Self::param_u64(
             action,
             "new_threshold",
-            self.config.thresholds.variety_deficit,
+            self.config().thresholds.variety_deficit,
         );
         let deficit = Self::param_u64(action, "deficit", 0);
 
@@ -359,7 +359,7 @@ impl MetacognitionLoop {
 
             let error_context = format!(
                 "Total variety deficit ({}) exceeds threshold ({})",
-                deficit, self.config.thresholds.variety_deficit
+                deficit, self.config().thresholds.variety_deficit
             );
             Some(EscalationEntry::pending(
                 format!("Variety deficit: {}", deficit),
@@ -389,7 +389,7 @@ impl MetacognitionLoop {
                 warn!(
                     target: MC_TARGET,
                     critical_alerts = count,
-                    threshold = self.config.thresholds.critical_alerts,
+                    threshold = self.config().thresholds.critical_alerts,
                     "Critical alert count exceeds threshold"
                 );
                 Some(EscalationEntry::pending(
@@ -397,7 +397,7 @@ impl MetacognitionLoop {
                     0.3,
                     format!(
                         "Critical alert count ({}) exceeds threshold ({})",
-                        count, self.config.thresholds.critical_alerts
+                        count, self.config().thresholds.critical_alerts
                     ),
                 ))
             }
@@ -416,7 +416,7 @@ impl MetacognitionLoop {
                 warn!(
                     target: MC_TARGET,
                     failed_bots = count,
-                    threshold = self.config.thresholds.bot_failures,
+                    threshold = self.config().thresholds.bot_failures,
                     "Bot failure count exceeds threshold"
                 );
                 Some(EscalationEntry::pending(
@@ -476,7 +476,7 @@ impl HkaskLoop for MetacognitionLoop {
                 .saturating_sub(*variety);
             if deficit > 0 {
                 total_variety_deficit += deficit;
-                if deficit > self.config.thresholds.variety_deficit {
+                if deficit > self.config().thresholds.variety_deficit {
                     warn!(
                         target: MC_TARGET,
                         domain = %domain,
@@ -537,7 +537,7 @@ impl HkaskLoop for MetacognitionLoop {
 
         // Produce afferent signals
         let lid = LoopId::Curation;
-        let t = &self.config.thresholds;
+        let t = &self.config().thresholds;
         vec![
             Signal::new(
                 lid,
@@ -569,13 +569,13 @@ impl HkaskLoop for MetacognitionLoop {
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let deficit = dev.signal.value as u64;
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Calibrate, serde_json::json!({"domain": "variety", "deficit": deficit, "threshold": dev.signal.set_point as u64, "new_threshold": deficit.saturating_add(self.config.thresholds.variety_deficit)})));
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Calibrate, serde_json::json!({"domain": "variety", "deficit": deficit, "threshold": dev.signal.set_point as u64, "new_threshold": deficit.saturating_add(self.config().thresholds.variety_deficit)})));
                 }
                 SignalMetric::MetacognitionCriticalAlerts
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let count = dev.signal.value as u64;
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "critical_alerts", "count": count, "threshold": self.config.thresholds.critical_alerts})));
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "critical_alerts", "count": count, "threshold": self.config().thresholds.critical_alerts})));
                 }
                 SignalMetric::MetacognitionBotFailures
                     if dev.direction == DeviationDirection::AboveSetPoint =>
@@ -593,7 +593,7 @@ impl HkaskLoop for MetacognitionLoop {
                                 .collect()
                         })
                         .unwrap_or_default();
-                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "bot_failures", "failed_count": count, "threshold": self.config.thresholds.bot_failures, "bot_names": bot_names})));
+                    actions.push(LoopAction::new(LoopId::Curation, ActionType::Escalate, serde_json::json!({"metric": "bot_failures", "failed_count": count, "threshold": self.config().thresholds.bot_failures, "bot_names": bot_names})));
                 }
                 _ => {}
             }
@@ -622,7 +622,7 @@ impl HkaskLoop for MetacognitionLoop {
         }
 
         // Write escalations: batch if concurrent count meets/exceeds threshold, otherwise write individually.
-        let threshold = self.config.max_concurrent_escalations;
+        let threshold = self.config().max_concurrent_escalations;
         if escalation_entries.len() >= threshold {
             let batch = EscalationBatch::new(escalation_entries, "consolidated", threshold);
             let summary = batch.summary();

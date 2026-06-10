@@ -109,7 +109,7 @@ impl PodManager {
         self
     }
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
-        self.capability_checker = Some(Arc::new(checker));
+        self.capability_checker() = Some(Arc::new(checker));
         self
     }
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
@@ -143,7 +143,7 @@ impl PodManager {
     }
 
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
-        self.inference_port.clone()
+        self.inference_port().clone()
     }
 
     pub async fn sovereignty_checker_for(
@@ -246,7 +246,7 @@ impl PodManager {
                 );
             }
         }
-        pod.activate(self.mcp_runtime.as_ref())?;
+        pod.activate(self.mcp_runtime().as_ref())?;
         if let Some(ref sink) = self.nu_event_sink {
             crate::pod::nu_event::emit_pod_activated(sink.as_ref(), pod.webid, &pod.id.to_string());
         }
@@ -269,7 +269,7 @@ impl PodManager {
                 &pod.id.to_string(),
             );
         }
-        if let Err(e) = self.acp_runtime.revoke_capability(&token_id, &webid).await {
+        if let Err(e) = self.acp_runtime().revoke_capability(&token_id, &webid).await {
             tracing::warn!(target: "hkask.pod", pod_id = %pod_id, token_id = %token_id, error = %e,
                 "Failed to revoke capability token on deactivation (pod is still deactivated)");
             tracing::debug!(target: "cns.pod", span = "cns.agent_pod.revocation_warning",
@@ -314,7 +314,7 @@ impl PodManager {
     }
 
     pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
-        Arc::clone(&self.acp_runtime)
+        Arc::clone(&self.acp_runtime())
     }
 }
 

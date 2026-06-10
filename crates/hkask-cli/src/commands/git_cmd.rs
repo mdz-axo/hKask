@@ -117,7 +117,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                     &owner,
                     &repo,
                     &message,
-                    &ctx.agent_registry_store,
+                    &ctx.agent_registry_store(),
                 ),
                 "Snapshot failed"
             );

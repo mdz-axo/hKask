@@ -141,8 +141,8 @@ impl ApiState {
         // Surface-specific: gas governance from cybernetics loop + system webid
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
-                ctx.cybernetics_loop.clone(),
-                ctx.system_webid,
+                ctx.cybernetics_loop().clone(),
+                ctx.system_webid(),
                 energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 
@@ -187,7 +187,7 @@ impl ApiState {
 
     /// Set the spec store for MDS specifications
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
-        self.spec_store = Some(store);
+        self.spec_store() = Some(store);
         self
     }
 
@@ -198,10 +198,10 @@ impl ApiState {
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
         tracing::info!(
             target: "hkask.api",
-            loops = ?self.agent_service.loop_system.registered_loop_ids().await,
+            loops = ?self.agent_service.loop_system().registered_loop_ids().await,
             "Starting loop system"
         );
-        self.agent_service.loop_system.start().await
+        self.agent_service.loop_system().start().await
     }
 
     /// Signal the loop system to shut down.
@@ -210,14 +210,14 @@ impl ApiState {
     /// will stop after their current cycle completes.
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        self.agent_service.loop_system.shutdown();
+        self.agent_service.loop_system().shutdown();
     }
 }
 
 /// Create API router with OpenAPI documentation and authentication
 pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(middleware::AuthService::from_config(
-        &state.agent_service.config,
+        &state.agent_service.config(),
     ));
 
     Ok(

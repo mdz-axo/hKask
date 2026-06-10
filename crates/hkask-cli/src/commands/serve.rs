@@ -53,7 +53,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
     let base_adapter = Arc::new(improv_client.inner().clone());
 
     // Start API MCP servers on the AgentService's runtime
-    let server_count = start_api_servers(&ctx.mcp_runtime).await;
+    let server_count = start_api_servers(&ctx.mcp_runtime()).await;
     if server_count > 0 {
         tracing::info!(target: "hkask.serve", servers = server_count, "MCP servers started");
     } else {

@@ -25,7 +25,7 @@ fn build_consent() -> (
     let svc = rt
         .block_on(hkask_services::AgentService::build(config))
         .expect("build svc");
-    let cm = svc.consent_manager.clone();
+    let cm = svc.consent_manager().clone();
     (svc, cm)
 }
 

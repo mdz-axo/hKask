@@ -17,7 +17,7 @@ fn main() {
     let handle = rt.handle().clone();
 
     let mut registry = commands::helpers::or_exit(
-        match &cli.registry {
+        match &cli.registry() {
             Some(path) => {
                 SqliteRegistry::new(Some(path.to_str().expect("path must be valid UTF-8")))
             }

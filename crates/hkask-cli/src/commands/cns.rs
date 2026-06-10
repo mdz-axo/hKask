@@ -172,7 +172,7 @@ fn build_cns_service(rt: &tokio::runtime::Runtime) -> CnsService {
         }
     };
     match rt.block_on(AgentService::build(config)) {
-        Ok(ctx) => ctx.cns,
+        Ok(ctx) => ctx.cns(),
         Err(_) => standalone_cns(),
     }
 }

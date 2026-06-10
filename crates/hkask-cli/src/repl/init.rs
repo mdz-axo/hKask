@@ -141,10 +141,10 @@ pub(super) fn init_repl_state(
     };
 
     // Register the CLI's inference loop on the shared loop system.
-    rt.block_on(ctx.loop_system.register_loop(inference_loop.clone()));
+    rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));
 
     // Start built-in MCP servers on the AgentService's MCP runtime.
-    let mcp_runtime = ctx.mcp_runtime.clone();
+    let mcp_runtime = ctx.mcp_runtime().clone();
     let server_count = rt.block_on(super::builtin_servers::start_builtin_servers(&mcp_runtime));
     if server_count > 0 {
         tracing::info!(target: "hkask.repl", servers = server_count, "MCP servers started");
@@ -157,7 +157,7 @@ pub(super) fn init_repl_state(
     let estimator: Arc<dyn hkask_cns::EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
     let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
-        ctx.cybernetics_loop.clone(),
+        ctx.cybernetics_loop().clone(),
         ctx.event_sink.clone(),
         estimator,
         agent_webid,
@@ -281,7 +281,7 @@ pub(super) fn init_repl_state(
             );
 
             let executor = ManifestExecutor::new(
-                state.inference_port.clone(),
+                state.inference_port().clone(),
                 Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
                 LLMParameters::default(),
                 acp_secret.to_vec(),

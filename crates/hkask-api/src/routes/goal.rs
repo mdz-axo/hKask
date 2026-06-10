@@ -59,7 +59,7 @@ async fn create_goal(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let repo = &state.agent_service.goal_repo;
+    let repo = &state.agent_service.goal_repo();
     let vis_str = req.visibility.as_deref().unwrap_or("private");
     let vis = hkask_types::visibility::Visibility::parse_str(vis_str).ok_or_else(|| {
         ApiError::BadRequest {
@@ -92,7 +92,7 @@ async fn list_goals(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<GoalListResponse>, ApiError> {
-    let repo = &state.agent_service.goal_repo;
+    let repo = &state.agent_service.goal_repo();
     let filter = match params.get("state") {
         Some(s) => Some(hkask_types::goal::GoalState::parse_str(s).ok_or_else(|| {
             ApiError::BadRequest {
@@ -135,7 +135,7 @@ async fn set_goal_state(
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let repo = &state.agent_service.goal_repo;
+    let repo = &state.agent_service.goal_repo();
     let goal_id: hkask_types::id::GoalID = id.parse().map_err(|e| ApiError::BadRequest {
         message: format!("Invalid goal ID '{id}': {e}"),
     })?;
@@ -153,7 +153,7 @@ async fn set_goal_state(
         .map_err(ApiError::from)?;
 
     // Notify Curation of the goal transition.
-    if let Some(ref tx) = state.agent_service.curation_inbox_tx {
+    if let Some(ref tx) = state.agent_service.curation_inbox_tx() {
         let event = CurationInput::GoalTransition(GoalTransitionEvent {
             goal_id: goal_id.to_string(),
             from_state,

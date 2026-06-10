@@ -57,7 +57,7 @@ impl MCPRuntimePort for CapabilityOnlyAdapter {
         }
 
         match verify_delegation_token_now(
-            Some(self.capability_checker.as_ref()),
+            Some(self.capability_checker().as_ref()),
             &token,
             &token.delegated_to,
             DelegationResource::Tool,
@@ -146,7 +146,7 @@ impl MCPRuntimePort for FullMcpAdapter {
         }
 
         match verify_delegation_token_now(
-            Some(self.capability_checker.as_ref()),
+            Some(self.capability_checker().as_ref()),
             &token,
             &token.delegated_to,
             DelegationResource::Tool,
@@ -180,7 +180,7 @@ impl MCPRuntimePort for FullMcpAdapter {
     ) -> Result<serde_json::Value, McpError> {
         // P1.1: Use unified verification instead of duplicated inline HMAC check
         match verify_delegation_token_now(
-            Some(self.capability_checker.as_ref()),
+            Some(self.capability_checker().as_ref()),
             token,
             &token.delegated_to,
             DelegationResource::Tool,
@@ -217,11 +217,11 @@ impl MCPRuntimePort for FullMcpAdapter {
         // Resolve server_id for the tool, then invoke through RawMcpToolPort
         let server_id = self
             .handle
-            .block_on(self.mcp_runtime.get_tool_info(tool_name))
+            .block_on(self.mcp_runtime().get_tool_info(tool_name))
             .map(|info| info.server_id)
             .unwrap_or_else(|| "unknown".to_string());
 
-        let raw_port = hkask_mcp::RawMcpToolPort::new(self.mcp_runtime.as_ref().clone());
+        let raw_port = hkask_mcp::RawMcpToolPort::new(self.mcp_runtime().as_ref().clone());
         match self.handle.block_on(hkask_types::ports::ToolPort::invoke(
             &raw_port, &server_id, tool_name, input, token,
         )) {
@@ -250,7 +250,7 @@ impl MCPRuntimePort for FullMcpAdapter {
 
     fn resolve_tool_server(&self, tool_name: &str) -> Option<String> {
         self.handle
-            .block_on(self.mcp_runtime.get_tool_info(tool_name))
+            .block_on(self.mcp_runtime().get_tool_info(tool_name))
             .map(|info| info.server_id)
     }
 }

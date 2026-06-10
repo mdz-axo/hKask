@@ -23,7 +23,7 @@ fn build_service_context(
         "Failed to build AgentService",
     );
     for (server_id, command) in servers {
-        match rt.block_on(ctx.mcp_runtime.start_server(server_id, command)) {
+        match rt.block_on(ctx.mcp_runtime().start_server(server_id, command)) {
             Ok(()) => {
                 tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started")
             }
@@ -39,7 +39,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
     match action {
         McpAction::ListServers => {
             let ctx = build_service_context(rt, BUILTIN_SERVERS);
-            let servers = rt.block_on(ctx.mcp_runtime.list_servers());
+            let servers = rt.block_on(ctx.mcp_runtime().list_servers());
             println!("MCP servers:");
             if servers.is_empty() {
                 println!("  (no servers registered)");
@@ -51,7 +51,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
         }
         McpAction::ListTools => {
             let ctx = build_service_context(rt, BUILTIN_SERVERS);
-            let tools = rt.block_on(ctx.mcp_runtime.discover_tools());
+            let tools = rt.block_on(ctx.mcp_runtime().discover_tools());
             println!("Available tools:");
             if tools.is_empty() {
                 println!("  (no tools registered)");
@@ -63,7 +63,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
         }
         McpAction::GetTool { name } => {
             let ctx = build_service_context(rt, BUILTIN_SERVERS);
-            match rt.block_on(ctx.mcp_runtime.get_tool_info(&name)) {
+            match rt.block_on(ctx.mcp_runtime().get_tool_info(&name)) {
                 Some(info) => {
                     println!("Tool: {}", info.name);
                     println!("  Description: {}", info.description);
@@ -97,11 +97,11 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             let token = ctx
                 .mcp_dispatcher
                 .issue_capability("tools".to_string(), from, to);
-            let result = match rt.block_on(ctx.mcp_dispatcher.invoke(&tool, input_value, &token)) {
+            let result = match rt.block_on(ctx.mcp_dispatcher().invoke(&tool, input_value, &token)) {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Tool invocation error: {}", e);
-                    rt.block_on(ctx.mcp_dispatcher.shutdown_all());
+                    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
                     std::process::exit(1);
                 }
             };
@@ -109,7 +109,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
                 "{}",
                 serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
             );
-            rt.block_on(ctx.mcp_dispatcher.shutdown_all());
+            rt.block_on(ctx.mcp_dispatcher().shutdown_all());
         }
     }
 }

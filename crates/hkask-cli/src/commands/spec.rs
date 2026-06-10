@@ -36,7 +36,7 @@ pub fn run(action: SpecAction) {
             }
             let spec = Spec::new(&name, cat, anchor).with_goal(goal);
             let is_complete = spec.is_complete();
-            ctx.spec_store.save(&spec).expect("Failed to save spec");
+            ctx.spec_store().save(&spec).expect("Failed to save spec");
 
             println!("Specification captured:");
             println!("  ID: {}", spec.id);
@@ -118,7 +118,7 @@ pub fn run(action: SpecAction) {
             );
 
             let ctx = build_service_context();
-            let store = &ctx.spec_store;
+            let store = &ctx.spec_store();
 
             let render_ctx = if let Some(sid) = spec_id {
                 let parsed_id = super::helpers::or_exit(
