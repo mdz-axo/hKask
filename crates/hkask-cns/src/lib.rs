@@ -33,13 +33,13 @@ pub use composite_energy_estimator::CompositeEnergyEstimator;
 pub use cybernetics_loop::CyberneticsLoop;
 pub use energy::{
     AgentEnergyStatus, DEFAULT_ENERGY_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyError,
-    QueueDepth, RBarThreshold,
 };
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
 pub use hkask_types::allosteric::{
     AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function,
 };
+pub use hkask_types::cns::{QueueDepth, RBarThreshold};
 pub use runtime::CnsRuntime;
 pub use set_points::{
     CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,

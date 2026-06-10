@@ -11,10 +11,12 @@
 
 use hkask_storage::{ConsentStore, Store, StoredConsentRecord, read_rwlock, write_rwlock};
 use hkask_types::DataCategory;
+use hkask_types::WebID;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
-use tracing::debug;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::sovereignty::SovereigntyConsent;
@@ -107,6 +109,11 @@ impl ConsentRecord {
 pub struct ConsentManager {
     store: ConsentStore,
     cache: Arc<RwLock<Vec<ConsentRecord>>>,
+    /// Optional CNS event sink for observability of consent denials.
+    /// When set, a `cns.consent.denied` ν-event is emitted every time
+    /// `has_consent` returns false, closing the observability loop
+    /// on the Prohibition gate (Magna Carta P2).
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl ConsentManager {
@@ -115,12 +122,24 @@ impl ConsentManager {
         let manager = Self {
             store,
             cache: Arc::new(RwLock::new(Vec::new())),
+            event_sink: None,
         };
         // Load existing records from the store into the cache
         if let Err(e) = manager.load_from_store() {
             tracing::warn!("Failed to load consent records from store: {}", e);
         }
         manager
+    }
+
+    /// Set a CNS event sink for consent denial observability.
+    ///
+    /// When set, every `has_consent` denial produces a `cns.consent.denied`
+    /// ν-event. This provides observability without opening a feedback path
+    /// (the denial remains terminal — this is a Prohibition, not a Guardrail).
+    /// # REQ: OPEN_QUESTIONS §2.2 — consent denial CNS instrumentation.
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
     }
 
     /// Load all active consent records from the store into the in-memory cache
@@ -212,15 +231,52 @@ impl ConsentManager {
         }
     }
 
-    /// Check if consent is granted for a data category
+    /// Check if consent is granted for a data category.
+    ///
+    /// Emits a `cns.consent.denied` ν-event when consent is denied,
+    /// providing observability without opening a feedback path.
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 
-        Ok(cache
+        let granted = cache
             .iter()
             .find(|r| r.webid == webid)
             .map(|r| r.has_category(category.as_str()))
-            .unwrap_or(false))
+            .unwrap_or(false);
+
+        if !granted {
+            self.emit_consent_denied(webid, category);
+        }
+
+        Ok(granted)
+    }
+
+    /// Emit a `cns.consent.denied` ν-event for observability.
+    ///
+    /// This is a Prohibition-gate observation, not a regulatory loop signal.
+    /// The denial is terminal — the event records the fact for audit.
+    fn emit_consent_denied(&self, webid: &str, category: &DataCategory) {
+        if let Some(ref sink) = self.event_sink {
+            let event = NuEvent::new(
+                WebID::new(),
+                Span::new(SpanNamespace::new("cns.consent"), "denied"),
+                Phase::Compare,
+                serde_json::json!({
+                    "webid": webid,
+                    "category": category.as_str(),
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                warn!(
+                    target: "cns.consent",
+                    error = %e,
+                    webid = %webid,
+                    category = %category.as_str(),
+                    "Failed to persist consent denial event"
+                );
+            }
+        }
     }
 
     /// Get all granted categories for a WebID

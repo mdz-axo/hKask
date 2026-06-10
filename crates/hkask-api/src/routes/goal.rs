@@ -1,4 +1,4 @@
-//! Goal coordination routes — call goal repo directly.
+//! Goal coordination routes — delegates to GoalService.
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::Query, extract::State, routing::Router};
@@ -8,8 +8,6 @@ use utoipa::ToSchema;
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
-use hkask_types::id::WebID;
-use hkask_types::loops::{CurationInput, GoalTransitionEvent};
 
 pub fn goal_router() -> Router<ApiState> {
     Router::new()
@@ -59,21 +57,18 @@ async fn create_goal(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let repo = &state.agent_service.goal_repo();
-    let vis_str = req.visibility.as_deref().unwrap_or("private");
-    let vis = hkask_types::visibility::Visibility::parse_str(vis_str).ok_or_else(|| {
-        ApiError::BadRequest {
-            message: format!("Invalid visibility '{vis_str}'"),
-        }
-    })?;
-    let goal = repo
-        .create_goal(&auth.webid, &req.text, vis)
+    let svc_req = hkask_services::CreateGoalRequest {
+        text: req.text,
+        visibility: req.visibility.unwrap_or_else(|| "private".into()),
+        owner: auth.webid,
+    };
+    let goal = hkask_services::GoalService::create_goal(&state.agent_service, svc_req)
         .map_err(ApiError::from)?;
     Ok(Json(GoalResponse {
-        id: goal.id.to_string(),
+        id: goal.id,
         text: goal.text,
-        state: goal.state.as_str().to_string(),
-        visibility: goal.visibility.as_str().to_string(),
+        state: goal.state,
+        visibility: goal.visibility,
     }))
 }
 
@@ -92,26 +87,18 @@ async fn list_goals(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<GoalListResponse>, ApiError> {
-    let repo = &state.agent_service.goal_repo();
-    let filter = match params.get("state") {
-        Some(s) => Some(hkask_types::goal::GoalState::parse_str(s).ok_or_else(|| {
-            ApiError::BadRequest {
-                message: format!("Invalid goal state '{s}'"),
-            }
-        })?),
-        None => None,
-    };
-    let goals = repo
-        .list_goals(&auth.webid, filter)
-        .map_err(ApiError::from)?;
+    let state_filter = params.get("state").map(|s| s.as_str());
+    let goals =
+        hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)
+            .map_err(ApiError::from)?;
     Ok(Json(GoalListResponse {
         goals: goals
             .into_iter()
             .map(|g| GoalResponse {
-                id: g.id.to_string(),
+                id: g.id,
                 text: g.text,
-                state: g.state.as_str().to_string(),
-                visibility: g.visibility.as_str().to_string(),
+                state: g.state,
+                visibility: g.visibility,
             })
             .collect(),
     }))
@@ -135,38 +122,12 @@ async fn set_goal_state(
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, ApiError> {
-    let repo = &state.agent_service.goal_repo();
-    let goal_id: hkask_types::id::GoalID = id.parse().map_err(|e| ApiError::BadRequest {
-        message: format!("Invalid goal ID '{id}': {e}"),
-    })?;
-    let new_state = hkask_types::goal::GoalState::parse_str(&req.state).ok_or_else(|| {
-        ApiError::BadRequest {
-            message: format!("Invalid goal state '{}'", req.state),
-        }
-    })?;
-    let from_state = repo
-        .get_goal(goal_id)
-        .map_err(ApiError::from)?
-        .map(|g| g.state.as_str().to_string())
-        .unwrap_or_default();
-    repo.update_goal_state(goal_id, new_state)
+    let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)
         .map_err(ApiError::from)?;
-
-    // Notify Curation of the goal transition.
-    if let Some(tx) = state.agent_service.curation_inbox_tx() {
-        let event = CurationInput::GoalTransition(GoalTransitionEvent {
-            goal_id: goal_id.to_string(),
-            from_state,
-            to_state: new_state.as_str().to_string(),
-            agent: WebID::new(),
-        });
-        let _ = tx.send(event);
-    }
-
     Ok(Json(GoalResponse {
-        id: goal_id.to_string(),
-        text: String::new(),
-        state: req.state.clone(),
-        visibility: String::new(),
+        id: goal.id,
+        text: goal.text,
+        state: goal.state,
+        visibility: goal.visibility,
     }))
 }

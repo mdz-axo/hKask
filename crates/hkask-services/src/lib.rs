@@ -9,8 +9,10 @@ pub mod consolidation;
 pub mod context;
 pub mod embed;
 pub mod error;
+pub mod goal;
 pub mod inference;
 pub mod onboarding;
+pub mod pods;
 pub mod skill;
 pub mod verification;
 
@@ -29,8 +31,10 @@ pub use embed::{
     ValidationConfig, Work,
 };
 pub use error::ServiceError;
+pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use onboarding::{OnboardingService, RegistryHandle, ResolvedSecrets, SignInOutcome};
+pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
     publish_skill, read_skill_namespace, read_skill_visibility,

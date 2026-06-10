@@ -33,6 +33,226 @@ impl TokenUsage {
     }
 }
 
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_agents::ports::memory_storage::RecalledEpisode;
+    use hkask_types::loops::episodic::ExperienceClassification;
+
+    // REQ: MDS-chat-gas-001 — Token usage maps to gas cost at 1:1 ratio
+    #[test]
+    fn token_usage_gas_cost_one_to_one() {
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            total_tokens: 150,
+        };
+        assert_eq!(usage.gas_cost(), 150, "Gas cost must equal total_tokens");
+    }
+
+    // REQ: MDS-chat-gas-002 — Gas cost of zero tokens is zero
+    #[test]
+    fn token_usage_zero_tokens_zero_gas() {
+        let usage = TokenUsage {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+        };
+        assert_eq!(usage.gas_cost(), 0);
+    }
+
+    // REQ: MDS-chat-gas-003 — Gas cost derived from total_tokens
+    #[test]
+    fn token_usage_gas_uses_total_not_sum_of_parts() {
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 200,
+            total_tokens: 250,
+        };
+        assert_eq!(usage.gas_cost(), 250);
+        assert_ne!(usage.gas_cost(), 300);
+    }
+
+    fn test_token(from: WebID, to: WebID) -> DelegationToken {
+        use hkask_types::capability::{DelegationAction, DelegationResource};
+        DelegationToken::new(
+            DelegationResource::Registry,
+            "test".into(),
+            DelegationAction::Execute,
+            from,
+            to,
+            b"test-hmac-secret-32-bytes-long!!",
+        )
+    }
+
+    struct MockSemanticPort {
+        triples: Vec<RecalledSemantic>,
+    }
+    impl SemanticStoragePort for MockSemanticPort {
+        fn store_semantic(
+            &self,
+            _: StorageRequest,
+            _: &DelegationToken,
+        ) -> Result<String, hkask_agents::error::MemoryError> {
+            Ok("id".into())
+        }
+        fn recall_semantic(
+            &self,
+            _: &RecallRequest,
+        ) -> Result<Vec<RecalledSemantic>, hkask_agents::error::MemoryError> {
+            Ok(self.triples.clone())
+        }
+        fn semantic_storage_usage(
+            &self,
+            _: &str,
+        ) -> Result<usize, hkask_agents::error::MemoryError> {
+            Ok(self.triples.len())
+        }
+    }
+
+    struct MockEpisodicPort {
+        last_request: std::sync::Mutex<Option<StorageRequest>>,
+    }
+    impl EpisodicStoragePort for MockEpisodicPort {
+        fn store_episodic(
+            &self,
+            r: StorageRequest,
+            _: &DelegationToken,
+        ) -> Result<String, hkask_agents::error::MemoryError> {
+            *self.last_request.lock().unwrap() = Some(r);
+            Ok("id".into())
+        }
+        fn recall_episodic(
+            &self,
+            _: &RecallRequest,
+        ) -> Result<Vec<RecalledEpisode>, hkask_agents::error::MemoryError> {
+            Ok(vec![])
+        }
+        fn episodic_storage_usage(
+            &self,
+            _: &WebID,
+        ) -> Result<usize, hkask_agents::error::MemoryError> {
+            Ok(0)
+        }
+        fn episodic_storage_budget(&self) -> usize {
+            10_000
+        }
+        fn store_episodic_classified(
+            &self,
+            r: StorageRequest,
+            _: ExperienceClassification,
+            _: Option<Confidence>,
+            t: &DelegationToken,
+        ) -> Result<String, hkask_agents::error::MemoryError> {
+            self.store_episodic(r, t)
+        }
+    }
+
+    // REQ: MDS-chat-memory-001 — recall_semantic returns None when no triples match
+    #[test]
+    fn recall_semantic_empty_returns_none() {
+        let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort { triples: vec![] });
+        let port: Arc<dyn SemanticStoragePort> = mock;
+        let w = WebID::new();
+        let result = ChatService::recall_semantic(&port, "q", &test_token(w, w));
+        assert!(result.is_none());
+    }
+
+    // REQ: MDS-chat-memory-002 — recall_semantic joins string values with newlines
+    #[test]
+    fn recall_semantic_joins_values_with_newlines() {
+        let t = |s: &str| RecalledSemantic {
+            id: "x".into(),
+            entity: "doc".into(),
+            attribute: "c".into(),
+            value: serde_json::json!(s),
+            confidence: Confidence::new(0.9),
+            visibility: hkask_types::Visibility::Public,
+            valid_from: "2026-01-01T00:00:00Z".into(),
+        };
+        let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort {
+            triples: vec![t("A"), t("B")],
+        });
+        let port: Arc<dyn SemanticStoragePort> = mock;
+        let w = WebID::new();
+        let result = ChatService::recall_semantic(&port, "q", &test_token(w, w));
+        assert_eq!(result, Some("A\nB".into()));
+    }
+
+    // REQ: MDS-chat-memory-003 — recall_semantic filters non-string values
+    #[test]
+    fn recall_semantic_filters_non_string_values() {
+        let t1 = RecalledSemantic {
+            id: "x".into(),
+            entity: "doc".into(),
+            attribute: "c".into(),
+            value: serde_json::json!("Text"),
+            confidence: Confidence::new(0.9),
+            visibility: hkask_types::Visibility::Public,
+            valid_from: "2026-01-01T00:00:00Z".into(),
+        };
+        let t2 = RecalledSemantic {
+            id: "y".into(),
+            entity: "doc".into(),
+            attribute: "c".into(),
+            value: serde_json::json!(42),
+            confidence: Confidence::new(0.9),
+            visibility: hkask_types::Visibility::Public,
+            valid_from: "2026-01-01T00:00:00Z".into(),
+        };
+        let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort {
+            triples: vec![t1, t2],
+        });
+        let port: Arc<dyn SemanticStoragePort> = mock;
+        let w = WebID::new();
+        let result = ChatService::recall_semantic(&port, "q", &test_token(w, w));
+        assert_eq!(result, Some("Text".into()));
+    }
+
+    // REQ: MDS-chat-episodic-001 — store_episodic stores input+response as JSON
+    #[test]
+    fn store_episodic_records_chat_exchange() {
+        let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
+            last_request: std::sync::Mutex::new(None),
+        });
+        let port: Arc<dyn EpisodicStoragePort> = mock.clone();
+        let w = WebID::from_persona(b"a");
+        ChatService::store_episodic(&port, "Hello", "Hi!", w, &test_token(w, w), "Agent");
+        let req = mock.last_request.lock().unwrap();
+        let r = req.as_ref().unwrap();
+        assert_eq!(r.entity, "chatted");
+        assert_eq!(r.attribute, "chat_turn");
+        assert_eq!(r.value["user_input"], "Hello");
+        assert_eq!(r.value["agent_response"], "Hi!");
+    }
+
+    // REQ: MDS-chat-episodic-002 — store_episodic confidence 0.7
+    #[test]
+    fn store_episodic_uses_fixed_confidence() {
+        let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
+            last_request: std::sync::Mutex::new(None),
+        });
+        let port: Arc<dyn EpisodicStoragePort> = mock.clone();
+        let w = WebID::from_persona(b"a");
+        ChatService::store_episodic(&port, "in", "out", w, &test_token(w, w), "Agent");
+        let req = mock.last_request.lock().unwrap();
+        assert!((req.as_ref().unwrap().confidence.value() - 0.7).abs() < 0.001);
+    }
+
+    // REQ: MDS-chat-episodic-003 — store_episodic never panics
+    #[test]
+    fn store_episodic_never_panics() {
+        let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
+            last_request: std::sync::Mutex::new(None),
+        });
+        let port: Arc<dyn EpisodicStoragePort> = mock;
+        let w = WebID::from_persona(b"t");
+        ChatService::store_episodic(&port, "", "", w, &test_token(w, w), "");
+    }
+}
+
 /// Response from a chat inference call.
 ///
 /// Carries the response text, token usage, and structured tool calls

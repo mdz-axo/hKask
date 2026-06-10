@@ -19,7 +19,6 @@ pub struct Manifest {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct Assertion {
     pub id: String,
     pub name: String,
@@ -117,9 +116,6 @@ impl VerificationService {
             "total_assertions": report.total_assertions,
             "escalation_required": report.total_fail > 0 || report.total_gap > 0,
         })
-    }
-    pub fn load_manifests() -> Vec<Manifest> {
-        load_manifests()
     }
 }
 

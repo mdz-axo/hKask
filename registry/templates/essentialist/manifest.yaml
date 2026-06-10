@@ -1,0 +1,48 @@
+# Template crate manifest for essentialist skill
+# ℏKask v0.27.0
+
+crate:
+  name: essentialist
+  version: "0.27.0"
+  description: >
+    General-purpose recursive eliminative interrogation. Enforces "always take
+    away, never add" through a 3-gate challenge loop (Exist → Surface → Contract)
+    that every artifact must survive before being committed. Delegates G1 to
+    deep-module deletion test, G2 to deep-module surface assessment, and G3 to
+    coding-guidelines abstraction audit.
+
+templates:
+  - id: essentialist/essentialist-flow
+    path: essentialist-flow.j2
+    type: FlowDef
+    lexicon_terms:
+      [
+        sequence,
+        iterate,
+        evaluate,
+        classify,
+        discriminate,
+        verify,
+        audit,
+        simplify,
+        reduce,
+        calibrate,
+      ]
+    description: >
+      Orchestrate the 3-gate eliminative interrogation loop: iterate G1 (Exist)
+      → G2 (Surface) → G3 (Contract) over an artifact. Branch on pass/fail for
+      each gate, escalate to human on retry exhaustion (3 max), abort on
+      zero-delta completion. Delegates to deep-module (G1, G2) and coding-guidelines
+      (G3) templates.
+
+hlexicon_terms:
+  - sequence
+  - iterate
+  - evaluate
+  - classify
+  - discriminate
+  - verify
+  - audit
+  - simplify
+  - reduce
+  - calibrate

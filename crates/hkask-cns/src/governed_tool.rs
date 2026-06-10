@@ -362,3 +362,102 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         self.inner.get_tool_info(tool_name).await
     }
 }
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::WebID;
+    use hkask_types::capability::{
+        DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+    };
+
+    fn make_token(resource_id: &str) -> DelegationToken {
+        DelegationTokenBuilder::new(
+            DelegationResource::Tool,
+            resource_id.into(),
+            DelegationAction::Execute,
+            WebID::new(),
+            WebID::new(),
+        )
+        .sign(&[0u8; 32])
+    }
+
+    // REQ: svc-cns-governed-001 — legacy_exact_match_grants_correct_tool
+    //
+    // OCAP Path 1: a DelegationToken minted for a specific tool name
+    // must grant access when the tool name matches exactly.
+    #[test]
+    fn legacy_exact_match_grants_correct_tool() {
+        let token = make_token("cns_health");
+
+        assert!(GovernedTool::<NoOpToolPort>::verify_capability_legacy(
+            &token,
+            "cns_health"
+        ));
+    }
+
+    // REQ: svc-cns-governed-002 — legacy_exact_match_denies_wrong_tool
+    //
+    // OCAP Path 1: a token for one tool must not grant access to another.
+    #[test]
+    fn legacy_exact_match_denies_wrong_tool() {
+        let token = make_token("cns_health");
+
+        assert!(!GovernedTool::<NoOpToolPort>::verify_capability_legacy(
+            &token,
+            "prompt_invoke"
+        ));
+    }
+
+    // REQ: svc-cns-governed-003 — domain_capability_matches_mcp_tool_domain
+    //
+    // OCAP Path 2: an agent capability token with domain "cns" and action
+    // "execute" must grant access to a tool with required_capability
+    // "tool:cns:execute" via capabilities_match().
+    #[test]
+    fn domain_capability_matches_mcp_tool_domain() {
+        let token = make_token("cns");
+
+        assert!(GovernedTool::<NoOpToolPort>::verify_capability_domain(
+            &token,
+            "tool:cns:execute"
+        ));
+    }
+
+    // REQ: svc-cns-governed-004 — domain_capability_denies_different_domain
+    //
+    // A token for domain "cns" must not grant access to a tool
+    // requiring "tool:memory:write".
+    #[test]
+    fn domain_capability_denies_different_domain() {
+        let token = make_token("cns");
+
+        assert!(!GovernedTool::<NoOpToolPort>::verify_capability_domain(
+            &token,
+            "tool:memory:write"
+        ));
+    }
+
+    // No-op ToolPort for testing static verification methods.
+    // The verification_functions are pure (no ToolPort dispatch needed).
+    struct NoOpToolPort;
+    impl ToolPort for NoOpToolPort {
+        async fn invoke(
+            &self,
+            _server: &str,
+            _tool: &str,
+            _args: serde_json::Value,
+            _token: &DelegationToken,
+        ) -> Result<serde_json::Value, ToolPortError> {
+            Ok(serde_json::Value::Null)
+        }
+        async fn discover_tools(&self) -> Vec<String> {
+            vec![]
+        }
+        async fn get_tool_info(&self, _tool_name: &str) -> Option<ToolInfo> {
+            None
+        }
+    }
+}

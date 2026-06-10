@@ -1,77 +1,62 @@
-//! Goal coordination commands — call goal repo directly.
+//! Goal coordination commands — delegates to GoalService.
 
-use hkask_types::goal::GoalState;
-use hkask_types::id::WebID;
-use hkask_types::visibility::Visibility;
+use hkask_services::{AgentService, CreateGoalRequest, GoalService, ServiceConfig, ServiceError};
 
 use crate::cli::GoalAction;
 use crate::errors::RegistryError;
 
-fn build_goal_repo() -> Result<hkask_storage::SqliteGoalRepository, RegistryError> {
-    let config = hkask_services::ServiceConfig::from_env()
-        .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
-    Ok(hkask_storage::SqliteGoalRepository::new(db.conn_arc()))
+impl From<ServiceError> for RegistryError {
+    fn from(e: ServiceError) -> Self {
+        RegistryError::InitFailed(e.to_string())
+    }
 }
 
-fn parse_visibility(vis: &str) -> Result<Visibility, RegistryError> {
-    Visibility::parse_str(vis).ok_or_else(|| {
-        RegistryError::InitFailed(format!(
-            "Invalid visibility '{vis}': expected private | public"
-        ))
-    })
-}
-
-fn parse_goal_state(state: &str) -> Result<GoalState, RegistryError> {
-    GoalState::parse_str(state)
-        .ok_or_else(|| RegistryError::InitFailed(format!("Invalid goal state '{state}'")))
+fn build_service_context() -> Result<AgentService, RegistryError> {
+    let config = ServiceConfig::from_env().map_err(RegistryError::from)?;
+    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
+    let svc = rt
+        .block_on(AgentService::build(config))
+        .map_err(RegistryError::from)?;
+    Ok(svc)
 }
 
 pub fn create(text: &str, visibility: &str) -> Result<(), RegistryError> {
-    let repo = build_goal_repo()?;
-    let webid = WebID::from_persona(b"cli-user");
-    let vis = parse_visibility(visibility)?;
-    let goal = repo
-        .create_goal(&webid, text, vis)
-        .map_err(|e| RegistryError::InitFailed(format!("Goal creation failed: {e}")))?;
+    let ctx = build_service_context()?;
+    let owner = hkask_types::WebID::from_persona(b"cli-user");
+    let goal = GoalService::create_goal(
+        &ctx,
+        CreateGoalRequest {
+            text: text.to_string(),
+            visibility: visibility.to_string(),
+            owner,
+        },
+    )?;
     println!("Created goal {}", goal.id);
     println!("  text:       {}", goal.text);
-    println!("  state:      {}", goal.state.as_str());
-    println!("  visibility: {}", goal.visibility.as_str());
+    println!("  state:      {}", goal.state);
+    println!("  visibility: {}", goal.visibility);
     Ok(())
 }
 
 pub fn list(state: Option<&str>) -> Result<(), RegistryError> {
-    let repo = build_goal_repo()?;
-    let webid = WebID::from_persona(b"cli-user");
-    let filter = match state {
-        Some(s) => Some(parse_goal_state(s)?),
-        None => None,
-    };
-    let goals = repo
-        .list_goals(&webid, filter)
-        .map_err(|e| RegistryError::InitFailed(format!("Goal list failed: {e}")))?;
+    let ctx = build_service_context()?;
+    let owner = hkask_types::WebID::from_persona(b"cli-user");
+    let goals = GoalService::list_goals(&ctx, &owner, state)?;
     if goals.is_empty() {
         println!("No goals found.");
         return Ok(());
     }
     println!("Goals ({}):", goals.len());
     for g in goals {
-        println!("  {} [{}] {}", g.id, g.state.as_str(), g.text);
+        println!("  {} [{}] {}", g.id, g.state, g.text);
     }
     Ok(())
 }
 
 pub fn set_state(id: &str, state: &str) -> Result<(), RegistryError> {
-    let repo = build_goal_repo()?;
-    let goal_id: hkask_types::id::GoalID = id
-        .parse()
-        .map_err(|e| RegistryError::InitFailed(format!("Invalid goal ID '{id}': {e}")))?;
-    let new_state = parse_goal_state(state)?;
-    repo.update_goal_state(goal_id, new_state)
-        .map_err(|e| RegistryError::InitFailed(format!("Goal state change failed: {e}")))?;
-    println!("Goal {} -> {}", goal_id, state);
+    let ctx = build_service_context()?;
+    let goal = GoalService::set_goal_state(&ctx, id, state)?;
+    println!("Goal {} -> {}", goal.id, goal.state);
     Ok(())
 }
 
