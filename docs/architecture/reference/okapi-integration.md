@@ -1,8 +1,8 @@
 ---
 title: "Okapi Integration — API Contract"
-version: "0.23.0"
+version: "0.27.0"
 status: "Active"
-last_updated: 2026-06-07
+last_updated: 2026-06-10
 audience: [architects, developers]
 domain: "Application"
 mds_categories: [domain]

@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-06-10
-version: "0.27.2"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.2
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -111,7 +111,7 @@ All three surfaces read/write the same `~/.config/hkask/settings.json` file. No 
 
 **Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
 
-### AgentService Architecture (v0.27.2)
+### AgentService Architecture (v0.27.0)
 
 `AgentService` is the canonical service layer owning all shared infrastructure. Fields are **private** and exposed through **8 group methods** — 7 return tuples of references, 1 returns a dedicated service wrapper:
 
@@ -165,13 +165,13 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | OCAP gates | Surface | `GovernedTool` membrane, capability checks before service call |
 | HTTP status mapping | `hkask-api` | `ServiceError → StatusCode` |
 | CLI formatting | `hkask-cli` | Table output, color, progress indicators |
-| Field encapsulation | `hkask-services` | All 27 fields private, accessed via 7 domain adapter methods |
+| Field encapsulation | `hkask-services` | All 26 fields private, accessed via 8 group methods |
 
-### Depth Test Results (Post-Essentialist v0.27.2)
+### Depth Test Results (Post-Essentialist v0.27.0)
 
 | Module | Public API | Call Sites (CLI+API) | Status |
 |--------|-----------|---------------------|--------|
-| `AgentService` | 8 methods (7 groups + build) | 2 surfaces | ✅ Pass — encapsulated |
+| `AgentService` | 9 methods (8 groups + build) | 2 surfaces | ✅ Pass — encapsulated |
 | `ChatService` | 4 functions | 8+ | ✅ Pass — CNS instrumented (P9) |
 | `InferenceService` | 3 functions | 11+ | ✅ Pass |
 | `ComposeService` | 1 function + 7 types | 2+ | ✅ Deep — 220 lines behind 1 call |
@@ -182,7 +182,7 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | `consolidation.rs` | 4 freestanding functions | 2+ | ✅ Pass — rate limiter + passphrase verify + consolidate |
 | `ArchivalService` | 4 functions + 2 types | 1 surface | ⚠️ Shallow — single-consumer HTTP pass-through |
 
-### Modules Added (v0.27.2)
+### Modules Added (v0.27.0)
 
 | Module | Purpose |
 |--------|--------|
@@ -278,8 +278,8 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 18 active architecture documents (4 specs + 4 framework + 1 index + 9 active ADRs + 4 active reference artifacts).
+**Total:** 22 active architecture documents (2 specs + 4 framework + 1 index + 9 ADRs + 6 reference artifacts).
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.2*
+*ℏKask - A Minimal Viable Container for Agents — v0.27.0*

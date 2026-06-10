@@ -1,8 +1,8 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
-version: "1.3.0"
+last_updated: 2026-06-10
+version: "1.4.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -58,7 +58,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Text:** When any significant operation occurs, I want a typed event emitted, so I can observe system behavior.
 - **Criteria:**
   - [x] `NuEvent` struct with span, phase, observer, payload
-  - [x] 10 span namespaces covering all operations
+  - [x] 22 span namespaces (15 canonical + 7 hierarchical)
   - [x] `NuEventSink` trait for emission
 - **Implementation:** `hkask-types::event::NuEvent`, `hkask-types::event::Span`, `hkask-types::event::NuEventSink`
 - **Tests:** —
@@ -107,9 +107,9 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Resource + action scoping
   - [x] Caveats for additional restrictions
   - [x] Constant-time comparison via `subtle`
-- **Implementation:** `hkask-types::capability::DelegationToken`, `hkask-types::visibility::AccessControl` (note: `Capability` type alias and `AccessEvaluator` not yet in code; see TODO.md P2-06)
+- **Implementation:** `hkask-types::capability::DelegationToken` (note: `Capability` type alias and `AccessEvaluator` not yet in code; see TODO.md P2-06)
 - **Tests:** —
-- **Status:** Implemented
+- **Status:** Partially Implemented
 - **Curation:** Merge
 
 ### REQ-CAP-002: Capability Attenuation Chains
@@ -123,7 +123,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `RevocationList` for revoked capabilities
 - **Implementation:** `hkask-types::capability::DelegationToken` (attenuation via `attenuation_level` field; note: `Delegation`, `DelegationStore`, `RevocationList` types not yet in code; see TODO.md P2-06)
 - **Tests:** —
-- **Status:** Implemented
+- **Status:** Partially Implemented
 - **Curation:** Merge
 
 ### REQ-CAP-003: MCP Tool Surface
@@ -150,7 +150,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Interface
 - **Text:** When exercising a composition, I want identical semantics across MCP, CLI, and API, so I can choose the appropriate surface.
 - **Criteria:**
-  - [x] CLI binary `kask` with 14 subcommand groups
+  - [x] CLI binary `kask` with 26 subcommand groups
   - [x] HTTP API with 11 route groups
   - [x] MCP with 10 servers (internal cognition via direct crate calls)
   - [x] All route through `hkask-agents` domain core
@@ -227,7 +227,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] No ambient authority
   - [x] Fail-closed (denied by default)
   - [x] No wildcard capabilities
-- **Implementation:** `hkask-mcp::security::SecurityPolicy`, `hkask-types::visibility::AccessEvaluator`
+- **Implementation:** `hkask-mcp::security::SecurityPolicy`
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -265,7 +265,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Observability
 - **Text:** When a capability is invoked, I want a CNS span emitted, so I can monitor system behavior.
 - **Criteria:**
-  - [x] 20 span namespaces (15 canonical + 5 hierarchical; see PRINCIPLES.md \u00a71.4)
+  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see PRINCIPLES.md §1.4)
   - [x] `NuEvent` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
   - [x] `NuEventSink` trait for emission
 - **Implementation:** `hkask-types::event::Span`, `hkask-cns::runtime::CnsRuntime`
@@ -350,11 +350,11 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Curation
 - **Text:** When authoring specifications, I want MCP tools for capture/decompose/curate/validate, so I can follow the MVSDD cycle.
 - **Criteria:**
-  - [x] 8 MCP tools in `hkask-mcp-spec`
+  - [x] 5 MCP tools in `hkask-mcp-spec`
   - [x] `SpecStore`, `SpecCurator`, `SpecObserver` traits
   - [x] `SqliteSpecStore` implementation
   - [x] `DefaultSpecCurator` implementation
-- **Implementation:** `hkask-mcp-spec` (819 LOC), `hkask-storage::spec_types` (trait), `hkask-agents::curator_agent::spec_curator` (impl)
+- **Implementation:** `hkask-mcp-spec` (607 LOC in main.rs), `hkask-storage::spec_types` (trait), `hkask-agents::curator_agent::spec_curator` (impl)
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -372,12 +372,40 @@ Curation: Merge | Revise | Defer | Discard
 
 ---
 
+### REQ-CAP-004: Condenser MCP Server
+
+- **Category:** Capability, Interface
+- **Text:** When agent context approaches the window limit, I want automatic summarization and compression via a dedicated MCP server, so I can maintain conversation continuity without manual truncation.
+- **Criteria:**
+  - [x] 761 LOC in `hkask-mcp-condenser`
+  - [x] `classify`, `compress`, `persist`, `thread_summary`, `ping`, `stats`, `set_profile` tools
+  - [x] Context-aware compression algorithms
+  - [x] Episodic memory persistence
+- **Implementation:** `hkask-mcp-condenser` (761 LOC)
+- **Tests:** —
+- **Status:** Implemented
+- **Curation:** Merge — promoted from deferred REQ-CAP-D01
+
+### REQ-CAP-005: Web MCP Server
+
+- **Category:** Capability, Interface
+- **Text:** When an agent needs to retrieve web content, I want a dedicated MCP server for search, fetch, and crawl operations, so I can ground agent responses in current external data.
+- **Criteria:**
+  - [x] 3,389 LOC in `hkask-mcp-web`
+  - [x] `search`, `fetch`, `crawl`, `extract` tools
+  - [x] Content extraction and formatting
+  - [x] Rate limiting and domain filtering
+- **Implementation:** `hkask-mcp-web` (3,389 LOC)
+- **Tests:** —
+- **Status:** Implemented
+- **Curation:** Merge — promoted from deferred REQ-CAP-D03
+
+---
+
 ## 11. Deferred Requirements
 
 | ID | Requirement | Reason | ADR |
 |----|------------|--------|-----|
-| REQ-CAP-D01 | Full condenser MCP server | Implemented (761 LOC) — no longer a stub | — |
-| REQ-CAP-D03 | Full web MCP server | Implemented (3,389 LOC) — no longer a stub | — |
 | REQ-IFC-D01 | Remote LLM fallback | Local-first invariant | ADR pending |
 | REQ-COM-D01 | Federation transport | Complexity exceeds budget | ADR pending |
 | REQ-PER-D01 | Qdrant vector search | sqlite-vec sufficient for MVP | ADR pending |

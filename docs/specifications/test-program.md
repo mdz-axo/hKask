@@ -1,7 +1,7 @@
 ---
 title: "Test Program Specification — MDS Self-Applying Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-10
 version: "0.1.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -124,23 +124,101 @@ Test invariants compose via goal decomposition (MDS §5.11 `mvss-compose` patter
 
 ```yaml
 # registry/manifests/tdd-tracer-bullet.yaml
-manifest:
-  name: tdd-tracer-bullet
-  description: Vertical tracer-bullet TDD cycle governed by MDS Curation
+id: tdd-tracer-bullet
+name: tdd-tracer-bullet
+description: Vertical tracer-bullet TDD cycle governed by MDS Curation
+version: "0.1.0"
+editor: hkask
+visibility: Public
+
+skills:
+  - id: tdd
+    polarity: Procedural
+    lexicon_terms:
+      - trace
+      - verify
+    manifest_ref: skills/tdd/manifest.yaml
+    content_hash: sha256:abc123...
+
+conflicts: []
+complementarities: []
 
 steps:
   - ordinal: 1
     action: select
     description: "Identify seam and invariant"
+    renderer: markdown
     template_ref: test/templates/seam-selector.j2
+    model_tier: standard
+    mcp: null
+    gas_cap: 500
+    timeout_seconds: 30
+    input_mapping: null
+    output_schema: null
+    phase: Pre
   - ordinal: 2
     action: populate
     description: "Write RED test for invariant"
+    renderer: markdown
     template_ref: test/templates/red-test.j2
+    model_tier: standard
+    mcp: null
+    gas_cap: 500
+    timeout_seconds: 60
+    input_mapping: null
+    output_schema: null
+    phase: Core
   - ordinal: 3
     action: execute
     description: "Write minimal GREEN implementation"
+    renderer: markdown
     template_ref: test/templates/green-impl.j2
+    model_tier: standard
+    mcp: null
+    gas_cap: 500
+    timeout_seconds: 60
+    input_mapping: null
+    output_schema: null
+    phase: Core
+
+convergence:
+  threshold: 0.1
+  max_iterations: 3
+  on_not_reached: abort
+
+gas:
+  cap: 10000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+ocap:
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+cns:
+  emit_spans: true
+  span_namespace: test.bundle.tdd
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true
 ```
 
 ---

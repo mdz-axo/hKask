@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # MDS — Minimal Domain Specification
 
-**Purpose:** A minimal, capability-driven specification framework for hKask. Specs are grants ("CAN verb on resource via interface"), not fences ("MUST NOT"). Five categories, six tools, one completeness predicate.
+**Purpose:** A minimal, capability-driven specification framework for hKask. Specs are grants ("CAN verb on resource via interface"), not fences ("MUST NOT"). Five categories, five tools, one completeness predicate.
 
 **Supersedes:** [`MDS.md`](MDS.md) — the previous 9-category Domain-Driven Minimum Viable Specification Set is archived. All MDS references in the codebase should be updated to MDS.
 
@@ -55,15 +55,15 @@ Curation decisions (Accept/Revise/Reject) are made by the Curator or human — n
 
 ## 3. Spec Tool Surface (`hkask-mcp-spec`)
 
-Five tools. Three curation tools (evaluate, reconcile, cultivate) were deleted as agent-hallucinated curation logic. One tool (bind) was deleted because OCAP boundaries are declared inline during goal capture, not attached separately. Curation is external to the spec server.
+Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation tools (evaluate, reconcile, cultivate) were deleted as agent-hallucinated curation logic. One tool (bind) was deleted because OCAP boundaries are declared inline during goal capture, not attached separately. Curation decisions remain external to the spec server.
 
-| # | Tool | Input | Output | hLexicon Terms |
-|---|------|-------|--------|----------------|
-| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[], ocap_boundaries}` | `specify`, `elicit`, `require`, `constrain` |
-| 2 | `spec/goal/decompose` | `{goal_id}` | `{sub_goals[], dependencies[]}` | `decompose`, `sequence` |
-| 3 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | `evaluate` |
-| 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` |
-| 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | `ground` |
+| # | Tool | Input | Output | hLexicon Terms | Status |
+|---|------|-------|--------|----------------|--------|
+| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[], ocap_boundaries}` | `specify`, `elicit`, `require`, `constrain` | ✅ Implemented |
+| 2 | `spec/goal/decompose` | `{goal_id}` | `{sub_goals[], dependencies[]}` | `decompose`, `sequence` | ✅ Implemented |
+| 3 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | `evaluate` | ✅ Implemented |
+| 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` | ✅ Implemented |
+| 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | `ground` | ✅ Implemented |
 
 ---
 
@@ -306,4 +306,4 @@ coherence_metric:
 
 ---
 
-*MDS v0.27.0 — supersedes MDS. Five categories, six tools, one predicate.*
+*MDS v0.27.0 — supersedes previous MDS. Five categories, five tools, one predicate.*

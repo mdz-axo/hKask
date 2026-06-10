@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-10
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -104,7 +104,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Reference | 0 | 0 | 0 |
 | **Total** | **30** | **30** | **5** |
 
-**MDS completeness:** All 5 MDS categories have diagram coverage. 30 diagrams verified against current code (2026-06-07).
+**MDS completeness:** All 5 MDS categories have diagram coverage. 30 diagrams verified against current code (2026-06-10).
 
 ---
 

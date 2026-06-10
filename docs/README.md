@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-07
+last_updated: 2026-06-10
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -125,7 +125,7 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | Document | MDS | Description |
 |----------|--------|-------------|
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | all | Mermaid diagram verification registry |
-| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, composition, lifecycle, curation, lifecycle | Underspecified aspects (4 of 7 resolved) |
+| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, lifecycle, curation | Underspecified aspects (4 of 7 resolved) |
 
 | [`generated/cli-reference.md`](generated/cli-reference.md) | interface | Auto-generated CLI reference |
 

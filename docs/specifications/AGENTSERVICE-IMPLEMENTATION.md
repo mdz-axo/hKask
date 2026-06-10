@@ -1,16 +1,18 @@
 # AgentService Refactoring — Implementation Plan
 
 **Version:** 0.27.1  
-**Date:** 2026-06-09  
-**Status:** Ready for TDD Implementation
+**Date:** 2026-06-10  
+**Status:** In Progress (strangler-fig)
 
 ---
 
 ## Overview
 
-**Goal:** Condense `ServiceContext` (27 public fields) → `AgentService` (7 domain adapters with private fields)
+**Goal:** Condense `ServiceContext` → `AgentService` with private fields and 8 group methods (strangler-fig migration)
 
-**Approach:** Big bang migration (8 phases, all in one PR)
+**Approach:** Strangler-fig migration — not a big bang. Old and new access paths coexist during transition; all surfaces remain functional at every intermediate step.
+
+**Note:** The original plan called for "big bang migration (8 phases, all in one PR)" — this was revised in favor of strangler-fig per FA-AS3.
 
 **Specification:** [`MDS-agent-service.md`](MDS-agent-service.md)
 
@@ -35,7 +37,7 @@ fn cannot_access_fields_directly() {
 }
 ```
 
-**Implementation:** Make all 27 fields private in `AgentService`
+**Implementation:** Make all 26 fields private in `AgentService` (originally planned 27; sovereignty_boundary_store removed from private set — see FA-AS2)
 
 **Verification:** Test fails to compile (as expected)
 
@@ -43,11 +45,11 @@ fn cannot_access_fields_directly() {
 
 ### P1 (Correctness) — REQ-MDS-C1
 
-**Test:** All 7 accessor methods exist and return correct types
+**Test:** All 8 group methods exist and return correct tuple types
 
 ```rust
 // TEST FILE: hkask-services/tests/accessor_methods.rs
-// REQ: REQ-MDS-C1 — All 7 accessor methods exist
+// REQ: REQ-MDS-C1 — All 8 group methods exist
 
 #[tokio::test]
 async fn agent_service_has_memory_accessor() {
@@ -65,10 +67,10 @@ async fn agent_service_has_cns_accessor() {
     assert!(cns.service().is_some());
 }
 
-// ... repeat for all 7 accessors
+// ... repeat for all 8 group methods
 ```
 
-**Implementation:** Add 7 domain adapter structs + accessor methods
+**Implementation:** Add 8 group methods returning tuples of references (no adapter structs)
 
 **Verification:** All tests pass
 
@@ -76,18 +78,18 @@ async fn agent_service_has_cns_accessor() {
 
 ### P1 (Correctness) — REQ-MDS-D1
 
-**Test:** AgentService::build() assembles all 27 fields
+**Test:** AgentService::build() assembles all 26 fields
 
 ```rust
 // TEST FILE: hkask-services/tests/build.rs
-// REQ: REQ-MDS-D1 — AgentService::build() assembles all 27 fields
+// REQ: REQ-MDS-D1 — AgentService::build() assembles all 26 fields
 
 #[tokio::test]
 async fn build_assembles_all_domains() {
     let config = test_config();
     let ctx = AgentService::build(config).await.unwrap();
     
-    // Verify all 7 domain adapters are populated
+    // Verify all 8 group methods are populated
     assert!(ctx.memory().episodic().is_some());
     assert!(ctx.cns().runtime().is_some());
     assert!(ctx.governance().dispatcher().is_some());
@@ -128,7 +130,7 @@ async fn build_completes_within_time_budget() {
 
 ---
 
-## Implementation Phases (Big Bang)
+## Implementation Phases (Strangler-Fig)
 
 ### Phase 1: Rename ServiceContext → AgentService
 
@@ -148,13 +150,18 @@ async fn build_completes_within_time_budget() {
 ### Phase 2: Make All Fields Private
 
 **Files to Update:**
-- `hkask-services/src/context.rs` — remove `pub` from all 27 fields
+- `hkask-services/src/context.rs` — remove `pub` from all 26 fields
 
 **Verification:** Compile-fail test (REQ-MDS-T1) fails to compile as expected
 
 ---
 
-### Phase 3: Add 7 Domain Adapter Structs
+### Phase 3: Add 7 Domain Adapter Structs ⛔ (NOT DONE)
+
+**Status:** Replaced by tuple-based approach per FA-AS2. No adapter structs were created — group methods return tuples of references directly via destructuring.
+
+<details>
+<summary>Original Plan (abandoned)</summary>
 
 **Files to Create:**
 - `hkask-services/src/adapters/mod.rs` — module exports
@@ -167,12 +174,14 @@ async fn build_completes_within_time_budget() {
 
 **Verification:** `cargo check -p hkask-services` passes
 
+</details>
+
 ---
 
 ### Phase 4: Add Accessor Methods to AgentService
 
 **Files to Update:**
-- `hkask-services/src/context.rs` — impl 7 accessor methods
+- `hkask-services/src/context.rs` — impl 8 group methods
 
 **Verification:** REQ-MDS-C1 tests pass
 
@@ -251,12 +260,12 @@ cargo fmt --check
 
 ## Test Files to Create
 
-| File | REQ Tag | Purpose |
-|------|---------|---------|
-| `hkask-services/tests/encapsulation.rs` | REQ-MDS-T1 | Compile-fail: direct field access |
-| `hkask-services/tests/accessor_methods.rs` | REQ-MDS-C1 | All 7 accessors exist |
-| `hkask-services/tests/build.rs` | REQ-MDS-D1 | Build assembles all domains |
-| `hkask-services/tests/lifecycle.rs` | REQ-MDS-L1 | Bootstrap <5 seconds |
+| File | REQ Tag | Purpose | Status |
+|------|---------|---------|--------|
+| `hkask-services/tests/encapsulation.rs` | REQ-MDS-T1 | Compile-fail: direct field access | ✅ Exists |
+| `hkask-services/tests/accessor_methods.rs` | REQ-MDS-C1 | All 8 accessors exist | ❌ Does not exist |
+| `hkask-services/tests/build.rs` | REQ-MDS-D1 | Build assembles all domains | ❌ Does not exist |
+| `hkask-services/tests/lifecycle.rs` | REQ-MDS-L1 | Bootstrap <5 seconds | ❌ Does not exist |
 
 ---
 
@@ -274,9 +283,8 @@ cargo fmt --check
 
 ## Success Criteria
 
-- ✅ All 27 fields are private (no direct access)
-- ✅ 7 domain adapter structs exist
-- ✅ 7 accessor methods exist and work correctly
+- ✅ All 26 fields are private (no direct access)
+- ✅ 8 group methods exist and work correctly
 - ✅ All CLI call sites updated
 - ✅ All API call sites updated
 - ✅ All domain crate call sites updated
@@ -286,4 +294,4 @@ cargo fmt --check
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.27.1*
+*ℏKask — A Minimal Viable Container for Agents — v0.27.1 (strangler-fig)*

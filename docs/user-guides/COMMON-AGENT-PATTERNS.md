@@ -1,8 +1,8 @@
 ---
 title: "Common Agent Patterns and Templates"
 audience: [developers, agent designers]
-last_updated: 2026-06-03
-version: "0.23.0"
+last_updated: 2026-06-10
+version: "0.27.0"
 status: "Active"
 domain: "Application"
 mds_categories: [domain]

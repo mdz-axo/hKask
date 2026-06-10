@@ -1,8 +1,8 @@
 ---
 title: Hexagonal Port Inventory
-version: v0.23.0
+version: "0.27.0"
 status: accurate
-last_updated: 2026-06-07
+last_updated: 2026-06-10
 audience: [architects, developers]
 domain: "Application"
 mds_categories: [interface]
