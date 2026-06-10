@@ -10,7 +10,7 @@
 //! case (L→∞), so this is backward-compatible.
 
 use crate::allosteric::gate::{AllostericGate, AllostericGateConfig};
-use crate::variety::VarietyTracker;
+use crate::runtime::VarietyTracker;
 use chrono::{DateTime, Utc};
 use hkask_types::cns::CnsHealth;
 use serde::{Deserialize, Serialize};

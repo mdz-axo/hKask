@@ -3,13 +3,21 @@
 //! CnsRuntime is the single entry point for all CNS operations:
 //! - Variety counting (Ashby's Law)
 //! - Algedonic alerts (deficit > threshold → escalate)
+//!
+//! # Epistemic grounding (TASK 0)
+//! - **crt:certainty** = Declarative (direct sensor readings)
+//! - **crt:force** = Evidence (IS statement, measured from runtime state)
+//! - **mode** = IS
+//!
+//! # Cybernetic role (TASK 1)
+//! - Sensor: VarietyMonitor.counters() — count distinct agent states
+//! - Comparator: AlgedonicManager.check() — compares deficit to threshold
+//! - Effector: emit_critical_depletion() — broadcasts DepletionSignal to observers
 
 use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
-use crate::variety::VarietyMonitor;
-use crate::variety::VarietyTracker;
 
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
@@ -18,8 +26,118 @@ use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing;
+
+// ── Variety counter infrastructure ────────────────────────────────────────
+// Relocated from variety.rs (TASK 2 deletion test — VarietyMonitor only used
+// by CnsRuntime, so depth increases when co-located).
+
+/// Default variety counter window duration (1 minute).
+const DEFAULT_VARIETY_WINDOW_SECS: u64 = 60;
+
+/// Variety counter for tracking state diversity in a domain.
+///
+/// # Epistemic grounding
+/// - **crt:certainty** = Subjunctive (sampling, not complete observation)
+/// - **crt:force** = Hypothesis (counter is an estimate, not a ground truth)
+/// - **mode** = IS
+#[derive(Debug, Clone)]
+pub(crate) struct VarietyTracker {
+    counts: HashMap<String, u64>,
+    window_start: Instant,
+    window_duration: Duration,
+}
+
+impl VarietyTracker {
+    pub(crate) fn new() -> Self {
+        Self {
+            counts: HashMap::new(),
+            window_start: Instant::now(),
+            window_duration: Duration::from_secs(DEFAULT_VARIETY_WINDOW_SECS),
+        }
+    }
+
+    pub(crate) fn increment(&mut self, key: &str) {
+        self.check_window();
+        *self.counts.entry(key.to_string()).or_insert(0) += 1;
+    }
+
+    pub(crate) fn variety(&self) -> u64 {
+        self.counts.len() as u64
+    }
+
+    pub(crate) fn deficit(&self, expected_variety: u64) -> u64 {
+        expected_variety.saturating_sub(self.variety())
+    }
+
+    fn check_window(&mut self) {
+        if self.window_start.elapsed() > self.window_duration {
+            self.reset();
+        }
+    }
+
+    pub(crate) fn reset(&mut self) {
+        self.counts.clear();
+        self.window_start = Instant::now();
+    }
+}
+
+impl Default for VarietyTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Variety monitor for multiple domains — Ashby's Law tracking at the CNS level.
+///
+/// # Epistemic grounding
+/// - **crt:certainty** = Subjunctive
+/// - **crt:force** = Hypothesis
+/// - **mode** = IS
+///
+/// # Cybernetic role (TASK 1)
+/// This is the **sensor** in the variety regulation feedback loop:
+/// ```text
+/// (MCP tool dispatch) → [VarietyMonitor.counter().increment()]
+///     → [AlgedonicManager.check()] → [RuntimeAlert]
+///     → [emit_critical_depletion()] → (agent behavior change)
+/// ```
+#[derive(Debug)]
+pub struct VarietyMonitor {
+    counters: HashMap<String, VarietyTracker>,
+}
+
+impl VarietyMonitor {
+    pub fn new() -> Self {
+        Self {
+            counters: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn counter(&mut self, domain: &str) -> &mut VarietyTracker {
+        self.counters.entry(domain.to_string()).or_default()
+    }
+
+    pub fn variety_for_domain(&self, domain: &str) -> u64 {
+        self.counters.get(domain).map(|c| c.variety()).unwrap_or(0)
+    }
+
+    pub fn domains(&self) -> Vec<&str> {
+        self.counters.keys().map(|s| s.as_str()).collect()
+    }
+
+    pub(crate) fn counters(&self) -> &HashMap<String, VarietyTracker> {
+        &self.counters
+    }
+}
+
+impl Default for VarietyMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// CNS state shared between threads
 struct CnsState {

@@ -267,6 +267,12 @@ impl AgentService {
         &self.event_sink
     }
 
+    /// Access Git CAS port for snapshot operations.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn git_cas_port(&self) -> &Arc<dyn GitCASPort> {
+        &self.git_cas_port
+    }
+
     // === Category 2-3: Surface-specific fields (7 fields) ===
     // TODO: Move these to ReplState/ApiState respectively
 

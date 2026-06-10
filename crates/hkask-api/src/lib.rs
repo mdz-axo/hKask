@@ -142,7 +142,7 @@ impl ApiState {
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
                 ctx.cybernetics_loop().clone(),
-                ctx.system_webid().clone(),
+                *ctx.system_webid(),
                 energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 
@@ -217,7 +217,7 @@ impl ApiState {
 /// Create API router with OpenAPI documentation and authentication
 pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(middleware::AuthService::from_config(
-        &state.agent_service.config(),
+        state.agent_service.config(),
     ));
 
     Ok(

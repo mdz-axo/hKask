@@ -18,7 +18,14 @@ pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_energy_estimator; // Per-server energy cost table
-pub mod variety; // Ashby's Law — variety tracking
+// variety module merged into runtime.rs (TASK 2 deletion test):
+// VarietyMonitor and VarietyTracker are now co-located with their
+// sole consumer (CnsRuntime), increasing module depth.
+pub mod variety {
+    //! Thin re-export for backward compatibility.
+    //! All types live in `crate::runtime` since v0.27.2.
+    pub use crate::runtime::VarietyMonitor;
+}
 
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use circuit_breaker::CircuitBreaker;

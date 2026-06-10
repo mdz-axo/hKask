@@ -93,7 +93,7 @@ pub(super) fn single_agent_turn(
     // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
     // before inference, settle with actual token cost after.
     let Some(mut gas_guard) = energy::EnergyGuard::try_reserve(
-        &state.service_context.cybernetics_loop(),
+        state.service_context.cybernetics_loop(),
         &state.inference_loop,
         &state.agent_webid,
         rt,
@@ -215,7 +215,7 @@ pub(super) fn single_agent_turn(
         );
 
         if let Some(mut followup_guard) = energy::EnergyGuard::try_reserve(
-            &state.service_context.cybernetics_loop(),
+            state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
             rt,

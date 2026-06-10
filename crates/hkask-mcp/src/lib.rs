@@ -8,18 +8,17 @@
 //! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, ServerContext, run_stdio_server)
 
 pub mod adapter_container;
-pub mod dispatch; // Tool dispatch through GovernedTool membrane
+pub mod dispatch; // Tool dispatch through GovernedTool membrane (includes RawMcpToolPort)
 pub mod git_cas;
-pub mod raw_tool_port; // Ungoverned tool executor (inner port for GovernedTool)
 pub mod runtime;
 pub(crate) mod security;
 pub mod server;
 
 pub(crate) use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
+pub use dispatch::RawMcpToolPort;
 pub use git_cas::{GitCasAdapter, GixCasAdapter};
 pub use hkask_types::ports::ToolInfo;
-pub use raw_tool_port::RawMcpToolPort;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
     CredentialRequirement, ServerContext, api_get, api_put, load_dotenv, resolve_credential,

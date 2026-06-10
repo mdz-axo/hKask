@@ -143,7 +143,7 @@ impl PodManager {
     }
 
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
-        self.inference_port().clone()
+        self.inference_port.clone()
     }
 
     pub async fn sovereignty_checker_for(
@@ -318,7 +318,7 @@ impl PodManager {
     }
 
     pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
-        Arc::clone(&self.acp_runtime())
+        Arc::clone(&self.acp_runtime)
     }
 }
 

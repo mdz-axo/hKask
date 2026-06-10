@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::block_on;
 use crate::cli::GitAction;
 use hkask_mcp::GixCasAdapter;
-use hkask_services::{ArchivalService, AgentService};
+use hkask_services::{AgentService, ArchivalService};
 use hkask_types::ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 
 /// Resolve the hexagonal `GitCASPort` from the environment.
@@ -117,7 +117,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                     &owner,
                     &repo,
                     &message,
-                    &ctx.agent_registry_store(),
+                    ctx.agent_registry_store(),
                 ),
                 "Snapshot failed"
             );

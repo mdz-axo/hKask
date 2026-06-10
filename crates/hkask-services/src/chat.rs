@@ -185,7 +185,7 @@ impl ChatService {
             DelegationAction::Execute,
             req.auth_context
                 .as_ref()
-                .map_or(ctx.system_webid().clone(), |a| a.webid),
+                .map_or(*ctx.system_webid(), |a| a.webid),
             agent_webid,
         );
 

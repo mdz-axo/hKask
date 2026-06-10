@@ -3,7 +3,7 @@
 //! Implements the CLI display logic for the Cybernetic Nervous System subcommand.
 
 use crate::cli::CnsAction;
-use hkask_services::{CnsService, ServiceConfig, AgentService};
+use hkask_services::{AgentService, CnsService, ServiceConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -172,7 +172,7 @@ fn build_cns_service(rt: &tokio::runtime::Runtime) -> CnsService {
         }
     };
     match rt.block_on(AgentService::build(config)) {
-        Ok(ctx) => ctx.cns(),
+        Ok(ctx) => ctx.cns().clone(),
         Err(_) => standalone_cns(),
     }
 }
