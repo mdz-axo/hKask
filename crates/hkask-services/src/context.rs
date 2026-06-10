@@ -166,41 +166,14 @@ pub struct PerAgentMemory {
 }
 
 impl AgentService {
-    // === Category 1: Essential shared infrastructure (10 fields) ===
-
-    /// Access template registry.
-    pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
-        &self.registry
-    }
-
-    /// Access MCP runtime for tool discovery and invocation.
-    pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
-        &self.mcp_runtime
-    }
-
-    /// Access MCP dispatcher for OCAP-protected tool invocation.
-    pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
-        &self.mcp_dispatcher
-    }
-
-    /// Access inference port for model invocation.
-    pub fn inference_port(&self) -> &Option<Arc<dyn InferencePort>> {
-        &self.inference_port
-    }
-
-    /// Access capability checker for OCAP verification.
-    pub fn capability_checker(&self) -> &Arc<hkask_types::CapabilityChecker> {
-        &self.capability_checker
-    }
+    // === Configuration ===
 
     /// Access configuration.
     pub fn config(&self) -> &ServiceConfig {
         &self.config
     }
 
-    // === Domain group methods (7 total — strangler-fig CREATE) ===
-    // These 7 methods replace the 27 field-level accessors above.
-    // Both paths coexist during migration. Old accessors deleted in a later step.
+    // === Domain group methods (7 total) ===
 
     /// Memory: episodic + semantic storage ports.
     /// # REQ: P4 (Clear Boundaries)
@@ -305,22 +278,10 @@ impl AgentService {
         &self.acp_runtime
     }
 
-    /// Access escalation queue for Curator escalations.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
-        &self.escalation_queue
-    }
-
     /// Access consent manager for user sovereignty.
     /// TODO: Category 4 — migrate to service methods.
     pub fn consent_manager(&self) -> &Arc<ConsentManager> {
         &self.consent_manager
-    }
-
-    /// Access goal repository for the goal coordination substrate.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
-        &self.goal_repo
     }
 
     /// Access curation inbox transmitter.
@@ -329,26 +290,13 @@ impl AgentService {
         &self.curation_inbox_tx
     }
 
-    /// Access pod manager for agent lifecycle.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn pod_manager(&self) -> &Arc<PodManager> {
-        &self.pod_manager
-    }
-
     /// Access sovereignty boundary store for Magna Carta compliance.
     /// TODO: Category 4 — migrate to service methods.
     pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore {
         &self.sovereignty_boundary_store
     }
 
-    /// Access Git CAS port for snapshot operations.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn git_cas_port(&self) -> &Arc<dyn GitCASPort> {
-        &self.git_cas_port
-    }
-
-    // === Category 2-3: Surface-specific fields (7 fields) ===
-    // TODO: Move these to ReplState/ApiState respectively
+    // === Surface-specific fields:
 
     /// Access episodic memory storage (private, agent-scoped).
     /// TODO: Move to ReplState.

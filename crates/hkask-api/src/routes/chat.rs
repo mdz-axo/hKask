@@ -173,7 +173,7 @@ async fn chat_stream(
         seed: None,
     };
 
-    let inference = state.agent_service.inference_port().clone();
+    let inference = state.agent_service.coordination().0.clone();
 
     // Use a channel to bridge the borrowed inference stream into a 'static
     // stream for the SSE response. A spawned task owns the Arc and sends

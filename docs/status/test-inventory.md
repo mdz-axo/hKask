@@ -35,7 +35,7 @@ Per MDS §12 and `docs/specifications/test-program.md` — seam depth analysis a
 |------|-------|--------|-------------------|
 | `ReplSettings` | hkask-cli | `repl/handlers/repl_settings.rs` | Settings persist to disk, load on init, expose via CLI/API/REPL |
 | `ModelMeta` | hkask-cli | `repl/handlers/repl_settings.rs` | Model metadata fetched from Ollama `/api/show`, populated on model switch |
-| `build_input_with_auto_compact` | hkask-cli | `repl/turn.rs` | Auto-compaction triggers at 87.5% of context window, condenses via MCP |
+| `auto_condense` | hkask-services | `chat.rs` | Auto-condense at 87.5% of context window in `execute_turn()`, using condenser library |
 | `tool_loop` | hkask-cli | `repl/turn.rs` | Unbounded tool-use loop gated by `tool_loop_limit`, each iteration checks energy budget |
 | `context_injection` | hkask-cli | `repl/turn.rs` | Conversation history appended as suffix (after cache breakpoint), not prefix |
 | `GET/PUT /api/settings` | hkask-api | `routes/settings.rs` | Settings read/write via REST, merge-update semantics |

@@ -46,7 +46,7 @@ pub fn mcp_router() -> Router<ApiState> {
     ),
 )]
 async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let servers = state.agent_service.mcp_runtime().list_servers().await;
+    let servers = state.agent_service.coordination().1.list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
 
@@ -64,7 +64,7 @@ async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
     ),
 )]
 async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let tools = state.agent_service.mcp_runtime().discover_tools().await;
+    let tools = state.agent_service.coordination().1.discover_tools().await;
     Json(tools)
 }
 
@@ -139,7 +139,8 @@ async fn mcp_invoke(
     // Resolve server_id from the runtime's tool registry
     let server_id = state
         .agent_service
-        .mcp_runtime()
+        .coordination()
+        .1
         .get_tool_info(&req.tool)
         .await
         .map(|t| t.server_id)

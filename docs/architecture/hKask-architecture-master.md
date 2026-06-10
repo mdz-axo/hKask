@@ -63,14 +63,14 @@ Conversation history is appended as a **suffix** (after the cache breakpoint) so
 
 The REPL loops tool calls until the model stops requesting them, gated by `ReplSettings.tool_loop_limit` (default 21). Each iteration checks the energy budget via `GovernedTool` before executing. If the limit is hit, the loop breaks and returns the partial response — the system tells the model it can continue by asking.
 
-### Auto-Compaction
+### Auto-Condense
 
-At 87.5% of the model's context window, old session history is compacted via the condenser MCP tool (`hkask-mcp-condenser`). The condenser summarizes older turns into a compact form, freeing context space for new messages. Controlled by `ReplSettings.auto_compact` (default on). When off, the user must compact manually.
+At 87.5% of the model's context window, old session history is condensed via the condenser library (`hkask-mcp-condenser`). The condenser summarizes older turns into a compact form, freeing context space for new messages. Controlled by `ReplSettings.auto_condense` (default on). When off, the user must condense manually.
 
 ### Model Awareness
 
 On model switch (`/model`), the REPL fetches metadata from Ollama's `/api/show` endpoint:
-- `context_length` — the model's native context window size (used by auto-compaction)
+- `context_length` — the model's native context window size (used by auto-condense)
 - `supports_thinking` — whether the model supports thinking/reasoning tokens
 - `capabilities` — model feature list (vision, tools, etc.)
 
@@ -93,7 +93,7 @@ User-configurable inference parameters exposed via three surfaces:
 | `seed` | u32 or `off` | — | random | Deterministic seed |
 | `gas_heuristic` | u64 | ≥1 | 500 | Per-turn gas reservation |
 | `gas_cap` | u64 | ≥1 | 10,000 | Total session energy budget cap |
-| `auto_compact` | bool | — | true | Auto-compact at 87.5% of context window |
+| `auto_condense` | bool | — | true | Auto-condense at 87.5% of context window |
 | `model_meta` | read-only | — | None | Model context_length, thinking, capabilities |
 
 ### Magna Carta P3 — Equal Surface Exposure

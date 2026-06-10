@@ -146,7 +146,7 @@ pub(super) fn init_repl_state(
     rt.block_on(ctx.cns().2.register_loop(inference_loop.clone()));
 
     // Start built-in MCP servers on the AgentService's MCP runtime.
-    let mcp_runtime = ctx.mcp_runtime().clone();
+    let mcp_runtime = ctx.coordination().1.clone();
     let server_count = rt.block_on(super::builtin_servers::start_builtin_servers(&mcp_runtime));
     if server_count > 0 {
         tracing::info!(target: "hkask.repl", servers = server_count, "MCP servers started");

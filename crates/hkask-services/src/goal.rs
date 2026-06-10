@@ -54,7 +54,7 @@ impl GoalService {
                 req.visibility
             ))
         })?;
-        let repo = ctx.goal_repo();
+        let repo = ctx.storage().1;
         let goal = repo
             .create_goal(&req.owner, &req.text, vis)
             .map_err(ServiceError::GoalRepo)?;
@@ -73,7 +73,7 @@ impl GoalService {
             })?),
             None => None,
         };
-        let repo = ctx.goal_repo();
+        let repo = ctx.storage().1;
         let goals = repo
             .list_goals(owner, filter)
             .map_err(ServiceError::GoalRepo)?;
@@ -92,7 +92,7 @@ impl GoalService {
         let new_state = GoalState::parse_str(new_state_str).ok_or_else(|| {
             ServiceError::ValidationError(format!("Invalid goal state '{}'", new_state_str))
         })?;
-        let repo = ctx.goal_repo();
+        let repo = ctx.storage().1;
 
         let from_state = repo
             .get_goal(goal_id)

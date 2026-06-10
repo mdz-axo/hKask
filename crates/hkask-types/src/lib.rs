@@ -90,7 +90,7 @@ pub use ports::{
     SkillZone, StructuredToolCall, TokenProb, TokenProbability, ToolInfo, ToolPort, ToolPortError,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
-pub use secret::{SecretRef, derivation_contexts};
+pub use secret::{SecretRef, ZeroizingSecret, derivation_contexts};
 pub use sovereignty::{DataCategory, SovereigntyPort, UserSovereigntyState};
 pub use template::{LLMParameters, TemplateCrate, TemplateFile};
 pub use text::blake3_hash;

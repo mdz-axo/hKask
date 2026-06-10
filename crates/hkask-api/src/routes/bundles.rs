@@ -121,7 +121,7 @@ pub fn bundles_router() -> Router<ApiState> {
     ),
 )]
 async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse> {
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().0.lock().await;
 
     // Collect bundles from the registry
     let bundles: Vec<BundleSummary> = registry
@@ -154,7 +154,7 @@ async fn get_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().0.lock().await;
     match registry.get_bundle(&id) {
         Some(bundle) => {
             let value =
@@ -188,7 +188,7 @@ async fn compose_bundle(
         });
     }
 
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().0.lock().await;
 
     // Check for existing bundle with these skills (smart matching)
     let existing = registry.find_bundle_by_skills(&request.skills);
@@ -229,7 +229,7 @@ async fn apply_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<ApplyBundleResponse>, ApiError> {
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().0.lock().await;
     match registry.get_bundle(&id) {
         Some(bundle) => Ok(Json(ApplyBundleResponse {
             status: "active".to_string(),
@@ -258,7 +258,7 @@ async fn evolve_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<EvolveBundleResponse>, ApiError> {
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().0.lock().await;
     match registry.get_bundle(&id) {
         Some(_bundle) => Ok(Json(EvolveBundleResponse {
             evolved_manifest: None, // Evolution requires template rendering

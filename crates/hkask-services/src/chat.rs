@@ -393,7 +393,7 @@ impl ChatService {
 
         // Resolve inference port — prefer override, then shared port from AgentService
         let inference: Arc<dyn InferencePort> =
-            match (&req.inference_port_override, ctx.inference_port()) {
+            match (&req.inference_port_override, ctx.coordination().0) {
                 (Some(port), _) => Arc::clone(port),
                 (None, Some(port)) => Arc::clone(port),
                 (None, None) => {
@@ -776,73 +776,10 @@ impl ChatService {
             &token,
             req.context_turns,
         );
-        let mut input_with_context = match history_suffix {
+        let input_with_context = match history_suffix {
             Some(s) => format!("{}\n\n{}", base_input, s),
             None => base_input,
         };
-
-        // 2.5. Auto-condense when context approaches the model's window limit.
-        //       Condenses oldest half of conversation history via the condenser library
-        //       when total input exceeds 87.5% of the model's context window.
-        if req.auto_condense {
-            if let (Some(window), Some(ref base_url)) =
-                (req.context_window, &req.condenser_base_url)
-            {
-                let threshold = (window as f64 * 0.875) as u32;
-                let approx_tokens =
-                    hkask_mcp_condenser::approx_token_count(&input_with_context) as u32;
-                if approx_tokens > threshold && req.context_turns > 0 {
-                    let raw_messages = Self::recall_raw_episodes(
-                        &req.episodic_storage,
-                        &req.agent_webid,
-                        &token,
-                        req.context_turns,
-                    );
-                    if raw_messages.len() >= 2 {
-                        let mid = raw_messages.len() / 2;
-                        let oldest: Vec<_> = raw_messages[..mid].to_vec();
-                        let newest: Vec<_> = raw_messages[mid..].to_vec();
-
-                        let condenser_model = req.condenser_model.as_deref().unwrap_or(&req.model);
-
-                        let client = reqwest::Client::new();
-                        match hkask_mcp_condenser::thread_summary(
-                            &client,
-                            &oldest,
-                            &req.input,
-                            Some(500),
-                            condenser_model,
-                            base_url,
-                        )
-                        .await
-                        {
-                            Ok(summary_output) => {
-                                let newest_formatted: String = newest
-                                    .iter()
-                                    .filter_map(|m| {
-                                        let role = m.get("role")?.as_str()?;
-                                        let content = m.get("content")?.as_str()?;
-                                        Some(format!("{}: {}", role, content))
-                                    })
-                                    .collect::<Vec<_>>()
-                                    .join("\n\n");
-                                input_with_context = format!(
-                                    "{}\n\n[Condensed history]\n{}\n[/Condensed history]\n\n[Recent conversation]\n{}\n[/Recent conversation]\n\n",
-                                    base_input, summary_output.summary, newest_formatted
-                                );
-                            }
-                            Err(e) => {
-                                tracing::warn!(
-                                    target: "cns.condenser",
-                                    error = %e,
-                                    "Auto-condense failed — continuing with full context"
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         // 3. Apply tool results from previous iterations (if any).
         let effective_input = if let Some(ref tool_results) = req.tool_results {

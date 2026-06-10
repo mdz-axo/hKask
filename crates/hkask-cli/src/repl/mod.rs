@@ -32,6 +32,7 @@ use hkask_services::AgentService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
+use hkask_types::ZeroizingSecret;
 use hkask_types::ports::InferencePort;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
@@ -179,8 +180,10 @@ pub fn run(
 
                 // ACP secret for signing capability tokens in tool invocations.
                 // Derived from onboarding — same secret that governs OCAP authority.
-                let acp_secret: Vec<u8> = match &state.resolved_secrets {
-                    Some(secrets) => secrets.acp_secret.as_bytes().to_vec(),
+                // Wrapped in ZeroizingSecret for defense-in-depth: the secret bytes
+                // are scrubbed from memory on drop.
+                let acp_secret = match &state.resolved_secrets {
+                    Some(secrets) => ZeroizingSecret::new(secrets.acp_secret.as_bytes().to_vec()),
                     None => {
                         eprintln!(
                             "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
@@ -190,7 +193,24 @@ pub fn run(
                 };
 
                 if let Some(ref session) = state.active_session.clone() {
-                    turn::ensemble_turn(session, input, &mut state, &rt, &acp_secret);
+                    // Validate session still exists (guard against external deletion
+                    // or divergence between ReplState and the canonical session manager).
+                    let exists = rt.block_on(async {
+                        hkask_services::EnsembleService::list_chats(&state.service_context)
+                            .await
+                            .map(|sessions| sessions.contains(session))
+                            .unwrap_or(false)
+                    });
+                    if exists {
+                        turn::ensemble_turn(session, input, &mut state, &rt, &acp_secret);
+                    } else {
+                        println!(
+                            "  Session \x1b[33m{}\x1b[0m no longer active. Back to single-agent mode.",
+                            session
+                        );
+                        state.active_session = None;
+                        turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
+                    }
                 } else {
                     turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
                 }

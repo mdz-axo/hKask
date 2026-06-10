@@ -89,7 +89,7 @@ kask settings reset                         # Reset all to defaults
 | `seed` | u32 or `off` | — | random | Deterministic seed (`off` = random) |
 | `gas_heuristic` | u64 | ≥1 | 500 | Per-turn gas reservation |
 | `gas_cap` | u64 | ≥1 | 10,000 | Total session energy budget cap |
-| `auto_compact` | `on`/`off` | — | on | Auto-compact at 87.5% of context window |
+| `auto_condense` | `on`/`off` | — | on | Auto-condense at 87.5% of context window |
 | `reset` | — | — | — | Reset all to defaults |
 
 ---
@@ -117,7 +117,7 @@ GET /api/settings            # Returns full SettingsResponse JSON
 PUT /api/settings            # Merge-updates with UpdateSettingsRequest body
 ```
 
-**Fields in both request/response:** `tool_loop_limit`, `context_turns`, `temperature`, `top_p`, `top_k`, `min_p`, `typical_p`, `max_tokens`, `seed`, `gas_heuristic`, `gas_cap`, `auto_compact`. Response also includes `context_length` and `supports_thinking` (read-only model metadata).
+**Fields in both request/response:** `tool_loop_limit`, `context_turns`, `temperature`, `top_p`, `top_k`, `min_p`, `typical_p`, `max_tokens`, `seed`, `gas_heuristic`, `gas_cap`, `auto_condense`. Response also includes `context_length` and `supports_thinking` (read-only model metadata).
 
 ### ReplSettings Struct
 

@@ -108,3 +108,35 @@ pub mod derivation_contexts {
     /// Master key environment variable name.
     pub const MASTER_KEY_ENV: &str = "HKASK_MASTER_KEY";
 }
+
+/// A `Vec<u8>` wrapper that zeroizes its contents on drop.
+///
+/// Used for secrets (ACP keys, capability tokens) that must not
+/// linger in memory after use. Derefs to `&[u8]` for pass-through
+/// to functions that accept byte slices.
+#[derive(Clone)]
+pub struct ZeroizingSecret(Vec<u8>);
+
+impl ZeroizingSecret {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for ZeroizingSecret {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl Drop for ZeroizingSecret {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.0);
+    }
+}

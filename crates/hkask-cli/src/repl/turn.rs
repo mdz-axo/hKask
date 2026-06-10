@@ -152,6 +152,10 @@ pub(super) fn single_agent_turn(
             system_webid: *state.service_context.identity().0,
             iteration,
             tool_results: tool_results.take(),
+            auto_condense: settings.auto_condense,
+            context_window: settings.model_meta.as_ref().map(|m| m.context_length),
+            condenser_base_url: Some(state.service_context.config().okapi_base_url.clone()),
+            condenser_model: Some(state.current_model.clone()),
         };
 
         let chat_result = rt.block_on(ChatService::execute_turn(
@@ -277,12 +281,12 @@ pub(super) fn single_agent_turn(
 
 #[cfg(test)]
 mod tests {
-    // REQ: Auto-compaction triggers at 87.5% of context window and
+    // REQ: Auto-condense triggers at 87.5% of context window and
     // skips when estimated tokens are below that threshold.
-    // The threshold calculation in build_input_with_auto_compact is:
-    //   estimated_tokens = candidate.len() / 4
-    //   compact_threshold = (context_length as f64 * 0.875) as u64
-    //   if estimated_tokens > compact_threshold → trigger compaction
+    // The threshold calculation in ChatService::execute_turn() is:
+    //   threshold = (context_window as f64 * 0.875) as u32
+    //   approx_tokens = approx_token_count(input_with_context) as u32
+    //   if approx_tokens > threshold → trigger condensation
 
     #[test]
     fn compaction_triggers_above_87_5_percent() {

@@ -13,7 +13,7 @@ fn build_service_context(
         "Failed to build AgentService",
     );
     for (server_id, command) in servers {
-        match rt.block_on(ctx.mcp_runtime().start_server(server_id, command)) {
+        match rt.block_on(ctx.coordination().1.start_server(server_id, command)) {
             Ok(()) => {
                 tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started")
             }

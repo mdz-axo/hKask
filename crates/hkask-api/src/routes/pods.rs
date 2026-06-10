@@ -111,7 +111,7 @@ async fn create_pod(
     let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ApiError::BadRequest {
         message: format!("Invalid persona YAML: {e}"),
     })?;
-    let pm = &state.agent_service.pod_manager();
+    let pm = &state.agent_service.coordination().2;
     let pod_id = pm
         .create_pod(&req.template, &persona, req.name)
         .await
@@ -129,7 +129,8 @@ async fn activate_pod(
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
-        .pod_manager()
+        .coordination()
+        .2
         .activate_pod(&pid)
         .await
         .map_err(map_pod_err)?;
@@ -144,7 +145,8 @@ async fn deactivate_pod(
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
-        .pod_manager()
+        .coordination()
+        .2
         .deactivate_pod(&pid)
         .await
         .map_err(map_pod_err)?;
@@ -159,7 +161,8 @@ async fn pod_status(
     let pid = parse_pod_id(&id)?;
     let status = state
         .agent_service
-        .pod_manager()
+        .coordination()
+        .2
         .get_pod_status(&pid)
         .await
         .map_err(map_pod_err)?;

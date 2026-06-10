@@ -28,7 +28,7 @@ Every design decision in the REPL is grounded in the Magna Carta:
 |-----------|-------------------|
 | **P1: User Sovereignty** | Agent-specific SQLCipher-encrypted memory, WebID-scoped access, `/sovereignty` verification command |
 | **P2: Affirmative Consent** | OCAP capability tokens minted per operation; GovernedTool membrane blocks unauthorized access |
-| **P3: Generative Space** | `/repl` command exposes every inference parameter (temperature, top-p, top-k, min-p, typical-p, seed, max_tokens, gas limits, auto-compact). No hidden settings. No engineer-only options. |
+| **P3: Generative Space** | `/repl` command exposes every inference parameter (temperature, top-p, top-k, min-p, typical-p, seed, max_tokens, gas limits, auto-condense). No hidden settings. No engineer-only options. |
 | **P4: Clear Boundaries (OCAP)** | All tool invocations route through `GovernedTool` verifying unforgeable capability tokens; dual enforcement gate (`require_capability` + `require_sovereignty`) |
 
 ### 2.2 Familiarity Through Parity
@@ -61,60 +61,57 @@ crates/hkask-cli/src/repl/
 ├── display.rs          # Banner, help, command help
 ├── helper.rs           # KaskHelper (Completer, Highlighter, Hinter, Validator)
 ├── init.rs             # Dependency injection — wires CNS, loops, memory, tools
-├── turn.rs             # single_agent_turn(), ensemble_turn()
-├── energy.rs           # EnergyGuard (RAII hold-settle gas pattern)
-├── memory.rs           # Memory infrastructure assembly (episodic + semantic + consolidation)
-├── cns_display.rs      # CNS variety sensing, algedonic alerts, loop system tick
+├── turn.rs             # single_agent_turn(), ensemble_turn() (→ ChatService::execute_turn)
+├── energy.rs           # EnergyGuard (owned-consumption hold-settle gas pattern)
+├── cns_display.rs      # CNS algedonic alert display, loop system tick (read-only)
 ├── hhh_loop.rs         # HHH gate evaluation loop
 ├── tool_augmented.rs   # Tool call parsing, invocation, response processing
 ├── builtin_servers.rs  # MCP server startup at REPL boot
 └── handlers/
     ├── mod.rs          # Re-exports
     ├── agent.rs        # /agent, /agents
-    ├── ask.rs          # /ask
-    ├── bundle.rs       # /bundle
+    ├── ask.rs          # /ask (session-aware agent query)
     ├── consolidation.rs # /consolidate
-    ├── ensemble.rs     # /ensemble (sessions, create, join, invite, participants, send)
-    ├── ensemble_ops.rs # /filter, /mode
+    ├── ensemble.rs     # /ensemble, /filter, /mode, /into
     ├── escalation.rs   # /escalations, /resolve, /dismiss
     ├── hhh.rs          # /hhh (on, off, status, model)
-    ├── info.rs         # /history, /pods, /templates, /tools, /metacognition, /sovereignty
-    ├── into.rs         # /into
-    ├── invoke.rs       # /invoke
+    ├── info.rs         # /history, /pods, /templates, /tools
+    ├── invoke.rs       # /invoke (OCAP-gated tool invocation)
     ├── model.rs        # /model (list, switch, fuzzy search)
     ├── repl_settings.rs # /repl (ReplSettings, to_llm_params)
-    └── status.rs       # /status
+    └── status.rs       # /status (agent, model, gas, CNS, loops)
 ```
 
 ### 3.2 ReplState — Central State Object
 
 ```rust
 pub(crate) struct ReplState {
-    pub inference_port: Arc<dyn InferencePort>,          // Shared Okapi inference port
-    pub inference_loop: Arc<InferenceLoop>,              // CNS-observable energy budget + model tracking
-    pub episodic_storage: Arc<dyn EpisodicStoragePort>,  // Private, agent-scoped memory
-    pub semantic_storage: Arc<dyn SemanticStoragePort>,  // Public, shared memory
-    pub agent_webid: WebID,                              // Deterministic from agent name
-    pub current_model: String,                           // Active Okapi model name
-    pub current_agent: String,                           // Active agent name (from onboarding)
-    pub session_history: SessionHistory,                 // In-memory turn history
-    pub active_session: Option<String>,                  // Ensemble session ID (None = single-agent)
-    pub resolved_secrets: Option<ResolvedSecrets>,       // From onboarding (ACP + DB)
-    pub governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS governance membrane
-    pub hhh_mode: HhhMode,                               // Active | Inactive
-    pub hhh_config: HhhConfig,                           // Gate model, max iterations, pass threshold
-    pub gate_inference_port: Option<Arc<dyn InferencePort>>, // Separate port for HHH evaluation
-    pub consolidation_service: Option<ConsolidationService>, // Episodic→semantic consolidation
-    pub persona_constraints: Option<PersonaConstraints>, // Per-agent persona filter rules
-    pub tool_prompt_section: String,                     // Pre-formatted tool section of system prompt
-    pub manifest_executor: Option<ManifestExecutor>,     // Process manifest cascade runner
-    pub process_manifest: Option<BundleManifest>,        // Agent's resolved process manifest
-    pub service_context: Arc<AgentService>,              // Canonical infrastructure assembly
-    pub repl_settings: ReplSettings,                     // User-configurable inference parameters
+    pub(crate) inference_port: Arc<dyn InferencePort>,          // Shared Okapi inference port
+    pub(crate) inference_loop: Arc<InferenceLoop>,              // CNS-observable energy budget + model tracking
+    pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,  // Private, agent-scoped memory
+    pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,  // Public, shared memory
+    pub(crate) agent_webid: WebID,                              // Deterministic from agent name
+    pub(crate) current_model: String,                           // Active Okapi model name
+    pub(crate) current_agent: String,                           // Active agent name (from onboarding)
+    pub(crate) active_session: Option<String>,                  // Ensemble session ID (None = single-agent)
+    pub(crate) resolved_secrets: Option<ResolvedSecrets>,       // From onboarding (ACP + DB)
+    pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS governance membrane
+    pub(crate) hhh_mode: HhhMode,                               // Active | Inactive
+    // ── private fields (only accessed within repl/ submodules) ──
+    hhh_config: HhhConfig,                                     // Gate model, max iterations, pass threshold
+    gate_inference_port: Option<Arc<dyn InferencePort>>,        // Separate port for HHH evaluation
+    consolidation_service: Option<ConsolidationService>,        // Episodic→semantic consolidation
+    persona_constraints: Option<PersonaConstraints>,            // Per-agent persona filter rules
+    manifest_executor: Option<ManifestExecutor>,                // Process manifest cascade runner
+    process_manifest: Option<BundleManifest>,                   // Agent's resolved process manifest
+    // ── public fields ──
+    pub(crate) tool_prompt_section: String,                     // Pre-formatted tool section of system prompt
+    pub(crate) service_context: Arc<AgentService>,              // Canonical infrastructure assembly
+    pub(crate) repl_settings: ReplSettings,                     // User-configurable inference parameters
 }
 ```
 
-**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. The shared `InferencePort` is not reconstructed per turn — it persists for the session lifetime, enabling KV-cache reuse across turns within the same model provider.
+**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. Six fields are private (only accessed within `repl/` submodules): `hhh_config`, `gate_inference_port`, `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. Session history is no longer stored in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`.
 
 ### 3.3 Dependency Injection (init.rs)
 
@@ -131,7 +128,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 9. Build `GovernedTool` membrane wrapped around MCP runtime
 10. Register agent energy budget with `CyberneticsLoop`
 11. Open per-agent SQLCipher-encrypted memory database
-12. Build `EpisodicMemory` + `SemanticMemory` + `ConsolidationService`
+12. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
 13. Populate tool prompt section from MCP runtime discovery
 14. Load persona constraints and process manifest for initial agent
 
@@ -257,51 +254,66 @@ All 26 slash commands with aliases, categorized as shown in `/help`:
 
 ## 6. Single-Agent Turn Pipeline
 
-The `turn::single_agent_turn()` function implements an agentic tool-use loop with the following stages:
+The turn pipeline is now split between the service layer and the CLI:
+
+- **`ChatService::execute_turn()`** (in `hkask-services`) handles: manifest cascade,
+  history suffix, HHH reframe, inference via `ChatService::chat()`, and persona filter.
+- **CLI (`turn::single_agent_turn()`)** handles: gas guard reservation/settlement,
+  response display, tool execution through `GovernedTool`, HHH gate evaluation,
+  token usage display, energy budget warnings, and CNS updates.
 
 ### 6.1 Pipeline Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ 1. Manifest Cascade (optional)                                     │
-│    └─ Execute agent's process_manifest → enrich prompt with step_* context
-│                                                                   │
-│ 2. History Injection (suffix pattern)                              │
-│    └─ Append recent N turns as [Previous conversation] suffix      │
-│    └─ Suffix placement preserves KV cache hits for system prompt    │
-│    └─ Auto-compact: if prompt > 87.5% of model window → condenser  │
-│                                                                   │
-│ 3. Tool-Use Loop (up to repl_settings.tool_loop_limit iterations)  │
-│    ├─ Reserve gas via EnergyGuard (hold-settle pattern)            │
-│    ├─ HHH reframe input (if HHH mode active)                       │
-│    ├─ Build LLM parameters from ReplSettings                       │
-│    ├─ Stream inference (iteration 1) or batch inference (iter 2+)  │
-│    ├─ Settle gas with actual token cost                            │
-│    ├─ Parse response for tool calls (structured + <<tool:>> text)  │
-│    ├─ Invoke tools through GovernedTool (OCAP + CNS)               │
-│    ├─ If tool calls found → feed results back, loop                │
-│    └─ If no tool calls → final response, exit loop                 │
-│                                                                   │
-│ 4. HHH Gate Evaluation (only on final response, if HHH active)     │
-│    └─ Loop: evaluate → if fail → correct → evaluate → up to N iters│
-│                                                                   │
-│ 5. Persona Filter (strip forbidden patterns)                       │
-│                                                                   │
-│ 6. Token Usage Display                                             │
-│    └─ "N tokens (P prompt + C completion) across M iterations"     │
-│                                                                   │
-│ 7. Gas Budget Warning                                              │
-│    └─ If < 20%: yellow warning. If 0: red exhausted warning.       │
-│                                                                   │
-│ 8. CNS Update                                                      │
-│    └─ Prompt variety sensing (depth, structure, topic domains)     │
-│    └─ Algedonic alert check (variety deficits)                     │
-│    └─ LoopSystem tick (sense→compare→compute→act)                  │
-│                                                                   │
-│ 9. Session History Record                                          │
-│    └─ Store (user_input, agent_name, final_response)               │
-└──────────────────────────────────────────────────────────────────┘
+┌── Service Layer (ChatService::execute_turn) ─────────────────────────┐
+│ 1. Manifest Cascade (optional)                                       │
+│    └─ Execute agent's process_manifest → enrich prompt with step_* ctx│
+│                                                                      │
+│ 2. History Injection (suffix pattern, from episodic storage)          │
+│    └─ Append recent N turns via OCAP-gated recall_recent_turns()      │
+│    └─ Suffix placement preserves KV cache hits for system prompt      │
+│                                                                      │
+│ 3. HHH Reframe (if HHH mode active)                                   │
+│    └─ reframe_for_hhh() → reframed input + system prompt suffix       │
+│                                                                      │
+│ 4. Inference via ChatService::chat()                                  │
+│    └─ Agent lookup, system prompt, semantic recall, LLM call          │
+│    └─ Returns text + token usage + structured tool calls              │
+│                                                                      │
+│ 5. Persona Filter (strip forbidden patterns)                          │
+│    └─ apply_persona_filter() ← hhh_gate                              │
+├──────────────────────────────────────────────────────────────────────┤
+│ CLI Layer (turn::single_agent_turn)                                    │
+│                                                                      │
+│ 6. Gas Guard (per-iteration)                                          │
+│    └─ EnergyGuard::try_reserve() → inference → settle(actual)         │
+│                                                                      │
+│ 7. Tool Execution (via GovernedTool + OCAP)                           │
+│    └─ Parse structured tool calls from TurnResult                     │
+│    └─ Execute through GovernedTool membrane                           │
+│    └─ If tool calls found → feed results back to execute_turn()       │
+│    └─ If no tool calls → final response, exit loop                    │
+│                                                                      │
+│ 8. HHH Gate Evaluation (only on final response, if HHH active)         │
+│    └─ Loop: evaluate → if fail → correct → evaluate → up to N iters  │
+│                                                                      │
+│ 9. Token Usage Display                                                │
+│    └─ "N tokens (P prompt + C completion) across M iterations"       │
+│                                                                      │
+│ 10. Gas Budget Warning                                                │
+│    └─ If < 20%: yellow warning. If 0: red exhausted warning.          │
+│                                                                      │
+│ 11. CNS Update (read-only)                                            │
+│    └─ Algedonic alert check, LoopSystem tick                           │
+│                                                                      │
+│ 12. Episodic Storage (handled by ChatService::chat() automatically)    │
+│    └─ Store (user_input, agent_name, response) as episodic triple     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+**Note:** Auto-condense (87.5% threshold → condenser MCP tool) is currently deferred
+(F3 in essentialist remediation catalog). The service layer appends history but does
+not trigger condensation.
 
 ### 6.2 Tool Call Parsing (Two Priority Levels)
 
@@ -383,7 +395,7 @@ Per Magna Carta P3 (Generative Space), every inference parameter is user-exposed
 | `seed` | `seed` | Option<u32> | None (random) | u32 or "off" | Deterministic seed |
 | `gas_heuristic` | `gas_heuristic` | u64 | 500 | 1+ | Per-turn gas reservation estimate |
 | `gas_cap` | `gas_cap` | u64 | 10,000 | 1+ | Total session energy budget |
-| `auto_compact` | `auto_compact` | bool | true | on/off | Auto-compact at 87.5% of context window |
+| `auto_condense` | `auto_condense` | bool | true | on/off | Auto-condense at 87.5% of context window |
 
 ### 8.2 Model Metadata (Read-Only)
 
@@ -407,7 +419,7 @@ Settings are persisted to `~/.config/hkask/settings.json` whenever a valid setti
 /repl context 5           # Keep 5 turns of history
 /repl seed 42             # Deterministic output
 /repl seed off            # Random seed
-/repl auto_compact off    # Manual compaction only
+/repl auto_condense off    # Manual condensation only
 /repl reset               # Reset all to defaults
 ```
 
@@ -492,7 +504,7 @@ Switching models via `/model <name>`:
 1. Searches Okapi for the model name (exact or fuzzy match)
 2. Updates `state.current_model`
 3. Fetches model metadata (context window, thinking support, capabilities)
-4. Populates `state.repl_settings.model_meta` for auto-compact threshold calculation
+4. Populates `state.repl_settings.model_meta` for auto-condense threshold calculation
 5. The `InferencePort` is NOT recreated — Okapi handles model routing internally
 
 ### 11.3 Model Metadata
@@ -665,31 +677,29 @@ Governance — escalations, resolve, dismiss, metacognition
 
 ## 17. Session History
 
-`SessionHistory` is an in-memory ring of `Turn` structs:
+Session history is no longer stored in-memory. Instead, all history access routes
+through OCAP-gated episodic storage:
 
-```rust
-struct Turn { user_input: String, agent: String, response: String }
-```
+- **Storage:** Each chat exchange is persisted as an episodic triple via `ChatService::store_episodic()` after inference
+- **Recall:** History is retrieved via `ChatService::recall_recent_turns()`, which queries
+  `EpisodicStoragePort` with a `DelegationToken` bearing `Read` on `Manifest`
+- **Display:** `/history` calls `recall_recent_turns()` with `usize::MAX` to retrieve all turns
+- **Context:** The per-turn pipeline appends recent turns as a suffix after the current input
+  (preserving system prompt KV-cache hits)
 
-Key behaviors:
-- `recent_context(n)` returns the last `n` turns formatted as `[Previous conversation]\nUser: {input}\n{Agent}: {response}\n[/Previous conversation]`
-- Placed as a **suffix** after the current input (not a prefix) to preserve system prompt KV-cache hits
-- `/history` displays all turns with 80-character response previews
-- Auto-compaction compresses old turns via `condenser_thread_summary` when context exceeds 87.5% of the model window
+This replaces the previous `SessionHistory` / `Turn` in-memory ring buffer.
+The correct fix was deletion, not patching: `SessionHistory` duplicated data
+already persisted in `EpisodicStoragePort`.
 
-## 18. Auto-Compaction
+## 18. Auto-Condense
 
-When `auto_compact` is enabled and model metadata is available:
+Auto-condense (context compaction at 87.5% of model window) is currently deferred.
+The pipeline in `ChatService::execute_turn()` appends recent conversation history
+as a suffix via `recall_recent_turns()`, but the condensation trigger and condenser
+MCP tool invocation were CLI-specific (required `GovernedTool` + ACP secret).
 
-1. Estimate total prompt tokens: `byte_length / 4`
-2. If estimated tokens > 87.5% of `context_length`:
-   - Split session history in half (oldest 50% → compact, newest 50% → keep as-is)
-   - Call `condenser_thread_summary` MCP tool with the old turns as messages
-   - Build new input: `[base_input] + [summary of earlier turns] + [recent turns]`
-   - Display compaction stats: "compacted N turns → M chars (est. T tokens)"
-3. If condenser call fails: proceed with the oversized prompt (graceful degradation)
-
-The compaction threshold is deliberately asymmetric — the 87.5% ratio leaves headroom for the model's response tokens after compaction.
+Re-implementing auto-condense in the service layer is a future item (F3 in the
+essentialist remediation catalog).
 
 ## 19. Key Design Decisions
 
@@ -707,7 +717,7 @@ The REPL routes all infrastructure through `AgentService::build()`, which create
 
 ### 19.4 GovernedTool as Singular Boundary
 
-Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, ensemble turns, or auto-compaction — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, energy budgets, and CNS observability are enforced at a single choke point with no bypass paths.
+Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, ensemble turns, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, energy budgets, and CNS observability are enforced at a single choke point with no bypass paths.
 
 ### 19.5 Per-Agent Memory Isolation
 
