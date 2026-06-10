@@ -113,7 +113,7 @@ All three surfaces read/write the same `~/.config/hkask/settings.json` file. No 
 
 ### AgentService Architecture (v0.27.2)
 
-`AgentService` is the canonical service layer owning all shared infrastructure. Fields are **private** and exposed through **7 group methods** returning tuples of references — no adapter structs, no new types:
+`AgentService` is the canonical service layer owning all shared infrastructure. Fields are **private** and exposed through **8 group methods** — 7 return tuples of references, 1 returns a dedicated service wrapper:
 
 ```rust
 agent_service.memory()       // (&Arc<EpisodicStoragePort>, &Arc<SemanticStoragePort>)
@@ -122,6 +122,7 @@ agent_service.governance()   // (&Arc<CapabilityChecker>, &Arc<McpDispatcher>, &
 agent_service.storage()      // (7 store references: registry, goals, specs, sessions, users, agent_registry, git_cas)
 agent_service.coordination() // (&Option<Arc<InferencePort>>, &Arc<McpRuntime>, &Arc<PodManager>, &Arc<RwLock<SessionManager>>)
 agent_service.identity()     // (&WebID, &Arc<AcpRuntime>)
+agent_service.sovereignty()  // SovereigntyService (wraps ConsentManager — P1/P2 affirmative consent)
 agent_service.config()       // &ServiceConfig
 ```
 
@@ -186,6 +187,7 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | Module | Purpose |
 |--------|--------|
 | `CnsService` (cns.rs) | CNS health, alerts, variety queries wrapping shared `CnsRuntime` — 3 async methods + 3 unit tests |
+| `SovereigntyService` (sovereignty.rs) | Consent grant/revoke/check wrapping `ConsentManager` — 4 methods + 1 unit test, resolves P1 Prohibition
 
 ### Skipped Domains
 

@@ -18,14 +18,14 @@ fn parse_data_category(s: &str) -> DataCategory {
 
 fn build_consent() -> (
     hkask_services::AgentService,
-    std::sync::Arc<hkask_agents::consent::ConsentManager>,
+    hkask_services::SovereigntyService,
 ) {
     let config = hkask_services::ServiceConfig::from_env().expect("Config env");
     let rt = tokio::runtime::Runtime::new().expect("runtime");
     let svc = rt
         .block_on(hkask_services::AgentService::build(config))
         .expect("build svc");
-    let cm = svc.consent_manager().clone();
+    let cm = svc.sovereignty();
     (svc, cm)
 }
 
@@ -58,9 +58,8 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             ];
             for (label, cat) in &categories {
                 match cm.has_consent(&webid.to_string(), cat) {
-                    Ok(true) => println!("  • {label}: GRANTED"),
-                    Ok(false) => println!("  • {label}: DENIED"),
-                    Err(e) => println!("  • {label}: ERROR ({e})"),
+                    true => println!("  • {label}: GRANTED"),
+                    false => println!("  • {label}: DENIED"),
                 }
             }
             println!();
@@ -162,7 +161,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             let has_consent = if classification == "PUBLIC" {
                 true
             } else {
-                cm.has_consent(&webid.to_string(), &cat).unwrap_or(false)
+                cm.has_consent(&webid.to_string(), &cat)
             };
 
             println!("Data Access Check");

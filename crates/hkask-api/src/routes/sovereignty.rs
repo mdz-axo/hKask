@@ -78,7 +78,7 @@ async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
-    let cm = &state.agent_service.consent_manager();
+    let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
     let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
     let granted = cm
@@ -125,7 +125,7 @@ async fn sovereignty_grant_consent(
     let webid_str = auth.webid.to_string();
     let cat_str = req.category.unwrap_or_else(|| "all".to_string());
     let cat = parse_data_category(&cat_str);
-    let cm = &state.agent_service.consent_manager();
+    let cm = &state.agent_service.sovereignty();
     cm.grant_consent(&webid_str, &cat).map_err(ApiError::from)?;
     let granted = cm
         .get_granted_categories(&webid_str)
@@ -151,7 +151,7 @@ async fn sovereignty_revoke_consent(
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
-    let cm = &state.agent_service.consent_manager();
+    let cm = &state.agent_service.sovereignty();
     cm.revoke_consent(&webid_str).map_err(ApiError::from)?;
     Ok(Json(SovereigntyConsentResponse {
         consent: false,
@@ -185,7 +185,7 @@ async fn sovereignty_check_access(
     let cat_name = cat.as_str();
     let webid_str = auth.webid.to_string();
     let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
-    let cm = &state.agent_service.consent_manager();
+    let cm = &state.agent_service.sovereignty();
 
     let class = boundary.classify(&cat);
     let classification = class.label();
@@ -193,7 +193,7 @@ async fn sovereignty_check_access(
     let has_consent = if classification == "PUBLIC" {
         true
     } else {
-        cm.has_consent(&webid_str, &cat).unwrap_or(false)
+        cm.has_consent(&webid_str, &cat)
     };
 
     if !has_consent && classification != "PUBLIC" {

@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use hkask_agents::consent::ConsentManager;
+use hkask_agents::consent::{ConsentError, ConsentManager};
 use hkask_types::sovereignty::DataCategory;
 
 /// Service for sovereignty consent operations — grant, revoke, check.
@@ -24,17 +24,13 @@ impl SovereigntyService {
     }
 
     /// Grant consent for a data category to the given WebID.
-    pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), String> {
-        self.consent
-            .grant_consent(webid, category)
-            .map_err(|e| e.to_string())
+    pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), ConsentError> {
+        self.consent.grant_consent(webid, category)
     }
 
     /// Revoke all consent for the given WebID.
-    pub fn revoke_consent(&self, webid: &str) -> Result<(), String> {
-        self.consent
-            .revoke_consent(webid)
-            .map_err(|e| e.to_string())
+    pub fn revoke_consent(&self, webid: &str) -> Result<(), ConsentError> {
+        self.consent.revoke_consent(webid)
     }
 
     /// Check if the given WebID has consent for a data category.
@@ -43,10 +39,8 @@ impl SovereigntyService {
     }
 
     /// Get all categories the given WebID has granted consent for.
-    pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, String> {
-        self.consent
-            .get_granted_categories(webid)
-            .map_err(|e| e.to_string())
+    pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {
+        self.consent.get_granted_categories(webid)
     }
 }
 

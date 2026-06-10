@@ -55,6 +55,7 @@ use hkask_types::ports::git_cas::GitCASPort;
 
 use crate::ServiceConfig;
 use crate::ServiceError;
+use crate::SovereigntyService;
 
 /// Shared dependency graph assembled once at startup.
 ///
@@ -269,23 +270,21 @@ impl AgentService {
         (&self.system_webid, &self.acp_runtime)
     }
 
-    // === Category 4: Internal implementation (crate-visible only) ===
+    /// Sovereignty: consent management service.
+    /// consent_manager is PRIVATE — no raw store access.
+    /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
+    pub fn sovereignty(&self) -> SovereigntyService {
+        SovereigntyService::new(self.consent_manager.clone())
+    }
 
-    // TODO: Category 4 — migrate these to service methods, remove from public API
+    // === Category 4: Internal implementation (crate-visible only) ===
 
     /// Access ACP runtime for agent registration and capability management.
     pub(crate) fn acp_runtime(&self) -> &Arc<hkask_agents::AcpRuntime> {
         &self.acp_runtime
     }
 
-    /// Access consent manager for user sovereignty.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn consent_manager(&self) -> &Arc<ConsentManager> {
-        &self.consent_manager
-    }
-
     /// Access curation inbox transmitter.
-    /// TODO: Category 4 — migrate to service methods.
     pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>> {
         &self.curation_inbox_tx
     }

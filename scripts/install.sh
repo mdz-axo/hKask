@@ -582,6 +582,12 @@ main() {
         esac
     done
 
+    # Post-process: --system requires BIN_DIR to track INSTALL_DIR if the
+    # user also supplied --install-dir (which may appear before or after --system).
+    if [ "${HKASK_SYSTEM_INSTALL:-false}" = "true" ]; then
+        BIN_DIR="${INSTALL_DIR}/bin"
+    fi
+
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                    hKask Installer                      ║"
