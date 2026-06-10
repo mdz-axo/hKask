@@ -1126,7 +1126,7 @@ external_workspace:
   protocol: ACP-A2A
   endpoint: http://workspace.local:8080/acp
   authentication:
-    type: macaroon
+    type: api_key
     key_file: ~/.config/workspace/bridge_key.json
 ```
 

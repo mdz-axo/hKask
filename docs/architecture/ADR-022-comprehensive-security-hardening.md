@@ -72,7 +72,7 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 **Impact:** Secrets zeroized on drop, no byte copying
 
 #### T08: Unify Capability Primitive
-**Problem:** Three parallel capability systems (CapabilityToken, Macaroon, OkapiCapability)  
+**Problem:** Parallel capability systems (CapabilityToken, OkapiCapability)
 **Solution:** Single `DelegationToken` (aliased `CapabilityToken`) with caveats  
 **Impact:** Miller-style unforgeable capabilities
 

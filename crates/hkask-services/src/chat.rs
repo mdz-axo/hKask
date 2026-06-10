@@ -419,7 +419,7 @@ impl ChatService {
         let semantic_port: Arc<dyn SemanticStoragePort> = req
             .semantic_storage_override
             .clone()
-            .unwrap_or_else(|| ctx.semantic_storage().clone());
+            .unwrap_or_else(|| ctx.memory().1.clone());
         let semantic_context = Self::recall_semantic(&semantic_port, &req.input, &capability_token);
 
         // Compose full prompt with semantic context
@@ -437,7 +437,7 @@ impl ChatService {
         let episodic_port: Arc<dyn EpisodicStoragePort> = req
             .episodic_storage_override
             .clone()
-            .unwrap_or_else(|| ctx.episodic_storage().clone());
+            .unwrap_or_else(|| ctx.memory().0.clone());
 
         Ok(PreparedChat {
             prompt: full_prompt,

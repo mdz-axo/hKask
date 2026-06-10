@@ -17,6 +17,7 @@ pub mod onboarding;
 pub mod pods;
 pub mod settings;
 pub mod skill;
+pub mod sovereignty;
 pub mod spec;
 pub mod verification;
 
@@ -48,6 +49,7 @@ pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
     publish_skill, read_skill_namespace, read_skill_visibility,
 };
+pub use sovereignty::SovereigntyService;
 pub use spec::{
     CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
     SpecService, WritingQualityResult,

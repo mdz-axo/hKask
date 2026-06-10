@@ -587,7 +587,7 @@ You are {{ agent_name }}, a personal assistant in the hKask system.
 ## Pattern 5: Bridge Agent
 
 ### Purpose
-Connect external workspace to hKask via ACP/A2A protocols[^birgisson2014]
+Connect external workspace to hKask via ACP/A2A protocols
 
 ### Files Required
 ```
@@ -646,7 +646,7 @@ external_workspace:
   protocol: ACP-A2A
   endpoint: http://workspace.local:8080/acp
   authentication:
-    type: macaroon
+    type: api_key
     key_file: ~/.config/workspace/bridge_key.json
 
 depends_on:
@@ -684,9 +684,8 @@ endpoint:
   version: v1
   
 authentication:
-  type: macaroon
+  type: api_key
   key_file: ~/.config/workspace/bridge_key.json
-  root_key: rk_workspace_bridge
   
 translation:
   request_format: workspace-native
@@ -876,7 +875,6 @@ After selecting a pattern[^wiegers2013]:
 [^ashby1956]: Ashby, W. R. (1956). *An introduction to cybernetics*. Chapman & Hall. https://archive.org/details/introductiontocy00ashb
 [^mcp_spec]: Anthropic. (2024). *Model Context Protocol specification*. https://modelcontextprotocol.io/
 [^cooper1999]: Cooper, A. (1999). *The inmates are running the asylum: Why high-tech products drive us Crazy and how to restore the sanity*. SAMS.
-[^birgisson2014]: Birgisson, A., Politz, J. G., Erlingsson, Ú., Taly, A., Vrable, M., & Lentczner, M. (2014). Macaroons: Cookies with contextual caveats for decentralized authorization. In *2014 IEEE Symposium on Security and Privacy* (pp. 625-640). IEEE. https://ieeexplore.ieee.org/document/6956576
 [^jinja2]: Ronacher, A. (2024). *Jinja2 documentation*. Pallets Projects. https://jinja.palletsprojects.com/
 [^yaml12]: Ben-Kiki, O., Evans, C., & döt Net, I. (2009). *YAML ain't markup language (YAML) version 1.2* (3rd ed.). https://yaml.org/spec/1.2/spec.html
 [^humble2010]: Humble, J., & Farley, D. (2010). *Continuous delivery: Reliable software releases through build, test, and deployment automation*. Addison-Wesley.

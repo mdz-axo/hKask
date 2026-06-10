@@ -48,10 +48,12 @@ impl OkapiEmbedding {
             tracing::debug_span!(target: "cns.inference", "embedding_request", model = %self.model);
         let _enter = span.enter();
 
-        let mut req = self
-            .client
-            .post(format!("{}/api/embed/sentences", self.config.base_url))
-            .json(&request);
+        let endpoint = if self.config.api_key.is_some() {
+            format!("{}/api/embed/sentences", self.config.base_url)
+        } else {
+            format!("{}/api/embed", self.config.base_url)
+        };
+        let mut req = self.client.post(&endpoint).json(&request);
 
         // Add authorization header if configured
         if let Some(auth_header) = self.config.get_authorization_header() {
@@ -141,9 +143,11 @@ impl OkapiEmbedding {
             return Err(EmbeddingGenerationError::EmptyResponse);
         }
 
-        let request = OkapiEmbedRequest {
-            model: self.model.clone(),
-            sentences: sentences.iter().map(|s| s.to_string()).collect(),
+        let texts: Vec<String> = sentences.iter().map(|s| s.to_string()).collect();
+        let request = if self.config.api_key.is_some() {
+            OkapiEmbedRequest::for_okapi(self.model.clone(), texts)
+        } else {
+            OkapiEmbedRequest::for_ollama(self.model.clone(), texts)
         };
 
         let result = self.execute_with_retry(request).await?;
@@ -179,13 +183,35 @@ impl OkapiEmbedding {
     }
 }
 
-// Okapi wire-format types (private)
+// Okapi/Ollama wire-format types (private)
 
-/// Okapi embed API request structure
+/// Request — uses Ollama's native `input` format when no API key (local mode),
+/// Okapi's `sentences` format when authenticated.
 #[derive(Debug, Clone, Serialize)]
 struct OkapiEmbedRequest {
     model: String,
-    sentences: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sentences: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    input: Option<Vec<String>>,
+}
+
+impl OkapiEmbedRequest {
+    fn for_okapi(model: String, sentences: Vec<String>) -> Self {
+        Self {
+            model,
+            sentences: Some(sentences),
+            input: None,
+        }
+    }
+
+    fn for_ollama(model: String, input: Vec<String>) -> Self {
+        Self {
+            model,
+            sentences: None,
+            input: Some(input),
+        }
+    }
 }
 
 /// Okapi embed API response structure

@@ -298,18 +298,6 @@ impl AgentService {
 
     // === Surface-specific fields:
 
-    /// Access episodic memory storage (private, agent-scoped).
-    /// TODO: Move to ReplState.
-    pub fn episodic_storage(&self) -> &Arc<dyn EpisodicStoragePort> {
-        &self.episodic_storage
-    }
-
-    /// Access semantic memory storage (public, shared).
-    /// TODO: Move to ReplState.
-    pub fn semantic_storage(&self) -> &Arc<dyn SemanticStoragePort> {
-        &self.semantic_storage
-    }
-
     /// Access standing session store for ensemble persistence.
     /// TODO: Move to ApiState.
     pub fn standing_session_store(&self) -> &Arc<StandingSessionStore> {
