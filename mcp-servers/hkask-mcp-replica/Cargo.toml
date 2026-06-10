@@ -9,9 +9,11 @@ description = "Style replica MCP server — embed author corpora, compose prose,
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-services = { path = "../../crates/hkask-services" }
+hkask-storage = { path = "../../crates/hkask-storage" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true
 anyhow.workspace = true
+tracing.workspace = true

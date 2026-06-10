@@ -1501,12 +1501,14 @@ dependencies = [
  "anyhow",
  "hkask-mcp",
  "hkask-services",
+ "hkask-storage",
  "hkask-types",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
