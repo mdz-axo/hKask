@@ -183,21 +183,6 @@ impl AgentService {
         &self.mcp_dispatcher
     }
 
-    /// Access CNS runtime for variety sensing and algedonic alerts.
-    pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
-        &self.cns_runtime
-    }
-
-    /// Access cybernetics loop for energy budget regulation.
-    pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
-        &self.cybernetics_loop
-    }
-
-    /// Access loop system for 6-loop regulation.
-    pub fn loop_system(&self) -> &Arc<LoopSystem> {
-        &self.loop_system
-    }
-
     /// Access inference port for model invocation.
     pub fn inference_port(&self) -> &Option<Arc<dyn InferencePort>> {
         &self.inference_port
@@ -320,12 +305,6 @@ impl AgentService {
         &self.acp_runtime
     }
 
-    /// Access system WebID for capability signing.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn system_webid(&self) -> &WebID {
-        &self.system_webid
-    }
-
     /// Access escalation queue for Curator escalations.
     /// TODO: Category 4 — migrate to service methods.
     pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
@@ -360,12 +339,6 @@ impl AgentService {
     /// TODO: Category 4 — migrate to service methods.
     pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore {
         &self.sovereignty_boundary_store
-    }
-
-    /// Access event sink for CNS audit trail.
-    /// TODO: Category 4 — migrate to service methods.
-    pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
-        &self.event_sink
     }
 
     /// Access Git CAS port for snapshot operations.

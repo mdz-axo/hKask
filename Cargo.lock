@@ -1601,6 +1601,7 @@ dependencies = [
  "hkask-cns",
  "hkask-keystore",
  "hkask-mcp",
+ "hkask-mcp-condenser",
  "hkask-memory",
  "hkask-storage",
  "hkask-templates",

@@ -10,7 +10,7 @@ use crate::errors::CuratorError;
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
     let ctx = crate::commands::helpers::build_service_context();
     // Use the escalation queue via AgentService for raw EscalationEntry access.
-    let queue = ctx.escalation_queue();
+    let queue = ctx.governance().2;
     queue
         .list_pending()
         .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))

@@ -143,7 +143,7 @@ pub(super) fn init_repl_state(
     };
 
     // Register the CLI's inference loop on the shared loop system.
-    rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));
+    rt.block_on(ctx.cns().2.register_loop(inference_loop.clone()));
 
     // Start built-in MCP servers on the AgentService's MCP runtime.
     let mcp_runtime = ctx.mcp_runtime().clone();
@@ -159,8 +159,8 @@ pub(super) fn init_repl_state(
     let estimator: Arc<dyn hkask_cns::EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
     let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
-        ctx.cybernetics_loop().clone(),
-        ctx.event_sink().clone(),
+        ctx.cns().1.clone(),
+        ctx.cns().3.clone(),
         estimator,
         agent_webid,
     ));
@@ -169,7 +169,8 @@ pub(super) fn init_repl_state(
     // Uses repl_settings.gas_cap (default 10_000), replenish_rate=10% of cap,
     // alert at 80% usage, hard_limit=true (block operations when exhausted).
     rt.block_on(async {
-        ctx.cybernetics_loop()
+        ctx.cns()
+            .1
             .read()
             .await
             .register_energy_budget(

@@ -31,9 +31,10 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = ctx
-        .mcp_dispatcher()
+        .governance()
+        .1
         .issue_capability("tools".to_string(), from, to);
-    match rt.block_on(ctx.mcp_dispatcher().invoke(
+    match rt.block_on(ctx.governance().1.invoke(
         "web_search",
         serde_json::json!({"query": query, "max_results": max_results}),
         &token,
@@ -70,5 +71,5 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
             std::process::exit(1);
         }
     }
-    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
+    rt.block_on(ctx.governance().1.shutdown_all());
 }

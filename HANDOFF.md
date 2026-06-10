@@ -194,6 +194,98 @@ Requires propagating `ReplSettings`, governed tool (for condenser MCP), and mode
 
 ---
 
+## Session 2026-06-10 (Continuation 2) — Auto-Condense Implementation
+
+### Rename: auto_compact → auto_condense ✅ (partial)
+
+Rust code is fully renamed. The struct field is `auto_condense` with `#[serde(alias = "auto_compact")]` for backward compat with existing `settings.json` files. All handlers, CLI commands, `/repl` slash commands, and tests use `auto_condense`.
+
+**Still needs rename in docs:**
+- `AGENTS.md` lines 92, 120 (still say `auto_compact`)
+- `docs/architecture/PRINCIPLES.md` line 190
+- `docs/architecture/hKask-architecture-master.md` lines 68, 73, 96
+- `docs/specifications/REPL-specification.md` lines 31, 386, 410, 495, 682
+- `docs/status/test-inventory.md` line 38
+- `HANDOFF.md` lines 153, 169, 193 (this file itself)
+- `crates/hkask-cli/src/repl/turn.rs` line 279 (stale comment referencing `build_input_with_auto_compact`)
+
+### Architecture Discovery: Condensation Was Lost in Refactor
+
+**Critical finding:** The REPL was refactored from the old `build_input_with_auto_compact()` (in `turn.rs`) to `ChatService::execute_turn()` (in `hkask-services`). The new `execute_turn()` does manifest cascade → history suffix → tool results → HHH reframe → `ChatService::chat()` → persona filter — but has **no condensation step**. The 87.5% threshold check and condenser MCP call were dropped.
+
+This means auto-condense isn't just missing from non-REPL — it's missing from the REPL too.
+
+### Condenser Crate Analysis
+
+`hkask-mcp-condenser` (`mcp-servers/hkask-mcp-condenser/`) is a **binary-only** crate (no `[lib]` section, has `main.rs` not `lib.rs`). Key internal modules:
+
+| Module | Contents |
+|--------|----------|
+| `inference.rs` (162 LOC) | Pure functions: `format_conversation_text()`, `build_summarization_prompt()`, `build_chat_request()`, `extract_summary()`, `approx_token_count()`, `build_summary_output()`, `detect_format()` |
+| `main.rs` (~380 LOC) | MCP server wiring, `condenser_thread_summary` tool handler (lines 247–316), HTTP call via `api_post()` |
+| `engine.rs` (291 LOC) | `CondenserEngine` — profile-based compression for tool outputs |
+| `algorithms.rs` (838 LOC) | `compute_budget`, algorithm implementations |
+| `types.rs` (287 LOC) | `ThreadSummaryRequest`, `ThreadSummaryOutput`, `Profile`, etc. |
+
+**Key insight:** The `condenser_thread_summary` handler (lines 247–316 in `main.rs`) follows this pipeline:
+1. `inference::format_conversation_text(&messages)` → conversation text
+2. `inference::build_summarization_prompt(&conversation_text, &current_query)` → prompt
+3. `inference::build_chat_request(format, model, prompt, system_prompt, num_ctx, max_tokens)` → JSON body
+4. `api_post(&http_client, "inference", &url, &chat_request)` → HTTP call
+5. `inference::extract_summary(format, &resp_body)` → summary string
+6. `inference::build_summary_output(summary, msg_count, model, url)` → result
+
+Steps 1–3 and 5–6 are pure functions already in `inference.rs`. Only step 4 (HTTP POST) needs to be extracted into a library-accessible function.
+
+### Implementation Plan for Auto-Condense
+
+```
+Phase 1: Make condenser a lib+bin crate
+  - Add [lib] to hkask-mcp-condenser/Cargo.toml
+  - Create lib.rs exporting thread_summary as a public async fn
+  - Extract HTTP call from main.rs into lib function
+  verify: cargo check -p hkask-mcp-condenser
+
+Phase 2: Add auto-condense to TurnRequest + execute_turn()
+  - Add fields: auto_condense: bool, context_window: Option<u32>, condenser_base_url: Option<String>
+  - After history suffix (step 2 in execute_turn), check 87.5% threshold
+  - If exceeded + auto_condense is on: call condenser lib directly
+  - Build messages from old turns (oldest half, same as old REPL logic)
+  verify: cargo check -p hkask-services + tests
+
+Phase 3: Wire REPL callers
+  - REPL passes auto_condense=true, context_window from model_meta, condenser_base_url from config
+  - Dual path: REPL can optionally still call via MCP (governed tool) if condenser server is running
+  verify: cargo check -p hkask-cli
+
+Phase 4: Wire non-REPL callers (CLI kask chat -f -, API chat routes)
+  - Pass same condensation params to TurnRequest
+  verify: cargo check + integration
+
+Phase 5: Rename remaining docs
+  - Update AGENTS.md, architecture docs, spec docs
+  verify: grep -r "auto.compact" returns only serde aliases
+```
+
+### Key Design Decisions
+
+1. **Condenser called directly via library, not MCP.** The MCP path requires a running condenser server + GovernedTool membrane. For ChatService (shared layer), adding a dependency on the condenser lib (`hkask-mcp-condenser` as lib) is simpler and doesn't require MCP runtime. The REPL can still use MCP path if it wants, but the default is direct.
+
+2. **Condensation in `execute_turn()`, not `prepare_chat()`.** `execute_turn()` already handles history injection via `recall_recent_turns()`. Condensation is a post-history-injection step. It needs episodic storage (for recalling old turns) and inference (for the summarization call) — both available in `execute_turn()`.
+
+3. **Threshold stays at 87.5%.** Same formula: `estimated_tokens = candidate.len() / 4`, `threshold = context_length * 0.875`. If `estimated_tokens > threshold` → condense oldest half of turns.
+
+4. **Oldest-half condensing, same as original REPL.** The old turns (first half by count) get summarized. Recent turns preserved verbatim. Summary injected as `[Previous conversation — summary of earlier turns]`.
+
+### Build Status
+
+- `cargo check -p hkask-cli -p hkask-api` — **clean**
+- `cargo test -p hkask-cli` — 19/19
+- `cargo test -p hkask-api` — 2/2
+- `cargo test -p hkask-services` — 27/27
+
+---
+
 ## What Remains
 
 ### HIGH — Documentation fix needed

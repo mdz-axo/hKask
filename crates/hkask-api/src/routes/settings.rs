@@ -191,10 +191,10 @@ mod tests {
         };
 
         // Apply the merge (same logic as the PUT handler)
-        if let Some(v) = req.temperature {
-            if (0.0..=2.0).contains(&v) {
-                settings.temperature = v;
-            }
+        if let Some(v) = req.temperature
+            && (0.0..=2.0).contains(&v)
+        {
+            settings.temperature = v;
         }
 
         // Temperature should be updated

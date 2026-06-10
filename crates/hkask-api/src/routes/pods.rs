@@ -98,7 +98,7 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ApiError> {
-    let has = state.agent_service.capability_checker().check_resource(
+    let has = state.agent_service.governance().0.check_resource(
         &auth.token,
         &auth.webid,
         DelegationResource::Tool,

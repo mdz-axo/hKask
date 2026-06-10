@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "Context condensation MCP server — compress tool outputs, manage profiles, classify categories, summarize thread history"
 
+[lib]
+name = "hkask_mcp_condenser"
+path = "src/lib.rs"
+
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }

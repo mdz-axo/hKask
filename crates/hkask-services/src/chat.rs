@@ -41,6 +41,7 @@ impl TokenUsage {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
     use hkask_agents::ports::memory_storage::RecalledEpisode;
@@ -406,11 +407,11 @@ impl ChatService {
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
         // Create capability token for memory operations.
-        let capability_token = ctx.capability_checker().grant_registry(
+        let capability_token = ctx.governance().0.grant_registry(
             DelegationAction::Execute,
             req.auth_context
                 .as_ref()
-                .map_or(*ctx.system_webid(), |a| a.webid),
+                .map_or(*ctx.identity().0, |a| a.webid),
             agent_webid,
         );
 
@@ -614,6 +615,37 @@ impl ChatService {
         }
     }
 
+    /// Recall raw episodes (not formatted text) for condensation.
+    ///
+    /// Returns episodes as `Vec<(role, content)>` tuples suitable for
+    /// passing to the condenser library's `thread_summary()`.
+    /// Each episode yields one user message and one assistant message.
+    pub fn recall_raw_episodes(
+        episodic_port: &Arc<dyn EpisodicStoragePort>,
+        agent_webid: &WebID,
+        token: &DelegationToken,
+        limit: usize,
+    ) -> Vec<serde_json::Value> {
+        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
+        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
+            Ok(v) if !v.is_empty() => v,
+            _ => return vec![],
+        };
+        let mut messages: Vec<serde_json::Value> = Vec::new();
+        for e in episodes.iter().rev().take(limit) {
+            if let Some(v) = e.value.as_object() {
+                if let Some(input) = v.get("user_input").and_then(|s| s.as_str()) {
+                    messages.push(serde_json::json!({"role": "user", "content": input}));
+                }
+                if let Some(response) = v.get("agent_response").and_then(|s| s.as_str()) {
+                    messages.push(serde_json::json!({"role": "assistant", "content": response}));
+                }
+            }
+        }
+        messages.reverse();
+        messages
+    }
+
     /// Run a process manifest cascade for the agent, returning manifest-derived context.
     ///
     /// The manifest is a declarative pipeline (from `process_manifest` in the agent
@@ -715,21 +747,22 @@ impl ChatService {
     pub async fn execute_turn(
         ctx: &AgentService,
         req: &TurnRequest,
+        manifest_executor: Option<&hkask_templates::ManifestExecutor>,
+        process_manifest: Option<&hkask_templates::BundleManifest>,
     ) -> Result<TurnResult, ServiceError> {
         // 1. Execute manifest cascade if the agent has a process manifest.
-        let base_input = if let (Some(executor), Some(manifest)) =
-            (&req.manifest_executor, &req.process_manifest)
-        {
-            let manifest_context =
-                Self::execute_manifest_cascade(executor, manifest, &req.input, &req.agent_name)
-                    .await;
-            match manifest_context {
-                Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
-                None => req.input.clone(),
-            }
-        } else {
-            req.input.clone()
-        };
+        let base_input =
+            if let (Some(executor), Some(manifest)) = (manifest_executor, process_manifest) {
+                let manifest_context =
+                    Self::execute_manifest_cascade(executor, manifest, &req.input, &req.agent_name)
+                        .await;
+                match manifest_context {
+                    Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
+                    None => req.input.clone(),
+                }
+            } else {
+                req.input.clone()
+            };
 
         // 2. Append recent conversation history from episodic memory.
         let token = req.capability_checker.grant_registry(
@@ -743,10 +776,73 @@ impl ChatService {
             &token,
             req.context_turns,
         );
-        let input_with_context = match history_suffix {
+        let mut input_with_context = match history_suffix {
             Some(s) => format!("{}\n\n{}", base_input, s),
             None => base_input,
         };
+
+        // 2.5. Auto-condense when context approaches the model's window limit.
+        //       Condenses oldest half of conversation history via the condenser library
+        //       when total input exceeds 87.5% of the model's context window.
+        if req.auto_condense {
+            if let (Some(window), Some(ref base_url)) =
+                (req.context_window, &req.condenser_base_url)
+            {
+                let threshold = (window as f64 * 0.875) as u32;
+                let approx_tokens =
+                    hkask_mcp_condenser::approx_token_count(&input_with_context) as u32;
+                if approx_tokens > threshold && req.context_turns > 0 {
+                    let raw_messages = Self::recall_raw_episodes(
+                        &req.episodic_storage,
+                        &req.agent_webid,
+                        &token,
+                        req.context_turns,
+                    );
+                    if raw_messages.len() >= 2 {
+                        let mid = raw_messages.len() / 2;
+                        let oldest: Vec<_> = raw_messages[..mid].to_vec();
+                        let newest: Vec<_> = raw_messages[mid..].to_vec();
+
+                        let condenser_model = req.condenser_model.as_deref().unwrap_or(&req.model);
+
+                        let client = reqwest::Client::new();
+                        match hkask_mcp_condenser::thread_summary(
+                            &client,
+                            &oldest,
+                            &req.input,
+                            Some(500),
+                            condenser_model,
+                            base_url,
+                        )
+                        .await
+                        {
+                            Ok(summary_output) => {
+                                let newest_formatted: String = newest
+                                    .iter()
+                                    .filter_map(|m| {
+                                        let role = m.get("role")?.as_str()?;
+                                        let content = m.get("content")?.as_str()?;
+                                        Some(format!("{}: {}", role, content))
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("\n\n");
+                                input_with_context = format!(
+                                    "{}\n\n[Condensed history]\n{}\n[/Condensed history]\n\n[Recent conversation]\n{}\n[/Recent conversation]\n\n",
+                                    base_input, summary_output.summary, newest_formatted
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    target: "cns.condenser",
+                                    error = %e,
+                                    "Auto-condense failed — continuing with full context"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // 3. Apply tool results from previous iterations (if any).
         let effective_input = if let Some(ref tool_results) = req.tool_results {
@@ -820,10 +916,6 @@ pub struct TurnRequest {
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
     /// Agent WebID for memory operations
     pub agent_webid: WebID,
-    /// Manifest executor for cascade (None = no manifest)
-    pub manifest_executor: Option<hkask_templates::ManifestExecutor>,
-    /// Process manifest for the agent (None = no manifest)
-    pub process_manifest: Option<hkask_templates::BundleManifest>,
     /// HHH alignment mode
     pub hhh_mode: HhhMode,
     /// Persona constraints for output filtering
@@ -842,6 +934,17 @@ pub struct TurnRequest {
     pub iteration: usize,
     /// Tool execution results from the previous iteration (None on first iteration)
     pub tool_results: Option<String>,
+    /// Whether to auto-condense conversation history when approaching context limits.
+    /// When true and context exceeds 87.5% of `context_window`, the oldest half
+    /// of messages are condensed via the condenser library.
+    pub auto_condense: bool,
+    /// Model context window size in tokens, used for condensation threshold.
+    /// None disables condensation (e.g., model metadata not yet fetched).
+    pub context_window: Option<u32>,
+    /// Base URL for the inference engine used by the condenser (e.g., Okapi URL).
+    pub condenser_base_url: Option<String>,
+    /// Model to use for condenser summarization (defaults to chat model if None).
+    pub condenser_model: Option<String>,
 }
 
 /// Result of a single-agent turn from `ChatService::execute_turn()`.
