@@ -1,8 +1,8 @@
 ---
 title: "MDS — AgentService Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-09
-version: "0.27.1"
+last_updated: 2026-06-10
+version: "0.27.2"
 status: "Active"
 domain: "Composition"
 mds_categories: [domain, composition, trust, lifecycle]
@@ -26,183 +26,68 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 **Boundary:** In-process only. MCP servers do NOT depend on `AgentService` (P1 Prohibition — out-of-process isolation).
 
-### 1.2 Domain Grouping (7 Categories)
+### 1.2 Domain Grouping (7 Group Methods)
 
-All 27 fields are grouped into 7 domain categories by cohesion:
+All 27 fields are grouped into 7 group methods returning tuples of references — no adapter structs, no new types:
 
-| Category | Fields | Purpose | Accessor Pattern |
-|----------|--------|---------|-----------------|
-| **Memory** | `episodic_storage`, `semantic_storage` | Private + public memory adapters | `agent_service.memory().episodic()` |
-| **CNS** | `cns_runtime`, `cns`, `cybernetics_loop`, `loop_system` | Cybernetic regulation | `agent_service.cns().runtime()` |
-| **Governance** | `mcp_runtime`, `mcp_dispatcher`, `capability_checker`, `governed_tool` | OCAP enforcement | `agent_service.governance().dispatcher()` |
-| **Storage** | `registry`, `goal_repo`, `standing_session_store`, `sovereignty_boundary_store`, `spec_store`, `agent_registry_store`, `user_store` | Persistent storage | `agent_service.storage().registry()` |
-| **Coordination** | `escalation_queue`, `curation_inbox_tx`, `session_manager`, `pod_manager`, `acp_runtime` | Multi-agent coordination | `agent_service.coordination().session_manager()` |
-| **Identity** | `system_webid`, `event_sink` | System identity + audit trail | `agent_service.identity().webid()` |
-| **Config** | `config` | Deployment configuration | `agent_service.config()` |
+| Method | Fields Returned | Accessor Pattern |
+|--------|---------|-----------------|
+| **memory()** | `episodic_storage`, `semantic_storage` | `let (ep, sem) = svc.memory()` |
+| **cns()** | `cns_runtime`, `cybernetics_loop`, `loop_system`, `event_sink` | `let (rt, cy, ls, ev) = svc.cns()` |
+| **governance()** | `capability_checker`, `mcp_dispatcher`, `escalation_queue` | `let (cc, dp, eq) = svc.governance()` |
+| **storage()** | `registry`, `goal_repo`, `spec_store`, `standing_session_store`, `user_store`, `agent_registry_store`, `git_cas_port` | `let (reg, gl, sp, ss, us, ar, gc) = svc.storage()` |
+| **coordination()** | `inference_port`, `mcp_runtime`, `pod_manager`, `session_manager` | `let (inf, mcp, pm, sm) = svc.coordination()` |
+| **identity()** | `system_webid`, `acp_runtime` | `let (wid, acp) = svc.identity()` |
+| **config()** | `config` | `let cfg = svc.config()` |
 
 ### 1.3 hLexicon Allocation
 
 | Term | Domain | Definition |
 |------|--------|-----------|
 | `AgentService` | WordAct | Canonical service layer owning all shared infrastructure |
-| `MemoryAdapter` | FlowDef | Episodic + semantic storage ports |
-| `CNSAdapter` | FlowDef | Cybernetic runtime + regulation loops |
-| `GovernanceAdapter` | FlowDef | OCAP-gated tool dispatch |
-| `StorageAdapter` | FlowDef | Persistent domain stores |
-| `CoordinationAdapter` | FlowDef | Multi-agent session + pod management |
-| `IdentityAdapter` | FlowDef | System WebID + ν-event audit |
+| `GroupMethod` | FlowDef | Tuple of references to related fields, accessed via destructuring |
 
 ### 1.4 Focusing Assumptions
 
 | ID | Statement | Rationale |
 |----|-----------|-----------|
-| FA-AS1 | All 27 fields are used (verified by grep audit) | No fields can be deleted without breaking functionality |
-| FA-AS2 | CLI and API use different subsets of fields | Grouping allows surfaces to access only what they need |
-| FA-AS3 | Domain crates use `AgentService` fields directly | Refactoring will update domain crates to use accessors |
+| FA-AS1 | All fields are used (verified by call-site audit) | No fields can be deleted without breaking functionality |
+| FA-AS2 | Group methods return tuples — no adapter structs needed | Essentialist G3: zero-field structs add no behavior |
+| FA-AS3 | Old individual accessors coexist during strangler-fig migration | Surfaces transition one domain at a time |
 
 ---
 
 ## 2. Composition Spec — AgentService Interface
 
-### 2.1 Public API (7 Accessor Methods)
+### 2.1 Public API (7 Group Methods + 1 config)
 
 ```rust
 impl AgentService {
-    /// Build AgentService from ServiceConfig
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError>;
-    
-    /// Memory domain access
-    pub fn memory(&self) -> &MemoryAdapters;
-    
-    /// CNS domain access
-    pub fn cns(&self) -> &CnsAdapters;
-    
-    /// Governance domain access
-    pub fn governance(&self) -> &GovernanceAdapters;
-    
-    /// Storage domain access
-    pub fn storage(&self) -> &StorageAdapters;
-    
-    /// Coordination domain access
-    pub fn coordination(&self) -> &CoordinationAdapters;
-    
-    /// Identity domain access
-    pub fn identity(&self) -> &IdentityAdapters;
-    
-    /// Configuration access
+
+    pub fn memory(&self) -> (&Arc<EpisodicStoragePort>, &Arc<SemanticStoragePort>);
+    pub fn cns(&self) -> (&Arc<RwLock<CnsRuntime>>, &Arc<RwLock<CyberneticsLoop>>, &Arc<LoopSystem>, &Arc<dyn NuEventSink>);
+    pub fn governance(&self) -> (&Arc<CapabilityChecker>, &Arc<McpDispatcher>, &Arc<EscalationQueue>);
+    pub fn storage(&self) -> (/* 7 store references */);
+    pub fn coordination(&self) -> (&Option<Arc<InferencePort>>, &Arc<McpRuntime>, &Arc<PodManager>, &Arc<RwLock<SessionManager>>);
+    pub fn identity(&self) -> (&WebID, &Arc<AcpRuntime>);
     pub fn config(&self) -> &ServiceConfig;
 }
 ```
 
-### 2.2 Domain Adapter Structs
+### 2.2 Group Method Field Mapping
 
-#### MemoryAdapters
+| Method | Fields (in tuple order) | Private Fields (not exposed) |
+|--------|------------------------|------------------------------|
+| `memory()` | episodic_storage, semantic_storage | — |
+| `cns()` | cns_runtime, cybernetics_loop, loop_system, event_sink | — |
+| `governance()` | capability_checker, mcp_dispatcher, escalation_queue | consent_manager, sovereignty_boundary_store (P1) |
+| `storage()` | registry, goal_repo, spec_store, standing_session_store, user_store, agent_registry_store, git_cas_port | — |
+| `coordination()` | inference_port, mcp_runtime, pod_manager, session_manager | curation_inbox_tx (internal channel) |
+| `identity()` | system_webid, acp_runtime | — |
+| `config()` | config | — |
 
-```rust
-pub struct MemoryAdapters {
-    episodic: Arc<dyn EpisodicStoragePort>,
-    semantic: Arc<dyn SemanticStoragePort>,
-}
-
-impl MemoryAdapters {
-    pub fn episodic(&self) -> &dyn EpisodicStoragePort;
-    pub fn semantic(&self) -> &dyn SemanticStoragePort;
-}
-```
-
-#### CnsAdapters
-
-```rust
-pub struct CnsAdapters {
-    runtime: Arc<RwLock<CnsRuntime>>,
-    service: CnsService,
-    cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
-    loop_system: Arc<LoopSystem>,
-}
-
-impl CnsAdapters {
-    pub fn runtime(&self) -> &Arc<RwLock<CnsRuntime>>;
-    pub fn service(&self) -> &CnsService;
-    pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>>;
-    pub fn loop_system(&self) -> &Arc<LoopSystem>;
-}
-```
-
-#### GovernanceAdapters
-
-```rust
-pub struct GovernanceAdapters {
-    mcp_runtime: Arc<McpRuntime>,
-    mcp_dispatcher: Arc<McpDispatcher>,
-    capability_checker: Arc<CapabilityChecker>,
-    governed_tool: Arc<GovernedTool>,
-}
-
-impl GovernanceAdapters {
-    pub fn runtime(&self) -> &Arc<McpRuntime>;
-    pub fn dispatcher(&self) -> &Arc<McpDispatcher>;
-    pub fn capability_checker(&self) -> &Arc<CapabilityChecker>;
-    pub fn governed_tool(&self) -> &Arc<GovernedTool>;
-}
-```
-
-#### StorageAdapters
-
-```rust
-pub struct StorageAdapters {
-    registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
-    goal_repo: Arc<SqliteGoalRepository>,
-    standing_session_store: Arc<StandingSessionStore>,
-    sovereignty_boundary_store: SovereigntyBoundaryStore,
-    spec_store: SqliteSpecStore,
-    agent_registry_store: AgentRegistryStore,
-    user_store: Arc<std::sync::Mutex<UserStore>>,
-}
-
-impl StorageAdapters {
-    pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>>;
-    pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository>;
-    pub fn standing_session_store(&self) -> &Arc<StandingSessionStore>;
-    pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore;
-    pub fn spec_store(&self) -> &SqliteSpecStore;
-    pub fn agent_registry_store(&self) -> &AgentRegistryStore;
-    pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>>;
-}
-```
-
-#### CoordinationAdapters
-
-```rust
-pub struct CoordinationAdapters {
-    escalation_queue: Arc<EscalationQueue>,
-    curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
-    session_manager: Arc<RwLock<SessionManager>>,
-    pod_manager: Arc<PodManager>,
-    acp_runtime: Arc<AcpRuntime>,
-}
-
-impl CoordinationAdapters {
-    pub fn escalation_queue(&self) -> &Arc<EscalationQueue>;
-    pub fn curation_inbox_tx(&self) -> &Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>;
-    pub fn session_manager(&self) -> &Arc<RwLock<SessionManager>>;
-    pub fn pod_manager(&self) -> &Arc<PodManager>;
-    pub fn acp_runtime(&self) -> &Arc<AcpRuntime>;
-}
-```
-
-#### IdentityAdapters
-
-```rust
-pub struct IdentityAdapters {
-    system_webid: WebID,
-    event_sink: Arc<dyn NuEventSink>,
-}
-
-impl IdentityAdapters {
-    pub fn webid(&self) -> &WebID;
-    pub fn event_sink(&self) -> &Arc<dyn NuEventSink>;
-}
-```
+**Sovereignty fix (P1):** `consent_manager` and `sovereignty_boundary_store` are excluded from `governance()`. Callers access sovereignty checks through mediated service methods, never raw stores.
 
 ### 2.3 Interface Equivalence
 

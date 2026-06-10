@@ -539,3 +539,18 @@ pub enum SkillAction {
         name: String,
     },
 }
+
+/// REPL settings actions — get, set, list, reset inference parameters.
+/// Same settings as the `/repl` slash command in interactive mode.
+#[derive(Subcommand)]
+pub enum SettingsAction {
+    /// Show all settings (or a single setting if name is given)
+    Show {
+        #[arg()]
+        name: Option<String>,
+    },
+    /// Set a setting value
+    Set { name: String, value: String },
+    /// Reset all settings to defaults
+    Reset,
+}

@@ -167,6 +167,12 @@ pub enum Commands {
     /// List available LLM models
     Models,
 
+    /// Manage REPL/CLI inference settings (same as /repl in interactive mode)
+    Settings {
+        #[command(subcommand)]
+        action: SettingsAction,
+    },
+
     /// Trigger episodic→semantic consolidation with optional semantic cleanup
     Consolidate {
         /// Agent name or WebID whose episodic memory to consolidate

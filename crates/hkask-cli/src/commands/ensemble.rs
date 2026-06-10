@@ -7,7 +7,7 @@
 
 use crate::block_on;
 use crate::cli::EnsembleAction;
-use hkask_agents::ensemble::{ImprovMode, ImprovTurn, ParticipantRole, StandingSessionStatus};
+use hkask_agents::ensemble::{ImprovMode, ImprovTurn, StandingSessionStatus};
 use hkask_services::{AgentService, EnsembleService};
 use hkask_types::ports::InferencePort;
 use std::sync::Arc;

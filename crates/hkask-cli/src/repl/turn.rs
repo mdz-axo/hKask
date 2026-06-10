@@ -157,12 +157,12 @@ pub(super) fn single_agent_turn(
     // prefix that stays cacheable across turns. History changes each turn
     // and must be placed after the cache breakpoint to avoid invalidating
     // KV cache hits.
-    let history_suffix = state.session_history.recent_context(settings.context_turns);
-    let input_with_context = if history_suffix.is_empty() {
-        base_input
-    } else {
-        format!("{}\n\n{}", base_input, history_suffix)
-    };
+    //
+    // Auto-compaction: if the estimated prompt exceeds 87.5% of the model's
+    // context window, condense older session history via the condenser MCP
+    // tool. The loop re-estimates after compaction — one pass only.
+    let input_with_context =
+        build_input_with_auto_compact(&base_input, state, rt, acp_secret, &settings);
 
     // ── Tool-use loop: keep calling the model until it stops requesting tools ──
     let max_loops = settings.tool_loop_limit;
@@ -356,4 +356,134 @@ pub(super) fn single_agent_turn(
         .record(input, &state.current_agent, &current_response);
 
     true
+}
+
+/// Build `input_with_context`, compacting session history via the condenser
+/// MCP tool if the estimated prompt exceeds 87.5% of the model's context window.
+///
+/// Only compacts when `settings.auto_compact` is true and `model_meta` has been
+/// populated (i.e., the model was switched via /model, not hardcoded).
+fn build_input_with_auto_compact(
+    base_input: &str,
+    state: &ReplState,
+    rt: &tokio::runtime::Handle,
+    acp_secret: &[u8],
+    settings: &super::handlers::ReplSettings,
+) -> String {
+    let history_suffix = state.session_history.recent_context(settings.context_turns);
+    if history_suffix.is_empty() {
+        return base_input.to_string();
+    }
+    let candidate = format!("{}\n\n{}", base_input, history_suffix);
+
+    // Only compact if auto_compact is on and model metadata is available.
+    if !settings.auto_compact {
+        return candidate;
+    }
+    let Some(ref meta) = settings.model_meta else {
+        return candidate;
+    };
+
+    let estimated_tokens = (candidate.len() as u64) / 4;
+    let compact_threshold = (meta.context_length as f64 * 0.875) as u64;
+    if estimated_tokens <= compact_threshold {
+        return candidate;
+    }
+
+    // Build the messages array for condenser_thread_summary.
+    // Only compact the oldest half of the session history turns.
+    let turns = state.session_history.turns_for_display();
+    let turn_list: Vec<(&str, &str)> = turns.collect();
+    if turn_list.len() < 4 {
+        // Not enough turns to compact — just warn and proceed.
+        println!(
+            "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but too few turns to compact\x1b[0m",
+            (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
+            estimated_tokens,
+            meta.context_length,
+        );
+        return candidate;
+    }
+
+    let midpoint = turn_list.len() / 2;
+    let old_turns = &turn_list[..midpoint];
+    let recent_turns = &turn_list[midpoint..];
+
+    let messages: Vec<serde_json::Value> = old_turns
+        .iter()
+        .map(|(agent, response)| {
+            serde_json::json!({
+                "role": "assistant",
+                "content": format!("[{}]: {}", agent, response)
+            })
+        })
+        .collect();
+
+    print!(
+        "  \x1b[2mcompacting {} old turns via condenser…\x1b[0m",
+        old_turns.len()
+    );
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+
+    // Call condenser_thread_summary through GovernedTool.
+    let compact_result = rt.block_on(async {
+        let call = super::tool_augmented::ToolCall {
+            server: "hkask-mcp-condenser".to_string(),
+            tool: "condenser_thread_summary".to_string(),
+            args: serde_json::json!({
+                "messages": messages,
+                "current_query": base_input,
+                "max_tokens": 500
+            }),
+        };
+        super::tool_augmented::invoke_tool_call(
+            &call,
+            &state.governed_tool,
+            &state.agent_webid,
+            acp_secret,
+        )
+        .await
+    });
+
+    match compact_result {
+        Ok(summary_value) => {
+            let summary = summary_value
+                .get("summary")
+                .and_then(|v| v.as_str())
+                .unwrap_or("(compacted)");
+            println!(" done");
+            println!(
+                "  \x1b[2mcompacted {} turns → {} chars (est. {} tokens)\x1b[0m",
+                old_turns.len(),
+                summary.len(),
+                summary.len() / 4,
+            );
+
+            // Rebuild history: keep recent turns, prepend summary as a synthetic turn,
+            // then format. Since SessionHistory is behind a shared reference and we
+            // can't mutate it here, we build the new input_with_context directly.
+            let recent_text = if recent_turns.is_empty() {
+                String::new()
+            } else {
+                let recent_lines: Vec<String> = recent_turns
+                    .iter()
+                    .map(|(agent, response)| format!("User: [previous]\n{}: {}", agent, response))
+                    .collect();
+                format!(
+                    "\n\n[Previous conversation — compacted]\n{}\n[/Previous conversation — compacted]",
+                    recent_lines.join("\n\n")
+                )
+            };
+            format!(
+                "{}\n\n[Previous conversation — summary of earlier turns]\n{}\n[/Previous conversation — summary]\n{}",
+                base_input, summary, recent_text
+            )
+        }
+        Err(e) => {
+            println!(" \x1b[33mfailed: {}\x1b[0m", e);
+            // Proceed with the oversized prompt — better than blocking the turn.
+            candidate
+        }
+    }
 }

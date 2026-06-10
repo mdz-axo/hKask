@@ -39,8 +39,7 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-memory` | Semantic/episodic pipelines |
 | `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
 | `hkask-templates` | Registry, hLexicon, cascade |
-| `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop |
-| `hkask-ensemble` | Multi-agent chat |
+| `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop, Ensemble sessions |
 | `hkask-keystore` | OS keychain, AES-256-GCM, HKDF-SHA256 |
 | `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
 | `hkask-services` | Shared service layer (CLI/API deduplication) |

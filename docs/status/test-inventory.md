@@ -15,7 +15,7 @@ Per MDS §12 and `docs/specifications/test-program.md` — seam depth analysis a
 | Crate | Seams | Tests | Coverage | Deepest Seam |
 |-------|-------|-------|----------|-------------|
 | hkask-mcp-condenser | 6 | 78 | ✅ Deep | algorithms (35 tests) |
-| hkask-services | 6 | 138 | ✅ Deep | sovereignty (37 tests) |
+| hkask-services | 7 | 24 | ✅ Deep | ensemble (14 service operations) |
 | hkask-types | 3 | 0 | ⚠️ Shallow | ID types (no behavioral tests) |
 | hkask-storage | 3 | 0 | ⚠️ Shallow | TripleStore (doc-tests only) |
 | hkask-memory | 2 | 0 | ⚠️ Shallow | EpisodicMemory (no tests) |

@@ -480,7 +480,7 @@ impl ChatService {
             .inference_port
             .generate_with_model(&prepared.prompt, &params, Some(&prepared.model))
             .await
-            .map_err(|e| ServiceError::InferencePort(e))?;
+            .map_err(ServiceError::InferencePort)?;
 
         // REQ: P9 (Homeostatic) — CNS span after inference
         tracing::debug!(target: "cns.chat.response", agent = %prepared.agent_name, model = %prepared.model, tokens = result.usage.total_tokens, finish_reason = %result.finish_reason);

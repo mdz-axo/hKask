@@ -34,7 +34,14 @@ pub trait CondenserAlgorithm: Send + Sync {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn default_for(&self) -> &[ContextCategory];
-    fn compress(&self, input: &str, profile: Profile, category: ContextCategory) -> String;
+    /// Compress the input and return (compressed_content, health_signals).
+    /// Health signals are empty when the algorithm performed within expected bounds.
+    fn compress(
+        &self,
+        input: &str,
+        profile: Profile,
+        category: ContextCategory,
+    ) -> (String, Vec<CondenserHealthSignal>);
 }
 
 pub struct RtkStyleAlgorithm;

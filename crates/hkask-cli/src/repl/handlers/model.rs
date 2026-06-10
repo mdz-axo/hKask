@@ -1,6 +1,6 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
-use super::super::handlers::ModelMeta;
+use crate::repl::handlers::repl_settings::ModelMeta;
 use hkask_services::{InferenceContext, InferenceService};
 use hkask_templates::OkapiConfig;
 

@@ -145,6 +145,32 @@ pub struct CompressedOutput {
     pub original_bytes: usize,
     pub compressed_bytes: usize,
     pub reduction_pct: f64,
+    /// Health signals — populated when algorithmic behavior is unexpected.
+    /// Absent means the compression ran within expected bounds.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub health_signals: Vec<CondenserHealthSignal>,
+}
+
+/// Signal emitted when a condenser algorithm exhibits unexpected behavior.
+/// These are CNS `cns.condenser.*` ν-event candidates — they indicate that
+/// the algorithmic performance deviated from expected bounds, not that the
+/// compression failed (content is still returned).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CondenserHealthSignal {
+    /// Algorithm that produced the signal.
+    pub algorithm: String,
+    /// Signal type: "negative_compression", "low_signal", "budget_shortfall".
+    pub signal_type: String,
+    /// Human-readable diagnostic.
+    pub detail: String,
+    /// Lines that scored zero (only for "low_signal" signals).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zero_score_count: Option<usize>,
+    /// Budget requested vs. actually filled (only for "budget_shortfall").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget_requested: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget_filled: Option<usize>,
 }
 
 /// Cumulative compression statistics.

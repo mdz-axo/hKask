@@ -215,6 +215,7 @@ impl AgentService {
     /// CNS: runtime, cybernetics loop, loop system, event sink.
     /// Replaces standalone CnsService (deleted — pass-through module).
     /// # REQ: P9 (Homeostatic)
+    #[allow(clippy::type_complexity)]
     pub fn cns(
         &self,
     ) -> (
@@ -252,6 +253,7 @@ impl AgentService {
     /// Storage: template registry, goal repo, spec store, standing sessions,
     /// user store, agent registry, Git CAS.
     /// # REQ: ADR-024, P4 (Clear Boundaries)
+    #[allow(clippy::type_complexity)]
     pub fn storage(
         &self,
     ) -> (
@@ -276,6 +278,7 @@ impl AgentService {
 
     /// Coordination: inference port, MCP runtime, pod manager, session manager.
     /// # REQ: P3 (Generative Space), P6 (Space for Replicants & Bots)
+    #[allow(clippy::type_complexity)]
     pub fn coordination(
         &self,
     ) -> (
