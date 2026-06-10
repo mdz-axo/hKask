@@ -15,6 +15,7 @@ pub mod goal;
 pub mod inference;
 pub mod onboarding;
 pub mod pods;
+pub mod settings;
 pub mod skill;
 pub mod spec;
 pub mod verification;
@@ -28,7 +29,7 @@ pub use compose::{
 };
 pub use config::ServiceConfig;
 pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
-pub use context::AgentService;
+pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedResult, EmbedService, EmbeddingConfig, FoundationalRule,
@@ -40,6 +41,7 @@ pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use onboarding::{OnboardingService, RegistryHandle, ResolvedSecrets, SignInOutcome};
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
+pub use settings::settings_path;
 pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
     publish_skill, read_skill_namespace, read_skill_visibility,

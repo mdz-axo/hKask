@@ -66,8 +66,8 @@ pub struct SetPoints {
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
 /// Loaded from YAML via `HKASK_CNS_CONFIG` (same pattern as `SetPointsConfig`).
 ///
-/// Type definition lives in `hkask_types::curation`; YAML loading methods
-/// relocated to `hkask_cli::curation_config` (I/O is not Cybernetics).
+/// Type definition lives in `hkask_types::curation`; YAML loading was
+/// in the now-deleted `hkask_cli::curation_config` (duplicate, zero callers).
 pub use hkask_types::curation::CurationThresholdConfig;
 
 /// YAML-configurable set-points. Fields are Optional so partial configs work.

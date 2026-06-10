@@ -211,14 +211,10 @@ fn is_valid_setting(arg1: &str) -> bool {
     )
 }
 
-/// Path to the persisted settings file. Public so the API surface can
-/// save/load from the same file.
+/// Path to the persisted settings file. Delegates to the shared
+/// hkask_services::settings_path for single-source-of-truth across surfaces.
 pub fn settings_path() -> std::path::PathBuf {
-    let mut path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-    path.push("hkask");
-    let _ = std::fs::create_dir_all(&path);
-    path.push("settings.json");
-    path
+    hkask_services::settings_path()
 }
 
 /// Default REPL settings.

@@ -29,6 +29,18 @@ Per MDS §12 and `docs/specifications/test-program.md` — seam depth analysis a
 
 **Totals:** 12 audited crates, 47 seams, 327 tests
 
+**New seams (2026-06-10):**
+
+| Seam | Crate | Module | Behavioral Property |
+|------|-------|--------|-------------------|
+| `ReplSettings` | hkask-cli | `repl/handlers/repl_settings.rs` | Settings persist to disk, load on init, expose via CLI/API/REPL |
+| `ModelMeta` | hkask-cli | `repl/handlers/repl_settings.rs` | Model metadata fetched from Ollama `/api/show`, populated on model switch |
+| `build_input_with_auto_compact` | hkask-cli | `repl/turn.rs` | Auto-compaction triggers at 87.5% of context window, condenses via MCP |
+| `tool_loop` | hkask-cli | `repl/turn.rs` | Unbounded tool-use loop gated by `tool_loop_limit`, each iteration checks energy budget |
+| `context_injection` | hkask-cli | `repl/turn.rs` | Conversation history appended as suffix (after cache breakpoint), not prefix |
+| `GET/PUT /api/settings` | hkask-api | `routes/settings.rs` | Settings read/write via REST, merge-update semantics |
+| `kask settings` | hkask-cli | `commands/settings.rs` | CLI surface for show/set/reset, same settings.json as REPL |
+
 ---
 
 ## hkask-mcp-condenser

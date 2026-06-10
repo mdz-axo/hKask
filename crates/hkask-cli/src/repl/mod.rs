@@ -16,7 +16,6 @@ pub(crate) mod handlers;
 mod helper;
 mod hhh_loop;
 mod init;
-mod memory;
 mod tool_augmented;
 mod turn;
 
@@ -74,17 +73,17 @@ pub(crate) struct ReplState {
     /// HHH alignment mode — whether the Helpful/Harmless/Honest gate is active.
     pub(crate) hhh_mode: HhhMode,
     /// HHH configuration — gate model, max iterations, pass threshold.
-    pub(crate) hhh_config: HhhConfig,
+    hhh_config: HhhConfig,
     /// Gate inference port — a separate InferencePort for the HHH evaluation model.
     /// Created eagerly at REPL init. None if the gate model failed to initialize.
-    pub(crate) gate_inference_port: Option<Arc<dyn InferencePort>>,
+    gate_inference_port: Option<Arc<dyn InferencePort>>,
     /// ConsolidationService for /consolidate command — built from the same per-agent
     /// memory DB as `episodic_storage` and `semantic_storage`. None if memory
     /// infrastructure is unavailable.
-    pub(crate) consolidation_service: Option<ConsolidationService>,
+    consolidation_service: Option<ConsolidationService>,
     /// Persona constraints for the current agent — loaded from agent definition.
     /// When set, the persona filter strips forbidden patterns from model output.
-    pub(crate) persona_constraints: Option<PersonaConstraints>,
+    persona_constraints: Option<PersonaConstraints>,
     /// Pre-formatted tool section of the system prompt — derived from MCP
     /// runtime discovery at REPL init. The cache is intentional: `ToolPort`
     /// uses `impl Trait` returns so it is not dyn-compatible, which prevents
@@ -95,11 +94,11 @@ pub(crate) struct ReplState {
     /// Manifest executor — runs the process_manifest cascade for agents that
     /// have one defined. Created at REPL init from the agent's process_manifest
     /// reference. None if the agent has no process manifest or if loading failed.
-    pub(crate) manifest_executor: Option<ManifestExecutor>,
+    manifest_executor: Option<ManifestExecutor>,
     /// The resolved process manifest for the current agent.
     /// Present when the agent definition includes a process_manifest reference
     /// and the manifest was successfully loaded.
-    pub(crate) process_manifest: Option<BundleManifest>,
+    process_manifest: Option<BundleManifest>,
     /// Shared service context — the canonical assembly point for all
     /// infrastructure.
     pub(crate) service_context: Arc<AgentService>,

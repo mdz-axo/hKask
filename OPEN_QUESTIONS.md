@@ -55,11 +55,13 @@ Updated 2026-06-10 after allosteric deletion, consent instrumentation, and Gover
 
 ### 4.2 Context Window Channel Capacity
 
-**Status:** OPEN — requires user decision.
+**Status:** ✅ DONE. Defined per-algorithm SLA violations in `hkask-mcp-condenser`:
+- `rtk_style`: `negative_compression` signal when `compressed_bytes > original_bytes` (bounds violation)
+- `saliency_rank`: `low_signal` signal when >50% of lines score 0.0 (no usable signal)
+- `flashrank`: `budget_shortfall` signal when `filled < budget` (couldn't find enough signal)
+- Global: `low_compression_ratio` when overall ratio < 2:1 after 10+ compressions
 
-**Question:** What are the acceptable bounds for condenser throughput (bytes/second) and compression ratio?
-
-**Proposed resolution:** Define CNS SLA: throughput ≥ 1KB/s, compression ≥ 2:1, emit `cns.condenser.degraded` ν-event on degradation.
+Health signals are returned in `CompressedOutput::health_signals` and can be emitted as `cns.condenser.*` ν-events by the CNS observer. The `CondenserEngine::check_global_health()` method also checks for systemic SLA violations across all compressions.
 
 ---
 
@@ -71,11 +73,7 @@ Updated 2026-06-10 after allosteric deletion, consent instrumentation, and Gover
 
 ### 5.2 hLexicon Mapping to MDS Categories
 
-**Status:** OPEN — requires user decision.
-
-**Question:** Should `LexiconTerm` carry an explicit `mds_category` field?
-
-**Proposed resolution:** Add `mds_category: Option<MdsCategory>` to `LexiconTerm`. Backfill existing terms. Enables formal verification via `spec/graph/coherence`.
+**Status:** ✅ DONE. Added `MdsCategory` enum (Domain, Composition, Trust, Lifecycle, Curation) to `hkask-types::lexicon`. `LexiconTerm` now has an `mds_category: Option<MdsCategory>` field with `with_mds_category()` builder. Exported as `hkask_types::MdsCategory`. Enables formal verification of all 87 hLexicon terms against the 5 MDS categories via `spec/graph/coherence`.
 
 ---
 
@@ -87,7 +85,7 @@ Updated 2026-06-10 after allosteric deletion, consent instrumentation, and Gover
 
 ### 6.2 Service Layer Tests
 
-**Status:** ✅ DONE — `hkask-services` now has 24 unit tests across 7 service modules (chat: 9, goal: 3, pods: 3, curator: 2, spec: 7). All tests carry `// REQ:` tags. Service extraction is complete with all CLI and API surfaces delegating to shared service modules.
+**Status:** ✅ DONE — `hkask-services` now has 27 unit tests across 8 service modules (chat: 9, cns: 3, goal: 3, pods: 3, curator: 2, spec: 7). All tests carry `// REQ:` tags. The `cns` module was also added as a proper `pub mod cns` declaration (was an orphan file before). Service extraction is complete with all CLI and API surfaces delegating to shared service modules.
 
 ---
 

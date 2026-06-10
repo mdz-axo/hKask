@@ -13,8 +13,7 @@ use hkask_agents::InferenceLoop;
 use hkask_agents::hhh_gate;
 use hkask_cns::{CompositeEnergyEstimator, EnergyBudget, EnergyCost, GovernedTool};
 use hkask_mcp::RawMcpToolPort;
-use hkask_memory::ConsolidationService;
-use hkask_services::{InferenceContext, InferenceService};
+use hkask_services::{AgentService, InferenceContext, InferenceService};
 use hkask_storage::Database;
 use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::LLMParameters;
@@ -23,7 +22,6 @@ use hkask_types::ports::{InferencePort, ToolInfo, ToolPort};
 
 use super::ReplState;
 use super::handlers::ReplSettings;
-use super::memory;
 use super::tool_augmented;
 
 /// Initialize all REPL dependencies and return a fully-wired ReplState.
@@ -184,37 +182,37 @@ pub(super) fn init_repl_state(
             .await
     });
 
-    // Build EpisodicMemory and SemanticMemory from the agent's per-agent DB
-    // (hkask-memory-{agent}.db). Both the storage ports and the
-    // ConsolidationService share the same underlying DB connection.
+    // Build per-agent memory via the service layer (NOT direct domain-crate
+    // construction). AgentService::build_per_agent_memory constructs storage
+    // ports and ConsolidationService from an agent-scoped Database, respecting
+    // the hkask-cli → hkask-services → domain dependency rule.
     let (episodic_storage, semantic_storage, consolidation_service): (
         Arc<dyn hkask_agents::ports::EpisodicStoragePort>,
         Arc<dyn hkask_agents::ports::SemanticStoragePort>,
-        Option<ConsolidationService>,
-    ) = match &onboarding_outcome.resolved_secrets {
-        Some(secrets) => {
-            let db_path = format!("hkask-memory-{}.db", onboarding_outcome.signed_in_agent);
-            match Database::open(&db_path, &secrets.db_passphrase) {
-                Ok(db) => {
-                    let (epi, sem, svc) = memory::build_memory_infra(db);
-                    (epi, sem, Some(svc))
-                }
-                Err(e) => {
-                    eprintln!(
-                        "Warning: Persistent memory init failed ({}), falling back to in-memory",
-                        e
-                    );
-                    let db = hkask_storage::in_memory_db();
-                    let (epi, sem, svc) = memory::build_memory_infra(db);
-                    (epi, sem, Some(svc))
+        Option<hkask_memory::ConsolidationService>,
+    ) = {
+        let db = match &onboarding_outcome.resolved_secrets {
+            Some(secrets) => {
+                let db_path = format!("hkask-memory-{}.db", onboarding_outcome.signed_in_agent);
+                match Database::open(&db_path, &secrets.db_passphrase) {
+                    Ok(db) => db,
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: Persistent memory init failed ({}), falling back to in-memory",
+                            e
+                        );
+                        hkask_storage::in_memory_db()
+                    }
                 }
             }
-        }
-        None => {
-            let db = hkask_storage::in_memory_db();
-            let (epi, sem, svc) = memory::build_memory_infra(db);
-            (epi, sem, Some(svc))
-        }
+            None => hkask_storage::in_memory_db(),
+        };
+        let mem = AgentService::build_per_agent_memory(db);
+        (
+            mem.episodic_storage,
+            mem.semantic_storage,
+            Some(mem.consolidation_service),
+        )
     };
 
     let ctx = Arc::new(ctx);

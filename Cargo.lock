@@ -1594,6 +1594,7 @@ version = "0.27.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "dirs",
  "hex",
  "hkask-agents",
  "hkask-cns",

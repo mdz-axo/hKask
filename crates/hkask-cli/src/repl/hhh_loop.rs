@@ -51,7 +51,8 @@ pub(super) fn evaluate_hhh(
         let evaluation = rt.block_on(hhh_gate::hhh_evaluate(input, &current_response, gate_port));
 
         // Settle gate gas (heuristic == actual for gate evaluations)
-        gate_guard.settle(gate_guard.heuristic());
+        let gate_cost = gate_guard.heuristic();
+        gate_guard.settle(gate_cost);
 
         if evaluation.overall_pass {
             println!(

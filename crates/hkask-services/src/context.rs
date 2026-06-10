@@ -154,6 +154,17 @@ pub struct AgentService {
     config: ServiceConfig,
 }
 
+/// Per-agent memory infrastructure — storage ports and ConsolidationService
+/// constructed from a single agent-scoped Database connection.
+///
+/// All components share the same underlying DB, so consolidation operates
+/// on the agent's actual episodic and semantic triples.
+pub struct PerAgentMemory {
+    pub episodic_storage: Arc<dyn EpisodicStoragePort>,
+    pub semantic_storage: Arc<dyn SemanticStoragePort>,
+    pub consolidation_service: hkask_memory::ConsolidationService,
+}
+
 impl AgentService {
     // === Category 1: Essential shared infrastructure (10 fields) ===
 
@@ -407,6 +418,50 @@ impl AgentService {
     /// TODO: Move to ApiState.
     pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
         &self.user_store
+    }
+
+    /// Build per-agent memory infrastructure from an agent-scoped Database.
+    ///
+    /// Constructs storage ports (`EpisodicStoragePort`, `SemanticStoragePort`)
+    /// and a `ConsolidationService` — all sharing the same underlying DB
+    /// connection so consolidation operates on the agent's actual triples.
+    ///
+    /// This is used by the REPL to build agent-scoped memory (separate from
+    /// the shared `AgentService` memory adapted for loops).
+    pub fn build_per_agent_memory(db: Database) -> PerAgentMemory {
+        let conn = db.conn_arc();
+
+        // EpisodicMemory + SemanticMemory for ConsolidationService
+        let ts1 = TripleStore::new(Arc::clone(&conn));
+        let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
+        let ts2 = TripleStore::new(Arc::clone(&conn));
+        let emb = EmbeddingStore::new(Arc::clone(&conn));
+        let semantic_memory = Arc::new(SemanticMemory::new(ts2, emb));
+
+        // ConsolidationService from the shared memories
+        let bridge = Arc::new(ConsolidationBridge::new(
+            Arc::clone(&episodic_memory),
+            Arc::clone(&semantic_memory),
+        ));
+        let handle = CuratorHandle::system();
+        let token = handle.issue_consolidation_token();
+        let consolidation_service =
+            hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
+
+        // Storage ports via MemoryLoopAdapter — uses the same connection
+        let adapter = Arc::new(hkask_agents::adapters::MemoryLoopAdapter::new(
+            EpisodicMemory::new(TripleStore::new(Arc::clone(&conn))),
+            SemanticMemory::new(
+                TripleStore::new(Arc::clone(&conn)),
+                EmbeddingStore::new(Arc::clone(&conn)),
+            ),
+        ));
+
+        PerAgentMemory {
+            episodic_storage: adapter.clone() as Arc<dyn EpisodicStoragePort>,
+            semantic_storage: adapter as Arc<dyn SemanticStoragePort>,
+            consolidation_service,
+        }
     }
 }
 

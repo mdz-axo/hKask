@@ -6,15 +6,7 @@
 
 use crate::cli::SettingsAction;
 use crate::repl::handlers::ReplSettings;
-
-/// Path to the persisted settings file.
-fn settings_path() -> std::path::PathBuf {
-    let mut path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-    path.push("hkask");
-    let _ = std::fs::create_dir_all(&path);
-    path.push("settings.json");
-    path
-}
+use hkask_services::settings_path;
 
 /// Load settings from disk. Returns defaults if the file doesn't exist
 /// or can't be parsed.

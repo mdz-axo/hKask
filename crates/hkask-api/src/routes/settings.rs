@@ -8,18 +8,7 @@ use axum::{Json, Router, extract::State, routing::get};
 use serde::{Deserialize, Serialize};
 
 use crate::ApiState;
-
-/// Path to the persisted settings file.
-fn settings_path() -> std::path::PathBuf {
-    let base = std::env::var("XDG_CONFIG_HOME")
-        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.config", h)))
-        .unwrap_or_else(|_| ".".to_string());
-    let mut path = std::path::PathBuf::from(base);
-    path.push("hkask");
-    let _ = std::fs::create_dir_all(&path);
-    path.push("settings.json");
-    path
-}
+use hkask_services::settings_path;
 
 /// JSON shape for the settings response.
 #[derive(Debug, Serialize, Deserialize)]

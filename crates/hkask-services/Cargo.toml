@@ -25,6 +25,7 @@ serde_yaml.workspace = true
 reqwest = { workspace = true }
 base64 = { workspace = true }
 hex.workspace = true
+dirs = "6"
 
 [dev-dependencies]
 tempfile.workspace = true
