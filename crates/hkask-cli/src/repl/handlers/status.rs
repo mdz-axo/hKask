@@ -57,7 +57,7 @@ pub(crate) fn handle_status(
         .collect::<Vec<_>>()
         .join(", ");
     println!("  Loops:      {} registered ({})", loop_count, ids_str);
-    println!("  Turns:      {}", state.session_history.turns.len());
+    println!("  Turns:      {}", state.session_history.turn_count());
     match &state.active_session {
         Some(session) => {
             let config = rt.block_on(async {

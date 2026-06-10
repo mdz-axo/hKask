@@ -192,10 +192,6 @@ pub enum ServiceError {
     Pod(#[from] AgentPodError),
 
     // ── Inference domain ────────────────────────────────────────────────
-    /// Inference failed.
-    #[error("Inference failed: {0}")]
-    Inference(String),
-
     /// Upstream inference port error.
     #[error(transparent)]
     InferencePort(#[from] InferenceError),

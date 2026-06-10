@@ -222,6 +222,17 @@ impl HkaskLoop for CurationLoop {
                         }
                         _ => {}
                     },
+                    CurationInput::SpecDriftResolved {
+                        spec_id,
+                        resolved_at,
+                    } => {
+                        tracing::info!(
+                            target: CUR_TARGET,
+                            spec_id = %spec_id,
+                            resolved_at = %resolved_at,
+                            "SpecDriftResolved — human resolved spec drift (P1)"
+                        );
+                    }
                 }
             }
         }

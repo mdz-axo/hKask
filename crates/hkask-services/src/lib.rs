@@ -8,6 +8,7 @@ pub mod consolidation;
 pub mod context;
 pub mod curator;
 pub mod embed;
+pub mod ensemble;
 pub mod error;
 pub mod goal;
 pub mod inference;
@@ -31,6 +32,7 @@ pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedResult, EmbedService, EmbeddingConfig, FoundationalRule,
     ValidationConfig, Work,
 };
+pub use ensemble::{CyberneticsLoopGasAdapter, EnsembleService};
 pub use error::ServiceError;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};

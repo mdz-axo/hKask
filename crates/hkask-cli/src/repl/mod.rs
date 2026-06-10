@@ -39,6 +39,7 @@ use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
 use std::sync::Arc;
 
 use commands::handle_slash_command;
+use handlers::ReplSettings;
 use helper::{KaskHelper, SessionHistory};
 
 /// REPL state — initialized once, reused across all turns.
@@ -103,6 +104,9 @@ pub(crate) struct ReplState {
     /// Shared service context — the canonical assembly point for all
     /// infrastructure.
     pub(crate) service_context: Arc<AgentService>,
+    /// REPL settings — user-configurable inference parameters.
+    /// Exposed via /repl command. Magna Carta P3 (Generative Space).
+    pub(crate) repl_settings: ReplSettings,
 }
 
 pub fn run(

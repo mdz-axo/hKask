@@ -22,6 +22,7 @@ use hkask_types::WebID;
 use hkask_types::ports::{InferencePort, ToolInfo, ToolPort};
 
 use super::ReplState;
+use super::handlers::ReplSettings;
 use super::helper::SessionHistory;
 use super::memory;
 use super::tool_augmented;
@@ -67,7 +68,7 @@ pub(super) fn init_repl_state(
     // Wrap the inference port in an InferenceLoop for CNS observability.
     let inference_loop = Arc::new(
         InferenceLoop::new()
-            .with_energy_budget(10_000, 10_000)
+            .with_energy_budget(repl_settings.gas_cap, repl_settings.gas_cap)
             .with_model(initial_model_str),
     );
 
@@ -162,16 +163,16 @@ pub(super) fn init_repl_state(
     ));
 
     // Register the agent's energy budget with the CyberneticsLoop.
-    // cap=10000, replenish_rate=1000/turn (10% of cap), alert at 80% usage,
-    // hard_limit=true (block operations when exhausted).
+    // Uses repl_settings.gas_cap (default 10_000), replenish_rate=10% of cap,
+    // alert at 80% usage, hard_limit=true (block operations when exhausted).
     rt.block_on(async {
         ctx.cybernetics_loop()
             .read()
             .await
             .register_energy_budget(
                 agent_webid,
-                EnergyBudget::new(EnergyCost(10_000))
-                    .with_replenish_rate(EnergyCost(1_000))
+                EnergyBudget::new(EnergyCost(repl_settings.gas_cap))
+                    .with_replenish_rate(EnergyCost(repl_settings.gas_cap / 10))
                     .with_alert_threshold(0.8)
                     .with_hard_limit(true),
             )
@@ -213,6 +214,8 @@ pub(super) fn init_repl_state(
 
     let ctx = Arc::new(ctx);
 
+    let repl_settings = ReplSettings::default();
+
     let mut state = ReplState {
         inference_port,
         inference_loop,
@@ -235,6 +238,7 @@ pub(super) fn init_repl_state(
         manifest_executor: None,            // populated below
         process_manifest: None,             // populated below
         service_context: ctx.clone(),
+        repl_settings,
     };
 
     // Discover available MCP tools and format the system prompt section.

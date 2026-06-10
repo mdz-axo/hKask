@@ -141,7 +141,7 @@ impl InferenceService {
         };
         OkapiInference::new(model, config)
             .map(|i| Arc::new(i) as Arc<dyn InferencePort>)
-            .map_err(|e| ServiceError::Inference(e.to_string()))
+            .map_err(|e| ServiceError::InferencePort(e))
     }
 
     /// List all locally available models from the inference backend.

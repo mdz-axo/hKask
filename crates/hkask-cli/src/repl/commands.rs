@@ -165,6 +165,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Compose, apply, or manage skill bundles",
     },
     SlashCommand {
+        primary: "repl",
+        aliases: &[],
+        args: "[SETTING] [VALUE]",
+        about: "Show or set REPL inference settings",
+    },
+    SlashCommand {
         primary: "consolidate",
         aliases: &["cons"],
         args: "[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]",
@@ -261,6 +267,7 @@ pub(super) fn handle_slash_command(
             handlers::handle_consolidate(&cons_arg, state, rt);
         }
         "bundle" | "b" => handlers::handle_bundle(arg1),
+        "repl" => handlers::handle_repl_set(arg1, arg2, state),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

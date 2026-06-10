@@ -35,6 +35,17 @@ pub struct LLMParameters {
     /// - Higher: more novel concepts
     pub presence_penalty: f32,
 
+    /// Min-p: minimum probability threshold for token sampling (0.0-1.0)
+    /// - Tokens below `min_p * max_prob` are filtered out
+    /// - 0.0 disables (no minimum). Typical: 0.02-0.1
+    pub min_p: f32,
+
+    /// Typical-p (locally typical sampling): entropy-centered threshold (0.0-1.0)
+    /// - Selects tokens whose negative log-prob is close to the distribution's entropy
+    /// - Filters both high-prob (too obvious) and low-prob (too surprising) extremes
+    /// - 0.0 disables. Typical: 0.9-0.95
+    pub typical_p: f32,
+
     /// Maximum tokens to generate
     pub max_tokens: u32,
 
@@ -50,6 +61,8 @@ impl LLMParameters {
             temperature: 0.6,
             top_p: 0.85,
             top_k: 35,
+            min_p: 0.0,
+            typical_p: 0.0,
             frequency_penalty: 0.4,
             presence_penalty: 0.4,
             max_tokens: 2048,

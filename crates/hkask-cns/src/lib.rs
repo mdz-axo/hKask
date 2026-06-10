@@ -42,7 +42,7 @@ pub use set_points::{
     CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
     DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX,
     DEFAULT_MAX_ITERATIONS, DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig,
-    load_curation_thresholds, load_set_points,
+    load_set_points,
 };
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
 

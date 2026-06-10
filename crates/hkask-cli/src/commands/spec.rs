@@ -6,6 +6,7 @@
 use crate::cli::SpecAction;
 use hkask_agents::DefaultSpecCurator;
 use hkask_services::{SpecCaptureRequest, SpecService};
+use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{SpecCategory, SpecCurator};
 
 fn build_service_context() -> hkask_services::AgentService {

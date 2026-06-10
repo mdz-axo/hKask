@@ -70,7 +70,8 @@ pub struct GoalTransitionEvent {
 /// Messages CurationLoop receives from multiple producers via a single channel.
 ///
 /// Cybernetics sends `Alert`, SpecCurator sends `SpecDrift`, GoalStore sends
-/// `GoalTransition`. All flow through one `mpsc::Sender<CurationInput>` channel.
+/// `GoalTransition`. Human resolves spec drift → `SpecDriftResolved`.
+/// All flow through one `mpsc::Sender<CurationInput>` channel.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum CurationInput {
     /// Algedonic alert from Cybernetics (variety deficit escalation)
@@ -79,4 +80,11 @@ pub enum CurationInput {
     SpecDrift(SpecEvent),
     /// Goal state transition from GoalStore
     GoalTransition(GoalTransitionEvent),
+    /// Spec drift resolved by human (P1: User Sovereignty — human resolves, not machine)
+    SpecDriftResolved {
+        /// The spec whose drift was resolved.
+        spec_id: String,
+        /// Resolution timestamp.
+        resolved_at: String,
+    },
 }

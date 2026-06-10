@@ -117,6 +117,98 @@ pub async fn chat_with_agent(
         episodic_storage_override: episodic_storage,
         semantic_storage_override: semantic_storage,
         auth_context: None, // CLI uses legacy system-level token from config secrets
+        params_override: None,
+    };
+
+    match ChatService::chat(&ctx, req).await {
+        Ok(resp) => resp,
+        Err(e) => ChatResponse {
+            text: format!("Chat error: {}", e),
+            usage: None,
+            finish_reason: "error".to_string(),
+            tool_calls: vec![],
+        },
+    }
+}
+
+/// Variant of `chat_with_agent` that accepts explicit LLMParameters.
+/// Sets `params_override` on the ChatRequest, which ChatService already respects.
+#[allow(clippy::too_many_arguments)]
+pub async fn chat_with_agent_with_params(
+    input: &str,
+    agent_name: Option<&str>,
+    model_override: Option<&str>,
+    inference_port: Option<Arc<dyn InferencePort>>,
+    secrets: Option<&ResolvedSecrets>,
+    episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
+    semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
+    _agent_webid: Option<hkask_types::WebID>,
+    system_prompt_suffix: Option<&str>,
+    tool_section: Option<&str>,
+    params: &LLMParameters,
+) -> ChatResponse {
+    let name = agent_name.unwrap_or("Curator");
+
+    let ctx = match secrets {
+        Some(s) => {
+            let mcp_secret = hkask_keystore::resolve_mcp_secret()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+            let config = hkask_services::ServiceConfig::from_secrets(
+                s.acp_secret.clone(),
+                s.db_passphrase.clone(),
+                mcp_secret,
+                name.to_string(),
+            );
+            match AgentService::build(config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("AgentService error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            }
+        }
+        None => {
+            let config = match hkask_services::ServiceConfig::from_env() {
+                Ok(c) => c,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("Config error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            };
+            match AgentService::build(config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("AgentService error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            }
+        }
+    };
+
+    let req = ChatRequest {
+        input: input.to_string(),
+        agent_name: Some(name.to_string()),
+        model_override: model_override.map(|s| s.to_string()),
+        system_prompt_suffix: system_prompt_suffix.map(|s| s.to_string()),
+        tool_section: tool_section.map(|s| s.to_string()),
+        inference_port_override: inference_port,
+        episodic_storage_override: episodic_storage,
+        semantic_storage_override: semantic_storage,
+        auth_context: None,
+        params_override: Some(params.clone()),
     };
 
     match ChatService::chat(&ctx, req).await {
@@ -214,6 +306,7 @@ pub async fn chat_with_agent_streaming(
         episodic_storage_override: episodic_storage,
         semantic_storage_override: semantic_storage,
         auth_context: None,
+        params_override: None,
     };
 
     // Prepare the chat turn (prompt composition, semantic recall, etc.)
@@ -234,6 +327,8 @@ pub async fn chat_with_agent_streaming(
         temperature: 0.7,
         top_p: 0.9,
         top_k: 40,
+        min_p: 0.0,
+        typical_p: 0.0,
         frequency_penalty: 0.0,
         presence_penalty: 0.0,
         max_tokens: 512,
@@ -260,6 +355,168 @@ pub async fn chat_with_agent_streaming(
                 if !chunk.text_delta.is_empty() {
                     print!("{}", chunk.text_delta);
                     // Flush stdout to ensure incremental display
+                    use std::io::Write;
+                    let _ = std::io::stdout().flush();
+                }
+                full_text.push_str(&chunk.text_delta);
+                if let Some(usage) = chunk.usage {
+                    final_usage = Some(usage);
+                }
+                if let Some(reason) = chunk.finish_reason {
+                    final_finish_reason = reason;
+                }
+                if !chunk.tool_calls.is_empty() {
+                    final_tool_calls = chunk.tool_calls;
+                }
+            }
+            Err(e) => {
+                return ChatResponse {
+                    text: format!("Stream error: {}", e),
+                    usage: None,
+                    finish_reason: "error".to_string(),
+                    tool_calls: vec![],
+                };
+            }
+        }
+    }
+    println!(); // Newline after streaming output
+
+    // Store the exchange as episodic triple
+    ChatService::store_episodic(
+        &prepared.episodic_port,
+        input,
+        &full_text,
+        prepared.agent_webid,
+        &prepared.capability_token,
+        &prepared.agent_name,
+    );
+
+    ChatResponse {
+        text: full_text,
+        usage: final_usage.map(|u| TokenUsage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+        }),
+        finish_reason: final_finish_reason,
+        tool_calls: final_tool_calls,
+    }
+}
+
+/// Variant of `chat_with_agent_streaming` that accepts explicit LLMParameters.
+/// The streaming path requires the params before prepare_chat since the
+/// inference call happens after prepare. We pass params_override through
+/// the ChatRequest so PrepareChat receives it, then use directly for streaming.
+#[allow(clippy::too_many_arguments)]
+pub async fn chat_with_agent_streaming_with_params(
+    input: &str,
+    agent_name: Option<&str>,
+    model_override: Option<&str>,
+    inference_port: Option<Arc<dyn InferencePort>>,
+    secrets: Option<&ResolvedSecrets>,
+    episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
+    semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
+    _agent_webid: Option<hkask_types::WebID>,
+    system_prompt_suffix: Option<&str>,
+    tool_section: Option<&str>,
+    params: &LLMParameters,
+) -> ChatResponse {
+    let name = agent_name.unwrap_or("Curator");
+
+    let ctx = match secrets {
+        Some(s) => {
+            let mcp_secret = hkask_keystore::resolve_mcp_secret()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+                .unwrap_or_else(|_| "hkask-mcp-default".to_string());
+            let config = hkask_services::ServiceConfig::from_secrets(
+                s.acp_secret.clone(),
+                s.db_passphrase.clone(),
+                mcp_secret,
+                name.to_string(),
+            );
+            match AgentService::build(config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("AgentService error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            }
+        }
+        None => {
+            let config = match hkask_services::ServiceConfig::from_env() {
+                Ok(c) => c,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("Config error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            };
+            match AgentService::build(config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("AgentService error: {}", e),
+                        usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
+                    };
+                }
+            }
+        }
+    };
+
+    let req = ChatRequest {
+        input: input.to_string(),
+        agent_name: Some(name.to_string()),
+        model_override: model_override.map(|s| s.to_string()),
+        system_prompt_suffix: system_prompt_suffix.map(|s| s.to_string()),
+        tool_section: tool_section.map(|s| s.to_string()),
+        inference_port_override: inference_port,
+        episodic_storage_override: episodic_storage,
+        semantic_storage_override: semantic_storage,
+        auth_context: None,
+        params_override: Some(params.clone()),
+    };
+
+    // Prepare the chat turn (prompt composition, semantic recall, etc.)
+    let prepared = match ChatService::prepare_chat(&ctx, &req).await {
+        Ok(p) => p,
+        Err(e) => {
+            return ChatResponse {
+                text: format!("Chat prepare error: {}", e),
+                usage: None,
+                finish_reason: "error".to_string(),
+                tool_calls: vec![],
+            };
+        }
+    };
+
+    // Stream inference using caller-provided params
+    let stream = prepared.inference_port.generate_stream_with_model(
+        &prepared.prompt,
+        params,
+        Some(&prepared.model),
+    );
+
+    let mut full_text = String::new();
+    let mut final_usage: Option<InferenceUsage> = None;
+    let mut final_finish_reason = String::from("stop");
+    let mut final_tool_calls: Vec<hkask_types::ports::StructuredToolCall> = vec![];
+
+    use futures_util::StreamExt;
+    let mut stream = Box::pin(stream);
+    while let Some(chunk_result) = stream.next().await {
+        match chunk_result {
+            Ok(chunk) => {
+                if !chunk.text_delta.is_empty() {
+                    print!("{}", chunk.text_delta);
                     use std::io::Write;
                     let _ = std::io::stdout().flush();
                 }

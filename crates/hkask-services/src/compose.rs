@@ -206,6 +206,8 @@ impl ComposeService {
             temperature: 0.7,
             top_p: 0.9,
             top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
             frequency_penalty: 0.0,
             presence_penalty: 0.0,
             max_tokens: 512,

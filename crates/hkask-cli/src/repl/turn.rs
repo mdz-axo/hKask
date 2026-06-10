@@ -12,6 +12,7 @@ use hkask_types::ports::StructuredToolCall;
 use super::ReplState;
 use super::cns_display;
 use super::energy;
+use super::handlers::to_llm_params;
 use super::hhh_loop;
 use super::tool_augmented;
 
@@ -51,7 +52,9 @@ pub(super) fn ensemble_turn(
                             response.agent_webid, response.confidence, response.content
                         );
                     }
-                    state.session_history.record(&agent_name, &processed.text);
+                    state
+                        .session_history
+                        .record(input, &agent_name, &processed.text);
                 }
                 if let Some(ref synthesis) = turn.curator_synthesis {
                     let processed = rt.block_on(tool_augmented::process_response(
@@ -65,7 +68,9 @@ pub(super) fn ensemble_turn(
                     if !processed.had_tool_calls {
                         println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
                     }
-                    state.session_history.record("Curator", &processed.text);
+                    state
+                        .session_history
+                        .record(input, "Curator", &processed.text);
                 }
             }
             for j in &turn.judgments {
@@ -84,27 +89,19 @@ pub(super) fn ensemble_turn(
 /// Handle a single-agent inference turn.
 ///
 /// Returns `false` if the turn should be skipped (energy budget exhausted).
+///
+/// The turn follows an agentic tool-use loop:
+/// 1. Inject recent conversation history as suffix context (after cache breakpoint)
+/// 2. Call the model → if it requests tools, execute them
+/// 3. Feed tool results back → call the model again
+/// 4. Repeat until model stops requesting tools or repl_settings.tool_loop_limit
 pub(super) fn single_agent_turn(
     input: &str,
     state: &mut ReplState,
     rt: &tokio::runtime::Handle,
     acp_secret: &[u8],
 ) -> bool {
-    // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
-    // before inference, settle with actual token cost after.
-    let Some(mut gas_guard) = energy::EnergyGuard::try_reserve(
-        state.service_context.cybernetics_loop(),
-        &state.inference_loop,
-        &state.agent_webid,
-        rt,
-        500,
-    ) else {
-        println!(
-            "  \x1b[31m\u{2717} Gas budget exhausted (hard limit) \u{2014} turn blocked by cybernetic regulator\x1b[0m"
-        );
-        println!("  \x1b[2mUse /status to see budget details, or wait for replenishment.\x1b[0m");
-        return false;
-    };
+    let settings = state.repl_settings.clone();
 
     // Execute manifest cascade if the agent has a process manifest.
     let mut manifest_context: Option<String> = None;
@@ -146,8 +143,7 @@ pub(super) fn single_agent_turn(
         }
     }
 
-    // When HHH mode is active, wrap the input in a reframe template
-    // and append HHH directives to the system prompt.
+    // Build the base input with manifest context.
     let base_input: String = match &manifest_context {
         Some(ctx) => format!(
             "[Manifest Context]\n{}\n[/Manifest Context]\n\n{}",
@@ -155,74 +151,75 @@ pub(super) fn single_agent_turn(
         ),
         None => input.to_string(),
     };
-    let (effective_input, hhh_suffix): (String, Option<String>) =
-        if state.hhh_mode == HhhMode::Active {
-            let reframed = hhh_gate::hhh_reframe(&base_input);
-            let suffix = hhh_gate::hhh_augment_system_prompt("");
-            (reframed, Some(suffix))
-        } else {
-            (base_input, None)
-        };
 
-    // Stream the response incrementally
-    print!("{}: ", state.current_agent);
-    use std::io::Write;
-    let _ = std::io::stdout().flush();
-    let chat_response = rt.block_on(crate::commands::chat_with_agent_streaming(
-        &effective_input,
-        Some(&state.current_agent),
-        Some(&state.current_model),
-        Some(state.inference_port.clone()),
-        state.resolved_secrets.as_ref(),
-        Some(state.episodic_storage.clone()),
-        Some(state.semantic_storage.clone()),
-        Some(state.agent_webid),
-        hhh_suffix.as_deref(),
-        Some(state.tool_prompt_section.as_str()),
-    ));
-
-    // Settle gas with actual token cost
-    let actual_cost = chat_response
-        .usage
-        .as_ref()
-        .map(|u| u.gas_cost())
-        .unwrap_or(gas_guard.heuristic());
-    gas_guard.settle(actual_cost);
-
-    let response = chat_response.text;
-
-    let structured_calls: Vec<StructuredToolCall> = if chat_response.finish_reason == "tool_calls" {
-        chat_response.tool_calls
+    // Append conversation history AFTER the current input (suffix), not
+    // before (prefix). The system prompt + tool section form the stable
+    // prefix that stays cacheable across turns. History changes each turn
+    // and must be placed after the cache breakpoint to avoid invalidating
+    // KV cache hits.
+    let history_suffix = state.session_history.recent_context(settings.context_turns);
+    let input_with_context = if history_suffix.is_empty() {
+        base_input
     } else {
-        vec![]
+        format!("{}\n\n{}", base_input, history_suffix)
     };
-    let processed = rt.block_on(tool_augmented::process_response(
-        &response,
-        &state.current_agent,
-        &state.governed_tool,
-        &state.agent_webid,
-        acp_secret,
-        Some(&structured_calls),
-    ));
-    let mut final_response = processed.text;
 
-    // If tool calls were found, feed the results back to the model.
-    if processed.had_tool_calls && !processed.tool_results_formatted.is_empty() {
-        let followup_prompt = format!(
-            "{}\n\nThe following tool calls were executed:\n\n{}\n\nBased on these results, provide your response.",
-            final_response.trim(),
-            processed.tool_results_formatted
-        );
+    // ── Tool-use loop: keep calling the model until it stops requesting tools ──
+    let max_loops = settings.tool_loop_limit;
+    let mut current_response: String = input_with_context;
+    let mut iteration: usize = 0;
+    let mut total_usage: Option<crate::commands::TokenUsage> = None;
 
-        if let Some(mut followup_guard) = energy::EnergyGuard::try_reserve(
+    loop {
+        iteration += 1;
+        if iteration > max_loops {
+            println!(
+                "  \x1b[33m\u{26a0} Tool-use loop max iterations ({}) reached — yielding current response\x1b[0m",
+                max_loops
+            );
+            break;
+        }
+
+        // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
+        // before inference, settle with actual token cost after.
+        let Some(mut gas_guard) = energy::EnergyGuard::try_reserve(
             state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
             rt,
-            500,
-        ) {
-            let followup = rt.block_on(crate::commands::chat_with_agent(
-                &followup_prompt,
+            settings.gas_heuristic,
+        ) else {
+            println!(
+                "  \x1b[31m\u{2717} Gas budget exhausted (hard limit) \u{2014} turn blocked by cybernetic regulator\x1b[0m"
+            );
+            println!(
+                "  \x1b[2mUse /status to see budget details, or wait for replenishment.\x1b[0m"
+            );
+            return false;
+        };
+
+        // When HHH mode is active, wrap the input in a reframe template
+        // and append HHH directives to the system prompt.
+        let (effective_input, hhh_suffix): (String, Option<String>) =
+            if state.hhh_mode == HhhMode::Active {
+                let reframed = hhh_gate::hhh_reframe(&current_response);
+                let suffix = hhh_gate::hhh_augment_system_prompt("");
+                (reframed, Some(suffix))
+            } else {
+                (current_response.clone(), None)
+            };
+
+        // Build LLM parameters from REPL settings.
+        let params = to_llm_params(&settings);
+
+        // Stream the response incrementally (first iteration only; subsequent
+        // tool-loop iterations use non-streaming to avoid redundant output).
+        let chat_response = if iteration == 1 {
+            print!("{}: ", state.current_agent);
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            rt.block_on(crate::commands::chat_with_agent_streaming_with_params(
+                &effective_input,
                 Some(&state.current_agent),
                 Some(&state.current_model),
                 Some(state.inference_port.clone()),
@@ -230,59 +227,109 @@ pub(super) fn single_agent_turn(
                 Some(state.episodic_storage.clone()),
                 Some(state.semantic_storage.clone()),
                 Some(state.agent_webid),
-                None,
+                hhh_suffix.as_deref(),
                 Some(state.tool_prompt_section.as_str()),
-            ));
-
-            let followup_cost = followup
-                .usage
-                .as_ref()
-                .map(|u| u.gas_cost())
-                .unwrap_or(followup_guard.heuristic());
-            followup_guard.settle(followup_cost);
-
-            if let Some(ref usage) = followup.usage {
-                println!(
-                    "  \x1b[2mFollowup: {} tokens ({} prompt + {} completion)\x1b[0m",
-                    usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
-                );
-            }
-
-            let followup_structured: Vec<StructuredToolCall> =
-                if followup.finish_reason == "tool_calls" {
-                    followup.tool_calls
-                } else {
-                    vec![]
-                };
-            let followup_processed = rt.block_on(tool_augmented::process_response(
-                &followup.text,
-                &state.current_agent,
-                &state.governed_tool,
-                &state.agent_webid,
-                acp_secret,
-                Some(&followup_structured),
-            ));
-            final_response = followup_processed.text;
+                &params,
+            ))
         } else {
-            println!("  \x1b[33m\u{26a0} Gas budget insufficient for followup inference\x1b[0m");
-        }
+            rt.block_on(crate::commands::chat_with_agent_with_params(
+                &effective_input,
+                Some(&state.current_agent),
+                Some(&state.current_model),
+                Some(state.inference_port.clone()),
+                state.resolved_secrets.as_ref(),
+                Some(state.episodic_storage.clone()),
+                Some(state.semantic_storage.clone()),
+                Some(state.agent_webid),
+                hhh_suffix.as_deref(),
+                Some(state.tool_prompt_section.as_str()),
+                &params,
+            ))
+        };
 
-        // HHH gate evaluation after tool-augmented followup
-        if state.hhh_mode == HhhMode::Active {
-            if let Some(ref gate_port) = state.gate_inference_port {
-                hhh_loop::evaluate_hhh(input, &mut final_response, gate_port, state, rt);
+        // Accumulate usage across iterations
+        if let Some(ref usage) = chat_response.usage {
+            if let Some(ref mut total) = total_usage {
+                total.prompt_tokens += usage.prompt_tokens;
+                total.completion_tokens += usage.completion_tokens;
+                total.total_tokens += usage.total_tokens;
             } else {
-                println!("  \x1b[33m\u{26a0} HHH mode active but gate model unavailable\x1b[0m");
+                total_usage = Some(usage.clone());
             }
         }
+
+        // Settle gas with actual token cost
+        let actual_cost = chat_response
+            .usage
+            .as_ref()
+            .map(|u| u.gas_cost())
+            .unwrap_or(gas_guard.heuristic());
+        gas_guard.settle(actual_cost);
+
+        let response = chat_response.text;
+
+        let structured_calls: Vec<StructuredToolCall> =
+            if chat_response.finish_reason == "tool_calls" {
+                chat_response.tool_calls
+            } else {
+                vec![]
+            };
+
+        // Parse and execute tool calls
+        let processed = rt.block_on(tool_augmented::process_response(
+            &response,
+            &state.current_agent,
+            &state.governed_tool,
+            &state.agent_webid,
+            acp_secret,
+            Some(&structured_calls),
+        ));
+
+        // If no tool calls were found, this is the final response
+        if !processed.had_tool_calls {
+            current_response = processed.text;
+
+            // HHH gate evaluation (only on final response, after tool loop completes)
+            if state.hhh_mode == HhhMode::Active {
+                if let Some(ref gate_port) = state.gate_inference_port {
+                    hhh_loop::evaluate_hhh(input, &mut current_response, gate_port, state, rt);
+                } else {
+                    println!(
+                        "  \x1b[33m\u{26a0} HHH mode active but gate model unavailable\x1b[0m"
+                    );
+                }
+            }
+
+            // Persona filter (Stage 4 of alignment pipeline)
+            current_response = hhh_gate::apply_persona_filter(
+                &current_response,
+                state.persona_constraints.as_ref(),
+            );
+
+            break;
+        }
+
+        // Tool calls found — build the next iteration's prompt with results
+        current_response = format!(
+            "{}\n\nThe following tool calls were executed:\n\n{}\n\nBased on these results, provide your response.",
+            processed.text.trim(),
+            processed.tool_results_formatted
+        );
     }
 
     // Show token usage
-    if let Some(ref usage) = chat_response.usage {
-        println!(
-            "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
-            usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
-        );
+    if let Some(ref usage) = total_usage {
+        if iteration > 1 {
+            println!(
+                "  \x1b[2m{} tokens ({} prompt + {} completion) across {} iterations\x1b[0m",
+                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens, iteration
+            );
+        } else {
+            println!(
+                "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
+                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+            );
+        }
     }
 
     // Check energy budget and warn if low
@@ -303,15 +350,10 @@ pub(super) fn single_agent_turn(
 
     cns_display::update_cns_and_display(input, state, rt);
 
-    // Persona filter (Stage 4 of alignment pipeline)
-    final_response =
-        hhh_gate::apply_persona_filter(&final_response, state.persona_constraints.as_ref());
-
-    // Streaming already printed the agent label and text deltas.
     // Record the (possibly persona-filtered) response in session history.
     state
         .session_history
-        .record(&state.current_agent, &final_response);
+        .record(input, &state.current_agent, &current_response);
 
     true
 }

@@ -20,6 +20,7 @@ use crate::error::ServiceError;
 use crate::{AgentService, InferenceContext, InferenceService};
 
 /// Token usage breakdown for gas accounting.
+#[derive(Clone)]
 pub struct TokenUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -393,8 +394,7 @@ impl ChatService {
                 (None, None) => {
                     let inf_ctx =
                         InferenceContext::from_parts(None, &model, &ctx.config().okapi_base_url);
-                    InferenceService::resolve_port(&inf_ctx, &model)
-                        .map_err(|e| ServiceError::Inference(e.to_string()))?
+                    InferenceService::resolve_port(&inf_ctx, &model)?
                 }
             };
 
@@ -465,6 +465,8 @@ impl ChatService {
             temperature: 0.7,
             top_p: 0.9,
             top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
             frequency_penalty: 0.0,
             presence_penalty: 0.0,
             max_tokens: 512,
@@ -478,7 +480,7 @@ impl ChatService {
             .inference_port
             .generate_with_model(&prepared.prompt, &params, Some(&prepared.model))
             .await
-            .map_err(|e| ServiceError::Inference(e.to_string()))?;
+            .map_err(|e| ServiceError::InferencePort(e))?;
 
         // REQ: P9 (Homeostatic) — CNS span after inference
         tracing::debug!(target: "cns.chat.response", agent = %prepared.agent_name, model = %prepared.model, tokens = result.usage.total_tokens, finish_reason = %result.finish_reason);

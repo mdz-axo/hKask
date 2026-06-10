@@ -3,18 +3,16 @@
 use hkask_types::ports::ToolPort;
 
 pub(crate) fn handle_history(state: &super::super::ReplState) {
-    if state.session_history.turns.is_empty() {
+    let count = state.session_history.turn_count();
+    if count == 0 {
         println!("  No turns in this session yet.");
     } else {
-        println!(
-            "  Session history ({} turns):",
-            state.session_history.turns.len()
-        );
-        for (i, (agent, response)) in state.session_history.turns.iter().enumerate() {
+        println!("  Session history ({} turns):", count);
+        for (i, (agent, response)) in state.session_history.turns_for_display().enumerate() {
             let preview = if response.len() > 80 {
                 format!("{}…", &response[..80])
             } else {
-                response.clone()
+                response.to_string()
             };
             println!("  {:>3}. {}: {}", i + 1, agent, preview);
         }
