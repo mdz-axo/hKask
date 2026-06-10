@@ -39,20 +39,20 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **Memory → Cybernetics** | Memory pipeline spans | CNS observability | ✅ `cns.pipeline.*` spans intact |
 | **Curation → Cybernetics** | Regulatory override | EnergyBudget override | ✅ `OverrideEnergyBudget` directive intact |
 
-**Communication loop demotion:** Communication no longer owns resources or regulates. Inter-loop messaging is still functional (custom `LoopMessage` types), but the loop itself is demoted to transport. Candidate #3 (LoopMessage→tokio) is deferred — the current messaging system works, it's just not architecturally minimal.
+**Communication loop demotion:** Communication no longer exists as a loop — it is pure transport (`tokio::mpsc` channels). Candidate #3 (LoopMessage→tokio) is complete. `LoopMessage`, `LoopPayload`, `MessageDispatch`, and `CommunicationLoop` have been deleted. All inter-loop messaging uses direct typed `tokio::mpsc` channels.
 
 ### 4.3 — VSM Viability
 
 | VSM System | hKask Component | Viable? |
 |------------|-----------------|---------|
 | **S1 (Operations)** | Inference + Memory loops, MCP tool dispatch | ✅ Both loops have feedback (energy budgets, memory consolidation) |
-| **S2 (Coordination)** | Communication transport (tokio channels future) | ⚠️ Currently custom messaging (deferred to #3) |
+| **S2 (Coordination)** | Communication transport (tokio channels, completed #3) | ✅ Direct typed mpsc channels for all inter-loop messaging |
 | **S3 (Control)** | CNS variety counters + algedonic thresholds | ✅ Variety monitoring, threshold comparison intact |
 | **S3\* (Audit)** | `kask sovereignty verify` | ✅ Magna Carta verification intact |
 | **S4 (Intelligence)** | Curator Agent | ✅ Curation decisions (Accept/Revise/Reject) external but documented |
 | **S5 (Policy)** | Magna Carta P1-P4 + OCAP constraints | ✅ Principles condensed from 16→9, all Prohibitions intact |
 
-**VSM assessment:** The system is viable at every level. S2 uses custom messaging (not tokio) but the messaging works — it's a minimalism violation (P5), not a viability gap. Deferred to candidate #3.
+**VSM assessment:** The system is viable at every level. S2 uses direct `tokio::mpsc` channels for all inter-loop messaging — Candidate #3 is complete. S1 (Operations) and S3-S5 all pass.
 
 ### 4.4 — Conant-Ashby (Good Regulator)
 
@@ -85,7 +85,7 @@ cargo clippy --workspace -- -D warnings  # ⚠️ Pre-existing warnings in hkask
 | Spec tool names in code | ✅ Resolved | All 5 `#[tool]` handlers use MDS §3 names (spec_goal_capture, spec_goal_decompose, spec_require_writing_quality, spec_graph_query, spec_graph_coherence). Test `all_mds_tools_are_listed` verifies old DDMVSS names are absent. Stale doc references in `OPEN_QUESTIONS.md` and `MDS_SCAFFOLD.md` updated. |
 | MCP server consolidation | ✅ Resolved (2026-06-09) | 21→10 servers. Internal (inference, CNS, OCAP, keystore, registry, git, goals) removed from MCP. Callers updated to direct crate calls. ACP ports for replicant/ensemble. Memory backup added to hkask-mcp-memory. See `continuation-mcp-consolidation.md` and `continuation-internal-access-replacement.md`. |
 | `hkask-agents` restructuring | ⚠️ Deferred | Pod/Agent/Service boundaries are muddled (candidate #4). Continuation prompt at `condensation/continuation-pod-agent-service.md`. |
-| LoopMessage→tokio | ⚠️ Deferred | Candidate #3 deferred. Continuation prompt at `condensation/continuation-loopmessage-tokio.md`. |
+| LoopMessage→tokio | ✅ Complete | Candidate #3 completed. All pathways use direct `tokio::mpsc` channels. `LoopMessage`, `LoopPayload`, `MessageDispatch`, `CommunicationLoop` deleted. `LoopId` reduced to 4. See `continuation-loopmessage-tokio.md`. |
 | Service module depth | ⚠️ Partial | `skill.rs` thinned (1 private helper). `archival.rs` borderline. No further extraction done. |
 | CNS queries extraction | ✅ Resolved | `hkask-services::cns::CnsService` created. CLI `commands/cns.rs` uses `ServiceContext` + `CnsService` (with standalone fallback). API routes delegate through `state.service_context.cns`. |
 
@@ -103,7 +103,7 @@ cargo clippy --workspace -- -D warnings  # ⚠️ Pre-existing warnings in hkask
 Current test coverage is not spec-anchored per the MDS `// REQ:` convention. No `// REQ:` tags were added during this condensation pass because the changes were renames and deletions, not new feature implementations. Tracer-bullet TDD (Task 3b) was not executed because:
 - Candidate #5 was a pure rename (no behavior change)
 - Candidate #1 was a variant deletion (no new behavior)
-- Candidates #3 and #4 were deferred
+- Candidate #3 completed, #4 deferred
 
 **Recommendation:** Apply `// REQ:` tag discipline to all future code changes per MDS §8.
 
@@ -125,7 +125,7 @@ Current test coverage is not spec-anchored per the MDS `// REQ:` convention. No 
 
 ### Subjunctive Projections
 
-1. **LoopMessage→tokio (Candidate #3):** The custom loop messaging infrastructure is a redundant projection of `tokio::mpsc` channels. If the algedonic alert pathway maps cleanly to a dedicated alert channel, the entire `LoopMessage`/`Signal`/`WorkerKind` type family can be deleted. Continuation prompt at `condensation/continuation-loopmessage-tokio.md`. **Verify with end-to-end algedonic pathway test before acting.**
+1. **LoopMessage→tokio (Candidate #3):** ✅ Resolved. The custom loop messaging infrastructure has been replaced with direct `tokio::mpsc` channels. `LoopMessage`, `LoopPayload`, `MessageDispatch`, `CommunicationLoop`, `DispatchTarget`, `WorkerKind`, and `MessagePriority` have all been deleted. `LoopId` reduced from 7 to 4 variants. `CurationInput` unified inbox wired. `SnapshotLoop` registered. `GoalTransitionEvent` producer wired.
 2. **MCP server consolidation impact:** If CNS, keystore, ocap, and registry MCP servers are deleted (internal-only functions), the CNS runtime, keystore, and OCAP enforcement must be verified to work without MCP tool dispatch. These are currently accessible via MCP — removing the MCP layer may require direct function call replacements in the Curator.
 
 ### Constraint Conflicts
@@ -138,7 +138,7 @@ None. All condensation changes preserved Prohibitions:
 
 ### Planck's Constant
 
-There is a minimum action. The condensation achieved: 16→9 principles, 9→5 spec categories, 9→5 spec tools, 6→4 loops. Further compression candidates exist (#3 LoopMessage→tokio, #4 Pod/Agent/Service, MCP server consolidation) but each requires more evidence before committing. The next pass starts here.
+There is a minimum action. The condensation achieved: 16→9 principles, 9→5 spec categories, 9→5 spec tools, 6→4 loops. Further compression candidates exist (#4 Pod/Agent/Service, MCP server consolidation) but each requires more evidence before committing. The next pass starts here.
 
 ---
 

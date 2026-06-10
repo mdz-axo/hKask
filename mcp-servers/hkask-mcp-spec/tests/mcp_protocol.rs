@@ -249,11 +249,11 @@ async fn writing_quality_assesses_spec_with_token() {
         .expect("Tool call failed");
     let text = text_from_result(&result);
 
-    // Extract the goal_id from capture response
+    // Extract the goal_id from capture response (wrapped in {"content": {...}} envelope)
     let goal_id: String = {
         let v: serde_json::Value =
             serde_json::from_str(&text).expect("capture response must be valid JSON");
-        v["goal_id"].as_str().unwrap_or("").to_string()
+        v["content"]["goal_id"].as_str().unwrap_or("").to_string()
     };
     assert!(!goal_id.is_empty(), "Capture must return a valid goal_id");
 

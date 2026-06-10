@@ -55,13 +55,29 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 
 **Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
 
+### AgentService Architecture (v0.27.1)
+
+`AgentService` (formerly `ServiceContext`) is the canonical service layer owning all shared infrastructure. Fields are **private** and grouped into **7 domain adapters** accessed via methods:
+
+```rust
+agent_service.memory().episodic()      // Memory domain
+agent_service.cns().runtime()          // CNS domain
+agent_service.governance().dispatcher() // Governance domain
+agent_service.storage().registry()     // Storage domain
+agent_service.coordination().session_manager() // Coordination domain
+agent_service.identity().webid()       // Identity domain
+agent_service.config()                 // Config domain
+```
+
+See [`../specifications/MDS-agent-service.md`](../specifications/MDS-agent-service.md) for full specification.
+
 ### Dependency Direction
 
 ```mermaid
 graph TD
     CLI["hkask-cli"]
     API["hkask-api"]
-    SVC["hkask-services"]
+    SVC["hkask-services (AgentService)"]
     CLI --> SVC
     API --> SVC
     SVC --> AGENTS[hkask-agents]
@@ -74,14 +90,14 @@ graph TD
 
 Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` (P1 Prohibition — out-of-process isolation).
 
-### ServiceContext Composition
+### AgentService Composition
 
-`ServiceContext::build(config)` assembles all shared infrastructure once at startup. Both surfaces compose it and add only presentation-specific fields:
+`AgentService::build(config)` assembles all shared infrastructure once at startup. Both surfaces compose it and add only presentation-specific fields:
 
-- `ReplState` = `ServiceContext` + REPL fields (prompt history, input state)
-- `ApiState` = `ServiceContext` + HTTP fields (router, OpenAPI spec)
+- `ReplState` = `AgentService` + REPL fields (prompt history, input state)
+- `ApiState` = `AgentService` + HTTP fields (router, OpenAPI spec)
 
-`ServiceContext::build()` replaces four independent assembly paths: `Stores::init`, `build_loop_system`, `build_governed_mcp_tool`, `build_ensemble_session`. Dependency order: DB → stores → CNS → loop system → governed tool → ACP/pods → inference port → memory adapters.
+`AgentService::build()` replaces four independent assembly paths: `Stores::init`, `build_loop_system`, `build_governed_mcp_tool`, `build_ensemble_session`. Dependency order: DB → stores → CNS → loop system → governed tool → ACP/pods → inference port → memory adapters.
 
 ### Surface vs Service Boundary
 
@@ -92,11 +108,19 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | OCAP gates | Surface | `GovernedTool` membrane, capability checks before service call |
 | HTTP status mapping | `hkask-api` | `ServiceError → StatusCode` |
 | CLI formatting | `hkask-cli` | Table output, color, progress indicators |
+| Field encapsulation | `hkask-services` | All 27 fields private, accessed via 7 domain adapter methods |
 
-### Depth Test Results
+### Depth Test Results (Post-Condensation v0.27.1)
 
 | Module | Public API | Call Sites (CLI+API) | Status |
 |--------|-----------|---------------------|--------|
+| `AgentService` | 7 methods (domain adapters) | 2 surfaces | ✅ Pass — encapsulated |
+| `MemoryAdapters` | 2 methods | 8+ | ✅ Pass |
+| `CnsAdapters` | 4 methods | 12+ | ✅ Pass |
+| `GovernanceAdapters` | 4 methods | 10+ | ✅ Pass |
+| `StorageAdapters` | 7 methods | 15+ | ✅ Pass |
+| `CoordinationAdapters` | 5 methods | 12+ | ✅ Pass |
+| `IdentityAdapters` | 2 methods | 6+ | ✅ Pass |
 | `InferenceService` | 3 functions | 8+ | ✅ Pass |
 | `CuratorService` | 6 functions | 12+ | ✅ Pass |
 | `EnsembleService` | 8 functions | 16+ | ✅ Pass |

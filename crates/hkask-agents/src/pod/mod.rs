@@ -118,7 +118,7 @@ pub enum AgentPodError {
     CrateLoadError(#[from] hkask_types::GitError),
 
     #[error("ACP registration failed: {0}")]
-    ACPRegistrationError(#[from] crate::acp::AcpError),
+    ACPRegistrationError(String),
 
     #[error("MCP access grant failed: {0}")]
     MCPAccessError(#[from] crate::error::McpError),
@@ -246,7 +246,8 @@ impl AgentPod {
         let capabilities: Vec<String> = self.persona.capabilities.clone();
         let token = acp
             .register_agent(self.webid, self.agent_type, capabilities)
-            .await?;
+            .await
+            .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?;
 
         self.capability_token = token;
         self.state = PodLifecycleState::Registered;

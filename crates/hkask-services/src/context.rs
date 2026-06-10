@@ -1,11 +1,11 @@
 //! Shared dependency graph assembled once at startup.
 //!
-//! `ServiceContext` owns the canonical instances of all shared infrastructure:
+//! `AgentService` owns the canonical instances of all shared infrastructure:
 //! registry, MCP runtime, CNS, loop system, escalation queue, memory adapters,
-//! etc. Both `ReplState` and `ApiState` compose a `ServiceContext` and add
+//! etc. Both `ReplState` and `ApiState` compose an `AgentService` and add
 //! only their surface-specific presentation fields.
 //!
-//! Construction happens via `ServiceContext::build(config)`, which replaces
+//! Construction happens via `AgentService::build(config)`, which replaces
 //! the four independent assembly paths currently in the codebase:
 //! - `ReplState` init in `cli/repl/init.rs` (~325 lines)
 //! - `ApiState::new()` in `api/lib.rs` (~400 lines)
@@ -58,19 +58,19 @@ use crate::cns::CnsService;
 
 /// Shared dependency graph assembled once at startup.
 ///
-/// `ServiceContext` replaces the independent assembly in `ReplState`,
+/// `AgentService` replaces the independent assembly in `ReplState`,
 /// `ApiState`, `build_loop_system()`, and `commands/loops.rs`. Surfaces
 /// compose this struct and add only presentation-specific fields.
 ///
-/// Construct via `ServiceContext::build(config)`. The config provides all
+/// Construct via `AgentService::build(config)`. The config provides all
 /// deployment-varying parameters (DB paths, secrets, thresholds, model names).
 /// The builder resolves the dependency graph canonically: stores → CNS →
 /// loop system → governed tool → session manager.
 ///
 /// `#[non_exhaustive]` prevents external crates from constructing this struct
-/// with struct literal syntax — use `ServiceContext::build()` instead.
+/// with struct literal syntax — use `AgentService::build()` instead.
 #[non_exhaustive]
-pub struct ServiceContext {
+pub struct AgentService {
     /// Template registry.
     pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
 
@@ -209,7 +209,7 @@ pub fn open_agent_registry(
     Ok((acp, store))
 }
 
-impl ServiceContext {
+impl AgentService {
     /// Assemble all shared infrastructure from a `ServiceConfig`.
     ///
     /// This is the canonical construction path that replaces the four

@@ -220,7 +220,8 @@ impl PodManager {
             Some(
                 self.acp_runtime
                     .register_agent(webid, agent_type, capabilities)
-                    .await?,
+                    .await
+                    .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?,
             )
         } else {
             None

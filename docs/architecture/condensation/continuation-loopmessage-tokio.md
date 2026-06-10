@@ -3,14 +3,14 @@ title: "Condensation Continuation — Candidate #3: LoopMessage → tokio Channe
 audience: [architects, developers]
 last_updated: 2026-06-09
 version: "0.27.0"
-status: "In Progress — Phase 3 Remaining"
+status: "Complete — 2026-06-09"
 domain: "Architecture"
 mds_categories: [composition, lifecycle]
 ---
 
 # Condensation Continuation — Candidate #3: LoopMessage/Signal → tokio Channels
 
-**Status:** In Progress. Phase 1 (Audit) and Phase 2 (Strangler Fig — new channels alongside old) are complete. Phase 3 (Delete legacy types + reduce LoopId) remains.
+**Status:** Complete. All three phases finished. All pathways migrated to direct `tokio::mpsc` channels. `LoopMessage`, `LoopPayload`, `MessageDispatch`, `CommunicationLoop`, `DispatchTarget`, `WorkerKind`, and `MessagePriority` all deleted. `LoopId` reduced from 7 variants to 4: `Inference`, `Memory`, `Curation`, `Cybernetics`. `CurationInput` unified inbox wired. `SnapshotLoop` registered with `LoopSystem`. `GoalTransitionEvent` producer wired in API route.
 
 ---
 

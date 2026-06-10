@@ -23,7 +23,7 @@ pub use compose::{
 };
 pub use config::ServiceConfig;
 pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
-pub use context::ServiceContext;
+pub use context::AgentService;
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedResult, EmbedService, EmbeddingConfig, FoundationalRule,
     ValidationConfig, Work,

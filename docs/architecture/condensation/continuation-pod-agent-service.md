@@ -3,14 +3,14 @@ title: "Condensation Continuation — Candidate #4: Pod/Agent/Service Restructur
 audience: [architects, developers]
 last_updated: 2026-06-09
 version: "0.27.0"
-status: "Deferred"
+status: "Complete — 2026-06-09"
 domain: "Architecture"
 mds_categories: [domain, composition]
 ---
 
 # Condensation Continuation — Candidate #4: Pod/Agent/Service/ACP Restructuring
 
-**Status:** Deferred. `hkask-agents` is the most overloaded crate in the codebase — it contains Curation, Inference, Pod management, ACP communication, Ensemble, Sovereignty enforcement, Consent management, and Escalation. This is a structural clarification, not a deletion: the entities are correct, but their boundaries are muddled.
+**Status:** Complete. Phase 1 documented the actual module boundaries and dependency graph. Phase 2 fixed the only muddling: `pod/` no longer depends on `acp/` errors — `ACPRegistrationError` is now a plain `String` variant, breaking the circular dependency. All other modules were already well-structured. Phase 3 verification: `cargo check`, `cargo clippy`, `cargo test` all pass.
 
 ---
 
@@ -42,35 +42,52 @@ No code deletion — same entities, clarified boundaries.
 
 ```
 hkask-agents/src/
-├── pod/           # AgentPod, PodLifecycleState, PodManager
-├── acp/           # AcpRuntime, AcpAgent, A2AMessage
-├── curator/       # CuratorAgent, DefaultSpecCurator, CurationLoop
-├── curator_agent/ # Metacognition, spec curator
-├── ensemble/      # EnsembleChat, StandingSession, ImprovMode
-├── communication/ # MessageDispatch
-├── inference_loop/# InferenceLoop
-├── loop_system/   # LoopSystem, CyberneticsLoopHandle
-├── hhh_gate/      # HhhConfig, HhhMode
-├── escalation/    # EscalationQueue
-├── consent/       # ConsentManager
-├── sovereignty/   # SovereigntyChecker
-├── adapters/      # MCP runtime adapter
-├── ports/         # ACP, memory storage ports
-├── prompt_analysis/
-└── registry_loader/
+├── pod.rs            # AgentPod, PodLifecycleState, PodManager — pod lifecycle
+├── acp/              # AcpRuntime, AcpAgent, A2AMessage — agent communication
+├── curator/          # CurationLoop, CuratorContext — pure regulatory loop
+├── curator_agent/    # CuratorAgent, Metacognition, SpecCurator — persona layer
+├── ensemble/         # EnsembleChat, StandingSession, SessionManager
+├── inference_loop.rs # InferenceLoop — domain loop
+├── loop_system.rs    # LoopSystem, CyberneticsLoopHandle — registration + ticking
+├── consent.rs        # ConsentManager — user sovereignty
+├── escalation.rs     # EscalationQueue — curator escalation
+├── hhh_gate.rs       # HhhConfig — HHH safety gate
+├── sovereignty.rs    # SovereigntyChecker — Magna Carta enforcement
+├── prompt_analysis.rs
+├── registry_loader.rs
+├── error.rs
+├── adapters/         # MCP runtime adapter
+└── ports/            # ACP, memory storage ports
 ```
+
+Note: `communication/` has been deleted (Candidate #3 complete). `inference_loop.rs` is a single file, not a directory.
 
 ### Muddling Examples
 
-| Entity | Where It Lives | Problem |
-|--------|---------------|---------|
-| `AgentPod` lifecycle | `pod/mod.rs` | Pod lifecycle owns agent registration, which should be a separate concern |
-| `AcpRuntime` | `acp/` | ACP lives in a submodule but agents join ACP through pod lifecycle — circular dependency |
-| `PodManager` | `pod/` | Manages pods but also handles service access delegation |
-| `CurationLoop` | `curator/` | Curation regulates pods but lives in the same crate as pods |
-| `InferenceLoop` | `inference_loop/` | Inference is a separate loop but lives in agents crate |
-| `EnsembleChat` | `ensemble/` | Multi-agent chat coordination lives in agents but should be separate from pod lifecycle |
-| `Communication` | `communication/` | Should be demoted to transport (per 4-loop model) |
+| Entity | Where It Lives | What It Depends On | Problem |
+|--------|---------------|--------------------|---------|
+| `AgentPod` | `pod/mod.rs` | `acp/` (AcpError), `ports/` (AcpPort, MCPRuntimePort), `SovereigntyChecker` | Pod lifecycle owns agent registration, sovereignty enforcement, and ACP wiring — three concerns in one struct |
+| `InferenceLoop` | `inference_loop.rs` | Only `hkask-types` | Self-contained — domain loop correctly isolated. Lives in agents crate for convenience, not necessity |
+| `ConsentManager` | `consent.rs` | Only `hkask-storage`, `hkask-types` | Self-contained — correct isolation. Could live in `hkask-services` |
+| `SovereigntyChecker` | `sovereignty.rs` | Only `hkask-types` | Self-contained — correct isolation. Used by pod/mod.rs at activation |
+| `EscalationQueue` | `escalation.rs` | Only `hkask-storage`, `hkask-types` | Self-contained — correct isolation |
+| `HhhGate` | `hhh_gate.rs` | `curator/persona_filter`, `InferencePort` | Cross-module dependency on curator. Gate logic tied to persona filtering |
+| `EnsembleChat` | `ensemble/` | No crate-internal deps | Self-contained — correct isolation. Multi-agent coordination lives in agents but is independent of pod lifecycle |
+| `CuratorAgent` | `curator_agent/` | `curator/` (CurationLoop, CuratorContext) | Agent depends on regulatory loop — correct per spec. Persona layer above regulation |
+| `CurationLoop` | `curator/` | No crate-internal deps | Pure regulatory loop — should regulate pods, not live alongside them |
+
+### Dependency Graph
+
+```
+pod/ ──→ acp/          (circular: pod creates agent, agent joins ACP)
+pod/ ──→ ports/        (trait boundary — correct)
+pod/ ──→ sovereignty.rs (sovereignty check at activation)
+hhh_gate.rs ──→ curator/persona_filter (gate needs curator persona)
+curator_agent/ ──→ curator/ (persona above regulation — correct)
+error.rs ──→ acp/ (re-exports AcpError)
+
+consent, sovereignty, escalation, inference_loop, ensemble: no crate-internal deps
+```
 
 ### The Deletion Test Applied
 
@@ -83,27 +100,98 @@ If we mentally delete `hkask-agents`:
 
 ## Approach
 
-### Phase 1 — Document the Model
+### Phase 1 — Document the Model ✅ Complete
 
-1. Write a clear specification of Pod/Agent/Service/ACP boundaries in a single document
-2. Map every existing type to its correct boundary
-3. Identify types that cross boundaries (the muddling)
+**Boundary Specification:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ hkask-agents                                            │
+│                                                         │
+│  ┌──────────┐    trait     ┌──────────────┐            │
+│  │   pod/   │───AcpPort───→│    acp/      │            │
+│  │lifecycle │              │ agent identity│            │
+│  │ manager  │              │ registration │            │
+│  │ context  │              │ A2A messaging│            │
+│  └────┬─────┘              └──────────────┘            │
+│       │                                                │
+│       │ trait (MCPRuntimePort)                          │
+│       ▼                                                │
+│  ┌──────────────────┐    ┌──────────────────┐          │
+│  │   sovereignty.rs │    │   ensemble/      │          │
+│  │   Magna Carta    │    │ multi-agent chat │          │
+│  └──────────────────┘    └──────────────────┘          │
+│                                                         │
+│  ┌────────────────────┐                                │
+│  │ curator_agent/     │ ← persona layer                │
+│  │  CuratorAgent      │                                │
+│  │  Metacognition     │                                │
+│  │  SpecCurator       │                                │
+│  └────────┬───────────┘                                │
+│           │ depends on                                 │
+│  ┌────────▼───────────┐                                │
+│  │ curator/           │ ← pure regulatory loop         │
+│  │  CurationLoop      │                                │
+│  │  CuratorContext    │                                │
+│  └────────────────────┘                                │
+│                                                         │
+│  Standalone: consent.rs, escalation.rs,                 │
+│  hhh_gate.rs, inference_loop.rs, error.rs              │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key finding:** The original doc described 9 concerns in one crate. Audit shows the actual situation is better than feared:
+
+| Module | Lines | Crate-internal deps | Verdict |
+|--------|-------|--------------------|---------|
+| `ensemble/` | 10 files | **0** | ✅ Self-contained |
+| `consent.rs` | 1 file | **0** | ✅ Self-contained |
+| `sovereignty.rs` | 1 file | **0** | ✅ Self-contained |
+| `escalation.rs` | 1 file | **0** | ✅ Self-contained |
+| `inference_loop.rs` | 1 file | **0** | ✅ Self-contained |
+| `curator/` | 5 files | **0** | ✅ Self-contained (pure regulation) |
+| `curator_agent/` | 4 files | `curator/` only | ✅ Correct dependency direction (persona → regulation) |
+| `acp/` | N files | None | ✅ Self-contained |
+| `pod/` | 5 files | `acp/` (error type), `ports/` (traits), `sovereignty.rs` | ⚠️ Mixed: trait deps are correct, AcpError coupling is the one muddling |
+| `hhh_gate.rs` | 1 file | `curator/persona_filter` | ⚠️ Gate depends on curator persona — reasonable |
+
+**The one actionable muddling:** `pod/mod.rs` uses `crate::acp::AcpError` in its error type. This creates a circular dependency: pod creates agent, agent joins ACP, pod errors reference ACP errors. Fix: pod should define its own error variant and let callers map ACP errors.
+
+**Open questions:**
+1. Should `InferenceLoop` move to `hkask-cns` or `hkask-templates`? Currently self-contained in `hkask-agents` with only `hkask-types` deps. The loop-architecture spec (§3.1) maps Inference to its own loop with no specific crate assignment.
+2. Should `CurationLoop` move to its own crate? Currently in `agents` but has zero crate-internal deps. The spec says Curation regulates pods — regulation should be separate from what it regulates. Moving to `hkask-cns` (the regulatory crate) would align with spec but creates a dependency inversion (CNS crate containing curation logic).
 
 ### Phase 2 — Clarify Module Boundaries
 
-1. Reorganize `hkask-agents/src/` to reflect the model:
-   ```
-   hkask-agents/src/
-   ├── pod/       # Pod lifecycle only (AgentPod, PodLifecycleState, PodManager)
-   ├── agent/     # Agent identity (AgentDefinition, WebID, Charter, Persona, AgentKind)
-   ├── acp/       # ACP communication (AcpRuntime, AcpAgent, A2AMessage) — separate from pod
-   ├── curator/   # Curation (CuratorAgent, CurationLoop — may belong in separate crate)
-   ├── ensemble/  # Multi-agent chat
-   └── inference/ # InferenceLoop (may belong closer to templates or CNS)
-   ```
+Based on the audit, the structure is cleaner than the original doc assumed. Instead of a full reorganization, the actionable work is:
 
-2. Move Curation and Inference to their own modules with clear boundaries
-3. Ensure ServiceContext (in hkask-services) is the single entry point for service access — pods don't reach into domain crates directly
+1. **Fix AcpError coupling in `pod/`**: Replace `ACPRegistrationError(#[from] crate::acp::AcpError)` with a pod-specific error variant. Callers (ServiceContext, CLI) map ACP errors to pod errors at the boundary. This breaks the only circular dependency in the crate.
+2. **No module moves needed**: `consent.rs`, `sovereignty.rs`, `escalation.rs`, `inference_loop.rs`, `ensemble/`, `curator/`, `hhh_gate.rs` are all self-contained with correct dependency direction.
+3. **Open questions deferred**: InferenceLoop crate location and CurationLoop crate location are design questions that don't block this pass.
+
+**Updated proposed structure** (minimal change):
+
+```
+hkask-agents/src/
+├── pod/       # Pod lifecycle — decoupled from ACP errors
+├── acp/       # Agent identity + ACP communication
+├── curator/   # CurationLoop, CuratorContext — pure regulation
+├── curator_agent/  # CuratorAgent, Metacognition — persona
+├── ensemble/  # Multi-agent chat
+├── inference_loop.rs
+├── loop_system.rs
+├── consent.rs
+├── escalation.rs
+├── hhh_gate.rs
+├── sovereignty.rs
+├── prompt_analysis.rs
+├── registry_loader.rs
+├── error.rs
+├── adapters/
+└── ports/
+```
+
+**Net change:** zero module moves, one error type fix in `pod/mod.rs`. The crate was already well-structured; the original diagnosis was overly pessimistic.
 
 ### Phase 3 — Verify
 
@@ -135,13 +223,13 @@ All preceding condensation work should be complete before starting this:
 - [x] Candidate #5: EnergyBudget rename
 - [x] Candidate #1: Visibility 3→2
 - [x] Candidate #2: NuEvent/Span — resolved (complementary, no action)
-- [x] Candidate #3: LoopMessage→tokio — deferred (separate continuation prompt)
+- [x] Candidate #3: LoopMessage→tokio — completed
 - [x] Documentation cleanup (DDMVSS→MDS, 9→5 categories, 6→4 loops)
 - [x] MDS specification (5 categories, 5 tools, 3 curation decisions)
 
 ## Dependencies
 
-Candidate #3 (LoopMessage→tokio) should be completed before #4 if both are pursued, because #3 changes the messaging infrastructure that pods and agents rely on.
+Candidate #3 (LoopMessage→tokio) has been completed. Direct `tokio::mpsc` channels are now the messaging infrastructure. Pods and agents should use these channels directly.
 
 ---
 
