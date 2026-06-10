@@ -12,7 +12,7 @@ mod cns_display;
 mod commands;
 pub(crate) mod display;
 mod energy;
-mod handlers;
+pub(crate) mod handlers;
 mod helper;
 mod hhh_loop;
 mod init;

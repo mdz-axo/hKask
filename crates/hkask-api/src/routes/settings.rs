@@ -9,6 +9,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::ApiState;
 
+/// Path to the persisted settings file.
+fn settings_path() -> std::path::PathBuf {
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.config", h)))
+        .unwrap_or_else(|_| ".".to_string());
+    let mut path = std::path::PathBuf::from(base);
+    path.push("hkask");
+    let _ = std::fs::create_dir_all(&path);
+    path.push("settings.json");
+    path
+}
+
 /// JSON shape for the settings response.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SettingsResponse {
@@ -28,28 +40,49 @@ pub struct SettingsResponse {
     pub supports_thinking: Option<bool>,
 }
 
-impl From<hkask_cli::repl::handlers::ReplSettings> for SettingsResponse {
-    fn from(s: hkask_cli::repl::handlers::ReplSettings) -> Self {
+impl Default for SettingsResponse {
+    fn default() -> Self {
         Self {
-            tool_loop_limit: s.tool_loop_limit,
-            context_turns: s.context_turns,
-            temperature: s.temperature,
-            top_p: s.top_p,
-            top_k: s.top_k,
-            min_p: s.min_p,
-            typical_p: s.typical_p,
-            max_tokens: s.max_tokens,
-            seed: s.seed,
-            gas_heuristic: s.gas_heuristic,
-            gas_cap: s.gas_cap,
-            auto_compact: s.auto_compact,
-            context_length: s.model_meta.as_ref().map(|m| m.context_length),
-            supports_thinking: s.model_meta.as_ref().map(|m| m.supports_thinking),
+            tool_loop_limit: 21,
+            context_turns: 3,
+            temperature: 0.7,
+            top_p: 0.9,
+            top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
+            max_tokens: 512,
+            seed: None,
+            gas_heuristic: 500,
+            gas_cap: 10_000,
+            auto_compact: true,
+            context_length: None,
+            supports_thinking: None,
         }
     }
 }
 
-/// JSON shape for updating settings.
+/// Load settings from disk. Returns defaults if the file doesn't exist
+/// or can't be parsed.
+fn load_settings() -> SettingsResponse {
+    let path = settings_path();
+    match std::fs::read_to_string(&path) {
+        Ok(json) => match serde_json::from_str::<SettingsResponse>(&json) {
+            Ok(s) => s,
+            Err(_) => SettingsResponse::default(),
+        },
+        Err(_) => SettingsResponse::default(),
+    }
+}
+
+/// Save settings to disk.
+fn save_settings(settings: &SettingsResponse) -> Result<(), String> {
+    let path = settings_path();
+    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
+/// JSON shape for updating settings. All fields optional — only present
+/// fields are applied; omitted fields keep their current value.
 #[derive(Debug, Deserialize)]
 pub struct UpdateSettingsRequest {
     pub tool_loop_limit: Option<usize>,
@@ -72,8 +105,7 @@ pub fn settings_router() -> Router<ApiState> {
 
 /// GET /api/settings — return current settings.
 async fn get_settings(State(_state): State<ApiState>) -> Json<SettingsResponse> {
-    let settings = hkask_cli::commands::settings::load_settings();
-    Json(SettingsResponse::from(settings))
+    Json(load_settings())
 }
 
 /// PUT /api/settings — update settings, merge with current values.
@@ -81,7 +113,7 @@ async fn update_settings(
     State(_state): State<ApiState>,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> Json<SettingsResponse> {
-    let mut settings = hkask_cli::commands::settings::load_settings();
+    let mut settings = load_settings();
 
     if let Some(v) = req.tool_loop_limit {
         if v > 0 {
@@ -138,11 +170,6 @@ async fn update_settings(
         settings.auto_compact = v;
     }
 
-    // Persist
-    let path = hkask_cli::repl::handlers::repl_settings::settings_path();
-    if let Ok(json) = serde_json::to_string_pretty(&settings) {
-        let _ = std::fs::write(&path, json);
-    }
-
-    Json(SettingsResponse::from(settings))
+    let _ = save_settings(&settings);
+    Json(settings)
 }

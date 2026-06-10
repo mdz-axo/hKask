@@ -10,11 +10,7 @@ use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{SpecCategory, SpecCurator};
 
 fn build_service_context() -> hkask_services::AgentService {
-    let config =
-        hkask_services::ServiceConfig::from_env().expect("Failed to resolve service config");
-    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
-    rt.block_on(hkask_services::AgentService::build(config))
-        .expect("Failed to build service context")
+    super::helpers::build_service_context()
 }
 
 pub fn run(action: SpecAction) {

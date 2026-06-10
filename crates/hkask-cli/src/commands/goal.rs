@@ -1,27 +1,12 @@
 //! Goal coordination commands — delegates to GoalService.
 
-use hkask_services::{AgentService, CreateGoalRequest, GoalService, ServiceConfig, ServiceError};
+use hkask_services::{CreateGoalRequest, GoalService};
 
 use crate::cli::GoalAction;
 use crate::errors::RegistryError;
 
-impl From<ServiceError> for RegistryError {
-    fn from(e: ServiceError) -> Self {
-        RegistryError::InitFailed(e.to_string())
-    }
-}
-
-fn build_service_context() -> Result<AgentService, RegistryError> {
-    let config = ServiceConfig::from_env().map_err(RegistryError::from)?;
-    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
-    let svc = rt
-        .block_on(AgentService::build(config))
-        .map_err(RegistryError::from)?;
-    Ok(svc)
-}
-
 pub fn create(text: &str, visibility: &str) -> Result<(), RegistryError> {
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     let owner = hkask_types::WebID::from_persona(b"cli-user");
     let goal = GoalService::create_goal(
         &ctx,
@@ -30,7 +15,8 @@ pub fn create(text: &str, visibility: &str) -> Result<(), RegistryError> {
             visibility: visibility.to_string(),
             owner,
         },
-    )?;
+    )
+    .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
     println!("Created goal {}", goal.id);
     println!("  text:       {}", goal.text);
     println!("  state:      {}", goal.state);
@@ -39,9 +25,10 @@ pub fn create(text: &str, visibility: &str) -> Result<(), RegistryError> {
 }
 
 pub fn list(state: Option<&str>) -> Result<(), RegistryError> {
-    let ctx = build_service_context()?;
+    let ctx = super::helpers::build_service_context();
     let owner = hkask_types::WebID::from_persona(b"cli-user");
-    let goals = GoalService::list_goals(&ctx, &owner, state)?;
+    let goals = GoalService::list_goals(&ctx, &owner, state)
+        .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
     if goals.is_empty() {
         println!("No goals found.");
         return Ok(());
@@ -54,8 +41,9 @@ pub fn list(state: Option<&str>) -> Result<(), RegistryError> {
 }
 
 pub fn set_state(id: &str, state: &str) -> Result<(), RegistryError> {
-    let ctx = build_service_context()?;
-    let goal = GoalService::set_goal_state(&ctx, id, state)?;
+    let ctx = super::helpers::build_service_context();
+    let goal = GoalService::set_goal_state(&ctx, id, state)
+        .map_err(|e| RegistryError::InitFailed(e.to_string()))?;
     println!("Goal {} -> {}", goal.id, goal.state);
     Ok(())
 }

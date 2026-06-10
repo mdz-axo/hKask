@@ -44,9 +44,8 @@ pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
-    ModelSearchQuery, PodStatusResponse,
-    SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
-    VarietyCounterResponse,
+    ModelSearchQuery, PodStatusResponse, SpecCoherenceResponse, SpecListResponse,
+    SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
 };
 
 use std::collections::HashMap;
@@ -240,6 +239,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
             .merge(routes::consolidation_router().into())
             .merge(routes::git_router().into())
             .merge(routes::goal_router().into())
+            .merge(routes::settings_router().into())
             .layer(axum::middleware::from_fn_with_state(
                 auth_service,
                 middleware::auth_middleware,

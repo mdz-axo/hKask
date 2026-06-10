@@ -40,3 +40,51 @@ impl CnsService {
         self.runtime.read().await.variety().await
     }
 }
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_cns::DEFAULT_THRESHOLD;
+
+    // REQ: svc-cns-001 — health_returns_defaults_for_empty_runtime
+    //
+    // A freshly constructed CnsRuntime should report healthy status
+    // with zero alerts and zero deficits. This is the baseline —
+    // any deviation indicates a problem in CNS initialization.
+    #[tokio::test]
+    async fn health_returns_defaults_for_empty_runtime() {
+        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+        let svc = CnsService::new(runtime);
+
+        let health = svc.health().await;
+        assert!(health.healthy, "Fresh CNS runtime should be healthy");
+        assert_eq!(health.overall_deficit, 0);
+        assert_eq!(health.critical_count, 0);
+        assert_eq!(health.warning_count, 0);
+    }
+
+    // REQ: svc-cns-002 — alerts_returns_empty_for_fresh_runtime
+    #[tokio::test]
+    async fn alerts_returns_empty_for_fresh_runtime() {
+        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+        let svc = CnsService::new(runtime);
+
+        let alerts = svc.alerts().await;
+        assert!(alerts.is_empty(), "Fresh CNS runtime should have no alerts");
+    }
+
+    // REQ: svc-cns-003 — variety_returns_empty_for_fresh_runtime
+    #[tokio::test]
+    async fn variety_returns_empty_for_fresh_runtime() {
+        let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
+        let svc = CnsService::new(runtime);
+
+        let variety = svc.variety().await;
+        assert!(
+            variety.is_empty(),
+            "Fresh CNS runtime should have no variety domains"
+        );
+    }
+}

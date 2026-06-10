@@ -40,17 +40,6 @@ fn parse_repo_id(repo: &str) -> RepoId {
     }
 }
 
-fn build_service_context(rt: &tokio::runtime::Runtime) -> AgentService {
-    let config = super::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
-        "Failed to resolve config",
-    );
-    super::helpers::or_exit(
-        rt.block_on(hkask_services::AgentService::build(config)),
-        "Failed to build AgentService",
-    )
-}
-
 pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
     match action {
         // ── GitHub API operations (existing) ──────────────────────────────
@@ -109,7 +98,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             repo,
             message,
         } => {
-            let ctx = build_service_context(rt);
+            let ctx = super::helpers::build_service_context();
 
             let result = block_on!(
                 rt,

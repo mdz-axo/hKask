@@ -12,18 +12,6 @@ use hkask_services::{AgentService, EnsembleService};
 use hkask_types::ports::InferencePort;
 use std::sync::Arc;
 
-fn build_service_context() -> Result<AgentService, crate::errors::EnsembleError> {
-    let config = hkask_services::ServiceConfig::from_env().map_err(|e| {
-        crate::errors::EnsembleError::SessionNotFound(format!("Config error: {}", e))
-    })?;
-    let rt = tokio::runtime::Runtime::new().map_err(|e| {
-        crate::errors::EnsembleError::SessionNotFound(format!("Runtime error: {}", e))
-    })?;
-    rt.block_on(AgentService::build(config)).map_err(|e| {
-        crate::errors::EnsembleError::SessionNotFound(format!("AgentService error: {}", e))
-    })
-}
-
 pub async fn ensemble_chat_create(ctx: &AgentService, session: String) -> Result<String, String> {
     EnsembleService::create_chat(ctx, &session)
         .await
@@ -188,8 +176,12 @@ pub fn ensemble_standing_status(
 /// CLI handler for `kask ensemble` subcommand
 pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAction) {
     use crate::commands;
-    let build_ctx =
-        || super::helpers::or_exit(build_service_context(), "Failed to build service context");
+    let build_ctx = || {
+        super::helpers::or_exit(
+            super::helpers::build_service_context(),
+            "Failed to build service context",
+        )
+    };
 
     match action {
         EnsembleAction::ChatCreate { session } => {

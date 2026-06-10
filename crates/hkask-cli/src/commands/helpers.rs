@@ -16,6 +16,20 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
     }
 }
 
+/// Build an AgentService from environment config. Shared across all commands
+/// that previously duplicated `build_service_context()`.
+pub fn build_service_context() -> hkask_services::AgentService {
+    let config = or_exit(
+        hkask_services::ServiceConfig::from_env(),
+        "Failed to resolve service config",
+    );
+    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
+    or_exit(
+        rt.block_on(hkask_services::AgentService::build(config)),
+        "Failed to build service context",
+    )
+}
+
 /// Write content to a file or print to stdout.
 pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     match output {

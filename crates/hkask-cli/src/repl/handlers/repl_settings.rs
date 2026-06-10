@@ -211,7 +211,9 @@ fn is_valid_setting(arg1: &str) -> bool {
     )
 }
 
-fn settings_path() -> std::path::PathBuf {
+/// Path to the persisted settings file. Public so the API surface can
+/// save/load from the same file.
+pub fn settings_path() -> std::path::PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     path.push("hkask");
     let _ = std::fs::create_dir_all(&path);
