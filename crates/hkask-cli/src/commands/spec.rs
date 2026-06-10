@@ -1,13 +1,12 @@
-//! Spec command handlers for `kask spec`
-//
+//! Spec command handlers for `kask spec` — delegates to SpecService.
+//!
 //! Implements the CLI display logic for specification capture, validation,
-//! cultivation, and rendering. Uses `AgentService::spec_store` for
-//! spec persistence — no direct `open_spec_store()` calls.
+//! cultivation, and rendering.
 
 use crate::cli::SpecAction;
 use hkask_agents::DefaultSpecCurator;
-use hkask_storage::SpecStore;
-use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurator};
+use hkask_services::{SpecCaptureRequest, SpecService};
+use hkask_storage::spec_types::{SpecCategory, SpecCurator};
 
 fn build_service_context() -> hkask_services::AgentService {
     let config =
@@ -26,31 +25,43 @@ pub fn run(action: SpecAction) {
             criteria,
         } => {
             let ctx = build_service_context();
-            let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
-            let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
-            let mut goal = GoalSpec::new(&name);
-            if let Some(crits) = criteria.as_deref() {
-                for c in crits.split(',') {
-                    goal = goal.with_criterion(c.trim());
-                }
-            }
-            let spec = Spec::new(&name, cat, anchor).with_goal(goal);
-            let is_complete = spec.is_complete();
-            ctx.spec_store().save(&spec).expect("Failed to save spec");
+            let resp = SpecService::capture(
+                &ctx,
+                SpecCaptureRequest {
+                    name_or_description: name,
+                    category: Some(category),
+                    domain: Some(domain),
+                    criteria: Some(criteria.unwrap_or_default()),
+                    context: None,
+                },
+            )
+            .expect("Failed to capture spec");
 
             println!("Specification captured:");
-            println!("  ID: {}", spec.id);
-            println!("  Name: {}", spec.name);
-            println!("  Category: {}", spec.category.as_str());
-            println!("  Domain: {}", spec.domain_anchor.as_str());
-            println!("  Complete: {}", is_complete);
+            println!("  ID: {}", resp.spec_id);
+            println!("  Name: {}", resp.name);
+            println!("  Category: {}", resp.category);
+            println!("  Domain: {}", resp.domain_anchor);
+            println!("  Complete: {}", resp.complete);
         }
         SpecAction::List { category } => {
-            println!("Specifications:");
-            if let Some(cat) = category {
-                println!("  (filtered by category: {})", cat);
+            let ctx = build_service_context();
+            match SpecService::list(&ctx, category.as_deref()) {
+                Ok(entries) => {
+                    if entries.is_empty() {
+                        println!("No specifications found.");
+                    } else {
+                        println!("Specifications ({}):", entries.len());
+                        for e in entries {
+                            println!(
+                                "  {} [{}] {} — complete: {}",
+                                e.spec_id, e.category, e.name, e.complete
+                            );
+                        }
+                    }
+                }
+                Err(e) => println!("Spec listing failed: {e}"),
             }
-            println!("  Note: Persistent spec storage requires hkask-mcp-spec server.");
         }
         SpecAction::Evaluate { spec_id } => {
             println!("Evaluating specification: {}", spec_id);

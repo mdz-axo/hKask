@@ -55,18 +55,18 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 
 **Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
 
-### AgentService Architecture (v0.27.1)
+### AgentService Architecture (v0.27.2)
 
-`AgentService` (formerly `ServiceContext`) is the canonical service layer owning all shared infrastructure. Fields are **private** and grouped into **7 domain adapters** accessed via methods:
+`AgentService` is the canonical service layer owning all shared infrastructure. Fields are **private** and exposed through **7 group methods** returning tuples of references — no adapter structs, no new types:
 
 ```rust
-agent_service.memory().episodic()      // Memory domain
-agent_service.cns().runtime()          // CNS domain
-agent_service.governance().dispatcher() // Governance domain
-agent_service.storage().registry()     // Storage domain
-agent_service.coordination().session_manager() // Coordination domain
-agent_service.identity().webid()       // Identity domain
-agent_service.config()                 // Config domain
+agent_service.memory()       // (&Arc<EpisodicStoragePort>, &Arc<SemanticStoragePort>)
+agent_service.cns()          // (&Arc<RwLock<CnsRuntime>>, &Arc<RwLock<CyberneticsLoop>>, &Arc<LoopSystem>, &Arc<dyn NuEventSink>)
+agent_service.governance()   // (&Arc<CapabilityChecker>, &Arc<McpDispatcher>, &Arc<EscalationQueue>)
+agent_service.storage()      // (7 store references: registry, goals, specs, sessions, users, agent_registry, git_cas)
+agent_service.coordination() // (&Option<Arc<InferencePort>>, &Arc<McpRuntime>, &Arc<PodManager>, &Arc<RwLock<SessionManager>>)
+agent_service.identity()     // (&WebID, &Arc<AcpRuntime>)
+agent_service.config()       // &ServiceConfig
 ```
 
 See [`../specifications/MDS-agent-service.md`](../specifications/MDS-agent-service.md) for full specification.
@@ -110,22 +110,26 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | CLI formatting | `hkask-cli` | Table output, color, progress indicators |
 | Field encapsulation | `hkask-services` | All 27 fields private, accessed via 7 domain adapter methods |
 
-### Depth Test Results (Post-Condensation v0.27.1)
+### Depth Test Results (Post-Essentialist v0.27.2)
 
 | Module | Public API | Call Sites (CLI+API) | Status |
 |--------|-----------|---------------------|--------|
-| `AgentService` | 7 methods (domain adapters) | 2 surfaces | ✅ Pass — encapsulated |
-| `MemoryAdapters` | 2 methods | 8+ | ✅ Pass |
-| `CnsAdapters` | 4 methods | 12+ | ✅ Pass |
-| `GovernanceAdapters` | 4 methods | 10+ | ✅ Pass |
-| `StorageAdapters` | 7 methods | 15+ | ✅ Pass |
-| `CoordinationAdapters` | 5 methods | 12+ | ✅ Pass |
-| `IdentityAdapters` | 2 methods | 6+ | ✅ Pass |
-| `InferenceService` | 3 functions | 8+ | ✅ Pass |
-| `CuratorService` | 6 functions | 12+ | ✅ Pass |
-| `EnsembleService` | 8 functions | 16+ | ✅ Pass |
-| `PodService` | 6 functions | 12+ | ✅ Pass |
-| `SovereigntyService` | 9 functions + 2 types | 18+ | ✅ Pass |
+| `AgentService` | 8 methods (7 groups + build) | 2 surfaces | ✅ Pass — encapsulated |
+| `ChatService` | 4 functions | 8+ | ✅ Pass — CNS instrumented (P9) |
+| `InferenceService` | 3 functions | 11+ | ✅ Pass |
+| `ComposeService` | 1 function + 7 types | 2+ | ✅ Deep — 220 lines behind 1 call |
+| `EmbedService` | 2 functions + 9 types | 2+ | ✅ Deep — 200 lines behind 2 calls |
+| `OnboardingService` | 7 functions + 2 types | 2+ | ✅ Pass — reduced from 8 methods |
+| `VerificationService` | 3 functions + 5 types | 2+ | ✅ Pass |
+| `skill.rs` | 6 freestanding functions + 2 types | 4+ | ✅ Pass — freestanding, no wrapper struct |
+| `consolidation.rs` | 4 freestanding functions | 2+ | ✅ Pass — rate limiter + passphrase verify + consolidate |
+| `ArchivalService` | 4 functions + 2 types | 1 surface | ⚠️ Shallow — single-consumer HTTP pass-through |
+
+### Deleted Modules
+
+| Module | Reason |
+|--------|--------|
+| `CnsService` (cns.rs) | 42-line pure delegation — inlined into `AgentService::cns()` group method |
 
 ### Skipped Domains
 

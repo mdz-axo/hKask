@@ -44,7 +44,7 @@ pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
-    ModelSearchQuery, PodStatusResponse, SpecCaptureRequest, SpecCaptureResponse,
+    ModelSearchQuery, PodStatusResponse,
     SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
     VarietyCounterResponse,
 };

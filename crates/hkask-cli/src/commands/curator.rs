@@ -1,23 +1,14 @@
 //! Curator commands — delegates to CuratorService.
 
 use hkask_agents::EscalationEntry;
-use hkask_services::{
-    AgentService, CuratorService, EscalationResponse, ServiceConfig, ServiceError,
-};
+use hkask_services::{AgentService, CuratorService, ServiceConfig};
 
 use crate::block_on;
 use crate::cli::CuratorAction;
 use crate::errors::CuratorError;
 
-impl From<ServiceError> for CuratorError {
-    fn from(e: ServiceError) -> Self {
-        CuratorError::from(e)
-    }
-}
-
 fn build_service_context() -> Result<AgentService, CuratorError> {
-    let config = ServiceConfig::from_env()
-        .map_err(|e| CuratorError::from(ServiceError::from(e.to_string())))?;
+    let config = ServiceConfig::from_env().map_err(CuratorError::from)?;
     let rt = tokio::runtime::Runtime::new().expect("runtime should start");
     rt.block_on(AgentService::build(config))
         .map_err(CuratorError::from)
@@ -25,17 +16,13 @@ fn build_service_context() -> Result<AgentService, CuratorError> {
 
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
     let ctx = build_service_context()?;
-    // Use CuratorService for the response format, but return raw EscalationEntry
-    // for the CLI display code which needs field-level access.
-    CuratorService::list_escalations(&ctx)
-        .map(|_| vec![])
-        .map_err(CuratorError::from)?;
-    // Actually need the raw entries — use the escalation queue directly
-    // now that we have the properly-built AgentService.
+    // Use the escalation queue via AgentService for raw EscalationEntry access.
+    // The CuratorService provides typed EscalationResponse; the CLI needs raw
+    // fields (like bot_id.as_uuid()) for formatted display.
     let queue = ctx.escalation_queue();
     queue
         .list_pending()
-        .map_err(|e| CuratorError::from(ServiceError::from(e)))
+        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))
 }
 
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {

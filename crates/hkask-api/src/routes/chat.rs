@@ -103,6 +103,7 @@ async fn chat(
         episodic_storage_override: None,
         semantic_storage_override: None,
         auth_context: Some(auth),
+        params_override: None,
     };
 
     let result = match ChatService::chat(&state.agent_service, svc_req).await {

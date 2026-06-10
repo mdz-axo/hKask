@@ -298,6 +298,7 @@ pub struct ChatRequest {
     /// instead of minting ad-hoc system-level tokens. API routes extract this from
     /// middleware-verified request extensions; CLI paths construct it from keystore secrets.
     pub auth_context: Option<AuthContext>,
+    pub params_override: Option<LLMParameters>,
 }
 
 /// Prepared chat context — the result of prompt composition before inference.
@@ -455,9 +456,12 @@ impl ChatService {
     /// directly on the inference port.
     pub async fn chat(ctx: &AgentService, req: ChatRequest) -> Result<ChatResponse, ServiceError> {
         let prepared = Self::prepare_chat(ctx, &req).await?;
+        // Access params_override after prepare_chat returns (prepare_chat only borrows req)
+        let params_override = req.params_override;
 
-        // Execute inference
-        let params = LLMParameters {
+        // Resolve LLM parameters: caller override > agent-kind defaults
+        // REQ: P3 (Generative Space) — all parameters are user-exposed, none hidden.
+        let params = params_override.unwrap_or(LLMParameters {
             temperature: 0.7,
             top_p: 0.9,
             top_k: 40,
@@ -465,7 +469,7 @@ impl ChatService {
             presence_penalty: 0.0,
             max_tokens: 512,
             seed: None,
-        };
+        });
 
         // REQ: P9 (Homeostatic) — CNS span before inference
         tracing::debug!(target: "cns.chat.request", agent = %prepared.agent_name, model = %prepared.model, prompt_len = prepared.prompt.len());
