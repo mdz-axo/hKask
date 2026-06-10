@@ -16,8 +16,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Owner | Priority | Status | Evidence |
 |----|------|-------|----------|--------|----------|
-| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | `crates/hkask-cns/src/spans.rs` |
-| **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | `crates/hkask-storage/src/git_cas.rs` |
+| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | CNS spans distributed across `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-types/src/event.rs`, `crates/hkask-types/src/cns.rs`; canonical listing in PRINCIPLES.md §1.4 |
+| **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | Deleted in 2026-06-10 architecture audit (see HANDOFF.md) |
 | **P0-03** | CLI/API symmetry audit | CLI bot | High | ✅ Complete | API routes match CLI commands |
 | **P0-04** | Documentation quality gates | Curator | High | ✅ Complete | MDS-aligned refresh complete |
 
@@ -64,7 +64,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------------|
 | P2-06-D1 | ✅ Resolved: 5 hierarchical CNS spans registered in `CANONICAL_NAMESPACES` |
 | P2-06-D2 | ✅ Resolved: `Caveat` exists as `pub(crate)` — spec updated to note it's an internal implementation detail |
-| P2-06-D3 | ✅ Resolved: `CapabilityToken` type alias added to `hkask-types/src/capability/mod.rs` |
+| P2-06-D3 | ✅ Resolved: `CapabilityToken` type alias added to `crates/hkask-types/src/capability/mod.rs` |
 | P2-06-D4 | ✅ Resolved: `ContractValidator` stub added with FocusingAssumption FA-C1 |
 | P2-06-D5 | ✅ Resolved: `CapabilityAwareValidator` stub added with FocusingAssumption FA-T3 |
 | P2-06-D6 | ✅ Resolved: `TemplateInvocation` struct stub added with FocusingAssumption FA-D1 |
@@ -92,8 +92,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------|------|----------|
 | **R-01** | MDS documentation audit (Task 1) | 2026-05-25 | Classification table in refresh plan |
 | **R-02** | Archive 10 stale documents (Task 2) | 2026-05-25 | `docs/archive/2026-05-25-documentation-refresh/` |
-| **R-03** | Delete 1 duplicate document (Task 2) | 2026-05-25 | `DOCUMENTATION_REFRESH_DDNVSS.md` removed |
-| **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `docs/MDS_SCAFFOLD.md` |
+| **R-03** | Delete 1 duplicate document (Task 2) | 2026-05-25 | `DOCUMENTATION_REFRESH_DDNVSS.md` (deleted, no longer exists) |
+| **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `docs/specifications/MDS_SCAFFOLD.md` |
 | **R-05** | Write 4 MDS-aligned architecture docs (Task 4) | 2026-05-25 | domain-and-capability (deleted), interface-and-composition, trust-security-observability (deleted), persistence-and-lifecycle |
 | **R-06** | Write REQUIREMENTS.md (Task 5) | 2026-05-25 | `docs/specifications/REQUIREMENTS.md` |
 | **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `docs/specifications/TRACEABILITY_MATRIX.md` |
