@@ -62,7 +62,6 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 **Decision:** Maintain manual Mermaid dependency diagrams in architecture docs as the primary visualization. CI automation (cargo-depgraph) is a v1.1+ enhancement if dependency complexity warrants it.
 
-**Rationale:** The workspace crate map is stable (11 core + 21 MCP servers). Manual Mermaid in `subsystem-erds.md` §12 and `ports-inventory.md` provides adequate visualization. The DIAGRAM_ALIGNMENT mechanism (PS-09) already catches drift.
 
 ---
 
@@ -199,7 +198,6 @@ All sub-questions are **moot**:
    `CapabilityToken` attenuation, but the goal-specific recursion question is
    moot.
 
-**See:** `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025. ~~ADR-029 is archived (superseded — `GoalCapabilityToken` type no longer exists).~~
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 
@@ -207,7 +205,6 @@ All sub-questions are **moot**:
 **Status:** **Deprecated**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** The LOC budget has been deprecated. All code budget references removed from `docs/architecture/MDS.md`, `docs/architecture/reference/hKask-erd.md`, and `docs/architecture/PRINCIPLES.md`.
 
 **Replacement discipline:** Every component must be essential and minimal — ask "is this necessary?" before "how big is it?" Code size is an output, not a constraint.
 

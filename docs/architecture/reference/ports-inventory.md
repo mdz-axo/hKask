@@ -120,4 +120,3 @@ hkask-mcp → hkask-templates (McpPort impl)
 
 - `hKask-architecture-master.md` — authoritative architecture spec
 - `MDS.md §7` — port composition patterns
-- `subsystem-erds.md` — entity relationship diagrams

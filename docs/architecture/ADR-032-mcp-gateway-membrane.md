@@ -12,7 +12,7 @@ mds_categories: [composition, trust]
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) §5.5, OPEN_QUESTIONS.md FUT-004
+**Related:** [`MDS.md`](MDS.md) §7.1-7.2 §5.5, OPEN_QUESTIONS.md FUT-004
 
 ## Context
 
@@ -115,8 +115,8 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 
 ## Related Documents
 
-- [`MDS.md §7.1-7.2`](MDS.md §7.1-7.2) §5.5 — Capability membrane model
-- [`MDS.md §7.3`](MDS.md §7.3) §1 — Security model
+- [`MDS.md`](MDS.md) §7.1-7.2 §5.5 — Capability membrane model
+- [`MDS.md`](MDS.md) §7.3 §1 — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-004 — MCP gateway membrane question
 
 ## References

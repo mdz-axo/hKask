@@ -24,14 +24,14 @@ The current directory layout (grouped by artifact type) serves the MDS category 
 
 | # | MDS Category | Authoritative Document | Directory | Supporting References |
 |---|----------------|----------------------|----------------------|
-| 1 | **Domain** | [`MDS.md §7.1-7.2`](../architecture/MDS.md §7.1-7.2) | `architecture/` | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
-| 2 | **Capability** | [`MDS.md §7.1-7.2`](../architecture/MDS.md §7.1-7.2) | `architecture/` | [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
-| 3 | **Interface** | [`MDS.md §7.2`](../architecture/MDS.md §7.2) | `architecture/` | [`reference/utoipa-implementation.md`](../architecture/reference/utoipa-implementation.md), [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
-| 4 | **Composition** | [`MDS.md §7.2`](../architecture/MDS.md §7.2) | `architecture/` | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
-| 5 | **Trust & Security** | [`MDS.md §7.3`](../architecture/MDS.md §7.3) | `architecture/` | [`magna-carta.md`](../architecture/magna-carta.md) |
-| 6 | **Observability** | [`MDS.md §7.3`](../architecture/MDS.md §7.3) | `architecture/` | — |
-| 7 | **Persistence** | [`MDS.md §7.4`](../architecture/MDS.md §7.4) | `architecture/` | [`reference/hKask-erd.md`](../architecture/reference/hKask-erd.md), [`reference/registry-erd.md`](../architecture/reference/registry-erd.md), [`reference/subsystem-erds.md`](../architecture/reference/subsystem-erds.md) |
-| 8 | **Lifecycle** | [`MDS.md §7.4`](../architecture/MDS.md §7.4) | `architecture/` | [`CI-CD-GUIDE.md`](../specifications/CI-CD-GUIDE.md), [`DEPLOYMENT.md`](../specifications/DEPLOYMENT.md) |
+| 1 | **Domain** | [`MDS.md`](../architecture/MDS.md) §7.1-7.2 | `architecture/` | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
+| 2 | **Capability** | [`MDS.md`](../architecture/MDS.md) §7.1-7.2 | `architecture/` | [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
+| 3 | **Interface** | [`MDS.md`](../architecture/MDS.md) §7.2 | `architecture/` | [`reference/utoipa-implementation.md`](../architecture/reference/utoipa-implementation.md), [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
+| 4 | **Composition** | [`MDS.md`](../architecture/MDS.md) §7.2 | `architecture/` | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
+| 5 | **Trust & Security** | [`MDS.md`](../architecture/MDS.md) §7.3 | `architecture/` | [`magna-carta.md`](../architecture/magna-carta.md) |
+| 6 | **Observability** | [`MDS.md`](../architecture/MDS.md) §7.3 | `architecture/` | — |
+| 7 | **Persistence** | [`MDS.md`](../architecture/MDS.md) §7.4 | `architecture/` | — |
+| 8 | **Lifecycle** | [`MDS.md`](../architecture/MDS.md) §7.4 | `architecture/` | [`CI-CD-GUIDE.md`](../specifications/CI-CD-GUIDE.md), [`DEPLOYMENT.md`](../specifications/DEPLOYMENT.md) |
 | 9 | **Curation** | [`MDS.md`](../architecture/MDS.md) + [`WRITING_EXCELLENCE.md`](../specifications/WRITING_EXCELLENCE.md) | `architecture/` + `specifications/` | — |
 
 ---
@@ -60,16 +60,12 @@ docs/
 │   ├── ADR-033-*.md                       # DECISION RECORD (draft)
 │   ├── loop-architecture.md              # FRAMEWORK (4-loop authority model)
 │   └── reference/
-│       ├── hKask-erd.md                   # Diagram artifact
-│       ├── registry-erd.md                # Diagram artifact
-│       ├── subsystem-erds.md              # Diagram artifact
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
 │       ├── ports-inventory.md             # Port reference
 │       ├── utoipa-implementation.md       # API guide
 │       ├── template-header-standard.md    # Format reference
 │       ├── hKask-Curator-persona.md       # Persona spec
 │       └── okapi-integration.md           # Okapi API contract
-│   ├── hlexicon-validation-report.md     # hLexicon compliance audit
 ├── specifications/
 │   ├── MDS_SCAFFOLD.md                 # THIS FILE
 │   ├── REQUIREMENTS.md                    # Goal specs

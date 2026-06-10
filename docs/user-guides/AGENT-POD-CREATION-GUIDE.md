@@ -1286,8 +1286,8 @@ After creating your agent pod[^humble2010]:
 5. **Coordinate with other bots**: Establish A2A communication channels
 
 For advanced topics, see:
-- [Agent Pod Implementation](../architecture/MDS.md §7.1-7.2)
-- [Security Architecture](../architecture/MDS.md §7.3)
+- [Agent Pod Implementation](../architecture/MDS.md) §7.1-7.2
+- [Security Architecture](../architecture/MDS.md) §7.3
 - [CNS Observers](../architecture/PRINCIPLES.md)
 - [Template Header Standard](../architecture/reference/template-header-standard.md)
 

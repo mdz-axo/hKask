@@ -109,7 +109,6 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
-| **R-13** | Fix AGENTS.md path rot (3 broken references) | 2026-05-28 | hKask-erd.md→reference/, registry-templating→interface-and-composition, P0_OKAPI→reference/okapi-integration |
 | **R-14** | Fix README.md path rot (3 broken references) | 2026-05-28 | Same path corrections as R-13 |
 | **R-15** | Fix hKask-architecture-master.md duplicate line | 2026-05-28 | okapi-integration.md listed twice → once |
 | **R-16** | Create docs/ci/check-links.sh + check-metadata.sh | 2026-05-28 | Both scripts operational, passing |
@@ -163,16 +162,12 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-58** | Remove duplicate Verification section from architecture-master; add self-application precedent note to SCAFFOLD §6.1 | 2026-06-07 | Points to MDS_SCAFFOLD §6 |
 | **R-59** | Fix OQ-3 to note 'arsenal' is not a hKask term | 2026-06-07 | OPEN_QUESTIONS.md OQ-3 rationale |
 | **R-60** | Add mds_categories to ADR template body frontmatter | 2026-06-07 | ADR_TEMPLATE.md |
-| **R-61** | Archive docs/review/ directory (26 files — session artifacts; structural insights incorporated into MDS.md §7.1-7.2 and subsystem-erds.md) | 2026-06-07 | `docs/archive/2026-06-07-documentation-refresh/review/` |
 | **R-62** | Fix DOCUMENTATION_STANDARDS §6.2 location paths (standards/→specifications/, adr/→architecture/) | 2026-06-07 | DOCUMENTATION_STANDARDS.md §6.2 |
 | **R-63** | Add forward-references from canonical specs to reference docs (okapi, ports-inventory, utoipa, template-header, hLexicon, Curator persona) | 2026-06-07 | MDS.md §7.2, MDS.md §7.1-7.2 |
-| **R-64** | Incorporate review findings: type×primitive matrix into MDS.md §7.1-7.2, ERD structural notes into subsystem-erds.md | 2026-06-07 | Review artifact absorption |
 | **R-65** | Add 7 untracked future questions from FUTURE.md to OPEN_QUESTIONS.md | 2026-06-07 | FUT-002, FUT-003, FUT-004, FUT-005, FUT-007, FUT-008, FUT-009 |
 | **R-66** | Add 7 untracked future questions to OPEN_QUESTIONS.md (review FUTURE.md synthesis) | 2026-06-07 | OPEN_QUESTIONS §Review Findings, FUT-002 through FUT-009 |
 | **R-67** | Update cli-reference.md last_updated to 2026-06-07 | 2026-06-07 | docs/generated/cli-reference.md |
 | **R-68** | Fix broken links: 17→0 broken links, add 5 status file placeholders, fix 3 archived ADR paths | 2026-06-07 | docs/README.md, docs/ci/check-links.sh |
-| **R-68b** | Fix missing metadata in hlexicon-validation-report.md | 2026-06-07 | All 48 docs pass check-metadata.sh |
-| **R-69** | Verify no references to docs/review/ remain in active docs | 2026-06-07 | Fixed subsystem-erds.md reference to archive path |
 | **R-70** | Create ADR-032 (MCP gateway membrane) and ADR-033 (Dampener override cooldown); update ADR-027 footer | 2026-06-07 | docs/architecture/ADR-032, ADR-033, ADR-027 |
 | **R-71** | Verify hkask-mcp-spec build regression — no type errors found, workspace builds clean | 2026-06-07 | cargo check --workspace passes, 5 MCP protocol tests fail (TransportClosed, infra issue) |
 | **R-72** | Writing Excellence spot-check: domain-and-capability ✅ 4/4, trust-security-observability ✅ 4/4, MDS ❌ 1/4 | 2026-06-07 | MDS fails Hopper/Lovelace/Gentle (known gap, tracked in OPEN_QUESTIONS) |

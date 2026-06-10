@@ -12,7 +12,7 @@
 
 **Approach:** Big bang migration (8 phases, all in one PR)
 
-**Specification:** [`docs/specifications/MDS-agent-service.md`](docs/specifications/MDS-agent-service.md)
+**Specification:** [`MDS-agent-service.md`](MDS-agent-service.md)
 
 ---
 
