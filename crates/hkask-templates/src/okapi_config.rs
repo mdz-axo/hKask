@@ -201,17 +201,17 @@ impl OkapiModelShow {
     /// Looks for relevant keys in model_info (e.g. "qwen3.reasoning.enable")
     /// or the presence of "reasoning" in capabilities.
     pub fn supports_thinking(&self) -> bool {
-        if let Some(ref caps) = self.capabilities {
-            if caps.iter().any(|c| c == "reasoning" || c == "thinking") {
-                return true;
-            }
+        if let Some(ref caps) = self.capabilities
+            && caps.iter().any(|c| c == "reasoning" || c == "thinking")
+        {
+            return true;
         }
-        if let Some(ref info) = self.model_info {
-            if info.iter().any(|(k, v)| {
+        if let Some(ref info) = self.model_info
+            && info.iter().any(|(k, v)| {
                 (k.contains("reasoning") || k.contains("thinking")) && v.as_bool().unwrap_or(false)
-            }) {
-                return true;
-            }
+            })
+        {
+            return true;
         }
         false
     }

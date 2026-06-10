@@ -136,7 +136,7 @@ Per MDS §12 and `docs/specifications/test-program.md` — seam depth analysis a
 | `ChatService` | 4 | TokenUsage gas_cost; model switch; persona; conversation |
 | `ComposeService` | 12 | CognitionConfig YAML; default retrieval; cosine distance (identical/opposite/orthogonal/mismatched); centroid validation; system prompt |
 | `ServiceConfig` | 7 | effective_memory_db_path; defaults; credential resolution |
-| `SovereigntyService` | 37 | P1–P4 compliance; JSON output; principle filtering |
+| `Sovereignty` (distributed) | 37 | P1–P4 compliance; JSON output; principle filtering — enforced across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification` |
 
 ---
 

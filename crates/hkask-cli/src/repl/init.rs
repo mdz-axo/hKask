@@ -310,5 +310,10 @@ pub(super) fn init_repl_state(
         }
     }
 
+    // Populate model metadata (context_length, thinking support) from
+    // Ollama on REPL init, so it's available immediately without waiting
+    // for the user to switch models via /model.
+    super::handlers::model::populate_model_meta(&mut state, rt);
+
     Some(state)
 }

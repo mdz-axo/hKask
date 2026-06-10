@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-09
-version: "0.27.0"
+last_updated: 2026-06-10
+version: "0.27.2"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.2
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -181,11 +181,11 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | `consolidation.rs` | 4 freestanding functions | 2+ | ✅ Pass — rate limiter + passphrase verify + consolidate |
 | `ArchivalService` | 4 functions + 2 types | 1 surface | ⚠️ Shallow — single-consumer HTTP pass-through |
 
-### Deleted Modules
+### Modules Added (v0.27.2)
 
-| Module | Reason |
+| Module | Purpose |
 |--------|--------|
-| `CnsService` (cns.rs) | 42-line pure delegation — inlined into `AgentService::cns()` group method |
+| `CnsService` (cns.rs) | CNS health, alerts, variety queries wrapping shared `CnsRuntime` — 3 async methods + 3 unit tests |
 
 ### Skipped Domains
 
@@ -290,4 +290,4 @@ docs/architecture/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.27.2*

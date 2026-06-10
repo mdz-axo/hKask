@@ -10,7 +10,7 @@ use hkask_services::settings_path;
 
 /// Load settings from disk. Returns defaults if the file doesn't exist
 /// or can't be parsed.
-pub fn load_settings() -> ReplSettings {
+pub(crate) fn load_settings() -> ReplSettings {
     let path = settings_path();
     match std::fs::read_to_string(&path) {
         Ok(json) => match serde_json::from_str::<ReplSettings>(&json) {
@@ -77,8 +77,8 @@ fn show_all(settings: &ReplSettings) {
     println!("gas_heuristic:    {}", s.gas_heuristic);
     println!("gas_cap:          {}", s.gas_cap);
     println!(
-        "auto_compact:     {}",
-        if s.auto_compact { "on" } else { "off" }
+        "auto_condense:     {}",
+        if s.auto_condense { "on" } else { "off" }
     );
     if let Some(ref meta) = s.model_meta {
         println!(
@@ -109,7 +109,7 @@ fn show_one(settings: &ReplSettings, key: &str) {
         },
         "gas_heuristic" => println!("{}", s.gas_heuristic),
         "gas_cap" => println!("{}", s.gas_cap),
-        "auto_compact" => println!("{}", if s.auto_compact { "on" } else { "off" }),
+        "auto_condense" => println!("{}", if s.auto_condense { "on" } else { "off" }),
         "context_length" => match s.model_meta {
             Some(ref m) => println!("{}", m.context_length),
             None => println!("(not set)"),
@@ -256,9 +256,9 @@ fn apply_setting(settings: &mut ReplSettings, name: &str, value: &str) -> bool {
                 return false;
             }
         }
-        "auto_compact" => match value {
-            "on" | "true" => settings.auto_compact = true,
-            "off" | "false" => settings.auto_compact = false,
+        "auto_condense" => match value {
+            "on" | "true" => settings.auto_condense = true,
+            "off" | "false" => settings.auto_condense = false,
             _ => {
                 eprintln!("Error: expected 'on' or 'off'");
                 return false;
@@ -271,4 +271,103 @@ fn apply_setting(settings: &mut ReplSettings, name: &str, value: &str) -> bool {
     }
     println!("{} = {}", name, value);
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_settings() -> ReplSettings {
+        ReplSettings::default()
+    }
+
+    // REQ: Invalid values are rejected (function returns false, value unchanged)
+
+    #[test]
+    fn apply_setting_rejects_zero_loop_limit() {
+        let mut s = default_settings();
+        assert!(!apply_setting(&mut s, "loops", "0"));
+        assert_eq!(s.tool_loop_limit, 21);
+    }
+
+    #[test]
+    fn apply_setting_rejects_negative_loop_limit() {
+        let mut s = default_settings();
+        assert!(!apply_setting(&mut s, "loops", "-1"));
+        assert_eq!(s.tool_loop_limit, 21);
+    }
+
+    #[test]
+    fn apply_setting_rejects_temperature_oor() {
+        let mut s = default_settings();
+        assert!(!apply_setting(&mut s, "temp", "3.0"));
+        assert!((s.temperature - 0.7).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn apply_setting_rejects_top_p_oor() {
+        let mut s = default_settings();
+        assert!(!apply_setting(&mut s, "top_p", "1.5"));
+        assert!((s.top_p - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn apply_setting_rejects_top_k_zero() {
+        let mut s = default_settings();
+        assert!(!apply_setting(&mut s, "top_k", "0"));
+        assert_eq!(s.top_k, 40);
+    }
+
+    #[test]
+    fn apply_setting_rejects_garbage_value() {
+        let mut s = default_settings();
+        assert!(!apply_setting(&mut s, "temp", "not-a-number"));
+        assert!((s.temperature - 0.7).abs() < f32::EPSILON);
+    }
+
+    // REQ: Valid values are accepted (function returns true, value updated)
+
+    #[test]
+    fn apply_setting_accepts_valid_temperature() {
+        let mut s = default_settings();
+        assert!(apply_setting(&mut s, "temp", "0.3"));
+        assert!((s.temperature - 0.3).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn apply_setting_accepts_valid_loop_limit() {
+        let mut s = default_settings();
+        assert!(apply_setting(&mut s, "loops", "100"));
+        assert_eq!(s.tool_loop_limit, 100);
+    }
+
+    #[test]
+    fn apply_setting_accepts_auto_condense_off() {
+        let mut s = default_settings();
+        assert!(apply_setting(&mut s, "auto_condense", "off"));
+        assert!(!s.auto_condense);
+    }
+
+    #[test]
+    fn apply_setting_accepts_auto_condense_on() {
+        let mut s = default_settings();
+        s.auto_condense = false;
+        assert!(apply_setting(&mut s, "auto_condense", "true"));
+        assert!(s.auto_condense);
+    }
+
+    #[test]
+    fn apply_setting_accepts_seed_value() {
+        let mut s = default_settings();
+        assert!(apply_setting(&mut s, "seed", "42"));
+        assert_eq!(s.seed, Some(42));
+    }
+
+    #[test]
+    fn apply_setting_accepts_seed_off() {
+        let mut s = default_settings();
+        s.seed = Some(99);
+        assert!(apply_setting(&mut s, "seed", "off"));
+        assert_eq!(s.seed, None);
+    }
 }

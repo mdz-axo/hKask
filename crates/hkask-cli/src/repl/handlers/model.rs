@@ -6,7 +6,10 @@ use hkask_templates::OkapiConfig;
 
 /// Fetch model metadata from Ollama via Okapi's /api/show endpoint.
 /// Populates repl_settings.model_meta on successful fetch.
-fn populate_model_meta(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
+pub(crate) fn populate_model_meta(
+    state: &mut super::super::ReplState,
+    rt: &tokio::runtime::Handle,
+) {
     let config = OkapiConfig {
         base_url: state.service_context.config().okapi_base_url.clone(),
         ..OkapiConfig::default()

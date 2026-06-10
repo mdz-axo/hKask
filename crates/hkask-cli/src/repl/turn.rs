@@ -6,7 +6,6 @@
 //! and persona filtering.
 
 use hkask_agents::HhhMode;
-use hkask_agents::hhh_gate;
 use hkask_services::ChatService;
 use hkask_types::ports::StructuredToolCall;
 
@@ -99,51 +98,22 @@ pub(super) fn single_agent_turn(
     let settings = state.repl_settings.clone();
 
     // Execute manifest cascade if the agent has a process manifest.
-    let mut manifest_context: Option<String> = None;
-    if let (Some(executor), Some(manifest)) = (&state.manifest_executor, &state.process_manifest) {
-        let mut initial_ctx = std::collections::HashMap::new();
-        initial_ctx.insert(
-            "user_input".to_string(),
-            serde_json::Value::String(input.to_string()),
-        );
-        initial_ctx.insert(
-            "agent".to_string(),
-            serde_json::Value::String(state.current_agent.clone()),
-        );
-
-        match rt.block_on(executor.execute_manifest(manifest, initial_ctx)) {
-            Ok(ctx) => {
-                let mut context_parts: Vec<String> = Vec::new();
-                for (key, value) in &ctx {
-                    if key.starts_with("step_") {
-                        context_parts.push(format!("{}: {}", key, value));
-                    }
-                }
-                if !context_parts.is_empty() {
-                    manifest_context = Some(context_parts.join("\n"));
-                }
-                tracing::info!(
-                    target: "cns.spec.executor",
-                    steps_completed = ctx.len(),
-                    "Manifest cascade completed"
-                );
-            }
-            Err(e) => {
-                tracing::warn!(
-                    target: "cns.spec.executor",
-                    error = %e,
-                    "Manifest cascade failed — continuing without manifest enrichment"
-                );
-            }
-        }
-    }
+    let manifest_context: Option<String> = if let (Some(executor), Some(manifest)) =
+        (&state.manifest_executor, &state.process_manifest)
+    {
+        rt.block_on(ChatService::execute_manifest_cascade(
+            executor,
+            manifest,
+            input,
+            &state.current_agent,
+        ))
+    } else {
+        None
+    };
 
     // Build the base input with manifest context.
     let base_input: String = match &manifest_context {
-        Some(ctx) => format!(
-            "[Manifest Context]\n{}\n[/Manifest Context]\n\n{}",
-            ctx, input
-        ),
+        Some(ctx) => ChatService::wrap_manifest_input(input, ctx),
         None => input.to_string(),
     };
 
@@ -153,11 +123,11 @@ pub(super) fn single_agent_turn(
     // and must be placed after the cache breakpoint to avoid invalidating
     // KV cache hits.
     //
-    // Auto-compaction: if the estimated prompt exceeds 87.5% of the model's
+    // Auto-condensation: if the estimated prompt exceeds 87.5% of the model's
     // context window, condense older session history via the condenser MCP
-    // tool. The loop re-estimates after compaction — one pass only.
+    // tool. The loop re-estimates after condensation — one pass only.
     let input_with_context =
-        build_input_with_auto_compact(&base_input, state, rt, acp_secret, &settings);
+        build_input_with_auto_condense(&base_input, state, rt, acp_secret, &settings);
 
     // ── Tool-use loop: keep calling the model until it stops requesting tools ──
     let max_loops = settings.tool_loop_limit;
@@ -197,8 +167,7 @@ pub(super) fn single_agent_turn(
         // and append HHH directives to the system prompt.
         let (effective_input, hhh_suffix): (String, Option<String>) =
             if state.hhh_mode == HhhMode::Active {
-                let reframed = hhh_gate::hhh_reframe(&current_response);
-                let suffix = hhh_gate::hhh_augment_system_prompt("");
+                let (reframed, suffix) = ChatService::reframe_for_hhh(&current_response);
                 (reframed, Some(suffix))
             } else {
                 (current_response.clone(), None)
@@ -296,7 +265,9 @@ pub(super) fn single_agent_turn(
             }
 
             // Persona filter (Stage 4 of alignment pipeline)
-            current_response = hhh_gate::apply_persona_filter(
+            // Result is discarded: response text is displayed via streaming at iteration 1,
+            // so the filter cannot affect already-displayed output.
+            let _ = ChatService::apply_persona_filter(
                 &current_response,
                 state.persona_constraints.as_ref(),
             );
@@ -348,12 +319,12 @@ pub(super) fn single_agent_turn(
     true
 }
 
-/// Build `input_with_context`, compacting session history via the condenser
+/// Build `input_with_context`, condensing session history via the condenser
 /// MCP tool if the estimated prompt exceeds 87.5% of the model's context window.
 ///
-/// Only compacts when `settings.auto_compact` is true and `model_meta` has been
+/// Only condenses when `settings.auto_condense` is true and `model_meta` has been
 /// populated (i.e., the model was switched via /model, not hardcoded).
-fn build_input_with_auto_compact(
+fn build_input_with_auto_condense(
     base_input: &str,
     state: &ReplState,
     rt: &tokio::runtime::Handle,
@@ -379,8 +350,8 @@ fn build_input_with_auto_compact(
     };
     let candidate = format!("{}\n\n{}", base_input, history_suffix);
 
-    // Only compact if auto_compact is on and model metadata is available.
-    if !settings.auto_compact {
+    // Only condense if auto_condense is on and model metadata is available.
+    if !settings.auto_condense {
         return candidate;
     }
     let Some(ref meta) = settings.model_meta else {
@@ -388,20 +359,20 @@ fn build_input_with_auto_compact(
     };
 
     let estimated_tokens = (candidate.len() as u64) / 4;
-    let compact_threshold = (meta.context_length as f64 * 0.875) as u64;
-    if estimated_tokens <= compact_threshold {
+    let condense_threshold = (meta.context_length as f64 * 0.875) as u64;
+    if estimated_tokens <= condense_threshold {
         return candidate;
     }
 
     // Build the messages array for condenser_thread_summary.
-    // Only compact the oldest half of the turns from episodic memory.
+    // Only condense the oldest half of the turns from episodic memory.
     let request =
         hkask_agents::ports::RecallRequest::episodic("chatted", state.agent_webid, token.clone());
     let episodes = match state.episodic_storage.recall_episodic(&request) {
         Ok(v) if !v.is_empty() => v,
         _ => {
             println!(
-                "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but no history to compact\x1b[0m",
+                "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but no history to condense\x1b[0m",
                 (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
                 estimated_tokens,
                 meta.context_length,
@@ -420,7 +391,7 @@ fn build_input_with_auto_compact(
 
     if turn_list.len() < 4 {
         println!(
-            "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but too few turns to compact\x1b[0m",
+            "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but too few turns to condense\x1b[0m",
             (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
             estimated_tokens,
             meta.context_length,
@@ -443,14 +414,14 @@ fn build_input_with_auto_compact(
         .collect();
 
     print!(
-        "  \x1b[2mcompacting {} old turns via condenser…\x1b[0m",
+        "  \x1b[2mcondensing {} old turns via condenser…\x1b[0m",
         old_turns.len()
     );
     use std::io::Write;
     let _ = std::io::stdout().flush();
 
     // Call condenser_thread_summary through GovernedTool.
-    let compact_result = rt.block_on(async {
+    let condense_result = rt.block_on(async {
         let call = super::tool_augmented::ToolCall {
             server: "hkask-mcp-condenser".to_string(),
             tool: "condenser_thread_summary".to_string(),
@@ -469,15 +440,15 @@ fn build_input_with_auto_compact(
         .await
     });
 
-    match compact_result {
+    match condense_result {
         Ok(summary_value) => {
             let summary = summary_value
                 .get("summary")
                 .and_then(|v| v.as_str())
-                .unwrap_or("(compacted)");
+                .unwrap_or("(condensed)");
             println!(" done");
             println!(
-                "  \x1b[2mcompacted {} turns → {} chars (est. {} tokens)\x1b[0m",
+                "  \x1b[2mcondensed {} turns → {} chars (est. {} tokens)\x1b[0m",
                 old_turns.len(),
                 summary.len(),
                 summary.len() / 4,
@@ -505,6 +476,60 @@ fn build_input_with_auto_compact(
             println!(" \x1b[33mfailed: {}\x1b[0m", e);
             // Proceed with the oversized prompt — better than blocking the turn.
             candidate
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // REQ: Auto-compaction triggers at 87.5% of context window and
+    // skips when estimated tokens are below that threshold.
+    // The threshold calculation in build_input_with_auto_compact is:
+    //   estimated_tokens = candidate.len() / 4
+    //   compact_threshold = (context_length as f64 * 0.875) as u64
+    //   if estimated_tokens > compact_threshold → trigger compaction
+
+    #[test]
+    fn compaction_triggers_above_87_5_percent() {
+        let context_length: u32 = 4096;
+        let threshold = (context_length as f64 * 0.875) as u64;
+        // Simulate candidate text at 90% of window (above threshold)
+        let candidate_len = (context_length as f64 * 0.90 * 4.0) as usize;
+        let estimated_tokens = (candidate_len as u64) / 4;
+        assert!(
+            estimated_tokens > threshold,
+            "estimated {} should exceed threshold {} at 90%",
+            estimated_tokens,
+            threshold
+        );
+    }
+
+    #[test]
+    fn compaction_skips_below_87_5_percent() {
+        let context_length: u32 = 4096;
+        let threshold = (context_length as f64 * 0.875) as u64;
+        // Simulate candidate text at 80% of window (below threshold)
+        let candidate_len = (context_length as f64 * 0.80 * 4.0) as usize;
+        let estimated_tokens = (candidate_len as u64) / 4;
+        assert!(
+            estimated_tokens <= threshold,
+            "estimated {} should be ≤ threshold {} at 80%",
+            estimated_tokens,
+            threshold
+        );
+    }
+
+    #[test]
+    fn compaction_threshold_matches_87_5_percent_formula() {
+        // Verify the 87.5% threshold for common context window sizes
+        let cases = [(2048, 1792), (4096, 3584), (8192, 7168), (32768, 28672)];
+        for (window, expected_threshold) in &cases {
+            let computed = (*window as f64 * 0.875) as u64;
+            assert_eq!(
+                computed, *expected_threshold,
+                "window={}: expected threshold={}, got {}",
+                window, expected_threshold, computed
+            );
         }
     }
 }

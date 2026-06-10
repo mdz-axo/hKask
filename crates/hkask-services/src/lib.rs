@@ -21,7 +21,9 @@ pub mod spec;
 pub mod verification;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
-pub use chat::{ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage};
+pub use chat::{
+    ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
+};
 pub use cns::CnsService;
 pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,

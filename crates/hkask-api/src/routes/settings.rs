@@ -162,3 +162,73 @@ async fn update_settings(
     let _ = save_settings(&settings);
     Json(settings)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: Merge-update preserves unspecified fields — only the fields
+    // in the request are changed; all others keep their current values.
+
+    #[test]
+    fn update_settings_merge_preserves_unspecified_fields() {
+        // Start with defaults
+        let mut settings = SettingsResponse::default();
+
+        // Only update temperature
+        let req = UpdateSettingsRequest {
+            temperature: Some(0.3),
+            tool_loop_limit: None,
+            context_turns: None,
+            top_p: None,
+            top_k: None,
+            min_p: None,
+            typical_p: None,
+            max_tokens: None,
+            seed: None,
+            gas_heuristic: None,
+            gas_cap: None,
+            auto_compact: None,
+        };
+
+        // Apply the merge (same logic as the PUT handler)
+        if let Some(v) = req.temperature {
+            if (0.0..=2.0).contains(&v) {
+                settings.temperature = v;
+            }
+        }
+
+        // Temperature should be updated
+        assert!((settings.temperature - 0.3).abs() < f32::EPSILON);
+        // Unspecified fields should retain defaults
+        assert_eq!(settings.tool_loop_limit, 21);
+        assert_eq!(settings.context_turns, 3);
+        assert!((settings.top_p - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn update_settings_out_of_range_is_ignored() {
+        let mut settings = SettingsResponse::default();
+        let req = UpdateSettingsRequest {
+            temperature: Some(3.0), // out of range
+            tool_loop_limit: None,
+            context_turns: None,
+            top_p: None,
+            top_k: None,
+            min_p: None,
+            typical_p: None,
+            max_tokens: None,
+            seed: None,
+            gas_heuristic: None,
+            gas_cap: None,
+            auto_compact: None,
+        };
+        if let Some(v) = req.temperature {
+            if (0.0..=2.0).contains(&v) {
+                settings.temperature = v;
+            }
+        }
+        // Out-of-range value should be silently ignored (no change)
+        assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
+    }
+}

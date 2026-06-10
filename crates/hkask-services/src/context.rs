@@ -224,7 +224,6 @@ impl AgentService {
     }
 
     /// CNS: runtime, cybernetics loop, loop system, event sink.
-    /// Replaces standalone CnsService (deleted — pass-through module).
     /// # REQ: P9 (Homeostatic)
     #[allow(clippy::type_complexity)]
     pub fn cns(

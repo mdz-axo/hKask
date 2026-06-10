@@ -8,13 +8,16 @@
 
 use std::sync::Arc;
 
+use hkask_agents::HhhMode;
+use hkask_agents::hhh_gate;
 use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
-    AuthContext, Confidence, DelegationAction, DelegationToken, LLMParameters, WebID,
+    AuthContext, Confidence, DelegationAction, DelegationToken, LLMParameters, PersonaConstraints,
+    WebID,
 };
 
 use crate::error::ServiceError;
@@ -610,4 +613,248 @@ impl ChatService {
             ))
         }
     }
+
+    /// Run a process manifest cascade for the agent, returning manifest-derived context.
+    ///
+    /// The manifest is a declarative pipeline (from `process_manifest` in the agent
+    /// definition) that enriches the user input with context before inference.
+    /// Returns `None` if the agent has no manifest or execution fails.
+    pub async fn execute_manifest_cascade(
+        executor: &hkask_templates::ManifestExecutor,
+        manifest: &hkask_templates::BundleManifest,
+        input: &str,
+        agent_name: &str,
+    ) -> Option<String> {
+        let mut initial_ctx = std::collections::HashMap::new();
+        initial_ctx.insert(
+            "user_input".to_string(),
+            serde_json::Value::String(input.to_string()),
+        );
+        initial_ctx.insert(
+            "agent".to_string(),
+            serde_json::Value::String(agent_name.to_string()),
+        );
+
+        let ctx = match executor.execute_manifest(manifest, initial_ctx).await {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.spec.executor",
+                    error = %e,
+                    "Manifest cascade failed — continuing without manifest enrichment"
+                );
+                return None;
+            }
+        };
+
+        let context_parts: Vec<String> = ctx
+            .iter()
+            .filter_map(|(key, value)| {
+                if key.starts_with("step_") {
+                    Some(format!("{}: {}", key, value))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if context_parts.is_empty() {
+            None
+        } else {
+            tracing::info!(
+                target: "cns.spec.executor",
+                steps_completed = context_parts.len(),
+                "Manifest cascade completed"
+            );
+            Some(context_parts.join("\n"))
+        }
+    }
+
+    /// Wrap input with manifest context when a cascade completed successfully.
+    pub fn wrap_manifest_input(input: &str, manifest_context: &str) -> String {
+        format!(
+            "[Manifest Context]\n{}\n[/Manifest Context]\n\n{}",
+            manifest_context, input
+        )
+    }
+
+    /// Apply persona constraints to filter forbidden patterns from a response.
+    ///
+    /// This is a pure transformation — wraps `hhh_gate::apply_persona_filter`
+    /// so callers don't need a direct dependency on the hhh_gate module.
+    pub fn apply_persona_filter(
+        response: &str,
+        constraints: Option<&PersonaConstraints>,
+    ) -> String {
+        hhh_gate::apply_persona_filter(response, constraints)
+    }
+
+    /// Reframe the user input for HHH mode evaluation.
+    ///
+    /// Returns (reframed_input, system_prompt_suffix) — both transformations
+    /// wrap the input in alignment directives that the inference model interprets
+    /// as behavioral constraints.
+    pub fn reframe_for_hhh(input: &str) -> (String, String) {
+        let reframed = hhh_gate::hhh_reframe(input);
+        let suffix = hhh_gate::hhh_augment_system_prompt("");
+        (reframed, suffix)
+    }
+
+    /// Execute a full single-agent turn — manifest cascade, history suffix,
+    /// HHH reframe, inference via `ChatService::chat()`, and persona filter.
+    ///
+    /// Returns the final response text, token usage, and iteration count.
+    /// The caller is responsible for gas governance (reserving/settling energy),
+    /// streaming display, tool-call execution, and CNS update display.
+    ///
+    /// Tool-call handling: when the model returns structured tool calls,
+    /// the response includes them in `structured_tool_calls`. The caller
+    /// executes tools, formats results, and passes them as `tool_results`
+    /// on the next iteration via a new `TurnRequest` (only `input`,
+    /// `tool_results`, and iteration counter fields matter for continuations).
+    pub async fn execute_turn(
+        ctx: &AgentService,
+        req: &TurnRequest,
+    ) -> Result<TurnResult, ServiceError> {
+        // 1. Execute manifest cascade if the agent has a process manifest.
+        let base_input = if let (Some(executor), Some(manifest)) =
+            (&req.manifest_executor, &req.process_manifest)
+        {
+            let manifest_context =
+                Self::execute_manifest_cascade(executor, manifest, &req.input, &req.agent_name)
+                    .await;
+            match manifest_context {
+                Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
+                None => req.input.clone(),
+            }
+        } else {
+            req.input.clone()
+        };
+
+        // 2. Append recent conversation history from episodic memory.
+        let token = req.capability_checker.grant_registry(
+            DelegationAction::Read,
+            req.system_webid,
+            req.agent_webid,
+        );
+        let history_suffix = Self::recall_recent_turns(
+            &req.episodic_storage,
+            &req.agent_webid,
+            &token,
+            req.context_turns,
+        );
+        let input_with_context = match history_suffix {
+            Some(s) => format!("{}\n\n{}", base_input, s),
+            None => base_input,
+        };
+
+        // 3. Apply tool results from previous iterations (if any).
+        let effective_input = if let Some(ref tool_results) = req.tool_results {
+            format!(
+                "{}\n\nThe following tool calls were executed:\n\n{}\n\nBased on these results, provide your response.",
+                input_with_context.trim(),
+                tool_results
+            )
+        } else {
+            input_with_context
+        };
+
+        // 4. HHH reframe when alignment mode is active.
+        let (final_input, hhh_suffix) = if req.hhh_mode == HhhMode::Active {
+            let (reframed, suffix) = Self::reframe_for_hhh(&effective_input);
+            (reframed, Some(suffix))
+        } else {
+            (effective_input, None)
+        };
+
+        // 5. Execute inference via ChatService::chat().
+        let chat_req = ChatRequest {
+            input: final_input,
+            agent_name: Some(req.agent_name.clone()),
+            model_override: Some(req.model.clone()),
+            system_prompt_suffix: hhh_suffix,
+            tool_section: if req.tool_section.is_empty() {
+                None
+            } else {
+                Some(req.tool_section.clone())
+            },
+            inference_port_override: Some(req.inference_port.clone()),
+            episodic_storage_override: Some(req.episodic_storage.clone()),
+            semantic_storage_override: Some(req.semantic_storage.clone()),
+            auth_context: None,
+            params_override: Some(req.llm_params.clone()),
+        };
+        let chat_response = Self::chat(ctx, chat_req).await?;
+
+        // 6. Persona filter.
+        let filtered =
+            Self::apply_persona_filter(&chat_response.text, req.persona_constraints.as_ref());
+
+        Ok(TurnResult {
+            text: filtered,
+            usage: chat_response.usage.unwrap_or(TokenUsage {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            }),
+            iterations: req.iteration,
+            finish_reason: chat_response.finish_reason,
+            structured_tool_calls: chat_response.tool_calls,
+        })
+    }
+}
+
+/// Request for a single-agent turn through `ChatService::execute_turn()`.
+pub struct TurnRequest {
+    /// User input message
+    pub input: String,
+    /// Agent name for registry lookup and memory operations
+    pub agent_name: String,
+    /// Model name (e.g., "deepseek-v4-flash")
+    pub model: String,
+    /// Inference port override (REPL passes its long-lived port)
+    pub inference_port: Arc<dyn InferencePort>,
+    /// Episodic storage port (per-agent, for history and storage)
+    pub episodic_storage: Arc<dyn EpisodicStoragePort>,
+    /// Semantic storage port (per-agent, for recall)
+    pub semantic_storage: Arc<dyn SemanticStoragePort>,
+    /// Agent WebID for memory operations
+    pub agent_webid: WebID,
+    /// Manifest executor for cascade (None = no manifest)
+    pub manifest_executor: Option<hkask_templates::ManifestExecutor>,
+    /// Process manifest for the agent (None = no manifest)
+    pub process_manifest: Option<hkask_templates::BundleManifest>,
+    /// HHH alignment mode
+    pub hhh_mode: HhhMode,
+    /// Persona constraints for output filtering
+    pub persona_constraints: Option<PersonaConstraints>,
+    /// Pre-formatted tool section of the system prompt
+    pub tool_section: String,
+    /// LLM parameters from user settings
+    pub llm_params: LLMParameters,
+    /// Number of past turns to include in history suffix
+    pub context_turns: usize,
+    /// Capability checker for minting memory access tokens
+    pub capability_checker: Arc<hkask_types::CapabilityChecker>,
+    /// System WebID for token minting
+    pub system_webid: WebID,
+    /// Iteration counter (0 = first iteration, incremented by caller for continuations)
+    pub iteration: usize,
+    /// Tool execution results from the previous iteration (None on first iteration)
+    pub tool_results: Option<String>,
+}
+
+/// Result of a single-agent turn from `ChatService::execute_turn()`.
+pub struct TurnResult {
+    /// The final response text (after persona filtering)
+    pub text: String,
+    /// Token usage for this iteration
+    pub usage: TokenUsage,
+    /// Iteration count (as passed in TurnRequest.iteration)
+    pub iterations: usize,
+    /// Why the model stopped ("stop", "tool_calls", etc.)
+    pub finish_reason: String,
+    /// Structured tool calls when the model requests tools.
+    /// Empty if finish_reason != "tool_calls".
+    pub structured_tool_calls: Vec<StructuredToolCall>,
 }
