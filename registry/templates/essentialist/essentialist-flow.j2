@@ -222,13 +222,70 @@ In **advisory mode**:
 
 ## Reduction Protocol (When a Gate Fails)
 
-When a gate fails, the actor must reduce the artifact:
+When a gate fails (autonomous) or human accepts reductions (advisory), the actor must reduce the artifact:
 
 1. **G1 failures → DELETE:** Remove pass-through items that don't encode behavior. Inline trivial wrappers into callers.
 2. **G2 failures → MERGE:** Merge public items where possible. Add justifications for items that must remain separate. Delete public items that can be made private.
 3. **G3 failures → DELETE PORTS:** Remove pass-through abstractions. Replace with direct calls. Inline single-use traits.
 
 After reduction, resubmit from G1 (not from the current gate). Reduction at any gate may affect earlier gates.
+
+## Advisory Recommendation Protocol (Advisory Mode Only)
+
+When mode is `advisory`, after each gate evaluation, present to the human:
+
+```json
+{
+  "gate_completed": "G1|G2|G3",
+  "mode": "advisory",
+  "status": "awaiting_human",
+  "gate_passed": true,
+  "recommendations": [
+    {
+      "item": "ObjectStore wrapper",
+      "constraint_force": "Prohibition",
+      "label": "REQUIRED",
+      "why": "Zero behavior beyond direct S3 call. Pass-through abstraction.",
+      "recommended_action": "DELETE",
+      "recommendation_detail": "Replace ObjectStore with direct S3 client call. Inline the 3-line get/put wrapper into callers.",
+      "human_response": null
+    },
+    {
+      "item": "CacheManager + MetricsCollector",
+      "constraint_force": "Guideline",
+      "label": "SUGGESTED",
+      "why": "Both handle resource lifecycle with overlapping domains.",
+      "recommended_action": "MERGE",
+      "recommendation_detail": "Consider unifying into ResourceManager. If domains are truly distinct, state reason and this becomes a JUSTIFY action.",
+      "human_response": null
+    },
+    {
+      "item": "Module depth",
+      "constraint_force": "Evidence",
+      "label": "INFO",
+      "why": "Depth score is 14 (implementation_lines / public_items).",
+      "recommended_action": "RETAIN",
+      "recommendation_detail": "Below adequate threshold (50) but gate-2 pass is contingent on ≤7 public items, not depth. Informational only.",
+      "human_response": null
+    }
+  ],
+  "human_prompt": "Respond accept/reject/override per item. 'accept' applies the recommendation. 'reject' skips it with your reason. 'override: <alternative action>' applies your alternative."
+}
+```
+
+Human responds with:
+
+```json
+{
+  "decisions": [
+    {"item": "ObjectStore wrapper", "response": "accept"},
+    {"item": "CacheManager + MetricsCollector", "response": "reject", "reason": "Separate operational domains — CacheManager handles TTL, MetricsCollector handles Prometheus format. Merging introduces coupling."},
+    {"item": "Module depth", "response": "accept"}
+  ]
+}
+```
+
+The agent applies accepted reductions, notes rejections with human's stated reasons, and restarts from G1 if the artifact changed.
 
 ## Escalation Protocol
 
