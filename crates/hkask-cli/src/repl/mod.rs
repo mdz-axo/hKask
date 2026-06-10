@@ -26,7 +26,7 @@ use hkask_agents::InferenceLoop;
 use hkask_agents::ports::EpisodicStoragePort;
 use hkask_agents::ports::SemanticStoragePort;
 use hkask_cns::GovernedTool;
-use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
 use hkask_services::AgentService;

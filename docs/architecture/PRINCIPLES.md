@@ -101,7 +101,7 @@ status: VERIFIED
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
-- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.hhh.gate.*`, `cns.hhh.persona.*`, `cns.cybernetics.backpressure`, `cns.memory.encode`, `cns.memory.budget`
+- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.hhh.gate.*`, `cns.hhh.persona.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`
 - **This is the authoritative CNS span registry.** See `hkask-types::event::CANONICAL_NAMESPACES` for the code-level source of truth.
 - Algedonic Alert: Variety deficit > threshold/2 (50 default) → escalate to Curator; deficit > threshold (100 default) → escalate to human
 

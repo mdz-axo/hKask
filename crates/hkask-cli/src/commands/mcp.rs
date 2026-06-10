@@ -95,9 +95,10 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             let from = hkask_types::WebID::new();
             let to = hkask_types::WebID::new();
             let token = ctx
-                .mcp_dispatcher
+                .mcp_dispatcher()
                 .issue_capability("tools".to_string(), from, to);
-            let result = match rt.block_on(ctx.mcp_dispatcher().invoke(&tool, input_value, &token)) {
+            let result = match rt.block_on(ctx.mcp_dispatcher().invoke(&tool, input_value, &token))
+            {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Tool invocation error: {}", e);

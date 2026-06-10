@@ -107,7 +107,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             }
             println!();
             println!("Affirmative Consent:");
-            let store = &svc_ctx.sovereignty_boundary_store;
+            let store = &svc_ctx.sovereignty_boundary_store();
             match store.get(&webid.to_string()) {
                 Ok(Some(entry)) => println!(
                     "  • Requires Affirmative Consent: {}",

@@ -195,7 +195,7 @@ async fn cns_subscribe(
     let (observer, mut receiver) = SseObserver::new(valid_spans);
     state
         .agent_service
-        .cns_runtime
+        .cns_runtime()
         .read()
         .await
         .subscribe_async(Arc::new(observer))

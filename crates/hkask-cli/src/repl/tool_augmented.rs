@@ -12,7 +12,7 @@
 //! 2. **Text fallback**: `<<tool:server/tool_name\n{args}\n>>` directives in text
 
 use hkask_cns::GovernedTool;
-use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_mcp::RawMcpToolPort;
 
 /// Common prefix for the tool-call instruction section of the system prompt.
 ///

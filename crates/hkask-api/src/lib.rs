@@ -142,7 +142,7 @@ impl ApiState {
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
                 ctx.cybernetics_loop().clone(),
-                ctx.system_webid(),
+                ctx.system_webid().clone(),
                 energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 
@@ -187,7 +187,7 @@ impl ApiState {
 
     /// Set the spec store for MDS specifications
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
-        self.spec_store() = Some(store);
+        self.spec_store = Some(store);
         self
     }
 

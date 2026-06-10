@@ -123,7 +123,7 @@ async fn mcp_invoke(
     // Invoke via the MCP dispatcher with the authenticated capability token
     let result = state
         .agent_service
-        .mcp_dispatcher
+        .mcp_dispatcher()
         .invoke(&req.tool, input, &auth.token)
         .await
         .map_err(|e| match &e {
@@ -138,7 +138,7 @@ async fn mcp_invoke(
     // Resolve server_id from the runtime's tool registry
     let server_id = state
         .agent_service
-        .mcp_runtime
+        .mcp_runtime()
         .get_tool_info(&req.tool)
         .await
         .map(|t| t.server_id)

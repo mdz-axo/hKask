@@ -1,7 +1,7 @@
 //! PodManager, PodStatus — Pod lifecycle management
 
 use hkask_cns::GovernedTool;
-use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_mcp::RawMcpToolPort;
 use hkask_types::{CapabilityChecker, InferencePort, NuEventSink};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -109,7 +109,7 @@ impl PodManager {
         self
     }
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
-        self.capability_checker() = Some(Arc::new(checker));
+        self.capability_checker = Some(Arc::new(checker));
         self
     }
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
@@ -269,7 +269,11 @@ impl PodManager {
                 &pod.id.to_string(),
             );
         }
-        if let Err(e) = self.acp_runtime().revoke_capability(&token_id, &webid).await {
+        if let Err(e) = self
+            .acp_runtime()
+            .revoke_capability(&token_id, &webid)
+            .await
+        {
             tracing::warn!(target: "hkask.pod", pod_id = %pod_id, token_id = %token_id, error = %e,
                 "Failed to revoke capability token on deactivation (pod is still deactivated)");
             tracing::debug!(target: "cns.pod", span = "cns.agent_pod.revocation_warning",

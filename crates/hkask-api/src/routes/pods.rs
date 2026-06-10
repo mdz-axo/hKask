@@ -128,7 +128,7 @@ async fn activate_pod(
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
-        .pod_manager
+        .pod_manager()
         .activate_pod(&pid)
         .await
         .map_err(map_pod_err)?;
@@ -143,7 +143,7 @@ async fn deactivate_pod(
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
-        .pod_manager
+        .pod_manager()
         .deactivate_pod(&pid)
         .await
         .map_err(map_pod_err)?;
@@ -158,7 +158,7 @@ async fn pod_status(
     let pid = parse_pod_id(&id)?;
     let status = state
         .agent_service
-        .pod_manager
+        .pod_manager()
         .get_pod_status(&pid)
         .await
         .map_err(map_pod_err)?;

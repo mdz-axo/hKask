@@ -47,7 +47,7 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     let alerts = rt.block_on(async {
         state
             .service_context
-            .cns_runtime
+            .cns_runtime()
             .read()
             .await
             .critical_alerts()

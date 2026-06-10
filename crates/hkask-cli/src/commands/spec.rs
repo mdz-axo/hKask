@@ -63,7 +63,7 @@ pub fn run(action: SpecAction) {
             );
             let ctx = build_service_context();
             let spec = ctx
-                .spec_store
+                .spec_store()
                 .load(spec_id)
                 .map_err(hkask_services::ServiceError::Spec)
                 .expect("Failed to load specification");
@@ -86,7 +86,7 @@ pub fn run(action: SpecAction) {
             );
             let ctx = build_service_context();
             let spec = ctx
-                .spec_store
+                .spec_store()
                 .load(spec_id)
                 .map_err(hkask_services::ServiceError::Spec)
                 .expect("Failed to load specification");

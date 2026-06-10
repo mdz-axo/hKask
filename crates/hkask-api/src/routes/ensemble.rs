@@ -122,7 +122,7 @@ async fn create_chat(
 ) -> impl IntoResponse {
     state
         .agent_service
-        .session_manager
+        .session_manager()
         .read()
         .await
         .create_chat(&req.session_id)

@@ -11,7 +11,7 @@
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
 use hkask_cns::GovernedTool;
-use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_mcp::RawMcpToolPort;
 use hkask_types::ports::ToolPort;
 use hkask_types::{
     CapabilityChecker, Confidence, DataCategory, DelegationAction, DelegationResource,
@@ -75,11 +75,11 @@ impl PodContext {
             webid: pod.webid,
             capability_token: pod.capability_token.clone(),
             inference_port: manager.inference_port().clone(),
-            episodic_storage: Arc::clone(&manager.episodic_storage()),
-            semantic_storage: Arc::clone(&manager.semantic_storage()),
-            mcp_runtime: Arc::clone(&manager.mcp_runtime()),
+            episodic_storage: Arc::clone(&manager.episodic_storage),
+            semantic_storage: Arc::clone(&manager.semantic_storage),
+            mcp_runtime: Arc::clone(&manager.mcp_runtime),
             governed_tool: manager.governed_tool.clone(),
-            capability_checker: manager.capability_checker().clone(),
+            capability_checker: manager.capability_checker.clone(),
             sovereignty_checker: manager.sovereignty_checker_for(pod_id).await,
         })
     }
@@ -90,7 +90,7 @@ impl PodContext {
         resource_id: &str,
         action: DelegationAction,
     ) -> Result<(), AgentPodError> {
-        if let Some(ref checker) = self.capability_checker() {
+        if let Some(ref checker) = self.capability_checker {
             // Full cryptographic verification: HMAC signature + expiry + holder + resource/action
             if !checker.check(
                 &self.capability_token,

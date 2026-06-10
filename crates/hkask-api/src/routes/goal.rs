@@ -153,7 +153,7 @@ async fn set_goal_state(
         .map_err(ApiError::from)?;
 
     // Notify Curation of the goal transition.
-    if let Some(ref tx) = state.agent_service.curation_inbox_tx() {
+    if let Some(tx) = state.agent_service.curation_inbox_tx() {
         let event = CurationInput::GoalTransition(GoalTransitionEvent {
             goal_id: goal_id.to_string(),
             from_state,

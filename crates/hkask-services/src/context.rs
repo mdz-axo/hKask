@@ -30,7 +30,7 @@ use hkask_cns::{
     SnapshotLoop, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
-use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
@@ -253,6 +253,18 @@ impl AgentService {
     /// TODO: Category 4 — migrate to service methods.
     pub fn pod_manager(&self) -> &Arc<PodManager> {
         &self.pod_manager
+    }
+
+    /// Access sovereignty boundary store for Magna Carta compliance.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore {
+        &self.sovereignty_boundary_store
+    }
+
+    /// Access event sink for CNS audit trail.
+    /// TODO: Category 4 — migrate to service methods.
+    pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
+        &self.event_sink
     }
 
     // === Category 2-3: Surface-specific fields (7 fields) ===

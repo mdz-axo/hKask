@@ -12,7 +12,7 @@ use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
 use hkask_agents::hhh_gate;
 use hkask_cns::{CompositeEnergyEstimator, EnergyBudget, EnergyCost, GovernedTool};
-use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_mcp::RawMcpToolPort;
 use hkask_memory::ConsolidationService;
 use hkask_services::{InferenceContext, InferenceService};
 use hkask_storage::Database;
@@ -130,9 +130,7 @@ pub(super) fn init_repl_state(
     // Build shared infrastructure via AgentService::build().
     // This creates: CNS, loop system (cybernetics, episodic, semantic, curation loops),
     // governed tool membrane, MCP runtime + dispatcher, pod manager, registry, etc.
-    let ctx = match rt.block_on(hkask_services::AgentService::build(
-        service_config.clone(),
-    )) {
+    let ctx = match rt.block_on(hkask_services::AgentService::build(service_config.clone())) {
         Ok(ctx) => ctx,
         Err(e) => {
             eprintln!("Failed to build service context: {}", e);
@@ -158,7 +156,7 @@ pub(super) fn init_repl_state(
     let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
         ctx.cybernetics_loop().clone(),
-        ctx.event_sink.clone(),
+        ctx.event_sink().clone(),
         estimator,
         agent_webid,
     ));
@@ -167,7 +165,7 @@ pub(super) fn init_repl_state(
     // cap=10000, replenish_rate=1000/turn (10% of cap), alert at 80% usage,
     // hard_limit=true (block operations when exhausted).
     rt.block_on(async {
-        ctx.cybernetics_loop
+        ctx.cybernetics_loop()
             .read()
             .await
             .register_energy_budget(
@@ -281,7 +279,7 @@ pub(super) fn init_repl_state(
             );
 
             let executor = ManifestExecutor::new(
-                state.inference_port().clone(),
+                state.inference_port.clone(),
                 Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
                 LLMParameters::default(),
                 acp_secret.to_vec(),

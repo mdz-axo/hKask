@@ -104,6 +104,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.hhh.gate",
     "cns.hhh.persona",
     "cns.cybernetics.backpressure",
+    "cns.cybernetics.cadence",
+    "cns.set_point",
     "cns.memory.encode",
     "cns.memory.budget",
 ];
