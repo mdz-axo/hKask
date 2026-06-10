@@ -154,7 +154,7 @@ impl PodContext {
             "inference",
             DelegationAction::Execute,
         )?;
-        self.inference_port().clone().ok_or_else(|| {
+        self.inference_port.clone().ok_or_else(|| {
             AgentPodError::InferenceUnavailable("No inference port configured".to_string())
         })
     }
@@ -219,7 +219,7 @@ impl PodContext {
 
     /// Get the per-agent storage budget (max episodic triples).
     pub fn episodic_storage_budget(&self) -> usize {
-        self.episodic_storage().episodic_storage_budget()
+        self.episodic_storage.episodic_storage_budget()
     }
 
     /// Store an episodic experience with classification (Loop 2a.1).

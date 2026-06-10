@@ -246,7 +246,7 @@ impl PodManager {
                 );
             }
         }
-        pod.activate(self.mcp_runtime().as_ref())?;
+        pod.activate(self.mcp_runtime.as_ref())?;
         if let Some(ref sink) = self.nu_event_sink {
             crate::pod::nu_event::emit_pod_activated(sink.as_ref(), pod.webid, &pod.id.to_string());
         }

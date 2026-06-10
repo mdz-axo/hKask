@@ -271,7 +271,7 @@ impl CyberneticsLoop {
     }
 
     async fn apply_calibrate_threshold(&self, domain: &str, new_threshold: u64) {
-        let cns = self.cns().read().await;
+        let cns = self.cns.read().await;
         cns.calibrate_threshold(domain, new_threshold).await;
         drop(cns);
         tracing::info!(
@@ -350,7 +350,7 @@ impl HkaskLoop for CyberneticsLoop {
         }
 
         // Variety deficit signal from CNS
-        let cns = self.cns().read().await;
+        let cns = self.cns.read().await;
         let health = cns.health().await;
         signals.push(Signal::new(
             LoopId::Cybernetics,
@@ -424,7 +424,7 @@ impl HkaskLoop for CyberneticsLoop {
             a.parameters.get("reason").and_then(|v| v.as_str()) == Some("energy_budget_low")
         });
         if has_energy_depletion {
-            let cns = self.cns().read().await;
+            let cns = self.cns.read().await;
             let worst_ratio = actions
                 .iter()
                 .filter_map(|a| a.parameters.get("remaining_ratio").and_then(|v| v.as_f64()))

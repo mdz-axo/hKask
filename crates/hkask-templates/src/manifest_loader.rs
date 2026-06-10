@@ -139,7 +139,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
         gas: file.gas.unwrap_or_default(),
         error_handling: file.error_handling.unwrap_or_default(),
         ocap: file.ocap.unwrap_or_default(),
-        cns: file.cns().unwrap_or_default(),
+        cns: file.cns.unwrap_or_default(),
         audit: file.audit.unwrap_or_default(),
         functional_role: file.manifest.functional_role,
         inputs: file.inputs,

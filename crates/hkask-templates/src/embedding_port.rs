@@ -50,11 +50,11 @@ impl OkapiEmbedding {
 
         let mut req = self
             .client
-            .post(format!("{}/api/embed/sentences", self.config().base_url))
+            .post(format!("{}/api/embed/sentences", self.config.base_url))
             .json(&request);
 
         // Add authorization header if configured
-        if let Some(auth_header) = self.config().get_authorization_header() {
+        if let Some(auth_header) = self.config.get_authorization_header() {
             req = req.header("Authorization", auth_header);
         }
 

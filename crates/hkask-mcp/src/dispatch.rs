@@ -61,7 +61,7 @@ impl McpDispatcher {
 
     /// Issue capability token to a bot.
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
-        self.capability_checker().grant_tool(tool_name, from, to)
+        self.capability_checker.grant_tool(tool_name, from, to)
     }
 
     /// Shut down all managed MCP server processes.

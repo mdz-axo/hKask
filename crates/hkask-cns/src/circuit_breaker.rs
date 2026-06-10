@@ -90,7 +90,7 @@ impl CircuitBreaker {
                     self.created_at + Duration::from_nanos(last_failure_nanos);
                 let elapsed = Instant::now().duration_since(last_failure_instant);
 
-                if elapsed >= self.config().open_timeout {
+                if elapsed >= self.config.open_timeout {
                     self.set_state(CircuitState::HalfOpen);
                     self.success_count.store(0, Ordering::Relaxed);
                     info!(
@@ -114,7 +114,7 @@ impl CircuitBreaker {
             CircuitState::HalfOpen => {
                 let success_count = self.success_count.fetch_add(1, Ordering::Relaxed) + 1;
 
-                if success_count >= self.config().success_threshold {
+                if success_count >= self.config.success_threshold {
                     self.set_state(CircuitState::Closed);
                     self.failure_count.store(0, Ordering::Relaxed);
                     self.success_count.store(0, Ordering::Relaxed);
@@ -144,14 +144,14 @@ impl CircuitBreaker {
 
         let state = self.state();
 
-        if state == CircuitState::HalfOpen || failure_count >= self.config().failure_threshold {
+        if state == CircuitState::HalfOpen || failure_count >= self.config.failure_threshold {
             self.set_state(CircuitState::Open);
             self.failure_count.store(0, Ordering::Relaxed);
             error!(
                 target: "hkask.circuit_breaker",
                 name = %self.name,
                 "Circuit transitioned to Open (failures: {})",
-                self.config().failure_threshold
+                self.config.failure_threshold
             );
         }
     }

@@ -311,7 +311,7 @@ impl AgentRegistryLoader {
         {
             Ok(token) => token,
             Err(AcpError::AgentAlreadyRegistered(_)) => {
-                let tokens = self.acp_runtime().get_capabilities(&webid).await;
+                let tokens = self.acp_runtime.get_capabilities(&webid).await;
                 tokens.into_iter().next().ok_or_else(|| {
                     RegistryLoaderError::InvalidDefinition(format!(
                         "Agent '{}' already registered but has no capability tokens in ACP runtime",
