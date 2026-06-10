@@ -1,13 +1,16 @@
 //! Per-turn processing for the REPL.
 //!
 //! Handles both ensemble and single-agent inference turns,
-//! including gas governance, manifest cascade, HHH reframe,
-//! tool-augmented followup, HHH gate evaluation, CNS updates,
-//! and persona filtering.
+//! including gas governance, tool-augmented followup, HHH gate evaluation,
+//! CNS updates, and persona filtering.
+//!
+//! The per-turn pipeline delegates to `ChatService::execute_turn()` for
+//! manifest cascade, history suffix, HHH reframe, inference, and persona
+//! filtering. The CLI layer handles gas governance, streaming display,
+//! tool execution (via GovernedTool), HHH gate evaluation, and CNS updates.
 
 use hkask_agents::HhhMode;
-use hkask_services::ChatService;
-use hkask_types::ports::StructuredToolCall;
+use hkask_services::{ChatService, TurnRequest};
 
 use super::ReplState;
 use super::cns_display;
@@ -85,10 +88,11 @@ pub(super) fn ensemble_turn(
 /// Returns `false` if the turn should be skipped (energy budget exhausted).
 ///
 /// The turn follows an agentic tool-use loop:
-/// 1. Inject recent conversation history as suffix context (after cache breakpoint)
-/// 2. Call the model → if it requests tools, execute them
-/// 3. Feed tool results back → call the model again
-/// 4. Repeat until model stops requesting tools or repl_settings.tool_loop_limit
+/// 1. Delegate manifest cascade, history suffix, HHH reframe, inference,
+///    and persona filtering to `ChatService::execute_turn()`.
+/// 2. Execute any tool calls returned by the model via GovernedTool.
+/// 3. Feed tool results back as input for the next iteration.
+/// 4. Repeat until model stops requesting tools or tool_loop_limit reached.
 pub(super) fn single_agent_turn(
     input: &str,
     state: &mut ReplState,
@@ -96,57 +100,24 @@ pub(super) fn single_agent_turn(
     acp_secret: &[u8],
 ) -> bool {
     let settings = state.repl_settings.clone();
-
-    // Execute manifest cascade if the agent has a process manifest.
-    let manifest_context: Option<String> = if let (Some(executor), Some(manifest)) =
-        (&state.manifest_executor, &state.process_manifest)
-    {
-        rt.block_on(ChatService::execute_manifest_cascade(
-            executor,
-            manifest,
-            input,
-            &state.current_agent,
-        ))
-    } else {
-        None
-    };
-
-    // Build the base input with manifest context.
-    let base_input: String = match &manifest_context {
-        Some(ctx) => ChatService::wrap_manifest_input(input, ctx),
-        None => input.to_string(),
-    };
-
-    // Append conversation history AFTER the current input (suffix), not
-    // before (prefix). The system prompt + tool section form the stable
-    // prefix that stays cacheable across turns. History changes each turn
-    // and must be placed after the cache breakpoint to avoid invalidating
-    // KV cache hits.
-    //
-    // Auto-condensation: if the estimated prompt exceeds 87.5% of the model's
-    // context window, condense older session history via the condenser MCP
-    // tool. The loop re-estimates after condensation — one pass only.
-    let input_with_context =
-        build_input_with_auto_condense(&base_input, state, rt, acp_secret, &settings);
-
-    // ── Tool-use loop: keep calling the model until it stops requesting tools ──
     let max_loops = settings.tool_loop_limit;
-    let mut current_response: String = input_with_context;
+
+    let mut current_input: String = input.to_string();
+    let mut tool_results: Option<String> = None;
     let mut iteration: usize = 0;
-    let mut total_usage: Option<crate::commands::TokenUsage> = None;
+    let mut total_usage: Option<hkask_services::TokenUsage> = None;
 
     loop {
         iteration += 1;
         if iteration > max_loops {
             println!(
-                "  \x1b[33m\u{26a0} Tool-use loop max iterations ({}) reached — yielding current response\x1b[0m",
+                "  \x1b[33m\u{26a0} Tool-use loop max iterations ({}) reached \u{2014} yielding current response\x1b[0m",
                 max_loops
             );
             break;
         }
 
-        // Hold-settle pattern via EnergyGuard: reserve heuristic estimate
-        // before inference, settle with actual token cost after.
+        // Hold-settle pattern via EnergyGuard.
         let Some(gas_guard) = energy::EnergyGuard::try_reserve(
             state.service_context.cybernetics_loop(),
             &state.inference_loop,
@@ -163,127 +134,109 @@ pub(super) fn single_agent_turn(
             return false;
         };
 
-        // When HHH mode is active, wrap the input in a reframe template
-        // and append HHH directives to the system prompt.
-        let (effective_input, hhh_suffix): (String, Option<String>) =
-            if state.hhh_mode == HhhMode::Active {
-                let (reframed, suffix) = ChatService::reframe_for_hhh(&current_response);
-                (reframed, Some(suffix))
-            } else {
-                (current_response.clone(), None)
-            };
-
-        // Build LLM parameters from REPL settings.
-        let params = to_llm_params(&settings);
-
-        // Stream the response incrementally (first iteration only; subsequent
-        // tool-loop iterations use non-streaming to avoid redundant output).
-        let chat_response = if iteration == 1 {
-            print!("{}: ", state.current_agent);
-            use std::io::Write;
-            let _ = std::io::stdout().flush();
-            rt.block_on(crate::commands::chat_with_agent_streaming_with_params(
-                &effective_input,
-                Some(&state.current_agent),
-                Some(&state.current_model),
-                Some(state.inference_port.clone()),
-                state.resolved_secrets.as_ref(),
-                Some(state.episodic_storage.clone()),
-                Some(state.semantic_storage.clone()),
-                Some(state.agent_webid),
-                hhh_suffix.as_deref(),
-                Some(state.tool_prompt_section.as_str()),
-                &params,
-            ))
-        } else {
-            rt.block_on(crate::commands::chat_with_agent_with_params(
-                &effective_input,
-                Some(&state.current_agent),
-                Some(&state.current_model),
-                Some(state.inference_port.clone()),
-                state.resolved_secrets.as_ref(),
-                Some(state.episodic_storage.clone()),
-                Some(state.semantic_storage.clone()),
-                Some(state.agent_webid),
-                hhh_suffix.as_deref(),
-                Some(state.tool_prompt_section.as_str()),
-                &params,
-            ))
+        // Build TurnRequest for this iteration.
+        let turn_req = TurnRequest {
+            input: current_input.clone(),
+            agent_name: state.current_agent.clone(),
+            model: state.current_model.clone(),
+            inference_port: state.inference_port.clone(),
+            episodic_storage: state.episodic_storage.clone(),
+            semantic_storage: state.semantic_storage.clone(),
+            agent_webid: state.agent_webid,
+            manifest_executor: state.manifest_executor.clone(),
+            process_manifest: state.process_manifest.clone(),
+            hhh_mode: state.hhh_mode.clone(),
+            persona_constraints: state.persona_constraints.clone(),
+            tool_section: state.tool_prompt_section.clone(),
+            llm_params: to_llm_params(&settings),
+            context_turns: settings.context_turns,
+            capability_checker: state.service_context.capability_checker().clone(),
+            system_webid: *state.service_context.system_webid(),
+            iteration,
+            tool_results: tool_results.take(),
         };
 
-        // Accumulate usage across iterations
-        if let Some(ref usage) = chat_response.usage {
-            if let Some(ref mut total) = total_usage {
-                total.prompt_tokens += usage.prompt_tokens;
-                total.completion_tokens += usage.completion_tokens;
-                total.total_tokens += usage.total_tokens;
-            } else {
-                total_usage = Some(usage.clone());
+        let chat_result = rt.block_on(ChatService::execute_turn(&state.service_context, &turn_req));
+        let chat_response = match chat_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("  \x1b[31mInference error:\x1b[0m {}", e);
+                return false;
             }
+        };
+
+        // Accumulate usage.
+        let usage = chat_response.usage;
+        if let Some(ref mut total) = total_usage {
+            total.prompt_tokens += usage.prompt_tokens;
+            total.completion_tokens += usage.completion_tokens;
+            total.total_tokens += usage.total_tokens;
+        } else {
+            total_usage = Some(usage);
         }
 
-        // Settle gas with actual token cost
-        let actual_cost = chat_response
-            .usage
+        // Settle gas.
+        let actual_cost = total_usage
             .as_ref()
             .map(|u| u.gas_cost())
             .unwrap_or(gas_guard.heuristic());
         gas_guard.settle(actual_cost);
 
         let response = chat_response.text;
+        let structured_calls = chat_response.structured_tool_calls;
 
-        let structured_calls: Vec<StructuredToolCall> =
-            if chat_response.finish_reason == "tool_calls" {
-                chat_response.tool_calls
-            } else {
-                vec![]
-            };
+        // Display the response on first iteration.
+        if iteration == 1 && !structured_calls.is_empty() {
+            // Tool calls requested — display raw text before tool execution.
+            if !response.is_empty() {
+                println!("{}: {}", state.current_agent, response);
+            }
+        }
 
-        // Parse and execute tool calls
+        // Execute tool calls through GovernedTool.
         let processed = rt.block_on(tool_augmented::process_response(
             &response,
             &state.current_agent,
             &state.governed_tool,
             &state.agent_webid,
             acp_secret,
-            Some(&structured_calls),
+            if structured_calls.is_empty() {
+                None
+            } else {
+                Some(&structured_calls)
+            },
         ));
 
-        // If no tool calls were found, this is the final response
+        // If no tool calls, this is the final response.
         if !processed.had_tool_calls {
-            current_response = processed.text;
-
-            // HHH gate evaluation (only on final response, after tool loop completes)
+            // HHH gate evaluation (only on final response).
             if state.hhh_mode == HhhMode::Active {
                 if let Some(ref gate_port) = state.gate_inference_port {
-                    hhh_loop::evaluate_hhh(input, &mut current_response, gate_port, state, rt);
+                    let mut hhh_text = processed.text;
+                    hhh_loop::evaluate_hhh(input, &mut hhh_text, gate_port, state, rt);
+                    // Display the post-HHH result.
+                    if iteration == 1 {
+                        println!("{}: {}", state.current_agent, hhh_text);
+                    }
+                    println!();
                 } else {
                     println!(
                         "  \x1b[33m\u{26a0} HHH mode active but gate model unavailable\x1b[0m"
                     );
                 }
+            } else if iteration == 1 {
+                // No tool calls, no HHH — display the final response.
+                println!("{}: {}", state.current_agent, processed.text);
             }
-
-            // Persona filter (Stage 4 of alignment pipeline)
-            // Result is discarded: response text is displayed via streaming at iteration 1,
-            // so the filter cannot affect already-displayed output.
-            let _ = ChatService::apply_persona_filter(
-                &current_response,
-                state.persona_constraints.as_ref(),
-            );
-
             break;
         }
 
-        // Tool calls found — build the next iteration's prompt with results
-        current_response = format!(
-            "{}\n\nThe following tool calls were executed:\n\n{}\n\nBased on these results, provide your response.",
-            processed.text.trim(),
-            processed.tool_results_formatted
-        );
+        // Tool calls found — build the next iteration's input with results.
+        current_input = response;
+        tool_results = Some(processed.tool_results_formatted);
     }
 
-    // Show token usage
+    // Show token usage.
     if let Some(ref usage) = total_usage {
         if iteration > 1 {
             println!(
@@ -298,7 +251,7 @@ pub(super) fn single_agent_turn(
         }
     }
 
-    // Check energy budget and warn if low
+    // Check energy budget and warn if low.
     let gas_remaining = state.inference_loop.gas_remaining();
     let gas_cap = state.inference_loop.gas_cap();
     if gas_cap > 0 && gas_remaining > 0 && (gas_remaining as f64 / gas_cap as f64) < 0.2 {
@@ -317,167 +270,6 @@ pub(super) fn single_agent_turn(
     cns_display::update_cns_and_display(state, rt);
 
     true
-}
-
-/// Build `input_with_context`, condensing session history via the condenser
-/// MCP tool if the estimated prompt exceeds 87.5% of the model's context window.
-///
-/// Only condenses when `settings.auto_condense` is true and `model_meta` has been
-/// populated (i.e., the model was switched via /model, not hardcoded).
-fn build_input_with_auto_condense(
-    base_input: &str,
-    state: &ReplState,
-    rt: &tokio::runtime::Handle,
-    acp_secret: &[u8],
-    settings: &super::handlers::ReplSettings,
-) -> String {
-    // Recall recent turns from episodic memory via ChatService.
-    // Requires a capability token minted from the service context.
-    let token = state.service_context.capability_checker().grant_registry(
-        hkask_types::DelegationAction::Read,
-        *state.service_context.system_webid(),
-        state.agent_webid,
-    );
-    let history_suffix = ChatService::recall_recent_turns(
-        &state.episodic_storage,
-        &state.agent_webid,
-        &token,
-        settings.context_turns,
-    );
-    let history_suffix = match history_suffix {
-        Some(s) => s,
-        None => return base_input.to_string(),
-    };
-    let candidate = format!("{}\n\n{}", base_input, history_suffix);
-
-    // Only condense if auto_condense is on and model metadata is available.
-    if !settings.auto_condense {
-        return candidate;
-    }
-    let Some(ref meta) = settings.model_meta else {
-        return candidate;
-    };
-
-    let estimated_tokens = (candidate.len() as u64) / 4;
-    let condense_threshold = (meta.context_length as f64 * 0.875) as u64;
-    if estimated_tokens <= condense_threshold {
-        return candidate;
-    }
-
-    // Build the messages array for condenser_thread_summary.
-    // Only condense the oldest half of the turns from episodic memory.
-    let request =
-        hkask_agents::ports::RecallRequest::episodic("chatted", state.agent_webid, token.clone());
-    let episodes = match state.episodic_storage.recall_episodic(&request) {
-        Ok(v) if !v.is_empty() => v,
-        _ => {
-            println!(
-                "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but no history to condense\x1b[0m",
-                (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
-                estimated_tokens,
-                meta.context_length,
-            );
-            return candidate;
-        }
-    };
-
-    let turn_list: Vec<String> = episodes
-        .iter()
-        .filter_map(|e| {
-            let v = e.value.as_object()?;
-            Some(format!("[user]: {}", v.get("user_input")?.as_str()?))
-        })
-        .collect();
-
-    if turn_list.len() < 4 {
-        println!(
-            "  \x1b[33m\u{26a0} Context at {}% of window ({}/{}) but too few turns to condense\x1b[0m",
-            (estimated_tokens as f64 / meta.context_length as f64 * 100.0) as u32,
-            estimated_tokens,
-            meta.context_length,
-        );
-        return candidate;
-    }
-
-    let midpoint = turn_list.len() / 2;
-    let old_turns = &turn_list[..midpoint];
-    let recent_turns = &turn_list[midpoint..];
-
-    let messages: Vec<serde_json::Value> = old_turns
-        .iter()
-        .map(|content| {
-            serde_json::json!({
-                "role": "assistant",
-                "content": content
-            })
-        })
-        .collect();
-
-    print!(
-        "  \x1b[2mcondensing {} old turns via condenser…\x1b[0m",
-        old_turns.len()
-    );
-    use std::io::Write;
-    let _ = std::io::stdout().flush();
-
-    // Call condenser_thread_summary through GovernedTool.
-    let condense_result = rt.block_on(async {
-        let call = super::tool_augmented::ToolCall {
-            server: "hkask-mcp-condenser".to_string(),
-            tool: "condenser_thread_summary".to_string(),
-            args: serde_json::json!({
-                "messages": messages,
-                "current_query": base_input,
-                "max_tokens": 500
-            }),
-        };
-        super::tool_augmented::invoke_tool_call(
-            &call,
-            &state.governed_tool,
-            &state.agent_webid,
-            acp_secret,
-        )
-        .await
-    });
-
-    match condense_result {
-        Ok(summary_value) => {
-            let summary = summary_value
-                .get("summary")
-                .and_then(|v| v.as_str())
-                .unwrap_or("(condensed)");
-            println!(" done");
-            println!(
-                "  \x1b[2mcondensed {} turns → {} chars (est. {} tokens)\x1b[0m",
-                old_turns.len(),
-                summary.len(),
-                summary.len() / 4,
-            );
-
-            // Rebuild history: keep recent turns, prepend summary as a synthetic turn.
-            let recent_text = if recent_turns.is_empty() {
-                String::new()
-            } else {
-                let recent_lines: Vec<String> = recent_turns
-                    .iter()
-                    .map(|content| format!("User: [previous]\n{}", content))
-                    .collect();
-                format!(
-                    "\n\n[Previous conversation — compacted]\n{}\n[/Previous conversation — compacted]",
-                    recent_lines.join("\n\n")
-                )
-            };
-            format!(
-                "{}\n\n[Previous conversation — summary of earlier turns]\n{}\n[/Previous conversation — summary]\n{}",
-                base_input, summary, recent_text
-            )
-        }
-        Err(e) => {
-            println!(" \x1b[33mfailed: {}\x1b[0m", e);
-            // Proceed with the oversized prompt — better than blocking the turn.
-            candidate
-        }
-    }
 }
 
 #[cfg(test)]

@@ -104,11 +104,13 @@ impl CondenserServer {
     async fn condenser_ping(&self) -> String {
         let span = ToolSpanGuard::new("condenser_ping", &self.webid);
         let engine = self.engine.lock().unwrap();
+        let health = engine.check_global_health();
         span.ok_json(serde_json::json!({
             "status": "ok",
             "version": SERVER_VERSION,
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
+            "health": health,
             "persistence": self.has_persistence(),
             "inference": self.has_inference(),
             "inference_url": self.inference_url,

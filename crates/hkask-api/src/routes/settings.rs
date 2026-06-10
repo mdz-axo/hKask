@@ -24,7 +24,8 @@ pub struct SettingsResponse {
     pub seed: Option<u32>,
     pub gas_heuristic: u64,
     pub gas_cap: u64,
-    pub auto_compact: bool,
+    #[serde(alias = "auto_compact")]
+    pub auto_condense: bool,
     pub context_length: Option<u32>,
     pub supports_thinking: Option<bool>,
 }
@@ -43,7 +44,7 @@ impl Default for SettingsResponse {
             seed: None,
             gas_heuristic: 500,
             gas_cap: 10_000,
-            auto_compact: true,
+            auto_condense: true,
             context_length: None,
             supports_thinking: None,
         }
@@ -55,10 +56,7 @@ impl Default for SettingsResponse {
 fn load_settings() -> SettingsResponse {
     let path = settings_path();
     match std::fs::read_to_string(&path) {
-        Ok(json) => match serde_json::from_str::<SettingsResponse>(&json) {
-            Ok(s) => s,
-            Err(_) => SettingsResponse::default(),
-        },
+        Ok(json) => serde_json::from_str::<SettingsResponse>(&json).unwrap_or_default(),
         Err(_) => SettingsResponse::default(),
     }
 }
@@ -85,7 +83,8 @@ pub struct UpdateSettingsRequest {
     pub seed: Option<Option<u32>>,
     pub gas_heuristic: Option<u64>,
     pub gas_cap: Option<u64>,
-    pub auto_compact: Option<bool>,
+    #[serde(alias = "auto_compact")]
+    pub auto_condense: Option<bool>,
 }
 
 pub fn settings_router() -> Router<ApiState> {
@@ -104,59 +103,59 @@ async fn update_settings(
 ) -> Json<SettingsResponse> {
     let mut settings = load_settings();
 
-    if let Some(v) = req.tool_loop_limit {
-        if v > 0 {
-            settings.tool_loop_limit = v;
-        }
+    if let Some(v) = req.tool_loop_limit
+        && v > 0
+    {
+        settings.tool_loop_limit = v;
     }
     if let Some(v) = req.context_turns {
         settings.context_turns = v;
     }
-    if let Some(v) = req.temperature {
-        if (0.0..=2.0).contains(&v) {
-            settings.temperature = v;
-        }
+    if let Some(v) = req.temperature
+        && (0.0..=2.0).contains(&v)
+    {
+        settings.temperature = v;
     }
-    if let Some(v) = req.top_p {
-        if (0.0..=1.0).contains(&v) {
-            settings.top_p = v;
-        }
+    if let Some(v) = req.top_p
+        && (0.0..=1.0).contains(&v)
+    {
+        settings.top_p = v;
     }
-    if let Some(v) = req.top_k {
-        if v >= 1 {
-            settings.top_k = v;
-        }
+    if let Some(v) = req.top_k
+        && v >= 1
+    {
+        settings.top_k = v;
     }
-    if let Some(v) = req.min_p {
-        if (0.0..=1.0).contains(&v) {
-            settings.min_p = v;
-        }
+    if let Some(v) = req.min_p
+        && (0.0..=1.0).contains(&v)
+    {
+        settings.min_p = v;
     }
-    if let Some(v) = req.typical_p {
-        if (0.0..=1.0).contains(&v) {
-            settings.typical_p = v;
-        }
+    if let Some(v) = req.typical_p
+        && (0.0..=1.0).contains(&v)
+    {
+        settings.typical_p = v;
     }
-    if let Some(v) = req.max_tokens {
-        if v > 0 {
-            settings.max_tokens = v;
-        }
+    if let Some(v) = req.max_tokens
+        && v > 0
+    {
+        settings.max_tokens = v;
     }
     if let Some(v) = req.seed {
         settings.seed = v;
     }
-    if let Some(v) = req.gas_heuristic {
-        if v > 0 {
-            settings.gas_heuristic = v;
-        }
+    if let Some(v) = req.gas_heuristic
+        && v > 0
+    {
+        settings.gas_heuristic = v;
     }
-    if let Some(v) = req.gas_cap {
-        if v > 0 {
-            settings.gas_cap = v;
-        }
+    if let Some(v) = req.gas_cap
+        && v > 0
+    {
+        settings.gas_cap = v;
     }
-    if let Some(v) = req.auto_compact {
-        settings.auto_compact = v;
+    if let Some(v) = req.auto_condense {
+        settings.auto_condense = v;
     }
 
     let _ = save_settings(&settings);
@@ -188,7 +187,7 @@ mod tests {
             seed: None,
             gas_heuristic: None,
             gas_cap: None,
-            auto_compact: None,
+            auto_condense: None,
         };
 
         // Apply the merge (same logic as the PUT handler)
@@ -221,12 +220,12 @@ mod tests {
             seed: None,
             gas_heuristic: None,
             gas_cap: None,
-            auto_compact: None,
+            auto_condense: None,
         };
-        if let Some(v) = req.temperature {
-            if (0.0..=2.0).contains(&v) {
-                settings.temperature = v;
-            }
+        if let Some(v) = req.temperature
+            && (0.0..=2.0).contains(&v)
+        {
+            settings.temperature = v;
         }
         // Out-of-range value should be silently ignored (no change)
         assert!((settings.temperature - 0.7).abs() < f32::EPSILON);

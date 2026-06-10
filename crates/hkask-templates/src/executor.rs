@@ -51,6 +51,7 @@ const DEFAULT_TEMPLATE_BASE_PATH: &str = "registry/templates";
 /// - `McpPort` — for invoking MCP tools in execute steps
 /// - `template_base_path` — filesystem path for resolving `template_ref` values
 ///   when `renderer == "minijinja"`
+#[derive(Clone)]
 pub struct ManifestExecutor {
     /// Inference port for select/populate actions
     inference: Arc<dyn InferencePort>,

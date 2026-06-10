@@ -13,10 +13,7 @@ use hkask_services::settings_path;
 pub(crate) fn load_settings() -> ReplSettings {
     let path = settings_path();
     match std::fs::read_to_string(&path) {
-        Ok(json) => match serde_json::from_str::<ReplSettings>(&json) {
-            Ok(s) => s,
-            Err(_) => ReplSettings::default(),
-        },
+        Ok(json) => serde_json::from_str::<ReplSettings>(&json).unwrap_or_default(),
         Err(_) => ReplSettings::default(),
     }
 }
