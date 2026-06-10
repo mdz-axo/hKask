@@ -148,9 +148,10 @@ struct CnsState {
 
 impl CnsState {
     fn new(threshold: u64) -> Self {
-        let algedonic = Arc::new(ParkingRwLock::new(
-            AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
-        ));
+        let algedonic = Arc::new(ParkingRwLock::new(AlgedonicManager::new(
+            threshold,
+            DEFAULT_EXPECTED_VARIETY,
+        )));
         let tracker = VarietyMonitor::new();
         let energy_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {

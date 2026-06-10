@@ -2,6 +2,7 @@
 name: essentialist
 visibility: public
 description: "General-purpose recursive eliminative interrogation. Enforces 'always take away, never add' through a 3-gate challenge loop (Exist → Surface → Contract) the actor must survive before any artifact can be committed. Use when the user says 'simplify this,' 'what can be deleted,' 'audit complexity,' 'strip this module,' 'is this necessary,' or 'essentialist review.'"
+composes_skills: [deep-module, coding-guidelines, constraint-forces]
 ---
 
 # Essentialist Skill — Eliminative Interrogation

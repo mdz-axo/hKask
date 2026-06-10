@@ -33,7 +33,6 @@ use hkask_agents::curator_agent::metacognition::MetacognitionError;
 use hkask_agents::ensemble::StandingSessionError;
 use hkask_agents::pod::AgentPodError;
 use hkask_agents::registry_loader::RegistryLoaderError;
-use hkask_cns::AllostericError;
 use hkask_cns::EnergyError;
 use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
 use hkask_storage::{
@@ -164,10 +163,6 @@ pub enum ServiceError {
     /// Keystore secret resolution failed.
     #[error("Keystore resolution failed: {0}")]
     Keystore(String),
-
-    /// Upstream allosteric gate error.
-    #[error(transparent)]
-    Allosteric(#[from] AllostericError),
 
     /// Upstream energy budget error.
     #[error(transparent)]

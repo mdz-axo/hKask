@@ -383,9 +383,12 @@ Interpretation:
 
 ## Constraints
 
+- The default mode is **advisory** (agent recommends, human decides). Autonomous mode only activates on explicit user intent ("simplify", "strip", "run the essentialist").
 - The G1→G2→G3 order is FIXED. G1 (Exist) must come first: there's no point counting surfaces or tracing contracts for an artifact that doesn't survive the deletion test.
+- Every finding MUST carry a `constraint_force` label. Only Prohibition and Guardrail cause gate failure in autonomous mode.
 - Every gate failure MUST produce specific, actionable reduction instructions — not vague critiques.
 - Escalate to human after `max_retries_per_gate` failures on a single gate. Do not loop indefinitely.
+- In advisory mode, human rejections of REQUIRED (Prohibition) findings cause immediate ESCALATE. Guardrail rejections are allowed with stated reason.
 - After escalation, STOP. Do not continue reducing without human input.
 - Zero-delta detection must be exact: same surviving items, same structure, same interfaces as previous round.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).

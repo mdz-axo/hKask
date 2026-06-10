@@ -13,7 +13,6 @@
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
 
 pub mod agent_def;
-pub mod allosteric;
 pub mod audit;
 pub mod bundle;
 pub mod capability;
@@ -42,7 +41,7 @@ pub mod sql_impls;
 pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
-pub use allosteric::{AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function};
+// allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use audit::{AuditEntry, AuditOutcome};
 pub use bundle::{
     BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, BundleSkill,

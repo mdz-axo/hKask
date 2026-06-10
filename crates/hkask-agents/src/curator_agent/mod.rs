@@ -23,7 +23,6 @@ pub mod metacognition;
 pub mod spec_curator;
 
 use crate::curator::context::CuratorContext;
-use crate::curator::curation_gate::CurationConfidenceGate;
 use crate::curator::curation_loop::CurationLoop;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::CurationInput;
@@ -63,10 +62,7 @@ impl CuratorAgent {
             metacognition::MetacognitionConfig::default(),
         ));
         let curator_handle = context.handle().clone();
-        let curation_loop = Arc::new(
-            CurationLoop::new(curator_handle, Arc::clone(&context))
-                .with_confidence_gate(CurationConfidenceGate::new(vec![])),
-        );
+        let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
 
         Self {
             curation_loop,
@@ -86,10 +82,7 @@ impl CuratorAgent {
             config,
         ));
         let curator_handle = context.handle().clone();
-        let curation_loop = Arc::new(
-            CurationLoop::new(curator_handle, Arc::clone(&context))
-                .with_confidence_gate(CurationConfidenceGate::new(vec![])),
-        );
+        let curation_loop = Arc::new(CurationLoop::new(curator_handle, Arc::clone(&context)));
 
         Self {
             curation_loop,
@@ -119,8 +112,7 @@ impl CuratorAgent {
         ));
         let curator_handle = context.handle().clone();
         let mut curation_loop =
-            CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation)
-                .with_confidence_gate(CurationConfidenceGate::new(vec![]));
+            CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation);
         if let Some(rx) = inbox_rx {
             curation_loop = curation_loop.with_inbox(rx);
         }

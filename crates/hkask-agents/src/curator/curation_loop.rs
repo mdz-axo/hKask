@@ -15,7 +15,6 @@
 //! `CuratorDirective`s; the Curator Agent *consumes* those directives and
 //! formats them for human operators.
 
-use crate::curator::curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
@@ -27,6 +26,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
+
+use crate::curator::curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 
 use crate::curator::context::CuratorContext;
 
@@ -48,15 +49,10 @@ pub struct CurationLoop {
     curator_handle: CuratorHandle,
     context: Arc<CuratorContext>,
     consolidation: Option<Arc<ConsolidationBridge>>,
+    /// Metacognitive confidence gate — evaluates R̄-bar thresholds.
+    confidence_gate: Option<Mutex<CurationConfidenceGate>>,
     /// Cursor for incremental algedonic review.
     last_review_ms: AtomicU64,
-    /// Curation confidence gate for metacognitive evaluation.
-    ///
-    /// When present, `act()` calls `gate.decide()` during the regulation cycle
-    /// and may produce `SeekMoreEvidence` directives. Wrapped in `Mutex` for
-    /// interior mutability: `HkaskLoop::act(&self)` takes `&self`, but
-    /// `CurationConfidenceGate::decide()` requires `&mut self`.
-    confidence_gate: Option<Mutex<CurationConfidenceGate>>,
     /// Inbox for receiving CurationInput messages from Cybernetics, SpecCurator,
     /// and GoalStore. Drained during the sense phase.
     inbox: Option<Arc<RwLock<mpsc::UnboundedReceiver<CurationInput>>>>,
@@ -74,8 +70,8 @@ impl CurationLoop {
             curator_handle,
             context,
             consolidation: None,
-            last_review_ms: AtomicU64::new(0),
             confidence_gate: None,
+            last_review_ms: AtomicU64::new(0),
             inbox: None,
         }
     }
@@ -89,16 +85,10 @@ impl CurationLoop {
             curator_handle,
             context,
             consolidation: Some(consolidation),
-            last_review_ms: AtomicU64::new(0),
             confidence_gate: None,
+            last_review_ms: AtomicU64::new(0),
             inbox: None,
         }
-    }
-
-    /// Attach the curation confidence gate for metacognitive evaluation.
-    pub fn with_confidence_gate(mut self, gate: CurationConfidenceGate) -> Self {
-        self.confidence_gate = Some(Mutex::new(gate));
-        self
     }
 
     /// Wire the unified inbox for CurationInput messages.
@@ -140,41 +130,6 @@ impl CurationLoop {
                     tracing::warn!(target: CUR_TARGET, error = %e, "Failed to load persisted curation cursor — starting from epoch")
                 }
             }
-        }
-    }
-
-    /// Evaluate curation confidence using the internal gate (Mutex-protected).
-    pub fn evaluate_confidence_internal(&self, context: &str) -> Option<CuratorDirective> {
-        let gate = self.confidence_gate.as_ref()?;
-        let mut guard = match gate.lock() {
-            Ok(g) => g,
-            Err(e) => {
-                tracing::warn!(
-                    target: CUR_TARGET,
-                    error = %e,
-                    "CurationConfidenceGate mutex poisoned — skipping confidence evaluation"
-                );
-                return None;
-            }
-        };
-        let decision = guard.decide();
-        let r_bar = guard.confidence();
-
-        match decision {
-            ConfidenceDecision::SeekMoreEvidence => {
-                let sensitivities = guard.sensitivity_analysis();
-                let top_channel = sensitivities
-                    .first()
-                    .map(|(name, _)| name.as_str())
-                    .unwrap_or("unknown");
-
-                Some(CuratorDirective::SeekMoreEvidence {
-                    context: context.to_string(),
-                    channel: top_channel.to_string(),
-                    confidence: format!("{r_bar:.3}"),
-                })
-            }
-            _ => None,
         }
     }
 
@@ -426,17 +381,6 @@ impl HkaskLoop for CurationLoop {
                 );
             }
             // None means directive was dampened or issuance failed
-        }
-
-        // Metacognitive evaluation via the internal CurationConfidenceGate.
-        // When the gate is configured and confidence is in the transition zone
-        // (0.3 < R̄ < 0.8), issue a SeekMoreEvidence directive through Cybernetics.
-        if let Some(directive) = self.evaluate_confidence_internal("curation_act") {
-            self.context.issue_directive(directive).await;
-            tracing::info!(
-                target: CUR_TARGET,
-                "Confidence gate directive issued through dispatch"
-            );
         }
     }
 }

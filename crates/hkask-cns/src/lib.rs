@@ -4,7 +4,6 @@
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
-pub mod allosteric; // ARL — Allosteric Regulation Logic (MWC gates)
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
 pub mod cybernetics_loop; // Loop 6
@@ -36,9 +35,7 @@ pub use energy::{
 };
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
-pub use hkask_types::allosteric::{
-    AllostericError, AllostericGate, AllostericGateConfig, mwc_state_function,
-};
+// allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use hkask_types::cns::{QueueDepth, RBarThreshold};
 pub use runtime::CnsRuntime;
 pub use set_points::{

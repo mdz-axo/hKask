@@ -34,7 +34,6 @@ pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
-pub use curator::curation_gate::CurationConfidenceGate;
 pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 pub use hkask_types::RBarThreshold;

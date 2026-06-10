@@ -44,8 +44,7 @@ use hkask_storage::{
 };
 use hkask_templates::OkapiConfig;
 use hkask_templates::SqliteRegistry;
-use hkask_types::CuratorHandle;
-use hkask_types::WebID;
+use hkask_types::CapabilityChecker;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
@@ -181,7 +180,8 @@ impl AgentService {
     }
 
     /// Access CNS service for health, alerts, and variety queries.
-    pub fn cns(&self) -> &CnsService {
+    #[deprecated(note = "use AgentService::cns() group method instead")]
+    pub fn cns_service(&self) -> &CnsService {
         &self.cns
     }
 
@@ -208,6 +208,102 @@ impl AgentService {
     /// Access configuration.
     pub fn config(&self) -> &ServiceConfig {
         &self.config
+    }
+
+    // === Domain group methods (7 total — strangler-fig CREATE) ===
+    // These 7 methods replace the 27 field-level accessors above.
+    // Both paths coexist during migration. Old accessors deleted in a later step.
+
+    /// Memory: episodic + semantic storage ports.
+    /// # REQ: P4 (Clear Boundaries)
+    pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>) {
+        (&self.episodic_storage, &self.semantic_storage)
+    }
+
+    /// CNS: runtime, cybernetics loop, loop system, event sink.
+    /// Replaces standalone CnsService (deleted — pass-through module).
+    /// # REQ: P9 (Homeostatic)
+    pub fn cns(
+        &self,
+    ) -> (
+        &Arc<RwLock<CnsRuntime>>,
+        &Arc<RwLock<CyberneticsLoop>>,
+        &Arc<LoopSystem>,
+        &Arc<dyn NuEventSink>,
+    ) {
+        (
+            &self.cns_runtime,
+            &self.cybernetics_loop,
+            &self.loop_system,
+            &self.event_sink,
+        )
+    }
+
+    /// Governance: capability checker, MCP dispatcher, escalation queue.
+    /// consent_manager and sovereignty_boundary_store are PRIVATE —
+    /// no raw store access. Resolves P1 Prohibition violation.
+    /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent), P4 (OCAP)
+    pub fn governance(
+        &self,
+    ) -> (
+        &Arc<CapabilityChecker>,
+        &Arc<McpDispatcher>,
+        &Arc<EscalationQueue>,
+    ) {
+        (
+            &self.capability_checker,
+            &self.mcp_dispatcher,
+            &self.escalation_queue,
+        )
+    }
+
+    /// Storage: template registry, goal repo, spec store, standing sessions,
+    /// user store, agent registry, Git CAS.
+    /// # REQ: ADR-024, P4 (Clear Boundaries)
+    pub fn storage(
+        &self,
+    ) -> (
+        &Arc<tokio::sync::Mutex<SqliteRegistry>>,
+        &Arc<SqliteGoalRepository>,
+        &SqliteSpecStore,
+        &Arc<StandingSessionStore>,
+        &Arc<std::sync::Mutex<UserStore>>,
+        &hkask_storage::AgentRegistryStore,
+        &Arc<dyn GitCASPort>,
+    ) {
+        (
+            &self.registry,
+            &self.goal_repo,
+            &self.spec_store,
+            &self.standing_session_store,
+            &self.user_store,
+            &self.agent_registry_store,
+            &self.git_cas_port,
+        )
+    }
+
+    /// Coordination: inference port, MCP runtime, pod manager, session manager.
+    /// # REQ: P3 (Generative Space), P6 (Space for Replicants & Bots)
+    pub fn coordination(
+        &self,
+    ) -> (
+        &Option<Arc<dyn InferencePort>>,
+        &Arc<McpRuntime>,
+        &Arc<PodManager>,
+        &Arc<RwLock<SessionManager>>,
+    ) {
+        (
+            &self.inference_port,
+            &self.mcp_runtime,
+            &self.pod_manager,
+            &self.session_manager,
+        )
+    }
+
+    /// Identity: system WebID + ACP runtime.
+    /// # REQ: P4 (Clear Boundaries)
+    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::AcpRuntime>) {
+        (&self.system_webid, &self.acp_runtime)
     }
 
     // === Category 4: Internal implementation (crate-visible only) ===

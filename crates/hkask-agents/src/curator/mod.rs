@@ -11,7 +11,8 @@
 //! This module contains ONLY the pure regulatory code:
 //! - `CurationLoop` — sense/compute/act, no persona, no chat, no memory
 //! - `CuratorContext` — capability-disciplined runtime references
-//! - `CurationConfidenceGate` — ARL confidence gate (IP-3)
+//! - `CurationConfidenceGate` — deleted (essentialist review: always constructed with
+//!   empty ports, never produced a non-Suppress decision).
 //!
 //! Persona concerns (metacognition, bot orchestration, spec curation,
 //! human-facing reporting) moved to `crate::curator_agent`.
@@ -22,5 +23,4 @@ pub mod curation_loop;
 pub mod persona_filter;
 
 pub use context::CuratorContext;
-pub use curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 pub use curation_loop::CurationLoop;

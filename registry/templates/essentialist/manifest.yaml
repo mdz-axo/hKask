@@ -27,13 +27,16 @@ templates:
         simplify,
         reduce,
         calibrate,
+        constrain,
       ]
     description: >
-      Orchestrate the 3-gate eliminative interrogation loop: iterate G1 (Exist)
-      → G2 (Surface) → G3 (Contract) over an artifact. Branch on pass/fail for
-      each gate, escalate to human on retry exhaustion (3 max), abort on
-      zero-delta completion. Delegates to deep-module (G1, G2) and coding-guidelines
-      (G3) templates.
+      Orchestrate the 3-gate eliminative interrogation loop in either autonomous
+      (agent evaluates and reduces without pause) or advisory (agent recommends,
+      human accepts/rejects/overrides per gate) mode. Branch on pass/fail per
+      gate, classify every finding by constraint-force (Prohibition → required,
+      Guideline → suggested), escalate to human on retry exhaustion (3 max),
+      abort on zero-delta completion. Delegates to deep-module (G1, G2) and
+      coding-guidelines (G3) templates.
 
 hlexicon_terms:
   - sequence
@@ -46,3 +49,4 @@ hlexicon_terms:
   - simplify
   - reduce
   - calibrate
+  - constrain
