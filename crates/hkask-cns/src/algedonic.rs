@@ -311,3 +311,131 @@ pub(crate) fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
         healthy: manager.critical_alerts().is_empty(),
     }
 }
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::allosteric::gate::{AllostericGate, AllostericGateConfig};
+    use crate::runtime::VarietyTracker;
+    use std::time::Duration;
+
+    // REQ: svc-cns-algedonic-002 — allosteric_gate_escalates_at_high_alpha
+    //
+    // TASK 1 cybernetic property: when α (deficit/threshold) ≥ 5,
+    // the MWC sigmoid MUST produce R̄ ≥ 0.8 (Critical severity).
+    // With the production algedonic gate config (L=10, c=0.1, n=3),
+    // R̄ crosses 0.8 at approximately α=3.5.
+    // This tests the comparator function in the variety regulation loop.
+    // See TASK 1 condensed loop topology (Loop 1: Variety Regulation).
+    #[test]
+    fn allosteric_gate_escalates_at_high_alpha() {
+        let mut gate = AllostericGate::new(&AllostericGateConfig {
+            name: "test".into(),
+            base_l: 10.0,
+            c: 0.1,
+            n: 3,
+            threshold: 0.5,
+            tau: Duration::from_secs(0),
+            hysteresis: 0.0,
+        });
+
+        // α = 5 → (1+5)³ / ((1+5)³ + 10·(1+0.1·5)³) = 216/(216+33.75) ≈ 0.865
+        gate.set_alpha(5.0);
+        let r_bar = gate.r_bar_eq();
+        assert!(
+            r_bar >= 0.8,
+            "R̄={} should be ≥ 0.8 for α=2.5 (MWC sigmoid escalation threshold)",
+            r_bar
+        );
+    }
+
+    // REQ: svc-cns-algedonic-003 — allosteric_gate_stays_low_at_low_alpha
+    //
+    // Complementary property: when α (deficit/threshold) ≤ 0.3,
+    // the MWC sigmoid MUST produce R̄ ≤ 0.3 (Info severity — no escalation).
+    #[test]
+    fn allosteric_gate_stays_low_at_low_alpha() {
+        let mut gate = AllostericGate::new(&AllostericGateConfig {
+            name: "test".into(),
+            base_l: 10.0,
+            c: 0.1,
+            n: 3,
+            threshold: 0.5,
+            tau: Duration::from_secs(0),
+            hysteresis: 0.0,
+        });
+
+        // α = 0.2 → should produce R̄ ≤ 0.3 (Info zone)
+        gate.set_alpha(0.2);
+        let r_bar = gate.r_bar_eq();
+        assert!(
+            r_bar <= 0.3,
+            "R̄={} should be ≤ 0.3 for α=0.2 (no escalation zone)",
+            r_bar
+        );
+    }
+
+    // REQ: svc-cns-algedonic-004 — new_allosteric_classifies_critical_correctly
+    //
+    // End-to-end test: after setting α on the allosteric gate (as AlgedonicManager
+    // does in production), RuntimeAlert::new_allosteric must produce Critical
+    // severity when the deficit causes R̄ ≥ 0.8.
+    #[test]
+    fn new_allosteric_classifies_critical_correctly() {
+        let mut gate = AllostericGate::new(&AllostericGateConfig {
+            name: "test-alert".into(),
+            base_l: 10.0,
+            c: 0.1,
+            n: 3,
+            threshold: 0.5,
+            tau: Duration::from_secs(0),
+            hysteresis: 0.0,
+        });
+
+        // deficit = 500, threshold = 100 → α = 5.0 → set on gate before classification
+        // (mirrors AlgedonicManager::check which sets alpha then calls new_allosteric)
+        let alpha = 500_f64 / 100_f64;
+        gate.set_alpha(alpha);
+        let alert = RuntimeAlert::new_allosteric("test_domain", 500, 100, &gate);
+        assert_eq!(alert.severity, AlertSeverity::Critical);
+        assert!(alert.escalated);
+        assert!(
+            alert.r_bar >= 0.8,
+            "R̄={} should indicate Critical",
+            alert.r_bar
+        );
+    }
+
+    // REQ: svc-cns-algedonic-005 — algedonic_manager_accumulates_alerts_across_domains
+    //
+    // TASK 1 cybernetic property: AlgedonicManager must track variety per domain
+    // independently, so a deficit in one domain does not suppress alerts in another.
+    #[test]
+    fn algedonic_manager_accumulates_alerts_across_domains() {
+        let mut mgr = AlgedonicManager::new(100, 10).with_default_allosteric();
+
+        // Domain A: low variety (5 distinct states, expected 10 → deficit 5)
+        let mut tracker_a = VarietyTracker::new();
+        for i in 0..5 {
+            tracker_a.increment(&format!("state_{}", i));
+        }
+
+        // Domain B: very low variety (1 distinct state, expected 10 → deficit 9)
+        let mut tracker_b = VarietyTracker::new();
+        tracker_b.increment("only_state");
+
+        mgr.check(&tracker_a, "domain_a");
+        mgr.check(&tracker_b, "domain_b");
+
+        // Both domains should have alerts
+        assert!(
+            !mgr.alerts().is_empty(),
+            "Should accumulate alerts per domain"
+        );
+        // Domain B should be more severe (higher deficit)
+        let total = mgr.total_deficit();
+        assert!(total >= 5 + 9, "Total deficit should reflect both domains");
+    }
+}

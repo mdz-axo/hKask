@@ -417,3 +417,58 @@ async fn emit_critical_depletion(runtime: &CnsRuntime, alert: &crate::algedonic:
         observer.on_depletion(&signal).await;
     }
 }
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: svc-cns-variety-001 — variety_monitor_tracks_distinct_states
+    //
+    // TASK 1 cybernetic property: the VarietyMonitor sensor must count
+    // distinct tool states per domain for Ashby's Law compliance.
+    // A domain with 5 distinct tool invocations must report variety=5.
+    #[test]
+    fn variety_monitor_tracks_distinct_states() {
+        let mut monitor = VarietyMonitor::new();
+
+        // Simulate 5 distinct tool invocations in domain "inference"
+        for tool in &["chat", "embed", "generate", "classify", "tokenize"] {
+            monitor.counter("inference").increment(tool);
+        }
+
+        assert_eq!(monitor.variety_for_domain("inference"), 5);
+    }
+
+    // REQ: svc-cns-variety-002 — variety_tracker_deficit_calculation
+    //
+    // When 3 distinct states exist but 10 are expected, deficit must be 7.
+    #[test]
+    fn variety_tracker_deficit_calculation() {
+        let mut tracker = VarietyTracker::new();
+        for i in 0..3 {
+            tracker.increment(&format!("state_{}", i));
+        }
+        assert_eq!(tracker.deficit(10), 7);
+        assert_eq!(tracker.variety(), 3);
+    }
+
+    // REQ: svc-cns-variety-003 — variety_monitor_multi_domain_isolation
+    //
+    // Two domains must track variety independently.
+    #[test]
+    fn variety_monitor_multi_domain_isolation() {
+        let mut monitor = VarietyMonitor::new();
+
+        monitor.counter("tools").increment("chat");
+        monitor.counter("tools").increment("embed");
+        monitor.counter("models").increment("llama3");
+        monitor.counter("models").increment("qwen3");
+        monitor.counter("models").increment("deepseek");
+
+        assert_eq!(monitor.variety_for_domain("tools"), 2);
+        assert_eq!(monitor.variety_for_domain("models"), 3);
+        assert_eq!(monitor.variety_for_domain("nonexistent"), 0);
+    }
+}
