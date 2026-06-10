@@ -1,0 +1,282 @@
+# Emily Austin Style Mashup Configuration
+# Owner: The Curator (hKask)
+# License: CC-BY-4.0
+# Version: 1.0
+# Created: 2026-06-10
+#
+# Style mashup: Emily Dickinson (1830-1886) × Jane Austen (1775-1817)
+# Replicator name: Emily Austin
+#
+# This is a dual-author blended replicator — a "mashup" that merges two
+# distinct literary corpora into a single style centroid. KNN retrieval
+# draws exemplar passages from both source authors, and the Jinja2 template
+# synthesizes a hybrid voice that is neither Dickinson nor Austen but the
+# emergent third voice between them: cosmic social irony.
+#
+# Dickinson contribution: dashes, compression, hymnal rhythm, capitalization
+#   of abstract nouns, "tell it slant" indirection, cosmic scope in domestic
+#   imagery.
+# Austen contribution: free indirect discourse, ironic generalization,
+#   epigrammatic framing, precise social vocabulary, periodic sentences,
+#   drawing-room observation as moral inquiry.
+#
+# The blended centroid sits between the two clusters in embedding space.
+# Variance is higher than either single-author centroid, so the validation
+# threshold is widened to 0.22.
+#
+# Processed by: kask embed-corpus (subcommand of hkask-cli)
+# Manifest:   registry/manifests/style-corpus-embed.yaml
+# Storage:    hKask sqlite-vec via EmbeddingStore
+#
+# Pipeline: web_extract → chunk → embed_sentences → blended_centroid → validate
+#
+# All works are public domain (pre-1929).
+
+author: emily-austin
+author_full: "Emily Austin (Dickinson × Austen mashup)"
+style_synthesizer: composition/emily-austin-mashup
+
+# ── Component Authors ────────────────────────────────────────────────────────
+# Each component contributes to the blended centroid with equal weight.
+# Individual centroids are computed first, then averaged for the mashup.
+
+components:
+  - author: dickinson
+    author_full: "Emily Dickinson"
+    weight: 0.5
+  - author: austen
+    author_full: "Jane Austen"
+    weight: 0.5
+
+# ── Embedding Model Configuration ──────────────────────────────────────────────
+embedding:
+  model: "qwen3-embedding:0.6b"
+  dim: 1024
+  okapi_endpoint: "/api/embed/sentences"
+  batch_size: 64
+
+# ── Dickinson Corpus ───────────────────────────────────────────────────────────
+# Project Gutenberg plain-text UTF-8 editions.
+# Poems: Series 1-3 (1890-1896), edited posthumously by Higginson and Todd.
+# Dickinson's poems average 4-20 lines; chunking groups multiple poems
+# into passage units that match the stanza-paragraph boundary.
+
+dickinson_works:
+  - title: "Poems: Three Series, Complete"
+    slug: poems-complete
+    url: "https://www.gutenberg.org/cache/epub/12242/pg12242.txt"
+    year: 1896
+    type: poetry_collection
+    public_domain: true
+
+# ── Austen Corpus ──────────────────────────────────────────────────────────────
+# All six completed novels. Project Gutenberg plain-text UTF-8 editions.
+# Austen's prose is paragraph-dense; chunking splits long paragraphs at
+# sentence boundaries to stay under max_words.
+
+austen_works:
+  - title: "Pride and Prejudice"
+    slug: pride-and-prejudice
+    url: "https://www.gutenberg.org/cache/epub/1342/pg1342.txt"
+    year: 1813
+    type: novel
+    public_domain: true
+
+  - title: "Sense and Sensibility"
+    slug: sense-and-sensibility
+    url: "https://www.gutenberg.org/cache/epub/161/pg161.txt"
+    year: 1811
+    type: novel
+    public_domain: true
+
+  - title: "Emma"
+    slug: emma
+    url: "https://www.gutenberg.org/cache/epub/158/pg158.txt"
+    year: 1815
+    type: novel
+    public_domain: true
+
+  - title: "Mansfield Park"
+    slug: mansfield-park
+    url: "https://www.gutenberg.org/cache/epub/141/pg141.txt"
+    year: 1814
+    type: novel
+    public_domain: true
+
+  - title: "Northanger Abbey"
+    slug: northanger-abbey
+    url: "https://www.gutenberg.org/cache/epub/121/pg121.txt"
+    year: 1817
+    type: novel
+    public_domain: true
+
+  - title: "Persuasion"
+    slug: persuasion
+    url: "https://www.gutenberg.org/cache/epub/105/pg105.txt"
+    year: 1818
+    type: novel
+    public_domain: true
+
+# ── Foundational Rules — Dickinson's Aesthetic ─────────────────────────────────
+# Dickinson's poetics, drawn from her letters and most programmatic poems.
+# These passages encode the aesthetic principles that govern her style.
+# Stored as special passages for embedding retrieval.
+
+foundational_rules:
+  # ── Dickinson aesthetic manifestos ────────────────────────────────────────
+
+  - title: "'Tell all the Truth but tell it slant' (c. 1868)"
+    slug: tell-it-slant
+    text: |
+      Tell all the Truth but tell it slant —
+      Success in Circuit lies
+      Too bright for our infirm Delight
+      The Truth's superb surprise
+
+      As Lightning to the Children eased
+      With explanation kind
+      The Truth must dazzle gradually
+      Or every man be blind —
+    type: aesthetic_manifesto
+
+  - title: "Dickinson's definition of poetry (Letter to Higginson, 1870)"
+    slug: definition-of-poetry
+    text: |
+      If I read a book and it makes my whole body so cold no fire can warm me,
+      I know that is poetry. If I feel physically as if the top of my head
+      were taken off, I know that is poetry. These are the only ways I know it.
+      Is there any other way?
+    type: aesthetic_manifesto
+
+  - title: "'The Soul selects her own Society' (c. 1862)"
+    slug: soul-selects-society
+    text: |
+      The Soul selects her own Society —
+      Then — shuts the Door —
+      To her divine Majority —
+      Present no more —
+
+      Unmoved — she notes the Chariots — pausing —
+      At her low Gate —
+      Unmoved — an Emperor be kneeling
+      Upon her Mat —
+
+      I've known her — from an ample nation —
+      Choose One —
+      Then — close the Valves of her attention —
+      Like Stone —
+    type: aesthetic_manifesto
+
+  - title: "'I dwell in Possibility' (c. 1862)"
+    slug: dwell-in-possibility
+    text: |
+      I dwell in Possibility —
+      A fairer House than Prose —
+      More numerous of Windows —
+      Superior — for Doors —
+    type: aesthetic_manifesto
+
+  - title: "'This is my letter to the World' (c. 1862)"
+    slug: letter-to-world
+    text: |
+      This is my letter to the World
+      That never wrote to Me —
+      The simple News that Nature told —
+      With tender Majesty
+
+      Her Message is committed
+      To Hands I cannot see —
+      For love of Her — Sweet — countrymen —
+      Judge tenderly — of Me
+    type: aesthetic_manifesto
+
+  # ── Austen aesthetic manifestos ───────────────────────────────────────────
+
+  - title: "Austen's 'little bit of Ivory' (Letter to J. Edward Austen, 1816)"
+    slug: little-bit-of-ivory
+    text: |
+      What should I do with your strong, manly, spirited Sketches, full of
+      Variety and Glow? How could I possibly join them on to the little bit
+      (two Inches wide) of Ivory on which I work with so fine a Brush,
+      as produces little effect after much labour?
+    type: aesthetic_manifesto
+
+  - title: "'It is a truth universally acknowledged' (Pride and Prejudice, 1813)"
+    slug: truth-universally-acknowledged
+    text: |
+      It is a truth universally acknowledged, that a single man in possession
+      of a good fortune, must be in want of a wife. However little known the
+      feelings or views of such a man may be on his first entering a
+      neighbourhood, this truth is so well fixed in the minds of the
+      surrounding families, that he is considered as the rightful property
+      of some one or other of their daughters.
+    type: style_exemplar
+
+  - title: "Free indirect discourse exemplar (Emma, 1815)"
+    slug: emma-woodhouse
+    text: |
+      Emma Woodhouse, handsome, clever, and rich, with a comfortable home
+      and happy disposition, seemed to unite some of the best blessings of
+      existence; and had lived nearly twenty-one years in the world with
+      very little to distress or vex her.
+    type: style_exemplar
+
+  - title: "Irony through understatement (Northanger Abbey, 1817)"
+    slug: northanger-defense
+    text: |
+      But when a young lady is to be a heroine, the perverseness of forty
+      surrounding families cannot prevent her. Something must and will
+      happen to throw a hero in her way.
+    type: style_exemplar
+
+  - title: "Persuasion's autumn tone (Persuasion, 1818)"
+    slug: persuasion-autumn
+    text: |
+      Anne Elliot, with an elegance of mind and sweetness of character,
+      which must have placed her high with any people of real understanding,
+      was nobody with either father or sister; her word had no weight,
+      her convenience was always to give way — she was only Anne.
+    type: style_exemplar
+
+# ── Chunking Configuration ─────────────────────────────────────────────────────
+# Austen's paragraphs are longer than Hemingway's; Dickinson's poems are shorter.
+# The mashup corpus spans both extremes. Chunking must handle poem groups
+# (concatenate short units to min_words) and long paragraphs (split at sentences).
+#
+# For Dickinson poems: multiple short poems are concatenated until min_words is
+# reached. This creates hybrid "stanza-paragraphs" that embed Dickinson's rhythm
+# in prose-length units, which suits the mashup's goal of blending poetic
+# compression with novelistic observation.
+
+chunking:
+  min_words: 40
+  max_words: 200
+  split_on: paragraph
+  sentence_boundary: ".!? "
+  # For Dickinson's dash-terminated lines, treat "— " as a sentence boundary
+  # so poems don't bleed into each other's line breaks.
+  additional_boundaries: ["— "]
+  overlap_words: 0
+
+# ── Entity Reference Format ────────────────────────────────────────────────────
+# Format: style:{author}:{source}:{slug}:{index}
+# The source field distinguishes dickinson vs austen provenance for
+# component-level centroid computation.
+
+entity_ref_pattern: "style:{author}:{source}:{slug}:{index}"
+centroid_entity_ref: "style:emily-austin:centroid"
+# Per-component centroids for weighted blending
+dickinson_centroid_ref: "style:dickinson:centroid"
+austen_centroid_ref: "style:austen:centroid"
+
+# ── Quality Thresholds ─────────────────────────────────────────────────────────
+# Wider than single-author centroids (Hemingway 0.15, Woolf 0.18).
+# The blended centroid spans two distinct clusters, so variance is higher.
+# 0.22 is the initial threshold; tighten after observing generation quality.
+
+validation:
+  centroid_distance_max: 0.22
+  exemplar_count_min: 4
+  exemplar_count_max: 9
+  # Require exemplars from both components (not just one).
+  min_exemplars_per_component: 2

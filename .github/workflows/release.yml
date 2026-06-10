@@ -16,6 +16,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   # ============================================================================
@@ -32,11 +33,10 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.version) || '' }}
 
       - name: Install Rust toolchain
-        run: |
-          rustup update stable
-          rustup default stable
-          rustup component add rustfmt clippy rust-src
-          rustc --version
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.91"
+          components: rustfmt, clippy, rust-src
 
       - name: Install system dependencies
         run: |
@@ -91,7 +91,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: "1.91"
           targets: ${{ matrix.target }}
           components: rust-src
 
