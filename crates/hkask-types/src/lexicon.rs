@@ -111,6 +111,33 @@ impl std::fmt::Display for TemplateType {
     }
 }
 
+/// MDS Category — the five categories from the Minimal Domain Specification.
+///
+/// Shared across `hkask-types` (lexicon) and `hkask-storage` (spec_types).
+/// When a `LexiconTerm` carries a category, the mapping from 87 terms → 5
+/// categories becomes formally verifiable via `spec/graph/coherence`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MdsCategory {
+    Domain,
+    Composition,
+    Trust,
+    Lifecycle,
+    Curation,
+}
+
+impl MdsCategory {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MdsCategory::Domain => "domain",
+            MdsCategory::Composition => "composition",
+            MdsCategory::Trust => "trust",
+            MdsCategory::Lifecycle => "lifecycle",
+            MdsCategory::Curation => "curation",
+        }
+    }
+}
+
 /// hLexicon term — canonical vocabulary entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LexiconTerm {
@@ -118,6 +145,11 @@ pub struct LexiconTerm {
     pub domain: TemplateType,
     pub definition: String,
     pub academic_citation: Option<String>,
+    /// MDS category this term belongs to. When set, enables formal
+    /// verification that all 87 hLexicon terms map to valid MDS categories
+    /// via `spec/graph/coherence`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mds_category: Option<MdsCategory>,
 }
 
 impl LexiconTerm {
@@ -127,11 +159,17 @@ impl LexiconTerm {
             domain,
             definition: definition.to_string(),
             academic_citation: None,
+            mds_category: None,
         }
     }
 
     pub fn with_citation(mut self, citation: &str) -> Self {
         self.academic_citation = Some(citation.to_string());
+        self
+    }
+
+    pub fn with_mds_category(mut self, cat: MdsCategory) -> Self {
+        self.mds_category = Some(cat);
         self
     }
 }

@@ -47,7 +47,7 @@ impl CondenserEngine {
         let algo = self.registry.select(cat);
         let algorithm_name = algo.name().to_string();
 
-        let compressed_content = algo.compress(output, self.profile, cat);
+        let (compressed_content, health_signals) = algo.compress(output, self.profile, cat);
 
         let original_lines = output.lines().count();
         let compressed_lines = compressed_content.lines().count();
@@ -83,6 +83,7 @@ impl CondenserEngine {
             original_bytes,
             compressed_bytes,
             reduction_pct,
+            health_signals,
         }
     }
 
@@ -93,5 +94,36 @@ impl CondenserEngine {
 
     pub fn get_stats(&self) -> &CondenserStats {
         &self.stats
+    }
+
+    /// Check for global health violations across all compressions.
+    ///
+    /// Returns health signals for systemic issues: overall compression ratio
+    /// below 2:1 or throughput anomalies. Callers should emit these as
+    /// `cns.condenser.degraded` ν-events.
+    pub fn check_global_health(&self) -> Vec<CondenserHealthSignal> {
+        let mut signals = Vec::new();
+        let stats = &self.stats;
+
+        if stats.total_original_bytes > 0 {
+            let ratio =
+                stats.total_original_bytes as f64 / stats.total_compressed_bytes.max(1) as f64;
+            // SLA: compression ratio must be ≥ 2:1
+            if ratio < 2.0 && stats.total_compressions >= 10 {
+                signals.push(CondenserHealthSignal {
+                    algorithm: "global".into(),
+                    signal_type: "low_compression_ratio".into(),
+                    detail: format!(
+                        "Overall compression ratio {:.2}:1 below 2:1 SLA ({} compressions)",
+                        ratio, stats.total_compressions
+                    ),
+                    zero_score_count: None,
+                    budget_requested: None,
+                    budget_filled: None,
+                });
+            }
+        }
+
+        signals
     }
 }

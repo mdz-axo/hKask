@@ -83,6 +83,8 @@ fn main() {
 
         Commands::Models => commands::models::run(&rt),
 
+        Commands::Settings { action } => commands::settings::run(action),
+
         Commands::Consolidate {
             agent,
             limit,

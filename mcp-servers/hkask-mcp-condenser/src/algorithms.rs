@@ -60,11 +60,16 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
             ContextCategory::BuildOutput,
         ]
     }
-    fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
+    fn compress(
+        &self,
+        input: &str,
+        profile: Profile,
+        _category: ContextCategory,
+    ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
         if passthrough {
-            return input.to_string();
+            return (input.to_string(), vec![]);
         }
 
         let head_count = (budget as f64 * 0.3) as usize;
@@ -83,7 +88,24 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
             }
         }
 
-        filtered.join("\n")
+        let result = filtered.join("\n");
+        let health = if result.len() > input.len() {
+            vec![CondenserHealthSignal {
+                algorithm: "rtk_style".into(),
+                signal_type: "negative_compression".into(),
+                detail: format!(
+                    "Compressed {}B > original {}B — bounds violation",
+                    result.len(),
+                    input.len()
+                ),
+                zero_score_count: None,
+                budget_requested: None,
+                budget_filled: None,
+            }]
+        } else {
+            vec![]
+        };
+        (result, health)
     }
 }
 
@@ -147,11 +169,16 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
             ContextCategory::Unknown,
         ]
     }
-    fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
+    fn compress(
+        &self,
+        input: &str,
+        profile: Profile,
+        _category: ContextCategory,
+    ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
         if passthrough {
-            return input.to_string();
+            return (input.to_string(), vec![]);
         }
 
         let freq = Self::compute_word_frequencies(&lines);
@@ -162,13 +189,32 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
             .map(|(i, line)| (i, Self::line_score(line, &freq), *line))
             .collect();
 
+        let zero_count = scored.iter().filter(|(_, s, _)| *s == 0.0).count();
+
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut selected_indices: Vec<usize> =
             scored.into_iter().take(budget).map(|(i, _, _)| i).collect();
         selected_indices.sort_unstable();
 
-        join_with_ellipsis(&lines, &selected_indices)
+        let result = join_with_ellipsis(&lines, &selected_indices);
+        let health = if zero_count > lines.len() / 2 {
+            vec![CondenserHealthSignal {
+                algorithm: "saliency_rank".into(),
+                signal_type: "low_signal".into(),
+                detail: format!(
+                    "{} of {} lines scored 0.0 — content had no usable signal to rank by",
+                    zero_count,
+                    lines.len()
+                ),
+                zero_score_count: Some(zero_count),
+                budget_requested: None,
+                budget_filled: None,
+            }]
+        } else {
+            vec![]
+        };
+        (result, health)
     }
 }
 
@@ -233,11 +279,16 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
             ContextCategory::StructuredData,
         ]
     }
-    fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
+    fn compress(
+        &self,
+        input: &str,
+        profile: Profile,
+        _category: ContextCategory,
+    ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
         if passthrough {
-            return input.to_string();
+            return (input.to_string(), vec![]);
         }
 
         let alpha = 0.4f64;
@@ -288,9 +339,27 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
             }
         }
 
+        let filled = selected_indices.len();
         let mut selected_indices: Vec<usize> = selected_indices.into_iter().collect();
         selected_indices.sort_unstable();
-        join_with_ellipsis(&lines, &selected_indices)
+        let result = join_with_ellipsis(&lines, &selected_indices);
+
+        let health = if filled < budget {
+            vec![CondenserHealthSignal {
+                algorithm: "flashrank".into(),
+                signal_type: "budget_shortfall".into(),
+                detail: format!(
+                    "Filled {}/{} budget — all remaining lines had non-positive score",
+                    filled, budget
+                ),
+                zero_score_count: None,
+                budget_requested: Some(budget),
+                budget_filled: Some(filled),
+            }]
+        } else {
+            vec![]
+        };
+        (result, health)
     }
 }
 

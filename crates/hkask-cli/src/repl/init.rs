@@ -45,8 +45,10 @@ pub(super) fn init_repl_state(
     let initial_model_str = initial_model.unwrap_or("deepseek-v4-pro");
 
     // Default REPL settings — used to initialize energy budget before
-    // ReplState is fully constructed. The user can override via /repl.
-    let repl_settings = ReplSettings::default();
+    // ReplState is fully constructed. Loads from ~/.config/hkask/settings.json
+    // if available; falls back to ReplSettings::default().
+    // Mutable here so the user can override via /repl during the session.
+    let repl_settings = crate::commands::settings::load_settings();
 
     // Resolve okapi_base_url from env for InferenceService calls.
     // This is used before onboarding to create the initial inference port.

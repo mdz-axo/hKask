@@ -183,10 +183,44 @@ pub(crate) fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
             println!("  Type \x1b[36m/repl\x1b[0m to see all settings.");
         }
     }
+    // Persist to ~/.config/hkask/settings.json so CLI and API surfaces
+    // see the same settings. Only saves when a recognized setting was changed.
+    if arg1 == "reset" || is_valid_setting(arg1) {
+        let path = settings_path();
+        if let Ok(json) = serde_json::to_string_pretty(&state.repl_settings) {
+            let _ = std::fs::write(&path, json);
+        }
+    }
+}
+
+fn is_valid_setting(arg1: &str) -> bool {
+    matches!(
+        arg1,
+        "loops"
+            | "context"
+            | "temp"
+            | "top_p"
+            | "top_k"
+            | "min_p"
+            | "typical_p"
+            | "max_tokens"
+            | "seed"
+            | "gas_heuristic"
+            | "gas_cap"
+            | "auto_compact"
+    )
+}
+
+fn settings_path() -> std::path::PathBuf {
+    let mut path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    path.push("hkask");
+    let _ = std::fs::create_dir_all(&path);
+    path.push("settings.json");
+    path
 }
 
 /// Default REPL settings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ReplSettings {
     /// Maximum tool-call loop iterations per turn.
     pub tool_loop_limit: usize,
@@ -220,7 +254,7 @@ pub(crate) struct ReplSettings {
 
 /// Model metadata fetched from Ollama's /api/show endpoint.
 /// Read-only — populated automatically when the model changes.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ModelMeta {
     pub context_length: u32,
     pub supports_thinking: bool,

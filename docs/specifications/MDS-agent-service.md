@@ -124,10 +124,10 @@ impl AgentService {
 
 | Operation | Required Capability | Attenuation |
 |-----------|-------------------|-------------|
-| `memory().episodic()` | `episodic_memory:read/write` | Scoped to agent WebID |
-| `memory().semantic()` | `semantic_memory:read/write` | Public data only |
-| `governance().dispatcher()` | `tools:execute` | Per-tool capability |
-| `coordination().pod_manager()` | `pods:create/manage` | Agent-scoped |
+| `let (ep, _) = svc.memory()` | `episodic_memory:read/write` | Scoped to agent WebID |
+| `let (_, sem) = svc.memory()` | `semantic_memory:read/write` | Public data only |
+| `let (_, dp, _) = svc.governance()` | `tools:execute` | Per-tool capability |
+| `let (_, _, pm, _) = svc.coordination()` | `pods:create/manage` | Agent-scoped |
 
 ---
 
@@ -151,26 +151,19 @@ impl AgentService {
    └── API: ApiState { agent_service, standing_sessions, router, ... }
 ```
 
-### 4.2 Evolution (Big Bang Migration)
+### 4.2 Evolution (Strangler-Fig Migration)
 
 | Phase | Action | Verification |
 |-------|--------|-------------|
-| **Phase 1** | Rename `ServiceContext` → `AgentService` | `cargo check` passes |
-| **Phase 2** | Make all fields private | Direct access fails to compile |
-| **Phase 3** | Add 7 domain adapter structs | Type-check passes |
-| **Phase 4** | Add accessor methods | All call sites updated |
-| **Phase 5** | Update CLI call sites | `cargo test -p hkask-cli` passes |
-| **Phase 6** | Update API call sites | `cargo test -p hkask-api` passes |
-| **Phase 7** | Update domain crate call sites | `cargo test --workspace` passes |
-| **Phase 8** | Delete old field access patterns | `cargo clippy -- -D warnings` passes |
+| **Phase 1** | Add 7 group methods to `AgentService` (tuples of refs, zero new types) | `cargo check` passes |
+| **Phase 2** | Route CNS callers through `cns()` group method | `cargo test -p hkask-cli -p hkask-api` passes |
+| **Phase 3** | Delete `CnsService` pass-through module | `cargo check --workspace` passes |
+| **Phase 4** | Route remaining callers through group methods per domain | Surface tests pass |
+| **Phase 5** | Delete old individual accessors (strangler-fig DELETE) | `cargo clippy -- -D warnings` passes |
 
 ### 4.3 Deprecation Policy
 
-**No deprecation.** Big bang migration:
-
-1. Old code (`ctx.episodic_storage`) is deleted when new code (`ctx.memory().episodic()`) is merged
-2. No `#[deprecated]` attributes (P6/P7 violation)
-3. Single commit per phase for easy rollback
+**Strangler fig — no deprecation.** Old accessors coexist during migration and are deleted when all consumers are on the new path. No `#[deprecated]` attributes (P6/P7 violation).
 
 ---
 
@@ -186,19 +179,19 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 
 **Threshold:** 0.7 (70% overlap)
 
-**Declared Adapters:** Memory, CNS, Governance, Storage, Coordination, Identity, Config (7 total)
+**Declared Methods:** memory, cns, governance, storage, coordination, identity, config (7 total)
 
-**Registered Adapters:** (After implementation) All 7 must be present
+**Registered Methods:** (After implementation) All 7 must be present
 
 ### 5.2 Curation Decision
 
 **Decision:** ✅ **Accept**
 
 **Rationale:** 
-- All 27 fields are accounted for in 7 domain categories
-- Each category has clear cohesion (fields are related by domain)
-- Accessor pattern enforces encapsulation (private fields, public methods)
-- Migration path is clear (big bang, 8 phases)
+- All fields are accounted for in 7 group methods
+- Each method returns related fields by domain (memory, cns, governance, storage, coordination, identity, config)
+- Tuple destructuring enforces encapsulation (private fields, public methods)
+- Migration path is strangler-fig (5 phases, functional at every step)
 
 ---
 
@@ -209,15 +202,15 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 | MDS Category | Test Strategy | REQ Tags |
 |-------------|--------------|----------|
 | **Domain** | AgentService construction + field grouping | `// REQ-MDS-D1` |
-| **Composition** | Accessor methods return correct adapters | `// REQ-MDS-C1` |
+| **Composition** | Group methods return correct tuple types | `// REQ-MDS-C1` |
 | **Trust** | Direct field access fails to compile | `// REQ-MDS-T1` |
 | **Lifecycle** | Bootstrap sequence completes without error | `// REQ-MDS-L1` |
 
 ### 6.2 Tracer Bullets (Priority Order)
 
 1. **P0 (Security):** `// REQ-MDS-T1` — Direct field access fails to compile
-2. **P1 (Correctness):** `// REQ-MDS-C1` — All 7 accessor methods exist and return correct types
-3. **P1 (Correctness):** `// REQ-MDS-D1` — AgentService::build() assembles all 27 fields
+2. **P1 (Correctness):** `// REQ-MDS-C1` — All 7 group methods exist and return correct tuple types
+3. **P1 (Correctness):** `// REQ-MDS-D1` — AgentService::build() assembles all fields
 4. **P2 (Lifecycle):** `// REQ-MDS-L1` — Bootstrap completes in <5 seconds
 
 ---
@@ -226,12 +219,12 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 
 | ID | Question | Decision Criteria |
 |----|----------|------------------|
-| F1 | Should domain adapters be pub(crate) or pub? | **pub** — surfaces need to access them |
-| F2 | Should accessor methods be async? | **No** — adapters are already Arc'd |
+| F1 | Should group methods be public? | **Yes** — surfaces need to access them |
+| F2 | Should group methods be async? | **No** — fields are Arc'd, no I/O in method body |
 | F3 | Should we add builder pattern for AgentService? | **No** — `build()` is sufficient |
 | F4 | Should we add `#[non_exhaustive]` to AgentService? | **Yes** — prevents struct literal construction |
-| F5 | Should we add compile-fail tests for field access? | **Yes** — ensures encapsulation is enforced |
+| F5 | Should we delete old individual accessors? | **Yes** — strangler-fig DELETE phase (post-migration) |
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.27.1*
+*ℏKask — A Minimal Viable Container for Agents — v0.27.2*

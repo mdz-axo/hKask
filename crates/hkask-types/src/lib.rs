@@ -71,7 +71,7 @@ pub use id::{
 pub use identity::{
     HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserSession,
 };
-pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
+pub use lexicon::{HLexicon, LexiconTerm, MdsCategory, TemplateType};
 pub use loops::{
     ActionType, CurationInput, CuratorDirective, CuratorHandle, Deviation, DeviationDirection,
     ExperienceClassification, GoalTransitionEvent, HkaskLoop, LoopAction, LoopId, RuntimeAlert,
