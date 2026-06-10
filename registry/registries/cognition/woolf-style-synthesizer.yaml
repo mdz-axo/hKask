@@ -1,0 +1,421 @@
+# Virginia Woolf Style Synthesizer
+# Owner: The Curator (hKask)
+# License: CC-BY-4.0 (publicly shared, attribution required)
+# Version: 1.0
+# Created: 2026-06-10
+
+meta:
+  name: "woolf-style-synthesizer"
+  description: "Authentic Virginia Woolf prose mechanics for generative text"
+  owner: "The Curator"
+  organization: "hKask"
+  license: "CC-BY-4.0"
+  version: "1.0"
+  created: "2026-06-10"
+
+# =============================================================================
+# CORE PRINCIPLES (Woolf's Own Aesthetic Philosophy)
+# =============================================================================
+# Articulated in "Modern Fiction" (1919) and "Mr Bennett and Mrs Brown" (1924).
+# These are Woolf's equivalent of the Kansas City Star rules — they define
+# what fiction should do, not just how sentences should look.
+
+woolfian_principles:
+  - "Record the atoms as they fall upon the mind in the order in which they fall."
+  - "Life is a luminous halo, a semi-transparent envelope surrounding us."
+  - "Let us not take it for granted that life exists more fully in what is commonly thought big than in what is commonly thought small."
+  - "The proper stuff of fiction does not exist; everything is the proper stuff of fiction."
+  - "Fiction is like a spider's web, attached ever so lightly perhaps, but still attached to life at all four corners."
+
+# =============================================================================
+# SYNTACTIC MECHANICS
+# =============================================================================
+# Woolf's syntax is fundamentally hypotactic — clauses nest and subordinate
+# rather than coordinate. This is the opposite of Hemingway's parataxis.
+
+syntax:
+  clause_structure:
+    primary_mode: hypotactic
+    description: >
+      Subordinate clauses nest within main clauses. Dependent clauses
+      modify, qualify, and elaborate. The sentence is a tree, not a chain.
+    subordinate_conjunctions:
+      primary:
+        ["as if", "as though", "for", "though", "although", "while", "yet"]
+      temporal: ["when", "before", "after", "until", "while", "as"]
+      causal: ["because", "since", "for"]
+      concessive: ["though", "although", "even though", "nevertheless"]
+    semicolon_usage: frequent
+    description_semicolon: >
+      The semicolon is Woolf's primary connective — it links independent
+      clauses without subordinating them, creating a rhythm of accretion
+      and qualification rather than Hemingway's chain of "and".
+
+  sentence_architecture:
+    average_length: "25-60 words"
+    range: "5-150 words"
+    structure: accumulative
+    description: >
+      Sentences accumulate clauses through apposition and qualification.
+      Parenthetical interruptions are common. The sentence gathers momentum
+      through elaboration rather than through addition.
+    devices:
+      - apposition: "Clarissa Dalloway, a woman of fifty-two, stood at the window."
+      - parenthetical_interruption: "She felt — what did she feel? — something ineffable."
+      - trailing_qualification: "The trees were bare, bare and beautiful in the winter light, though the wind was cold."
+      - nominalization: "The beauty of the world which is so soon to perish has two edges."
+
+  paragraph_rhythm:
+    structure: wave
+    description: >
+      Paragraphs rise and fall like breathing. A paragraph might begin with
+      a short declarative sentence, swell into a long accumulative sentence,
+      then recede into a short, reflective close.
+    typical_length: "4-12 sentences"
+    opening_strategy: "Short declarative or sensory impression"
+    closing_strategy: "Reflective, often returning to an image or motif"
+
+# =============================================================================
+# NARRATIVE MODES
+# =============================================================================
+# Woolf pioneered free indirect discourse as the primary narrative mode.
+
+narrative_voice:
+  primary_mode: free_indirect_discourse
+  description: >
+    Third-person narration that slips seamlessly into the character's
+    consciousness. The narrator does not report thoughts — the prose
+    becomes the thoughts. Distinctions between narrator and character dissolve.
+  techniques:
+    - interior_monologue: "What a lark! What a plunge! For so it had always seemed to her."
+    - sensory_impression: "How fresh, how calm, stiller than this of course, the air was in the early morning."
+    - associative_leap: "She remembered once throwing a shilling into the Serpentine. But every one remembered."
+    - collective_consciousness: "The car had gone, but it had left a slight ripple which flowed through the glove shops and hat shops."
+
+  perspective_shifts:
+    technique: tunneling
+    description: >
+      The narrative bores into the consciousness of one character, stays there,
+      then through a shared sensory object (a sound, a sight, a passing figure)
+      tunnels into another character's mind. The transition is seamless.
+    signal_devices:
+      - shared_sensory_object: "The motor car passed. Septimus Warren Smith, aged about thirty, pale-faced, beak-nosed, wearing brown shoes and a shabby overcoat, looked up."
+      - temporal_shift: "But she must go back. She must assemble."
+      - interrogative_transition: "What was she dreaming about? What was she trying to recover?"
+
+# =============================================================================
+# LEXICON
+# =============================================================================
+
+lexicon:
+  word_choice:
+    prefer:
+      - abstract_nouns:
+          [
+            "consciousness",
+            "sensation",
+            "impression",
+            "memory",
+            "beauty",
+            "life",
+            "death",
+            "time",
+          ]
+      - sensory_verbs:
+          [
+            "felt",
+            "seemed",
+            "appeared",
+            "floated",
+            "drifted",
+            "shimmered",
+            "quivered",
+          ]
+      - lyrical_adjectives:
+          [
+            "luminous",
+            "transparent",
+            "eternal",
+            "vast",
+            "delicate",
+            "tremulous",
+            "solemn",
+          ]
+      - metaphors_and_similes: "frequent, drawn from nature (waves, light, flowers, birds, water)"
+    avoid:
+      - "Brutal directness"
+      - "Flat declarative statements of fact"
+      - "Cliché metaphors"
+
+  rhythm:
+    devices:
+      - anaphora: "She would not say of any one in the world now that they were this or were that."
+      - triadic_structure: "The leaden circles dissolved in the air. The aeroplane turned and raced and swooped."
+      - repetition_with_variation: "Fear no more the heat o' the sun / Nor the furious winter's rages."
+      - cadence: "Iambic and anapestic rhythms, prose that approaches verse"
+
+# =============================================================================
+# THEMES (Woolfian Preoccupations)
+# =============================================================================
+
+themes:
+  - consciousness_and_perception:
+      description: "How the mind receives and filters sensory experience"
+      motifs: ["windows", "mirrors", "looking", "waves", "light"]
+  - time_and_memory:
+      description: "Clock time vs psychological time; memory as identity"
+      motifs: ["clocks", "Big Ben", "the hours", "past/present fusion"]
+  - identity_and_selfhood:
+      description: "The self as multiplicity, not unity"
+      motifs: ["masks", "roles", "public vs private self", "mirrors"]
+  - gender_and_creativity:
+      description: "The conditions necessary for artistic creation"
+      motifs:
+        ["a room of one's own", "androgynous mind", "Shakespeare's sister"]
+  - mortality_and_transcendence:
+      description: "Death as presence in life; art as permanence"
+      motifs: ["waves", "lighthouse", "moments of being", "the party"]
+
+# =============================================================================
+# GENERATIVE LAYER (Stanley Fish / RDF Triple Model)
+# =============================================================================
+# Adapted for Woolf's hypotactic style. Where Hemingway's generative layer
+# produces paratactic chains, Woolf's produces nesting and qualification.
+
+generative_layer:
+  fish_principle: "Form precedes content. Forms are generative of meaning's possibility."
+  form_precedes_content: "A Woolf sentence is a structure of qualification and accretion."
+  forms_generate_meaning: "The form (nesting, apposition, free indirect discourse) enables content (consciousness, time, identity)."
+
+  core_forms:
+    - name: sensory_impression_chain
+      structure: "Sensory detail → qualification → metaphor → reflection"
+      example: "The air was fresh and still — stiller than this of course — with a solemnity that was almost sadness."
+      rdf_equivalent: "<subject> <perceives> <sensation> . <sensation> <hasQuality> <quality> . <quality> <evokesEmotion> <emotion> ."
+      generative_capacity: "Any sensory input → chain of associations → emotional resonance"
+
+    - name: free_indirect_thought
+      structure: "External observation → slide into character's mind → associative memory → return to present"
+      example: "She looked at the flowers. What a pity they would fade — but then, everything faded; her own youth had faded, hadn't it, and here she was, still walking, still buying flowers."
+      rdf_equivalent: "<character> <observes> <object> . <object> <triggers> <memory> . <memory> <evokes> <reflection> ."
+      generative_capacity: "Any observation → character interiority → temporal depth"
+
+    - name: tunneling_transition
+      structure: "Character A's consciousness → shared sensory object → Character B's consciousness"
+      example: "The car had passed. It left a slight ripple. Septimus Warren Smith looked up. The world wavered and quivered and threatened to burst into flames."
+      rdf_equivalent: "<characterA> <perceives> <sharedObject> . <sharedObject> <reaches> <characterB> . <characterB> <experiences> <alteredState> ."
+      generative_capacity: "Any shared object → perspective shift → new consciousness"
+
+    - name: moment_of_being
+      structure: "Ordinary detail → sudden intensity → recognition → return to ordinary"
+      example: "She was making the dress. And suddenly the whole world seemed to have meaning — sewing the dress, the light falling across the table, the sound of the waves."
+      rdf_equivalent: "<character> <performsAction> <ordinaryAction> . <ordinaryAction> <triggers> <epiphany> . <epiphany> <reveals> <meaning> ."
+      generative_capacity: "Any ordinary action → transcendent recognition → return"
+
+    - name: accumulative_reflection
+      structure: "Statement → qualification → counter-qualification → synthesis"
+      example: "She was not beautiful; no, she was not beautiful; but she had the gift of significance — a radiance about her that made you forget whether she was beautiful or not."
+      rdf_equivalent: "<subject> <hasProperty> <negatedProperty> . <subject> <hasProperty> <negatedProperty> . <subject> <hasProperty> <deeperProperty> ."
+      generative_capacity: "Any quality → negation → deeper truth"
+
+  rdf_model:
+    triple_structure: "Subject-Predicate-Object"
+    sentence_structure: "Subject-Predicate-Object with nested subordinate clauses"
+    equivalence: "Woolf's sentences = RDF graph with many qualifier edges"
+    graph_traversal: "The reader traverses the graph through qualification and association"
+    example:
+      sentence: "Clarissa, who loved life, though she often despaired of it, bought the flowers herself."
+      triples:
+        - "<Clarissa> <loves> <life>"
+        - "<Clarissa> <despairsOf> <life>"
+        - "<Clarissa> <buys> <flowers>"
+        - "<life> <isContradictory> <emotion>"
+      emergent_meaning: "The contradiction (love/despair) held in one consciousness, resolved through action"
+
+  woolf_generative:
+    step1: "Start with a sensory impression in free indirect discourse"
+    step2: "Qualify it through the character's consciousness (what does it remind them of?)"
+    step3: "Allow the qualification to trigger a memory or association"
+    step4: "Return to the present with the consciousness altered by the journey"
+    key_insight: "Woolf generates meaning through ACCRETION and QUALIFICATION, not through juxtaposition. Each clause adds a layer to the consciousness being rendered."
+
+# =============================================================================
+# STYLISTIC DEVICES
+# =============================================================================
+
+stylistic_devices:
+  free_indirect_discourse:
+    description: "Third-person narration that renders character consciousness directly"
+    effect: "Collapses distance between reader and character's inner life"
+    example: "What a lark! What a plunge! For so it had always seemed to her, when, with a little squeak of the hinges, which she could hear now, she had burst open the French windows."
+    use: "Primary narrative mode — use whenever rendering character interiority"
+
+  parenthetical_qualification:
+    description: "Clauses that interrupt the main flow to add sensory or emotional detail"
+    effect: "Simulates the mind's tendency to qualify, correct, and elaborate"
+    example: "The air was fresh — stiller than this of course — with a quality she could not name."
+    use: "Use to show consciousness processing experience in real time"
+
+  triadic_structure:
+    description: "Three-part sequences that build rhythm and resonance"
+    effect: "Creates a wave-like cadence: rise, peak, fall"
+    example: "The leaden circles dissolved in the air. The aeroplane turned and raced and swooped."
+    use: "Use for moments of heightened perception or emotional climax"
+
+  anaphora:
+    description: "Repetition of opening words across successive clauses"
+    effect: "Incantatory quality, builds emotional intensity"
+    example: "She would not say of any one in the world now that they were this or were that. She would not say of Peter, she would not say of herself, I am this, I am that."
+    use: "Use to build toward a moment of being or epiphany"
+
+  metaphor_chains:
+    description: "Sustained metaphorical thinking that extends across sentences"
+    effect: "Creates a symbolic layer beneath the surface narrative"
+    example: "She was like a bird. She was a bird. She hovered. She fluttered. She settled."
+    use: "Use to encode the novel's central symbols (waves, lighthouse, flowers, birds)"
+
+# =============================================================================
+# QUALITY CHECKS
+# =============================================================================
+
+quality_checks:
+  - name: free_indirect_discourse_presence
+    check: "At least one passage must slide from external observation into character interiority"
+    target: ">0 per generation"
+
+  - name: subordinate_clause_density
+    check: "At least 40% of clauses should be subordinate (vs Hemingway's 73-76% coordinate)"
+    target: "40-65%"
+
+  - name: sentence_length_variation
+    check: "Mix of very short (2-8 words) and very long (40-100+ words) sentences"
+    target: "At least one long accumulative sentence per paragraph"
+
+  - name: sensory_concreteness
+    check: "At least one sensory detail (sight, sound, smell, touch) rendered through character consciousness"
+    target: ">0 per generation"
+
+  - name: metaphorical_thinking
+    check: "At least one metaphor or simile that extends beyond simple comparison"
+    target: ">0 per generation"
+
+  - name: centroid_distance
+    check: "Generated prose embedding distance from Woolf style centroid"
+    target: "<= 0.18"
+
+# =============================================================================
+# SOURCES (Literary Analysis)
+# =============================================================================
+
+sources:
+  - title: "Modern Fiction"
+    author: "Virginia Woolf"
+    year: 1919
+    type: essay
+    finding: "Articulates the 'luminous halo' theory of consciousness that defines Woolf's aesthetic"
+
+  - title: "Mr Bennett and Mrs Brown"
+    author: "Virginia Woolf"
+    year: 1924
+    type: essay
+    finding: "Declares the shift in human character that requires new fictional forms"
+
+  - title: "A Room of One's Own"
+    author: "Virginia Woolf"
+    year: 1929
+    type: essay
+    finding: "The material conditions for creativity; the androgynous mind; Shakespeare's sister"
+
+  - title: "The Common Reader"
+    author: "Virginia Woolf"
+    year: 1925
+    type: essay_collection
+    finding: "Woolf's critical method: impressionistic, associative, penetrating"
+
+  - title: "Transparent Minds"
+    author: "Dorrit Cohn"
+    publisher: "Princeton University Press"
+    year: 1978
+    type: scholarly
+    finding: "Definitive taxonomy of narrative modes for representing consciousness; Woolf as exemplar of narrated monologue"
+
+  - title: "Virginia Woolf: The Inward Voyage"
+    author: "Harvena Richter"
+    publisher: "Princeton University Press"
+    year: 1970
+    type: scholarly
+    finding: "Analysis of Woolf's syntactic patterns — the sentence as consciousness rendered"
+
+# =============================================================================
+# EMBEDDING CONFIGURATION
+# =============================================================================
+
+embedding:
+  corpus_config: "registry/styles/woolf/corpus.yaml"
+  model: "qwen3-embedding:0.6b"
+  dim: 1024
+  centroid_entity_ref: "style:woolf:centroid"
+  retrieval:
+    method: knn
+    k_min: 3
+    k_max: 7
+    distance_metric: cosine
+    distance_threshold: 0.30
+  validation:
+    centroid_distance_max: 0.18
+    centroid_distance_hard_limit: 0.25
+  cluster:
+    radius: 0.18
+
+# =============================================================================
+# EXAMPLES
+# =============================================================================
+
+examples:
+  good:
+    - "Clarissa Dalloway said she would buy the flowers herself. For Lucy had her work cut out for her. The doors would be taken off their hinges; Rumpelmayer's men were coming. And then, thought Clarissa Dalloway, what a morning — fresh as if issued to children on a beach."
+  bad:
+    - "Clarissa went to the store because she needed flowers. She bought roses. Then she walked home and thought about her life."
+    - "The party was fun. People talked. Clarissa was happy. Everything was good."
+
+# =============================================================================
+# CURATOR NOTES
+# =============================================================================
+
+curator_notes:
+  differentiation_from_hemingway: >
+    Hemingway and Woolf are stylistic opposites in every dimension:
+
+    | Feature | Hemingway | Woolf |
+    |---------|-----------|-------|
+    | Clause structure | Paratactic (coordinate, chain) | Hypotactic (subordinate, nest) |
+    | Primary connective | "and" | semicolon, "for", "as if" |
+    | Sentence length | 10-20 words average | 25-60 words average |
+    | Narrative mode | External third person | Free indirect discourse |
+    | Emotion | Shown through action (Iceberg) | Rendered through consciousness |
+    | Time | Linear, sequential | Fluid, associative, psychological |
+    | Lexicon | Concrete, monosyllabic | Abstract, lyrical, metaphorical |
+    | Philosophy | Iceberg Theory (1/8 visible) | Luminous Halo (capture the whole shimmer) |
+    | Structure | Juxtaposition → meaning | Accretion → meaning |
+
+  generative_insight: >
+    Both authors can be modeled through the same RDF triple framework but with
+    opposite graph topologies:
+
+    - Hemingway: Linear chain of triples (subject-action-object → subject-action-object → ...)
+      Meaning emerges from juxtaposition of adjacent triples.
+
+    - Woolf: Branching tree of triples (subject-perceives-sensation
+      → sensation-hasQuality-quality → quality-evokesEmotion-emotion → ...)
+      Meaning emerges from traversal of nested qualifier edges.
+
+  embedding_note: >
+    The same qwen3-embedding:0.6b model works for both authors because style
+    differentiation comes from CORPUS CONTENT, not model architecture.
+    Hemingway passages cluster in one region of embedding space, Woolf
+    passages in another. The centroids will be distinct.
+
+  corpus_expansion: >
+    Future additions: The Waves (1931), Flush (1933), The Years (1937),
+    Between the Acts (1941) — these enter US public domain 2027-2037.
+    Also eligible: Woolf's diaries and letters (public domain in UK from 2031+).

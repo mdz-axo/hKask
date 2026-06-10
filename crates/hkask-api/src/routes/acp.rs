@@ -8,7 +8,7 @@
 //! An AcpService would just be `self.acp_runtime().register_agent()` — a pure
 //! pass-through that increases interface cost without adding behavior.
 //!
-//! Decision: Guideline — keep direct `service_context.pod_manager().acp_runtime()` access.
+//! Decision: Guideline — keep direct `service_context.coordination().2.acp_runtime()` access.
 //! Revisit if ACP policy logic (e.g., capability scoping, agent tier enforcement)
 //! grows beyond simple registration/delegation.
 

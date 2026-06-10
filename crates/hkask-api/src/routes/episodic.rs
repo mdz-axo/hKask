@@ -117,7 +117,8 @@ async fn store_episode(
     );
     state
         .agent_service
-        .episodic_storage()
+        .memory()
+        .0
         .store_episodic(request, &auth.token)
         .map_err(|e| match &e {
             MemoryError::CapabilityDenied { resource, action } => ApiError::Forbidden {
@@ -175,7 +176,8 @@ async fn query_episodes(
     let request = RecallRequest::episodic(&params.entity, auth.webid, auth.token);
     let results = state
         .agent_service
-        .episodic_storage()
+        .memory()
+        .0
         .recall_episodic(&request)
         .map_err(|e| match &e {
             MemoryError::CapabilityDenied { resource, action } => ApiError::Forbidden {
@@ -220,15 +222,13 @@ async fn storage_usage(
 ) -> Result<Json<EpisodicUsageResponse>, ApiError> {
     let count = state
         .agent_service
-        .episodic_storage()
+        .memory()
+        .0
         .episodic_storage_usage(&auth.webid)
         .map_err(|e| ApiError::Internal {
             message: e.to_string(),
         })?;
-    let budget = state
-        .agent_service
-        .episodic_storage()
-        .episodic_storage_budget();
+    let budget = state.agent_service.memory().0.episodic_storage_budget();
 
     Ok(Json(EpisodicUsageResponse { count, budget }))
 }

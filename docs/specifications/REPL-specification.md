@@ -311,9 +311,7 @@ The turn pipeline is now split between the service layer and the CLI:
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** Auto-condense (87.5% threshold → condenser MCP tool) is currently deferred
-(F3 in essentialist remediation catalog). The service layer appends history but does
-not trigger condensation.
+**Note:** Auto-condense (87.5% threshold) is implemented in `ChatService::execute_turn()` via direct condenser library call. When context exceeds 87.5% of the model window, the oldest half of history is condensed and replaced with a summary.
 
 ### 6.2 Tool Call Parsing (Two Priority Levels)
 
@@ -518,7 +516,7 @@ struct ModelMeta {
 ```
 
 This metadata feeds into:
-- Auto-compaction threshold (87.5% of `context_length`)
+- Auto-condense threshold (87.5% of `context_length`)
 - Future: thinking mode toggle, JSON mode selection
 
 ## 12. Tool-Augmented Inference
@@ -693,13 +691,7 @@ already persisted in `EpisodicStoragePort`.
 
 ## 18. Auto-Condense
 
-Auto-condense (context compaction at 87.5% of model window) is currently deferred.
-The pipeline in `ChatService::execute_turn()` appends recent conversation history
-as a suffix via `recall_recent_turns()`, but the condensation trigger and condenser
-MCP tool invocation were CLI-specific (required `GovernedTool` + ACP secret).
-
-Re-implementing auto-condense in the service layer is a future item (F3 in the
-essentialist remediation catalog).
+Auto-condense triggers at 87.5% of the model's context window via the condenser library. The pipeline in `ChatService::execute_turn()` appends recent conversation history as a suffix via `recall_recent_turns()`, then checks if approximate token count exceeds 87.5% of `context_window`. When triggered, it splits history in half, calls `hkask_mcp_condenser::thread_summary()` to condense the oldest half, and replaces the history suffix with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails, the full (uncondensed) context is used with a CNS warning log.
 
 ## 19. Key Design Decisions
 

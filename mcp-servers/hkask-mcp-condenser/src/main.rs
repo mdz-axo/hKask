@@ -18,7 +18,7 @@
 //!
 //! When `INFERENCE_URL` (or legacy `OKAPI_URL`) is provided, the
 //! `condenser_thread_summary` tool calls the inference engine
-//! to summarize conversation history for context compaction.
+//! to summarize conversation history for context condensation.
 
 mod algorithms;
 mod engine;
@@ -242,7 +242,7 @@ impl CondenserServer {
     }
 
     #[tool(
-        description = "Summarize conversation history using a local inference engine for context compaction. Call when approaching context window limits to condense older messages."
+        description = "Summarize conversation history using a local inference engine for context condensation. Call when approaching context window limits to condense older messages."
     )]
     async fn condenser_thread_summary(
         &self,

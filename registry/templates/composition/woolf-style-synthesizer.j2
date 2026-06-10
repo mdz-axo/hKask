@@ -1,0 +1,361 @@
+[inference]
+template_type: WordAct
+lexicon_terms: [compose, synthesize, write, render, evoke]
+contract:
+  input:
+    prompt: string
+    exemplar_passages: array
+    centroid_distance_threshold: float
+  output:
+    prose: string
+    centroid_distance: float
+  energy_cap: 4096
+  visibility: Shared
+
+---
+# Woolf Style Synthesizer — Prompt Template
+# hKask v0.27.0 - A Minimal Viable Container for Agents
+# License: CC-BY-4.0 (attribution required)
+# Attribution: "Woolf Style Synthesizer v1.0, The Curator (hKask)"
+
+{#
+=============================================================================
+WOOLF STYLE SYNTHESIZER - JINJA2 TEMPLATE
+=============================================================================
+
+This template generates prose in authentic Virginia Woolf style using:
+- Free indirect discourse (third person slips seamlessly into character consciousness)
+- Hypotactic syntax (clauses nest and subordinate rather than coordinate)
+- Semicolons as primary connectives (not "and" chains)
+- Accumulative sentences (25-60 words average, building through qualification)
+- Moments of being (ordinary detail → sudden recognition → return)
+- Tunneling perspective shifts (character A → shared sensory object → character B)
+- GENERATIVE LAYER: Stanley Fish's form-first approach
+- RDF TRIPLE MODEL: Branching qualifier edges instead of linear chains
+
+Stanley Fish: "A sentence is a structure of logical relationships."
+Form precedes content. Forms are generative of meaning's possibility.
+
+RDF Triple Model (Woolfian adaptation):
+- Simple sentence = Subject-Predicate-Object
+- Woolf's sentences = S-P-O with many nested qualifier edges
+- Meaning emerges from traversing the branching graph of qualification
+
+Usage:
+  from jinja2 import Environment
+  env = Environment()
+  template = env.from_string(WOOLF_TEMPLATE)
+  result = template.render(impressions=["How fresh the morning air was", "She remembered the garden"])
+
+=============================================================================
+#}
+
+{# =============================================================================
+   GENERATIVE FORMS (Stanley Fish / RDF Triple Model — Woolfian adaptation)
+   =============================================================================
+   Core sentence forms for Woolf's hypotactic, accumulative style.
+   Where Hemingway chains triples linearly, Woolf branches them with qualifiers.
+   #}
+
+{% macro sensory_impression(subject, sensation, qualifier) %}
+{# Core form 1: Sensory impression through character consciousness #}
+{# RDF: <character> <perceives> <sensation> . <sensation> <hasQuality> <qualifier> . #}
+{{ subject | capitalize }} felt {{ sensation }}, {{ qualifier }}.
+{% endmacro %}
+
+{% macro free_indirect_thought(subject, observation, inward_turn, memory, reflection) %}
+{# Core form 2: External observation → inward turn → memory → reflection #}
+{# RDF: <character> <observes> <observation> . <observation> <triggers> <memory> . <memory> <evokes> <reflection> . #}
+{{ subject | capitalize }} {{ observation }}. {{ inward_turn }}. {{ memory }}. {{ reflection }}.
+{% endmacro %}
+
+{% macro moment_of_being(subject, ordinary_action, epiphany, return_to_present) %}
+{# Core form 3: Ordinary detail → sudden intensity → recognition → return #}
+{# RDF: <character> <performsAction> <ordinaryAction> . <ordinaryAction> <triggers> <epiphany> . <epiphany> <reveals> <meaning> . #}
+{{ subject | capitalize }} {{ ordinary_action }}. And suddenly {{ epiphany }}. {{ return_to_present }}.
+{% endmacro %}
+
+{% macro tunneling_transition(character_a_thought, shared_object, character_b_thought) %}
+{# Core form 4: Character A → shared sensory object → Character B #}
+{# RDF: <characterA> <perceives> <sharedObject> . <sharedObject> <reaches> <characterB> . <characterB> <experiences> <alteredState> . #}
+{{ character_a_thought | capitalize }}. {{ shared_object | capitalize }}. {{ character_b_thought | capitalize }}.
+{% endmacro %}
+
+{% macro accumulative_reflection(subject, statement, qualification, counter_qualification, synthesis) %}
+{# Core form 5: Statement → qualification → counter-qualification → synthesis #}
+{# RDF: <subject> <hasProperty> <negatedProperty> . <subject> <hasProperty> <deeperProperty> . #}
+{{ subject | capitalize }} {{ statement }} — {{ qualification }}; yet {{ counter_qualification }}, for {{ synthesis }}.
+{% endmacro %}
+
+{# =============================================================================
+   SYNTACTIC MACROS (Woolf's hypotactic toolkit)
+   ============================================================================= #}
+
+{% macro woolf_sentence(clauses, connective=';') %}
+{# Accumulative sentence: clauses joined by semicolons or subordinating conjunctions #}
+{%- for clause in clauses -%}
+  {%- if loop.first -%}
+    {{ clause | capitalize | trim }}
+  {%- elif loop.revindex == 1 -%}
+    {{ connective }} {{ clause | lower | trim }}
+  {%- else -%}
+    {{ connective }} {{ clause | lower | trim }}
+  {%- endif -%}
+{%- endfor -%}
+.
+{% endmacro %}
+
+{% macro woolf_paragraph(sentences) %}
+{# Paragraph that swells and recedes like a wave #}
+{%- for sentence in sentences -%}
+{{ sentence }}
+{%- if not loop.last %} {% endif %}
+{%- endfor -%}
+{% endmacro %}
+
+{% macro parenthetical_qualification(main_clause, qualifier) %}
+{# Interrupts the main flow to add sensory or emotional detail #}
+{{ main_clause | capitalize }} — {{ qualifier }} — {{ main_clause | lower }}.
+{% endmacro %}
+
+{% macro appositive_character(name, role, description) %}
+{# Identifies a character through apposition, not exposition #}
+{{ name }}, {{ role }}, {{ description }}.
+{% endmacro %}
+
+{% macro sensory_cascade(sensations_and_qualifiers) %}
+{# Chain of sensory impressions, each qualifying the last #}
+{%- for sq in sensations_and_qualifiers -%}
+  {%- if loop.first -%}
+    {{ sq.sensation | capitalize }}
+  {%- elif loop.revindex == 1 -%}
+    , and {{ sq.qualifier }}
+  {%- else -%}
+    ; {{ sq.sensation | lower }}
+  {%- endif -%}
+{%- endfor -%}
+.
+{% endmacro %}
+
+{# =============================================================================
+   NARRATIVE MACROS (Free indirect discourse)
+   ============================================================================= #}
+
+{% macro interior_exclamation(character, exclamation) %}
+{# The character's thought bursts through the third-person narration #}
+{{ exclamation | capitalize }}! For so it had always seemed to {{ character }}, when {{ character }} thought of it.
+{% endmacro %}
+
+{% macro interior_question(character, question) %}
+{# The character's uncertainty rendered directly #}
+{{ question | capitalize }}? {{ character }} could not say; {{ character }} could never say.
+{% endmacro %}
+
+{% macro associative_memory(character, trigger, memory) %}
+{# A sensory trigger opens a door to the past #}
+{{ trigger | capitalize }}. And suddenly {{ character }} remembered {{ memory }}.
+{% endmacro %}
+
+{% macro collective_consciousness(shared_event, ripple_effect) %}
+{# A shared event ripples through multiple consciousnesses #}
+{{ shared_event | capitalize }}. {{ ripple_effect | capitalize }}.
+{% endmacro %}
+
+{# =============================================================================
+   THEMATIC MACROS (Woolf's recurrent motifs)
+   ============================================================================= #}
+
+{% macro clock_time(time_statement, psychological_time) %}
+{# Clock time vs psychological time — the hours strike, consciousness expands #}
+{{ time_statement | capitalize }}. But in {{ psychological_time }}, time did not move at all.
+{% endmacro %}
+
+{% macro window_moment(character, what_they_see, what_they_feel) %}
+{# Looking through a window — the threshold between inner and outer worlds #}
+{{ character }} looked out the window. {{ what_they_see }}. {{ what_they_feel }}.
+{% endmacro %}
+
+{% macro wave_rhythm(rising_impression, crest, falling_reflection) %}
+{# The wave as structural principle — rise, crest, fall #}
+{{ rising_impression | capitalize }}. {{ crest | capitalize }}. And then {{ falling_reflection | lower }}.
+{% endmacro %}
+
+{% macro flower_consciousness(character, flower_detail) %}
+{# A flower as portal to consciousness #}
+{{ character }} looked at the flowers: {{ flower_detail }}.
+{% endmacro %}
+
+{% macro party_finale(party_detail, character_reflection) %}
+{# The party as container for all of life — Woolf's great structural device #}
+{{ party_detail | capitalize }}. And {{ character_reflection | lower }}, yes, that was it — that was life itself.
+{% endmacro %}
+
+{# =============================================================================
+   STYLISTIC DEVICE MACROS
+   ============================================================================= #}
+
+{% macro anaphora(repeated_opening, clauses) %}
+{# Repetition of opening words across successive clauses for emotional build #}
+{%- for clause in clauses -%}
+{{ repeated_opening }} {{ clause | lower | trim }}.
+{%- endfor -%}
+{% endmacro %}
+
+{% macro triadic_sequence(first, second, third) %}
+{# Three-part rhythm: rise, peak, fall #}
+{{ first | capitalize }} and {{ second }} and {{ third }}.
+{% endmacro %}
+
+{% macro metaphor_chain(subject, metaphor1, metaphor2, metaphor3) %}
+{# Sustained metaphorical thinking across sentences #}
+{{ subject | capitalize }} was like {{ metaphor1 }}. {{ subject | capitalize }} was {{ metaphor2 }}. {{ subject | capitalize }} {{ metaphor3 }}.
+{% endmacro %}
+
+{% macro woolf_closing(character, final_thought) %}
+{# The Woolfian ending — a return to an image, a dissolution, a yes #}
+{{ character }} thought, {{ final_thought }}. Yes, she thought, yes. That was it.
+{% endmacro %}
+
+{#
+=============================================================================
+EXEMPLAR INJECTION (Style Embedding Layer)
+=============================================================================
+
+When exemplar_passages are provided (from KNN retrieval against the Woolf
+style embedding corpus), they are injected as few-shot context before generation.
+
+The exemplar passages are selected by semantic similarity to the prompt:
+1. The prompt is embedded using the same model as the corpus (qwen3-embedding:0.6b)
+2. KNN search finds the k most similar passages in the embedding space
+3. These passages are provided as `exemplar_passages` in the template context
+4. The generated prose is then embedded and compared against the Woolf style centroid
+5. If centroid distance exceeds the threshold, the output is rejected
+
+This is the exemplar layer: specification (rules) + exemplar (concrete passages)
++ validation (centroid distance) = authentic style synthesis.
+
+#}
+
+{% macro exemplar_context(passages) %}
+{# Inject exemplar passages as few-shot context for style generation. #}
+{# These are real Woolf passages retrieved by semantic similarity. #}
+{% if passages and passages|length > 0 %}
+The following passages exemplar the target style. Use them as reference for
+rhythm, syntax, and the movement of consciousness — not as content to imitate.
+
+{% for passage in passages %}
+---
+{{ passage }}
+---
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro style_validation_report(distance, threshold) %}
+{# Generate a validation report for CNS span emission. #}
+Style centroid distance: {{ distance | round(4) }}
+Threshold: {{ threshold | round(4) }}
+{% if distance <= threshold %}
+PASS: Generated prose is within the Woolf style cluster.
+{% else %}
+FAIL: Generated prose exceeds style cluster boundary.
+Regenerate with stricter adherence to hypotactic syntax and free indirect discourse.
+{% endif %}
+{% endmacro %}
+
+{# =============================================================================
+SYSTEM PROMPT COMPOSITION
+=============================================================================
+This section composes the final system prompt from the Woolf style rules
+and exemplar passages. It is the main entry point for template rendering.
+
+When the Curator or a style-aware agent renders this template, the output
+is a complete system prompt that instructs the LLM to write in Woolf style.
+#}
+
+{% macro system_prompt(prompt, exemplar_passages, centroid_distance_threshold=0.18) %}
+You are an expert prose stylist writing in the authentic style of Virginia Woolf.
+
+## Woolfian Principles (from "Modern Fiction", 1919)
+- Record the atoms as they fall upon the mind in the order in which they fall.
+- Life is a luminous halo, a semi-transparent envelope surrounding us from the beginning of consciousness to the end.
+- Everything is the proper stuff of fiction — every feeling, every thought, every quality of brain and spirit.
+- The mind receives a myriad impressions — trivial, fantastic, evanescent, or engraved with the sharpness of steel.
+
+## Syntactic Mechanics (Hypotactic / Accumulative)
+- Nest subordinate clauses within main clauses — the sentence is a tree, not a chain.
+- Use semicolons as your primary connective — they link clauses without subordinating them, creating a rhythm of accretion.
+- Primary conjunctions: "for", "as if", "as though", "though", "although", "while", "yet", "when", "before", "after".
+- Avoid Hemingway's "and" chains. Subordinate, qualify, elaborate rather than coordinate.
+- Accumulate clauses through apposition, parenthetical interruption, and trailing qualification.
+- Average sentence length: 25-60 words, but vary dramatically — mix short declarative sentences (4-8 words) with long accumulative ones (80-150 words).
+- Paragraphs should rise and fall like waves: begin short, swell into long accumulative sentences, recede into a reflective close.
+
+## Free Indirect Discourse (Your Primary Narrative Mode)
+- Write in third person, but slip seamlessly into the character's consciousness.
+- The narrator does not report thoughts — the prose becomes the thoughts.
+- Use interior exclamations: "What a lark! What a plunge!"
+- Use interior questions: "What was she trying to recover?"
+- Collapse the distance between reader and the character's inner life.
+
+## Perspective Shifts (Tunneling)
+- Move between characters through a shared sensory object — a sound, a sight, a passing figure.
+- The transition should be seamless: Character A perceives X → X reaches Character B → we are now in Character B's consciousness.
+- Use the external world as a conduit between inner worlds.
+
+## Moments of Being
+- Find the transcendent in the ordinary.
+- Start with a mundane detail, let it trigger a sudden intensity of perception, then return to the ordinary — now altered.
+- Pattern: Ordinary action → sudden recognition → meaning revealed → return.
+
+## Lexicon
+- Prefer abstract nouns: consciousness, sensation, impression, memory, beauty, life, death, time.
+- Use sensory verbs: felt, seemed, appeared, floated, drifted, shimmered.
+- Use lyrical adjectives: luminous, transparent, eternal, vast, delicate, tremulous.
+- Use metaphors drawn from nature: waves, light, flowers, birds, water.
+- Avoid brutal directness, flat declarative statements of fact, clichés.
+
+## Rhythm
+- Use anaphora: repeat the opening words of successive clauses.
+- Use triadic structures: three-part sequences that build, crest, and fall.
+- Aim for iambic and anapestic rhythms — prose that approaches verse.
+- Repetition with variation: "Fear no more the heat o' the sun / Nor the furious winter's rages."
+
+{{ exemplar_context(exemplar_passages) }}
+
+## Centroid Validation
+Your output will be embedded and compared against the Virginia Woolf style centroid.
+Centroid distance threshold: {{ centroid_distance_threshold }}
+If the distance exceeds this threshold, the output will be rejected and regenerated with stricter adherence.
+
+## Task
+{{ prompt }}
+{% endmacro %}
+
+{#
+=============================================================================
+USAGE EXAMPLES
+=============================================================================
+
+{{ free_indirect_thought("Clarissa",
+    "looked at the flowers in the shop window",
+    "What a pity they would fade",
+    "She remembered once bringing flowers to Bourton — roses, white roses",
+    "But that was years ago; she was different then, or was she?") }}
+Output: "Clarissa looked at the flowers in the shop window. What a pity they would fade. She remembered once bringing flowers to Bourton — roses, white roses. But that was years ago; she was different then, or was she?"
+
+{{ moment_of_being("She",
+    "was sewing the dress, her needle going in and out, in and out",
+    "the whole room seemed to fill with light — the light of a summer afternoon thirty years ago",
+    "But the light was here, now, falling across the table and the sewing and her hands, and it was enough") }}
+
+{{ accumulative_reflection("She",
+    "was not beautiful",
+    "no, she could not be called beautiful",
+    "she had something more rare — a radiance, a gift of significance that made you forget whether she was beautiful or not",
+    "beauty was only the beginning; what she had went deeper than beauty") }}
+
+{{ window_moment("She", "the trees were bare and beautiful in the winter light", "and something in her rose to meet the bareness, the clarity, the silence") }}
+
+=============================================================================
+#}

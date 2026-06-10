@@ -6,10 +6,10 @@
 //! thin delegation to a `SqliteRegistry` bundle method plus HTTP response mapping.
 //! The `compose_bundle` skill-matching check is already in `registry.find_bundle_by_skills()`.
 //! No CLI bundle commands exist with real logic (CLI `run_bundle` is all stubs).
-//! A BundleService would just be `self.registry().list_bundles()` / etc. — pure
+//! A BundleService would just be `self.storage().0.list_bundles()` / etc. — pure
 //! pass-throughs that increase interface cost without adding behavior.
 //!
-//! Decision: Guideline — keep direct `service_context.registry()` access.
+//! Decision: Guideline — keep direct `service_context.storage().0` access.
 //! Revisit if bundle composition or evolution logic grows beyond registry CRUD.
 
 use axum::extract::{Path, State};

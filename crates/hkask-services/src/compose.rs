@@ -35,8 +35,16 @@ use crate::inference::InferenceContext;
 /// ```
 #[derive(Debug, Deserialize)]
 pub struct CognitionConfig {
+    /// Author identifier — drives which system prompt template is used.
+    /// "hemingway" (default) or "woolf".
+    #[serde(default = "default_author")]
+    pub author: String,
     pub embedding: EmbeddingSection,
     pub validation: ValidationSection,
+}
+
+fn default_author() -> String {
+    "hemingway".to_string()
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,16 +164,7 @@ impl ComposeService {
             semantic.search_similar(&prompt_vector, request.cognition.embedding.retrieval.k_max)?;
 
         // 4. Filter by prefix, centroid exclusion, rule exclusion, distance threshold
-        let prefix = format!(
-            "style:{}",
-            request
-                .cognition
-                .embedding
-                .centroid_entity_ref
-                .split(':')
-                .nth(1)
-                .unwrap_or("hemingway")
-        );
+        let prefix = format!("style:{}", &request.cognition.author);
         let exemplar_passages: Vec<String> = results
             .into_iter()
             .filter(|r| {
@@ -192,6 +191,7 @@ impl ComposeService {
 
         // 5. Compose system prompt
         let system_prompt = compose_system_prompt(
+            &request.cognition.author,
             &request.prompt,
             &exemplar_passages,
             request.no_validate,
@@ -246,12 +246,30 @@ impl ComposeService {
 // ── Prompt composition ───────────────────────────────────────────────────
 
 fn compose_system_prompt(
+    author: &str,
     prompt: &str,
     exemplar_passages: &[String],
     no_validate: bool,
     centroid_distance_max: f64,
 ) -> String {
-    let exemplar_block = if exemplar_passages.is_empty() {
+    match author {
+        "woolf" => woolf_system_prompt(
+            prompt,
+            exemplar_passages,
+            no_validate,
+            centroid_distance_max,
+        ),
+        _ => hemingway_system_prompt(
+            prompt,
+            exemplar_passages,
+            no_validate,
+            centroid_distance_max,
+        ),
+    }
+}
+
+fn exemplar_block(exemplar_passages: &[String]) -> String {
+    if exemplar_passages.is_empty() {
         String::new()
     } else {
         let mut block =
@@ -264,9 +282,11 @@ fn compose_system_prompt(
             block.push_str("\n---\n\n");
         }
         block
-    };
+    }
+}
 
-    let centroid_note = if no_validate {
+fn centroid_note(no_validate: bool, centroid_distance_max: f64) -> String {
+    if no_validate {
         String::new()
     } else {
         format!(
@@ -276,7 +296,17 @@ fn compose_system_prompt(
              If the distance exceeds {:.2}, the output will be rejected.\n",
             centroid_distance_max, centroid_distance_max
         )
-    };
+    }
+}
+
+fn hemingway_system_prompt(
+    prompt: &str,
+    exemplar_passages: &[String],
+    no_validate: bool,
+    centroid_distance_max: f64,
+) -> String {
+    let exemplar_block = exemplar_block(exemplar_passages);
+    let centroid_note = centroid_note(no_validate, centroid_distance_max);
 
     format!(
         "You are an expert prose stylist writing in the authentic style of Ernest Hemingway.\n\
@@ -309,6 +339,62 @@ fn compose_system_prompt(
          - Polysyndeton (\"He was cold and he was tired and he walked on.\") — for accumulation\n\
          - Asyndeton (\"The sun beat down. The dust rose.\") — for staccato urgency\n\
          - Parataxis (\"The leaves fell. The soldiers marched.\") — default mode\n\
+         {exemplar_block}\
+         {centroid_note}\
+         \n## Task\n\
+         {prompt}"
+    )
+}
+
+fn woolf_system_prompt(
+    prompt: &str,
+    exemplar_passages: &[String],
+    no_validate: bool,
+    centroid_distance_max: f64,
+) -> String {
+    let exemplar_block = exemplar_block(exemplar_passages);
+    let centroid_note = centroid_note(no_validate, centroid_distance_max);
+
+    format!(
+        "You are an expert prose stylist writing in the authentic style of Virginia Woolf.\n\
+         \n\
+         ## Woolfian Principles (from \"Modern Fiction\", 1919)\n\
+         - Record the atoms as they fall upon the mind in the order in which they fall.\n\
+         - Life is a luminous halo, a semi-transparent envelope surrounding us.\n\
+         - Everything is the proper stuff of fiction.\n\
+         - The mind receives a myriad impressions — trivial, fantastic, evanescent.\n\
+         \n\
+         ## Syntactic Mechanics (Hypotactic / Accumulative)\n\
+         - Nest subordinate clauses within main clauses — the sentence is a tree, not a chain.\n\
+         - Use semicolons as your primary connective — they create a rhythm of accretion.\n\
+         - Primary conjunctions: \"for\", \"as if\", \"as though\", \"though\", \"although\", \"yet\".\n\
+         - Avoid Hemingway's \"and\" chains. Subordinate, qualify, elaborate.\n\
+         - Accumulate clauses through apposition, parenthetical interruption, trailing qualification.\n\
+         - Average sentence length: 25-60 words; vary dramatically — short (4-8 words) to long (80-150 words).\n\
+         - Paragraphs should rise and fall like waves.\n\
+         \n\
+         ## Free Indirect Discourse (Your Primary Narrative Mode)\n\
+         - Write in third person, but slip seamlessly into the character's consciousness.\n\
+         - The narrator does not report thoughts — the prose becomes the thoughts.\n\
+         - Use interior exclamations and questions. Collapse distance between reader and inner life.\n\
+         \n\
+         ## Perspective Shifts (Tunneling)\n\
+         - Move between characters through a shared sensory object — a sound, a sight, a passing figure.\n\
+         - Use the external world as a conduit between inner worlds.\n\
+         \n\
+         ## Moments of Being\n\
+         - Find the transcendent in the ordinary: mundane detail -> sudden intensity -> return (now altered).\n\
+         \n\
+         ## Lexicon\n\
+         - Prefer abstract nouns: consciousness, sensation, impression, memory, beauty, life, time.\n\
+         - Use sensory verbs: felt, seemed, appeared, floated, drifted, shimmered.\n\
+         - Use metaphors drawn from nature: waves, light, flowers, birds, water.\n\
+         - Avoid brutal directness, flat declarative statements of fact.\n\
+         \n\
+         ## Rhythm\n\
+         - Use anaphora: repeat opening words across successive clauses.\n\
+         - Use triadic structures: three-part sequences that build, crest, and fall.\n\
+         - Aim for iambic and anapestic rhythms — prose that approaches verse.\n\
          {exemplar_block}\
          {centroid_note}\
          \n## Task\n\
