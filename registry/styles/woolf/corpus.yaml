@@ -18,7 +18,7 @@ style_synthesizer: composition/woolf-style-synthesizer
 
 # ── Embedding Model Configuration ──────────────────────────────────────────────
 embedding:
-  model: "qwen3-embedding:0.6b"
+  model: "cf/qwen3-embedding:0.6b"
   dim: 1024
   okapi_endpoint: "/api/embed/sentences"
   batch_size: 64

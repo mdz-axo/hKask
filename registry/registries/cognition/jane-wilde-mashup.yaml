@@ -10,7 +10,7 @@
 author: jane-wilde
 
 embedding:
-  model: "qwen3-embedding:0.6b"
+  model: "cf/qwen3-embedding:0.6b"
   dim: 1024
   centroid_entity_ref: "style:jane-wilde:centroid"
   retrieval:
