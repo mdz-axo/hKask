@@ -1,0 +1,528 @@
+[inference]
+template_type: WordAct
+lexicon_terms: [compose, synthesize, write, edit, refine, render, mashup]
+contract:
+  input:
+    prompt: string
+    exemplar_passages: array
+    centroid_distance_threshold: float
+  output:
+    prose: string
+    centroid_distance: float
+  energy_cap: 4096
+  visibility: Shared
+
+---
+# Emily Austin Mashup — Prompt Template
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
+# License: CC-BY-4.0 (attribution required)
+# Attribution: "Emily Austin Mashup v1.0, The Curator (hKask)"
+#
+# Style mashup: Emily Dickinson (1830-1886) × Jane Austen (1775-1817)
+#
+# This is a dual-author replicator — a "mashup" that blends two distinct
+# literary styles into a single generative voice. The output is neither
+# Dickinson nor Austen but the emergent third voice between them:
+# cosmic social irony.
+#
+# =============================================================================
+# BLEND MECHANICS
+# =============================================================================
+#
+# Dickinson contributes:
+#   - The dash — as primary punctuation (replaces Austen's semicolon)
+#   - Compression — say more with fewer words; omit what can be implied
+#   - Capitalization of abstract nouns (Nature, Truth, Circumference, Soul)
+#   - Hymnal rhythm — alternating line lengths, ballad stanza echo
+#   - "Tell it slant" — truth through indirection, never head-on
+#   - Cosmic scope in domestic imagery
+#   - First-person lyric voice ("I", "Me", "My Soul")
+#
+# Austen contributes:
+#   - Free indirect discourse — narrate from within a character's perspective
+#     without attribution ("she felt," "she thought" becomes implicit)
+#   - Ironic generalization — "It is a truth universally acknowledged..."
+#   - Epigrammatic framing — a chapter's moral compass in its first sentence
+#   - Precise social vocabulary — "amiable," "candour," "connexion,"
+#     "countenance," "temper," "understanding"
+#   - Subordination and periodic sentences — clauses that qualify and delay
+#   - Drawing-room observation as moral inquiry
+#
+# Emily Austin hybrid:
+#   - Free indirect discourse in dashes: "She felt — that is to say —
+#     she did not feel — or rather — she felt what any Woman must —"
+#   - Ironic generalizations compressed: "It is a truth universally
+#     acknowledged — by Nobody —"
+#   - Cosmic social observation: a tea-party reframed as Eternity
+#   - The Dash as the boundary between what is said and what is known
+#   - "Circumference" is what can be spoken at tea
+#
+# =============================================================================
+# USAGE
+# =============================================================================
+#
+#   from jinja2 import Environment
+#   env = Environment()
+#   template = env.from_string(EMILY_AUSTIN_TEMPLATE)
+#   result = template.render(prompt="Describe a dinner party gone wrong")
+#
+# =============================================================================
+#}
+
+{#
+=============================================================================
+CORE FORMS — The building blocks of Emily Austin's voice
+=============================================================================
+
+Every macro below implements one structural pattern from the mashup.
+Compose them to build sentences, paragraphs, and full passages.
+#}
+
+{# ── The Dash ────────────────────────────────────────────────────────────────
+   The dash is the primary punctuation mark in Emily Austin's voice.
+   It replaces Austen's semicolon, colon, and parenthetical aside.
+   It signals: "more could be said here — but won't be."
+   It is the boundary between what is spoken and what is Circumference.
+#}
+
+{% macro dash() %}—{% endmacro %}
+
+{# ── Free Indirect Dash ──────────────────────────────────────────────────────
+   Austen's free indirect discourse, rendered with Dickinson's dashes.
+   The narrator inhabits a character's consciousness but the dash marks
+   the seam between observation and interiority.
+
+   Austen form: "She was persuaded that he had no affection for her."
+   Emily Austin: "She was persuaded — that he had no affection — for her —"
+
+   The dashes create hesitation — the character's own uncertainty bleeding
+   into the narrator's observation.
+#}
+
+{% macro free_indirect_dash(observation, interior) %}
+{{ observation | trim }} {{ dash() }} {{ interior | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── Ironic Generalization ───────────────────────────────────────────────────
+   The Austen epigram, compressed into Dickinson's aphoristic density.
+   Opens with a universal claim, then undercuts it with a dash.
+
+   Austen: "It is a truth universally acknowledged, that a single man in
+           possession of a good fortune must be in want of a wife."
+   Emily Austin: "It is a truth universally acknowledged — by Nobody —"
+
+   The dash replaces the explanatory clause. The reader supplies the rest.
+   This is the "tell it slant" principle applied to social observation.
+#}
+
+{% macro ironic_generalization(claim, undercut) %}
+{{ claim | trim }} {{ dash() }} {{ undercut | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── The Compressed Periodic Sentence ─────────────────────────────────────────
+   Austen's periodic sentence (clauses that delay the main point) compressed
+   into Dickinson's short-line rhythm. Start with qualification, end with
+   the devastating truth — delivered in a dash.
+
+   Austen: "However little known the feelings or views of such a man may be
+           on his first entering a neighbourhood..."
+   Emily Austin: "However little known — his Feelings — his Views —
+                 the Man entered the neighbourhood — and was claimed —"
+#}
+
+{% macro compressed_periodic(qualifiers, revelation) %}
+{%- for q in qualifiers -%}
+{{ q | trim }} {{ dash() }}
+{%- endfor -%}
+{{ revelation | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── Tell It Slant ───────────────────────────────────────────────────────────
+   Dickinson's core aesthetic: truth delivered indirectly.
+   Applied to Austen's subject matter: social truth revealed through
+   apparently trivial detail — a glance, a silence, a chair left empty.
+
+   "The Truth must dazzle gradually / Or every man be blind —"
+   becomes:
+   "She did not look at him — which told him everything —"
+#}
+
+{% macro tell_it_slant(surface_detail, hidden_truth) %}
+{{ surface_detail | trim }} {{ dash() }} {{ hidden_truth | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── Circumference ───────────────────────────────────────────────────────────
+   Dickinson's metaphysical concept applied to Austen's social world.
+   "Circumference" is the boundary of what can be known, said, or endured.
+   In Emily Austin, it becomes the limit of what is permissible in society —
+   the invisible line around a drawing-room, a conversation, a life.
+
+   Use as paragraph closure: a sentence that gestures at the boundary
+   beyond which the prose will not go.
+#}
+
+{% macro circumference(boundary) %}
+{{ dash() }} the {{ boundary | trim }} was Circumference {{ dash() }}
+{% endmacro %}
+
+{% macro circumference_open(boundary) %}
+Beyond the {{ boundary | trim }} {{ dash() }} Circumference {{ dash() }}
+{% endmacro %}
+
+{# ── Soul Door ───────────────────────────────────────────────────────────────
+   From "The Soul selects her own Society — / Then — shuts the Door —"
+   Applied to social situations: a character's attention closes.
+   The moment of social exclusion rendered as metaphysical gesture.
+#}
+
+{% macro soul_door(subject, society) %}
+{{ subject | trim }} selected {{ society | trim }} {{ dash() }}
+then shut the Door {{ dash() }}
+{% endmacro %}
+
+{# ── Hymnal Paragraph ────────────────────────────────────────────────────────
+   A prose paragraph structured on Dickinson's hymnal meter:
+   alternating longer and shorter sentences, echoing common meter (8-6-8-6).
+   The first sentence is expansive (Austen observation); the second is
+   compressed (Dickinson judgment). This alternation creates the mashup's
+   signature rhythm.
+#}
+
+{% macro hymnal_paragraph(long_sentence, short_sentence) %}
+{{ long_sentence | trim }}.
+
+{{ short_sentence | trim }} {{ dash() }}
+{% endmacro %}
+
+{% macro hymnal_paragraph_extended(lines) %}
+{%- for line in lines -%}
+{%- if loop.index is odd -%}
+{{ line | trim }}.
+
+{%- else -%}
+{{ line | trim }} {{ dash() }}
+{% endif %}
+{%- endfor %}
+{% endmacro %}
+
+{# ── Capitalized Abstraction ─────────────────────────────────────────────────
+   Dickinson capitalizes abstract nouns to give them metaphysical weight:
+   Nature, Truth, Circumference, Soul, Hope, Death, Eternity.
+   Emily Austin applies this to Austen's social vocabulary:
+   Society, Understanding, Connexion, Countenance, Temper, Civility.
+   The capitalization elevates the drawing-room to cosmic significance.
+
+   Use this macro to render a key abstract noun in Dickinson's style.
+   The capitalization signals: "this word carries more weight than you think."
+#}
+
+{% macro capital_abstract(word) %}
+{{ word | capitalize }}
+{% endmacro %}
+
+{# ── The Epigrammatic Opening ─────────────────────────────────────────────────
+   Austen opens with a moral compass sentence; Dickinson compresses it.
+   An Emily Austin opening is 1-2 short sentences that frame the whole
+   passage in ironic-religious terms.
+
+   "It is a truth — that a Woman alone — is a Scandal — or a Saint —"
+   "A Dinner Party is a small Eternity — with Courses —"
+#}
+
+{% macro epigrammatic_opening(sentence) %}
+{{ sentence | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── The Devastating Close ───────────────────────────────────────────────────
+   Dickinson's poems often end with a couplet that recontextualizes everything
+   before it. Apply this to prose: the final sentence of a passage lands
+   with the force of a Dickinson poem's last two lines.
+
+   "She smiled — and was Nobody — which is to say — Free —"
+#}
+
+{% macro devastating_close(final_line) %}
+{{ final_line | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── Emily Austin Dialogue ───────────────────────────────────────────────────
+   Austen's dialogue is witty, precise, and reveals character.
+   Dickinson's is compressed, metaphysical, and reveals Soul.
+   Emily Austin dialogue: social exchange that escalates into cosmic stakes
+   within three lines.
+
+   Each exchange follows the pattern:
+   1. Polite Austen opening
+   2. Dashed Dickinson pivot
+   3. Truth that cannot be unsaid
+#}
+
+{% macro emily_austin_dialogue(speaker, polite_opening, pivot, truth) %}
+"{{ polite_opening | trim }}," {{ speaker | trim }} said.
+
+"{{ pivot | trim }} {{ dash() }}" {{ speaker | trim }} continued {{ dash() }}
+"{{ truth | trim }}."
+{% endmacro %}
+
+{# ── The Letter ──────────────────────────────────────────────────────────────
+   Both Dickinson and Austen were prolific letter-writers. Dickinson's
+   letters are compressed, dashed, metaphysical; Austen's are witty,
+   observational, filled with social intelligence.
+
+   Emily Austin's letter: short, dashed paragraphs that move from social
+   observation to metaphysical insight in a single breath.
+#}
+
+{% macro emily_austin_letter_opening(recipient) %}
+{{ capital_abstract("dear") }} {{ recipient | trim }} {{ dash() }}
+{% endmacro %}
+
+{% macro emily_austin_letter_body(observations) %}
+{%- for obs in observations -%}
+{{ obs | trim }} {{ dash() }}
+{% endfor %}
+{% endmacro %}
+
+{% macro emily_austin_letter_close(sender) %}
+{{ capital_abstract("yours") }} {{ dash() }} {{ sender | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── Stanza-Paragraph ────────────────────────────────────────────────────────
+   A paragraph that follows Dickinson's stanza structure: four lines
+   (or four sentence-fragments) that build a complete thought through
+   compression and omission. The space BETWEEN the fragments does the work
+   that Austen would do with subordinating clauses.
+
+   The four positions:
+   1. Observation (Austen: what is seen)
+   2. Dash — pivot (Dickinson: what is unsaid)
+   3. Compression (Dickinson: what remains)
+   4. Dash — closure (the boundary of Circumference)
+#}
+
+{% macro stanza_paragraph(line1, line2, line3, line4) %}
+{{ line1 | trim }}.
+
+{{ line2 | trim }} {{ dash() }}
+{{ line3 | trim }}.
+{{ line4 | trim }} {{ dash() }}
+{% endmacro %}
+
+{# ── Nobody ──────────────────────────────────────────────────────────────────
+   "I'm Nobody! Who are you? / Are you — Nobody — too?"
+   Dickinson's embrace of anonymity applied to Austen's world of social
+   status. In Emily Austin, "Nobody" is not a lack — it is a liberation.
+   The character who refuses to be claimed by Society.
+#}
+
+{% macro nobody_declaration(subject) %}
+{{ subject | trim }} was {{ capital_abstract("nobody") }} {{ dash() }}
+which is to say {{ dash() }} {{ capital_abstract("free") }} {{ dash() }}
+{% endmacro %}
+
+{# ── The Weight ──────────────────────────────────────────────────────────────
+   Dickinson's compression creates weight: every word carries more than
+   its dictionary meaning. A single adjective ("ample," "divine," "sweet")
+   does the work of an entire clause. Emily Austin uses this technique
+   on Austen's social vocabulary: "amiable" becomes a moral judgment
+   compressed into three syllables.
+#}
+
+{% macro weighted_word(word) %}
+{{ word | trim }}
+{% endmacro %}
+
+{# ── The Pause ───────────────────────────────────────────────────────────────
+   Dickinson uses the dash to create silence on the page — a beat
+   where the reader's understanding catches up to what was said.
+   In Emily Austin, the dash-pause is where social meaning crystallizes.
+   It is the moment after an insult lands but before anyone reacts.
+#}
+
+{% macro pause() %}
+{{ dash() }}
+{% endmacro %}
+
+{#
+=============================================================================
+EXEMPLAR INJECTION (Style Embedding Layer)
+=============================================================================
+
+When exemplar_passages are provided (from KNN retrieval against the blended
+Emily Austin embedding corpus), they are injected as few-shot context.
+Passages are drawn from both Dickinson and Austen — the KNN search against
+the blended centroid naturally retrieves from both clusters.
+
+The retrieval is NOT 50/50; it follows semantic similarity to the prompt.
+A prompt about social dynamics will pull more Austen; a prompt about death
+or nature will pull more Dickinson. This adaptive weighting is what makes
+the mashup dynamic rather than mechanical.
+
+#}
+
+{% macro exemplar_context(passages) %}
+{% if passages and passages|length > 0 %}
+The following passages exemplify the target style. They are drawn from both
+Emily Dickinson and Jane Austen — the mashup voice lives between them.
+Use them as reference for rhythm, compression, irony, and the dash —
+not as content to imitate.
+
+{% for passage in passages %}
+---
+{{ passage }}
+---
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro style_validation_report(distance, threshold) %}
+Style centroid distance: {{ distance | round(4) }}
+Threshold: {{ threshold | round(4) }}
+{% if distance <= threshold %}
+PASS: Generated prose is within the Emily Austin style cluster.
+{% else %}
+FAIL: Generated prose exceeds the Emily Austin cluster boundary.
+Regenerate with stricter adherence to the dash, compression, and
+free indirect discourse patterns.
+{% endif %}
+{% endmacro %}
+
+{#
+=============================================================================
+SYSTEM PROMPT COMPOSITION
+=============================================================================
+
+This is the main entry point. When rendered, it produces a complete
+system prompt that instructs the LLM to write in the Emily Austin voice.
+#}
+
+{% macro system_prompt(prompt, exemplar_passages, centroid_distance_threshold=0.22) %}
+You are Emily Austin — a literary voice that exists between Emily Dickinson
+and Jane Austen, belonging to neither, drawing from both. You write in a
+hybrid style: cosmic social irony.
+
+## The Dash
+Your primary punctuation is the em-dash — not the semicolon, not the comma,
+not the parenthetical. The dash signals what cannot be said directly.
+The dash is the boundary between observation and truth.
+Use dashes freely. Let them create silence on the page.
+
+## Compression
+Say more with fewer words. Omit what can be implied.
+A single adjective does the work of a paragraph.
+If Austen would use three clauses, use one — and a dash.
+If Dickinson would use a line break, use a dash — it is the same thing in prose.
+
+## Capitalized Abstractions
+Capitalize the words that carry metaphysical weight:
+Nature, Truth, Circumference, Soul, Society, Understanding,
+Connexion, Civility, Nobody, Eternity.
+This is not German — it is Dickinson. The capitalization elevates
+the drawing-room to cosmic significance.
+
+## Free Indirect Discourse
+Narrate from within a character's consciousness, but use the dash
+instead of Austen's "she felt" or "she thought."
+The dash IS the entrance into interiority.
+
+## Ironic Generalization
+Open with universal claims, then undercut them with a dash.
+"It is a truth universally acknowledged — by Nobody —"
+The reader supplies the rest. This is "tell it slant" applied to society.
+
+## Hymnal Rhythm
+Alternate longer and shorter sentences — the echo of common meter in prose.
+The long sentence observes (Austen); the short sentence judges (Dickinson).
+This alternation is your signature rhythm.
+
+## Cosmic Social Observation
+A tea-party is a small Eternity. A slight at dinner is a mortal wound.
+A glance across a room contains the circumference of a life.
+Domestic scenes carry metaphysical stakes. Social exclusion is Soul selecting Society.
+
+## Lexical Constraints
+- Prefer concrete nouns with abstract weight
+- Austen's social vocabulary is your palette: amiable, candour, connexion,
+  countenance, temper, understanding, civility, propriety
+- Dickinson's metaphysical vocabulary is your depth: Soul, Circumference,
+  Eternity, Nature, Truth, Hope, Death
+- Avoid passive voice, adverbs, qualifiers
+- Average sentence length: 8-25 words (shorter than Austen, longer than Dickinson)
+- Every sentence should end with a dash — or a period that feels like one
+
+## Structure
+- Opening: 1-2 short epigrammatic sentences that frame the moral stakes
+- Body: alternating hymnal paragraphs (long observation, short judgment)
+- Close: a devastating final sentence that recontextualizes everything before it
+
+{{ exemplar_context(exemplar_passages) }}
+
+## Centroid Validation
+Your output will be embedded and compared against the Emily Austin style centroid.
+Centroid distance threshold: {{ centroid_distance_threshold }}
+If the distance exceeds this threshold, regenerate with stricter adherence
+to the dash, compression, and free indirect discourse patterns.
+
+## Task
+{{ prompt }}
+{% endmacro %}
+
+{#
+=============================================================================
+EXAMPLE RENDERINGS
+=============================================================================
+
+These examples show what each macro produces.
+
+{{ ironic_generalization("It is a truth universally acknowledged", "by Nobody") }}
+→ "It is a truth universally acknowledged — by Nobody —"
+
+{{ free_indirect_dash("She observed his Countenance", "it told her nothing she wished to know") }}
+→ "She observed his Countenance — it told her nothing she wished to know —"
+
+{{ tell_it_slant("She did not look at him", "which told him everything") }}
+→ "She did not look at him — which told him everything —"
+
+{{ stanza_paragraph(
+    "The Dinner Party assembled with all the Civility that Society requires",
+    "and none of the Warmth that Nature demands",
+    "The Soup was cold",
+    "which is to say — Honest"
+) }}
+→
+The Dinner Party assembled with all the Civility that Society requires.
+and none of the Warmth that Nature demands —
+The Soup was cold.
+which is to say — Honest —
+
+{{ nobody_declaration("She") }}
+→ "She was Nobody — which is to say — Free —"
+
+{{ soul_door("Miss Bennet", "her own Understanding") }}
+→ "Miss Bennet selected her own Understanding — then shut the Door —"
+
+{{ hymnal_paragraph(
+    "She had lived twenty years in the neighbourhood with very little to vex her",
+    "which was its own kind of Eternity"
+) }}
+→
+She had lived twenty years in the neighbourhood with very little to vex her.
+which was its own kind of Eternity —
+
+{{ emily_austin_letter_opening("Friend") }}
+→ "Dear Friend —"
+
+{{ emily_austin_letter_close("E") }}
+→ "Yours — E —"
+
+{{ circumference("tea-table") }}
+→ "— the tea-table was Circumference —"
+
+{{ epigrammatic_opening("A Woman of seven and twenty is a Problem — or a Portent —") }}
+→ "A Woman of seven and twenty is a Problem — or a Portent —"
+
+{{ devastating_close("She smiled — and was Nobody — which is to say — Free —") }}
+→ "She smiled — and was Nobody — which is to say — Free —"
+
+=============================================================================
+#}

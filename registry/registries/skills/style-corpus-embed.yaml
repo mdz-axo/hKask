@@ -3,13 +3,17 @@
 #
 # Composes the style-corpus-embed FlowDef manifest as a reusable skill.
 # Orchestration: download texts → clean → chunk → embed → store → centroid → validate → CNS
+#
+# Supports single-author replicators (Hemingway, Woolf) and dual-author
+# mashups (Emily Austin) with blended centroids.
 
 manifest:
   id: skill/style-corpus-embed
   name: style-corpus-embed
-  description: "Construct a style embedding corpus from public domain texts. Downloads, chunks, embeds, and stores passages with centroid validation."
+  description: "Construct a style embedding corpus from public domain texts. Downloads, chunks, embeds, and stores passages with centroid validation. Supports single-author and mashup corpora."
   template_type: FlowDef
-  lexicon_terms: [embed, chunk, corpus, centroid, validate, purge]
+  lexicon_terms:
+    [embed, chunk, corpus, centroid, validate, purge, mashup, blend]
 
 steps:
   - ordinal: 1
@@ -26,11 +30,15 @@ steps:
       centroid_stored: boolean
       validation_passed: boolean
 
-# Consumed by
+# Consumed by — style synthesizers (single-author replicators and mashups)
 consumers:
   - hemingway-style-synthesizer
+  - woolf-style-synthesizer
+  - emily-austin-mashup
 
 # References
 references:
   - manifests/style-corpus-embed.yaml
   - styles/hemingway/corpus.yaml
+  - styles/woolf/corpus.yaml
+  - styles/emily-austin/corpus.yaml
