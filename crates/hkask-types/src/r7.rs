@@ -117,12 +117,14 @@ pub fn default_r7_bots() -> &'static [R7BotIdentity] {
             R7BotIdentity::new(
                 "R7.6".into(),
                 "hkask-mcp".into(),
-                "Holds the tools. Ten MCP servers. Dispatches. Does not accumulate.".into(),
+                "Holds the tools. Eleven MCP servers. Dispatches. Does not accumulate.".into(),
                 12000,
                 vec![
                     "mcp".into(), "web".into(),
                     "condenser".into(), "spec".into(),
+                    "memory".into(), "doc-knowledge".into(), "markitdown".into(),
                     "fmp".into(), "telnyx".into(), "fal".into(), "rss-reader".into(),
+                    "replica".into(),
                 ],
             ),
             R7BotIdentity::new(

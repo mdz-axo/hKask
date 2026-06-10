@@ -1,9 +1,10 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
 use crate::cli::EmbedCorpusAction;
-use hkask_services::EmbedService;
+use hkask_services::{EmbedProgress, EmbedService};
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 pub fn run(rt: &tokio::runtime::Runtime, action: EmbedCorpusAction) {
     match action {
@@ -23,13 +24,21 @@ fn run_embed(
     passphrase: String,
     okapi_url: Option<String>,
 ) {
+    let progress: hkask_services::ProgressFn = Arc::new(|p: &EmbedProgress| {
+        eprint!("\r\x1b[K{}", p.format_full());
+    });
+
     let result = rt.block_on(EmbedService::embed_corpus(
         &config_path,
         &db_path.to_string_lossy(),
         &passphrase,
         okapi_url.as_deref(),
         None,
+        Some(progress),
     ));
+
+    // Clear the progress line
+    eprint!("\r\x1b[K");
 
     match result {
         Ok(r) => {

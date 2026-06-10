@@ -13,6 +13,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   # ============================================================================
@@ -27,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
           components: rustfmt
@@ -51,24 +52,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: clippy, rust-src
+          components: clippy
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -89,24 +85,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: rust-src
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -130,24 +120,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: rust-src
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -184,24 +168,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: rust-src
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -293,7 +271,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
 
@@ -319,24 +297,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: rust-src
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2

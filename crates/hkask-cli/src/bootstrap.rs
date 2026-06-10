@@ -262,6 +262,7 @@ impl BootstrapSequence {
             "hkask-mcp-telnyx",
             "hkask-mcp-fal",
             "hkask-mcp-rss-reader",
+            "hkask-mcp-replica",
         ];
 
         for server in &mcp_servers {

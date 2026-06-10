@@ -17,6 +17,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   # ============================================================================
@@ -33,24 +34,19 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.version) || '' }}
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: rustfmt, clippy, rust-src
+          components: rustfmt, clippy
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -89,43 +85,32 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.version) || '' }}
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
           targets: ${{ matrix.target }}
-          components: rust-src
 
       - name: Install system dependencies (GNU)
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Install musl-tools (musl)
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             musl-tools \
             musl-dev \
             pkg-config \
             libssl-dev \
             libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libdbus-1-dev
 
       - name: Configure musl static build
         if: matrix.target == 'x86_64-unknown-linux-musl'
@@ -136,23 +121,17 @@ jobs:
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu \
             pkg-config \
-            libclang-dev \
-            llvm-dev \
-            lld \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev
+            lld
 
           # Add ARM64 architecture for cross-compiled system libraries
           sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             libssl-dev:arm64 \
-            libsqlite3-dev:arm64 \
-            libzstd-dev:arm64
+            libsqlite3-dev:arm64
 
       - name: Configure AArch64 cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'

@@ -7,9 +7,88 @@ use hkask_templates::{OkapiConfig, OkapiEmbedding};
 
 use serde::Deserialize;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use crate::error::ServiceError;
+
+/// Progress callback — called every 3 seconds during embedding.
+pub type ProgressFn = Arc<dyn Fn(&EmbedProgress) + Send + Sync>;
+
+/// Live progress state shared between the embed loop and the heartbeat task.
+#[derive(Debug, Clone)]
+pub struct EmbedProgress {
+    pub phase: EmbedPhase,
+    pub author: String,
+    pub current_work: String,
+    pub total_passages: usize,
+    pub completed_passages: usize,
+    pub elapsed: std::time::Duration,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EmbedPhase {
+    Parsing,
+    Embedding,
+    Centroid,
+    Done,
+}
+
+impl EmbedProgress {
+    /// Format as page-turning progress: `TODO [X pages · Y%] ::: DONE [A pages · B%]`
+    pub fn format_page_progress(&self) -> String {
+        let todo = self.total_passages.saturating_sub(self.completed_passages);
+        let todo_pct = if self.total_passages > 0 {
+            (todo as f64 / self.total_passages as f64) * 100.0
+        } else {
+            0.0
+        };
+        let done_pct = if self.total_passages > 0 {
+            (self.completed_passages as f64 / self.total_passages as f64) * 100.0
+        } else {
+            0.0
+        };
+        format!(
+            "TODO [{todo} pages · {todo_pct:.0}%] ::: DONE [{done} pages · {done_pct:.0}%]",
+            todo = todo,
+            todo_pct = todo_pct,
+            done = self.completed_passages,
+            done_pct = done_pct,
+        )
+    }
+
+    /// Format with phase and work name
+    pub fn format_full(&self) -> String {
+        match self.phase {
+            EmbedPhase::Parsing => format!(
+                "[Parsing] {} — {} — {}",
+                self.author,
+                self.current_work,
+                self.format_page_progress()
+            ),
+            EmbedPhase::Embedding => format!(
+                "[Embedding] {} — {}",
+                self.author,
+                self.format_page_progress()
+            ),
+            _ => format!(
+                "[{}] {} — {}",
+                match self.phase {
+                    EmbedPhase::Parsing => "Parsing",
+                    EmbedPhase::Embedding => "Embedding",
+                    EmbedPhase::Centroid => "Centroid",
+                    EmbedPhase::Done => "Done",
+                },
+                self.author,
+                if self.current_work.is_empty() {
+                    self.format_page_progress()
+                } else {
+                    format!("{} — {}", self.current_work, self.format_page_progress())
+                }
+            ),
+        }
+    }
+}
 
 /// Corpus configuration — defines the author, works, embedding model,
 /// chunking parameters, and validation constraints for a style corpus.
@@ -99,13 +178,19 @@ impl EmbedService {
     ///
     /// If `cache_dir` is None, derives it from the config file's parent
     /// directory joined with `.cache`.
+    ///
+    /// If `progress` is provided, it's called every 3 seconds with live
+    /// page-turning progress (phase, work, completed/total).
     pub async fn embed_corpus(
         config_path: &Path,
         db_path: &str,
         db_passphrase: &str,
         okapi_url: Option<&str>,
         cache_dir: Option<&Path>,
+        progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
+        let started = Instant::now();
+
         // Parse config
         let config_str = std::fs::read_to_string(config_path).map_err(|e| {
             ServiceError::Embed(format!(
@@ -120,6 +205,37 @@ impl EmbedService {
         let author_prefix = format!("style:{}:", &author);
         let centroid_ref = config.centroid_entity_ref.clone();
         let validation = config.validation.clone();
+
+        // ── Shared progress state + heartbeat ──
+        let shared = Arc::new(Mutex::new(EmbedProgress {
+            phase: EmbedPhase::Parsing,
+            author: author.clone(),
+            current_work: String::new(),
+            total_passages: 0,
+            completed_passages: 0,
+            elapsed: Duration::ZERO,
+        }));
+        let _heartbeat = if let Some(ref cb) = progress {
+            let shared_hb = Arc::clone(&shared);
+            let cb_hb = Arc::clone(cb);
+            Some(tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    let p = {
+                        let mut p = shared_hb.lock().unwrap();
+                        p.elapsed = started.elapsed();
+                        p.clone()
+                    };
+                    if p.phase == EmbedPhase::Done {
+                        cb_hb(&p);
+                        break;
+                    }
+                    cb_hb(&p);
+                }
+            }))
+        } else {
+            None
+        };
 
         // Open DB and construct semantic memory
         let db = Database::open(db_path, db_passphrase)?;
@@ -155,6 +271,11 @@ impl EmbedService {
                 std::thread::sleep(std::time::Duration::from_secs(1));
             }
 
+            {
+                let mut p = shared.lock().unwrap();
+                p.current_work = work.title.clone();
+            }
+
             let cache_path = cache.join(format!("{}.txt", work.slug));
             let text = if cache_path.exists() {
                 tracing::info!(work = %work.title, "Using cached");
@@ -188,6 +309,13 @@ impl EmbedService {
             );
             tracing::info!(work = %work.title, passages = chunks.len(), "Chunked");
             all_passages.extend(chunks);
+
+            // Update progress: treat each work as one parsing step
+            {
+                let mut p = shared.lock().unwrap();
+                p.completed_passages = work_idx + 1;
+                p.total_passages = config.works.len();
+            }
         }
 
         // Append foundational rules as passages
@@ -211,6 +339,15 @@ impl EmbedService {
         // Batch embed
         let batch_size = config.embedding.batch_size;
         let mut embedded_count = 0;
+
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Embedding;
+            p.current_work.clear();
+            p.total_passages = all_passages.len();
+            p.completed_passages = 0;
+        }
+
         for chunk in all_passages.chunks(batch_size) {
             let texts: Vec<&str> = chunk.iter().map(|(_, text)| text.as_str()).collect();
             let vectors = embedder
@@ -222,6 +359,10 @@ impl EmbedService {
                 semantic.store_embedding(entity_ref, vector, &config.embedding.model)?;
             }
             embedded_count += chunk.len();
+            {
+                let mut p = shared.lock().unwrap();
+                p.completed_passages = embedded_count;
+            }
             tracing::info!(
                 embedded = embedded_count,
                 total = all_passages.len(),
@@ -230,6 +371,10 @@ impl EmbedService {
         }
 
         // Compute centroid
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Centroid;
+        }
         tracing::info!("Computing style centroid");
         let rule_prefix = format!("style:{}:rule:", &config.author);
         let centroid_result = semantic.compute_centroid(
@@ -240,6 +385,12 @@ impl EmbedService {
             Some(&centroid_ref),
             Some(&config.embedding.model),
         )?;
+
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Done;
+            p.completed_passages = all_passages.len();
+        }
 
         Ok(EmbedResult {
             author,

@@ -22,6 +22,7 @@ const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("rss-reader", "hkask-mcp-rss-reader"),
     ("doc-knowledge", "hkask-mcp-doc-knowledge"),
     ("markitdown", "hkask-mcp-markitdown"),
+    ("replica", "hkask-mcp-replica"),
 ];
 
 /// Start all built-in MCP servers and discover their tools.

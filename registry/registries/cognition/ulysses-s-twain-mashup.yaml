@@ -1,0 +1,22 @@
+# Ulysses S. Twain Mashup — Cognition Configuration
+# ℏKask v0.27.0
+# License: CC-BY-4.0
+#
+# Cognition config for the Ulysses S. Twain style mashup pipeline.
+# Used by: kask compose --cognition registry/registries/cognition/ulysses-s-twain-mashup.yaml
+#
+# Pipeline: prompt → embed → KNN exemplar retrieval → system prompt → inference → centroid validation
+
+author: ulysses-s-twain
+
+embedding:
+  model: "qwen3-embedding:0.6b"
+  dim: 1024
+  centroid_entity_ref: "style:ulysses-s-twain:centroid"
+  retrieval:
+    k_min: 3
+    k_max: 7
+    distance_threshold: 0.30
+
+validation:
+  centroid_distance_max: 0.18

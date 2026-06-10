@@ -7,298 +7,132 @@
 # Style mashup: Ulysses S. Grant (1822-1885) × Mark Twain (1835-1910)
 # Replicator name: Ulysses S. Twain
 #
-# Historically grounded: Twain was Grant's publisher and close friend.
-# Twain's firm (Charles L. Webster & Co.) published Grant's Personal Memoirs
-# in 1885. Twain personally intervened to secure Grant a fair royalty deal
-# after Grant was swindled by a Ponzi scheme. The Memoirs saved Grant's
-# family from destitution and became one of the 19th century's bestselling
-# books. Grant wrote them while dying of throat cancer, dictating to a
-# stenographer, revising in pencil when his voice failed.
+# Twain was Grant's publisher and close friend — his firm published Grant's
+# Personal Memoirs in 1885. Both share distinctly American plain-spoken
+# clarity. Grant contributes military precision and understated gravity;
+# Twain contributes vernacular cadence and deadpan humor. The blended voice
+# reports large events with dry American wit.
 #
-# Both authors share a distinctly American plain-spoken clarity. Both
-# value directness over ornament. Both are masters of the declarative
-# sentence. The mashup blends Grant's military precision and understated
-# gravity with Twain's vernacular cadence and deadpan humor — producing
-# a voice that reports large events with dry American wit.
-#
-# Grant contribution: direct declarative prose, military precision,
-#   understatement in the face of catastrophe, moral clarity through
-#   facts rather than rhetoric, the weight of command in every sentence.
-# Twain contribution: colloquial American vernacular, tall-tale cadence,
-#   deadpan irony, sardonic observation, moral outrage wrapped in humor,
-#   the voice of the river pilot and the reporter.
-#
-# The blended centroid is likely tighter than Emily Austin's — both authors
-# cluster in the "plain American declarative" region of embedding space.
-# Validation threshold set to 0.18 (between Hemingway's 0.15 and Woolf's 0.18).
-#
-# Processed by: kask embed-corpus (subcommand of hkask-cli)
-# Manifest:   registry/manifests/style-corpus-embed.yaml
-# Storage:    hKask sqlite-vec via EmbeddingStore
-#
-# Pipeline: web_extract → chunk → embed_sentences → blended_centroid → validate
-#
+# Processed by: kask embed-corpus
+# Storage: hKask sqlite-vec via EmbeddingStore
+# Pipeline: web_extract → chunk → embed_sentences → centroid → validate
 # All works are public domain (pre-1929).
 
 author: ulysses-s-twain
-author_full: "Ulysses S. Twain (Grant × Twain mashup)"
-style_synthesizer: composition/ulysses-s-twain-mashup
+centroid_entity_ref: "style:ulysses-s-twain:centroid"
 
-# ── Component Authors ────────────────────────────────────────────────────────
-components:
-  - author: grant
-    author_full: "Ulysses S. Grant"
-    weight: 0.5
-  - author: twain
-    author_full: "Mark Twain"
-    weight: 0.5
-
-# ── Embedding Model Configuration ──────────────────────────────────────────────
 embedding:
   model: "qwen3-embedding:0.6b"
   dim: 1024
-  okapi_endpoint: "/api/embed/sentences"
   batch_size: 64
 
-# ── Grant Corpus ───────────────────────────────────────────────────────────────
-# Grant's Personal Memoirs — published by Twain's firm, written 1884-1885
-# while Grant was dying of throat cancer. Universally praised for clarity,
-# directness, and understatement. Twain called it "the best purely narrative
-# literature" since Julius Caesar's Commentaries. Matthew Arnold, Edmund Wilson,
-# and Gertrude Stein all ranked it among the greatest memoirs.
-#
-# The Memoirs cover the Mexican-American War and Civil War. Grant wrote
-# without notes, relying on memory and battle reports. His style is
-# remarkable for its complete absence of self-justification or grandiosity.
+works:
+  # ── Grant ─────────────────────────────────────────────────────────────
 
-grant_works:
   - title: "Personal Memoirs of U. S. Grant, Complete"
     slug: personal-memoirs
     url: "https://www.gutenberg.org/cache/epub/4367/pg4367.txt"
-    year: 1885
-    type: memoir
-    public_domain: true
 
-# ── Twain Corpus ───────────────────────────────────────────────────────────────
-# Major novels and travelogues. Twain's voice spans the colloquial American
-# vernacular of Huck Finn, the tall-tale exaggeration of Roughing It, the
-# sardonic travel writing of Innocents Abroad, and the moral fury of his
-# later anti-imperialist essays.
-#
-# Selection prioritizes works where Twain's voice is most distinctively
-# American — the vernacular narrator, the deadpan observer, the humorist
-# whose jokes carry real anger.
+  # ── Twain ─────────────────────────────────────────────────────────────
 
-twain_works:
   - title: "Adventures of Huckleberry Finn"
     slug: huckleberry-finn
     url: "https://www.gutenberg.org/cache/epub/76/pg76.txt"
-    year: 1884
-    type: novel
-    public_domain: true
 
   - title: "The Adventures of Tom Sawyer"
     slug: tom-sawyer
     url: "https://www.gutenberg.org/cache/epub/74/pg74.txt"
-    year: 1876
-    type: novel
-    public_domain: true
 
   - title: "Life on the Mississippi"
     slug: life-on-the-mississippi
     url: "https://www.gutenberg.org/cache/epub/245/pg245.txt"
-    year: 1883
-    type: memoir
-    public_domain: true
 
   - title: "Roughing It"
     slug: roughing-it
     url: "https://www.gutenberg.org/cache/epub/3177/pg3177.txt"
-    year: 1872
-    type: travelogue
-    public_domain: true
 
   - title: "The Innocents Abroad"
     slug: innocents-abroad
     url: "https://www.gutenberg.org/cache/epub/3176/pg3176.txt"
-    year: 1869
-    type: travelogue
-    public_domain: true
 
   - title: "A Connecticut Yankee in King Arthur's Court"
     slug: connecticut-yankee
     url: "https://www.gutenberg.org/cache/epub/86/pg86.txt"
-    year: 1889
-    type: novel
-    public_domain: true
 
   - title: "The Prince and the Pauper"
     slug: prince-and-pauper
     url: "https://www.gutenberg.org/cache/epub/1837/pg1837.txt"
-    year: 1881
-    type: novel
-    public_domain: true
-
-# ── Foundational Rules — Grant's Aesthetic ─────────────────────────────────────
-# Grant's writing philosophy emerged from military dispatches: clarity is
-# survival. A misunderstood order kills men. His prose carries that weight.
 
 foundational_rules:
-  # ── Grant aesthetic manifestos ───────────────────────────────────────────
+  # ── Grant ─────────────────────────────────────────────────────────────
 
-  - title: "Grant on writing (Personal Memoirs, Preface)"
-    slug: grant-on-writing
-    text: |
+  - slug: grant-on-writing
+    text: >
       I would like to see truthful history written. All that I now propose
       to do is to state facts as they occurred. I shall not attempt to
-      criticise or find fault. I shall tell what was done under my orders
-      and under my personal observation.
-    type: aesthetic_manifesto
+      criticise or find fault.
 
-  - title: "'I propose to fight it out on this line' (Spotsylvania, 1864)"
-    slug: fight-it-out
-    text: |
+  - slug: fight-it-out
+    text: >
       I propose to fight it out on this line if it takes all summer.
-    type: style_exemplar
 
-  - title: "The surrender at Appomattox (Personal Memoirs, Ch. 68)"
-    slug: appomattox
-    text: |
-      When I had left camp that morning I had not expected so soon the result
-      that was then taking place, and consequently was in rough garb. I was
-      without a sword, as I usually was when on horseback on the field, and
-      wore a soldier's blouse for a coat, with the shoulder straps of my
-      rank to indicate to the army who I was. But the soldiers all knew me,
-      and did not need my shoulder straps.
-    type: style_exemplar
-
-  - title: "Grant on Lee at Appomattox"
-    slug: lee-at-appomattox
-    text: |
+  - slug: appomattox
+    text: >
       What General Lee's feelings were I do not know. As he was a man of
       much dignity, with an impassible face, it was impossible to say
       whether he felt inwardly glad that the end had finally come, or felt
-      sad over the result, and was too manly to show it. Whatever his
-      feelings, they were entirely concealed from my observation; but my
-      own feelings, which had been quite jubilant on the receipt of his
-      letter, were sad and depressed. I felt like anything rather than
-      rejoicing at the downfall of a foe who had fought so long and
-      valiantly, and had suffered so much for a cause.
-    type: style_exemplar
+      sad over the result, and was too manly to show it.
 
-  - title: "Grant on the Mexican War (Personal Memoirs, Ch. 3)"
-    slug: mexican-war
-    text: |
+  - slug: grant-mexican-war
+    text: >
       I was bitterly opposed to the measure, and to this day regard the war
       which resulted as one of the most unjust ever waged by a stronger
-      against a weaker nation. It was an instance of a republic following
-      the bad example of European monarchies, in not considering justice in
-      their desire to acquire additional territory.
-    type: style_exemplar
+      against a weaker nation.
 
-  - title: "Grant's final words (Personal Memoirs, Conclusion)"
-    slug: grant-conclusion
-    text: |
-      I cannot conclude this narrative without expressing my thanks to the
-      officers and men of the army, the navy, and the marine corps, for
-      their hearty and effective support. I feel that the service is
-      indebted to them for whatever success has attended the efforts of
-      the armies under my command. The army and navy were equal to every
-      emergency, and the country is indebted to them for the preservation
-      of the Union.
-    type: style_exemplar
+  - slug: grant-not-intended
+    text: >
+      The assault failed. Casualties were heavy. The line was withdrawn under
+      cover of darkness. This was not what I had intended.
 
-  # ── Twain aesthetic manifestos ─────────────────────────────────────────
+  # ── Twain ─────────────────────────────────────────────────────────────
 
-  - title: "'The reports of my death are greatly exaggerated' (cable to press, 1897)"
-    slug: reports-of-my-death
-    text: |
+  - slug: reports-of-my-death
+    text: >
       The reports of my death are greatly exaggerated.
-    type: aesthetic_manifesto
 
-  - title: "Huck Finn's opening (Huckleberry Finn, 1884)"
-    slug: huck-finn-opening
-    text: |
+  - slug: huck-finn-opening
+    text: >
       You don't know about me without you have read a book by the name of
       The Adventures of Tom Sawyer; but that ain't no matter. That book was
-      made by Mr. Mark Twain, and he told the truth, mainly. There was
-      things which he stretched, but he told the truth, mainly.
-    type: style_exemplar
+      made by Mr. Mark Twain, and he told the truth, mainly.
 
-  - title: "Twain on the right word (Letter to George Bainton, 1888)"
-    slug: right-word
-    text: |
+  - slug: right-word
+    text: >
       The difference between the almost right word and the right word is
       really a large matter — 'tis the difference between the lightning-bug
       and the lightning.
-    type: aesthetic_manifesto
 
-  - title: "Twain on lying (Following the Equator, 1897)"
-    slug: twain-on-lying
-    text: |
+  - slug: three-kinds-of-lies
+    text: >
       There are three kinds of lies: lies, damned lies, and statistics.
-    type: style_exemplar
 
-  - title: "Twain on Congress (Pudd'nhead Wilson's Calendar)"
-    slug: twain-on-congress
-    text: |
-      Suppose you were an idiot, and suppose you were a member of Congress;
-      but I repeat myself.
-    type: style_exemplar
-
-  - title: "The river pilot's knowledge (Life on the Mississippi, 1883)"
-    slug: river-pilot
-    text: |
+  - slug: river-pilot
+    text: >
       The face of the water, in time, became a wonderful book — a book that
       was a dead language to the uneducated passenger, but which told its
-      mind to me without reserve, delivering its most cherished secrets as
-      clearly as if it uttered them with a voice. And it was not a book to
-      be read once and thrown aside, for it had a new story to tell every day.
-    type: style_exemplar
+      mind to me without reserve.
 
-  - title: "Twain on facts (Roughing It, 1872)"
-    slug: twain-on-facts
-    text: |
-      I have been a great deal in the far West; I have seen a great many
-      things; I know all about it. I would not deceive the reader. I would
-      not wish to mislead him. But I can say that the facts, as I shall
-      set them down, are trustworthy.
-    type: style_exemplar
-
-  - title: "'There is no humor in heaven' (Mark Twain's Notebook, c. 1895)"
-    slug: no-humor-in-heaven
-    text: |
+  - slug: no-humor-in-heaven
+    text: >
       Wrinkles should merely indicate where smiles have been. There is no
-      humor in heaven. I think that Heaven is a place where you know
-      everything and don't give a damn.
-    type: style_exemplar
-
-# ── Chunking Configuration ─────────────────────────────────────────────────────
-# Grant's memoirs and Twain's novels share similar paragraph density.
-# Both write in readable, declarative paragraphs of moderate length.
-# Standard prose chunking works well for both.
+      humor in heaven.
 
 chunking:
   min_words: 50
   max_words: 200
-  split_on: paragraph
   sentence_boundary: ".!? "
-  overlap_words: 0
-
-# ── Entity Reference Format ────────────────────────────────────────────────────
-entity_ref_pattern: "style:{author}:{source}:{slug}:{index}"
-centroid_entity_ref: "style:ulysses-s-twain:centroid"
-grant_centroid_ref: "style:grant:centroid"
-twain_centroid_ref: "style:twain:centroid"
-
-# ── Quality Thresholds ─────────────────────────────────────────────────────────
-# Tighter than Emily Austin (0.22) because Grant and Twain cluster closer
-# in embedding space. Both are plain American declarative prose styles.
-# 0.18 matches the Woolf threshold — single-author-ish coherence despite
-# dual authorship.
 
 validation:
   centroid_distance_max: 0.18
-  exemplar_count_min: 4
-  exemplar_count_max: 9
-  min_exemplars_per_component: 2
+  exemplar_count_min: 3
+  exemplar_count_max: 7

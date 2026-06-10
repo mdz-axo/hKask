@@ -23,6 +23,7 @@ const API_SERVERS: &[(&str, &str)] = &[
     ("rss-reader", "hkask-mcp-rss-reader"),
     ("doc-knowledge", "hkask-mcp-doc-knowledge"),
     ("markitdown", "hkask-mcp-markitdown"),
+    ("replica", "hkask-mcp-replica"),
 ];
 
 /// Run the API server, sharing state with the CLI.

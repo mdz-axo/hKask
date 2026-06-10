@@ -42,6 +42,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     table.insert("hkask-mcp-telnyx", 50);
     table.insert("hkask-mcp-fal", 100);
     table.insert("hkask-mcp-rss-reader", 20);
+    table.insert("hkask-mcp-replica", 30);
 
     // Inference is handled separately by InferenceEnergyEstimator.
     // Inference is no longer an MCP server — it's a direct internal call.

@@ -5,7 +5,7 @@
 # Orchestration: download texts → clean → chunk → embed → store → centroid → validate → CNS
 #
 # Supports single-author replicators (Hemingway, Woolf) and dual-author
-# mashups (Emily Austin) with blended centroids.
+# mashups (Jane Wilde, Ulysses S. Twain) with blended centroids.
 
 manifest:
   id: skill/style-corpus-embed
@@ -34,11 +34,13 @@ steps:
 consumers:
   - hemingway-style-synthesizer
   - woolf-style-synthesizer
-  - emily-austin-mashup
+  - jane-wilde-mashup
+  - ulysses-s-twain-mashup
 
 # References
 references:
   - manifests/style-corpus-embed.yaml
   - styles/hemingway/corpus.yaml
   - styles/woolf/corpus.yaml
-  - styles/emily-austin/corpus.yaml
+  - styles/jane-wilde/corpus.yaml
+  - styles/ulysses-s-twain/corpus.yaml

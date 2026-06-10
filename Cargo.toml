@@ -24,6 +24,7 @@ members = [
     "mcp-servers/hkask-mcp-memory",
     "mcp-servers/hkask-mcp-doc-knowledge",
     "mcp-servers/hkask-mcp-markitdown",
+    "mcp-servers/hkask-mcp-replica",
 ]
 
 [workspace.package]

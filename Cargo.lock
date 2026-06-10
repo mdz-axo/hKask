@@ -1495,6 +1495,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-replica"
+version = "0.27.0"
+dependencies = [
+ "anyhow",
+ "hkask-mcp",
+ "hkask-services",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "hkask-mcp-rss-reader"
 version = "0.27.0"
 dependencies = [
