@@ -19,18 +19,20 @@ pub fn run(rt: &tokio::runtime::Runtime) {
 
     // Start the loop system
     println!("Starting Loop System (per-loop default tick intervals)");
+    let (_, _, loops, _) = ctx.cns();
     println!("Registered loops:");
-    let ids = rt.block_on(ctx.loop_system().registered_loop_ids());
+    let ids = rt.block_on(loops.registered_loop_ids());
     for id in &ids {
         println!("  • {:?}", id);
     }
     println!();
-    if ctx.inference_port().is_none() {
+    let (inference, _, _, _) = ctx.coordination();
+    if inference.is_none() {
         println!("Note: Inference Loop not registered (requires Okapi connection)");
     }
     println!();
 
-    rt.block_on(ctx.loop_system().start())
+    rt.block_on(loops.start())
         .expect("Failed to start loop system: lock poisoned");
 
     // Run until Ctrl+C
@@ -39,6 +41,6 @@ pub fn run(rt: &tokio::runtime::Runtime) {
         tokio::signal::ctrl_c().await.ok();
     });
 
-    ctx.loop_system().shutdown();
+    loops.shutdown();
     println!("Loop system shut down.");
 }

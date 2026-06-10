@@ -467,11 +467,17 @@ impl ChatService {
             seed: None,
         };
 
+        // REQ: P9 (Homeostatic) — CNS span before inference
+        tracing::debug!(target: "cns.chat.request", agent = %prepared.agent_name, model = %prepared.model, prompt_len = prepared.prompt.len());
+
         let result = prepared
             .inference_port
             .generate_with_model(&prepared.prompt, &params, Some(&prepared.model))
             .await
             .map_err(|e| ServiceError::Inference(e.to_string()))?;
+
+        // REQ: P9 (Homeostatic) — CNS span after inference
+        tracing::debug!(target: "cns.chat.response", agent = %prepared.agent_name, model = %prepared.model, tokens = result.usage.total_tokens, finish_reason = %result.finish_reason);
 
         // Store the exchange as episodic triple
         Self::store_episodic(

@@ -36,7 +36,7 @@ pub use energy::{
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
-pub use hkask_types::cns::{QueueDepth, RBarThreshold};
+pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;
 pub use set_points::{
     CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,

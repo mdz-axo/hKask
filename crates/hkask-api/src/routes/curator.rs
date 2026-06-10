@@ -105,21 +105,21 @@ async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ApiError> {
-    let queue = &state.agent_service.escalation_queue();
-    let entries = queue.list_pending().map_err(ApiError::from)?;
+    let entries = hkask_services::CuratorService::list_escalations(&state.agent_service)
+        .map_err(ApiError::from)?;
     let escalations: Vec<EscalationEntryResponse> = entries
         .into_iter()
         .map(|e| EscalationEntryResponse {
             id: e.id,
-            template_id: e.template_id.to_string(),
-            bot_id: e.bot_id.to_string(),
+            template_id: e.template_id,
+            bot_id: e.bot_id,
             output: e.output,
             confidence: e.confidence,
             retry_count: e.retry_count,
             error_context: e.error_context,
-            created_at: e.created_at.to_rfc3339(),
-            status: format!("{:?}", e.status).to_lowercase(),
-            resolved_at: e.resolved_at.map(|dt| dt.to_rfc3339()),
+            created_at: e.created_at,
+            status: e.status,
+            resolved_at: e.resolved_at,
             resolved_by: e.resolved_by,
         })
         .collect();
@@ -142,15 +142,7 @@ async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ApiError> {
-    let queue = &state.agent_service.escalation_queue();
-    if queue.get(&id).map_err(ApiError::from)?.is_none() {
-        return Err(ApiError::NotFound {
-            resource: "escalation".into(),
-            id,
-        });
-    }
-    queue
-        .resolve(&id, &req.resolved_by)
+    hkask_services::CuratorService::resolve(&state.agent_service, &id, &req.resolved_by)
         .map_err(ApiError::from)?;
     Ok(Json(ResolveEscalationResponse {
         id,
@@ -174,15 +166,7 @@ async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ApiError> {
-    let queue = &state.agent_service.escalation_queue();
-    if queue.get(&id).map_err(ApiError::from)?.is_none() {
-        return Err(ApiError::NotFound {
-            resource: "escalation".into(),
-            id,
-        });
-    }
-    queue
-        .dismiss(&id, &req.dismissed_by)
+    hkask_services::CuratorService::dismiss(&state.agent_service, &id, &req.dismissed_by)
         .map_err(ApiError::from)?;
     Ok(Json(DismissEscalationResponse {
         id,

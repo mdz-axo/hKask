@@ -182,7 +182,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     let cleanup = |config: &ServiceConfig| OnboardingService::cleanup_failed_onboarding(config);
 
     // Derive secrets and store in keychain
-    let resolved = OnboardingService::derive_and_store_secrets(&passphrase).inspect_err(|_| {
+    let resolved = OnboardingService::derive_secrets(&passphrase, true).inspect_err(|_| {
         if let Ok(c) = ServiceConfig::from_env() {
             cleanup(&c);
         }
@@ -229,7 +229,8 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
             replicant_name, attempt
         ))?;
 
-        let resolved = OnboardingService::derive_secrets(&passphrase);
+        let resolved = OnboardingService::derive_secrets(&passphrase, false)
+            .expect("derive_secrets without keychain store is infallible");
 
         let config = ServiceConfig::from_secrets(
             resolved.acp_secret.clone(),

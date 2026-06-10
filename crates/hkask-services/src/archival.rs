@@ -1,4 +1,5 @@
-//! ArchivalService — GitHub REST API integration for registry archival.
+//! ArchivalService — GitHub REST API for registry archival.
+//! # REQ: P4 (Clear Boundaries) — GitHub operations via adapter, not raw HTTP.
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use hkask_mcp::server::{api_get, api_put, resolve_credential};

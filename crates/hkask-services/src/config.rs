@@ -1,4 +1,5 @@
 //! Service-level configuration resolved once at startup.
+//! # REQ: P1 (User Sovereignty) — secrets from OS keychain, never hardcoded.
 //!
 //! `ServiceConfig` holds all configuration that varies per deployment:
 //! database paths, secrets, thresholds, and feature flags. Both CLI and API

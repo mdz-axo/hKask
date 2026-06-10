@@ -13,7 +13,8 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // variety counters for depth, structure, and topic domains.
     let analysis = hkask_agents::decompose_prompt(input);
     {
-        let cns_guard = rt.block_on(state.service_context.cns_runtime().read());
+        let (cns_runtime, _, _, _) = state.service_context.cns();
+        let cns_guard = rt.block_on(cns_runtime.read());
         // Prompt depth bucket (shallow/medium/deep)
         rt.block_on(
             cns_guard.increment_variety("cns.inference.prompt_depth", analysis.depth_bucket),
@@ -44,15 +45,8 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     }
 
     // Check for CNS algedonic alerts
-    let alerts = rt.block_on(async {
-        state
-            .service_context
-            .cns_runtime()
-            .read()
-            .await
-            .critical_alerts()
-            .await
-    });
+    let (cns_runtime, _, _, _) = state.service_context.cns();
+    let alerts = rt.block_on(async { cns_runtime.read().await.critical_alerts().await });
     if !alerts.is_empty() {
         for alert in &alerts {
             println!(
@@ -67,5 +61,8 @@ pub(super) fn update_cns_and_display(input: &str, state: &ReplState, rt: &tokio:
     // CNS variety and energy budgets, producing regulatory actions
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible
     // through tracing output (cns.cybernetics target).
-    rt.block_on(state.service_context.loop_system().tick());
+    rt.block_on(async {
+        let (_, _, loops, _) = state.service_context.cns();
+        loops.tick().await;
+    });
 }

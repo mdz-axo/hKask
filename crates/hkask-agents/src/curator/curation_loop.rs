@@ -23,11 +23,8 @@ use hkask_types::loops::{
 };
 use hkask_types::ports::ConsolidationRequest;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
-
-use crate::curator::curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 
 use crate::curator::context::CuratorContext;
 
@@ -49,8 +46,6 @@ pub struct CurationLoop {
     curator_handle: CuratorHandle,
     context: Arc<CuratorContext>,
     consolidation: Option<Arc<ConsolidationBridge>>,
-    /// Metacognitive confidence gate — evaluates R̄-bar thresholds.
-    confidence_gate: Option<Mutex<CurationConfidenceGate>>,
     /// Cursor for incremental algedonic review.
     last_review_ms: AtomicU64,
     /// Inbox for receiving CurationInput messages from Cybernetics, SpecCurator,
@@ -70,7 +65,6 @@ impl CurationLoop {
             curator_handle,
             context,
             consolidation: None,
-            confidence_gate: None,
             last_review_ms: AtomicU64::new(0),
             inbox: None,
         }
@@ -85,7 +79,6 @@ impl CurationLoop {
             curator_handle,
             context,
             consolidation: Some(consolidation),
-            confidence_gate: None,
             last_review_ms: AtomicU64::new(0),
             inbox: None,
         }

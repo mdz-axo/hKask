@@ -8,40 +8,6 @@ use std::fmt;
 
 // ── Domain newtypes (P2.3) ──────────────────────────────────────────────────
 
-/// Threshold for R̄ (confidence) in the curation gate's transition zone.
-///
-/// Newtype wrapper around `f64` that prevents accidental confusion with
-/// other floating-point quantities (priority weight, usage ratio, etc.).
-///
-/// Defined in hkask-types (substrate crate) because it is shared across
-/// hkask-cns (set-points, allosteric regulation) and hkask-agents
-/// (curation confidence gate).
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct RBarThreshold(pub f64);
-
-impl RBarThreshold {
-    /// Create an R̄ threshold, clamped to [0.0, 1.0].
-    pub fn new(value: f64) -> Self {
-        RBarThreshold(value.clamp(0.0, 1.0))
-    }
-
-    /// Default upper threshold for the Proceed zone.
-    pub const DEFAULT_UPPER: RBarThreshold = RBarThreshold(0.8);
-    /// Default lower threshold for the Suppress zone.
-    pub const DEFAULT_LOWER: RBarThreshold = RBarThreshold(0.3);
-
-    /// Return the raw `f64` value.
-    pub fn as_raw(self) -> f64 {
-        self.0
-    }
-}
-
-impl fmt::Display for RBarThreshold {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "R̄={:.2}", self.0)
-    }
-}
-
 /// Communication queue depth for backpressure regulation.
 ///
 /// Newtype wrapper that prevents accidental confusion with other numeric

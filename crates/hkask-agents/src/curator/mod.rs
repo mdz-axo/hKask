@@ -18,7 +18,6 @@
 //! human-facing reporting) moved to `crate::curator_agent`.
 
 pub mod context;
-pub mod curation_gate;
 pub mod curation_loop;
 pub mod persona_filter;
 

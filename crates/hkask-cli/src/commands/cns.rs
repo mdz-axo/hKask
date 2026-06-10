@@ -3,17 +3,18 @@
 //! Implements the CLI display logic for the Cybernetic Nervous System subcommand.
 
 use crate::cli::CnsAction;
-use hkask_services::{AgentService, CnsService, ServiceConfig};
+use hkask_cns::CnsRuntime;
+use hkask_services::{AgentService, ServiceConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
     match action {
         CnsAction::Health => {
-            let cns = build_cns_service(rt);
-            let health = rt.block_on(cns.health());
-            let alerts = rt.block_on(cns.alerts());
-            let variety = rt.block_on(cns.variety());
+            let rt_ref = build_cns_runtime(rt);
+            let health = rt.block_on(async { rt_ref.read().await.health().await });
+            let alerts = rt.block_on(async { rt_ref.read().await.alerts().await });
+            let variety = rt.block_on(async { rt_ref.read().await.variety().await });
 
             println!("CNS Health Status");
             println!("=================");
@@ -54,8 +55,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("  • Queue status: IDLE");
         }
         CnsAction::Alerts => {
-            let cns = build_cns_service(rt);
-            let alerts = rt.block_on(cns.alerts());
+            let rt_ref = build_cns_runtime(rt);
+            let alerts = rt.block_on(async { rt_ref.read().await.alerts().await });
             println!("Algedonic alerts:");
             if alerts.is_empty() {
                 println!("  (no active alerts)");
@@ -69,8 +70,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             }
         }
         CnsAction::Variety => {
-            let cns = build_cns_service(rt);
-            let variety = rt.block_on(cns.variety());
+            let rt_ref = build_cns_runtime(rt);
+            let variety = rt.block_on(async { rt_ref.read().await.variety().await });
             println!("Variety counters:");
             if variety.is_empty() {
                 println!("  (no variety data)");
@@ -162,24 +163,27 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
     }
 }
 
-/// Build a `CnsService` — prefers `AgentService` when available,
+/// Build a `CnsRuntime` — prefers `AgentService` when available,
 /// falls back to a standalone `CnsRuntime` for lightweight queries.
-fn build_cns_service(rt: &tokio::runtime::Runtime) -> CnsService {
+fn build_cns_runtime(rt: &tokio::runtime::Runtime) -> Arc<RwLock<CnsRuntime>> {
     let config = match ServiceConfig::from_env() {
         Ok(c) => c,
         Err(_) => {
-            return standalone_cns();
+            return standalone_cns_runtime();
         }
     };
     match rt.block_on(AgentService::build(config)) {
-        Ok(ctx) => ctx.cns().clone(),
-        Err(_) => standalone_cns(),
+        Ok(ctx) => {
+            let (runtime, _, _, _) = ctx.cns();
+            runtime.clone()
+        }
+        Err(_) => standalone_cns_runtime(),
     }
 }
 
-/// Fallback: lightweight `CnsService` backed by a standalone runtime.
-fn standalone_cns() -> CnsService {
-    CnsService::new(Arc::new(RwLock::new(
-        hkask_cns::CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD),
+/// Fallback: lightweight CnsRuntime backed by a standalone runtime.
+fn standalone_cns_runtime() -> Arc<RwLock<CnsRuntime>> {
+    Arc::new(RwLock::new(CnsRuntime::with_threshold(
+        hkask_cns::DEFAULT_THRESHOLD,
     )))
 }

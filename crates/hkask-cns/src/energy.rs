@@ -13,7 +13,6 @@ use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 
 // Re-export domain newtypes that live in the substrate crate (hkask-types).
-// QueueDepth and RBarThreshold are now re-exported directly from hkask_cns::lib.rs
 // to keep energy.rs focused on gas accounting types only.
 
 // ── Domain newtypes (P2.3) ──────────────────────────────────────────────────

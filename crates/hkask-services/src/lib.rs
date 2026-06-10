@@ -2,11 +2,11 @@
 
 pub mod archival;
 pub mod chat;
-pub mod cns;
 pub mod compose;
 pub mod config;
 pub mod consolidation;
 pub mod context;
+pub mod curator;
 pub mod embed;
 pub mod error;
 pub mod goal;
@@ -18,7 +18,6 @@ pub mod verification;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use chat::{ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage};
-pub use cns::CnsService;
 pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
@@ -26,6 +25,7 @@ pub use compose::{
 pub use config::ServiceConfig;
 pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
 pub use context::AgentService;
+pub use curator::{CuratorService, EscalationResponse};
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedResult, EmbedService, EmbeddingConfig, FoundationalRule,
     ValidationConfig, Work,

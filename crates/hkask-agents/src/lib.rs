@@ -36,7 +36,6 @@ pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
-pub use hkask_types::RBarThreshold;
 
 pub use error::{CoreError, GitError, MemoryError};
 pub use escalation::{EscalationEntry, EscalationError, EscalationQueue};

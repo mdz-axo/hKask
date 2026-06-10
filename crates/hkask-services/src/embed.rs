@@ -1,4 +1,5 @@
 //! EmbedService — Style corpus embedding pipeline.
+//! # REQ: P3 (Generative Space) — full parameter exposure, no hidden settings.
 
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};

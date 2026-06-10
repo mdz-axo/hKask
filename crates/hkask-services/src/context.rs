@@ -45,6 +45,8 @@ use hkask_storage::{
 use hkask_templates::OkapiConfig;
 use hkask_templates::SqliteRegistry;
 use hkask_types::CapabilityChecker;
+use hkask_types::CuratorHandle;
+use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
@@ -53,7 +55,6 @@ use hkask_types::ports::git_cas::GitCASPort;
 
 use crate::ServiceConfig;
 use crate::ServiceError;
-use crate::cns::CnsService;
 
 /// Shared dependency graph assembled once at startup.
 ///
@@ -81,9 +82,6 @@ pub struct AgentService {
 
     /// CNS runtime for variety sensing and algedonic alerts.
     cns_runtime: Arc<RwLock<CnsRuntime>>,
-
-    /// CNS service — health, alerts, variety queries.
-    cns: CnsService,
 
     /// Cybernetics loop for energy budget regulation.
     cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
@@ -177,12 +175,6 @@ impl AgentService {
     /// Access CNS runtime for variety sensing and algedonic alerts.
     pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
         &self.cns_runtime
-    }
-
-    /// Access CNS service for health, alerts, and variety queries.
-    #[deprecated(note = "use AgentService::cns() group method instead")]
-    pub fn cns_service(&self) -> &CnsService {
-        &self.cns
     }
 
     /// Access cybernetics loop for energy budget regulation.
@@ -774,9 +766,7 @@ impl AgentService {
                 .map_err(ServiceError::Acp)?;
         };
 
-        // ── 10. Session manager for ensemble coordination ────────────────────
-        let cns_svc = CnsService::new(Arc::clone(&cns_runtime));
-
+        // ── 10. Session manager for ensemble coordination ──
         let session_manager = Arc::new(RwLock::new(SessionManager::new(system_webid)));
 
         Ok(Self {
@@ -784,7 +774,6 @@ impl AgentService {
             mcp_runtime,
             mcp_dispatcher,
             cns_runtime,
-            cns: cns_svc,
             cybernetics_loop,
             loop_system,
             inference_port,

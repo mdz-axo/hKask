@@ -1,4 +1,5 @@
 //! Consolidation — passphrase verify, per-agent DB, episodic→semantic pipeline.
+//! # REQ: P2 (Affirmative Consent) — consolidation requires passphrase verification.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

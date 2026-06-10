@@ -1,4 +1,5 @@
-//! SkillService — Skill visibility management and publishing.
+//! Skill service — visibility management and publishing.
+//! # REQ: P11 (Digital Public/Private Sphere) — private→public skill export with namespace.
 //!
 //! Implements the two-zone skill model: `.agents/skills/` (private source)
 //! → `skills/` (public export surface). Handles replicant name resolution,

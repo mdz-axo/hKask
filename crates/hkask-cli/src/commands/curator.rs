@@ -1,83 +1,58 @@
-//! Curator commands — escalate to EscalationQueue directly.
-
-use std::sync::Arc;
+//! Curator commands — delegates to CuratorService.
 
 use hkask_agents::EscalationEntry;
-use hkask_agents::EscalationQueue;
-use hkask_agents::curator_agent::CuratorAgent;
-use hkask_cns::CnsRuntime;
-use hkask_types::CuratorHandle;
+use hkask_services::{
+    AgentService, CuratorService, EscalationResponse, ServiceConfig, ServiceError,
+};
 
 use crate::block_on;
 use crate::cli::CuratorAction;
 use crate::errors::CuratorError;
 
-/// Open DB, build escalation queue, build CNS for metacognition.
-async fn build_curator_infra()
--> Result<(Arc<EscalationQueue>, Option<Arc<CnsRuntime>>), CuratorError> {
-    let config = hkask_services::ServiceConfig::from_env().map_err(CuratorError::from)?;
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?;
-    let conn = db.conn_arc();
-    let queue = Arc::new(
-        EscalationQueue::new(conn)
-            .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?,
-    );
-    let cns = Some(Arc::new(CnsRuntime::with_threshold(config.cns_threshold)));
-    Ok((queue, cns))
+impl From<ServiceError> for CuratorError {
+    fn from(e: ServiceError) -> Self {
+        CuratorError::from(e)
+    }
+}
+
+fn build_service_context() -> Result<AgentService, CuratorError> {
+    let config = ServiceConfig::from_env()
+        .map_err(|e| CuratorError::from(ServiceError::from(e.to_string())))?;
+    let rt = tokio::runtime::Runtime::new().expect("runtime should start");
+    rt.block_on(AgentService::build(config))
+        .map_err(CuratorError::from)
 }
 
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
-    let (queue, _) = build_curator_infra().await?;
+    let ctx = build_service_context()?;
+    // Use CuratorService for the response format, but return raw EscalationEntry
+    // for the CLI display code which needs field-level access.
+    CuratorService::list_escalations(&ctx)
+        .map(|_| vec![])
+        .map_err(CuratorError::from)?;
+    // Actually need the raw entries — use the escalation queue directly
+    // now that we have the properly-built AgentService.
+    let queue = ctx.escalation_queue();
     queue
         .list_pending()
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))
+        .map_err(|e| CuratorError::from(ServiceError::from(e)))
 }
 
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
-    let (queue, _) = build_curator_infra().await?;
-    if queue
-        .get(id)
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?
-        .is_none()
-    {
-        return Err(CuratorError::from(
-            hkask_services::ServiceError::EscalationNotFound(id.to_string()),
-        ));
-    }
-    queue
-        .resolve(id, "cli-administrator")
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))
+    let ctx = build_service_context()?;
+    CuratorService::resolve(&ctx, id, "cli-administrator").map_err(CuratorError::from)
 }
 
 pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
-    let (queue, _) = build_curator_infra().await?;
-    if queue
-        .get(id)
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))?
-        .is_none()
-    {
-        return Err(CuratorError::from(
-            hkask_services::ServiceError::EscalationNotFound(id.to_string()),
-        ));
-    }
-    queue
-        .dismiss(id, "cli-administrator")
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))
+    let ctx = build_service_context()?;
+    CuratorService::dismiss(&ctx, id, "cli-administrator").map_err(CuratorError::from)
 }
 
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
-    let (queue, cns) = build_curator_infra().await?;
-    let cns = cns.unwrap();
-    let agents_ctx = Arc::new(hkask_agents::CuratorContext::new(
-        CuratorHandle::system(),
-        cns,
-        None,
-        queue.clone(),
-    ));
-    let agent = CuratorAgent::new(agents_ctx);
-    let snapshot = agent.metacognition().run_cycle().await?;
-    Ok(agent.metacognition().generate_summary(&snapshot))
+    let ctx = build_service_context()?;
+    CuratorService::metacognition(&ctx)
+        .await
+        .map_err(CuratorError::from)
 }
 
 pub fn run_curator(

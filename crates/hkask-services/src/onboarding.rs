@@ -1,4 +1,5 @@
 //! Onboarding — secret derivation, keychain, registry init, sign-in.
+//! # REQ: P1 (User Sovereignty) — keychain secrets, passphrase-derived keys.
 
 use std::sync::Arc;
 
@@ -41,37 +42,25 @@ pub struct RegistryHandle {
 pub struct OnboardingService;
 
 impl OnboardingService {
-    /// Derive all internal secrets from a master passphrase and store them
-    /// in the OS keychain for future sessions.
+    /// Derive all internal secrets from a master passphrase.
     ///
-    /// Returns `ResolvedSecrets` carrying the ACP secret and DB passphrase
-    /// that the caller needs to construct a `ServiceConfig`.
-    pub fn derive_and_store_secrets(passphrase: &str) -> Result<ResolvedSecrets, ServiceError> {
+    /// If `store` is true, stores secrets in the OS keychain for future sessions.
+    /// Returns `ResolvedSecrets` carrying the ACP secret and DB passphrase.
+    pub fn derive_secrets(passphrase: &str, store: bool) -> Result<ResolvedSecrets, ServiceError> {
         let secrets = derive_all_internal_secrets(passphrase);
-        let keychain = Keychain::default();
-        keychain
-            .store_by_key("acp-secret", &secrets.acp_secret)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
-        keychain
-            .store_by_key("hkask-db-passphrase", &secrets.capability_key)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
-
+        if store {
+            let keychain = Keychain::default();
+            keychain
+                .store_by_key("acp-secret", &secrets.acp_secret)
+                .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            keychain
+                .store_by_key("hkask-db-passphrase", &secrets.capability_key)
+                .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+        }
         Ok(ResolvedSecrets {
             acp_secret: secrets.acp_secret.clone(),
             db_passphrase: secrets.capability_key.clone(),
         })
-    }
-
-    /// Derive secrets from a passphrase without storing them in the keychain.
-    ///
-    /// Used by the sign-in flow where secrets are only stored after
-    /// successful verification.
-    pub fn derive_secrets(passphrase: &str) -> ResolvedSecrets {
-        let secrets = derive_all_internal_secrets(passphrase);
-        ResolvedSecrets {
-            acp_secret: secrets.acp_secret.clone(),
-            db_passphrase: secrets.capability_key.clone(),
-        }
     }
 
     /// Initialize the ACP runtime and agent registry store from a ServiceConfig.

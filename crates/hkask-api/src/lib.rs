@@ -139,10 +139,12 @@ impl ApiState {
         ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     ) -> Result<Self, ApiError> {
         // Surface-specific: gas governance from cybernetics loop + system webid
+        let (_, cybernetics, _, _) = ctx.cns();
+        let (webid, _) = ctx.identity();
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
-                ctx.cybernetics_loop().clone(),
-                *ctx.system_webid(),
+                cybernetics.clone(),
+                *webid,
                 energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 
@@ -196,21 +198,20 @@ impl ApiState {
     /// Call this after the API server starts listening. The loops run in
     /// background tokio tasks until `shutdown_loops()` is called.
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
+        let (_, _, loops, _) = self.agent_service.cns();
         tracing::info!(
             target: "hkask.api",
-            loops = ?self.agent_service.loop_system().registered_loop_ids().await,
+            loops = ?loops.registered_loop_ids().await,
             "Starting loop system"
         );
-        self.agent_service.loop_system().start().await
+        loops.start().await
     }
 
     /// Signal the loop system to shut down.
-    ///
-    /// Call this during graceful server shutdown. All loop tick tasks
-    /// will stop after their current cycle completes.
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        self.agent_service.loop_system().shutdown();
+        let (_, _, loops, _) = self.agent_service.cns();
+        loops.shutdown();
     }
 }
 
