@@ -80,7 +80,7 @@ type LoopRegistry = Arc<RwLock<HashMap<LoopId, Vec<Arc<dyn HkaskLoop>>>>>;
 /// Loop System — manages loop registration, tick scheduling, and lifecycle.
 ///
 /// Inter-loop communication uses direct `tokio::mpsc` channels wired during
-/// `ServiceContext::build()`. This struct handles only registration and ticking.
+/// `AgentService::build()`. This struct handles only registration and ticking.
 pub struct LoopSystem {
     /// All registered loops keyed by LoopId. Vec supports multiple loops per ID.
     loops: LoopRegistry,

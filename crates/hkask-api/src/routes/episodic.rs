@@ -116,7 +116,7 @@ async fn store_episode(
         auth.webid,
     );
     state
-        .service_context
+        .agent_service
         .episodic_storage
         .store_episodic(request, &auth.token)
         .map_err(|e| match &e {
@@ -174,7 +174,7 @@ async fn query_episodes(
 
     let request = RecallRequest::episodic(&params.entity, auth.webid, auth.token);
     let results = state
-        .service_context
+        .agent_service
         .episodic_storage
         .recall_episodic(&request)
         .map_err(|e| match &e {
@@ -219,14 +219,14 @@ async fn storage_usage(
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<EpisodicUsageResponse>, ApiError> {
     let count = state
-        .service_context
+        .agent_service
         .episodic_storage
         .episodic_storage_usage(&auth.webid)
         .map_err(|e| ApiError::Internal {
             message: e.to_string(),
         })?;
     let budget = state
-        .service_context
+        .agent_service
         .episodic_storage
         .episodic_storage_budget();
 

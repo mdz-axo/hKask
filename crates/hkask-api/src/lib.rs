@@ -95,7 +95,7 @@ impl ApiState {
     /// Create ApiState with default adapters via `AgentService::build()`.
     ///
     /// Resolves configuration from environment variables and keychain,
-    /// builds a `ServiceContext` with all shared infrastructure, then
+    /// builds an `AgentService` with all shared infrastructure, then
     /// constructs `ApiState` from it with surface-specific defaults.
     ///
     /// The API server is headless and cannot run interactive onboarding — the caller
@@ -141,8 +141,8 @@ impl ApiState {
         // Surface-specific: gas governance from cybernetics loop + system webid
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
-                ctx.cns().cybernetics_loop().clone(),
-                ctx.identity().webid(),
+                ctx.cybernetics_loop.clone(),
+                ctx.system_webid,
                 energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 

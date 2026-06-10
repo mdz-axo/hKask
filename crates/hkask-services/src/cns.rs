@@ -1,6 +1,6 @@
 //! CNS health, alerts, and variety queries.
 //!
-//! `CnsService` wraps the shared `CnsRuntime` from `ServiceContext`,
+//! `CnsService` wraps the shared `CnsRuntime` from `AgentService`,
 //! hiding the `Arc<RwLock<>>` pattern so callers don't repeat
 //! `cns_runtime.read().await.xxx().await` at every call site.
 
@@ -13,7 +13,7 @@ use hkask_types::cns::CnsHealth;
 /// Service for CNS health checks, algedonic alerts, and variety counters.
 ///
 /// Wraps the shared `CnsRuntime` behind a clean async interface.
-/// Constructed during `ServiceContext::build()` — never created directly.
+/// Constructed during `AgentService::build()` — never created directly.
 #[derive(Clone)]
 pub struct CnsService {
     runtime: Arc<RwLock<CnsRuntime>>,

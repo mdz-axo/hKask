@@ -121,7 +121,7 @@ async fn create_chat(
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
     state
-        .service_context
+        .agent_service
         .session_manager
         .read()
         .await

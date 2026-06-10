@@ -17,7 +17,7 @@ use hkask_types::{
 };
 
 use crate::error::ServiceError;
-use crate::{InferenceContext, InferenceService, ServiceContext};
+use crate::{InferenceContext, InferenceService, AgentService};
 
 /// Token usage breakdown for gas accounting.
 pub struct TokenUsage {
@@ -64,13 +64,13 @@ pub struct ChatRequest {
     pub system_prompt_suffix: Option<String>,
     /// Pre-formatted tool-call section of the system prompt from MCP discovery
     pub tool_section: Option<String>,
-    /// Override inference port — when provided, takes precedence over ServiceContext's shared port.
+    /// Override inference port — when provided, takes precedence over AgentService's shared port.
     /// The REPL uses this to pass its long-lived inference port.
     pub inference_port_override: Option<Arc<dyn InferencePort>>,
-    /// Override episodic storage — when provided, takes precedence over ServiceContext's default.
+    /// Override episodic storage — when provided, takes precedence over AgentService's default.
     /// The REPL uses this to pass its per-agent persistent storage.
     pub episodic_storage_override: Option<Arc<dyn EpisodicStoragePort>>,
-    /// Override semantic storage — when provided, takes precedence over ServiceContext's default.
+    /// Override semantic storage — when provided, takes precedence over AgentService's default.
     /// The REPL uses this to pass its per-agent persistent storage.
     pub semantic_storage_override: Option<Arc<dyn SemanticStoragePort>>,
     /// Verified authentication context from the caller. When provided, the service
@@ -112,7 +112,7 @@ impl ChatService {
     /// and resolves the inference port. Returns a `PreparedChat`
     /// that the caller can use to stream inference output.
     pub async fn prepare_chat(
-        ctx: &ServiceContext,
+        ctx: &AgentService,
         req: &ChatRequest,
     ) -> Result<PreparedChat, ServiceError> {
         let name = req.agent_name.as_deref().unwrap_or("Curator");
@@ -164,7 +164,7 @@ impl ChatService {
             .unwrap_or(default_model)
             .to_string();
 
-        // Resolve inference port — prefer override, then shared port from ServiceContext
+        // Resolve inference port — prefer override, then shared port from AgentService
         let inference: Arc<dyn InferencePort> =
             match (&req.inference_port_override, &ctx.inference_port) {
                 (Some(port), _) => Arc::clone(port),
@@ -227,14 +227,14 @@ impl ChatService {
     /// Execute a single chat turn: agent lookup → prompt composition →
     /// semantic recall → inference → episodic storage.
     ///
-    /// Uses `ServiceContext` for shared infrastructure (inference port,
+    /// Uses `AgentService` for shared infrastructure (inference port,
     /// memory ports, ACP runtime, agent registry). When the context's
     /// inference_port is `None`, creates a fresh port via InferenceService.
     ///
     /// For streaming, use `prepare_chat()` + `generate_stream_with_model()`
     /// directly on the inference port.
     pub async fn chat(
-        ctx: &ServiceContext,
+        ctx: &AgentService,
         req: ChatRequest,
     ) -> Result<ChatResponse, ServiceError> {
         let prepared = Self::prepare_chat(ctx, &req).await?;

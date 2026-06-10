@@ -127,7 +127,7 @@ async fn activate_pod(
 ) -> Result<StatusCode, ApiError> {
     let pid = parse_pod_id(&id)?;
     state
-        .service_context
+        .agent_service
         .pod_manager
         .activate_pod(&pid)
         .await
@@ -142,7 +142,7 @@ async fn deactivate_pod(
 ) -> Result<StatusCode, ApiError> {
     let pid = parse_pod_id(&id)?;
     state
-        .service_context
+        .agent_service
         .pod_manager
         .deactivate_pod(&pid)
         .await
@@ -157,7 +157,7 @@ async fn pod_status(
 ) -> Result<Json<PodStatusResponse>, ApiError> {
     let pid = parse_pod_id(&id)?;
     let status = state
-        .service_context
+        .agent_service
         .pod_manager
         .get_pod_status(&pid)
         .await

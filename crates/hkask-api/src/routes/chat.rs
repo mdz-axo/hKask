@@ -105,7 +105,7 @@ async fn chat(
         auth_context: Some(auth),
     };
 
-    let result = match ChatService::chat(&state.service_context, svc_req).await {
+    let result = match ChatService::chat(&state.agent_service, svc_req).await {
         Ok(resp) => resp,
         Err(e) => hkask_services::ChatResponse {
             text: format!("Chat error: {}", e),

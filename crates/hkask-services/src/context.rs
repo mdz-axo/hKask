@@ -72,89 +72,188 @@ use crate::cns::CnsService;
 #[non_exhaustive]
 pub struct AgentService {
     /// Template registry.
-    pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
+    registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
 
     /// MCP runtime for tool discovery and invocation.
-    pub mcp_runtime: Arc<McpRuntime>,
+    mcp_runtime: Arc<McpRuntime>,
 
     /// MCP dispatcher for OCAP-protected tool invocation.
-    pub mcp_dispatcher: Arc<McpDispatcher>,
+    mcp_dispatcher: Arc<McpDispatcher>,
 
     /// CNS runtime for variety sensing and algedonic alerts.
-    pub cns_runtime: Arc<RwLock<CnsRuntime>>,
+    cns_runtime: Arc<RwLock<CnsRuntime>>,
 
     /// CNS service — health, alerts, variety queries.
-    pub cns: CnsService,
+    cns: CnsService,
 
     /// Cybernetics loop for energy budget regulation.
-    pub cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
+    cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
 
     /// Loop system for 6-loop regulation.
-    pub loop_system: Arc<LoopSystem>,
+    loop_system: Arc<LoopSystem>,
 
     /// Inference port for model invocation.
-    pub inference_port: Option<Arc<dyn InferencePort>>,
+    inference_port: Option<Arc<dyn InferencePort>>,
 
     /// Episodic memory storage (private, agent-scoped).
-    pub episodic_storage: Arc<dyn EpisodicStoragePort>,
+    episodic_storage: Arc<dyn EpisodicStoragePort>,
 
     /// Semantic memory storage (public, shared).
-    pub semantic_storage: Arc<dyn SemanticStoragePort>,
+    semantic_storage: Arc<dyn SemanticStoragePort>,
 
     /// Escalation queue for Curator escalations.
-    pub escalation_queue: Arc<EscalationQueue>,
+    escalation_queue: Arc<EscalationQueue>,
 
     /// Consent manager for user sovereignty.
-    pub consent_manager: Arc<ConsentManager>,
+    consent_manager: Arc<ConsentManager>,
 
     /// Goal repository for the goal coordination substrate.
-    pub goal_repo: Arc<SqliteGoalRepository>,
+    goal_repo: Arc<SqliteGoalRepository>,
 
     /// Channel for emitting CurationInput (GoalTransition, alerts, spec drift).
-    pub curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
+    curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
 
     /// Git CAS port for snapshot loop (shared across surfaces).
-    pub git_cas_port: Arc<dyn GitCASPort>,
+    git_cas_port: Arc<dyn GitCASPort>,
 
     /// Pod manager for agent lifecycle.
-    pub pod_manager: Arc<PodManager>,
+    pod_manager: Arc<PodManager>,
 
     /// Capability checker for OCAP verification.
     ///
     /// Backed by `config.mcp_secret` — the inter-process HMAC key. Use this
     /// checker to derive tokens for any service operation that needs a verifiable
     /// capability token (e.g., `ChatService::chat()` memory access tokens).
-    pub capability_checker: Arc<hkask_types::CapabilityChecker>,
+    capability_checker: Arc<hkask_types::CapabilityChecker>,
 
     /// System WebID for signing capabilities.
-    pub system_webid: WebID,
+    system_webid: WebID,
 
     /// Event sink for CNS audit trail.
-    pub event_sink: Arc<dyn NuEventSink>,
+    event_sink: Arc<dyn NuEventSink>,
 
     /// Standing session store for ensemble persistence.
-    pub standing_session_store: Arc<StandingSessionStore>,
+    standing_session_store: Arc<StandingSessionStore>,
 
     /// Sovereignty boundary store for Magna Carta compliance queries.
-    pub sovereignty_boundary_store: SovereigntyBoundaryStore,
+    sovereignty_boundary_store: SovereigntyBoundaryStore,
 
     /// Spec store for specification capture, validation, and cultivation.
-    pub spec_store: SqliteSpecStore,
+    spec_store: SqliteSpecStore,
 
     /// Ensemble session manager for chat and deliberation coordination.
-    pub session_manager: Arc<RwLock<hkask_agents::ensemble::session::SessionManager>>,
+    session_manager: Arc<RwLock<hkask_agents::ensemble::session::SessionManager>>,
 
     /// ACP runtime for capability token management and agent registration.
-    pub acp_runtime: Arc<hkask_agents::AcpRuntime>,
+    acp_runtime: Arc<hkask_agents::AcpRuntime>,
 
     /// Agent registry store for persistent agent records.
-    pub agent_registry_store: hkask_storage::AgentRegistryStore,
+    agent_registry_store: hkask_storage::AgentRegistryStore,
 
     /// User store for replicant identity and authentication.
-    pub user_store: Arc<std::sync::Mutex<UserStore>>,
+    user_store: Arc<std::sync::Mutex<UserStore>>,
 
     /// Configuration used to build this context.
-    pub config: ServiceConfig,
+    config: ServiceConfig,
+}
+
+impl AgentService {
+    // === Category 1: Essential shared infrastructure (10 fields) ===
+
+    /// Access template registry.
+    pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
+        &self.registry
+    }
+
+    /// Access MCP runtime for tool discovery and invocation.
+    pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
+        &self.mcp_runtime
+    }
+
+    /// Access MCP dispatcher for OCAP-protected tool invocation.
+    pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
+        &self.mcp_dispatcher
+    }
+
+    /// Access CNS runtime for variety sensing and algedonic alerts.
+    pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
+        &self.cns_runtime
+    }
+
+    /// Access CNS service for health, alerts, and variety queries.
+    pub fn cns(&self) -> &CnsService {
+        &self.cns
+    }
+
+    /// Access cybernetics loop for energy budget regulation.
+    pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
+        &self.cybernetics_loop
+    }
+
+    /// Access loop system for 6-loop regulation.
+    pub fn loop_system(&self) -> &Arc<LoopSystem> {
+        &self.loop_system
+    }
+
+    /// Access inference port for model invocation.
+    pub fn inference_port(&self) -> &Option<Arc<dyn InferencePort>> {
+        &self.inference_port
+    }
+
+    /// Access capability checker for OCAP verification.
+    pub fn capability_checker(&self) -> &Arc<hkask_types::CapabilityChecker> {
+        &self.capability_checker
+    }
+
+    /// Access configuration.
+    pub fn config(&self) -> &ServiceConfig {
+        &self.config
+    }
+
+    // === Category 2-3: Surface-specific fields (7 fields) ===
+    // TODO: Move these to ReplState/ApiState respectively
+
+    /// Access episodic memory storage (private, agent-scoped).
+    /// TODO: Move to ReplState.
+    pub fn episodic_storage(&self) -> &Arc<dyn EpisodicStoragePort> {
+        &self.episodic_storage
+    }
+
+    /// Access semantic memory storage (public, shared).
+    /// TODO: Move to ReplState.
+    pub fn semantic_storage(&self) -> &Arc<dyn SemanticStoragePort> {
+        &self.semantic_storage
+    }
+
+    /// Access standing session store for ensemble persistence.
+    /// TODO: Move to ApiState.
+    pub fn standing_session_store(&self) -> &Arc<StandingSessionStore> {
+        &self.standing_session_store
+    }
+
+    /// Access spec store for specification capture, validation, and cultivation.
+    /// TODO: Move to ApiState.
+    pub fn spec_store(&self) -> &SqliteSpecStore {
+        &self.spec_store
+    }
+
+    /// Access session manager for chat and deliberation coordination.
+    /// TODO: Move to ApiState.
+    pub fn session_manager(&self) -> &Arc<RwLock<hkask_agents::ensemble::session::SessionManager>> {
+        &self.session_manager
+    }
+
+    /// Access agent registry store for persistent agent records.
+    /// TODO: Move to ApiState.
+    pub fn agent_registry_store(&self) -> &hkask_storage::AgentRegistryStore {
+        &self.agent_registry_store
+    }
+
+    /// Access user store for replicant identity and authentication.
+    /// TODO: Move to ApiState.
+    pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
+        &self.user_store
+    }
 }
 
 /// Open an escalation queue from config.

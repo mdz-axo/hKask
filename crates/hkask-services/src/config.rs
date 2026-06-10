@@ -3,7 +3,7 @@
 //! `ServiceConfig` holds all configuration that varies per deployment:
 //! database paths, secrets, thresholds, and feature flags. Both CLI and API
 //! surfaces construct a `ServiceConfig` from environment variables, keychain
-//! secrets, or explicit parameters, then pass it to `ServiceContext::build()`.
+//! secrets, or explicit parameters, then pass it to `AgentService::build()`.
 
 use crate::error::ServiceError;
 
@@ -55,7 +55,7 @@ pub struct ServiceConfig {
 
     /// HMAC secret for MCP protocol authorization (inter-process).
     ///
-    /// Used by API auth middleware (`AuthService`), `ServiceContext`'s
+    /// Used by API auth middleware (`AuthService`), `AgentService`'s
     /// `capability_checker`, and `McpDispatcher`. Tokens signed with this
     /// secret are verified by external MCP servers and API callers.
     ///
