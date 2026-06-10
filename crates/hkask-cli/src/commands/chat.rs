@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use hkask_services::{ChatRequest, ChatService, ResolvedSecrets, AgentService};
+use hkask_services::{AgentService, ChatRequest, ChatService, ResolvedSecrets};
 use hkask_types::LLMParameters;
 use hkask_types::ports::{InferencePort, InferenceUsage};
 

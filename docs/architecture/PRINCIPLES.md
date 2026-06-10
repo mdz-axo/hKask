@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Architecture Principles
 
-**Purpose:** Nine principles governing hKask architecture, grounded in the Magna Carta and organized as foundational (P1–P4), operational (P5–P7), and regulatory (P8–P9).
+**Purpose:** Eleven principles governing hKask architecture, grounded in the Magna Carta and organized as foundational (P1–P4), operational (P5–P7), regulatory (P8–P9), and agent (P10–P11).
 
 **Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](hKask-architecture-master.md)  
 **Verification:** `cargo check --workspace`
@@ -203,6 +203,26 @@ Principles P1–P3 are enforced through unforgeable Object Capability (OCAP) tok
 
 These principles govern the engineering discipline that implements the Magna Carta. They are **Guidelines**: aspirational, pragmatically relaxable with reason stated, but persistent deviation signals architectural drift.
 
+---
+
+### 2.4 Agent Principles — The Nature of Agency
+
+These principles define the distinct natures of agentic entities within hKask, clarifying taxonomy and extending analog-world rights into the digital workspace. They are **Guardrails**: measured boundaries that, if persistently violated, signal drift from the system's intended agent model.
+
+#### P10 — Bot/Replicant Taxonomy
+
+Agents are meant to work with agents, and agents who work with humans are different types of agents. Agents who work with agents are **Bots**. Agents who work with humans or represent humans are **Replicants**. These two agent types differ across three axes: **persona** (Bots are task-oriented functionaries; Replicants are identity-bearing proxies for human intent), **interaction pattern** (Bots communicate via A2A machine-speed ACP; Replicants communicate via H2A human-scale dialogue), and **time scale** (Bots operate at sub-second to minutes cadences; Replicants operate at minutes to days cadences, matching human deliberation). No escalation primitive exists between them — algedonic alerts handle severity escalation to human. This taxonomy is enforced in the `hkask-agents` crate through distinct `Bot` and `Replicant` types with personae, ACP mode, and cadence annotations.
+
+**Enforces:** P3 (Generative Space — distinct agent types expand the space of possible interaction patterns). P6 (Space for Replicants & Bots — the taxonomy refines P6's container into differentiated roles).
+
+#### P11 — Digital Public/Private Sphere
+
+The requirement for a private and public sphere which exists in the analog world extends to the digital world and to the agentic AI workspace that hKask provides. The ability to choose if information is to be public or private is the right of every agent — Bot and Replicant alike. This right is implemented through visibility gating (private/public categorization) enforced by OCAP boundaries (P4) and grounded in User Sovereignty (P1). No agent's information is shared or made public without that agent's explicit, affirmative consent. Agents may designate workspace artifacts (memories, templates, tool outputs, conversation transcripts) as private (visible only to the originating agent pod and explicitly consented peers) or public (visible to all agents within the pod cluster). Default is private — sovereignty fails closed.
+
+**Enforces:** P1 (User Sovereignty — extends sovereignty rights to agents as first-class entities). P2 (Affirmative Consent — agent consent is required for visibility transitions). P4 (OCAP — visibility gates are enforced through unforgeable capability tokens).
+
+---
+
 #### P5 — Essentialism & Minimalism
 
 Seek to remove, never to add. Resist the instinct to complicate. When complexity tempts, find the underlying pattern that lets a simple rule recurse and iterate. Simplicity is not hiding complexity; it is exposing complexity through rules that compose. A stub is a debt against the Generative Space (P3) — it denies users the full behavior they consented to use. Every error variant is a distinct semantic state with a unique recovery path — no catch-all variants.
@@ -241,7 +261,7 @@ The system balances persistence and evolution through cybernetic feedback.[^beer
 
 ---
 
-### 2.4 Principle Traceability Matrix
+### 2.5 Principle Traceability Matrix
 
 | Principle | Magna Carta Root | Constraint Force |
 |-----------|-----------------|------------------|
