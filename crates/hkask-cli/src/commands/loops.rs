@@ -1,7 +1,7 @@
 //! Loops command handlers for `kask loops`
 //!
 //! Implements the CLI display logic for starting the cybernetic loop system.
-//! Uses `ServiceContext::build()` to assemble all shared infrastructure
+//! Uses `AgentService::build()` to assemble all shared infrastructure
 //! (CNS, loop system, curation, episodic/semantic loops).
 
 pub fn run(rt: &tokio::runtime::Runtime) {
@@ -12,9 +12,9 @@ pub fn run(rt: &tokio::runtime::Runtime) {
         hkask_services::ServiceConfig::in_memory()
     });
 
-    // Build ServiceContext with all shared infrastructure
+    // Build AgentService with all shared infrastructure
     let ctx = rt
-        .block_on(hkask_services::ServiceContext::build(config))
+        .block_on(hkask_services::AgentService::build(config))
         .expect("Failed to build service context for loop system");
 
     // Start the loop system

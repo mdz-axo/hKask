@@ -106,7 +106,7 @@ pub enum CuratorError {
     #[error(transparent)]
     Metacognition(#[from] hkask_agents::curator_agent::metacognition::MetacognitionError),
 
-    /// Upstream service-layer failure (ServiceContext::build, config resolution).
+    /// Upstream service-layer failure (AgentService::build, config resolution).
     /// Manual `From` impl exists below (maps ServiceError variants to CuratorError).
     #[error("Service error: {0}")]
     Service(hkask_services::ServiceError),

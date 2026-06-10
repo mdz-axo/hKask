@@ -1,7 +1,7 @@
 //! Spec command handlers for `kask spec`
 //
 //! Implements the CLI display logic for specification capture, validation,
-//! cultivation, and rendering. Uses `ServiceContext::spec_store` for
+//! cultivation, and rendering. Uses `AgentService::spec_store` for
 //! spec persistence — no direct `open_spec_store()` calls.
 
 use crate::cli::SpecAction;
@@ -9,11 +9,11 @@ use hkask_agents::DefaultSpecCurator;
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurator};
 
-fn build_service_context() -> hkask_services::ServiceContext {
+fn build_service_context() -> hkask_services::AgentService {
     let config =
         hkask_services::ServiceConfig::from_env().expect("Failed to resolve service config");
     let rt = tokio::runtime::Runtime::new().expect("runtime should start");
-    rt.block_on(hkask_services::ServiceContext::build(config))
+    rt.block_on(hkask_services::AgentService::build(config))
         .expect("Failed to build service context")
 }
 

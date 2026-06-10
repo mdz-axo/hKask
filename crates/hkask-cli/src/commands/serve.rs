@@ -1,6 +1,6 @@
 //! `kask serve` — Start the HTTP API server sharing CLI state
 //!
-//! Creates an `ApiState` via `ServiceContext::build()` and starts the
+//! Creates an `ApiState` via `AgentService::build()` and starts the
 //! axum HTTP server. CLI commands issued while the server is running
 //! operate on the same shared state.
 
@@ -28,8 +28,8 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// Run the API server, sharing state with the CLI.
 ///
 /// Resolves configuration from the keystore and environment, builds a
-/// `ServiceContext` with all shared infrastructure, starts API MCP servers
-/// on the ServiceContext's runtime, and creates an `ApiState` from it.
+/// `AgentService` with all shared infrastructure, starts API MCP servers
+/// on the AgentService's runtime, and creates an `ApiState` from it.
 pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
     // Resolve configuration from keystore and environment
     let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
@@ -41,18 +41,18 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         hkask_services::ServiceConfig::in_memory()
     });
 
-    // Build ServiceContext with all shared infrastructure
-    let ctx = hkask_services::ServiceContext::build(config)
+    // Build AgentService with all shared infrastructure
+    let ctx = hkask_services::AgentService::build(config)
         .await
         .map_err(|e| {
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
         })?;
 
-    // Build improv client from ServiceContext's inference port
+    // Build improv client from AgentService's inference port
     let improv_client = crate::commands::ensemble::build_improv_client(&ctx, None);
     let base_adapter = Arc::new(improv_client.inner().clone());
 
-    // Start API MCP servers on the ServiceContext's runtime
+    // Start API MCP servers on the AgentService's runtime
     let server_count = start_api_servers(&ctx.mcp_runtime).await;
     if server_count > 0 {
         tracing::info!(target: "hkask.serve", servers = server_count, "MCP servers started");
@@ -60,7 +60,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         tracing::warn!(target: "hkask.serve", "No MCP servers started — tool endpoints will return empty results");
     }
 
-    // Build ApiState from ServiceContext, adding CLI's ensemble adapter
+    // Build ApiState from AgentService, adding CLI's ensemble adapter
     let state = ApiState::from_service_context(ctx, Some(base_adapter))
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;

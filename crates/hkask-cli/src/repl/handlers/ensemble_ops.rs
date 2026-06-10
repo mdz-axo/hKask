@@ -1,11 +1,11 @@
 //! REPL /filter and /mode handlers — ensemble participation threshold and orchestration mode
 
-use hkask_services::ServiceContext;
+use hkask_services::AgentService;
 
 pub(crate) fn handle_filter(
     arg: &str,
     active_session: &Option<String>,
-    svc_ctx: &ServiceContext,
+    svc_ctx: &AgentService,
     rt: &tokio::runtime::Handle,
 ) {
     let session_id = match active_session {
@@ -73,7 +73,7 @@ pub(crate) fn handle_filter(
 pub(crate) fn handle_mode(
     arg: &str,
     active_session: &Option<String>,
-    svc_ctx: &ServiceContext,
+    svc_ctx: &AgentService,
     rt: &tokio::runtime::Handle,
 ) {
     let session_id = match active_session {

@@ -1,12 +1,12 @@
 //! REPL /ensemble handler — multi-agent session management
 
-use hkask_services::ServiceContext;
+use hkask_services::AgentService;
 
 pub(crate) fn handle_ensemble(
     subcmd: &str,
     rest: &str,
     active_session: &mut Option<String>,
-    svc_ctx: &ServiceContext,
+    svc_ctx: &AgentService,
     rt: &tokio::runtime::Handle,
 ) {
     match subcmd {

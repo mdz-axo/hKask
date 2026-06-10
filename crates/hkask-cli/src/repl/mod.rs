@@ -29,7 +29,7 @@ use hkask_cns::GovernedTool;
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
-use hkask_services::ServiceContext;
+use hkask_services::AgentService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
@@ -102,7 +102,7 @@ pub(crate) struct ReplState {
     pub(crate) process_manifest: Option<BundleManifest>,
     /// Shared service context — the canonical assembly point for all
     /// infrastructure.
-    pub(crate) service_context: Arc<ServiceContext>,
+    pub(crate) service_context: Arc<AgentService>,
 }
 
 pub fn run(

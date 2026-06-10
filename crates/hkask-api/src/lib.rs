@@ -52,7 +52,7 @@ pub use routes::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hkask_services::ServiceContext;
+use hkask_services::AgentService;
 use utoipa::OpenApi;
 
 use energy::ApiEnergyGovernanceAdapter;
@@ -60,18 +60,18 @@ use git_cas::{GitCasBundle, init_git_cas};
 
 use openapi::ApiDoc;
 
-/// API state — composes `ServiceContext` for all shared infrastructure.
+/// API state — composes `AgentService` for all shared infrastructure.
 ///
-/// The `service_context` field is the single source of truth for domain
+/// The `agent_service` field is the single source of truth for domain
 /// objects. Surface-specific fields (standing sessions map, git CAS,
 /// ensemble inferencer, gas governance) are the ONLY fields that don't
-/// come from `ServiceContext`.
+/// come from `AgentService`.
 #[derive(Clone)]
 pub struct ApiState {
-    /// Service context — single source of truth for all shared infrastructure.
+    /// Agent service — single source of truth for all shared infrastructure.
     /// All domain objects (registry, escalation queue, consent manager, etc.)
-    /// come from here. Surface code derives context types via `From<&ServiceContext>`.
-    pub service_context: Arc<ServiceContext>,
+    /// come from here. Surface code derives service types via domain accessors.
+    pub agent_service: Arc<AgentService>,
     /// Standing ensemble sessions (keyed by session ID) — surface-specific live state
     pub standing_sessions: Arc<
         tokio::sync::RwLock<
@@ -92,7 +92,7 @@ pub struct ApiState {
 }
 
 impl ApiState {
-    /// Create ApiState with default adapters via `ServiceContext::build()`.
+    /// Create ApiState with default adapters via `AgentService::build()`.
     ///
     /// Resolves configuration from environment variables and keychain,
     /// builds a `ServiceContext` with all shared infrastructure, then
@@ -105,7 +105,7 @@ impl ApiState {
         let config = hkask_services::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
             message: format!("Failed to resolve service config: {e}"),
         })?;
-        let ctx = hkask_services::ServiceContext::build(config)
+        let ctx = hkask_services::AgentService::build(config)
             .await
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to build service context: {e}"),
@@ -113,36 +113,36 @@ impl ApiState {
         Self::from_service_context(ctx, None).await
     }
 
-    /// Create ApiState from a pre-built `ServiceContext`.
+    /// Create ApiState from a pre-built `AgentService`.
     ///
     /// This is the canonical construction path for API surfaces that compose
-    /// `ServiceContext::build()`. All shared infrastructure (CNS, loop system,
-    /// governed tool, pod manager, stores) comes from `ServiceContext`.
+    /// `AgentService::build()`. All shared infrastructure (CNS, loop system,
+    /// governed tool, pod manager, stores) comes from `AgentService`.
     /// Surface-specific fields (ensemble inferencer, git CAS, gas governance)
-    /// are constructed from ServiceContext fields or initialized to defaults.
+    /// are constructed from AgentService fields or initialized to defaults.
     ///
     /// # Arguments
     ///
-    /// * `ctx` — A fully-wired `ServiceContext` from `ServiceContext::build(config).await`
+    /// * `ctx` — A fully-wired `AgentService` from `AgentService::build(config).await`
     /// * `ensemble_inferencer` — Optional ensemble inference adapter (surface-specific)
     ///
     /// # Surface-specific fields
     ///
     /// - `ensemble_inferencer` — passed through from caller
-    /// - `gas_governance` — built from ServiceContext's cybernetics loop
+    /// - `gas_governance` — built from AgentService's cybernetics loop
     /// - `git_cas` / `git_cas_port` — built via `init_git_cas()`
     /// - `standing_sessions` — initialized to empty map
     /// - `spec_store` — initialized to None
-    /// - `cns_runtime` — cloned from ServiceContext's shared CnsRuntime
+    /// - `cns_runtime` — cloned from AgentService's shared CnsRuntime
     pub async fn from_service_context(
-        ctx: ServiceContext,
+        ctx: AgentService,
         ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     ) -> Result<Self, ApiError> {
         // Surface-specific: gas governance from cybernetics loop + system webid
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
-                ctx.cybernetics_loop.clone(),
-                ctx.system_webid,
+                ctx.cns().cybernetics_loop().clone(),
+                ctx.identity().webid(),
                 energy::API_ENSEMBLE_ENERGY_CAP,
             ));
 
@@ -153,7 +153,7 @@ impl ApiState {
         } = init_git_cas()?;
 
         Ok(Self {
-            service_context: Arc::new(ctx),
+            agent_service: Arc::new(ctx),
             // Surface-specific fields only
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             ensemble_inferencer,
@@ -198,10 +198,10 @@ impl ApiState {
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
         tracing::info!(
             target: "hkask.api",
-            loops = ?self.service_context.loop_system.registered_loop_ids().await,
+            loops = ?self.agent_service.loop_system.registered_loop_ids().await,
             "Starting loop system"
         );
-        self.service_context.loop_system.start().await
+        self.agent_service.loop_system.start().await
     }
 
     /// Signal the loop system to shut down.
@@ -210,14 +210,14 @@ impl ApiState {
     /// will stop after their current cycle completes.
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        self.service_context.loop_system.shutdown();
+        self.agent_service.loop_system.shutdown();
     }
 }
 
 /// Create API router with OpenAPI documentation and authentication
 pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(middleware::AuthService::from_config(
-        &state.service_context.config,
+        &state.agent_service.config,
     ));
 
     Ok(

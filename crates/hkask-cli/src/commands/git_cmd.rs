@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::block_on;
 use crate::cli::GitAction;
 use hkask_mcp::GixCasAdapter;
-use hkask_services::{ArchivalService, ServiceContext};
+use hkask_services::{ArchivalService, AgentService};
 use hkask_types::ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 
 /// Resolve the hexagonal `GitCASPort` from the environment.
@@ -40,14 +40,14 @@ fn parse_repo_id(repo: &str) -> RepoId {
     }
 }
 
-fn build_service_context(rt: &tokio::runtime::Runtime) -> ServiceContext {
+fn build_service_context(rt: &tokio::runtime::Runtime) -> AgentService {
     let config = super::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",
     );
     super::helpers::or_exit(
-        rt.block_on(hkask_services::ServiceContext::build(config)),
-        "Failed to build ServiceContext",
+        rt.block_on(hkask_services::AgentService::build(config)),
+        "Failed to build AgentService",
     )
 }
 

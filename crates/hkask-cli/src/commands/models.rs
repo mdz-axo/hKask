@@ -10,8 +10,8 @@ pub fn run(rt: &tokio::runtime::Runtime) {
         "Failed to resolve config",
     );
     let ctx = super::helpers::or_exit(
-        rt.block_on(hkask_services::ServiceContext::build(config)),
-        "Failed to build ServiceContext",
+        rt.block_on(hkask_services::AgentService::build(config)),
+        "Failed to build AgentService",
     );
 
     let inf_ctx = hkask_services::InferenceContext::from(&ctx);

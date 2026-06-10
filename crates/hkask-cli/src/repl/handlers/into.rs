@@ -1,11 +1,11 @@
 //! REPL /into handler — enter/leave ensemble sessions
 
-use hkask_services::ServiceContext;
+use hkask_services::AgentService;
 
 pub(crate) fn handle_into(
     arg: &str,
     active_session: &mut Option<String>,
-    svc_ctx: &ServiceContext,
+    svc_ctx: &AgentService,
     rt: &tokio::runtime::Handle,
 ) {
     if arg.is_empty() {

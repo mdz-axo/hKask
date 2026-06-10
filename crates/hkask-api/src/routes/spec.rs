@@ -103,7 +103,7 @@ async fn list_specs(
     State(state): State<ApiState>,
     Query(query): Query<SpecListQuery>,
 ) -> impl IntoResponse {
-    let store = &state.service_context.spec_store;
+    let store = &state.agent_service.spec_store;
     let specs = match query.category.as_deref() {
         Some(cat_str) => {
             match SpecCategory::parse_str(cat_str) {
@@ -171,7 +171,7 @@ async fn get_spec(State(state): State<ApiState>, Path(spec_id): Path<String>) ->
                 .into_response();
         }
     };
-    let store = &state.service_context.spec_store;
+    let store = &state.agent_service.spec_store;
     match store.load(id) {
         Ok(spec) => {
             let requirements: Vec<String> = spec
@@ -237,7 +237,7 @@ async fn capture_spec(
         .flat_map(|g| g.criteria.iter().map(|c| c.description.clone()))
         .collect();
 
-    let store = &state.service_context.spec_store;
+    let store = &state.agent_service.spec_store;
     match store.save(&spec) {
         Ok(()) => Json(SpecCaptureResponse {
             goal_id: spec.id.to_string(),
@@ -266,7 +266,7 @@ async fn capture_spec(
     ),
 )]
 async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
-    let store = &state.service_context.spec_store;
+    let store = &state.agent_service.spec_store;
     let specs = match store.list_all() {
         Ok(s) => s,
         Err(e) => {
@@ -343,7 +343,7 @@ async fn get_writing_quality(
                 .into_response();
         }
     };
-    let store = &state.service_context.spec_store;
+    let store = &state.agent_service.spec_store;
     match store.load(id) {
         Ok(spec) => {
             // Writing quality: dimensions based on spec completeness signals

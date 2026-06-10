@@ -1,9 +1,9 @@
 //! Ensemble command handlers — chat, deliberation, improv, and standing sessions
 //!
-//! Manages multi-agent ensemble sessions via `ServiceContext`. Session manager,
-//! cybernetics loop, and standing session store come from ServiceContext rather
+//! Manages multi-agent ensemble sessions via `AgentService`. Session manager,
+//! cybernetics loop, and standing session store come from AgentService rather
 //! than global statics. The improv client is constructed per-call from
-//! ServiceContext's inference port + circuit breaker.
+//! AgentService's inference port + circuit breaker.
 
 use crate::block_on;
 use crate::cli::EnsembleAction;
@@ -13,7 +13,7 @@ use hkask_agents::ensemble::{
     bootstrap_standing_session_with_store,
 };
 use hkask_cns::{CircuitBreaker, EnergyCost};
-use hkask_services::ServiceContext;
+use hkask_services::AgentService;
 use hkask_types::WebID;
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::{
@@ -70,9 +70,9 @@ impl GasGovernancePort for CyberneticsLoopGasAdapter {
     }
 }
 
-/// Create an improv client from ServiceContext's inference port + circuit breaker.
+/// Create an improv client from AgentService's inference port + circuit breaker.
 pub(crate) fn build_improv_client(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     inference_port: Option<Arc<dyn InferencePort>>,
 ) -> Arc<CircuitBreakerInferenceAdapter> {
     let breaker: Arc<dyn CircuitBreakerPort> =
@@ -100,14 +100,14 @@ fn map_ensemble_role(role: &str) -> ParticipantRole {
     }
 }
 
-pub async fn ensemble_chat_create(ctx: &ServiceContext, session: String) -> Result<String, String> {
+pub async fn ensemble_chat_create(ctx: &AgentService, session: String) -> Result<String, String> {
     let manager = ctx.session_manager.read().await;
     manager.create_chat(&session).await;
     Ok(format!("Chat session '{}' created", session))
 }
 
 pub async fn ensemble_chat_register(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session: String,
     bot: String,
     role: String,
@@ -132,7 +132,7 @@ pub async fn ensemble_chat_register(
 }
 
 pub async fn ensemble_chat_send(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session: String,
     message: String,
 ) -> Result<String, String> {
@@ -147,13 +147,13 @@ pub async fn ensemble_chat_send(
     Ok("Message sent".to_string())
 }
 
-pub async fn ensemble_chat_list(ctx: &ServiceContext) -> Result<Vec<String>, String> {
+pub async fn ensemble_chat_list(ctx: &AgentService) -> Result<Vec<String>, String> {
     let manager = ctx.session_manager.read().await;
     Ok(manager.list_chat_sessions().await)
 }
 
 pub async fn ensemble_improv_turn(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session_id: &str,
     user_message: &str,
     inference_port: Option<Arc<dyn InferencePort>>,
@@ -186,7 +186,7 @@ pub async fn ensemble_improv_turn(
 }
 
 pub async fn ensemble_improv_config(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session_id: &str,
 ) -> Result<ImprovSessionConfig, String> {
     let manager = ctx.session_manager.read().await;
@@ -198,7 +198,7 @@ pub async fn ensemble_improv_config(
 }
 
 pub async fn ensemble_improv_set_threshold(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session_id: &str,
     threshold: f64,
 ) -> Result<(), String> {
@@ -212,7 +212,7 @@ pub async fn ensemble_improv_set_threshold(
 }
 
 pub async fn ensemble_improv_set_mode(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session_id: &str,
     mode: ImprovMode,
 ) -> Result<(), String> {
@@ -226,7 +226,7 @@ pub async fn ensemble_improv_set_mode(
 }
 
 pub async fn ensemble_participants(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session_id: &str,
 ) -> Result<Vec<(String, String, String)>, String> {
     let manager = ctx.session_manager.read().await;
@@ -254,7 +254,7 @@ pub async fn ensemble_participants(
 }
 
 pub async fn ensemble_deliberation_create(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session: String,
 ) -> Result<String, String> {
     let manager = ctx.session_manager.read().await;
@@ -263,7 +263,7 @@ pub async fn ensemble_deliberation_create(
 }
 
 pub async fn ensemble_deliberation_start(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session: String,
 ) -> Result<String, String> {
     let manager = ctx.session_manager.read().await;
@@ -276,7 +276,7 @@ pub async fn ensemble_deliberation_start(
 }
 
 pub async fn ensemble_deliberation_record(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session: String,
     _agent: String,
     content: String,
@@ -293,7 +293,7 @@ pub async fn ensemble_deliberation_record(
 }
 
 pub async fn ensemble_deliberation_synthesize(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     session: String,
 ) -> Result<String, String> {
     let manager = ctx.session_manager.read().await;
@@ -305,7 +305,7 @@ pub async fn ensemble_deliberation_synthesize(
     Ok(result.synthesized_response)
 }
 
-pub async fn ensemble_deliberation_list(ctx: &ServiceContext) -> Result<Vec<String>, String> {
+pub async fn ensemble_deliberation_list(ctx: &AgentService) -> Result<Vec<String>, String> {
     // List deliberations is a thin delegation that doesn't normalize errors.
     // It stays as a direct SessionManager call because deleting this service
     // call wouldn't cause complexity to reappear in 8+ call sites.
@@ -319,7 +319,7 @@ pub async fn ensemble_deliberation_list(ctx: &ServiceContext) -> Result<Vec<Stri
 
 /// Bootstrap the standing ensemble session from a YAML manifest.
 pub fn ensemble_standing_start(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
     config_path: &std::path::Path,
 ) -> Result<hkask_agents::ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
     let store = ctx.standing_session_store.clone();
@@ -329,7 +329,7 @@ pub fn ensemble_standing_start(
 
 /// Get the current standing session status.
 pub fn ensemble_standing_status(
-    ctx: &ServiceContext,
+    ctx: &AgentService,
 ) -> Result<hkask_agents::ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
     let config_path = std::path::Path::new("registry/manifests/standing-ensemble-session.yaml");
     if !config_path.exists() {
@@ -344,17 +344,17 @@ pub fn ensemble_standing_status(
     Ok(session.get_status())
 }
 
-/// Build a ServiceContext for standalone CLI ensemble commands.
-fn build_service_context() -> Result<hkask_services::ServiceContext, crate::errors::EnsembleError> {
+/// Build a AgentService for standalone CLI ensemble commands.
+fn build_service_context() -> Result<hkask_services::AgentService, crate::errors::EnsembleError> {
     let config = hkask_services::ServiceConfig::from_env().map_err(|e| {
         crate::errors::EnsembleError::SessionNotFound(format!("Config error: {}", e))
     })?;
     let rt = tokio::runtime::Runtime::new().map_err(|e| {
         crate::errors::EnsembleError::SessionNotFound(format!("Runtime error: {}", e))
     })?;
-    rt.block_on(hkask_services::ServiceContext::build(config))
+    rt.block_on(hkask_services::AgentService::build(config))
         .map_err(|e| {
-            crate::errors::EnsembleError::SessionNotFound(format!("ServiceContext error: {}", e))
+            crate::errors::EnsembleError::SessionNotFound(format!("AgentService error: {}", e))
         })
 }
 

@@ -17,13 +17,13 @@ fn parse_data_category(s: &str) -> DataCategory {
 }
 
 fn build_consent() -> (
-    hkask_services::ServiceContext,
+    hkask_services::AgentService,
     std::sync::Arc<hkask_agents::consent::ConsentManager>,
 ) {
     let config = hkask_services::ServiceConfig::from_env().expect("Config env");
     let rt = tokio::runtime::Runtime::new().expect("runtime");
     let svc = rt
-        .block_on(hkask_services::ServiceContext::build(config))
+        .block_on(hkask_services::AgentService::build(config))
         .expect("build svc");
     let cm = svc.consent_manager.clone();
     (svc, cm)

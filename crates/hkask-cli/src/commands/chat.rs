@@ -3,7 +3,7 @@
 //! The chat path delegates to `ChatService` for the full pipeline:
 //! agent lookup → prompt composition → semantic recall → inference →
 //! episodic storage. The REPL provides pre-resolved ports; standalone
-//! calls use ServiceContext's shared infrastructure.
+//! calls use AgentService's shared infrastructure.
 //!
 //! Streaming variant (`chat_with_agent_streaming`) calls
 //! `ChatService::prepare_chat()` for prompt composition and memory,
@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use hkask_services::{ChatRequest, ChatService, ResolvedSecrets, ServiceContext};
+use hkask_services::{ChatRequest, ChatService, ResolvedSecrets, AgentService};
 use hkask_types::LLMParameters;
 use hkask_types::ports::{InferencePort, InferenceUsage};
 
@@ -28,7 +28,7 @@ pub type TokenUsage = hkask_services::TokenUsage;
 
 /// Send a chat message to an agent and return the response.
 ///
-/// When `secrets` is provided (from onboarding), builds a ServiceContext
+/// When `secrets` is provided (from onboarding), builds a AgentService
 /// from them. Otherwise, builds from environment.
 ///
 /// When `inference_port` is provided, the shared port is reused across calls.
@@ -57,7 +57,7 @@ pub async fn chat_with_agent(
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
-    // Build ServiceContext from secrets or environment
+    // Build AgentService from secrets or environment
     let ctx = match secrets {
         Some(s) => {
             let mcp_secret = hkask_keystore::resolve_mcp_secret()
@@ -69,11 +69,11 @@ pub async fn chat_with_agent(
                 mcp_secret,
                 name.to_string(),
             );
-            match ServiceContext::build(config).await {
+            match AgentService::build(config).await {
                 Ok(ctx) => ctx,
                 Err(e) => {
                     return ChatResponse {
-                        text: format!("ServiceContext error: {}", e),
+                        text: format!("AgentService error: {}", e),
                         usage: None,
                         finish_reason: "error".to_string(),
                         tool_calls: vec![],
@@ -93,11 +93,11 @@ pub async fn chat_with_agent(
                     };
                 }
             };
-            match ServiceContext::build(config).await {
+            match AgentService::build(config).await {
                 Ok(ctx) => ctx,
                 Err(e) => {
                     return ChatResponse {
-                        text: format!("ServiceContext error: {}", e),
+                        text: format!("AgentService error: {}", e),
                         usage: None,
                         finish_reason: "error".to_string(),
                         tool_calls: vec![],
@@ -154,7 +154,7 @@ pub async fn chat_with_agent_streaming(
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
-    // Build ServiceContext from secrets or environment
+    // Build AgentService from secrets or environment
     let ctx = match secrets {
         Some(s) => {
             let mcp_secret = hkask_keystore::resolve_mcp_secret()
@@ -166,11 +166,11 @@ pub async fn chat_with_agent_streaming(
                 mcp_secret,
                 name.to_string(),
             );
-            match ServiceContext::build(config).await {
+            match AgentService::build(config).await {
                 Ok(ctx) => ctx,
                 Err(e) => {
                     return ChatResponse {
-                        text: format!("ServiceContext error: {}", e),
+                        text: format!("AgentService error: {}", e),
                         usage: None,
                         finish_reason: "error".to_string(),
                         tool_calls: vec![],
@@ -190,11 +190,11 @@ pub async fn chat_with_agent_streaming(
                     };
                 }
             };
-            match ServiceContext::build(config).await {
+            match AgentService::build(config).await {
                 Ok(ctx) => ctx,
                 Err(e) => {
                     return ChatResponse {
-                        text: format!("ServiceContext error: {}", e),
+                        text: format!("AgentService error: {}", e),
                         usage: None,
                         finish_reason: "error".to_string(),
                         tool_calls: vec![],

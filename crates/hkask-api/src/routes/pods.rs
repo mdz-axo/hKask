@@ -75,7 +75,7 @@ fn map_pod_err(e: hkask_agents::pod::AgentPodError) -> ApiError {
 }
 
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
-    let pm = &state.service_context.pod_manager;
+    let pm = &state.agent_service.pod_manager;
     let pod_statuses = pm.list_pods().await.unwrap_or_default();
     let pods: Vec<PodStatusResponse> = pod_statuses
         .into_iter()
@@ -97,7 +97,7 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ApiError> {
-    let has = state.service_context.capability_checker.check_resource(
+    let has = state.agent_service.capability_checker.check_resource(
         &auth.token,
         &auth.webid,
         DelegationResource::Tool,
@@ -110,7 +110,7 @@ async fn create_pod(
     let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ApiError::BadRequest {
         message: format!("Invalid persona YAML: {e}"),
     })?;
-    let pm = &state.service_context.pod_manager;
+    let pm = &state.agent_service.pod_manager;
     let pod_id = pm
         .create_pod(&req.template, &persona, req.name)
         .await

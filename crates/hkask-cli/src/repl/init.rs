@@ -1,7 +1,7 @@
 //! REPL dependency injection — wires CNS, loops, dispatch, energy budgets,
 //! GovernedTool, and builds the initial ReplState.
 //!
-//! Uses `ServiceContext::build()` for shared infrastructure (CNS, loop system,
+//! Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
 //! curation, governed tool, pod manager) and adds CLI-specific concerns
 //! on top (inference, per-agent memory, HHH gate, onboarding).
 
@@ -31,7 +31,7 @@ use super::tool_augmented;
 /// Returns `None` if a critical dependency fails to initialize
 /// (inference port, onboarding). Error messages are printed to stderr.
 ///
-/// Uses `ServiceContext::build()` for shared infrastructure (CNS, loop system,
+/// Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
 /// curation loop, pod manager, registry, MCP runtime) and adds CLI-specific
 /// concerns on top (inference, per-agent memory, GovernedTool for tool
 /// discovery, HHH gate, onboarding state).
@@ -100,7 +100,7 @@ pub(super) fn init_repl_state(
         }
     };
 
-    // Build a ServiceConfig from onboarding outcome for ServiceContext::build().
+    // Build a ServiceConfig from onboarding outcome for AgentService::build().
     let service_config = match &onboarding_outcome.resolved_secrets {
         Some(secrets) => {
             // Onboarding provides ACP + DB secrets. MCP secret is resolved
@@ -127,10 +127,10 @@ pub(super) fn init_repl_state(
         "replicant",
     );
 
-    // Build shared infrastructure via ServiceContext::build().
+    // Build shared infrastructure via AgentService::build().
     // This creates: CNS, loop system (cybernetics, episodic, semantic, curation loops),
     // governed tool membrane, MCP runtime + dispatcher, pod manager, registry, etc.
-    let ctx = match rt.block_on(hkask_services::ServiceContext::build(
+    let ctx = match rt.block_on(hkask_services::AgentService::build(
         service_config.clone(),
     )) {
         Ok(ctx) => ctx,
@@ -143,7 +143,7 @@ pub(super) fn init_repl_state(
     // Register the CLI's inference loop on the shared loop system.
     rt.block_on(ctx.loop_system.register_loop(inference_loop.clone()));
 
-    // Start built-in MCP servers on the ServiceContext's MCP runtime.
+    // Start built-in MCP servers on the AgentService's MCP runtime.
     let mcp_runtime = ctx.mcp_runtime.clone();
     let server_count = rt.block_on(super::builtin_servers::start_builtin_servers(&mcp_runtime));
     if server_count > 0 {
@@ -151,7 +151,7 @@ pub(super) fn init_repl_state(
     }
 
     // Create the GovernedTool membrane for CLI tool discovery.
-    // This wraps ServiceContext's MCP runtime with gas governance and CNS observability,
+    // This wraps AgentService's MCP runtime with gas governance and CNS observability,
     // sharing the same cybernetics loop as the loop system.
     let raw_tool_port = Arc::new(RawMcpToolPort::new((*mcp_runtime).clone()));
     let estimator: Arc<dyn hkask_cns::EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
@@ -218,7 +218,7 @@ pub(super) fn init_repl_state(
     let mut state = ReplState {
         inference_port,
         inference_loop,
-        // Per-agent memory (NOT ServiceContext's shared memory)
+        // Per-agent memory (NOT AgentService's shared memory)
         episodic_storage,
         semantic_storage,
         agent_webid,

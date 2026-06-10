@@ -13,14 +13,14 @@ const BUILTIN_SERVERS: &[(&str, &str)] = &[
 fn build_service_context(
     rt: &tokio::runtime::Runtime,
     servers: &[(&str, &str)],
-) -> hkask_services::ServiceContext {
+) -> hkask_services::AgentService {
     let config = super::helpers::or_exit(
         hkask_services::ServiceConfig::from_env(),
         "Failed to resolve config",
     );
     let ctx = super::helpers::or_exit(
-        rt.block_on(hkask_services::ServiceContext::build(config)),
-        "Failed to build ServiceContext",
+        rt.block_on(hkask_services::AgentService::build(config)),
+        "Failed to build AgentService",
     );
     for (server_id, command) in servers {
         match rt.block_on(ctx.mcp_runtime.start_server(server_id, command)) {

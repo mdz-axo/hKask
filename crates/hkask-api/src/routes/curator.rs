@@ -105,7 +105,7 @@ async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ApiError> {
-    let queue = &state.service_context.escalation_queue;
+    let queue = &state.agent_service.escalation_queue;
     let entries = queue.list_pending().map_err(ApiError::from)?;
     let escalations: Vec<EscalationEntryResponse> = entries
         .into_iter()
@@ -142,7 +142,7 @@ async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ApiError> {
-    let queue = &state.service_context.escalation_queue;
+    let queue = &state.agent_service.escalation_queue;
     if queue.get(&id).map_err(ApiError::from)?.is_none() {
         return Err(ApiError::NotFound {
             resource: "escalation".into(),
@@ -174,7 +174,7 @@ async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ApiError> {
-    let queue = &state.service_context.escalation_queue;
+    let queue = &state.agent_service.escalation_queue;
     if queue.get(&id).map_err(ApiError::from)?.is_none() {
         return Err(ApiError::NotFound {
             resource: "escalation".into(),
@@ -202,7 +202,7 @@ async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
-    let queue = &state.service_context.escalation_queue;
+    let queue = &state.agent_service.escalation_queue;
     let stats = queue.stats().map_err(ApiError::from)?;
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
