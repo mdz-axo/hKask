@@ -316,31 +316,46 @@ When all three gates pass AND the artifact is unchanged from the previous round:
 ```json
 {
   "completed": true,
+  "mode": "autonomous|advisory",
   "rounds_required": 2,
   "artifact_is_essential": true,
   "elimination_report": {
     "g1_exist": {
       "items_deleted": 3,
       "items_preserved": 5,
-      "summary": "3 pass-through wrappers inlined into callers"
+      "required_deletions": 1,
+      "suggested_deletions": 2,
+      "summary": "3 pass-through wrappers inlined into callers. 1 Prohibition (zero-behavior wrapper), 2 Guidelines (thin helpers)."
     },
     "g2_surface": {
       "public_before": 12,
       "public_after": 5,
       "merged": ["handler_a + handler_b → unified_handler"],
-      "justifications": ["handler_c retained for distinct error domain"]
+      "justifications": ["handler_c retained for distinct error domain"],
+      "required_merges": 1,
+      "suggested_merges": 0
     },
     "g3_contract": {
       "abstractions_traced": 4,
       "pass_through_deletions": 2,
-      "retained": ["Storage trait retained — 2 implementors with different backends"]
+      "retained": ["Storage trait retained — 2 implementors with different backends"],
+      "required_deletions": 1,
+      "suggested_deletions": 1
     },
     "essentialism_score": {
       "items_removed": 7,
       "total_items": 15,
       "percentage": 46.7,
+      "required_reductions": 3,
+      "suggested_reductions": 3,
+      "evidence_observations": 2,
       "rounds_required": 2,
       "escalated": false
+    },
+    "human_decisions": {
+      "accepted": 5,
+      "rejected": [{"item": "CacheManager", "human_reason": "Distinct TTL operation domain"}],
+      "overridden": []
     }
   },
   "surviving_artifact": {}
