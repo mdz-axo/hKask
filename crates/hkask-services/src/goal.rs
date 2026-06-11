@@ -94,11 +94,11 @@ impl GoalService {
         })?;
         let repo = ctx.storage().1;
 
-        let from_state = repo
+        let goal = repo
             .get_goal(goal_id)
             .map_err(ServiceError::GoalRepo)?
-            .map(|g| g.state.as_str().to_string())
-            .unwrap_or_default();
+            .ok_or_else(|| ServiceError::ValidationError(format!("Goal not found: {}", goal_id)))?;
+        let from_state = goal.state.as_str().to_string();
 
         repo.update_goal_state(goal_id, new_state)
             .map_err(ServiceError::GoalRepo)?;
@@ -113,11 +113,13 @@ impl GoalService {
             let _ = tx.send(event);
         }
 
+        // Return a response with the existing goal's text and visibility
+        // alongside the new state, rather than empty strings.
         Ok(GoalResponse {
             id: goal_id.to_string(),
-            text: String::new(),
-            state: new_state_str.to_string(),
-            visibility: String::new(),
+            text: goal.text,
+            state: new_state.as_str().to_string(),
+            visibility: goal.visibility.as_str().to_string(),
         })
     }
 }

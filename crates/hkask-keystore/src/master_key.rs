@@ -42,7 +42,7 @@ const SUB_KEY_LEN: usize = 32;
 ///
 /// Each field is a hex-encoded 256-bit key, deterministically derived
 /// from the master passphrase via HKDF-SHA256.
-#[derive(Debug)]
+#[derive()]
 pub struct InternalSecrets {
     /// ACP HMAC signing secret (hex-encoded 256-bit key)
     pub acp_secret: String,
@@ -52,6 +52,17 @@ pub struct InternalSecrets {
     pub mcp_security_key: String,
     /// OCAP capability token signing secret (hex-encoded 256-bit key)
     pub ocap_secret: String,
+}
+
+impl std::fmt::Debug for InternalSecrets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InternalSecrets")
+            .field("acp_secret", &"[REDACTED]")
+            .field("capability_key", &"[REDACTED]")
+            .field("mcp_security_key", &"[REDACTED]")
+            .field("ocap_secret", &"[REDACTED]")
+            .finish()
+    }
 }
 
 /// Derive all internal secrets from a master passphrase.

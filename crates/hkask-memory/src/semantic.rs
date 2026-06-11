@@ -191,7 +191,9 @@ impl SemanticMemory {
         for entity_ref in &matching_refs {
             if let Ok(emb) = self.embedding.get(entity_ref) {
                 for (i, v) in emb.vector.iter().enumerate() {
-                    centroid[i] += v;
+                    if i < dim {
+                        centroid[i] += v;
+                    }
                 }
                 count += 1;
             }

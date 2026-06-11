@@ -549,6 +549,31 @@ impl ReplicaServer {
                 "distance_threshold": "Maximum cosine distance for exemplar inclusion (default: 0.30)",
                 "salience_min": "Only passages with salience >= this value are considered (default: 0.0)",
                 "salience_top_k": "Limit to top K most salient matching passages"
+            },
+            "exemplar_types": {
+                "public_domain_author": {
+                    "status": "Implemented",
+                    "description": "Static YAML corpus config pointing to Gutenberg URLs. Works are declared in corpus.yaml, downloaded, chunked, embedded.",
+                    "examples": ["hemingway", "woolf", "austen", "wilde", "twain", "grant", "christie", "eliot"]
+                },
+                "mashup_persona": {
+                    "status": "Implemented",
+                    "description": "Two-author centroid interpolation. Exemplars drawn from both source corpora via the blended centroid vector.",
+                    "examples": ["jane-wilde (Austen × Wilde)", "ulysses-s-twain (Grant × Twain)", "agatha-eliot (Christie × Eliot)"]
+                },
+                "academic_author": {
+                    "status": "Planned",
+                    "description": "Dynamic corpus discovery via research MCP tools. Given a name (e.g., 'David Dunning'), disambiguate identity, enumerate works across academic and open sources, download and cache content, generate a corpus.yaml, then proceed through the standard embedding pipeline.",
+                    "pipeline": [
+                        "1. Name disambiguation — search academic/open sources, present candidates to Curator for confirmation",
+                        "2. Work enumeration — arXiv, Semantic Scholar, institutional pages, conference proceedings, transcripts, open web",
+                        "3. Content acquisition — web_extract each work into .cache/{slug}.txt",
+                        "4. Corpus config generation — produce corpus.yaml with discovered works",
+                        "5. Replica build — standard chunk/tag/embed/triple/centroid pipeline"
+                    ],
+                    "reuses": "hkask-mcp-research tools (web_search, web_extract, web_find_similar, web_browse) — no duplicated infrastructure"
+                },
+                "human_exemplar_principle": "All exemplar types model a named human individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work — the corpus IS the evidence of their voice, style, and intellectual framework."
             }
         }))
     }

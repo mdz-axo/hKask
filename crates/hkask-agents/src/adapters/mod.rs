@@ -8,7 +8,5 @@ pub mod registry_source;
 pub use hkask_mcp::GitCasAdapter;
 pub use mcp_runtime::CapabilityOnlyAdapter;
 pub use mcp_runtime::FullMcpAdapter;
-#[allow(deprecated)]
-pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_loop_adapter::MemoryLoopAdapter;
 pub use registry_source::FilesystemRegistrySource;

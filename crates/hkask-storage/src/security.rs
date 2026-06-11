@@ -20,7 +20,21 @@ pub fn sanitize_path(base: &Path, input: &str) -> Result<PathBuf, HkaskError> {
         ))));
     }
     let joined = base.join(input_path);
-    let canonical_base = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
+    let canonical_base = match base.canonicalize() {
+        Ok(cb) => cb,
+        Err(_) => {
+            // Base doesn't exist — construct canonical by resolving parent.
+            // Fail closed: if we can't verify containment, reject.
+            if let Some(parent) = base.parent().and_then(|p| p.canonicalize().ok()) {
+                parent.join(base.file_name().unwrap_or_default())
+            } else {
+                return Err(HkaskError::from(InfrastructureError::Io(format!(
+                    "Cannot resolve base directory: {}",
+                    base.display()
+                ))));
+            }
+        }
+    };
     // For non-existent paths, verify the parent is within base
     if let Some(canonical_joined) = joined.parent().and_then(|p| p.canonicalize().ok())
         && !canonical_joined.starts_with(&canonical_base)

@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use hkask_agents::EscalationEntry;
 use hkask_agents::curator_agent::CuratorAgent;
-use hkask_cns::CnsRuntime;
 use hkask_types::CuratorHandle;
 
 use crate::AgentService;
@@ -103,12 +102,10 @@ impl CuratorService {
     /// `ServiceError::Cns` if CNS runtime is unavailable.
     pub async fn metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
         let queue = ctx.governance().2;
-        let (_cns_runtime, _cybernetics, _loop_system, _event_sink) = ctx.cns();
-        // Build a fresh CNS runtime from config — the AgentService's CNS
-        // runtime fields are inside the group tuple and need cloning.
-        // We use the service config to build a standalone CnsRuntime for the
-        // CuratorAgent context.
-        let cns = Arc::new(CnsRuntime::with_threshold(ctx.config().cns_threshold));
+        // Use the live CNS runtime (RwLock<CnsRuntime>) — clone the inner
+        // state so the CuratorAgent sees current alerts and variety, not zeros.
+        let (cns_lock, _cybernetics, _loop_system, _event_sink) = ctx.cns();
+        let cns = Arc::new(cns_lock.read().await.clone());
 
         let agents_ctx = Arc::new(hkask_agents::CuratorContext::new(
             CuratorHandle::system(),

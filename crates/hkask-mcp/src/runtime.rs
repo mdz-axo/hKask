@@ -113,8 +113,9 @@ impl McpRuntime {
         server_id: &str,
         command: &str,
     ) -> Result<(), ServerStartError> {
-        // Already connected — idempotent
-        if self.connections.read().await.contains_key(server_id) {
+        // Acquire write lock first to prevent TOCTOU races.
+        let mut connections = self.connections.write().await;
+        if connections.contains_key(server_id) {
             info!(
                 target: "hkask.mcp",
                 server_id = %server_id,
@@ -152,11 +153,11 @@ impl McpRuntime {
             ))
         })?;
 
-        // Store the connection and cancellation token
-        self.connections
-            .write()
-            .await
-            .insert(server_id.to_string(), peer);
+        // Insert into the already-held write lock
+        connections.insert(server_id.to_string(), peer);
+        // Drop the write lock before acquiring the cancellation_tokens lock
+        drop(connections);
+
         self.cancellation_tokens
             .write()
             .await

@@ -94,7 +94,11 @@ fn is_private_ip(ip: &IpAddr) -> bool {
         }
         IpAddr::V6(v6) => {
             let segments = v6.segments();
-            segments[0] == 0xfc00 || segments[0] == 0xfd00
+            // fc00::/7 — Unique Local Addresses (includes fc00:: through fdff:...)
+            let is_ula = (segments[0] & 0xfe00) == 0xfc00;
+            // fe80::/10 — Link-Local addresses
+            let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
+            is_ula || is_link_local
         }
     }
 }

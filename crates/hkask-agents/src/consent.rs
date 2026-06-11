@@ -17,7 +17,6 @@ use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use tracing::{debug, warn};
-use uuid::Uuid;
 
 use crate::sovereignty::SovereigntyConsent;
 
@@ -88,10 +87,12 @@ impl From<StoredConsentRecord> for ConsentRecord {
 }
 
 impl ConsentRecord {
-    /// Convert to a `StoredConsentRecord` for persistence
+    /// Convert to a `StoredConsentRecord` for persistence.
+    /// Uses a stable id derived from the webid to enable upserts
+    /// rather than generating a new UUID per call.
     fn to_stored(&self) -> StoredConsentRecord {
         StoredConsentRecord {
-            id: format!("cr_{}", Uuid::new_v4().simple()),
+            id: format!("cr_{}", self.webid),
             webid: self.webid.clone(),
             granted_categories: self.granted_categories.clone(),
             granted_at: self.granted_at,

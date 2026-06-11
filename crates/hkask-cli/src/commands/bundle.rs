@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use hkask_services::{BundleService, ServiceError};
+use hkask_services::BundleService;
 use hkask_types::Visibility;
 use hkask_types::ports::InferencePort;
 
@@ -22,7 +22,7 @@ use crate::commands;
 /// detect conflicts, and determine cascade order. This creates a fresh
 /// inference port for standalone CLI commands — the REPL reuses its shared
 /// port, but standalone commands (`kask bundle compose`) create one on demand.
-fn resolve_composition_port(rt: &tokio::runtime::Runtime) -> Arc<dyn InferencePort> {
+fn resolve_composition_port() -> Arc<dyn InferencePort> {
     let okapi_base_url = std::env::var("OKAPI_BASE_URL")
         .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string());
     let ctx =
@@ -49,7 +49,7 @@ pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
             visibility,
         } => {
             let vis = Visibility::parse_str(&visibility).unwrap_or(Visibility::Private);
-            let inference_port = resolve_composition_port(rt);
+            let inference_port = resolve_composition_port();
             let editor = resolve_editor();
             let result = block_on!(
                 rt,
@@ -188,7 +188,7 @@ pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
         }
 
         BundleAction::Evolve { bundle_id } => {
-            let inference_port = resolve_composition_port(rt);
+            let inference_port = resolve_composition_port();
             let editor = resolve_editor();
             let result = block_on!(
                 rt,

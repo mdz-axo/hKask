@@ -135,6 +135,7 @@ impl TripleStore {
     }
 
     /// Update a triple's value (close current version, insert new).
+    /// Wrapped in a transaction for atomicity.
     pub fn update(
         &self,
         id: &TripleID,
@@ -145,49 +146,63 @@ impl TripleStore {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
 
-        conn.execute(
-            "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
-            rusqlite::params![now, id],
-        )?;
+        conn.execute("BEGIN IMMEDIATE", [])?;
+        let result = (|| -> Result<(), TripleError> {
+            conn.execute(
+                "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
+                rusqlite::params![now, id],
+            )?;
 
-        let mut stmt = conn.prepare(
-            "SELECT entity, attribute, perspective, visibility, owner_webid
-             FROM triples WHERE id = ?1",
-        )?;
+            let mut stmt = conn.prepare(
+                "SELECT entity, attribute, perspective, visibility, owner_webid
+                 FROM triples WHERE id = ?1",
+            )?;
 
-        let row = stmt.query_row(rusqlite::params![id], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<WebID>>(2)?,
-                row.get::<_, Visibility>(3)?,
-                row.get::<_, WebID>(4)?,
-            ))
-        })?;
+            let row = stmt.query_row(rusqlite::params![id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<WebID>>(2)?,
+                    row.get::<_, Visibility>(3)?,
+                    row.get::<_, WebID>(4)?,
+                ))
+            })?;
 
-        let access = AccessControl {
-            perspective: row.2,
-            visibility: row.3,
-            owner_webid: row.4,
-        };
+            let access = AccessControl {
+                perspective: row.2,
+                visibility: row.3,
+                owner_webid: row.4,
+            };
 
-        let new_id = TripleID::new();
-        conn.execute(
-            &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"),
-            rusqlite::params![
-                new_id,
-                row.0,
-                row.1,
-                serde_json::to_string(&new_value)?,
-                now,
-                new_confidence,
-                access.perspective,
-                access.visibility,
-                access.owner_webid,
-            ],
-        )?;
+            let new_id = TripleID::new();
+            conn.execute(
+                &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"),
+                rusqlite::params![
+                    new_id,
+                    row.0,
+                    row.1,
+                    serde_json::to_string(&new_value)?,
+                    now,
+                    new_confidence,
+                    access.perspective,
+                    access.visibility,
+                    access.owner_webid,
+                ],
+            )?;
 
-        Ok(())
+            Ok(())
+        })();
+
+        match result {
+            Ok(()) => {
+                conn.execute("COMMIT", [])?;
+                Ok(())
+            }
+            Err(e) => {
+                let _ = conn.execute("ROLLBACK", []);
+                Err(e)
+            }
+        }
     }
 
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {

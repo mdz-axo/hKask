@@ -1,21 +1,15 @@
 //! Bundle management routes
 //!
-//! # Service layer depth test
+//! # REQ: P11 (Digital Public/Private Sphere) — API surface for bundle management
 //!
-//! BundleService was considered but **rejected** as shallow: every handler is a
-//! thin delegation to a `SqliteRegistry` bundle method plus HTTP response mapping.
-//! The `compose_bundle` skill-matching check is already in `registry.find_bundle_by_skills()`.
-//! No CLI bundle commands exist with real logic (CLI `run_bundle` is all stubs).
-//! A BundleService would just be `self.storage().0.list_bundles()` / etc. — pure
-//! pass-throughs that increase interface cost without adding behavior.
-//!
-//! Decision: Guideline — keep direct `service_context.storage().0` access.
-//! Revisit if bundle composition or evolution logic grows beyond registry CRUD.
+//! Delegates to `BundleService` for all business logic. The `compose` and
+//! `evolve` endpoints now use inference-driven composition via the shared
+//! service layer, replacing the previous stub responses.
 
 use axum::Json;
 use axum::extract::{Path, State};
-use hkask_types::ports::BundleRegistryIndex;
-use utoipa_axum::{router::OpenApiRouter, routes};
+use hkask_services::BundleService;
+use hkask_types::Visibility;
 
 use crate::ApiError;
 use crate::ApiState;
@@ -52,10 +46,10 @@ fn default_visibility() -> String {
 /// Compose bundle response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ComposeBundleResponse {
-    /// Whether an existing bundle was found matching these skills
-    pub existing_match: Option<BundleSummary>,
-    /// The composed bundle manifest (if composition was performed)
+    /// The composed bundle manifest (as JSON)
     pub manifest: Option<serde_json::Value>,
+    /// Warnings from composition
+    pub warnings: Vec<String>,
     /// Message about what happened
     pub message: String,
 }
@@ -90,14 +84,14 @@ pub struct DeactivateBundleResponse {
 }
 
 /// Create bundles router
-pub fn bundles_router() -> OpenApiRouter<ApiState> {
-    OpenApiRouter::new()
-        .routes(routes!(list_bundles))
-        .routes(routes!(compose_bundle))
-        .routes(routes!(get_bundle))
-        .routes(routes!(apply_bundle))
-        .routes(routes!(evolve_bundle))
-        .routes(routes!(deactivate_bundle))
+pub fn bundles_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
+    utoipa_axum::router::OpenApiRouter::new()
+        .routes(utoipa_axum::routes!(list_bundles))
+        .routes(utoipa_axum::routes!(compose_bundle))
+        .routes(utoipa_axum::routes!(get_bundle))
+        .routes(utoipa_axum::routes!(apply_bundle))
+        .routes(utoipa_axum::routes!(evolve_bundle))
+        .routes(utoipa_axum::routes!(deactivate_bundle))
 }
 
 /// List all bundles
@@ -110,11 +104,11 @@ pub fn bundles_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse> {
-    let registry = state.agent_service.storage().0.lock().await;
+    let bundles = BundleService::list(&state.agent_service)
+        .await
+        .unwrap_or_default();
 
-    // Collect bundles from the registry
-    let bundles: Vec<BundleSummary> = registry
-        .list_bundles()
+    let bundles: Vec<BundleSummary> = bundles
         .into_iter()
         .map(|b| BundleSummary {
             id: b.id.clone(),
@@ -146,18 +140,47 @@ pub(crate) async fn get_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let registry = state.agent_service.storage().0.lock().await;
-    match registry.get_bundle(&id) {
-        Some(bundle) => {
+    match BundleService::get(&state.agent_service, &id).await {
+        Ok(Some(bundle)) => {
             let value =
                 serde_json::to_value(&bundle).unwrap_or(serde_json::json!({"id": bundle.id}));
             Ok(Json(value))
         }
-        None => Err(ApiError::NotFound {
+        Ok(None) => Err(ApiError::NotFound {
             resource: "bundle".into(),
             id,
         }),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
     }
+}
+
+/// Resolve an inference port for bundle composition from the API service context.
+///
+/// Uses the shared inference port from `AgentService::coordination()` when
+/// available, or creates a fresh port as fallback.
+fn resolve_api_composition_port(
+    state: &ApiState,
+) -> Result<std::sync::Arc<dyn hkask_types::ports::InferencePort>, ApiError> {
+    // Prefer the shared port from AgentService
+    if let Some(port) = state.agent_service.coordination().0 {
+        return Ok(std::sync::Arc::clone(port));
+    }
+    // Fallback: create a fresh inference port
+    let okapi_url = state.agent_service.config().okapi_base_url.clone();
+    let ctx = hkask_services::InferenceContext::from_parts(
+        None,
+        &state.agent_service.config().default_model,
+        &okapi_url,
+    );
+    hkask_services::InferenceService::resolve_port(
+        &ctx,
+        &state.agent_service.config().default_model,
+    )
+    .map_err(|e| ApiError::Internal {
+        message: format!("Failed to initialize inference port: {}", e),
+    })
 }
 
 /// Compose a new bundle from specified skills
@@ -180,30 +203,33 @@ pub(crate) async fn compose_bundle(
         });
     }
 
-    let registry = state.agent_service.storage().0.lock().await;
+    let vis = Visibility::parse_str(&request.visibility).unwrap_or(Visibility::Private);
+    let inference_port = resolve_api_composition_port(&state)?;
+    let editor = hkask_services::resolve_replicant_name();
 
-    // Check for existing bundle with these skills (smart matching)
-    let existing = registry.find_bundle_by_skills(&request.skills);
+    let result = BundleService::compose(
+        &state.agent_service,
+        &request.skills,
+        request.name.as_deref(),
+        vis,
+        inference_port,
+        &editor,
+    )
+    .await
+    .map_err(|e| ApiError::Internal {
+        message: format!("Bundle composition failed: {}", e),
+    })?;
 
-    let existing_match = existing.map(|b| BundleSummary {
-        id: b.id.clone(),
-        name: b.name.clone(),
-        description: b.description.clone(),
-        version: b.version.clone(),
-        visibility: b.visibility.as_str().to_string(),
-        skill_count: b.skills.len(),
-    });
-
-    let message = if existing_match.is_some() {
-        "An existing bundle matches these skills. Use apply or evolve instead of composing a new one.".to_string()
-    } else {
-        "Bundle composition requires template rendering. Use `kask bundle compose` for full composition.".to_string()
-    };
+    let manifest_json = serde_json::to_value(&result.manifest).unwrap_or(serde_json::Value::Null);
 
     Ok(Json(ComposeBundleResponse {
-        existing_match,
-        manifest: None, // Composition requires template rendering — not available in API alone
-        message,
+        manifest: Some(manifest_json),
+        warnings: result.warnings,
+        message: format!(
+            "Bundle '{}' composed with {} skills",
+            result.manifest.id,
+            result.manifest.skills.len()
+        ),
     }))
 }
 
@@ -224,15 +250,14 @@ pub(crate) async fn apply_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<ApplyBundleResponse>, ApiError> {
-    let registry = state.agent_service.storage().0.lock().await;
-    match registry.get_bundle(&id) {
-        Some(bundle) => Ok(Json(ApplyBundleResponse {
+    match BundleService::apply(&state.agent_service, &id).await {
+        Ok(bundle) => Ok(Json(ApplyBundleResponse {
             status: "active".to_string(),
             bundle_id: bundle.id.clone(),
             name: bundle.name.clone(),
             skill_count: bundle.skills.len(),
         })),
-        None => Err(ApiError::NotFound {
+        Err(_) => Err(ApiError::NotFound {
             resource: "bundle".into(),
             id,
         }),
@@ -256,18 +281,35 @@ pub(crate) async fn evolve_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<EvolveBundleResponse>, ApiError> {
-    let registry = state.agent_service.storage().0.lock().await;
-    match registry.get_bundle(&id) {
-        Some(_bundle) => Ok(Json(EvolveBundleResponse {
-            evolved_manifest: None, // Evolution requires template rendering
-            changes: vec![],
-            message: "Bundle evolution requires template rendering. Use `kask bundle evolve` for full evolution.".to_string(),
-        })),
-        None => Err(ApiError::NotFound {
-            resource: "bundle".into(),
-            id,
-        }),
-    }
+    let inference_port = resolve_api_composition_port(&state)?;
+    let editor = hkask_services::resolve_replicant_name();
+
+    let result = BundleService::evolve(&state.agent_service, &id, inference_port, &editor)
+        .await
+        .map_err(|e| {
+            if e.to_string().contains("not found") {
+                ApiError::NotFound {
+                    resource: "bundle".into(),
+                    id: id.clone(),
+                }
+            } else {
+                ApiError::Internal {
+                    message: format!("Bundle evolution failed: {}", e),
+                }
+            }
+        })?;
+
+    let manifest_json = serde_json::to_value(&result.manifest).unwrap_or(serde_json::Value::Null);
+
+    Ok(Json(EvolveBundleResponse {
+        evolved_manifest: Some(manifest_json),
+        changes: result.warnings.clone(),
+        message: format!(
+            "Bundle '{}' evolved with {} skills",
+            result.manifest.id,
+            result.manifest.skills.len()
+        ),
+    }))
 }
 
 /// Deactivate the current bundle

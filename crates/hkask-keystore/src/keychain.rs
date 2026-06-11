@@ -18,7 +18,11 @@ pub enum KeychainError {
 
 impl From<KeyringError> for KeychainError {
     fn from(err: KeyringError) -> Self {
-        KeychainError::Platform(err.to_string())
+        use KeyringError::*;
+        match err {
+            NoEntry => KeychainError::NotFound("secret not found in keychain".into()),
+            other => KeychainError::Platform(other.to_string()),
+        }
     }
 }
 
@@ -49,9 +53,7 @@ impl Keychain {
         let entry = Entry::new(&self.service_name, &webid.0.to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        entry
-            .get_password()
-            .map_err(|e| KeychainError::NotFound(e.to_string()))
+        entry.get_password().map_err(KeychainError::from)
     }
 
     pub fn delete(&self, webid: &WebID) -> Result<(), KeychainError> {
@@ -80,9 +82,7 @@ impl Keychain {
         let entry = Entry::new(&self.service_name, key)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        entry
-            .get_password()
-            .map_err(|e| KeychainError::NotFound(e.to_string()))
+        entry.get_password().map_err(KeychainError::from)
     }
 
     pub fn delete_by_key(&self, key: &str) -> Result<(), KeychainError> {

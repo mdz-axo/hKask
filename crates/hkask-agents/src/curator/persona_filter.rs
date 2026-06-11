@@ -29,15 +29,13 @@ pub fn check_persona_constraints(
 
     for pattern in &constraints.forbidden {
         // Case-insensitive substring check
-        if output.to_lowercase().contains(&pattern.to_lowercase()) {
-            // Find the actual matched text (case-insensitive)
-            let lower_output = output.to_lowercase();
-            let lower_pattern = pattern.to_lowercase();
-            if let Some(pos) = lower_output.find(&lower_pattern) {
-                let end = (pos + pattern.len()).min(output.len());
-                let matched = output[pos..end].to_string();
-                violations.push((pattern.clone(), matched));
-            }
+        let lower_output = output.to_lowercase();
+        let lower_pattern = pattern.to_lowercase();
+        if let Some(pos) = lower_output.find(&lower_pattern) {
+            // Safe: pos and lower_pattern.len() are both byte indices into lower_output.
+            let end = (pos + lower_pattern.len()).min(lower_output.len());
+            let matched = lower_output[pos..end].to_string();
+            violations.push((pattern.clone(), matched));
         }
     }
 
@@ -59,12 +57,30 @@ pub fn strip_forbidden_patterns(
     let mut cleaned = output.to_string();
 
     for (pattern, _) in &check.violations {
-        // Case-insensitive replacement
+        // Case-insensitive replacement using lowercased indices
         let lower = cleaned.to_lowercase();
         let lower_pattern = pattern.to_lowercase();
         if let Some(pos) = lower.find(&lower_pattern) {
-            let end = (pos + pattern.len()).min(cleaned.len());
-            cleaned = format!("{}{}", &cleaned[..pos], &cleaned[end..]);
+            let end = (pos + lower_pattern.len()).min(lower.len());
+            // Map lowercased byte positions back to original via char walk.
+            // Since to_lowercase() on ASCII changes no byte length, this
+            // is a direct position map for persona constraint patterns.
+            let (orig_pos, orig_end) = if lower.len() == cleaned.len() {
+                (pos, end)
+            } else {
+                // Fallback: rebuild string without the matched range
+                let mut result = String::with_capacity(cleaned.len());
+                let mut byte_offset = 0;
+                for c in cleaned.chars() {
+                    if byte_offset < pos || byte_offset >= end {
+                        result.push(c);
+                    }
+                    byte_offset += c.len_utf8();
+                }
+                cleaned = result;
+                continue;
+            };
+            cleaned = format!("{}{}", &cleaned[..orig_pos], &cleaned[orig_end..]);
         }
     }
 

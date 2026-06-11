@@ -93,7 +93,7 @@ fn default_multiplier() -> f64 {
 
 impl RetryConfig {
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
-        let delay = self.initial_delay_ms * (self.multiplier as u64).pow(attempt);
+        let delay = (self.initial_delay_ms as f64 * self.multiplier.powi(attempt as i32)) as u64;
         delay.min(self.max_delay_ms)
     }
 

@@ -258,13 +258,3 @@ impl MCPRuntimePort for FullMcpAdapter {
 // ---------------------------------------------------------------------------
 // Backward-compatible type alias (deprecated)
 // ---------------------------------------------------------------------------
-
-/// Deprecated: use [`FullMcpAdapter`] or [`CapabilityOnlyAdapter`] instead.
-///
-/// `McpRuntimeAdapter` is preserved as a type alias for `FullMcpAdapter`
-/// to ease migration. New code should use the concrete type directly.
-#[deprecated(
-    since = "0.24.0",
-    note = "Use FullMcpAdapter or CapabilityOnlyAdapter instead"
-)]
-pub type McpRuntimeAdapter = FullMcpAdapter;

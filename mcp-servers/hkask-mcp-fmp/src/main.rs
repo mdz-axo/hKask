@@ -21,6 +21,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
+mod analysis;
+
 const BASE_URL: &str = "https://financialmodelingprep.com/stable";
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -323,6 +325,73 @@ impl FmpServer {
             )
             .await,
         )
+    }
+
+    #[tool(
+        description = "Analyze competitive moat using MAIA framework: gross margin stability and working capital market power signal"
+    )]
+    async fn fmp_moat_check(
+        &self,
+        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("fmp_moat_check", &self.webid);
+        if let Err(e) = validate_symbol(&symbol) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        // Fetch 10 years of key metrics for gross margin stability analysis
+        let limit = "10";
+        let metrics_result = fmp_get(
+            &self.client,
+            "/key-metrics",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", limit)],
+        )
+        .await;
+
+        let metrics = match metrics_result {
+            Ok(v) => v,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
+
+        let gross_margins = analysis::extract_gross_margins(&metrics);
+        if gross_margins.is_empty() {
+            return span.ok_json(serde_json::json!({
+                "symbol": symbol,
+                "moat": "insufficient_data",
+                "reason": "No gross margin data available for this symbol",
+            }));
+        }
+
+        let margin_values: Vec<f64> = gross_margins.iter().map(|(_, m)| *m).collect();
+        let stability = analysis::gross_margin_stability(&margin_values);
+
+        let wc_data = analysis::extract_wc_days(&metrics);
+        let (wc_spread, dpo, dso) = match wc_data {
+            Some((dpo_val, dso_val)) => (
+                analysis::working_capital_spread(dpo_val, dso_val),
+                Some(dpo_val),
+                Some(dso_val),
+            ),
+            None => (0.0, None, None),
+        };
+
+        let wc_label = analysis::wc_signal_label(wc_spread);
+        let moat = analysis::classify_moat(stability, wc_spread, gross_margins.len());
+
+        span.ok_json(serde_json::json!({
+            "symbol": symbol,
+            "moat": moat,
+            "margin_stability": stability,
+            "gross_margins": gross_margins,
+            "working_capital": {
+                "spread_days": wc_spread,
+                "dpo": dpo,
+                "dso": dso,
+                "signal": wc_label,
+            },
+            "data_periods": gross_margins.len(),
+        }))
     }
 }
 

@@ -235,13 +235,18 @@ impl EnergyBudget {
     /// Never exceeds cap.
     pub fn replenish(&mut self) {
         if self.replenish_rate.0 > 0 {
-            self.remaining = EnergyCost((self.remaining.0 + self.replenish_rate.0).min(self.cap.0));
+            self.remaining = EnergyCost(
+                self.remaining
+                    .0
+                    .saturating_add(self.replenish_rate.0)
+                    .min(self.cap.0),
+            );
         }
     }
 
     /// Replenish energy budget by a specific amount (used by CuratorDirective::ReplenishBudget).
     pub fn replenish_by(&mut self, amount: EnergyCost) {
-        self.remaining = EnergyCost((self.remaining.0 + amount.0).min(self.cap.0));
+        self.remaining = EnergyCost(self.remaining.0.saturating_add(amount.0).min(self.cap.0));
     }
 
     /// Replenish energy budget by `amount * priority`, weighted by the given priority.
@@ -253,7 +258,7 @@ impl EnergyBudget {
         let scaled = (amount.0 as f64 * priority.clamp(0.0, 1.0)).round() as u64;
         let effective = scaled.max(1);
         let before = self.remaining.0;
-        self.remaining = EnergyCost((self.remaining.0 + effective).min(self.cap.0));
+        self.remaining = EnergyCost(self.remaining.0.saturating_add(effective).min(self.cap.0));
         EnergyCost(self.remaining.0 - before)
     }
 

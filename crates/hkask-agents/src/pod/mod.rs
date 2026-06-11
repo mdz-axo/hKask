@@ -188,15 +188,15 @@ impl AgentPod {
         // (ADR-027: deterministic, restart-safe, per-agent isolation)
         let ocap_secret = derive_ocap_secret(&persona.webid())?;
 
-        // Use first capability from persona, or default to "tool:execute"
+        // Use first capability from persona, or default to "tool:execute".
+        // The default is the canonical literal; persona capabilities are user-supplied.
         let default_capability = "tool:execute".to_string();
         let capability_str = persona.capabilities.first().unwrap_or(&default_capability);
-        // P4.1: Hardcoded capability string is a compile-time constant.
-        // `CapabilitySpec::parse` only fails on malformed input, and
-        // "tool:execute" is the canonical literal. If this ever changes,
-        // the test suite will catch the parse failure.
-        let spec = CapabilitySpec::parse(capability_str)
-            .expect("Default capability 'tool:execute' must always parse");
+        let spec = CapabilitySpec::parse(capability_str).unwrap_or_else(|_| {
+            // Malformed user-supplied capability — fall back to safe default.
+            CapabilitySpec::parse(&default_capability)
+                .expect("Default capability 'tool:execute' must always parse")
+        });
 
         let capability_token = DelegationToken::new(
             spec.resource,

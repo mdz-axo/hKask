@@ -73,6 +73,37 @@ Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation
 
 Replica tools compose `EmbedService` and `ComposeService` from `hkask-services` as a third surface (tri-surface pattern: CLI, API, MCP). They enable agent-driven style corpus management, prose generation, centroid-based author comparison, and centroid-interpolated style blending.
 
+### Replicant Architecture
+
+The replica system models a **human exemplar** — a named individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work: the corpus *is* the evidence of their voice, style, and intellectual framework. Each passage is a sample of that relationship.
+
+**Corpus sources by exemplar type:**
+
+| Exemplar type | Discovery | Source examples | Status |
+|--------------|-----------|----------------|--------|
+| Public domain author | Static YAML (`works:` list pointing to Gutenberg URLs) | Hemingway, Woolf, Austen, Wilde, Twain, Grant, Christie, Eliot | ✅ Implemented |
+| Mashup persona | Two-author centroid interpolation; exemplars drawn from both source corpora | Jane Wilde (Austen×Wilde), Ulysses S. Twain (Grant×Twain), Agatha Eliot (Christie×Eliot) | ✅ Implemented |
+| Academic author | Dynamic corpus discovery via research MCP tools; disambiguation required | "David Dunning" → "David Dunning, University of Michigan" | 🔮 Planned |
+
+### Academic Author Pipeline (Planned)
+
+For academic exemplars, the corpus is not statically declared — it is discovered dynamically through the existing research infrastructure. The research MCP server (`hkask-mcp-research`) provides tools that can discover, extract, and cache academic content without replicating infrastructure:
+
+| Research tool | Role in corpus discovery |
+|--------------|--------------------------|
+| `web_search` | Find the author's papers, talks, interviews, and profiles across the open web |
+| `web_extract` | Download full-text content from discovered URLs (papers, transcripts, blog posts) |
+| `web_find_similar` | Expand the corpus by finding related work and responses to the author |
+| `web_browse` | Navigate academic profiles (Google Scholar, Semantic Scholar, arXiv author pages) to enumerate works |
+
+The planned `replica_discover` tool would orchestrate this pipeline:
+
+1. **Name disambiguation**: Given a name (e.g., "David Dunning"), search academic and open sources, present candidate matches to the Curator for confirmation. This is a consent boundary — the Curator selects *which* David Dunning.
+2. **Work enumeration**: From the confirmed identity, enumerate their known works across sources (arXiv, Semantic Scholar, open web, institutional pages, conference proceedings, transcripts).
+3. **Content acquisition**: Download and cache each work via `web_extract`, producing `.cache/{slug}.txt` files mirroring the public-domain author pattern.
+4. **Corpus config generation**: Produce a `corpus.yaml` with the discovered works, ready for `replica_build`.
+5. **Embedding and replication**: Standard pipeline from this point forward — chunk, tag, embed, store triples, compute centroid.
+
 ---
 
 ## 4. hLexicon Extension — Spec Terms
