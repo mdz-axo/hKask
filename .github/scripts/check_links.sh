@@ -17,26 +17,26 @@ FILES=$(find ${DOCS_DIR} -name "*.md" ! -path "docs/archive/*" -type f)
 for file in ${FILES}; do
     # Extract all markdown links [text](url)
     LINKS=$(grep -oE '\[.*\]\([^)]+\)' "$file" 2>/dev/null || true)
-    
+
     if [ -z "$LINKS" ]; then
         continue
     fi
-    
-    # Check each link
-    echo "$LINKS" | while read -r link; do
+
+    # Check each link (use here-string to avoid subshell for ERRORS counter)
+    while IFS= read -r link; do
         # Extract URL from markdown link
         URL=$(echo "$link" | grep -oE '\([^)]+\)' | tr -d '()')
-        
+
         # Skip external URLs (http/https/mailto)
         if [[ "$URL" =~ ^https?:// ]] || [[ "$URL" =~ ^mailto: ]]; then
             continue
         fi
-        
+
         # Skip anchor-only links
         if [[ "$URL" =~ ^# ]]; then
             continue
         fi
-        
+
         # Resolve relative path
         FILE_DIR=$(dirname "$file")
         if [[ ! "$URL" =~ ^/ ]]; then
@@ -44,16 +44,16 @@ for file in ${FILES}; do
         else
             TARGET="${DOCS_DIR}${URL}"
         fi
-        
+
         # Normalize path (remove ../)
         TARGET=$(realpath -m "$TARGET" 2>/dev/null || echo "$TARGET")
-        
+
         # Check if target exists
         if [ ! -f "$TARGET" ]; then
             echo "❌ Broken link in ${file}: ${URL}"
             ERRORS=$((ERRORS + 1))
         fi
-    done
+    done <<< "$LINKS"
 done
 
 if [ ${ERRORS} -eq 0 ]; then
