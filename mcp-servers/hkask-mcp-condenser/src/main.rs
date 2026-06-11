@@ -20,7 +20,6 @@
 //! `condenser_thread_summary` tool calls the inference engine
 //! to summarize conversation history for context condensation.
 
-mod algorithms;
 mod engine;
 mod inference;
 mod types;

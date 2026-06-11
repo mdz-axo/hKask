@@ -69,8 +69,8 @@ jinja2_template: |
   {% if not no_validate %}
   ## Centroid Validation
   Your output will be embedded and compared against the style centroid.
-  Centroid distance threshold: {{ "%.2f"|format(centroid_distance_max) }}
-  If the distance exceeds {{ "%.2f"|format(centroid_distance_max) }}, the output will be rejected.
+  Centroid distance threshold: {{ centroid_distance_max }}
+  If the distance exceeds {{ centroid_distance_max }}, the output will be rejected.
   {% endif %}
 
   ## Task

@@ -217,3 +217,144 @@ pub struct ThreadSummaryOutput {
     pub inference_model: String,
     pub inference_url: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: CNS-CONDENSER-PROFILE — Profile must parse from lowercase strings with known retention percentages
+    #[test]
+    fn profile_parsing_known_values() {
+        assert_eq!("heavy".parse::<Profile>().unwrap(), Profile::Heavy);
+        assert_eq!("normal".parse::<Profile>().unwrap(), Profile::Normal);
+        assert_eq!("soft".parse::<Profile>().unwrap(), Profile::Soft);
+        assert_eq!("light".parse::<Profile>().unwrap(), Profile::Light);
+    }
+
+    // REQ: CNS-CONDENSER-PROFILE — Profile parsing is case-insensitive
+    #[test]
+    fn profile_parsing_case_insensitive() {
+        assert_eq!("HEAVY".parse::<Profile>().unwrap(), Profile::Heavy);
+        assert_eq!("Normal".parse::<Profile>().unwrap(), Profile::Normal);
+        assert_eq!("SoFt".parse::<Profile>().unwrap(), Profile::Soft);
+    }
+
+    // REQ: CNS-CONDENSER-PROFILE — Unknown profile strings produce an error
+    #[test]
+    fn profile_parsing_unknown_is_error() {
+        assert!("extreme".parse::<Profile>().is_err());
+        assert!("super_heavy".parse::<Profile>().is_err());
+        assert!("".parse::<Profile>().is_err());
+    }
+
+    // REQ: CNS-CONDENSER-PROFILE — Each profile has expected retention percentage
+    #[test]
+    fn profile_retention_pct_bounds() {
+        assert!((Profile::Heavy.retention_pct() - 0.10).abs() < 0.001);
+        assert!((Profile::Normal.retention_pct() - 0.20).abs() < 0.001);
+        assert!((Profile::Soft.retention_pct() - 0.60).abs() < 0.001);
+        assert!((Profile::Light.retention_pct() - 0.95).abs() < 0.001);
+        for profile in &[
+            Profile::Heavy,
+            Profile::Normal,
+            Profile::Soft,
+            Profile::Light,
+        ] {
+            let pct = profile.retention_pct();
+            assert!(
+                pct > 0.0 && pct < 1.0,
+                "{profile}: retention {pct} out of bounds"
+            );
+        }
+    }
+
+    // REQ: CNS-CONDENSER-PROFILE — Profile max_lines returns expected caps
+    #[test]
+    fn profile_max_lines() {
+        assert_eq!(Profile::Heavy.max_lines(), Some(30));
+        assert_eq!(Profile::Normal.max_lines(), Some(80));
+        assert_eq!(Profile::Soft.max_lines(), Some(200));
+        assert_eq!(Profile::Light.max_lines(), None);
+    }
+
+    // REQ: CNS-CONDENSER-PROFILE — Profile Display round-trips through FromStr
+    #[test]
+    fn profile_display_roundtrip() {
+        for original in &[
+            Profile::Heavy,
+            Profile::Normal,
+            Profile::Soft,
+            Profile::Light,
+        ] {
+            let s = original.to_string();
+            let parsed: Profile = s.parse().unwrap();
+            assert_eq!(parsed, *original);
+        }
+    }
+
+    // REQ: CNS-CONDENSER-CTX — ContextCategory parses from snake_case labels
+    #[test]
+    fn context_category_parsing() {
+        assert_eq!(
+            "shell_command".parse::<ContextCategory>().unwrap(),
+            ContextCategory::ShellCommand
+        );
+        assert_eq!(
+            "test_output".parse::<ContextCategory>().unwrap(),
+            ContextCategory::TestOutput
+        );
+        assert_eq!(
+            "build_output".parse::<ContextCategory>().unwrap(),
+            ContextCategory::BuildOutput
+        );
+        assert_eq!(
+            "file_contents".parse::<ContextCategory>().unwrap(),
+            ContextCategory::FileContents
+        );
+        assert_eq!(
+            "conversation_history".parse::<ContextCategory>().unwrap(),
+            ContextCategory::ConversationHistory
+        );
+        assert_eq!(
+            "structured_data".parse::<ContextCategory>().unwrap(),
+            ContextCategory::StructuredData
+        );
+        assert_eq!(
+            "log_output".parse::<ContextCategory>().unwrap(),
+            ContextCategory::LogOutput
+        );
+    }
+
+    // REQ: CNS-CONDENSER-CTX — Unknown category strings default to Unknown (not error)
+    #[test]
+    fn context_category_unknown_fallback() {
+        assert_eq!(
+            "garbage".parse::<ContextCategory>().unwrap(),
+            ContextCategory::Unknown
+        );
+        assert_eq!(
+            "".parse::<ContextCategory>().unwrap(),
+            ContextCategory::Unknown
+        );
+    }
+
+    // REQ: CNS-CONDENSER-CTX — ContextCategory labels round-trip through FromStr
+    #[test]
+    fn context_category_label_roundtrip() {
+        let all = [
+            ContextCategory::ShellCommand,
+            ContextCategory::TestOutput,
+            ContextCategory::BuildOutput,
+            ContextCategory::FileContents,
+            ContextCategory::ConversationHistory,
+            ContextCategory::StructuredData,
+            ContextCategory::LogOutput,
+            ContextCategory::Unknown,
+        ];
+        for cat in &all {
+            let label = cat.label();
+            let parsed: ContextCategory = label.parse().unwrap();
+            assert_eq!(parsed, *cat, "round-trip failed for {cat:?}");
+        }
+    }
+}

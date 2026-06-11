@@ -68,6 +68,7 @@ pub struct ResearchServer {
 }
 
 impl ResearchServer {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         ctx: &ServerContext,
         brave_api_key: Option<String>,
@@ -148,7 +149,7 @@ impl ResearchServer {
             .build()?;
 
         Ok(Self {
-            webid: ctx.webid.clone(),
+            webid: ctx.webid,
             pool: Arc::new(ProviderPool::new(
                 search_providers,
                 extract_providers,

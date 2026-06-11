@@ -3,6 +3,7 @@
 //! Direct library interface for context condensation, bypassing the MCP server.
 //! Callers can use `thread_summary()` without a running condenser server.
 
+pub mod algorithms;
 mod inference;
 pub mod types;
 

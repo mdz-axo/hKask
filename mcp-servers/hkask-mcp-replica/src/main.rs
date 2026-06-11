@@ -490,14 +490,11 @@ impl ReplicaServer {
                     let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
                     let mut triple_count = 0usize;
                     for entity_ref in refs {
-                        match triple_store.query_by_entity(&entity_ref) {
-                            Ok(triples) => {
-                                for t in &triples {
-                                    let _ = triple_store.close_by_id(&t.id);
-                                    triple_count += 1;
-                                }
+                        if let Ok(triples) = triple_store.query_by_entity(&entity_ref) {
+                            for t in &triples {
+                                let _ = triple_store.close_by_id(&t.id);
+                                triple_count += 1;
                             }
-                            _ => {}
                         }
                     }
                     serde_json::to_string(&RegistryResult {
