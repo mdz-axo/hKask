@@ -32,7 +32,7 @@ pub struct MethodSignals {
     /// positives like "only", "early", "family").
     pub adverb_density: f32,
 
-    /// Ratio of "was/were <verb>ed" patterns to total verbs.
+    /// Ratio of "was/were `<verb>ed`" patterns to total verbs.
     pub passive_voice_ratio: f32,
 
     /// Words inside double-quote characters divided by total words.

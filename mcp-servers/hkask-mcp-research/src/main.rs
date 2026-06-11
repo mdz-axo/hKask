@@ -1,16 +1,3 @@
-//! hKask MCP Research — Web search, extraction, browsing, and feed-based research
-//!
-//! Combines the former `hkask-mcp-web` and `hkask-mcp-rss-reader` into a single
-//! research server: search → extract → subscribe → organize → research pipeline.
-//!
-//! Web tools (always available with at least one search provider key):
-//!   web_ping, web_search, web_find_similar, web_extract, web_browse
-//!
-//! RSS tools (available when HKASK_RSS_DB + HKASK_DB_PASSPHRASE are set):
-//!   rss_subscribe, rss_unsubscribe, rss_list_subscriptions, rss_fetch,
-//!   rss_get_entries, rss_mark_all_read, rss_get_unread_count, rss_search,
-//!   rss_export_opml, rss_import_opml, rss_discover_feeds, rss_edit_tag
-
 mod cache;
 mod db;
 pub mod providers;
@@ -69,6 +56,7 @@ pub struct ResearchServer {
 
 impl ResearchServer {
     #[allow(clippy::too_many_arguments)]
+    #[allow(dead_code)]
     fn new(
         ctx: &ServerContext,
         brave_api_key: Option<String>,

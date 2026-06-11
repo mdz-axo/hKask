@@ -78,3 +78,70 @@ pub fn freshness_serpapi(freshness: &Freshness) -> String {
         Freshness::Year => "qdr:y".to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: CNS-WEB-FRESHNESS — Freshness parses from free-form user strings
+    #[test]
+    fn freshness_parsing_known_values() {
+        assert_eq!("day".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("week".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("month".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("year".parse::<Freshness>().unwrap(), Freshness::Year);
+    }
+
+    // REQ: CNS-WEB-FRESHNESS — Freshness parses provider-specific aliases
+    #[test]
+    fn freshness_parsing_aliases() {
+        assert_eq!("d".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("1d".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("24h".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("pw".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("7d".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("pm".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("30d".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("py".parse::<Freshness>().unwrap(), Freshness::Year);
+        assert_eq!("365d".parse::<Freshness>().unwrap(), Freshness::Year);
+    }
+
+    // REQ: CNS-WEB-FRESHNESS — Unknown freshness strings produce an error
+    #[test]
+    fn freshness_parsing_unknown_is_error() {
+        assert!("decade".parse::<Freshness>().is_err());
+        assert!("century".parse::<Freshness>().is_err());
+        assert!("".parse::<Freshness>().is_err());
+    }
+
+    // REQ: CNS-WEB-FRESHNESS — normalize_freshness maps to days for each level
+    #[test]
+    fn normalize_freshness_days() {
+        let day = normalize_freshness(&Freshness::Day);
+        assert_eq!(day[0].1, "1");
+        let week = normalize_freshness(&Freshness::Week);
+        assert_eq!(week[0].1, "7");
+        let month = normalize_freshness(&Freshness::Month);
+        assert_eq!(month[0].1, "30");
+        let year = normalize_freshness(&Freshness::Year);
+        assert_eq!(year[0].1, "365");
+    }
+
+    // REQ: CNS-WEB-FRESHNESS — freshness_brave maps to Brave's parameter format
+    #[test]
+    fn freshness_brave_mapping() {
+        assert_eq!(freshness_brave(&Freshness::Day), "pd");
+        assert_eq!(freshness_brave(&Freshness::Week), "pw");
+        assert_eq!(freshness_brave(&Freshness::Month), "pm");
+        assert_eq!(freshness_brave(&Freshness::Year), "py");
+    }
+
+    // REQ: CNS-WEB-FRESHNESS — freshness_serpapi maps to SerpAPI's tbs format
+    #[test]
+    fn freshness_serpapi_mapping() {
+        assert_eq!(freshness_serpapi(&Freshness::Day), "qdr:d");
+        assert_eq!(freshness_serpapi(&Freshness::Week), "qdr:w");
+        assert_eq!(freshness_serpapi(&Freshness::Month), "qdr:m");
+        assert_eq!(freshness_serpapi(&Freshness::Year), "qdr:y");
+    }
+}

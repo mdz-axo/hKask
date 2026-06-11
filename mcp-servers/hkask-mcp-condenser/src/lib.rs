@@ -4,7 +4,8 @@
 //! Callers can use `thread_summary()` without a running condenser server.
 
 pub mod algorithms;
-mod inference;
+pub mod engine;
+pub mod inference;
 pub mod types;
 
 use inference::ApiFormat;

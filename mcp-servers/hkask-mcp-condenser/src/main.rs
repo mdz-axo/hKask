@@ -20,20 +20,15 @@
 //! `condenser_thread_summary` tool calls the inference engine
 //! to summarize conversation history for context condensation.
 
-mod engine;
-mod inference;
-mod types;
-
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, api_post};
+use hkask_mcp_condenser::engine::CondenserEngine;
+use hkask_mcp_condenser::inference::{self, ApiFormat};
+use hkask_mcp_condenser::types::*;
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
-
-use engine::CondenserEngine;
-use inference::ApiFormat;
-use types::*;
 
 /// System prompt for the thread-summary inference request.
 const THREAD_SUMMARY_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \

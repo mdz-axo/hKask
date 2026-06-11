@@ -21,7 +21,6 @@ use hkask_types::WebID;
 use hkask_types::ports::{InferencePort, ToolInfo, ToolPort};
 
 use super::ReplState;
-use super::handlers::ReplSettings;
 use super::tool_augmented;
 
 /// Initialize all REPL dependencies and return a fully-wired ReplState.
@@ -217,8 +216,6 @@ pub(super) fn init_repl_state(
     };
 
     let ctx = Arc::new(ctx);
-
-    let repl_settings = ReplSettings::default();
 
     let mut state = ReplState {
         inference_port,

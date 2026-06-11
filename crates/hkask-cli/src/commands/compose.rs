@@ -1,11 +1,10 @@
 //! Style composition command — generate prose with exemplar retrieval and centroid validation
 //!
 //! Delegates to `ComposeService::compose()` which encapsulates the full
-//! Hemingway style synthesizer pipeline (DB → SemanticMemory → KNN →
-//! system prompt → inference → centroid validation).
+//! style synthesizer pipeline (DB → SemanticMemory → KNN →
+//! Jinja2 system prompt → inference → centroid validation).
 //!
-//! Manifest: registry/manifests/hemingway-style-synthesizer.yaml
-//! Cognition: registry/registries/cognition/hemingway-style-synthesizer.yaml
+//! Cognition: registry/registries/cognition/*-synthesizer.yaml
 
 use crate::cli::ComposeAction;
 use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceContext};

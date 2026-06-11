@@ -367,6 +367,12 @@ pub struct AlgorithmRegistry {
     algorithms: Vec<Box<dyn CondenserAlgorithm>>,
 }
 
+impl Default for AlgorithmRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlgorithmRegistry {
     pub fn new() -> Self {
         let algorithms: Vec<Box<dyn CondenserAlgorithm>> = vec![
@@ -515,8 +521,8 @@ mod tests {
         assert_eq!(classify_tool("buildsystem"), ContextCategory::BuildOutput);
         // "testrunner" contains "run" (ShellCommand) before Phase 2 reaches TestOutput
         assert_eq!(classify_tool("testrunner"), ContextCategory::ShellCommand);
-        // "jsonparser" contains "run" → ShellCommand
-        assert_eq!(classify_tool("jsonparser"), ContextCategory::ShellCommand);
+        // "jsonparser" contains "json" → StructuredData
+        assert_eq!(classify_tool("jsonparser"), ContextCategory::StructuredData);
     }
 
     // REQ: CNS-CONDENSER-CLASSIFY — classify_tool returns Unknown for unrecognized tool names
@@ -568,7 +574,7 @@ mod tests {
     fn rtk_style_preserves_head_tail_structure() {
         let input = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10";
         let algo = RtkStyleAlgorithm;
-        let (result, _) = algo.compress(&input, Profile::Normal, ContextCategory::ShellCommand);
+        let (result, _) = algo.compress(input, Profile::Normal, ContextCategory::ShellCommand);
         assert!(result.contains("line1"));
         assert!(result.contains("line10"));
         assert!(result.contains("..."));
@@ -579,7 +585,7 @@ mod tests {
     fn rtk_style_passthrough_small_input() {
         let input = "line1\nline2\nline3";
         let algo = RtkStyleAlgorithm;
-        let (result, health) = algo.compress(&input, Profile::Light, ContextCategory::ShellCommand);
+        let (result, health) = algo.compress(input, Profile::Light, ContextCategory::ShellCommand);
         assert_eq!(result, input);
         assert!(health.is_empty());
     }
@@ -589,7 +595,7 @@ mod tests {
     fn saliency_rank_preserves_error_lines() {
         let input = "info: ok\ninfo: ok\ninfo: ok\nerror: critical failure\ninfo: ok\ninfo: ok";
         let algo = SaliencyRankAlgorithm;
-        let (result, _) = algo.compress(&input, Profile::Heavy, ContextCategory::LogOutput);
+        let (result, _) = algo.compress(input, Profile::Heavy, ContextCategory::LogOutput);
         assert!(
             result.contains("error"),
             "error line not preserved: {}",
@@ -602,7 +608,7 @@ mod tests {
     fn saliency_rank_low_signal_when_no_content() {
         let input = "a\na\na\na\na\na\na\na\na\na";
         let algo = SaliencyRankAlgorithm;
-        let (_, health) = algo.compress(&input, Profile::Heavy, ContextCategory::Unknown);
+        let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::Unknown);
         assert!(!health.is_empty(), "expected low_signal health signal");
         assert_eq!(health[0].signal_type, "low_signal");
     }
@@ -633,7 +639,7 @@ mod tests {
     fn flashrank_budget_shortfall() {
         let input = "line1\nline2\nline3";
         let algo = FlashrankAlgorithm;
-        let (_, health) = algo.compress(&input, Profile::Heavy, ContextCategory::FileContents);
+        let (_, health) = algo.compress(input, Profile::Heavy, ContextCategory::FileContents);
         // 3 lines → budget = min(ceil(3*0.10), 30) = 1 → fills 1 → no shortfall
         assert!(
             health.is_empty(),
@@ -657,15 +663,22 @@ mod tests {
             registry.select(ContextCategory::FileContents).name(),
             "flashrank"
         );
+        // LogOutput → saliency_rank
+        assert_eq!(
+            registry.select(ContextCategory::LogOutput).name(),
+            "saliency_rank"
+        );
     }
 
     // REQ: CNS-CONDENSER-REGISTRY — AlgorithmRegistry falls back to last algorithm for unmatched categories
+    // Note: SaliencyRank's default_for includes Unknown, so "flashrank" is NOT the fallback.
     #[test]
     fn algorithm_registry_fallback_to_last() {
         let registry = AlgorithmRegistry::new();
+        // Unknown → saliency_rank (not flashrank — saliency_rank claims Unknown)
         assert_eq!(
             registry.select(ContextCategory::Unknown).name(),
-            "flashrank"
+            "saliency_rank"
         );
     }
 }

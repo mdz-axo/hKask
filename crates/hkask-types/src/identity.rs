@@ -59,7 +59,7 @@ pub struct ReplicantIdentity {
 
 impl ReplicantIdentity {
     pub fn derive_webid(replicant_name: &str) -> WebID {
-        WebID::from_persona_with_namespace(replicant_name.as_bytes(), "hkask-replicant")
+        WebID::from_persona_with_namespace(replicant_name.as_bytes(), "replicant")
     }
 
     pub fn new(

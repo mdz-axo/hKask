@@ -7,7 +7,6 @@ use hkask_agents::AcpRuntime;
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
 use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, WebID, now_rfc3339};
-use std::str::FromStr;
 
 use crate::config::ServiceConfig;
 use crate::error::ServiceError;
@@ -81,8 +80,10 @@ impl OnboardingService {
             let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
                 .iter()
                 .map(|ra| hkask_agents::acp::AcpAgent {
-                    webid: WebID::from_str(&ra.definition.name)
-                        .unwrap_or_else(|_| WebID::from_persona(ra.definition.name.as_bytes())),
+                    webid: WebID::from_persona_with_namespace(
+                        ra.definition.name.as_bytes(),
+                        "replicant",
+                    ),
                     agent_type: ra.definition.agent_kind,
                     capabilities: ra.definition.capabilities.clone(),
                     registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)

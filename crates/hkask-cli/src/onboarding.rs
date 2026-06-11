@@ -1,13 +1,11 @@
-//! Onboarding and sign-in flow for hKask CLI
+//! Session resolution for hKask CLI.
 //!
-//! Handles three scenarios when starting `kask chat`:
-//! 1. No replicants registered — walk through creating first replicant
-//! 2. One replicant — assume signing into that one, ask for passphrase
-//! 3. Multiple replicants — ask which one to sign into, then passphrase
+//! Two modes:
+//! - **Operating mode**: keys configured, replicants exist — sign in, no prompts.
+//! - **Setup**: no keys or no replicants — create the user's first replicant.
 //!
-//! After successful sign-in, the derived ACP secret and DB passphrase are
-//! stored in the OS keychain for future sessions, and passed directly to
-//! `init_registry_with_secrets()` so no runtime env mutation is needed.
+//! After setup, derived secrets are stored in the OS keychain for future
+//! sessions and passed directly to `init_registry_with_secrets()`.
 
 use hkask_services::{OnboardingService, ResolvedSecrets, ServiceConfig};
 use hkask_types::RegisteredAgent;
@@ -27,8 +25,6 @@ pub enum OnboardingError {
     Database(String),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Invalid passphrase")]
-    InvalidPassphrase,
 }
 
 impl From<hkask_services::ServiceError> for OnboardingError {
@@ -62,78 +58,62 @@ pub struct OnboardingOutcome {
     pub resolved_secrets: Option<ResolvedSecrets>,
 }
 
-/// Run the onboarding flow.
+/// Resolve the user's session.
 ///
-/// Returns the replicant name the user signed in as. If the user already has
-/// keys configured (HKASK_MASTER_KEY, keychain entry, or HKASK_ACP_SECRET),
-/// this transparently initializes and returns without prompting.
+/// Operating mode: keys configured, replicants exist — returns immediately.
+/// Setup: no keys or no replicants — walks through first replicant creation.
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
-    // First, try the fast path: if keys are already configured, just init
-    match ServiceConfig::from_env() {
-        Ok(config) => match OnboardingService::init_registry(&config).await {
-            Ok(handle) => {
-                // Keys work — check if there's a replicant to sign into
-                let replicants = list_replicants(&handle.store)?;
-                let agent_name = pick_or_default_replicant(&replicants)?;
-                return Ok(OnboardingOutcome {
-                    signed_in_agent: agent_name,
-                    resolved_secrets: None,
-                });
-            }
-            Err(_) => {
-                // Keys not available — run interactive onboarding
-            }
-        },
-        Err(_) => {
-            // Config resolution failed — run interactive onboarding
+    // Operating mode: keys work and at least one replicant exists.
+    if let Ok(config) = ServiceConfig::from_env()
+        && let Ok(handle) = OnboardingService::init_registry(&config).await
+    {
+        let replicants = list_replicants(&handle.store)?;
+        if !replicants.is_empty() {
+            let agent_name = if replicants.len() == 1 {
+                replicants[0].definition.name.clone()
+            } else {
+                select_replicant(&replicants)?
+            };
+            return Ok(OnboardingOutcome {
+                signed_in_agent: agent_name,
+                resolved_secrets: None,
+            });
         }
     }
 
-    // Interactive onboarding path
-    interactive_onboarding().await
+    // Setup: create the user's first replicant.
+    setup().await
 }
 
-/// Interactive onboarding: collect passphrase, set up keys, handle replicants
-async fn interactive_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
+/// Setup: create the user's first replicant.
+async fn setup() -> Result<OnboardingOutcome, OnboardingError> {
     display::print_onboarding_banner();
+    create_first_replicant_flow().await
+}
 
-    // Step 1: Try to open the DB to see if replicants already exist
-    let existing_replicants = try_list_existing_replicants().unwrap_or_default();
-
-    if existing_replicants.is_empty() {
-        // Scenario 1: No replicants — create first one
-        create_first_replicant_flow().await
-    } else if existing_replicants.len() == 1 {
-        // Scenario 2: One replicant — sign into it
-        let replicant = &existing_replicants[0];
-        let name = replicant.definition.name.clone();
-        println!("\n  Found replicant: \x1b[1;36m{}\x1b[0m", name);
-        sign_in_flow(&name).await
-    } else {
-        // Scenario 3: Multiple replicants — pick one
-        println!("\n  \x1b[1mRegistered replicants:\x1b[0m");
-        for (i, r) in existing_replicants.iter().enumerate() {
-            let desc = r
-                .definition
-                .charter
-                .as_ref()
-                .map(|c| c.description.as_str())
-                .unwrap_or("(no description)");
-            println!(
-                "    {}. \x1b[36m{}\x1b[0m — {}",
-                i + 1,
-                r.definition.name,
-                desc
-            );
-        }
-
-        let choice = prompt_choice(
-            "\n  Which replicant would you like to sign in to?",
-            1..=existing_replicants.len(),
-        )?;
-        let name = existing_replicants[choice - 1].definition.name.clone();
-        sign_in_flow(&name).await
+/// Select which replicant to sign into when multiple exist.
+fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, OnboardingError> {
+    println!("\n  \x1b[1mRegistered replicants:\x1b[0m");
+    for (i, r) in replicants.iter().enumerate() {
+        let desc = r
+            .definition
+            .charter
+            .as_ref()
+            .map(|c| c.description.as_str())
+            .unwrap_or("(no description)");
+        println!(
+            "    {}. \x1b[36m{}\x1b[0m — {}",
+            i + 1,
+            r.definition.name,
+            desc
+        );
     }
+
+    let choice = prompt_choice(
+        "\n  Which replicant would you like to sign in to?",
+        1..=replicants.len(),
+    )?;
+    Ok(replicants[choice - 1].definition.name.clone())
 }
 
 /// Flow: Create the user's first replicant
@@ -218,72 +198,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     })
 }
 
-/// Flow: Sign into an existing replicant with a passphrase
-async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, OnboardingError> {
-    println!();
-
-    // Try up to 3 times
-    for attempt in 1..=3 {
-        let passphrase = prompt_passphrase(&format!(
-            "  Enter master passphrase for \x1b[36m{}\x1b[0m (attempt {}/3):",
-            replicant_name, attempt
-        ))?;
-
-        let resolved = OnboardingService::derive_secrets(&passphrase, false)
-            .expect("derive_secrets without keychain store is infallible");
-
-        let config = ServiceConfig::from_secrets(
-            resolved.acp_secret.clone(),
-            resolved.db_passphrase.clone(),
-            resolved.acp_secret.clone(),
-            replicant_name.to_string(),
-        );
-
-        match OnboardingService::try_sign_in(&config, replicant_name, &resolved).await {
-            Ok(outcome) => {
-                println!(
-                    "\n  \x1b[32m✓\x1b[0m Signed in as \x1b[1;36m{}\x1b[0m",
-                    replicant_name
-                );
-                println!();
-                return Ok(OnboardingOutcome {
-                    signed_in_agent: outcome.agent_name,
-                    resolved_secrets: Some(outcome.resolved_secrets),
-                });
-            }
-            Err(hkask_services::ServiceError::AgentNotFound(_)) => {
-                println!(
-                    "  \x1b[31m✗\x1b[0m Replicant '{}' not found with this passphrase.",
-                    replicant_name
-                );
-                if attempt < 3 {
-                    println!(
-                        "  (The passphrase may belong to a different replicant's database.)\n"
-                    );
-                }
-            }
-            Err(e) => {
-                println!("  \x1b[31m✗\x1b[0m Invalid passphrase: {}", e);
-                if attempt < 3 {
-                    println!();
-                }
-            }
-        }
-    }
-
-    Err(OnboardingError::InvalidPassphrase)
-}
-
-/// Try to list replicants from the existing DB (without ACP secret)
-fn try_list_existing_replicants() -> Result<Vec<RegisteredAgent>, OnboardingError> {
-    let config = match ServiceConfig::from_env() {
-        Ok(c) => c,
-        Err(_) => return Ok(Vec::new()), // No config — fresh start
-    };
-
-    Ok(OnboardingService::try_list_existing_replicants(&config))
-}
-
 /// List replicants from a store
 fn list_replicants(
     store: &hkask_storage::AgentRegistryStore,
@@ -291,19 +205,6 @@ fn list_replicants(
     store
         .list_by_kind(hkask_types::AgentKind::Replicant)
         .map_err(|e| OnboardingError::Database(e.to_string()))
-}
-
-/// Pick a replicant from the list (auto-select if only one, ask if multiple)
-fn pick_or_default_replicant(replicants: &[RegisteredAgent]) -> Result<String, OnboardingError> {
-    if replicants.is_empty() {
-        // No replicants but keys work — default to "Curator" (will be created on first chat)
-        Ok("Curator".to_string())
-    } else if replicants.len() == 1 {
-        Ok(replicants[0].definition.name.clone())
-    } else {
-        // Multiple — but we're on the fast path (keys pre-configured), just pick first
-        Ok(replicants[0].definition.name.clone())
-    }
 }
 
 /// Read a line of input from the user

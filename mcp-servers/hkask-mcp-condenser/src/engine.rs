@@ -11,9 +11,15 @@ use crate::types::*;
 
 // G4: profile is the single source of truth; stats.current_profile is always derived from it.
 pub struct CondenserEngine {
-    pub(crate) registry: AlgorithmRegistry,
+    pub registry: AlgorithmRegistry,
     profile: Profile,
     pub stats: CondenserStats,
+}
+
+impl Default for CondenserEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CondenserEngine {
