@@ -65,7 +65,6 @@ use crate::routes::cns::CnsSubscribeParams;
     tags(
         (name = "templates", description = "Template management"),
         (name = "bots", description = "Bot capability management"),
-        (name = "pods", description = "Agent pod lifecycle management"),
         (name = "mcp", description = "MCP servers and tools"),
         (name = "cns", description = "CNS monitoring"),
         (name = "chat", description = "Curator chat interface"),
@@ -75,6 +74,11 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "git", description = "Git archival and resolution"),
         (name = "acp", description = "ACP agent registration and management"),
         (name = "goals", description = "Goal coordination substrate (OCAP-gated)"),
+        (name = "bundles", description = "Bundle composition, application, and evolution"),
+        (name = "episodic", description = "Episodic memory store and query"),
+        (name = "sovereignty", description = "Consent and access governance (Magna Carta)"),
+        (name = "specs", description = "MDS specification management"),
+        (name = "consolidation", description = "Context consolidation and condensation"),
     ),
     info(
         title = "hKask API",

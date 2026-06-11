@@ -49,6 +49,7 @@ pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
 #[utoipa::path(
     post,
     path = "/api/consolidate",
+    tag = "consolidation",
     request_body = ConsolidateRequest,
     responses(
         (status = 200, description = "Consolidation complete", body = ConsolidateResponse),

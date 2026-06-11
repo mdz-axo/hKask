@@ -255,6 +255,9 @@
     },
     "/api/consolidate": {
       "post": {
+        "tags": [
+          "consolidation"
+        ],
         "operationId": "consolidate",
         "requestBody": {
           "content": {
@@ -3207,10 +3210,6 @@
       "description": "Bot capability management"
     },
     {
-      "name": "pods",
-      "description": "Agent pod lifecycle management"
-    },
-    {
       "name": "mcp",
       "description": "MCP servers and tools"
     },
@@ -3245,6 +3244,26 @@
     {
       "name": "goals",
       "description": "Goal coordination substrate (OCAP-gated)"
+    },
+    {
+      "name": "bundles",
+      "description": "Bundle composition, application, and evolution"
+    },
+    {
+      "name": "episodic",
+      "description": "Episodic memory store and query"
+    },
+    {
+      "name": "sovereignty",
+      "description": "Consent and access governance (Magna Carta)"
+    },
+    {
+      "name": "specs",
+      "description": "MDS specification management"
+    },
+    {
+      "name": "consolidation",
+      "description": "Context consolidation and condensation"
     }
   ]
 }
