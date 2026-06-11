@@ -136,6 +136,10 @@ check_dependencies() {
         missing+=("libzstd-dev")
     fi
 
+    if ! pkg-config --exists dbus-1 2>/dev/null; then
+        missing+=("libdbus-1-dev")
+    fi
+
     if ! command -v llvm-config &> /dev/null && ! pkg-config --exists libclang 2>/dev/null; then
         missing+=("libclang-dev/llvm-dev")
     fi
@@ -143,7 +147,7 @@ check_dependencies() {
     if [ ${#missing[@]} -ne 0 ]; then
         log_error "Missing dependencies: ${missing[*]}"
         log "Please install using your package manager:"
-        log "  Debian/Ubuntu: sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev libclang-dev llvm-dev cmake protobuf-compiler libprotobuf-dev libzstd-dev"
+        log "  Debian/Ubuntu: sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev libdbus-1-dev libclang-dev llvm-dev cmake protobuf-compiler libprotobuf-dev libzstd-dev"
         log "  Fedora/RHEL: sudo dnf install gcc pkg-config openssl-devel sqlite-devel clang-devel llvm-devel cmake protobuf-compiler protobuf-devel libzstd-devel"
         log "  Arch: sudo pacman -S base-devel pkg-config openssl sqlite clang llvm cmake protobuf protobuf-c zstd"
         exit 1
