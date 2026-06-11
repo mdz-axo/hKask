@@ -82,6 +82,7 @@ pub fn curator_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(metacognition_status))
 }
 
+/// List all pending curator escalations.
 #[utoipa::path(
     get, path = "/api/v1/curator/escalations", tag = "curator",
     responses(
@@ -115,6 +116,7 @@ pub(crate) async fn list_escalations(
     Ok(Json(ListEscalationsResponse { escalations }))
 }
 
+/// Resolve an escalation by marking it handled with the resolver's identity.
 #[utoipa::path(
     post, path = "/api/v1/curator/escalations/{id}/resolve", tag = "curator",
     request_body = ResolveEscalationRequest,
@@ -139,6 +141,7 @@ pub(crate) async fn resolve_escalation(
     }))
 }
 
+/// Dismiss an escalation as non-actionable, recording who dismissed it.
 #[utoipa::path(
     post, path = "/api/v1/curator/escalations/{id}/dismiss", tag = "curator",
     request_body = DismissEscalationRequest,
@@ -163,6 +166,7 @@ pub(crate) async fn dismiss_escalation(
     }))
 }
 
+/// Get Curator metacognition status — escalation statistics and bot health reports.
 #[utoipa::path(
     get, path = "/api/v1/curator/metacognition", tag = "curator",
     responses(

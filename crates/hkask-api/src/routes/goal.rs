@@ -41,6 +41,7 @@ pub struct GoalListResponse {
     pub goals: Vec<GoalResponse>,
 }
 
+/// Create a new goal for the authenticated agent.
 #[utoipa::path(
     post, path = "/api/goals", tag = "goals",
     request_body = CreateGoalRequest,
@@ -71,6 +72,7 @@ pub(crate) async fn create_goal(
     }))
 }
 
+/// List all goals for the authenticated agent, optionally filtered by state.
 #[utoipa::path(
     get, path = "/api/goals", tag = "goals",
     params(("state" = Option<String>, Query, description = "Optional state filter")),
@@ -103,6 +105,7 @@ pub(crate) async fn list_goals(
     }))
 }
 
+/// Transition a goal to a new state (legal transitions only).
 #[utoipa::path(
     post, path = "/api/goals/{id}/state", tag = "goals",
     params(("id" = String, Path, description = "Goal ID")),

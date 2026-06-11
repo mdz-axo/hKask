@@ -258,6 +258,8 @@
         "tags": [
           "consolidation"
         ],
+        "summary": "Consolidate episodic memories for an agent.",
+        "description": "Triggers the semantic consolidation loop: reads raw episodic triples,\nderives confidence-weighted semantic knowledge, and deletes low-confidence\nephemera. Requires the agent's master passphrase for authorization.",
         "operationId": "consolidate",
         "requestBody": {
           "content": {
@@ -297,7 +299,7 @@
         "tags": [
           "ensemble"
         ],
-        "summary": "Improv turn request\nCreate chat session",
+        "summary": "Create a new ensemble chat session with the specified session ID.",
         "operationId": "create_chat",
         "requestBody": {
           "content": {
@@ -488,6 +490,7 @@
         "tags": [
           "goals"
         ],
+        "summary": "List all goals for the authenticated agent, optionally filtered by state.",
         "operationId": "list_goals",
         "parameters": [
           {
@@ -526,6 +529,7 @@
         "tags": [
           "goals"
         ],
+        "summary": "Create a new goal for the authenticated agent.",
         "operationId": "create_goal",
         "requestBody": {
           "content": {
@@ -565,6 +569,7 @@
         "tags": [
           "goals"
         ],
+        "summary": "Transition a goal to a new state (legal transitions only).",
         "operationId": "set_goal_state",
         "parameters": [
           {
@@ -768,6 +773,7 @@
         "tags": [
           "sovereignty"
         ],
+        "summary": "Check whether the authenticated agent has access to a specific data category.",
         "operationId": "sovereignty_check_access",
         "parameters": [
           {
@@ -808,6 +814,7 @@
         "tags": [
           "sovereignty"
         ],
+        "summary": "Grant explicit consent for a data category, enabling data sharing.",
         "operationId": "sovereignty_grant_consent",
         "requestBody": {
           "content": {
@@ -847,6 +854,7 @@
         "tags": [
           "sovereignty"
         ],
+        "summary": "Revoke all explicit consent — only public data remains accessible.",
         "operationId": "sovereignty_revoke_consent",
         "responses": {
           "200": {
@@ -876,6 +884,7 @@
         "tags": [
           "sovereignty"
         ],
+        "summary": "Get sovereignty status for the authenticated agent — consent state,\ndata category classifications, and granted sharing categories.",
         "operationId": "sovereignty_status",
         "responses": {
           "200": {
@@ -1352,6 +1361,7 @@
         "tags": [
           "curator"
         ],
+        "summary": "List all pending curator escalations.",
         "operationId": "list_escalations",
         "responses": {
           "200": {
@@ -1378,6 +1388,7 @@
         "tags": [
           "curator"
         ],
+        "summary": "Dismiss an escalation as non-actionable, recording who dismissed it.",
         "operationId": "dismiss_escalation",
         "parameters": [
           {
@@ -1427,6 +1438,7 @@
         "tags": [
           "curator"
         ],
+        "summary": "Resolve an escalation by marking it handled with the resolver's identity.",
         "operationId": "resolve_escalation",
         "parameters": [
           {
@@ -1476,6 +1488,7 @@
         "tags": [
           "curator"
         ],
+        "summary": "Get Curator metacognition status — escalation statistics and bot health reports.",
         "operationId": "metacognition_status",
         "responses": {
           "200": {
@@ -2810,12 +2823,13 @@
       },
       "SovereigntyConsentRequest": {
         "type": "object",
+        "required": [
+          "category"
+        ],
         "properties": {
           "category": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string",
+            "description": "Data category to grant consent for (e.g. \"memory\", \"inference\", \"all\")"
           }
         }
       },

@@ -103,8 +103,7 @@ fn respond(code: StatusCode, success: bool, msg: impl Into<String>) -> impl Into
         .into_response()
 }
 
-/// Improv turn request
-/// Create chat session
+/// Create a new ensemble chat session with the specified session ID.
 #[utoipa::path(
     post,
     path = "/api/ensemble/chat",

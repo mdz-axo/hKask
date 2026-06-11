@@ -38,7 +38,8 @@ pub struct SovereigntyStatusResponse {
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SovereigntyConsentRequest {
-    pub category: Option<String>,
+    /// Data category to grant consent for (e.g. "memory", "inference", "all")
+    pub category: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -55,6 +56,8 @@ pub struct AccessCheckResponse {
     pub access_required: String,
 }
 
+/// Get sovereignty status for the authenticated agent — consent state,
+/// data category classifications, and granted sharing categories.
 #[utoipa::path(
     get, path = "/api/sovereignty/status", tag = "sovereignty",
     responses(
@@ -97,6 +100,7 @@ pub(crate) async fn sovereignty_status(
     }))
 }
 
+/// Grant explicit consent for a data category, enabling data sharing.
 #[utoipa::path(
     post, path = "/api/sovereignty/consent/grant", tag = "sovereignty",
     responses(
@@ -112,7 +116,7 @@ pub(crate) async fn sovereignty_grant_consent(
     Json(req): Json<SovereigntyConsentRequest>,
 ) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
-    let cat_str = req.category.unwrap_or_else(|| "all".to_string());
+    let cat_str = req.category;
     let cat = parse_data_category(&cat_str);
     let cm = &state.agent_service.sovereignty();
     cm.grant_consent(&webid_str, &cat).map_err(ApiError::from)?;
@@ -126,6 +130,7 @@ pub(crate) async fn sovereignty_grant_consent(
     }))
 }
 
+/// Revoke all explicit consent — only public data remains accessible.
 #[utoipa::path(
     post, path = "/api/sovereignty/consent/revoke", tag = "sovereignty",
     responses(
@@ -149,6 +154,7 @@ pub(crate) async fn sovereignty_revoke_consent(
     }))
 }
 
+/// Check whether the authenticated agent has access to a specific data category.
 #[utoipa::path(
     get, path = "/api/sovereignty/access/check", tag = "sovereignty",
     params(("category" = String, Query, description = "Data category to check")),

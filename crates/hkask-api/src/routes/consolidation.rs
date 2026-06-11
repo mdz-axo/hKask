@@ -46,6 +46,11 @@ pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
 
 // Handlers
 
+/// Consolidate episodic memories for an agent.
+///
+/// Triggers the semantic consolidation loop: reads raw episodic triples,
+/// derives confidence-weighted semantic knowledge, and deletes low-confidence
+/// ephemera. Requires the agent's master passphrase for authorization.
 #[utoipa::path(
     post,
     path = "/api/consolidate",
