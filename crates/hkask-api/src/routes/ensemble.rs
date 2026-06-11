@@ -234,6 +234,9 @@ async fn send_message(
     post,
     path = "/api/ensemble/chat/{session}/improv",
     tag = "ensemble",
+    params(
+        ("session" = String, Path, description = "Chat session ID"),
+    ),
     request_body = ImprovTurnRequest,
     responses(
         (status = 200, description = "Improv turn completed", body = ImprovTurnResponse),

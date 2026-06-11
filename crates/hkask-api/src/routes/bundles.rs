@@ -134,6 +134,9 @@ async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse>
     get,
     path = "/api/v1/bundles/{id}",
     tag = "bundles",
+    params(
+        ("id" = String, Path, description = "Bundle ID"),
+    ),
     responses(
         (status = 200, description = "Bundle manifest", body = serde_json::Value),
         (status = 404, description = "Bundle not found"),
@@ -209,6 +212,9 @@ pub(crate) async fn compose_bundle(
     post,
     path = "/api/v1/bundles/{id}/apply",
     tag = "bundles",
+    params(
+        ("id" = String, Path, description = "Bundle ID to apply"),
+    ),
     responses(
         (status = 200, description = "Bundle applied", body = ApplyBundleResponse),
         (status = 404, description = "Bundle not found"),
@@ -238,6 +244,9 @@ pub(crate) async fn apply_bundle(
     post,
     path = "/api/v1/bundles/{id}/evolve",
     tag = "bundles",
+    params(
+        ("id" = String, Path, description = "Bundle ID to evolve"),
+    ),
     responses(
         (status = 200, description = "Bundle evolved", body = EvolveBundleResponse),
         (status = 404, description = "Bundle not found"),
@@ -266,6 +275,9 @@ pub(crate) async fn evolve_bundle(
     delete,
     path = "/api/v1/bundles/{id}/deactivate",
     tag = "bundles",
+    params(
+        ("id" = String, Path, description = "Bundle ID to deactivate"),
+    ),
     responses(
         (status = 200, description = "Bundle deactivated", body = DeactivateBundleResponse),
     ),

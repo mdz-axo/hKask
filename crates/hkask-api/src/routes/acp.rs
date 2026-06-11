@@ -152,6 +152,9 @@ pub(crate) async fn acp_list_agents(
     delete,
     path = "/api/v1/acp/agents/{agent_id}",
     tag = "acp",
+    params(
+        ("agent_id" = String, Path, description = "ACP agent ID to unregister"),
+    ),
     responses(
         (status = 200, description = "Agent unregistered"),
         (status = 400, description = "Invalid agent ID"),

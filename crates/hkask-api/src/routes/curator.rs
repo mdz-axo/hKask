@@ -119,6 +119,9 @@ pub(crate) async fn list_escalations(
 /// Resolve an escalation by marking it handled with the resolver's identity.
 #[utoipa::path(
     post, path = "/api/v1/curator/escalations/{id}/resolve", tag = "curator",
+    params(
+        ("id" = String, Path, description = "Escalation ID"),
+    ),
     request_body = ResolveEscalationRequest,
     responses(
         (status = 200, description = "Escalation resolved", body = ResolveEscalationResponse),
@@ -144,6 +147,9 @@ pub(crate) async fn resolve_escalation(
 /// Dismiss an escalation as non-actionable, recording who dismissed it.
 #[utoipa::path(
     post, path = "/api/v1/curator/escalations/{id}/dismiss", tag = "curator",
+    params(
+        ("id" = String, Path, description = "Escalation ID"),
+    ),
     request_body = DismissEscalationRequest,
     responses(
         (status = 200, description = "Escalation dismissed", body = DismissEscalationResponse),

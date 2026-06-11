@@ -114,6 +114,9 @@ pub(crate) async fn archive(
     get,
     path = "/api/v1/git/resolve/{sha}",
     tag = "git",
+    params(
+        ("sha" = String, Path, description = "Git reference to resolve (branch, tag, or commit prefix)"),
+    ),
     responses(
         (status = 200, description = "SHA resolved", body = ResolveShaResponse),
         (status = 401, description = "Unauthorized"),
