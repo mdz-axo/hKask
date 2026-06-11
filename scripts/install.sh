@@ -99,6 +99,7 @@ install_system_dependencies() {
                 pkg-config \
                 libssl-dev \
                 libsqlite3-dev \
+                libdbus-1-dev \
                 libclang-dev \
                 llvm-dev \
                 libzstd-dev \
@@ -120,6 +121,7 @@ install_system_dependencies() {
                 pkg-config \
                 openssl-devel \
                 sqlite-devel \
+                dbus-devel \
                 clang-devel \
                 llvm-devel \
                 libzstd-devel \
@@ -138,6 +140,7 @@ install_system_dependencies() {
                 base-devel \
                 openssl \
                 sqlite \
+                dbus \
                 clang \
                 llvm \
                 zstd \
@@ -157,6 +160,7 @@ install_system_dependencies() {
                 pkg-config \
                 libopenssl-devel \
                 sqlite3-devel \
+                dbus-1-devel \
                 clang \
                 llvm \
                 libzstd-devel \
@@ -174,6 +178,7 @@ install_system_dependencies() {
                 build-base \
                 openssl-dev \
                 sqlite-dev \
+                dbus-dev \
                 clang \
                 llvm \
                 zstd-dev \
@@ -187,7 +192,7 @@ install_system_dependencies() {
             ;;
         unknown)
             log_warning "Unknown package manager. Please install dependencies manually."
-            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libclang-dev, llvm-dev, libzstd-dev, cmake, git, curl, jq, xz-utils"
+            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libdbus-1-dev, libclang-dev, llvm-dev, libzstd-dev, cmake, git, curl, jq, xz-utils"
             return 1
             ;;
     esac
