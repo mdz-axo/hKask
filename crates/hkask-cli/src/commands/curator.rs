@@ -1,7 +1,7 @@
 //! Curator commands — delegates to CuratorService.
 
-use hkask_agents::EscalationEntry;
 use hkask_services::CuratorService;
+use hkask_storage::EscalationEntry;
 
 use crate::block_on;
 use crate::cli::CuratorAction;

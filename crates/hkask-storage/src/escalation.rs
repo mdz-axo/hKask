@@ -1,12 +1,11 @@
-//! Escalation Queue — Persistent queue for escalated alerts requiring human review
-//
+//! Escalation Queue — Persistent queue for escalated alerts requiring human review.
+//!
 //! The escalation queue is a Cybernetics (Loop 6) algedonic regulation mechanism.
-//! It is governed by the Cybernetics loop, which receives CuratorDirectives
-//! from Curation and escalation signals from algedonic variety deficit detection.
+//! Governed by the Cybernetics loop, which receives CuratorDirectives from Curation
+//! and escalation signals from algedonic variety deficit detection.
 
+use crate::{Store, now_rfc3339};
 use chrono::{DateTime, Utc};
-use hkask_storage::lock_mutex;
-use hkask_storage::{Store, now_rfc3339};
 use hkask_types::{BotID, InfrastructureError, TemplateID};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -60,31 +59,16 @@ pub struct EscalationQueue {
     conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
 }
 
-/// Escalation queue errors.
-///
-/// `Infra` delegates to `CoreError::Infra`.
 #[derive(Error, Debug)]
 pub enum EscalationError {
     #[error(transparent)]
-    Core(#[from] crate::error::CoreError),
+    Infra(#[from] InfrastructureError),
 
     #[error("Escalation not found: {0}")]
     NotFound(String),
 }
 
-impl From<rusqlite::Error> for EscalationError {
-    fn from(e: rusqlite::Error) -> Self {
-        EscalationError::Core(crate::error::CoreError::Infra(
-            InfrastructureError::Database(e.to_string()),
-        ))
-    }
-}
-
-impl From<InfrastructureError> for EscalationError {
-    fn from(e: InfrastructureError) -> Self {
-        EscalationError::Core(crate::error::CoreError::Infra(e))
-    }
-}
+impl_from_rusqlite!(EscalationError, Infra);
 
 impl Store for EscalationQueue {
     fn conn_arc(&self) -> Arc<std::sync::Mutex<rusqlite::Connection>> {
@@ -94,7 +78,7 @@ impl Store for EscalationQueue {
     fn lock_conn(
         &self,
     ) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, InfrastructureError> {
-        lock_mutex(&self.conn)
+        crate::lock_helpers::lock_mutex(&self.conn)
     }
 }
 
@@ -292,27 +276,20 @@ impl EscalationQueue {
     }
 }
 
-/// Aggregated stats over escalation queue
+/// Aggregated stats over escalation queue.
 ///
 /// The algedonic channel's value is inversely proportional to its traffic
-/// (VSM algedonic paradox). Batching reduces noise while preserving
-/// signal fidelity.
+/// (VSM algedonic paradox). Batching reduces noise while preserving signal fidelity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationBatch {
-    /// Unique batch identifier
     pub id: String,
-    /// All escalations in this batch
     pub entries: Vec<EscalationEntry>,
-    /// Domain categorization (e.g., "variety", "bot_health", "critical_alerts")
     pub domain: String,
-    /// When this batch was created
     pub created_at: DateTime<Utc>,
-    /// Maximum number of concurrent escalations before batching is required
     pub threshold: usize,
 }
 
 impl EscalationBatch {
-    /// Create a new escalation batch from a list of entries.
     pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
         Self {
             id: format!("batch_{}", uuid::Uuid::new_v4().simple()),
@@ -323,7 +300,6 @@ impl EscalationBatch {
         }
     }
 
-    /// A consolidated summary of the batch for human presentation.
     pub fn summary(&self) -> String {
         let count = self.entries.len();
         let domains: std::collections::HashSet<&str> = self
@@ -340,6 +316,14 @@ impl EscalationBatch {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EscalationStats {
+    pub total: i64,
+    pub pending: i64,
+    pub resolved: i64,
+    pub dismissed: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,9 +337,6 @@ mod tests {
     }
 
     // REQ: escalation-rows-001 — resolve on a missing id returns NotFound, not Ok
-    //
-    // Before fix, resolve() returned Ok(()) for any id — the UPDATE silently
-    // touched 0 rows. Now it checks rows_affected and returns NotFound.
     #[test]
     fn resolve_missing_id_returns_not_found() {
         let q = make_queue();
@@ -412,12 +393,4 @@ mod tests {
             .expect("add escalation");
         assert!(q.dismiss(&id, "tester").is_ok());
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EscalationStats {
-    pub total: i64,
-    pub pending: i64,
-    pub resolved: i64,
-    pub dismissed: i64,
 }

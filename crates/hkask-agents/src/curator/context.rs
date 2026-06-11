@@ -1,8 +1,8 @@
 //! CurationContext — Runtime composition of Curator capability handles
 
-use crate::escalation::EscalationQueue;
 use crate::ports::AcpPort;
 use hkask_cns::CnsRuntime;
+use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
 use hkask_types::CuratorHandle;
 use hkask_types::loops::curation::CuratorDirective;

@@ -27,7 +27,6 @@
 use thiserror::Error;
 
 // ── Domain error imports ──────────────────────────────────────────────────
-use hkask_agents::EscalationError;
 use hkask_agents::acp::AcpError;
 use hkask_agents::consent::ConsentError;
 use hkask_agents::curator_agent::metacognition::MetacognitionError;
@@ -36,6 +35,7 @@ use hkask_agents::pod::AgentPodError;
 use hkask_agents::registry_loader::RegistryLoaderError;
 use hkask_cns::EnergyError;
 use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
+use hkask_storage::EscalationError;
 use hkask_storage::{
     AgentRegistryError, ConsentStoreError, DatabaseError, GoalRepositoryError, NuEventError,
     SovereigntyStoreError, SpecError, StandingSessionError as StorageStandingSessionError,

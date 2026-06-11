@@ -17,7 +17,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use hkask_agents::CuratorContext;
-use hkask_agents::EscalationQueue;
 use hkask_agents::LoopSystem;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator_agent::CuratorAgent;
@@ -35,6 +34,7 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
+use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
 use hkask_storage::user_store::UserStore;

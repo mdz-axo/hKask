@@ -251,10 +251,10 @@ impl From<hkask_agents::ConsentError> for ApiError {
     }
 }
 
-impl From<hkask_agents::EscalationError> for ApiError {
-    fn from(e: hkask_agents::EscalationError) -> Self {
+impl From<hkask_storage::EscalationError> for ApiError {
+    fn from(e: hkask_storage::EscalationError) -> Self {
         match &e {
-            hkask_agents::EscalationError::NotFound(id) => ApiError::NotFound {
+            hkask_storage::EscalationError::NotFound(id) => ApiError::NotFound {
                 resource: "escalation".into(),
                 id: id.clone(),
             },
@@ -403,7 +403,7 @@ impl From<hkask_services::ServiceError> for ApiError {
             },
             SE::ValidationError(msg) => ApiError::BadRequest { message: msg },
             SE::AgentRegistrationFailed(msg) => ApiError::Conflict { message: msg },
-            SE::Escalation(hkask_agents::EscalationError::NotFound(id)) => ApiError::NotFound {
+            SE::Escalation(hkask_storage::EscalationError::NotFound(id)) => ApiError::NotFound {
                 resource: "escalation".into(),
                 id,
             },

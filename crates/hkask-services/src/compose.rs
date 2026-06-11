@@ -10,6 +10,8 @@ use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
 use serde::Deserialize;
 
+use tracing::debug;
+
 use crate::ServiceError;
 use crate::inference::InferenceContext;
 
@@ -181,6 +183,22 @@ impl ComposeService {
         let results =
             semantic.search_similar(&prompt_vector, request.cognition.embedding.retrieval.k_max)?;
 
+        // Debug: log top-5 distances regardless of threshold to diagnose retrieval gaps
+        if !results.is_empty() {
+            let top_n = results.iter().take(5.min(results.len()));
+            debug!(
+                "KNN search returned {} results. Top-{} distances: [{}]",
+                results.len(),
+                top_n.len(),
+                top_n
+                    .map(|r| format!("{:.4}", r.distance))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        } else {
+            debug!("KNN search returned 0 results — corpus may be empty or unembedded");
+        }
+
         // 4. Filter by prefix, centroid exclusion, rule exclusion, distance threshold
         let prefix = format!("style:{}", &request.cognition.author);
         let retrieval = &request.cognition.embedding.retrieval;
@@ -211,6 +229,13 @@ impl ComposeService {
 
             matched.push((r.distance, r.embedding.entity_ref.clone(), salience));
         }
+
+        debug!(
+            "Filtered: {} of {} results passed prefix/distance/salience gates (threshold={})",
+            matched.len(),
+            results.len(),
+            retrieval.distance_threshold
+        );
 
         // Sort by salience descending if salience_top_k is set, then take top K
         if let Some(top_k) = retrieval.salience_top_k {

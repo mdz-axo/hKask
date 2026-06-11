@@ -8,8 +8,8 @@
 
 use std::sync::Arc;
 
-use hkask_agents::EscalationEntry;
 use hkask_agents::curator_agent::CuratorAgent;
+use hkask_storage::EscalationEntry;
 use hkask_types::CuratorHandle;
 
 use crate::AgentService;
@@ -68,13 +68,14 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
-        let queue = ctx.escalation_queue();
-        if queue.get(id).map_err(ServiceError::Escalation)?.is_none() {
-            return Err(ServiceError::EscalationNotFound(id.to_string()));
-        }
-        queue
+        ctx.escalation_queue()
             .resolve(id, resolved_by)
-            .map_err(ServiceError::Escalation)
+            .map_err(|e| match e {
+                hkask_storage::EscalationError::NotFound(id) => {
+                    ServiceError::EscalationNotFound(id)
+                }
+                other => ServiceError::Escalation(other),
+            })
     }
 
     /// Dismiss an escalation by ID.
@@ -83,13 +84,14 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
-        let queue = ctx.escalation_queue();
-        if queue.get(id).map_err(ServiceError::Escalation)?.is_none() {
-            return Err(ServiceError::EscalationNotFound(id.to_string()));
-        }
-        queue
+        ctx.escalation_queue()
             .dismiss(id, dismissed_by)
-            .map_err(ServiceError::Escalation)
+            .map_err(|e| match e {
+                hkask_storage::EscalationError::NotFound(id) => {
+                    ServiceError::EscalationNotFound(id)
+                }
+                other => ServiceError::Escalation(other),
+            })
     }
 
     /// Run a metacognition cycle and return a human-readable summary.
@@ -141,7 +143,7 @@ mod tests {
             retry_count: 2,
             error_context: "some error".into(),
             created_at: chrono::Utc::now(),
-            status: hkask_agents::escalation::EscalationStatus::Pending,
+            status: hkask_storage::EscalationStatus::Pending,
             resolved_at: None,
             resolved_by: None,
         };
@@ -167,7 +169,7 @@ mod tests {
             retry_count: 0,
             error_context: String::new(),
             created_at: now,
-            status: hkask_agents::escalation::EscalationStatus::Resolved,
+            status: hkask_storage::EscalationStatus::Resolved,
             resolved_at: Some(now),
             resolved_by: Some("admin".into()),
         };

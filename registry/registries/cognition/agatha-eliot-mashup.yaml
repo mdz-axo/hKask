@@ -104,7 +104,7 @@ embedding:
   retrieval:
     k_min: 3
     k_max: 7
-    distance_threshold: 0.30
+    distance_threshold: 0.50
     salience_min: 0.0
     salience_top_k: null
 

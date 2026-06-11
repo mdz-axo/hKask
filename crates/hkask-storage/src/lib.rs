@@ -12,6 +12,7 @@ pub mod agent_registry;
 pub mod consent_store;
 pub mod database;
 pub mod embeddings;
+pub mod escalation;
 pub mod goals;
 pub mod nu_event_store;
 pub mod security;
@@ -29,6 +30,10 @@ pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
 pub use database::{Database, DatabaseError, in_memory_db, open_database};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};
+pub use escalation::{
+    EscalationBatch, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,
+    EscalationStatus,
+};
 pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::TripleID;
 pub use nu_event_store::{DecayConfig, NuEventError, NuEventStore, WeightedEvent};

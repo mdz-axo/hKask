@@ -167,8 +167,9 @@ embedding:
     k_max: 7
     distance_metric: cosine
     # Retrieve passages whose cosine distance from the query is below this threshold.
-    # Lower = more similar. 0.30 is permissive; tighten after validation.
-    distance_threshold: 0.30
+    # Lower = more similar. 0.50 accommodates instruction-style prompts whose
+    # embeddings sit further from prose passages than prose-to-prose queries.
+    distance_threshold: 0.50
     # ── Salience filtering ──────────────────────────────────────────
     # Only consider passages with graph centrality >= this value.
     # 0.0 = no filter. Raise to 0.1+ to prefer well-connected passages.

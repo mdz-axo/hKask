@@ -4,7 +4,7 @@
 use crate::acp::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
-use crate::escalation::{EscalationBatch, EscalationEntry};
+use hkask_storage::{EscalationBatch, EscalationEntry};
 use hkask_types::BotID;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
