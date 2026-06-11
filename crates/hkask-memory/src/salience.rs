@@ -272,7 +272,7 @@ pub fn compute_method_signals(text: &str) -> MethodSignals {
         })
         .count();
     let concrete_count = words.len().saturating_sub(abstract_count);
-    let concrete_noun_ratio = if words.len() > 0 {
+    let concrete_noun_ratio = if !words.is_empty() {
         concrete_count as f32 / words.len() as f32
     } else {
         0.7 // default: mostly concrete
@@ -363,11 +363,9 @@ fn sentence_lengths(text: &str) -> Vec<usize> {
     for word in text.split_whitespace() {
         current += 1;
         let last_char = word.chars().last();
-        if matches!(last_char, Some('.') | Some('!') | Some('?')) {
-            if current > 0 {
-                lengths.push(current);
-                current = 0;
-            }
+        if matches!(last_char, Some('.') | Some('!') | Some('?')) && current > 0 {
+            lengths.push(current);
+            current = 0;
         }
     }
     if current > 0 {
@@ -446,11 +444,11 @@ impl DeclaredMethod {
 }
 
 fn check_min(min: Option<f32>, value: f32) -> bool {
-    min.map_or(true, |m| value >= m)
+    min.is_none_or(|m| value >= m)
 }
 
 fn check_max(max: Option<f32>, value: f32) -> bool {
-    max.map_or(true, |m| value <= m)
+    max.is_none_or(|m| value <= m)
 }
 
 // ── Entity Tagging ────────────────────────────────────────────────────────
@@ -724,7 +722,7 @@ mod tests {
     fn two_hop_always_gte_one_hop() {
         // By definition, passages reachable in ≤2 hops includes those
         // reachable in 1 hop.
-        let tags = vec![
+        let tags = [
             EntityTags {
                 characters: vec!["A".into()],
                 ..Default::default()
