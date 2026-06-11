@@ -19,14 +19,14 @@ pub fn run(rt: &tokio::runtime::Runtime) {
 
     // Start the loop system
     println!("Starting Loop System (per-loop default tick intervals)");
-    let (_, _, loops, _) = ctx.cns();
+    let loops = ctx.loop_system();
     println!("Registered loops:");
     let ids = rt.block_on(loops.registered_loop_ids());
     for id in &ids {
         println!("  • {:?}", id);
     }
     println!();
-    let (inference, _, _, _) = ctx.coordination();
+    let inference = ctx.inference_port();
     if inference.is_none() {
         println!("Note: Inference Loop not registered (requires Okapi connection)");
     }

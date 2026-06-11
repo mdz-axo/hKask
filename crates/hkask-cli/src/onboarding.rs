@@ -503,6 +503,40 @@ fn prompt_passphrase_with_confirm() -> Result<String, std::io::Error> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::passphrase_strength;
+
+    // REQ: Passphrases shorter than 8 characters are classified "weak"
+    // regardless of character variety.
+    #[test]
+    fn passphrase_strength_weak_below_8() {
+        assert_eq!(passphrase_strength("Ab1!").0, "weak");
+        assert_eq!(passphrase_strength("abcdefg").0, "weak"); // exactly 7
+        assert_eq!(passphrase_strength("").0, "weak");
+    }
+
+    // REQ: An 8-character passphrase with only one character class (lowercase
+    // letters) is classified "fair" — meets the minimum length but lacks variety.
+    #[test]
+    fn passphrase_strength_fair_at_8_single_variety() {
+        // 8 chars, lowercase only → variety = 1 → fair
+        assert_eq!(passphrase_strength("abcdefgh").0, "fair");
+        // 11 chars, still only one class → still fair (not enough variety for "good")
+        assert_eq!(passphrase_strength("abcdefghijk").0, "fair");
+    }
+
+    // REQ: A 16-character passphrase with at least 3 character classes is
+    // classified "strong".
+    #[test]
+    fn passphrase_strength_strong_at_16_high_variety() {
+        // 16 chars: upper + lower + digit + special → variety = 4 → strong
+        assert_eq!(passphrase_strength("Abcdefgh1!xyz123").0, "strong");
+        // 16 chars: upper + lower + digit (3 classes) → also strong
+        assert_eq!(passphrase_strength("Abcdefgh1zzz1234").0, "strong");
+    }
+}
+
 /// Prompt for a numeric choice within a range
 fn prompt_choice(
     prompt: &str,

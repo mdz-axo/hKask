@@ -173,10 +173,7 @@ fn build_cns_runtime(rt: &tokio::runtime::Runtime) -> Arc<RwLock<CnsRuntime>> {
         }
     };
     match rt.block_on(AgentService::build(config)) {
-        Ok(ctx) => {
-            let (runtime, _, _, _) = ctx.cns();
-            runtime.clone()
-        }
+        Ok(ctx) => ctx.cns_runtime().clone(),
         Err(_) => standalone_cns_runtime(),
     }
 }

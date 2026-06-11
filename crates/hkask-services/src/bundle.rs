@@ -76,7 +76,7 @@ impl BundleService {
         }
 
         // Resolve skill metadata from the registry.
-        let registry = ctx.storage().0;
+        let registry = ctx.registry();
         let registry_guard = registry.lock().await;
         let skills: Vec<hkask_types::ports::Skill> = skill_ids
             .iter()
@@ -201,14 +201,14 @@ impl BundleService {
 
     /// List all bundles in the registry.
     pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
-        let registry = ctx.storage().0;
+        let registry = ctx.registry();
         let guard = registry.lock().await;
         Ok(guard.list_bundles())
     }
 
     /// Get a bundle by ID.
     pub async fn get(ctx: &AgentService, id: &str) -> Result<Option<BundleManifest>, ServiceError> {
-        let registry = ctx.storage().0;
+        let registry = ctx.registry();
         let guard = registry.lock().await;
         Ok(guard.get_bundle(id))
     }
@@ -217,7 +217,7 @@ impl BundleService {
     ///
     /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
     pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
-        let registry = ctx.storage().0;
+        let registry = ctx.registry();
         let guard = registry.lock().await;
         guard
             .get_bundle(id)
@@ -252,7 +252,7 @@ impl BundleService {
 
         // Remove the old bundle and register the new one.
         {
-            let registry = ctx.storage().0;
+            let registry = ctx.registry();
             let mut guard = registry.lock().await;
             guard.remove_bundle(id);
             guard.register_bundle(result.manifest.clone());
@@ -270,7 +270,7 @@ impl BundleService {
     pub async fn list_skills(
         ctx: &AgentService,
     ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {
-        let registry = ctx.storage().0;
+        let registry = ctx.registry();
         let guard = registry.lock().await;
         // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex
         Ok(hkask_types::ports::SkillRegistryIndex::list_skills(&*guard))

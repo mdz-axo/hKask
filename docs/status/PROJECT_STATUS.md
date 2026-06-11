@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Documentation refresh (2026-06-10).
+**Current session:** Onboarding overhaul + P8 test gap closure (2026-06-11).
 
 ---
 
@@ -22,19 +22,19 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors excluding pre-existing test-only errors) | 2026-06-10 |
-| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-10 |
-| MCP servers (condenser, web, spec, fmp, telnyx, fal, rss-reader) | ✅ Pass | 2026-06-10 |
-| `hkask-cli` (production) | ✅ Pass | 2026-06-10 |
-| `hkask-cli` (tests) | ❌ Pre-existing: `ensemble.rs` references `build_improv_client` which doesn't exist | — |
-| `hkask-services` (production) | ✅ Pass | 2026-06-10 |
-| `hkask-services` (tests) | ❌ Pre-existing: `SqliteSpecStore::load` references missing method | — |
+| Workspace (`cargo check --workspace`) | ✅ Pass | 2026-06-11 |
+| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-11 |
+| MCP servers (condenser, research, spec, fmp, telnyx, fal) | ✅ Pass | 2026-06-11 |
+| `hkask-cli` (production) | ✅ Pass | 2026-06-11 |
+| `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
+| `hkask-services` (production) | ✅ Pass | 2026-06-11 |
+| `hkask-services` (tests) | ✅ Pass — 29 tests | 2026-06-11 |
 
 ---
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass (1 doc-test passes, 7 ignored in hkask-storage).
+`cargo test --workspace` result: ✅ Pass — 246 tests, 0 failures (7 doc-tests ignored in hkask-storage).
 
 ---
 
@@ -108,7 +108,17 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 
 ---
 
-## This Session (2026-06-10)
+## This Session (2026-06-11)
+
+- Onboarding overhaul: model selection, passphrase strength UX, First Steps guide, `is_first_run` flag
+- New `kask onboard` CLI subcommand for adding replicants to existing installations
+- New `/start` guided tour (9 steps) and `/feedback` REPL-only ledger command
+- 3 code bugs fixed: `run_add_replicant` dangerous fallback, `/start` cursor reset, stale comment
+- 6 P8 tests added: `append_feedback` (3) + `passphrase_strength` (3) — total: 19→25
+- Docs updated: AGENTS.md, cli-reference.md, REPL-specification.md, test-inventory.md
+- Pre-existing build errors in `hkask-cli` and `hkask-services` tests confirmed resolved (prior session)
+
+## Session (2026-06-10)
 
 - Documentation refresh: 71 broken internal links found and fixed (71→0)
 - MDS category alignment: MDS_SCAFFOLD.md updated from 9-category to 5-category (Domain, Composition, Trust, Lifecycle, Curation)
@@ -124,10 +134,9 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 | Priority | Task |
 |----------|------|
 | HIGH | Fix architecture master sovereignty claim (SovereigntyService row) |
-| HIGH | Pre-existing build errors in `hkask-cli` (ensemble.rs) and `hkask-services` tests |
 | MEDIUM | AgentService adapters refactoring (incomplete, reverted) |
-| LOW | Test coverage gaps (archival, compose, inference, onboarding, verification — shallow modules, acceptable) |
 | LOW | Architecture master update (allosteric references, RBarThreshold, v0.27.2 state) |
+| LOW | Citation compliance audit (P1-06, deferred) |
 
 ---
 

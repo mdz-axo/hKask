@@ -13,7 +13,7 @@ fn build_service_context(
         "Failed to build AgentService",
     );
     for (server_id, command) in servers {
-        match rt.block_on(ctx.coordination().1.start_server(server_id, command)) {
+        match rt.block_on(ctx.mcp_runtime().start_server(server_id, command)) {
             Ok(()) => {
                 tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started")
             }
@@ -31,10 +31,9 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = ctx
-        .governance()
-        .1
+        .mcp_dispatcher()
         .issue_capability("tools".to_string(), from, to);
-    match rt.block_on(ctx.governance().1.invoke(
+    match rt.block_on(ctx.mcp_dispatcher().invoke(
         "web_search",
         serde_json::json!({"query": query, "max_results": max_results}),
         &token,
@@ -71,5 +70,5 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
             std::process::exit(1);
         }
     }
-    rt.block_on(ctx.governance().1.shutdown_all());
+    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
 }

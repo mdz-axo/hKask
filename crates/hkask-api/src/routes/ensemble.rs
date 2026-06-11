@@ -528,16 +528,10 @@ pub(crate) async fn standing_start(
     // This enables `intersection_tools()` to filter the tool section
     // to only tools visible across all participants.
     {
-        let tool_names = state.agent_service.coordination().1.discover_tools().await;
+        let tool_names = state.agent_service.mcp_runtime().discover_tools().await;
         let mut tools: Vec<hkask_types::ports::ToolInfo> = Vec::new();
         for name in &tool_names {
-            if let Some(info) = state
-                .agent_service
-                .coordination()
-                .1
-                .get_tool_info(name)
-                .await
-            {
+            if let Some(info) = state.agent_service.mcp_runtime().get_tool_info(name).await {
                 tools.push(info);
             }
         }

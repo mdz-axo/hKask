@@ -174,98 +174,73 @@ impl AgentService {
         &self.config
     }
 
-    // === Domain group methods (7 total) ===
+    // === Named accessors (replaces positional tuple group methods) ===
+    // # REQ: P4 (Clear Boundaries)
 
-    /// Memory: episodic + semantic storage ports.
-    /// # REQ: P4 (Clear Boundaries)
+    // --- Memory ---
     pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>) {
         (&self.episodic_storage, &self.semantic_storage)
     }
 
-    /// CNS: runtime, cybernetics loop, loop system, event sink.
-    /// # REQ: P9 (Homeostatic)
-    #[allow(clippy::type_complexity)]
-    pub fn cns(
-        &self,
-    ) -> (
-        &Arc<RwLock<CnsRuntime>>,
-        &Arc<RwLock<CyberneticsLoop>>,
-        &Arc<LoopSystem>,
-        &Arc<dyn NuEventSink>,
-    ) {
-        (
-            &self.cns_runtime,
-            &self.cybernetics_loop,
-            &self.loop_system,
-            &self.event_sink,
-        )
+    // --- Storage ---
+    /// Template registry (tokio-Mutex-guarded for async lock compatibility).
+    pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>> {
+        &self.registry
+    }
+    /// Goal repository.
+    pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository> {
+        &self.goal_repo
     }
 
-    /// Governance: capability checker, MCP dispatcher, escalation queue.
-    /// consent_manager and sovereignty_boundary_store are PRIVATE —
-    /// no raw store access. Resolves P1 Prohibition violation.
-    /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent), P4 (OCAP)
-    pub fn governance(
-        &self,
-    ) -> (
-        &Arc<CapabilityChecker>,
-        &Arc<McpDispatcher>,
-        &Arc<EscalationQueue>,
-    ) {
-        (
-            &self.capability_checker,
-            &self.mcp_dispatcher,
-            &self.escalation_queue,
-        )
+    // --- CNS ---
+    /// CNS runtime for variety sensing and health checks.
+    pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>> {
+        &self.cns_runtime
+    }
+    /// Cybernetics loop for energy budget regulation.
+    pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>> {
+        &self.cybernetics_loop
+    }
+    /// Loop system for 6-loop regulation.
+    pub fn loop_system(&self) -> &Arc<LoopSystem> {
+        &self.loop_system
+    }
+    /// CNS event sink for the audit trail.
+    pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
+        &self.event_sink
     }
 
-    /// Storage: template registry, goal repo, spec store, standing sessions,
-    /// user store, agent registry, Git CAS.
-    /// # REQ: ADR-024, P4 (Clear Boundaries)
-    #[allow(clippy::type_complexity)]
-    pub fn storage(
-        &self,
-    ) -> (
-        &Arc<tokio::sync::Mutex<SqliteRegistry>>,
-        &Arc<SqliteGoalRepository>,
-        &SqliteSpecStore,
-        &Arc<StandingSessionStore>,
-        &Arc<std::sync::Mutex<UserStore>>,
-        &hkask_storage::AgentRegistryStore,
-        &Arc<dyn GitCASPort>,
-    ) {
-        (
-            &self.registry,
-            &self.goal_repo,
-            &self.spec_store,
-            &self.standing_session_store,
-            &self.user_store,
-            &self.agent_registry_store,
-            &self.git_cas_port,
-        )
+    // --- Governance ---
+    /// Capability checker for OCAP verification.
+    /// # REQ: P4 (OCAP), P1 (User Sovereignty)
+    pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
+        &self.capability_checker
+    }
+    /// MCP dispatcher for OCAP-gated tool invocation.
+    pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher> {
+        &self.mcp_dispatcher
+    }
+    /// Escalation queue for Curator escalations.
+    pub fn escalation_queue(&self) -> &Arc<EscalationQueue> {
+        &self.escalation_queue
     }
 
-    /// Coordination: inference port, MCP runtime, pod manager, session manager.
-    /// # REQ: P3 (Generative Space), P6 (Space for Replicants & Bots)
-    #[allow(clippy::type_complexity)]
-    pub fn coordination(
-        &self,
-    ) -> (
-        &Option<Arc<dyn InferencePort>>,
-        &Arc<McpRuntime>,
-        &Arc<PodManager>,
-        &Arc<RwLock<SessionManager>>,
-    ) {
-        (
-            &self.inference_port,
-            &self.mcp_runtime,
-            &self.pod_manager,
-            &self.session_manager,
-        )
+    // --- Coordination ---
+    /// Shared inference port (returns a clone of the Option<Arc>).
+    pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
+        self.inference_port.clone()
+    }
+    /// MCP runtime for tool discovery and invocation.
+    pub fn mcp_runtime(&self) -> &Arc<McpRuntime> {
+        &self.mcp_runtime
+    }
+    /// Pod manager for agent lifecycle.
+    pub fn pod_manager(&self) -> &Arc<PodManager> {
+        &self.pod_manager
     }
 
-    /// Identity: system WebID + ACP runtime.
-    /// # REQ: P4 (Clear Boundaries)
+    // --- Identity ---
+    /// System WebID + ACP runtime.
     pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::AcpRuntime>) {
         (&self.system_webid, &self.acp_runtime)
     }

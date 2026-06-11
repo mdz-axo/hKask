@@ -393,9 +393,9 @@ impl ChatService {
 
         // Resolve inference port — prefer override, then shared port from AgentService
         let inference: Arc<dyn InferencePort> =
-            match (&req.inference_port_override, ctx.coordination().0) {
+            match (&req.inference_port_override, ctx.inference_port()) {
                 (Some(port), _) => Arc::clone(port),
-                (None, Some(port)) => Arc::clone(port),
+                (None, Some(port)) => port,
                 (None, None) => {
                     let inf_ctx =
                         InferenceContext::from_parts(None, &model, &ctx.config().okapi_base_url);
@@ -407,7 +407,7 @@ impl ChatService {
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
         // Create capability token for memory operations.
-        let capability_token = ctx.governance().0.grant_registry(
+        let capability_token = ctx.capability_checker().grant_registry(
             DelegationAction::Execute,
             req.auth_context
                 .as_ref()

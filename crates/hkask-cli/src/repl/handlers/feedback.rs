@@ -96,3 +96,71 @@ fn append_feedback(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Construct a unique temp path for a test. Uses the test name as a suffix
+    /// so parallel test runs don't collide. Caller is responsible for cleanup.
+    fn tmp_path(tag: &str) -> std::path::PathBuf {
+        let mut p = std::env::temp_dir();
+        p.push(format!("hkask_feedback_test_{}.md", tag));
+        p
+    }
+
+    // REQ: First call to append_feedback creates the file and writes the
+    // standard header ("# hKask Feedback Ledger") before the first entry.
+    #[test]
+    fn append_feedback_creates_file_with_header_on_first_write() {
+        let path = tmp_path("header");
+        let _ = std::fs::remove_file(&path); // ensure clean state
+
+        append_feedback(&path, "Curator", "onboarding was confusing").unwrap();
+
+        let contents = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            contents.starts_with("# hKask Feedback Ledger"),
+            "file must start with the standard header"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // REQ: Subsequent calls to append_feedback do NOT re-emit the header;
+    // the header appears exactly once even after multiple writes.
+    #[test]
+    fn append_feedback_omits_header_on_subsequent_writes() {
+        let path = tmp_path("no_dup_header");
+        let _ = std::fs::remove_file(&path);
+
+        append_feedback(&path, "Curator", "first note").unwrap();
+        append_feedback(&path, "Curator", "second note").unwrap();
+
+        let contents = std::fs::read_to_string(&path).unwrap();
+        let header = "# hKask Feedback Ledger";
+        let count = contents.matches(header).count();
+        assert_eq!(count, 1, "header must appear exactly once");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // REQ: Each entry written by append_feedback contains the replicant name
+    // and the verbatim comment text in Markdown blockquote form.
+    #[test]
+    fn append_feedback_entry_contains_replicant_and_comment() {
+        let path = tmp_path("entry_content");
+        let _ = std::fs::remove_file(&path);
+
+        append_feedback(&path, "Atlas", "model list was hard to read").unwrap();
+
+        let contents = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            contents.contains("Atlas"),
+            "entry must include the replicant name"
+        );
+        assert!(
+            contents.contains("> model list was hard to read"),
+            "entry must include the comment as a blockquote"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+}

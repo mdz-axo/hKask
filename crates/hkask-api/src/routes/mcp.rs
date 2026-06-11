@@ -47,7 +47,7 @@ pub fn mcp_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let servers = state.agent_service.coordination().1.list_servers().await;
+    let servers = state.agent_service.mcp_runtime().list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
 
@@ -65,7 +65,7 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
     ),
 )]
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let tools = state.agent_service.coordination().1.discover_tools().await;
+    let tools = state.agent_service.mcp_runtime().discover_tools().await;
     Json(tools)
 }
 
@@ -124,8 +124,7 @@ pub(crate) async fn mcp_invoke(
     // Invoke via the MCP dispatcher with the authenticated capability token
     let result = state
         .agent_service
-        .governance()
-        .1
+        .mcp_dispatcher()
         .invoke(&req.tool, input, &auth.token)
         .await
         .map_err(|e| match &e {
@@ -140,8 +139,7 @@ pub(crate) async fn mcp_invoke(
     // Resolve server_id from the runtime's tool registry
     let server_id = state
         .agent_service
-        .coordination()
-        .1
+        .mcp_runtime()
         .get_tool_info(&req.tool)
         .await
         .map(|t| t.server_id)

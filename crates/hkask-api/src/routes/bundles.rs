@@ -164,8 +164,8 @@ fn resolve_api_composition_port(
     state: &ApiState,
 ) -> Result<std::sync::Arc<dyn hkask_types::ports::InferencePort>, ApiError> {
     // Prefer the shared port from AgentService
-    if let Some(port) = state.agent_service.coordination().0 {
-        return Ok(std::sync::Arc::clone(port));
+    if let Some(port) = state.agent_service.inference_port() {
+        return Ok(port);
     }
     // Fallback: create a fresh inference port
     let okapi_url = state.agent_service.config().okapi_base_url.clone();

@@ -119,7 +119,7 @@ pub(super) fn single_agent_turn(
 
         // Hold-settle pattern via EnergyGuard.
         let Some(gas_guard) = energy::EnergyGuard::try_reserve(
-            state.service_context.cns().1,
+            state.service_context.cybernetics_loop(),
             &state.inference_loop,
             &state.agent_webid,
             rt,
@@ -148,7 +148,7 @@ pub(super) fn single_agent_turn(
             tool_section: state.tool_prompt_section.clone(),
             llm_params: to_llm_params(&settings),
             context_turns: settings.context_turns,
-            capability_checker: state.service_context.governance().0.clone(),
+            capability_checker: state.service_context.capability_checker().clone(),
             system_webid: *state.service_context.identity().0,
             iteration,
             tool_results: tool_results.take(),

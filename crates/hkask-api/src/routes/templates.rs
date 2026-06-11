@@ -63,7 +63,7 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
-    let registry = state.agent_service.storage().0.lock().await;
+    let registry = state.agent_service.registry().lock().await;
     let entries = registry.list(None);
 
     let templates = entries
@@ -99,7 +99,7 @@ pub(crate) async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<TemplateResponse>, ApiError> {
-    let registry = state.agent_service.storage().0.lock().await;
+    let registry = state.agent_service.registry().lock().await;
 
     let entry = registry.get(&id)?;
 
@@ -120,7 +120,7 @@ async fn register_template(
 ) -> Result<StatusCode, ApiError> {
     use axum::http::StatusCode;
 
-    let _registry = state.agent_service.storage().0.lock().await;
+    let _registry = state.agent_service.registry().lock().await;
     Ok(StatusCode::CREATED)
 }
 
@@ -129,7 +129,7 @@ async fn search_templates(
     State(state): State<ApiState>,
     Path(term): Path<String>,
 ) -> Json<Vec<TemplateResponse>> {
-    let registry = state.agent_service.storage().0.lock().await;
+    let registry = state.agent_service.registry().lock().await;
     let results = registry.search_by_lexicon(&term).unwrap_or_default();
 
     let templates = results

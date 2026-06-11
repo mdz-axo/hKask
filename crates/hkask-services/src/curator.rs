@@ -57,7 +57,7 @@ impl CuratorService {
     /// # Returns
     /// `ServiceError::Escalation` on queue error.
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
-        let queue = ctx.governance().2;
+        let queue = ctx.escalation_queue();
         let entries = queue.list_pending().map_err(ServiceError::Escalation)?;
         Ok(entries.into_iter().map(EscalationResponse::from).collect())
     }
@@ -68,7 +68,7 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
-        let queue = ctx.governance().2;
+        let queue = ctx.escalation_queue();
         if queue.get(id).map_err(ServiceError::Escalation)?.is_none() {
             return Err(ServiceError::EscalationNotFound(id.to_string()));
         }
@@ -83,7 +83,7 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
-        let queue = ctx.governance().2;
+        let queue = ctx.escalation_queue();
         if queue.get(id).map_err(ServiceError::Escalation)?.is_none() {
             return Err(ServiceError::EscalationNotFound(id.to_string()));
         }
@@ -101,10 +101,10 @@ impl CuratorService {
     /// `ServiceError::Metacognition` on cycle failure.
     /// `ServiceError::Cns` if CNS runtime is unavailable.
     pub async fn metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
-        let queue = ctx.governance().2;
+        let queue = ctx.escalation_queue();
         // Use the live CNS runtime (RwLock<CnsRuntime>) — clone the inner
         // state so the CuratorAgent sees current alerts and variety, not zeros.
-        let (cns_lock, _cybernetics, _loop_system, _event_sink) = ctx.cns();
+        let cns_lock = ctx.cns_runtime();
         let cns = Arc::new(cns_lock.read().await.clone());
 
         let agents_ctx = Arc::new(hkask_agents::CuratorContext::new(

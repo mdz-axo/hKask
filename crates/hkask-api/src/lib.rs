@@ -138,7 +138,7 @@ impl ApiState {
         ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     ) -> Result<Self, ApiError> {
         // Surface-specific: gas governance from cybernetics loop + system webid
-        let (_, cybernetics, _, _) = ctx.cns();
+        let cybernetics = ctx.cybernetics_loop();
         let (webid, _) = ctx.identity();
         let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
             Arc::new(ApiEnergyGovernanceAdapter::new(
@@ -197,7 +197,7 @@ impl ApiState {
     /// Call this after the API server starts listening. The loops run in
     /// background tokio tasks until `shutdown_loops()` is called.
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
-        let (_, _, loops, _) = self.agent_service.cns();
+        let loops = self.agent_service.loop_system();
         tracing::info!(
             target: "hkask.api",
             loops = ?loops.registered_loop_ids().await,
@@ -209,7 +209,7 @@ impl ApiState {
     /// Signal the loop system to shut down.
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        let (_, _, loops, _) = self.agent_service.cns();
+        let loops = self.agent_service.loop_system();
         loops.shutdown();
     }
 }

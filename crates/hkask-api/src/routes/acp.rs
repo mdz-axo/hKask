@@ -101,7 +101,7 @@ async fn acp_register(
         });
     }
 
-    let acp = state.agent_service.coordination().2.acp_runtime();
+    let acp = state.agent_service.pod_manager().acp_runtime();
     let token = acp
         .register_agent(webid, agent_kind, req.capabilities)
         .await?;
@@ -128,7 +128,7 @@ pub(crate) async fn acp_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<AgentListResponse>, ApiError> {
-    let acp = state.agent_service.coordination().2.acp_runtime();
+    let acp = state.agent_service.pod_manager().acp_runtime();
     let agents = acp.list_agents().await;
 
     let agent_responses: Vec<AcpAgentResponse> = agents
@@ -172,7 +172,7 @@ pub(crate) async fn acp_unregister_agent(
 
     let webid = parse_webid(&agent_id)?;
 
-    let acp = state.agent_service.coordination().2.acp_runtime();
+    let acp = state.agent_service.pod_manager().acp_runtime();
     acp.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)

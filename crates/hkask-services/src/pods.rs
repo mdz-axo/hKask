@@ -62,7 +62,7 @@ impl PodService {
     ) -> Result<PodResponse, ServiceError> {
         let persona = AgentPersona::from_yaml(&req.persona_yaml)
             .map_err(|e| ServiceError::ValidationError(format!("Invalid persona YAML: {e}")))?;
-        let pm = ctx.coordination().2;
+        let pm = ctx.pod_manager();
         let pod_id = pm
             .create_pod(&req.template, &persona, req.name)
             .await
@@ -74,7 +74,7 @@ impl PodService {
 
     /// List all registered pods.
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
-        let pm = ctx.coordination().2;
+        let pm = ctx.pod_manager();
         let pods = pm.list_pods().await.map_err(ServiceError::Pod)?;
         Ok(pods.into_iter().map(PodStatusResponse::from).collect())
     }
@@ -82,8 +82,7 @@ impl PodService {
     /// Activate a pod by ID.
     pub async fn activate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
-        ctx.coordination()
-            .2
+        ctx.pod_manager()
             .activate_pod(&pid)
             .await
             .map_err(ServiceError::Pod)?;
@@ -93,8 +92,7 @@ impl PodService {
     /// Deactivate a pod by ID.
     pub async fn deactivate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
-        ctx.coordination()
-            .2
+        ctx.pod_manager()
             .deactivate_pod(&pid)
             .await
             .map_err(ServiceError::Pod)?;
@@ -108,8 +106,7 @@ impl PodService {
     ) -> Result<PodStatusResponse, ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         let status = ctx
-            .coordination()
-            .2
+            .pod_manager()
             .get_pod_status(&pid)
             .await
             .map_err(ServiceError::Pod)?;

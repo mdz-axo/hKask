@@ -83,7 +83,7 @@ impl EnsembleService {
         let breaker: Arc<dyn CircuitBreakerPort> =
             Arc::new(CircuitBreaker::default_for_inference("ensemble-inference"));
 
-        let port = match inference_port.or(ctx.coordination().0.clone()) {
+        let port = match inference_port.or(ctx.inference_port()) {
             Some(p) => p,
             None => {
                 let infer_ctx = InferenceContext::from(ctx);

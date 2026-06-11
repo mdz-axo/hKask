@@ -4,7 +4,7 @@ use hkask_services::ChatService;
 use hkask_types::ports::ToolPort;
 
 pub(crate) fn handle_history(state: &super::super::ReplState) {
-    let token = state.service_context.governance().0.grant_registry(
+    let token = state.service_context.capability_checker().grant_registry(
         hkask_types::DelegationAction::Read,
         *state.service_context.identity().0,
         state.agent_webid,

@@ -185,7 +185,7 @@ pub(crate) async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
-    let queue = &state.agent_service.governance().2;
+    let queue = state.agent_service.escalation_queue();
     let stats = queue.stats().map_err(ApiError::from)?;
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
