@@ -254,7 +254,3 @@ impl MCPRuntimePort for FullMcpAdapter {
             .map(|info| info.server_id)
     }
 }
-
-// ---------------------------------------------------------------------------
-// Backward-compatible type alias (deprecated)
-// ---------------------------------------------------------------------------

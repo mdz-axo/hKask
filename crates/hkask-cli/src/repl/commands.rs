@@ -182,6 +182,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "",
         about: "Take a guided tour of hKask's key capabilities",
     },
+    SlashCommand {
+        primary: "feedback",
+        aliases: &[],
+        args: "",
+        about: "Submit onboarding or usability feedback (appended to local feedback.md)",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -315,6 +321,7 @@ pub(super) fn handle_slash_command(
         },
         "repl" => handlers::handle_repl_set(arg1, arg2, state),
         "start" | "tour" | "onboarding" => handlers::handle_start(state),
+        "feedback" => handlers::handle_feedback(state),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

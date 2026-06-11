@@ -218,7 +218,12 @@ impl UserStore {
                 last_active: row.get(7)?,
             })
         })
-        .map_err(|_| UserStoreError::NotFound(user_id.as_uuid().to_string()))
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                UserStoreError::NotFound(user_id.as_uuid().to_string())
+            }
+            other => UserStoreError::from(other),
+        })
     }
 
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {

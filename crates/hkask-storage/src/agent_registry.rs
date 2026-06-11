@@ -72,7 +72,12 @@ impl AgentRegistryStore {
                 let source_yaml: String = row.get(3)?;
                 Ok((definition_json, token_hash, registered_at, source_yaml))
             })
-            .map_err(|_| AgentRegistryError::NotFound(name.to_string()))?;
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AgentRegistryError::NotFound(name.to_string())
+                }
+                other => AgentRegistryError::from(other),
+            })?;
 
         let definition: AgentDefinition = serde_json::from_str(&agent.0)?;
         Ok(RegisteredAgent {

@@ -70,3 +70,60 @@ pub fn strip_forbidden_patterns(
 
     (cleaned, check.violations)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::PersonaConstraints;
+
+    fn constraints(forbidden: &[&str]) -> PersonaConstraints {
+        PersonaConstraints {
+            forbidden: forbidden.iter().map(|s| s.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    // REQ: persona-filter-001 — non-ASCII output does not panic on byte-boundary check
+    #[test]
+    fn check_does_not_panic_on_non_ascii_output() {
+        // 'é' is 2 bytes in UTF-8. The forbidden pattern "great" is ASCII.
+        // Before fix, pos from to_lowercase() on a mixed-byte string was used
+        // to index the original string, causing a byte-boundary panic.
+        let c = constraints(&["great"]);
+        let output = "C'est très Great de vous voir";
+        // Must not panic; violation should be detected.
+        let result = check_persona_constraints(output, &c);
+        assert!(
+            !result.passed,
+            "should detect 'great' in mixed UTF-8 output"
+        );
+    }
+
+    // REQ: persona-filter-002 — strip does not panic on non-ASCII output
+    #[test]
+    fn strip_does_not_panic_on_non_ascii_output() {
+        let c = constraints(&["great"]);
+        let output = "C'est très Great de vous voir";
+        let (cleaned, violations) = strip_forbidden_patterns(output, &c);
+        assert!(!violations.is_empty(), "should report violation");
+        assert!(!cleaned.contains("Great"), "should strip the pattern");
+    }
+
+    // REQ: persona-filter-003 — ASCII output: clean detection and stripping
+    #[test]
+    fn check_detects_ascii_forbidden_pattern() {
+        let c = constraints(&["Great", "Certainly"]);
+        let result = check_persona_constraints("Great! Certainly.", &c);
+        assert!(!result.passed);
+        assert_eq!(result.violations.len(), 2);
+    }
+
+    // REQ: persona-filter-004 — no false positives on clean output
+    #[test]
+    fn check_passes_clean_output() {
+        let c = constraints(&["Great", "Certainly"]);
+        let result = check_persona_constraints("The result is ready.", &c);
+        assert!(result.passed);
+        assert!(result.violations.is_empty());
+    }
+}

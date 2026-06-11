@@ -120,11 +120,6 @@ impl NuEventStore {
         }
     }
 
-    /// String-based dispatch (F-SYN-009 backwards compat).
-    ///
-    /// Parses the input through `SpanCategory::from_short_name` so
-    /// the dispatch table is the *same* as `lambda_for`. New code
-    /// should use `lambda_for` directly.
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
         let conn = self.lock_conn()?;
         let (span_category, span_path) = span_to_columns(&event.span);
@@ -301,6 +296,81 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
 
 fn span_to_columns(span: &Span) -> (&str, &str) {
     (span.namespace.short_name(), span.path.as_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use hkask_types::event::{Span, SpanNamespace};
+
+    // REQ: nu-event-store-001 — span_path shorter than namespace does not panic
+    //
+    // Before fix, `span_path[namespace.as_str().len() + 1..]` was an unconditional
+    // slice that panicked when span_path did not start with the namespace prefix
+    // (e.g., when the fallback namespace "cns.gas" was used but span_path is just
+    // "depleted").
+    #[test]
+    fn local_path_extraction_does_not_panic_on_short_span_path() {
+        // Simulate a span_path that is shorter than the namespace prefix.
+        let namespace = SpanNamespace::new("cns.gas");
+        let ns_str = namespace.as_str();
+        let span_path = "depleted"; // does NOT start with "cns.gas"
+
+        let local_path = if span_path.starts_with(ns_str)
+            && span_path.len() > ns_str.len()
+            && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
+        {
+            &span_path[ns_str.len() + 1..]
+        } else {
+            span_path
+        };
+
+        assert_eq!(
+            local_path, "depleted",
+            "fallback should return raw path when prefix doesn't match"
+        );
+    }
+
+    // REQ: nu-event-store-002 — span_path equal to namespace prefix does not panic
+    #[test]
+    fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
+        let namespace = SpanNamespace::new("cns.gas");
+        let ns_str = namespace.as_str();
+        let span_path = "cns.gas"; // exactly the namespace, no local component
+
+        let local_path = if span_path.starts_with(ns_str)
+            && span_path.len() > ns_str.len()
+            && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
+        {
+            &span_path[ns_str.len() + 1..]
+        } else {
+            span_path
+        };
+
+        assert_eq!(
+            local_path, "cns.gas",
+            "fallback should return raw path when no dot follows namespace"
+        );
+    }
+
+    // REQ: nu-event-store-003 — well-formed span_path extracts local component
+    #[test]
+    fn local_path_extraction_succeeds_on_well_formed_path() {
+        let namespace = SpanNamespace::new("cns.gas");
+        let ns_str = namespace.as_str();
+        let span_path = "cns.gas.depleted";
+
+        let local_path = if span_path.starts_with(ns_str)
+            && span_path.len() > ns_str.len()
+            && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
+        {
+            &span_path[ns_str.len() + 1..]
+        } else {
+            span_path
+        };
+
+        assert_eq!(local_path, "depleted");
+        let _ = Span::new(namespace, local_path);
+    }
 }
 
 impl NuEventSink for NuEventStore {

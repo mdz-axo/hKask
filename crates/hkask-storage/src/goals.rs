@@ -318,7 +318,16 @@ impl SqliteGoalRepository {
                         let raw: String = row.get(4)?;
                         chrono::DateTime::parse_from_rfc3339(&raw)
                             .map(|dt| dt.with_timezone(&Utc))
-                            .unwrap_or_else(|_| Utc::now())
+                            .map_err(|e| {
+                                rusqlite::Error::FromSqlConversionFailure(
+                                    4,
+                                    rusqlite::types::Type::Text,
+                                    Box::new(std::io::Error::new(
+                                        std::io::ErrorKind::InvalidData,
+                                        format!("corrupt artifact created_at '{}': {}", raw, e),
+                                    )),
+                                )
+                            })?
                     },
                 })
             }

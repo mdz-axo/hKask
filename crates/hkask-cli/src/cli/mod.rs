@@ -167,6 +167,9 @@ pub enum Commands {
     /// List available LLM models
     Models,
 
+    /// Add a new replicant to an existing hKask installation
+    Onboard,
+
     /// Manage REPL/CLI inference settings (same as /repl in interactive mode)
     Settings {
         #[command(subcommand)]

@@ -111,6 +111,7 @@ pub(super) fn print_help() {
             "Governance",
             &["escalations", "resolve", "dismiss", "metacognition"],
         ),
+        ("Onboarding", &["start", "feedback"]),
     ];
 
     for (category, cmds) in &categories {

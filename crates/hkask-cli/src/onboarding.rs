@@ -4,6 +4,9 @@
 //! - **Operating mode**: keys configured, replicants exist — sign in, no prompts.
 //! - **Setup**: no keys or no replicants — create the user's first replicant.
 //!
+//! Also exposes `run_add_replicant()` for the `kask onboard` subcommand, which
+//! creates additional replicants in an existing installation.
+//!
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
@@ -64,6 +67,8 @@ pub struct OnboardingOutcome {
     pub is_first_run: bool,
 }
 
+// ── Public entry points ────────────────────────────────────────────────────
+
 /// Resolve the user's session.
 ///
 /// Operating mode: keys configured, replicants exist — returns immediately.
@@ -92,6 +97,102 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     // Setup: create the user's first replicant.
     setup().await
 }
+
+/// Add a new replicant to an existing hKask installation.
+///
+/// Used by `kask onboard`. When secrets are already in the keychain the user
+/// only provides name + description (no passphrase re-entry needed). When
+/// secrets are absent the full passphrase flow runs, matching first-run.
+pub async fn run_add_replicant() -> Result<(), OnboardingError> {
+    display::print_onboarding_banner();
+    println!("\n  \x1b[1mAdd a new replicant\x1b[0m");
+    println!("  Each replicant is a distinct AI identity with its own memory and charter.\n");
+
+    // Q1: Replicant name
+    let name = prompt_line("  Replicant name:")?;
+    let name = if name.trim().is_empty() {
+        println!("  Name cannot be empty. Using 'Assistant' as default.");
+        "Assistant".to_string()
+    } else {
+        name.trim().to_string()
+    };
+
+    // Q2: Description / charter
+    println!();
+    let description = prompt_line(&format!(
+        "  What should \x1b[36m{}\x1b[0m help you with? (e.g., 'research assistant'):",
+        name
+    ))?;
+    let description = if description.trim().is_empty() {
+        "A helpful AI assistant".to_string()
+    } else {
+        description.trim().to_string()
+    };
+
+    // Q3: Model selection
+    println!();
+    println!("  \x1b[1mChoose a model\x1b[0m for this replicant.");
+    let selected_model = select_model().await;
+
+    // Try to reuse secrets from the keychain first (common case for `kask onboard`
+    // when the user already completed first-run setup). Fall through to passphrase
+    // prompt only when keychain lookup fails.
+    let config = if let Ok(config) = ServiceConfig::from_env() {
+        config
+    } else {
+        // Keychain has no secrets yet — collect the passphrase to derive them.
+        println!();
+        println!(
+            "  \x1b[1mMaster passphrase\x1b[0m — enter the same passphrase you used at first setup."
+        );
+        println!("  \x1b[2mThis unlocks the shared encrypted database.\x1b[0m");
+        let passphrase = prompt_passphrase_once()?;
+        let resolved = OnboardingService::derive_secrets(&passphrase, false)
+            .map_err(|e| OnboardingError::Database(format!("Failed to derive secrets: {}", e)))?;
+        ServiceConfig::from_secrets(
+            resolved.acp_secret.clone(),
+            resolved.db_passphrase.clone(),
+            resolved.acp_secret.clone(),
+            name.clone(),
+        )
+    };
+
+    // Open the existing registry and register the new replicant.
+    let handle = OnboardingService::init_registry(&config)
+        .await
+        .map_err(|e| {
+            eprintln!("  \x1b[31m✗\x1b[0m Cannot open registry: {}", e);
+            eprintln!("  Make sure you have completed first-run setup (`kask chat`).");
+            e
+        })?;
+
+    OnboardingService::register_replicant(&handle.acp, &handle.store, &name, &description)
+        .await
+        .map_err(|e| {
+            eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
+            e
+        })?;
+
+    // Summary — no "Getting started" section since the user is already set up.
+    println!();
+    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    println!("  \x1b[1;32m  ✓  Replicant added!\x1b[0m");
+    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    println!();
+    println!("  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m", name);
+    println!("  \x1b[1mPurpose:\x1b[0m   {}", description);
+    println!(
+        "  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m",
+        selected_model
+    );
+    println!();
+    println!("  Start a session: \x1b[36mkask chat {}\x1b[0m", name);
+    println!();
+
+    Ok(())
+}
+
+// ── Private helpers ────────────────────────────────────────────────────────
 
 /// Setup: create the user's first replicant.
 async fn setup() -> Result<OnboardingOutcome, OnboardingError> {
@@ -309,7 +410,7 @@ async fn select_model() -> String {
     }
 }
 
-/// Print a summary after successful replicant creation.
+/// Print a summary after successful replicant creation (first-run).
 fn print_creation_summary(name: &str, description: &str, model: &str) {
     println!();
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
@@ -362,6 +463,19 @@ fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
     print!("{prompt} ");
     std::io::stdout().flush()?;
     rpassword::read_password()
+}
+
+/// Prompt for a passphrase once, without confirmation.
+/// Used by `run_add_replicant` when verifying an existing installation.
+fn prompt_passphrase_once() -> Result<String, std::io::Error> {
+    loop {
+        let pass = prompt_passphrase("  Master passphrase:")?;
+        if pass.is_empty() {
+            println!("  \x1b[31mPassphrase cannot be empty.\x1b[0m Please try again.");
+            continue;
+        }
+        return Ok(pass);
+    }
 }
 
 /// Evaluate passphrase strength and return a label + color code.

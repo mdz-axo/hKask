@@ -135,10 +135,9 @@ impl InferenceService {
         }
 
         // Fall back to a fresh OkapiInference instance.
-        let config = OkapiConfig {
-            base_url: ctx.okapi_base_url.clone(),
-            ..OkapiConfig::default()
-        };
+        // Use for_inference() for the 120-second timeout — model cold-start
+        // alone can take 10-30 seconds before generation begins.
+        let config = OkapiConfig::for_inference(&ctx.okapi_base_url, None);
         OkapiInference::new(model, config)
             .map(|i| Arc::new(i) as Arc<dyn InferencePort>)
             .map_err(ServiceError::InferencePort)

@@ -11,6 +11,7 @@ use hkask_types::{
 };
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
+use tracing;
 
 type SkillRow = (
     String,
@@ -296,13 +297,15 @@ impl RegistryIndex for SqliteRegistry {
 impl SkillRegistryIndex for SqliteRegistry {
     fn register_skill(&mut self, skill: Skill) {
         let conn = self.conn.lock().unwrap();
-        conn.execute(
+        if let Err(e) = conn.execute(
             "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![skill.id, skill.domain.as_str(), skill.word_act, skill.flow_def, skill.know_act,
                 skill.polarity.as_ref().map(|p| p.as_str()), skill.content_hash,
                 skill.visibility.as_str(), skill.zone.as_str(), skill.namespace],
-        ).map_err(|e| TemplateError::Manifest(format!("Insert skill: {}", e))).ok();
+        ) {
+            tracing::error!(target: "hkask.templates", error = %e, skill_id = %skill.id, "register_skill: INSERT failed");
+        }
     }
 
     fn get_skill(&self, id: &str) -> Option<Skill> {
@@ -326,11 +329,14 @@ impl SkillRegistryIndex for SqliteRegistry {
 
     fn remove_skill(&mut self, id: &str) -> Option<Skill> {
         let skill = self.get_skill_owned(id);
-        self.conn
+        if let Err(e) = self
+            .conn
             .lock()
             .unwrap()
             .execute("DELETE FROM skills WHERE id = ?1", params![id])
-            .ok();
+        {
+            tracing::error!(target: "hkask.templates", error = %e, id = %id, "remove_skill: DELETE failed");
+        }
         skill
     }
 }
@@ -339,16 +345,29 @@ impl SkillRegistryIndex for SqliteRegistry {
 
 impl BundleRegistryIndex for SqliteRegistry {
     fn register_bundle(&mut self, bundle: BundleManifest) {
-        let manifest_json = serde_json::to_string(&bundle).unwrap_or_else(|_| "{}".into());
+        let manifest_json = match serde_json::to_string(&bundle) {
+            Ok(j) => j,
+            Err(e) => {
+                tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: serialize failed");
+                return;
+            }
+        };
         let conn = self.conn.lock().unwrap();
-        conn.execute("INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)", params![bundle.id, bundle.name, bundle.description, bundle.version, bundle.editor, bundle.visibility.as_str(), manifest_json]).map_err(|e| TemplateError::Manifest(format!("Insert bundle: {}", e))).ok();
-        conn.execute(
+        if let Err(e) = conn.execute("INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)", params![bundle.id, bundle.name, bundle.description, bundle.version, bundle.editor, bundle.visibility.as_str(), manifest_json]) {
+            tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: INSERT failed");
+            return;
+        }
+        if let Err(e) = conn.execute(
             "DELETE FROM bundle_skills WHERE bundle_id = ?1",
             params![bundle.id],
-        )
-        .ok();
+        ) {
+            tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: DELETE bundle_skills failed");
+            return;
+        }
         for (position, skill) in bundle.skills.iter().enumerate() {
-            conn.execute("INSERT INTO bundle_skills (bundle_id, skill_id, polarity, manifest_ref, content_hash, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![bundle.id, skill.id, Some(skill.polarity.as_str()), skill.manifest_ref, skill.content_hash, position as i64]).ok();
+            if let Err(e) = conn.execute("INSERT INTO bundle_skills (bundle_id, skill_id, polarity, manifest_ref, content_hash, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![bundle.id, skill.id, Some(skill.polarity.as_str()), skill.manifest_ref, skill.content_hash, position as i64]) {
+                tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, skill_id = %skill.id, "register_bundle: INSERT bundle_skills failed");
+            }
         }
     }
 
@@ -387,13 +406,15 @@ impl BundleRegistryIndex for SqliteRegistry {
     fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest> {
         let bundle = self.get_bundle(id);
         let conn = self.conn.lock().unwrap();
-        conn.execute(
+        if let Err(e) = conn.execute(
             "DELETE FROM bundle_skills WHERE bundle_id = ?1",
             params![id],
-        )
-        .ok();
-        conn.execute("DELETE FROM bundles WHERE id = ?1", params![id])
-            .ok();
+        ) {
+            tracing::error!(target: "hkask.templates", error = %e, id = %id, "remove_bundle: DELETE bundle_skills failed");
+        }
+        if let Err(e) = conn.execute("DELETE FROM bundles WHERE id = ?1", params![id]) {
+            tracing::error!(target: "hkask.templates", error = %e, id = %id, "remove_bundle: DELETE bundles failed");
+        }
         bundle
     }
 

@@ -179,7 +179,7 @@ impl EscalationQueue {
                 error_context: row.get(6)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
                     .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
+                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?,
                 status: EscalationStatus::Pending,
                 resolved_at: None,
                 resolved_by: None,
@@ -187,8 +187,8 @@ impl EscalationQueue {
         })?;
 
         let mut escalations = Vec::new();
-        for esc in rows.flatten() {
-            escalations.push(esc);
+        for esc in rows {
+            escalations.push(esc?);
         }
         Ok(escalations)
     }
@@ -234,7 +234,7 @@ impl EscalationQueue {
                 error_context: row.get(6)?,
                 created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
                     .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
+                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?,
                 status,
                 resolved_at,
                 resolved_by: row.get(10)?,
@@ -246,19 +246,25 @@ impl EscalationQueue {
 
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
-        self.lock_conn()?.execute(
+        let affected = self.lock_conn()?.execute(
             r#"UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
+        if affected == 0 {
+            return Err(EscalationError::NotFound(id.to_string()));
+        }
         Ok(())
     }
 
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
-        self.lock_conn()?.execute(
+        let affected = self.lock_conn()?.execute(
             r#"UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
+        if affected == 0 {
+            return Err(EscalationError::NotFound(id.to_string()));
+        }
         Ok(())
     }
 

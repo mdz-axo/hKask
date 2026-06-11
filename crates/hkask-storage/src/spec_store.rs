@@ -243,7 +243,10 @@ impl SqliteSpecStore {
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE id = ?1")?;
         let data: String = stmt
             .query_row(rusqlite::params![id.to_string()], |row| row.get(0))
-            .map_err(|_| SpecError::NotFound(id))?;
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => SpecError::NotFound(id),
+                other => SpecError::from(other),
+            })?;
         serde_json::from_str(&data).map_err(Into::into)
     }
 

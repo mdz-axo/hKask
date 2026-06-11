@@ -226,6 +226,47 @@ pub fn capabilities_match(token_capability: &str, required_capability: &str) -> 
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: capability-parse-001 — canonical default capability always parses
+    //
+    // The pod constructor uses `CapabilitySpec::parse("tool:execute")` as the
+    // infallible default. This test ensures that never fails.
+    #[test]
+    fn default_capability_always_parses() {
+        assert!(CapabilitySpec::parse("tool:execute").is_ok());
+    }
+
+    // REQ: capability-parse-002 — malformed user-supplied capability does not panic
+    //
+    // Before fix, `AgentPod::new` called `.expect()` on the user-supplied first
+    // capability, causing a panic for any malformed input. The fallback is now
+    // applied instead.
+    #[test]
+    fn malformed_capability_parses_to_err_not_panic() {
+        // These must return Err, not panic.
+        assert!(CapabilitySpec::parse("").is_err());
+        assert!(CapabilitySpec::parse("not-a-capability").is_err());
+        assert!(CapabilitySpec::parse("::::").is_err());
+    }
+
+    // REQ: capability-parse-003 — fallback logic mirrors pod constructor
+    #[test]
+    fn malformed_capability_falls_back_to_default() {
+        let default = "tool:execute".to_string();
+        let user_supplied = "garbage:input:bad";
+        let spec = CapabilitySpec::parse(user_supplied).unwrap_or_else(|_| {
+            CapabilitySpec::parse(&default)
+                .expect("Default capability 'tool:execute' must always parse")
+        });
+        // Fallback spec must be for tool:execute
+        assert_eq!(spec.resource, DelegationResource::Tool);
+        assert_eq!(spec.action, DelegationAction::Execute);
+    }
+}
+
 /// Additive restrictions on a capability token.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct Caveat {

@@ -23,6 +23,7 @@ pub mod magna_carta;
 pub mod mcp;
 
 pub mod models;
+pub mod onboard;
 pub mod pod;
 pub mod registry;
 pub mod serve;

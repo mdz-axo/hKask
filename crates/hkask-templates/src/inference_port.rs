@@ -72,6 +72,7 @@ fn build_request(
         seed: params.seed,
         n_probs,
         stream,
+        think: false,
     }
 }
 
@@ -104,7 +105,7 @@ impl OkapiInference {
         }
         let mut req = self
             .client
-            .post(format!("{}/api/generate", self.config.base_url))
+            .post(format!("{}/v1/chat/completions", self.config.base_url))
             .json(&request);
         if let Some(auth_header) = self.config.get_authorization_header() {
             req = req.header("Authorization", auth_header);
@@ -301,7 +302,7 @@ impl OkapiInference {
                     build_request(&model_id, &prompt, None, &parameters, Some(true), None);
 
                 let mut req = client
-                    .post(format!("{}/api/generate", base_url))
+                    .post(format!("{}/v1/chat/completions", base_url))
                     .json(&request);
                 if let Some(ref header) = auth_header {
                     req = req.header("Authorization", header);
@@ -476,6 +477,11 @@ struct OkapiRequest {
     n_probs: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     stream: Option<bool>,
+    /// Disable chain-of-thought reasoning for thinking models (e.g. qwen3).
+    /// Without this, thinking models spend all output tokens on internal
+    /// reasoning and produce empty visible content. Non-thinking models
+    /// silently ignore this field.
+    think: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -561,4 +567,88 @@ struct StreamChoice {
 struct StreamDelta {
     #[serde(default)]
     content: Option<String>,
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// REQ: inf-port-001 — OkapiResponse deserializes the /v1/chat/completions
+    /// wire format including unknown fields (id, object, created, index, reasoning,
+    /// system_fingerprint) that are present in real Okapi responses.
+    #[test]
+    fn okapi_response_deserializes_chat_completions_format() {
+        // Real response captured from Okapi /v1/chat/completions with qwen3:4b
+        let raw = r#"{
+            "id": "chatcmpl-847",
+            "object": "chat.completion",
+            "created": 1781219013,
+            "model": "qwen3:4b",
+            "system_fingerprint": "fp_ollama",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "The sun beat down.",
+                    "reasoning": "User asked for prose."
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 11,
+                "completion_tokens": 5,
+                "total_tokens": 16
+            }
+        }"#;
+
+        let resp: OkapiResponse = serde_json::from_str(raw)
+            .expect("OkapiResponse must deserialize /v1/chat/completions format");
+
+        assert_eq!(resp.model, "qwen3:4b");
+        assert_eq!(resp.choices.len(), 1);
+        assert_eq!(resp.choices[0].message.content, "The sun beat down.");
+        assert_eq!(resp.choices[0].finish_reason, "stop");
+        assert_eq!(resp.usage.prompt_tokens, 11);
+        assert_eq!(resp.usage.completion_tokens, 5);
+        assert_eq!(resp.usage.total_tokens, 16);
+    }
+
+    /// REQ: inf-port-002 — OkapiRequest serializes think:false to suppress
+    /// chain-of-thought reasoning in thinking models (qwen3, deepseek-r1).
+    #[test]
+    fn okapi_request_serializes_think_false() {
+        use hkask_types::LLMParameters;
+        let params = LLMParameters {
+            temperature: 0.7,
+            top_p: 0.9,
+            top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
+            frequency_penalty: 0.0,
+            presence_penalty: 0.0,
+            max_tokens: 512,
+            seed: None,
+        };
+        let req = build_request("qwen3:4b", "Write a sentence.", None, &params, None, None);
+        let json = serde_json::to_value(&req).expect("serialization must succeed");
+        assert_eq!(
+            json["think"],
+            serde_json::json!(false),
+            "think:false must be present to suppress qwen3 reasoning tokens"
+        );
+        assert_eq!(json["messages"][0]["role"], "user");
+        assert_eq!(json["messages"][0]["content"], "Write a sentence.");
+    }
+
+    /// REQ: inf-port-003 — OkapiConfig::for_inference uses 120-second timeout
+    /// to accommodate model cold-start (10-30 s) plus generation time.
+    #[test]
+    fn okapi_config_for_inference_has_extended_timeout() {
+        let cfg = OkapiConfig::for_inference("http://127.0.0.1:11435", None);
+        assert_eq!(cfg.timeout_secs, 120);
+        assert_eq!(cfg.base_url, "http://127.0.0.1:11435");
+        assert!(cfg.api_key.is_none());
+    }
 }

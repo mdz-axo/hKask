@@ -116,7 +116,12 @@ impl StandingSessionStore {
                     row.get::<_, i32>(5)? != 0,
                 ))
             })
-            .map_err(|_| StandingSessionError::NotFound(session_id.to_string()))?;
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    StandingSessionError::NotFound(session_id.to_string())
+                }
+                other => StandingSessionError::from(other),
+            })?;
 
         Ok(StoredSession {
             session_id: session.0,
@@ -141,7 +146,12 @@ impl StandingSessionStore {
                 [&message.session_id],
                 |row| row.get::<_, i32>(0).map(|s| s != 0),
             )
-            .map_err(|_| StandingSessionError::NotFound(message.session_id.clone()))?;
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    StandingSessionError::NotFound(message.session_id.clone())
+                }
+                other => StandingSessionError::from(other),
+            })?;
         if sealed {
             return Err(StandingSessionError::Sealed(message.session_id.clone()));
         }

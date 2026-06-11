@@ -343,7 +343,12 @@ impl TripleStore {
         let value: Value = serde_json::from_str(&row.value)?;
         let valid_from = DateTime::parse_from_rfc3339(&row.valid_from)
             .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|_| Utc::now());
+            .map_err(|e| {
+                TripleError::Infra(InfrastructureError::Database(format!(
+                    "corrupt valid_from timestamp '{}': {}",
+                    row.valid_from, e
+                )))
+            })?;
         let valid_to = row
             .valid_to
             .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())

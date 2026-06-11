@@ -67,6 +67,20 @@ impl OkapiConfig {
         }
     }
 
+    /// Config for chat/generation inference.
+    ///
+    /// Uses a 120-second timeout to accommodate model loading time
+    /// (cold start can take 10-30 s) plus generation for long prompts.
+    /// Embedding uses the default 30-second timeout instead.
+    pub fn for_inference(base_url: impl Into<String>, api_key: Option<String>) -> Self {
+        Self {
+            base_url: base_url.into(),
+            api_key,
+            timeout_secs: 120,
+            pool_max_idle: 5,
+        }
+    }
+
     pub(crate) fn build_client(&self) -> Result<reqwest::Client, OkapiConfigError> {
         reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(self.timeout_secs))
