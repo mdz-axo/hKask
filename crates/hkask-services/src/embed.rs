@@ -1,16 +1,38 @@
-//! EmbedService — Style corpus embedding pipeline.
+//! EmbedService — Style corpus embedding pipeline with metadata layer.
 //! # REQ: P3 (Generative Space) — full parameter exposure, no hidden settings.
+//!
+//! ## Pipeline phases
+//! 1. **Parse config** — YAML with entities, methods, budget, works
+//! 2. **Download & chunk** — Gutenberg texts → tagged passages
+//! 3. **Tag** — entity matching + method signal extraction
+//! 4. **Salience** — weighted graph degree centrality per passage
+//! 5. **Budget gate** — sort by salience, top-N by triple budget
+//! 6. **Embed** — all passages get vectors (via Okapi/DeepInfra)
+//! 7. **Store triples** — budget-selected passages get metadata triples
+//! 8. **Centroid** — mean vector over prose passages
 
 use hkask_memory::SemanticMemory;
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_memory::salience::{self, BudgetConfig, DeclaredMethod, EntityTags, MethodSignals};
+use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_templates::{OkapiConfig, OkapiEmbedding};
+use hkask_types::Visibility;
+use hkask_types::id::WebID;
 
 use serde::Deserialize;
+use serde_json::json;
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::error::ServiceError;
+
+// ── Re-exports ─────────────────────────────────────────────────────────────
+
+pub use hkask_memory::salience::{
+    BudgetConfig as BudgetConfigReexport, DeclaredMethod as DeclaredMethodReexport,
+    MethodSignals as MethodSignalsReexport,
+};
 
 /// Progress callback — called every 3 seconds during embedding.
 pub type ProgressFn = Arc<dyn Fn(&EmbedProgress) + Send + Sync>;
@@ -29,13 +51,14 @@ pub struct EmbedProgress {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EmbedPhase {
     Parsing,
+    Tagging,
     Embedding,
+    Triples,
     Centroid,
     Done,
 }
 
 impl EmbedProgress {
-    /// Format as page-turning progress: `TODO [X pages · Y%] ::: DONE [A pages · B%]`
     pub fn format_page_progress(&self) -> String {
         let todo = self.total_passages.saturating_sub(self.completed_passages);
         let todo_pct = if self.total_passages > 0 {
@@ -57,41 +80,32 @@ impl EmbedProgress {
         )
     }
 
-    /// Format with phase and work name
     pub fn format_full(&self) -> String {
-        match self.phase {
-            EmbedPhase::Parsing => format!(
-                "[Parsing] {} — {} — {}",
-                self.author,
-                self.current_work,
+        let phase_label = match self.phase {
+            EmbedPhase::Parsing => "Parsing",
+            EmbedPhase::Tagging => "Tagging",
+            EmbedPhase::Embedding => "Embedding",
+            EmbedPhase::Triples => "Triples",
+            EmbedPhase::Centroid => "Centroid",
+            EmbedPhase::Done => "Done",
+        };
+        format!(
+            "[{phase_label}] {} — {}",
+            self.author,
+            if self.current_work.is_empty() {
                 self.format_page_progress()
-            ),
-            EmbedPhase::Embedding => format!(
-                "[Embedding] {} — {}",
-                self.author,
-                self.format_page_progress()
-            ),
-            _ => format!(
-                "[{}] {} — {}",
-                match self.phase {
-                    EmbedPhase::Parsing => "Parsing",
-                    EmbedPhase::Embedding => "Embedding",
-                    EmbedPhase::Centroid => "Centroid",
-                    EmbedPhase::Done => "Done",
-                },
-                self.author,
-                if self.current_work.is_empty() {
-                    self.format_page_progress()
-                } else {
-                    format!("{} — {}", self.current_work, self.format_page_progress())
-                }
-            ),
-        }
+            } else {
+                format!("{} — {}", self.current_work, self.format_page_progress())
+            }
+        )
     }
 }
 
+// ── Configuration ──────────────────────────────────────────────────────────
+
 /// Corpus configuration — defines the author, works, embedding model,
-/// chunking parameters, and validation constraints for a style corpus.
+/// chunking parameters, entity declarations, method declarations,
+/// budget settings, and validation constraints.
 #[derive(Debug, Deserialize)]
 pub struct CorpusConfig {
     pub author: String,
@@ -101,6 +115,54 @@ pub struct CorpusConfig {
     pub chunking: ChunkingConfig,
     pub centroid_entity_ref: String,
     pub validation: ValidationConfig,
+
+    /// Budget for triple storage per corpus (default: 3,750 triples/100 pages).
+    #[serde(default)]
+    pub budget: BudgetConfig,
+
+    /// Entity declarations for tagging (who, where, what, why).
+    #[serde(default)]
+    pub entities: EntityConfig,
+
+    /// Declared methods with signal thresholds (how).
+    #[serde(default)]
+    pub methods: Vec<DeclaredMethod>,
+}
+
+/// Entity declarations for corpus-specific tagging.
+#[derive(Debug, Default, Deserialize)]
+pub struct EntityConfig {
+    #[serde(default)]
+    pub characters: Vec<Entity>,
+    #[serde(default)]
+    pub places: Vec<Entity>,
+    #[serde(default)]
+    pub events: Vec<Entity>,
+    #[serde(default)]
+    pub concepts: Vec<Entity>,
+}
+
+/// A declared entity with name and optional per-work scoping.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Entity {
+    pub name: String,
+    /// Restrict to specific work slugs (empty = all works).
+    #[serde(default)]
+    pub appears_in: Vec<String>,
+}
+
+impl Entity {
+    fn matches_work(&self, work_slug: &str) -> bool {
+        self.appears_in.is_empty() || self.appears_in.iter().any(|w| w == work_slug)
+    }
+
+    fn name_strings(entities: &[Entity], work_slug: &str) -> Vec<String> {
+        entities
+            .iter()
+            .filter(|e| e.matches_work(work_slug))
+            .map(|e| e.name.clone())
+            .collect()
+    }
 }
 
 /// Embedding model and dimension configuration.
@@ -142,45 +204,81 @@ pub struct ValidationConfig {
     pub exemplar_count_max: usize,
 }
 
-/// Result of the embedding pipeline.
+// ── Tagged Passage ─────────────────────────────────────────────────────────
+
+/// A fully tagged passage: text + entity tags + method signals + salience.
+///
+/// Carries everything needed for both embedding and triple storage.
+#[derive(Debug, Clone)]
+struct TaggedPassage {
+    entity_ref: String,
+    text: String,
+    work_slug: String,
+    work_title: String,
+    /// Position within the work (0.0 = start, 1.0 = end).
+    position: f32,
+    /// Whether this is a foundational rule (excluded from centroid).
+    is_rule: bool,
+    /// Entity tags from config-declared entity matching.
+    tags: EntityTags,
+    /// Computed stylometric signals.
+    signals: MethodSignals,
+    /// Salience score (weighted graph degree).
+    salience: f32,
+}
+
+impl TaggedPassage {
+    /// Count how many triples this passage would consume if stored.
+    fn triple_count(&self) -> usize {
+        // Structural: 6 (work_title, work_slug, position, passage_index,
+        //              word_count, avg_sentence_length)
+        // Entity tags: sum of all tag lists
+        // Method tags: methods.len()
+        // Salience: 1
+        // Method signals: 10 (one per signal field, stored individually)
+        6 + self.tags.characters.len()
+            + self.tags.places.len()
+            + self.tags.events.len()
+            + self.tags.concepts.len()
+            + self.tags.methods.len()
+            + 1
+            + 11 // salience + 10 method signals
+    }
+}
+
+// ── Result ─────────────────────────────────────────────────────────────────
+
+/// Result of the embedding pipeline with budget statistics.
 #[derive(Debug)]
 pub struct EmbedResult {
-    /// Author name from the corpus config.
     pub author: String,
-    /// Number of existing embeddings purged before re-ingest.
     pub purged: usize,
-    /// Total passages embedded and stored.
     pub total_passages: usize,
-    /// Entity reference for the computed centroid.
     pub centroid_ref: String,
-    /// Number of prose passages used for centroid computation.
     pub passage_count: usize,
-    /// Whether the centroid was stored as an embedding.
     pub centroid_stored: bool,
-    /// Validation config from corpus config.
     pub validation: ValidationConfig,
+    /// Total triple budget for this corpus.
+    pub budget: usize,
+    /// Number of passages that earned triple storage.
+    pub tagged_passages: usize,
+    /// Triples actually stored.
+    pub triples_stored: usize,
+    /// Passages that got embeddings only (below budget cutoff).
+    pub embedding_only: usize,
 }
 
 const USER_AGENT: &str = "hkask-mcp-web/0.22.0";
+const CURATOR_PERSONA: &[u8] = b"Curator";
 
-/// Service for the style corpus embedding pipeline.
-///
-/// Orchestrates config parsing, DB construction, text download/caching,
-/// passage chunking, batch embedding via Okapi, and centroid computation.
+/// Service for the style corpus embedding pipeline with metadata layer.
 pub struct EmbedService;
 
 impl EmbedService {
-    /// Run the full style corpus embedding pipeline.
+    /// Run the full style corpus embedding pipeline with metadata tagging,
+    /// salience scoring, and budget-gated triple storage.
     ///
-    /// Reads the corpus config YAML, opens the semantic DB, purges existing
-    /// embeddings for the author, downloads/caches/chunks texts, embeds
-    /// passages in batches via Okapi, and computes the style centroid.
-    ///
-    /// If `cache_dir` is None, derives it from the config file's parent
-    /// directory joined with `.cache`.
-    ///
-    /// If `progress` is provided, it's called every 3 seconds with live
-    /// page-turning progress (phase, work, completed/total).
+    /// See module-level docs for the full phase breakdown.
     pub async fn embed_corpus(
         config_path: &Path,
         db_path: &str,
@@ -191,7 +289,7 @@ impl EmbedService {
     ) -> Result<EmbedResult, ServiceError> {
         let started = Instant::now();
 
-        // Parse config
+        // ── Phase 1: Parse config ──────────────────────────────────────
         let config_str = std::fs::read_to_string(config_path).map_err(|e| {
             ServiceError::Embed(format!(
                 "Failed to read corpus config {}: {e}",
@@ -205,6 +303,7 @@ impl EmbedService {
         let author_prefix = format!("style:{}:", &author);
         let centroid_ref = config.centroid_entity_ref.clone();
         let validation = config.validation.clone();
+        let curator_webid = WebID::from_persona(CURATOR_PERSONA);
 
         // ── Shared progress state + heartbeat ──
         let shared = Arc::new(Mutex::new(EmbedProgress {
@@ -237,7 +336,7 @@ impl EmbedService {
             None
         };
 
-        // Open DB and construct semantic memory
+        // ── Open DB ────────────────────────────────────────────────────
         let db = Database::open(db_path, db_passphrase)?;
         let conn = db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&conn));
@@ -249,7 +348,7 @@ impl EmbedService {
             .purge_by_prefix(&author_prefix)
             .map_err(|e| ServiceError::Embed(format!("Failed to purge embeddings: {e}")))?;
 
-        // Resolve cache directory
+        // ── Resolve cache directory ────────────────────────────────────
         let default_cache_dir;
         let cache = match cache_dir {
             Some(p) => p,
@@ -262,11 +361,15 @@ impl EmbedService {
             }
         };
 
-        // Download, cache, and chunk all works
-        let mut all_passages: Vec<(String, String)> = Vec::new();
+        // ── Phase 2: Download, cache, chunk, and tag ───────────────────
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Tagging;
+        }
+
+        let mut all_passages: Vec<TaggedPassage> = Vec::new();
 
         for (work_idx, work) in config.works.iter().enumerate() {
-            // Rate limit between requests
             if work_idx > 0 {
                 std::thread::sleep(std::time::Duration::from_secs(1));
             }
@@ -274,6 +377,8 @@ impl EmbedService {
             {
                 let mut p = shared.lock().unwrap();
                 p.current_work = work.title.clone();
+                p.completed_passages = work_idx + 1;
+                p.total_passages = config.works.len();
             }
 
             let cache_path = cache.join(format!("{}.txt", work.slug));
@@ -307,26 +412,140 @@ impl EmbedService {
                 config.chunking.max_words,
                 &config.chunking.sentence_boundary,
             );
-            tracing::info!(work = %work.title, passages = chunks.len(), "Chunked");
-            all_passages.extend(chunks);
 
-            // Update progress: treat each work as one parsing step
-            {
-                let mut p = shared.lock().unwrap();
-                p.completed_passages = work_idx + 1;
-                p.total_passages = config.works.len();
+            // Tag each chunk
+            let total_chunks = chunks.len();
+            let work_characters = Entity::name_strings(&config.entities.characters, &work.slug);
+            let work_places = Entity::name_strings(&config.entities.places, &work.slug);
+            let work_events = Entity::name_strings(&config.entities.events, &work.slug);
+            let work_concepts = Entity::name_strings(&config.entities.concepts, &work.slug);
+
+            for (chunk_idx, (entity_ref, text)) in chunks.into_iter().enumerate() {
+                let signals = salience::compute_method_signals(&text);
+                let mut tags = salience::tag_entities(
+                    &text,
+                    &work_characters,
+                    &work_places,
+                    &work_events,
+                    &work_concepts,
+                );
+
+                // Match declared methods
+                for method in &config.methods {
+                    if method.matches(&signals) {
+                        tags.methods.push(method.name.clone());
+                    }
+                }
+
+                let position = if total_chunks > 1 {
+                    chunk_idx as f32 / (total_chunks - 1) as f32
+                } else {
+                    0.5
+                };
+
+                all_passages.push(TaggedPassage {
+                    entity_ref,
+                    text,
+                    work_slug: work.slug.clone(),
+                    work_title: work.title.clone(),
+                    position,
+                    is_rule: false,
+                    tags,
+                    signals,
+                    salience: 0.0, // computed in batch below
+                });
+            }
+
+            tracing::info!(
+                work = %work.title,
+                passages = total_chunks,
+                "Chunked and tagged"
+            );
+        }
+
+        // Append foundational rules as passages (no tagging, position=0.5, low salience)
+        for rule in &config.foundational_rules {
+            let entity_ref = format!("style:{}:rule:{}", &config.author, rule.slug);
+            let signals = salience::compute_method_signals(&rule.text);
+            all_passages.push(TaggedPassage {
+                entity_ref,
+                text: rule.text.clone(),
+                work_slug: String::new(),
+                work_title: String::new(),
+                position: 0.5,
+                is_rule: true,
+                tags: EntityTags::default(),
+                signals,
+                salience: 0.0,
+            });
+        }
+
+        // ── Compute batch salience (graph centrality) ────────────────
+        let all_tags: Vec<EntityTags> = all_passages.iter().map(|p| p.tags.clone()).collect();
+        let salience_scores = salience::compute_salience_batch(&all_tags);
+        for (passage, score) in all_passages.iter_mut().zip(salience_scores.iter()) {
+            passage.salience = *score;
+        }
+
+        tracing::info!(
+            total_passages = all_passages.len(),
+            max_salience = salience_scores.iter().cloned().fold(0.0f32, f32::max),
+            mean_salience =
+                salience_scores.iter().sum::<f32>() / salience_scores.len().max(1) as f32,
+            "Salience computed"
+        );
+
+        // ── Phase 3: Budget gate ───────────────────────────────────────
+        let total_passages = all_passages.len();
+        let budget = config.budget.resolve(total_passages);
+
+        // Sort by salience descending, then determine which passages are
+        // triple-eligible. Foundational rules always get triples (they
+        // carry the style guide / exemplar text).
+        let mut indexed: Vec<(usize, f32, usize)> = all_passages
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (i, p.salience, p.triple_count()))
+            .collect();
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let mut triple_eligible: HashSet<usize> = HashSet::new();
+        let mut triples_allocated = 0usize;
+
+        for (idx, _salience, triple_cost) in &indexed {
+            // Foundational rules always get triples regardless of budget
+            if all_passages[*idx].is_rule {
+                triple_eligible.insert(*idx);
+                triples_allocated += *triple_cost;
+                continue;
+            }
+            if triples_allocated + triple_cost <= budget {
+                triple_eligible.insert(*idx);
+                triples_allocated += triple_cost;
             }
         }
 
-        // Append foundational rules as passages
-        for rule in &config.foundational_rules {
-            let entity_ref = format!("style:{}:rule:{}", &config.author, rule.slug);
-            all_passages.push((entity_ref, rule.text.clone()));
+        let tagged_count = triple_eligible.len();
+        let embedding_only = total_passages.saturating_sub(tagged_count);
+
+        tracing::info!(
+            total_passages = total_passages,
+            budget = budget,
+            tagged = tagged_count,
+            embedding_only = embedding_only,
+            triples_allocated = triples_allocated,
+            "Budget gate applied"
+        );
+
+        // ── Phase 4: Embed all passages ────────────────────────────────
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Embedding;
+            p.current_work.clear();
+            p.total_passages = total_passages;
+            p.completed_passages = 0;
         }
 
-        tracing::info!(total = all_passages.len(), "Total passages to embed");
-
-        // Create embedder
         let okapi_config = match okapi_url {
             Some(url) => OkapiConfig {
                 base_url: url.to_string(),
@@ -336,20 +555,15 @@ impl EmbedService {
         };
         let embedder = OkapiEmbedding::with_model(&config.embedding.model, okapi_config)?;
 
-        // Batch embed
         let batch_size = config.embedding.batch_size;
         let mut embedded_count = 0;
+        let all_refs_and_texts: Vec<(&str, &str)> = all_passages
+            .iter()
+            .map(|p| (p.entity_ref.as_str(), p.text.as_str()))
+            .collect();
 
-        {
-            let mut p = shared.lock().unwrap();
-            p.phase = EmbedPhase::Embedding;
-            p.current_work.clear();
-            p.total_passages = all_passages.len();
-            p.completed_passages = 0;
-        }
-
-        for chunk in all_passages.chunks(batch_size) {
-            let texts: Vec<&str> = chunk.iter().map(|(_, text)| text.as_str()).collect();
+        for chunk in all_refs_and_texts.chunks(batch_size) {
+            let texts: Vec<&str> = chunk.iter().map(|(_, text)| *text).collect();
             let vectors = embedder
                 .embed_sentences(&texts)
                 .await
@@ -365,12 +579,44 @@ impl EmbedService {
             }
             tracing::info!(
                 embedded = embedded_count,
-                total = all_passages.len(),
+                total = total_passages,
                 "Embedding progress"
             );
         }
 
-        // Compute centroid
+        // ── Phase 5: Store triples for budget-selected passages ────────
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Triples;
+            p.completed_passages = 0;
+            p.total_passages = tagged_count;
+        }
+
+        let mut triples_stored = 0usize;
+        let mut triple_progress = 0usize;
+
+        for (i, passage) in all_passages.iter().enumerate() {
+            if !triple_eligible.contains(&i) {
+                continue;
+            }
+
+            store_passage_triples(&semantic, passage, &author, curator_webid)?;
+            triples_stored += passage.triple_count();
+            triple_progress += 1;
+
+            {
+                let mut p = shared.lock().unwrap();
+                p.completed_passages = triple_progress;
+            }
+        }
+
+        tracing::info!(
+            triples_stored = triples_stored,
+            tagged_passages = tagged_count,
+            "Triples stored"
+        );
+
+        // ── Phase 6: Compute centroid ──────────────────────────────────
         {
             let mut p = shared.lock().unwrap();
             p.phase = EmbedPhase::Centroid;
@@ -389,17 +635,21 @@ impl EmbedService {
         {
             let mut p = shared.lock().unwrap();
             p.phase = EmbedPhase::Done;
-            p.completed_passages = all_passages.len();
+            p.completed_passages = total_passages;
         }
 
         Ok(EmbedResult {
             author,
             purged,
-            total_passages: all_passages.len(),
+            total_passages,
             centroid_ref,
             passage_count: centroid_result.passage_count,
             centroid_stored: centroid_result.stored,
             validation,
+            budget,
+            tagged_passages: tagged_count,
+            triples_stored,
+            embedding_only,
         })
     }
 
@@ -416,9 +666,79 @@ impl EmbedService {
     }
 }
 
-// ── Internal helpers ────────────────────────────────────────────────────
+// ── Triple storage helper ──────────────────────────────────────────────────
 
-/// Download text via HTTP GET with proper User-Agent.
+fn store_passage_triples(
+    semantic: &SemanticMemory,
+    passage: &TaggedPassage,
+    author: &str,
+    owner: WebID,
+) -> Result<(), ServiceError> {
+    let store = |entity: &str, attr: &str, value: serde_json::Value| -> Result<(), ServiceError> {
+        let triple = Triple::new(entity, attr, value, owner).with_visibility(Visibility::Public);
+        semantic.store(triple).map_err(|e| {
+            ServiceError::Embed(format!("Failed to store triple ({entity}, {attr}): {e}"))
+        })
+    };
+
+    let er = &passage.entity_ref;
+
+    // Structural metadata
+    store(er, "author", json!(*author))?;
+    store(er, "work_title", json!(passage.work_title))?;
+    store(er, "work_slug", json!(passage.work_slug))?;
+    store(er, "position", json!(passage.position))?;
+    store(er, "word_count", json!(passage.signals.word_count))?;
+    store(
+        er,
+        "avg_sentence_length",
+        json!(passage.signals.avg_sentence_length),
+    )?;
+
+    // Entity tags (who, where, what, why)
+    for c in &passage.tags.characters {
+        store(er, "mentions_character", json!(c))?;
+    }
+    for p in &passage.tags.places {
+        store(er, "mentions_place", json!(p))?;
+    }
+    for e in &passage.tags.events {
+        store(er, "mentions_event", json!(e))?;
+    }
+    for c in &passage.tags.concepts {
+        store(er, "mentions_concept", json!(c))?;
+    }
+
+    // Method tags (how)
+    for m in &passage.tags.methods {
+        store(er, "exhibits_method", json!(m))?;
+    }
+
+    // Method signals
+    let s = &passage.signals;
+    store(er, "parataxis_ratio", json!(s.parataxis_ratio))?;
+    store(er, "adjective_density", json!(s.adjective_density))?;
+    store(er, "adverb_density", json!(s.adverb_density))?;
+    store(er, "passive_voice_ratio", json!(s.passive_voice_ratio))?;
+    store(er, "dialogue_ratio", json!(s.dialogue_ratio))?;
+    store(
+        er,
+        "sentence_length_variance",
+        json!(s.sentence_length_variance),
+    )?;
+    store(er, "hedge_density", json!(s.hedge_density))?;
+    store(er, "intensifier_density", json!(s.intensifier_density))?;
+    store(er, "concrete_noun_ratio", json!(s.concrete_noun_ratio))?;
+    store(er, "sensory_word_ratio", json!(s.sensory_word_ratio))?;
+
+    // Salience
+    store(er, "salience", json!(passage.salience))?;
+
+    Ok(())
+}
+
+// ── Internal helpers ───────────────────────────────────────────────────────
+
 async fn download_text(url: &str) -> Result<String, ServiceError> {
     let resp = reqwest::Client::builder()
         .user_agent(USER_AGENT)
@@ -444,4 +764,4 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
     Ok(String::from_utf8_lossy(&bytes).to_string())
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────
+// ── Tests ─────────────────────────────────────────────────────────────────

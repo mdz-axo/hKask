@@ -35,8 +35,10 @@ pub use config::{DEFAULT_DB_PATH, DEFAULT_OKAPI_BASE_URL};
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use embed::{
-    ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
-    EmbeddingConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
+    BudgetConfigReexport as BudgetConfig, ChunkingConfig, CorpusConfig,
+    DeclaredMethodReexport as DeclaredMethod, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
+    EmbeddingConfig, Entity, EntityConfig, FoundationalRule,
+    MethodSignalsReexport as MethodSignals, ProgressFn, ValidationConfig, Work,
 };
 pub use ensemble::{CyberneticsLoopGasAdapter, EnsembleService};
 pub use error::ServiceError;

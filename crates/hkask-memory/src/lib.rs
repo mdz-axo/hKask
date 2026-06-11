@@ -15,6 +15,7 @@ pub mod semantic; // Loop 2b
 pub mod semantic_loop;
 
 pub mod ranking;
+pub mod salience;
 
 pub use consolidation::ConsolidationBridge;
 pub use consolidation_service::ConsolidationService;

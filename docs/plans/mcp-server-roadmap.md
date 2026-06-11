@@ -1,0 +1,259 @@
+---
+title: "MCP Server Roadmap — Consolidation, Deepening, and RAG Pipeline"
+version: "1.0.0"
+last_updated: 2026-06-11
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [domain, composition, capability, lifecycle, curation]
+---
+
+# MCP Server Roadmap
+
+Surfaced from architecture audit on 2026-06-11. Covers 11 MCP servers (10 listed in AGENTS.md + replica).
+
+See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) for current tool catalog (~73 tools across 10 servers).
+
+---
+
+## 1. Consolidation: Collapse `rss-reader` into `web`
+
+**Decision:** The RSS reader's purpose is storing and organizing artifacts found in web searches, before turning them into formal research documents or projects. It is not a standalone RSS client — it is a web artifact management layer.
+
+**Plan:**
+- Port all 10 RSS tools into `hkask-mcp-web`:
+  - `rss_subscribe`, `rss_unsubscribe`, `rss_list_subscriptions`
+  - `rss_fetch`, `rss_mark_read`, `rss_unread_count`
+  - `rss_search`, `rss_export_opml`, `rss_import_opml`
+  - `rss_discover`
+- Deprecate and delete `hkask-mcp-rss-reader` crate
+- Unified `hkask-mcp-web` surface becomes: **search → extract → organize → research**
+- Update AGENTS.md crate map, `mcp-tools-inventory.md`, and workspace `Cargo.toml`
+
+**Rationale:** A single "web research" server with search tools + artifact management is a coherent module. Two servers that split the pipeline create artificial boundaries.
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open | — | High |
+
+---
+
+## 2. Value-Added Layers for External Service Wrappers
+
+`hkask-mcp-fmp`, `hkask-mcp-telnyx`, and `hkask-mcp-fal` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
+
+### 2.1 `hkask-mcp-fmp` (Financial Modeling Prep) — 11 tools
+
+**Current state:** Each tool calls one FMP endpoint and returns raw JSON.
+
+**Value-add targets:**
+- Portfolio tracking: aggregate multiple symbols, track positions over time
+- Correlation analysis: compute pairwise correlations across holdings
+- Alert conditions: user-defined thresholds on metrics (price, P/E, volume)
+- Multi-symbol aggregation: batch `fmp_quote` / `fmp_key_metrics` across a portfolio
+- Historical analysis: combine `fmp_historical_price` + `fmp_key_metrics` into time-series summaries
+
+**Architecture note:** Value-add logic should live in the MCP server, not in a separate crate, unless it grows deep enough to justify extraction (C4: "Extract only with 3+ consumers").
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open | — | Medium |
+
+### 2.2 `hkask-mcp-telnyx` (Telecom) — 7 tools
+
+**Current state:** Raw API passthrough for SMS, calls, WhatsApp, number management.
+
+**Value-add targets:**
+- Conversation state machines: track SMS/WhatsApp thread state
+- Scheduled messaging: queue messages for future delivery
+- Contact management: store and resolve contact identities
+- Voice workflow: `telnyx_list_voices` → `telnyx_make_call` with TTS selection as a composed action
+- Multi-channel routing: send via SMS or WhatsApp based on contact preference
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open | — | Medium |
+
+### 2.3 `hkask-mcp-fal` (AI Media Generation) — 9 tools
+
+**Current state:** Raw API passthrough for image, video, music, 3D generation.
+
+**Value-add targets:**
+- Image pipelines: `fal_generate_image` → `fal_upscale` → `fal_caption` as a composed chain
+- Batch operations: generate N variants from a prompt with different seeds
+- Style consistency: maintain a style reference across multiple generations
+- Media library: track generated assets with metadata (prompt, seed, model, timestamp)
+- Prompt enhancement: pre-process prompts for better results before calling generation tools
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open | — | Medium |
+
+---
+
+## 3. RAG Pipeline: `doc-knowledge` + `markitdown`
+
+These two servers are standalone tools today with no composition. They are components of a Retrieval-Augmented Generation pipeline that needs to be defined and built.
+
+### 3.1 Current State
+
+| Server | Tools | Role |
+|--------|-------|------|
+| `hkask-mcp-markitdown` | `extract_text`, `detect_format`, `ocr` | Document → raw text |
+| `hkask-mcp-doc-knowledge` | `parse`, `detect_format`, `extract_markdown`, `store_qa` | Text → chunks + Q&A |
+
+### 3.2 Required Pipeline Definition
+
+```
+Document (PDF, DOCX, image)
+  └─ markitdown_extract_text  →  raw text
+      └─ doc_knowledge_parse  →  chunks with metadata
+          └─ embed             →  vector embeddings  (calls hkask-mcp-memory)
+              └─ index          →  searchable index
+                  └─ query      →  retrieve relevant chunks
+                      └─ generate →  LLM-augmented answer
+```
+
+### 3.3 Open Design Questions
+
+1. **Orchestration location:** Should the pipeline live in a new `hkask-mcp-rag` server, or should `doc-knowledge` absorb `markitdown` as internal modules?
+2. **Embedding integration:** `doc-knowledge` currently has no embedding tool. Should it call `hkask-mcp-memory`'s `semantic_embed` and `semantic_search`, or embed locally?
+3. **Chunking strategy:** `doc_knowledge_parse` mentions "multi-tier chunking" — is the strategy defined? (Recursive character, semantic, token-aware?)
+4. **Query interface:** What does the end-user tool look like? `rag_query` with natural language → retrieved chunks → generated answer?
+5. **Provenance:** Should answers cite source chunks with document + page references?
+
+### 3.4 Implementation Phases
+
+| Phase | Scope | Deliverable |
+|-------|-------|-------------|
+| **Phase 1** | Pipeline definition | Architecture doc with tool contracts and data flow |
+| **Phase 2** | Embedding integration | `doc-knowledge` calls memory server for embed + search |
+| **Phase 3** | Query + generate | End-to-end: document → extract → chunk → embed → retrieve → answer |
+| **Phase 4** | Provenance + citations | Answers include source references |
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open (Phase 1) | — | High |
+
+---
+
+## 4. Fixes and Documentation
+
+### 4.1 Register `condenser_thread_summary` as MCP Tool
+
+**Problem:** `condenser_thread_summary` is implemented in `hkask-mcp-condenser/src/inference.rs` but not registered as an `#[tool]` MCP endpoint. It is called as a raw HTTP function. The `mcp-tools-inventory.md` notes this gap explicitly.
+
+**Fix:** Add `#[tool]` attribute and register in the server's tool router. This brings condenser from 6 to 7 registered tools.
+
+**File:** `mcp-servers/hkask-mcp-condenser/src/main.rs`
+**Reference:** `mcp-tools-inventory.md` line 50
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open | — | Low |
+
+### 4.2 Document `hkask-mcp-replica` in AGENTS.md and Inventory
+
+**Problem:** The `replica` server (style embedding, composition, mashup, comparison, registry, explanation — 6 tools) exists in `mcp-servers/` and compiles, but is not listed in:
+- AGENTS.md crate map (lists 10 MCP servers)
+- `mcp-tools-inventory.md` (lists 10 servers)
+
+**Fix:**
+- Add `hkask-mcp-replica` to AGENTS.md crate map
+- Add to `mcp-tools-inventory.md` with tool listing (6 tools)
+- Server uses DeepInfra `Qwen/Qwen3-Embedding-0.6B` for embeddings by default
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open | — | Low |
+
+---
+
+## 5. Test Coverage
+
+### 5.1 Current State
+
+9 of 11 MCP servers have **zero tests**. Only `hkask-mcp-spec` has 7 tests.
+
+| Server | Tests | Rationale in Inventory |
+|--------|-------|----------------------|
+| condenser | 0 | "External server; tested via integration" |
+| web | 0 | "External server" |
+| fmp | 0 | "External server" |
+| telnyx | 0 | "External server" |
+| fal | 0 | "External server" |
+| rss-reader | 0 | "External server" |
+| memory | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
+| doc-knowledge | 0 | Not listed in test inventory |
+| markitdown | 0 | Not listed in test inventory |
+| replica | 0 | Not listed in test inventory or AGENTS.md |
+
+### 5.2 Test Strategy
+
+Per the test program (`docs/specifications/test-program.md`), MCP server tests require `rmcp` transport. Open question #5 notes: "Extract `hkask-test-utils` when 3+ servers need shared fixtures (currently 2 — below C4 threshold)."
+
+**Tiered approach:**
+
+| Tier | Servers | Strategy |
+|------|---------|----------|
+| **Tier 1: Internal logic** | condenser, web, doc-knowledge, markitdown | Unit-test algorithms and request builders directly (no rmcp transport needed). These servers have significant internal logic outside API calls. |
+| **Tier 2: Thin wrappers** | fmp, telnyx, fal | Low-value to unit test passthroughs. Value-add layers (Section 2) should carry tests. |
+| **Tier 3: Integration** | condenser, web (post-consolidation) | `rmcp` transport tests once `hkask-test-utils` is extracted. |
+
+### 5.3 Priority Targets
+
+1. **condenser** — algorithms (`rtk_style`, `saliency_rank`, `flashrank`) are pure functions testable without any transport
+2. **web** — `strip_html`, `freshness`, `ranking`, `rate_limiter` types are pure logic
+3. **doc-knowledge** — chunking logic is algorithmic and testable
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Open (Tier 1) | — | Medium |
+
+---
+
+## 6. Integration Test Infrastructure
+
+**Problem:** No shared test utilities for MCP server integration tests using `rmcp` transport.
+
+**Decision:** Extract `hkask-test-utils` when 3+ servers need shared fixtures (C4 threshold). Currently, only `hkask-mcp-spec` has any integration tests. The consolidation of `rss-reader` into `web` and the RAG pipeline work will likely push the count past 3.
+
+**Contains:**
+- `rmcp` server startup/shutdown helpers
+- Mock transport for tool invocation
+- Shared test fixtures (sample documents, RSS feeds, search results)
+- CNS span assertion helpers
+
+| Status | Owner | Priority |
+|--------|-------|----------|
+| ⬜ Deferred (C4 threshold not met) | — | Low |
+
+---
+
+## 7. Summary Matrix
+
+| # | Task | Section | Priority | Effort | Dependencies |
+|---|------|---------|----------|--------|--------------|
+| 1 | Collapse rss-reader → web | §1 | High | Medium | None |
+| 2 | Define RAG pipeline architecture | §3 | High | Design-only | None |
+| 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete |
+| 4 | FMP value-add layer | §2.1 | Medium | High | None |
+| 5 | Telnyx value-add layer | §2.2 | Medium | High | None |
+| 6 | Fal value-add layer | §2.3 | Medium | High | None |
+| 7 | Tier 1 unit tests (condenser, web, doc-knowledge) | §5.3 | Medium | Medium | None |
+| 8 | Register condenser_thread_summary | §4.1 | Low | Small | None |
+| 9 | Document replica in AGENTS.md + inventory | §4.2 | Low | Small | None |
+| 10 | Extract hkask-test-utils | §6 | Low | Medium | 3+ servers needing integration tests |
+
+---
+
+## 8. Related Documents
+
+| Document | Relevance |
+|----------|-----------|
+| [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current tool catalog (~73 tools across 10 servers) |
+| [`docs/status/test-inventory.md`](../status/test-inventory.md) | Test coverage per crate (102 total tests) |
+| [`docs/specifications/test-program.md`](../specifications/test-program.md) | MDS self-applying test methodology |
+| [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |
+| [`AGENTS.md`](../../AGENTS.md) | Crate map with 10 listed MCP servers |
+| [`docs/architecture/PRINCIPLES.md`](../architecture/PRINCIPLES.md) | P8 (test behavioral properties), C4 (extraction threshold), C8 (test depth) |
+| [`docs/plans/TODO.md`](TODO.md) | General project TODO (P1-07: stub MCP servers ✅ Complete) |

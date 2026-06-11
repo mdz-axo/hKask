@@ -42,7 +42,7 @@ fn run_embed(
 
     match result {
         Ok(r) => {
-            eprintln!("Corpus: {} ({}d embeddings)", r.author, r.total_passages);
+            eprintln!("Corpus: {} ({} embeddings)", r.author, r.total_passages);
             if r.purged > 0 {
                 eprintln!(
                     "Purged {} existing embeddings for {} (idempotent re-run)",
@@ -50,6 +50,20 @@ fn run_embed(
                 );
             }
             eprintln!("Total passages embedded: {}", r.total_passages);
+            eprintln!(
+                "Budget: {} triples → {} passages tagged ({} embedding-only)",
+                r.budget, r.tagged_passages, r.embedding_only
+            );
+            eprintln!(
+                "Triples stored: {} / {} ({:.1}% utilized)",
+                r.triples_stored,
+                r.budget,
+                if r.budget > 0 {
+                    (r.triples_stored as f64 / r.budget as f64) * 100.0
+                } else {
+                    0.0
+                }
+            );
             eprintln!("Done. Centroid stored as: {}", r.centroid_ref);
             eprintln!(
                 "Centroid computed from {} prose passages (stored: {})",
