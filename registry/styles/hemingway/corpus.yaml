@@ -20,7 +20,7 @@ style_synthesizer: composition/hemingway-style-synthesizer
 
 # ── Embedding Model Configuration ──────────────────────────────────────────────
 embedding:
-  model: "cf/qwen3-embedding:0.6b"
+  model: "Qwen/Qwen3-Embedding-0.6B"
   dim: 1024
   okapi_endpoint: "/api/embed/sentences"
   batch_size: 64

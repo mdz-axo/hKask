@@ -21,6 +21,19 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Default embedding model (DeepInfra Qwen3-Embedding-0.6B).
+/// Override with `HKASK_EMBEDDING_MODEL` env var.
+const DEFAULT_EMBEDDING_MODEL: &str = "Qwen/Qwen3-Embedding-0.6B";
+
+fn embedding_model() -> String {
+    std::env::var("HKASK_EMBEDDING_MODEL").unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string())
+}
+
+fn okapi_base_url() -> String {
+    std::env::var("OKAPI_BASE_URL")
+        .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string())
+}
+
 struct ReplicaServer {
     webid: WebID,
 }
@@ -211,10 +224,12 @@ impl ReplicaServer {
         let span = ToolSpanGuard::new("replica_compose", &self.webid);
 
         let run = async {
+            let model = embedding_model();
+            let base_url = okapi_base_url();
             let config = hkask_services::CognitionConfig {
                 author: params.author.clone(),
                 embedding: hkask_services::EmbeddingSection {
-                    model: "qwen3-embedding:0.6b".to_string(),
+                    model: model.clone(),
                     dim: 1024,
                     centroid_entity_ref: format!("style:{}:centroid", params.author),
                     retrieval: Default::default(),
@@ -224,11 +239,7 @@ impl ReplicaServer {
                 },
             };
 
-            let inference_ctx = InferenceContext::from_parts(
-                None,
-                "qwen3-embedding:0.6b",
-                "http://127.0.0.1:11434",
-            );
+            let inference_ctx = InferenceContext::from_parts(None, &model, &base_url);
 
             let request = hkask_services::ComposeRequest {
                 prompt: params.prompt,
@@ -366,14 +377,16 @@ impl ReplicaServer {
             let dist_a = hkask_services::cosine_distance(&blended, &emb_a.vector);
             let dist_b = hkask_services::cosine_distance(&blended, &emb_b.vector);
 
+            let model = embedding_model();
             store
-                .store(&blended_ref, &blended, "qwen3-embedding:0.6b")
+                .store(&blended_ref, &blended, &model)
                 .map_err(|e| e.to_string())?;
 
+            let base_url = okapi_base_url();
             let config = hkask_services::CognitionConfig {
                 author: format!("mashup:{}:{}", params.author_a, params.author_b),
                 embedding: hkask_services::EmbeddingSection {
-                    model: "qwen3-embedding:0.6b".to_string(),
+                    model: model.clone(),
                     dim: 1024,
                     centroid_entity_ref: blended_ref.clone(),
                     retrieval: Default::default(),
@@ -383,11 +396,7 @@ impl ReplicaServer {
                 },
             };
 
-            let inference_ctx = InferenceContext::from_parts(
-                None,
-                "qwen3-embedding:0.6b",
-                "http://127.0.0.1:11434",
-            );
+            let inference_ctx = InferenceContext::from_parts(None, &model, &base_url);
 
             let request = hkask_services::ComposeRequest {
                 prompt: params.prompt,

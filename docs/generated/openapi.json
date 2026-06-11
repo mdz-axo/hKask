@@ -339,6 +339,7 @@
           {
             "name": "session",
             "in": "path",
+            "description": "Chat session ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -1145,6 +1146,7 @@
           {
             "name": "agent_id",
             "in": "path",
+            "description": "ACP agent ID to unregister",
             "required": true,
             "schema": {
               "type": "string"
@@ -1236,6 +1238,7 @@
           {
             "name": "id",
             "in": "path",
+            "description": "Bundle ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -1268,6 +1271,7 @@
           {
             "name": "id",
             "in": "path",
+            "description": "Bundle ID to apply",
             "required": true,
             "schema": {
               "type": "string"
@@ -1302,6 +1306,7 @@
           {
             "name": "id",
             "in": "path",
+            "description": "Bundle ID to deactivate",
             "required": true,
             "schema": {
               "type": "string"
@@ -1333,6 +1338,7 @@
           {
             "name": "id",
             "in": "path",
+            "description": "Bundle ID to evolve",
             "required": true,
             "schema": {
               "type": "string"
@@ -1394,6 +1400,7 @@
           {
             "name": "id",
             "in": "path",
+            "description": "Escalation ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -1444,6 +1451,7 @@
           {
             "name": "id",
             "in": "path",
+            "description": "Escalation ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -1626,6 +1634,7 @@
           {
             "name": "sha",
             "in": "path",
+            "description": "Git reference to resolve (branch, tag, or commit prefix)",
             "required": true,
             "schema": {
               "type": "string"

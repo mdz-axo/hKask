@@ -19,9 +19,9 @@ pub struct OkapiEmbedding {
 }
 
 impl OkapiEmbedding {
-    /// Create a new OkapiEmbedding with the default model (qwen3-embedding:0.6b)
+    /// Create a new OkapiEmbedding with the default model (Qwen/Qwen3-Embedding-0.6B)
     pub fn new(config: OkapiConfig) -> Result<Self, EmbeddingGenerationError> {
-        Self::with_model("qwen3-embedding:0.6b", config)
+        Self::with_model("Qwen/Qwen3-Embedding-0.6B", config)
     }
 
     /// Create OkapiEmbedding with a specific model

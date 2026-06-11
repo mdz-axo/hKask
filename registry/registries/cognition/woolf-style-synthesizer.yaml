@@ -352,7 +352,7 @@ sources:
 
 embedding:
   corpus_config: "registry/styles/woolf/corpus.yaml"
-  model: "cf/qwen3-embedding:0.6b"
+  model: "Qwen/Qwen3-Embedding-0.6B"
   dim: 1024
   centroid_entity_ref: "style:woolf:centroid"
   retrieval:
@@ -410,7 +410,7 @@ curator_notes:
       Meaning emerges from traversal of nested qualifier edges.
 
   embedding_note: >
-    The same qwen3-embedding:0.6b model works for both authors because style
+    The same Qwen/Qwen3-Embedding-0.6B model works for both authors because style
     differentiation comes from CORPUS CONTENT, not model architecture.
     Hemingway passages cluster in one region of embedding space, Woolf
     passages in another. The centroids will be distinct.

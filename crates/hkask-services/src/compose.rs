@@ -23,7 +23,7 @@ use crate::inference::InferenceContext;
 /// Example YAML:
 /// ```yaml
 /// embedding:
-///   model: "qwen3-embedding:0.6b"
+///   model: "Qwen/Qwen3-Embedding-0.6B"
 ///   dim: 1024
 ///   centroid_entity_ref: "style:hemingway:centroid"
 ///   retrieval:

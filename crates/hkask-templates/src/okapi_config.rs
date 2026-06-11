@@ -69,6 +69,8 @@ impl OkapiConfig {
 
     pub(crate) fn build_client(&self) -> Result<reqwest::Client, OkapiConfigError> {
         reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(self.timeout_secs))
+            .pool_max_idle_per_host(self.pool_max_idle)
             .build()
             .map_err(|e| OkapiConfigError::Config(e.to_string()))
     }

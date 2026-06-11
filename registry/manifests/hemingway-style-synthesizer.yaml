@@ -12,7 +12,7 @@ manifest:
     Encodes authentic Hemingway prose mechanics: 73-76% coordinated clauses,
     implicit semantic subordination, strategic polysyndeton/asyndeton.
     Generative layer uses Stanley Fish form-first approach and RDF triple model.
-    Embedding layer uses qwen3-embedding:0.6b for exemplar retrieval and centroid validation.
+    Embedding layer uses Qwen/Qwen3-Embedding-0.6B for exemplar retrieval and centroid validation.
   version: 0.23.0
   editor: curator
   visibility: Shared
@@ -48,7 +48,7 @@ steps:
     action: retrieve
     description: >
       Retrieve exemplar passages from Hemingway style embedding corpus.
-      1. Embed the prompt via EmbeddingPort (qwen3-embedding:0.6b)
+      1. Embed the prompt via EmbeddingPort (Qwen/Qwen3-Embedding-0.6B)
       2. KNN search against style:hemingway prefix via semantic_search
       3. Select k_min..k_max passages within distance_threshold
     renderer: null

@@ -241,7 +241,7 @@ When exemplar_passages are provided (from KNN retrieval against the Hemingway
 style embedding corpus), they are injected as few-shot context before generation.
 
 The exemplar passages are selected by semantic similarity to the prompt:
-1. The prompt is embedded using the same model as the corpus (qwen3-embedding:0.6b)
+1. The prompt is embedded using the same model as the corpus (Qwen/Qwen3-Embedding-0.6B)
 2. KNN search finds the k most similar passages in the embedding space
 3. These passages are provided as `exemplar_passages` in the template context
 4. The generated prose is then embedded and compared against the style centroid

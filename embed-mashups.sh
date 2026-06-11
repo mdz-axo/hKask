@@ -24,7 +24,7 @@ embed_one() {
     echo "=== Embedding ${name} ==="
     echo "Started at $(date)"
     echo "Okapi: ${OKAPI_URL}"
-    echo "Model: cf/qwen3-embedding:0.6b (Cloudflare Workers AI via Okapi)"
+    echo "Model: Qwen/Qwen3-Embedding-0.6B (DeepInfra via Okapi)"
     $KASK embed-corpus run \
         --config "$config" \
         --db "$DB" \
