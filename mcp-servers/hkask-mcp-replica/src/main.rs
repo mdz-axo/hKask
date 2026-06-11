@@ -59,6 +59,10 @@ struct BuildResult {
     centroid_ref: String,
     centroid_stored: bool,
     passage_count: usize,
+    budget: usize,
+    tagged_passages: usize,
+    triples_stored: usize,
+    embedding_only: usize,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -195,7 +199,7 @@ impl ReplicaServer {
                 &config_path,
                 &params.db_path,
                 &params.passphrase,
-                None,
+                Some(&okapi_base_url()),
                 None,
                 Some(progress),
             )
@@ -209,6 +213,10 @@ impl ReplicaServer {
                 centroid_ref: result.centroid_ref,
                 centroid_stored: result.centroid_stored,
                 passage_count: result.passage_count,
+                budget: result.budget,
+                tagged_passages: result.tagged_passages,
+                triples_stored: result.triples_stored,
+                embedding_only: result.embedding_only,
             })
             .map_err(|e| e.to_string())
         };
@@ -469,13 +477,32 @@ impl ReplicaServer {
                 }
                 RegistryAction::Remove { author } => {
                     let prefix = format!("style:{}:", author);
+                    // Remove embeddings
                     let refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
-                    let count = refs.len();
+                    let emb_count = refs.len();
+                    for entity_ref in &refs {
+                        let _ = store.delete(entity_ref);
+                    }
+                    // Remove triples
+                    let conn = db.conn_arc();
+                    let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+                    let mut triple_count = 0usize;
                     for entity_ref in refs {
-                        let _ = store.delete(&entity_ref);
+                        match triple_store.query_by_entity(&entity_ref) {
+                            Ok(triples) => {
+                                for t in &triples {
+                                    let _ = triple_store.close_by_id(&t.id);
+                                    triple_count += 1;
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                     serde_json::to_string(&RegistryResult {
-                        message: format!("Removed {} embeddings for author '{}'", count, author),
+                        message: format!(
+                            "Removed {} embeddings and {} triples for author '{}'",
+                            emb_count, triple_count, author
+                        ),
                         entries: vec![],
                     })
                     .map_err(|e| e.to_string())
@@ -489,11 +516,25 @@ impl ReplicaServer {
         }
     }
 
-    #[tool(description = "Explain what style centroids are.")]
+    #[tool(description = "Explain what style centroids are and how the metadata layer works.")]
     async fn replica_explain(&self) -> String {
         let span = ToolSpanGuard::new("replica_explain", &self.webid);
         span.ok_json(json!({
-            "what_is_a_centroid": "A style centroid is the average of all embedded passage vectors for an author. Each passage (50-200 words) is converted to a 1024-dimensional vector. The centroid is the 'average passage' — prose that matches the author's style will have a low cosine distance to it.",
+            "what_is_a_centroid": "A style centroid is the average of all embedded passage vectors for an author. Each passage (50-200 words) is converted to a 1024-dimensional vector via DeepInfra's Qwen3-Embedding-0.6B. The centroid is the 'average passage' — prose that matches the author's style will have a low cosine distance to it.",
+            "metadata_layer": {
+                "description": "Each embedded passage is enriched with metadata triples (entity-attribute-value) stored alongside embeddings. This enables parametric retrieval beyond pure vector similarity.",
+                "structural": ["author", "work_title", "work_slug", "position", "word_count", "avg_sentence_length"],
+                "entities_5w1h": {
+                    "who": "mentions_character — characters appearing in the passage",
+                    "where": "mentions_place — locations/settings",
+                    "what": "mentions_event — events/actions",
+                    "why": "mentions_concept — themes/ideas",
+                    "how": "exhibits_method — stylistic techniques (iceberg_theory, parataxis, etc.)"
+                },
+                "method_signals": ["parataxis_ratio", "adjective_density", "adverb_density", "dialogue_ratio", "passive_voice_ratio", "sentence_length_variance", "hedge_density", "intensifier_density", "concrete_noun_ratio", "sensory_word_ratio"],
+                "salience": "Graph centrality score = (one_hop + two_hop/2) / 2, where one_hop is the fraction of passages sharing ≥1 entity, and two_hop is the fraction reachable within 2 hops. Higher salience = more connected in the entity graph.",
+                "budget": "Triple storage is budget-gated per corpus (default: 3,750 triples per 100 pages). Passages are sorted by salience; only the top-N earn metadata triples. Others get embeddings only."
+            },
             "how_blending_works": "Style blending interpolates between two centroids: blended[i] = centroid_a[i] * (1 - blend) + centroid_b[i] * blend. blend=0.0 is pure author A, 1.0 is pure B, 0.5 is equal mix. The blended vector retrieves exemplars from both corpora.",
             "style_space_topology": "Authors cluster in different regions of embedding space. Similar styles have close centroids; opposite styles are far apart. The distance matrix from replica_compare shows which authors can be blended. Hemingway (paratactic) and Woolf (hypotactic) are maximally distant — blending produces noise. Similar authors like Hemingway/Crane or Woolf/Proust would blend well.",
             "distance_thresholds": {
@@ -502,6 +543,13 @@ impl ReplicaServer {
                 "compatible": "0.030-0.300 — blendable",
                 "distinct": "0.300-1.000 — clearly different",
                 "opposite": "1.000-2.000 — maximally different"
+            },
+            "retrieval_parameters": {
+                "k_min": "Minimum exemplar passages (default: 3)",
+                "k_max": "Maximum exemplar passages (default: 7)",
+                "distance_threshold": "Maximum cosine distance for exemplar inclusion (default: 0.30)",
+                "salience_min": "Only passages with salience >= this value are considered (default: 0.0)",
+                "salience_top_k": "Limit to top K most salient matching passages"
             }
         }))
     }

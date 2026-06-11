@@ -230,13 +230,9 @@ struct TaggedPassage {
 impl TaggedPassage {
     /// Count how many triples this passage would consume if stored.
     fn triple_count(&self) -> usize {
-        // Structural: 6 (work_title, work_slug, position, passage_index,
-        //              word_count, avg_sentence_length)
-        // Entity tags: sum of all tag lists
-        // Method tags: methods.len()
-        // Salience: 1
-        // Method signals: 10 (one per signal field, stored individually)
-        6 + self.tags.characters.len()
+        // 1 text + 6 structural + entity tags + method tags + 1 salience + 10 signals
+        1 + 6
+            + self.tags.characters.len()
             + self.tags.places.len()
             + self.tags.events.len()
             + self.tags.concepts.len()
@@ -268,7 +264,7 @@ pub struct EmbedResult {
     pub embedding_only: usize,
 }
 
-const USER_AGENT: &str = "hkask-mcp-web/0.22.0";
+const USER_AGENT: &str = "hkask-mcp-research/0.27.0";
 const CURATOR_PERSONA: &[u8] = b"Curator";
 
 /// Service for the style corpus embedding pipeline with metadata layer.
@@ -682,6 +678,9 @@ fn store_passage_triples(
     };
 
     let er = &passage.entity_ref;
+
+    // Passage text — required for exemplar retrieval in compose
+    store(er, "text", json!(passage.text))?;
 
     // Structural metadata
     store(er, "author", json!(*author))?;

@@ -72,12 +72,12 @@ status: VERIFIED
 
 **Enabled (10):**
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
-- `hkask-mcp-web` — Search, scrape, extract
+- `hkask-mcp-research` — Web search, extraction, browsing, RSS feed research
 - `hkask-mcp-spec` — MDS spec capture
 - `hkask-mcp-fmp` — FMP integration
 - `hkask-mcp-telnyx` — Telnyx integration
 - `hkask-mcp-fal` — FAL integration
-- `hkask-mcp-rss-reader` — RSS feeds
+- `hkask-mcp-replica` — Authorial style embedding and composition
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
 - `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
 - `hkask-mcp-memory` — Semantic + episodic memory (merged: episodic → semantic consolidation)

@@ -33,7 +33,7 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 
 | Status | Owner | Priority |
 |--------|-------|----------|
-| ⬜ Open | — | High |
+| ✅ Complete | — | High |
 
 ---
 
@@ -164,7 +164,7 @@ Document (PDF, DOCX, image)
 
 | Status | Owner | Priority |
 |--------|-------|----------|
-| ⬜ Open | — | Low |
+| ✅ Complete (2026-06-11) | — | Low |
 
 ---
 
@@ -177,11 +177,10 @@ Document (PDF, DOCX, image)
 | Server | Tests | Rationale in Inventory |
 |--------|-------|----------------------|
 | condenser | 0 | "External server; tested via integration" |
-| web | 0 | "External server" |
+| research | 0 | "External server" (consolidated web + rss-reader) |
 | fmp | 0 | "External server" |
 | telnyx | 0 | "External server" |
 | fal | 0 | "External server" |
-| rss-reader | 0 | "External server" |
 | memory | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
 | doc-knowledge | 0 | Not listed in test inventory |
 | markitdown | 0 | Not listed in test inventory |
@@ -233,7 +232,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 
 | # | Task | Section | Priority | Effort | Dependencies |
 |---|------|---------|----------|--------|--------------|
-| 1 | Collapse rss-reader → web | §1 | High | Medium | None |
+| 1 | Collapse rss-reader → web (now research) | §1 | High | Medium | None | ✅ Complete (2026-06-11) |
 | 2 | Define RAG pipeline architecture | §3 | High | Design-only | None |
 | 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete |
 | 4 | FMP value-add layer | §2.1 | Medium | High | None |
@@ -241,7 +240,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 | 6 | Fal value-add layer | §2.3 | Medium | High | None |
 | 7 | Tier 1 unit tests (condenser, web, doc-knowledge) | §5.3 | Medium | Medium | None |
 | 8 | Register condenser_thread_summary | §4.1 | Low | Small | None |
-| 9 | Document replica in AGENTS.md + inventory | §4.2 | Low | Small | None |
+| 9 | Document replica in AGENTS.md + inventory | §4.2 | Low | Small | None | ✅ Complete (2026-06-11) |
 | 10 | Extract hkask-test-utils | §6 | Low | Medium | 3+ servers needing integration tests |
 
 ---

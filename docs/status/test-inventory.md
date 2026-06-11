@@ -31,11 +31,10 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |
-| `hkask-mcp-web` | 0 | External server |
+| `hkask-mcp-research` | 0 | External server (consolidated web + rss-reader 2026-06-11) |
 | `hkask-mcp-fmp` | 0 | External server |
 | `hkask-mcp-telnyx` | 0 | External server |
 | `hkask-mcp-fal` | 0 | External server |
-| `hkask-mcp-rss-reader` | 0 | External server |
 | **Total** | **102** | |
 
 ---

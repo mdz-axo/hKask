@@ -64,6 +64,12 @@ pub struct RetrievalSection {
     pub k_max: usize,
     #[serde(default = "default_distance_threshold")]
     pub distance_threshold: f64,
+    /// Salience floor: only consider passages with salience >= this value.
+    #[serde(default)]
+    pub salience_min: f64,
+    /// Top-K by salience: only consider the K most salient matching passages.
+    #[serde(default)]
+    pub salience_top_k: Option<usize>,
 }
 
 impl Default for RetrievalSection {
@@ -72,6 +78,8 @@ impl Default for RetrievalSection {
             k_min: default_k_min(),
             k_max: default_k_max(),
             distance_threshold: default_distance_threshold(),
+            salience_min: 0.0,
+            salience_top_k: None,
         }
     }
 }
@@ -166,24 +174,63 @@ impl ComposeService {
 
         // 4. Filter by prefix, centroid exclusion, rule exclusion, distance threshold
         let prefix = format!("style:{}", &request.cognition.author);
-        let exemplar_passages: Vec<String> = results
+        let retrieval = &request.cognition.embedding.retrieval;
+        let mut matched: Vec<(f64, String, f64)> = Vec::new(); // (distance, entity_ref, salience)
+
+        for r in results {
+            if !r.embedding.entity_ref.starts_with(&prefix)
+                || r.embedding.entity_ref == request.cognition.embedding.centroid_entity_ref
+                || r.embedding.entity_ref.contains(":rule:")
+                || r.distance > retrieval.distance_threshold
+            {
+                continue;
+            }
+
+            // Look up salience from triples
+            let salience = match semantic.query_deduped(&r.embedding.entity_ref) {
+                Ok(triples) => triples
+                    .iter()
+                    .find(|t| t.attribute == "salience")
+                    .and_then(|t| t.value.as_f64())
+                    .unwrap_or(0.0),
+                _ => 0.0,
+            };
+
+            if salience < retrieval.salience_min {
+                continue;
+            }
+
+            matched.push((r.distance, r.embedding.entity_ref.clone(), salience));
+        }
+
+        // Sort by salience descending if salience_top_k is set, then take top K
+        if let Some(top_k) = retrieval.salience_top_k {
+            matched.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+            matched.truncate(top_k);
+        }
+
+        // Extract passage text from triples
+        let exemplar_passages: Vec<String> = matched
             .into_iter()
-            .filter(|r| {
-                r.embedding.entity_ref.starts_with(&prefix)
-                    && r.embedding.entity_ref != request.cognition.embedding.centroid_entity_ref
-                    && !r.embedding.entity_ref.contains(":rule:")
-                    && r.distance <= request.cognition.embedding.retrieval.distance_threshold
-            })
-            .take_while(|r| r.distance <= request.cognition.embedding.retrieval.distance_threshold)
-            .map(|r| {
-                let entity_ref = &r.embedding.entity_ref;
-                match semantic.query_deduped(entity_ref) {
-                    Ok(triples) if !triples.is_empty() => triples
-                        .iter()
-                        .filter_map(|t| t.value.as_str().map(|s| s.to_string()))
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                    _ => format!("[passage: {}]", entity_ref),
+            .take(retrieval.k_max)
+            .filter_map(|(_distance, entity_ref, _salience)| {
+                match semantic.query_deduped(&entity_ref) {
+                    Ok(triples) => {
+                        let text = triples
+                            .iter()
+                            .find(|t| t.attribute == "text")
+                            .and_then(|t| t.value.as_str().map(|s| s.to_string()));
+                        text.or_else(|| {
+                            let work = triples
+                                .iter()
+                                .find(|t| t.attribute == "work_title")
+                                .and_then(|t| t.value.as_str());
+                            work.map(|w| {
+                                format!("[{}: {} — passage text not in triples]", w, entity_ref)
+                            })
+                        })
+                    }
+                    _ => Some(format!("[passage: {}]", entity_ref)),
                 }
             })
             .collect();

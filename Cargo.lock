@@ -1512,14 +1512,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-rss-reader"
+name = "hkask-mcp-research"
 version = "0.27.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.22.1",
+ "blake3",
  "chrono",
  "feed-rs",
+ "futures-util",
  "hkask-mcp",
+ "hkask-memory",
  "hkask-storage",
  "hkask-types",
  "regex",
@@ -1529,6 +1533,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "tracing",
  "url",
@@ -1567,29 +1572,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "hkask-mcp-web"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "blake3",
- "chrono",
- "futures-util",
- "hkask-mcp",
- "hkask-memory",
- "hkask-types",
- "regex",
- "reqwest",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
 ]
 
 [[package]]

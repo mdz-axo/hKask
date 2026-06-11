@@ -47,8 +47,10 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-api` | HTTP API (utoipa) |
 | `hkask-mcp-doc-knowledge` | Document parsing/chunking MCP server |
 | `hkask-mcp-markitdown` | Document conversion + OCR MCP server |
+| `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research |
+| `hkask-mcp-replica` | Authorial style embedding and composition |
 
-**10 MCP servers:** memory, condenser, web, spec, fmp, telnyx, fal, rss-reader, doc-knowledge, markitdown
+**10 MCP servers:** memory, condenser, research, spec, fmp, telnyx, fal, replica, doc-knowledge, markitdown
 **Internal cognition:** inference (Okapi), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP)
 **External:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 

@@ -256,12 +256,11 @@ impl BootstrapSequence {
         let mcp_servers = vec![
             "hkask-mcp-memory",
             "hkask-mcp-spec",
-            "hkask-mcp-web",
-            "hkask-mcp-condenser",
+            "hkask-mcp-research",
             "hkask-mcp-fmp",
             "hkask-mcp-telnyx",
             "hkask-mcp-fal",
-            "hkask-mcp-rss-reader",
+            "hkask-mcp-condenser",
             "hkask-mcp-replica",
         ];
 

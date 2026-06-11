@@ -295,6 +295,13 @@ embedding:
     # Retrieve passages whose cosine distance from the query is below this threshold.
     # Lower = more similar. 0.30 is permissive; tighten after validation.
     distance_threshold: 0.30
+    # ── Salience filtering ──────────────────────────────────────────
+    # Only consider passages with graph centrality >= this value.
+    # 0.0 = no filter. Raise to 0.1+ to prefer well-connected passages.
+    salience_min: 0.0
+    # Limit to the top K most salient matching passages.
+    # null = no limit (all passages above salience_min are eligible).
+    salience_top_k: null
   validation:
     # Maximum cosine distance from the style centroid for generated prose.
     centroid_distance_max: 0.15

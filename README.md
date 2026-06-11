@@ -63,12 +63,12 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ### MCP Servers (10 crates)
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
-- `hkask-mcp-web` — Web search, scrape
+- `hkask-mcp-research` — Web search, extraction, browsing, and RSS feed research
 - `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-fmp` — Financial data (FMP)
 - `hkask-mcp-telnyx` — Communications (Telnyx)
 - `hkask-mcp-fal` — Media generation (FAL)
-- `hkask-mcp-rss-reader` — RSS feed reader
+- `hkask-mcp-replica` — Authorial style embedding and composition
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
 - `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
 - `hkask-mcp-memory` — Semantic + episodic memory (merged: episodic → semantic consolidation)

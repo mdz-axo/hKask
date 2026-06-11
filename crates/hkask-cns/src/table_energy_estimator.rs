@@ -37,11 +37,11 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     table.insert("hkask-mcp-markitdown", 15);
 
     // External API tools — expensive
-    table.insert("hkask-mcp-web", 50);
+    table.insert("hkask-mcp-research", 50);
     table.insert("hkask-mcp-fmp", 40);
     table.insert("hkask-mcp-telnyx", 50);
     table.insert("hkask-mcp-fal", 100);
-    table.insert("hkask-mcp-rss-reader", 20);
+
     table.insert("hkask-mcp-replica", 30);
 
     // Inference is handled separately by InferenceEnergyEstimator.

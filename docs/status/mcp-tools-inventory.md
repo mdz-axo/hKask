@@ -1,16 +1,16 @@
 ---
 title: "MCP Tools Inventory"
-version: "2.0.0"
-last_updated: 2026-06-10
+version: "2.1.0"
+last_updated: 2026-06-11
 status: Active
 domain: "Cross-cutting"
-generated_from: "grep '#\\[tool' across mcp-servers/*/src/"
+generated_from: "grep '#\\[tool' across mcp-servers/*/src/; rss-reader merged into research 2026-06-11"
 ---
 
 # MCP Tools Inventory
 
 Catalog of all 10 hKask MCP servers and their tools.
-Re-derived from `grep '#\[tool'` on 2026-06-10.
+Updated 2026-06-11: `hkask-mcp-web` + `hkask-mcp-rss-reader` → `hkask-mcp-research`. Added `hkask-mcp-replica`.
 
 ---
 
@@ -19,16 +19,16 @@ Re-derived from `grep '#\[tool'` on 2026-06-10.
 | Server | Crate | Tools | Loop | Required Credentials |
 |--------|-------|-------|------|----------------------|
 | condenser | `hkask-mcp-condenser` | 6 | L2 (Episodic) | — |
-| web | `hkask-mcp-web` | 4 | L4 (Communication) | — |
+| research | `hkask-mcp-research` | ~17 | L4 (Communication) | See per-server detail |
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
 | fmp | `hkask-mcp-fmp` | 11 | L4 (Communication) | `HKASK_FMP_API_KEY` |
 | telnyx | `hkask-mcp-telnyx` | 7 | L4 (Communication) | `HKASK_TELNYX_API_KEY` |
 | fal | `hkask-mcp-fal` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
-| rss-reader | `hkask-mcp-rss-reader` | ~10 | L4 (Communication) | — |
+| replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
 | doc-knowledge | `hkask-mcp-doc-knowledge` | 5 | L2 (Episodic) | — |
 | markitdown | `hkask-mcp-markitdown` | ~3 | L2 (Episodic) | — |
-| **Total** | | **~73** | | |
+| **Total** | | **~82** | | |
 
 ---
 
@@ -51,18 +51,42 @@ Re-derived from `grep '#\[tool'` on 2026-06-10.
 
 ---
 
-### web
+### research
 
-**Crate:** `hkask-mcp-web` · **Loop:** L4 · **Tools:** 4
+**Crate:** `hkask-mcp-research` · **Loop:** L4 · **Tools:** ~17
 
-**Credentials:** `HKASK_BRAVE_API_KEY`, `HKASK_FIRECRAWL_API_KEY`, `HKASK_TAVILY_API_KEY`, `HKASK_SERPAPI_API_KEY`, `HKASK_EXA_API_KEY` (all optional)
+Consolidation of former `hkask-mcp-web` and `hkask-mcp-rss-reader` (2026-06-11).
+Web tools always available with at least one search provider key. RSS tools available when `HKASK_RSS_DB` + `HKASK_DB_PASSPHRASE` are set (graceful degradation otherwise).
+
+**Web credentials (all optional):** `HKASK_BRAVE_API_KEY`, `HKASK_FIRECRAWL_API_KEY`, `HKASK_TAVILY_API_KEY`, `HKASK_SERPAPI_API_KEY`, `HKASK_EXA_API_KEY`, `HKASK_BROWSERBASE_API_KEY`
+**RSS credentials (optional):** `HKASK_RSS_DB`, `HKASK_DB_PASSPHRASE`
+
+#### Web tools
 
 | Tool | Description |
 |------|-------------|
 | `web_ping` | Liveness and provider health check |
+| `web_search` | Search the web with RRF fusion across providers |
 | `web_find_similar` | Find pages similar to a given URL |
 | `web_extract` | Extract content from a URL into markdown |
 | `web_browse` | Interactive browsing of JS-heavy pages |
+
+#### RSS tools
+
+| Tool | Description |
+|------|-------------|
+| `rss_subscribe` | Subscribe to an RSS/Atom feed |
+| `rss_unsubscribe` | Unsubscribe from a feed |
+| `rss_list_subscriptions` | List subscriptions |
+| `rss_fetch` | Fetch/sync new entries (supports ETag/Last-Modified) |
+| `rss_get_entries` | Get entries from a stream with continuation pagination |
+| `rss_mark_all_read` | Mark all entries in a stream as read |
+| `rss_get_unread_count` | Get unread count for a stream |
+| `rss_search` | Full-text search across feed entries |
+| `rss_export_opml` | Export subscriptions as OPML 2.0 |
+| `rss_import_opml` | Import subscriptions from OPML |
+| `rss_discover_feeds` | Discover feeds from URL via HTML autodiscovery |
+| `rss_edit_tag` | Edit tags on entries (read/unread, star, labels) |
 
 ---
 
@@ -150,24 +174,20 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ---
 
-### rss-reader
+### replica
 
-**Crate:** `hkask-mcp-rss-reader` · **Loop:** L4 · **Tools:** ~10
+**Crate:** `hkask-mcp-replica` · **Loop:** L4 · **Tools:** 6
 
-Uses manual tool registration via `run_server` list, not `#[tool]` macros. Credentials optional (`HKASK_RSS_DB`, `HKASK_DB_PASSPHRASE`).
+**Credentials:** `HKASK_EMBEDDING_MODEL` (optional, defaults to `Qwen/Qwen3-Embedding-0.6B` via DeepInfra)
 
 | Tool | Description |
 |------|-------------|
-| `rss_subscribe` | Subscribe to an RSS/Atom feed |
-| `rss_unsubscribe` | Unsubscribe from a feed |
-| `rss_list_subscriptions` | List subscriptions |
-| `rss_fetch` | Fetch/sync new entries |
-| `rss_mark_read` | Mark entries as read |
-| `rss_unread_count` | Get unread count |
-| `rss_search` | Full-text search across entries |
-| `rss_export_opml` | Export subscriptions as OPML 2.0 |
-| `rss_import_opml` | Import subscriptions from OPML |
-| `rss_discover` | Discover feeds from URL via HTML autodiscovery |
+| `replica_build` | Embed a corpus and create a style replica |
+| `replica_compose` | Generate prose in an author's style |
+| `replica_mashup` | Blend two authors' styles via centroid interpolation |
+| `replica_compare` | Measure stylistic distance between two authors |
+| `replica_registry` | List, inspect, and manage built replicas |
+| `replica_explain` | Explain centroids and style-space topology |
 
 ---
 
@@ -229,6 +249,8 @@ Uses manual tool registration. Credentials optional (`HKASK_OCR_MODEL`, `OKAPI_B
 
 ## Verification Notes
 
-- **Count method:** `grep '#\[tool' mcp-servers/*/src/main.rs` for `#[tool]`-based servers. rss-reader and markitdown use manual `run_server` registration — tool counts estimated from registration lists.
-- **Spec server correction:** Previous inventory listed 11 spec tools. Only 5 exist per MDS.md §3 and code verification. The six extra tools (`bind`, `evaluate`, `reconcile`, `cultivate`, `graph_validate`, `test_invariant`, `test_verify`) were either deleted or never existed.
-- **Total:** ~73 tools across 10 servers (down from previously claimed 80).
+- **Count method:** `grep '#\[tool' mcp-servers/*/src/main.rs` for `#[tool]`-based servers. markitdown uses manual `run_server` registration — tool counts estimated from registration lists.
+- **Consolidation (2026-06-11):** `hkask-mcp-web` (4 tools) + `hkask-mcp-rss-reader` (~10 tools) → `hkask-mcp-research` (~17 tools with `web_search` added). RSS tools now use `#[tool]` macros and `run_server_with_preloaded`.
+- **New (2026-06-11):** `hkask-mcp-replica` added (6 tools, style embedding and composition).
+- **Spec server correction:** Previous inventory listed 11 spec tools. Only 5 exist per MDS.md §3 and code verification.
+- **Total:** ~82 tools across 10 servers.

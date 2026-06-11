@@ -27,7 +27,7 @@ fn build_service_context(
 
 pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     use hkask_templates::McpPort;
-    let ctx = build_service_context(rt, &[("web", "hkask-mcp-web")]);
+    let ctx = build_service_context(rt, &[("research", "hkask-mcp-research")]);
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = ctx
