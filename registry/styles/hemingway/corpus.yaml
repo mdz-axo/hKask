@@ -141,3 +141,92 @@ validation:
 
   # Maximum number of exemplar passages (prevents context overflow).
   exemplar_count_max: 7
+
+# ── Entity Declarations (5W1H Metadata Layer) ────────────────────────────────────
+# These entities drive tagging, salience scoring, and parametric retrieval.
+# Characters/places/events/concepts are matched against passage text via
+# case-insensitive substring matching. Methods are matched against computed
+# stylometric signals.
+#
+# `appears_in` restricts matching to specific work slugs (empty = all works).
+
+entities:
+  characters:
+    - name: "Jake Barnes"
+      appears_in: ["sun-also-rises"]
+    - name: "Lady Brett Ashley"
+      appears_in: ["sun-also-rises"]
+    - name: "Robert Cohn"
+      appears_in: ["sun-also-rises"]
+    - name: "Frederic Henry"
+      appears_in: ["farewell-to-arms"]
+    - name: "Catherine Barkley"
+      appears_in: ["farewell-to-arms"]
+    - name: "Nick Adams"
+      appears_in:
+        ["in-our-time", "men-without-women", "three-stories-ten-poems"]
+    - name: "old man"
+      appears_in: []
+    - name: "the waiter"
+
+  places:
+    - name: "Paris"
+      appears_in: ["sun-also-rises"]
+    - name: "Pamplona"
+      appears_in: ["sun-also-rises"]
+    - name: "Italian front"
+      appears_in: ["farewell-to-arms"]
+    - name: "Michigan"
+      appears_in: ["in-our-time"]
+    - name: "cafe"
+      appears_in: []
+    - name: "river"
+      appears_in: []
+
+  events:
+    - name: "bullfight"
+      appears_in: ["sun-also-rises"]
+    - name: "war"
+      appears_in: ["farewell-to-arms", "in-our-time"]
+    - name: "fishing"
+      appears_in: ["sun-also-rises", "in-our-time"]
+    - name: "drinking"
+      appears_in: []
+
+  concepts:
+    - name: "death"
+    - name: "wound"
+    - name: "nada"
+    - name: "grace under pressure"
+    - name: "code"
+
+# ── Declared Methods ────────────────────────────────────────────────────────────
+# Named stylistic techniques with signal thresholds for matching.
+
+methods:
+  - name: "iceberg_theory"
+    description: "Omission of exposition; meaning conveyed through subtext and action"
+    signal:
+      adjective_density_max: 5.0
+      adverb_density_max: 3.0
+      dialogue_ratio_min: 0.15
+      hedge_density_max: 1.0
+      intensifier_density_max: 1.0
+
+  - name: "parataxis"
+    description: "Coordinate clauses linked by 'and' rather than subordination"
+    signal:
+      parataxis_ratio_min: 0.6
+
+  - name: "concrete_prose"
+    description: "Preference for concrete nouns and sensory detail over abstraction"
+    signal:
+      concrete_noun_ratio_min: 0.65
+      sensory_word_ratio_min: 3.0
+
+# ── Budget ──────────────────────────────────────────────────────────────────────
+# Triple storage budget. Default 3,750 triples per 100 pages.
+# Tighten to favor only the most graph-connected passages.
+
+budget:
+  per_100_pages: 3750

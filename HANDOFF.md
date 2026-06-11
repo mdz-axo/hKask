@@ -1,397 +1,138 @@
-# Handoff — hKask Architecture Audit & Condensation (Session 2026-06-10)
+# Handoff — hKask Core Crate Audit & Onboarding Fixes
 
-## Session Context
-
-Completed a comprehensive TASK 0–TASK 6 epistemic/cybernetic/deep-module audit of the hKask codebase (254 → 251 source files). Deleted ~650 LOC of dead code including the entire allosteric/MWC subsystem, two duplicate modules, and several dead type definitions. Added 13 new tests (4 GovernedTool OCAP, 2 algedonic binary-threshold, 3 variety sensor, 1 GovernedTool integration, 3 CnsService). Instrumented consent denial CNS events. Defined per-algorithm condenser SLA health signals. Added `MdsCategory` to `LexiconTerm`. Multiple architecture-analysis errors were discovered and documented.
-
-**Status:** Archival audit complete. Codebase clean. All tests pass. 251 source files at fixed point.
+**Date:** 2026-06-11
+**Version:** 0.27.0
+**Status:** Onboarding fixes complete. 50 findings from core crate scan ready for triage.
 
 ---
 
-## What Was Done
+## 1. Session Context
 
-### Dead Code Purge (files deleted)
-- `crates/hkask-mcp/src/git_cas/snapshot_writer.rs` — zero callers
-- `crates/hkask-mcp/src/git_cas/repo_manager.rs` — zero callers
-- `crates/hkask-mcp/src/git_cas/mod.rs` — deleted `GitCasAdapter::new()` (all callers use `from_path()`) and `load_template_crate_or_synthesize()` (zero callers)
-- `crates/hkask-cli/src/curation_config.rs` — 63-line duplicate of `load_curation_thresholds()` already in `set_points.rs`; both copies had zero callers
-- `crates/hkask-cns/src/variety.rs` — merged into `runtime.rs` (VarietyMonitor only used by CnsRuntime)
-- `crates/hkask-types/src/allosteric/` — `mwc.rs` (102 lines), `gate.rs` (184 lines), `mod.rs` (22 lines)
-- `crates/hkask-cns/src/allosteric/` — `mod.rs` (thin re-export only)
-- `crates/hkask-agents/src/curator/curation_gate.rs` — `CurationConfidenceGate` always constructed with empty ports; always produced Suppress
-
-### Types Deleted
-- `RBarThreshold` — removed from `crates/hkask-types/src/cns.rs`; re-exports cleaned from `hkask-cns::lib.rs`, `hkask-agents::lib.rs`, `hkask-types::lib.rs`
-- `AllostericGate`, `AllostericGateConfig`, `AllostericError`, `mwc_state_function`, `mwc_sensitivity` — allosteric subsystem completely removed
-- `CurationConfidenceGate`, `ConfidenceDecision`, `CurationPort` — curation gate stub deleted
-- `bundle::cns_spans` module (4 unused constants) — deleted from `crates/hkask-types/src/bundle.rs`
-- Dead test helpers in `bundle::tests` (`make_skill`, `make_step`, `valid_manifest`) — deleted
-- `load_curation_thresholds()` duplicate — deleted from both `set_points.rs` and `curation_config.rs`
-- `VerificationService::load_manifests()` public method — deleted (zero callers)
-
-### Warnings Removed
-- `#[allow(dead_code)]` removed from `crates/hkask-services/src/verification.rs:22` (Assertion struct — fields are all used via YAML deserialization)
-- 12 other `#[allow(dead_code)]` annotations removed alongside code deletions
-
-### Code Merges
-- `crates/hkask-cns/src/variety.rs` → `crates/hkask-cns/src/runtime.rs` — VarietyMonitor and VarietyTracker co-located with sole consumer
-- `load_curation_thresholds()` from `crates/hkask-cns/src/set_points.rs` deleted (duplicate, zero callers)
-
-### New Production Code
-
-**ConsentManager CNS instrumentation** (`crates/hkask-agents/src/consent.rs`):
-- Added `event_sink: Option<Arc<dyn NuEventSink>>` field
-- Added `with_event_sink()` builder method
-- `has_consent()` now emits `cns.consent.denied` ν-event on denial (OBSERVE-only, not a feedback path)
-
-**SpecDriftResolved** (`crates/hkask-types/src/loops/channels.rs`):
-- Added `CurationInput::SpecDriftResolved { spec_id, resolved_at }` variant
-- `CurationLoop::sense()` handles it with `tracing::info!` — no automated revision
-
-**Condenser SLA health signals** (`mcp-servers/hkask-mcp-condenser/src/`):
-- `types.rs`: Added `CondenserHealthSignal` struct and `health_signals` field on `CompressedOutput`
-- `algorithms.rs`: `CondenserAlgorithm::compress()` now returns `(String, Vec<CondenserHealthSignal>)`
-  - `rtk_style`: `negative_compression` signal when `compressed_bytes > original_bytes`
-  - `saliency_rank`: `low_signal` when >50% of lines score 0.0
-  - `flashrank`: `budget_shortfall` when `filled < budget`
-- `engine.rs`: `CondenserEngine::check_global_health()` for systemic ratio < 2:1 after 10+ compressions
-
-**MdsCategory** (`crates/hkask-types/src/lexicon.rs`):
-- Added `MdsCategory` enum (Domain, Composition, Trust, Lifecycle, Curation)
-- Added `mds_category: Option<MdsCategory>` field to `LexiconTerm` with `with_mds_category()` builder
-- Exported from `hkask_types::lib.rs` via `pub use lexicon::MdsCategory`
-
-**CnsService module** (`crates/hkask-services/src/cns.rs`):
-- File existed but was NOT declared in `lib.rs` — corrected: added `pub mod cns` and `pub use cns::CnsService`
-
-### API Tighter
-- `crates/hkask-cns/src/energy.rs`: `QueueDepth` and `RBarThreshold` re-exports moved to `lib.rs` directly from `hkask_types::cns`
-
-### Algedonic Simplify
-- `crates/hkask-cns/src/algedonic.rs`: Removed all allosteric gate code, `new_allosteric`, `default_algedonic_gate`, `with_default_allosteric`. Binary thresholds only. Dropped `RBarThreshold` field from `RuntimeAlert`.
-
-### Curation Loop Cleanup
-- `crates/hkask-agents/src/curator/curation_loop.rs`: Removed `confidence_gate` field, `with_confidence_gate` builder, `evaluate_confidence_internal` method, gate call from `act()`, unused `Mutex` import
-
-### New Tests (all using real production components, no mocks)
-
-**`crates/hkask-cns/src/governed_tool.rs`** (4 tests):
-- `legacy_exact_match_grants_correct_tool` — OCAP Path 1
-- `legacy_exact_match_denies_wrong_tool` — OCAP Path 1 denial
-- `domain_capability_matches_mcp_tool_domain` — OCAP Path 2
-- `domain_capability_denies_different_domain` — OCAP Path 2 denial
-
-**`crates/hkask-cns/tests/governed_tool_integration.rs`** (1 test, new file):
-- `governed_tool_full_membrane_ocap_domain_path` — exercises all 6 membrane steps with real CnsRuntime, CyberneticsLoop, NuEventStore (in-memory), EchoToolPort. Verifies energy consumption post-invocation.
-- Added `hkask-storage = { path = "../hkask-storage" }` to `Cargo.toml` `[dev-dependencies]`
-
-**`crates/hkask-cns/src/algedonic.rs`** (2 tests):
-- `binary_threshold_classifies_critical_and_warning` — verifies Info/Warning/Critical classification
-- `algedonic_manager_accumulates_alerts_across_domains` — multi-domain independence
-
-**`crates/hkask-cns/src/runtime.rs`** (3 tests):
-- `variety_monitor_tracks_distinct_states` — Ashby's Law sensor
-- `variety_tracker_deficit_calculation` — deficit arithmetic
-- `variety_monitor_multi_domain_isolation` — cross-domain isolation
-
-**`crates/hkask-services/src/cns.rs`** (3 tests):
-- `health_returns_defaults_for_empty_runtime`
-- `alerts_returns_empty_for_fresh_runtime`
-- `variety_returns_empty_for_fresh_runtime`
-
-### Analysis Errors Discovered & Documented
-
-The following TASK 2 MERGE/DELETE verdicts were WRONG and have been corrected:
-1. **Type migrations** (`cns::CnsHealth`, `sovereignty::DataCategory`, `loops::*`, `visibility::*` → destination crates) — would break dependency direction; `hkask-templates`/`hkask-cli` would need heavy deps for vocabulary types. Types correctly live in `hkask-types`.
-2. **`set_points` → `hkask-services::config`** — would create circular dep (cns → services → cns)
-3. **SovereigntyService split** — documentation error; no single module with 9+ public items exists; sovereignty is correctly distributed across 3 crates
-4. **Allosteric gate** — essentialist review: deleted entire subsystem (308 lines encoding zero runtime-observable behavior)
-
-### Documentation
-- `OPEN_QUESTIONS.md`: Updated throughout with resolution status for all 7 sections
-- Architecture master SovereigntyService claim: documented as error in OPEN_QUESTIONS.md (not yet fixed in `docs/architecture/hKask-architecture-master.md`)
-- Epistemic doc-comments added to `CnsRuntime`, `VarietyMonitor`, `VarietyTracker` in `runtime.rs`
-
-### Files Deleted
-- `crates/hkask-cns/src/variety.rs`
-- `crates/hkask-cns/src/allosteric/mod.rs`
-- `crates/hkask-cns/src/allosteric/` (empty dir)
-- `crates/hkask-types/src/allosteric/mwc.rs`
-- `crates/hkask-types/src/allosteric/gate.rs`
-- `crates/hkask-types/src/allosteric/mod.rs`
-- `crates/hkask-types/src/allosteric/` (empty dir)
-- `crates/hkask-services/tests/encapsulation.rs` (pre-existing broken test)
-- `crates/hkask-mcp/src/git_cas/snapshot_writer.rs`
-- `crates/hkask-mcp/src/git_cas/repo_manager.rs`
-- `crates/hkask-agents/src/curator/curation_gate.rs`
-- `crates/hkask-cli/src/curation_config.rs`
+This session reviewed the hKask onboarding flow and first-replicant creation against the Magna Carta design principles, fixed 4 bugs (ACP WebID mismatch, ReplSettings overwrite, onboarding path collapse, namespace inconsistency), then performed a systematic code scan across all 9 core crates. The scan produced 50 findings (18 must-fix, 21 should-fix, 11 cleanup). All onboarding fixes compile clean and pass tests. The scan findings are untouched — no code changes beyond the 4 onboarding fixes.
 
 ---
 
-## Session 2026-06-10 (Continuation) — Handoff Remaining Tasks
+## 2. What Was Done
 
-### Task 1: Unify settings_path() ✅
+### Onboarding Fixes (all verified: `cargo clippy -D warnings`, `cargo test`)
 
-- Created `crates/hkask-services/src/settings.rs` with canonical `settings_path()` using `dirs::config_dir()`
-- Added `dirs = "6"` to `hkask-services/Cargo.toml`
-- Exported `pub use settings::settings_path` from `hkask-services/src/lib.rs`
-- Updated all three surfaces to delegate:
-  - `commands/settings.rs` → imports `hkask_services::settings_path`
-  - `hkask-api/src/routes/settings.rs` → imports `hkask_services::settings_path`
-  - `repl/handlers/repl_settings.rs` → delegates to `hkask_services::settings_path()`
+- **ACP WebID namespace mismatch** — `crates/hkask-services/src/onboarding.rs` L84: Changed ACP state restoration from `WebID::from_persona()` (namespace `"hkask"`) to `WebID::from_persona_with_namespace(..., "replicant")`. Removed orphaned `use std::str::FromStr`.
+- **ReplSettings overwrite** — `crates/hkask-cli/src/repl/init.rs` L221: Removed `let repl_settings = ReplSettings::default();` that shadowed the loaded settings from `~/.config/hkask/settings.json`. Removed orphaned `ReplSettings` import.
+- **Onboarding path collapse** — `crates/hkask-cli/src/onboarding.rs`: Replaced three-scenario branching with two modes: **operating** (keys + replicants exist → return) and **setup** (create first replicant). Removed dead code: `sign_in_flow`, `try_list_existing_replicants`, `pick_or_default_replicant`, `InvalidPassphrase` variant. Renamed module doc and functions.
+- **`ReplicantIdentity::derive_webid` namespace** — `crates/hkask-types/src/identity.rs` L61: Changed from `"hkask-replicant"` to `"replicant"`.
 
-### Task 2: Behavioral Tests ✅ (10 new tests)
+### Core Crate Scan
 
-**`repl/handlers/repl_settings.rs`** (4 tests):
-- `repl_settings_defaults_match_spec` — all 13 defaults
-- `to_llm_params_maps_all_fields_correctly` — field mapping
-- `to_llm_params_handles_none_seed` — None seed edge case
-- `repl_settings_json_round_trip_preserves_all_fields` — serialize→write→read→deserialize (uses tempfile)
-
-**`commands/settings.rs`** (12 tests):
-- 6 rejection tests: zero loop limit, negative loop limit, temp OOR, top_p OOR, top_k zero, garbage value
-- 6 acceptance tests: valid temp, valid loops, auto_compact off/on, seed value, seed off
-
-**`repl/turn.rs`** (3 tests):
-- `compaction_triggers_above_87_5_percent` — threshold exceeds at 90%
-- `compaction_skips_below_87_5_percent` — skips at 80%
-- `compaction_threshold_matches_87_5_percent_formula` — common window sizes (2048→1792, 4096→3584, 8192→7168, 32768→28672)
-
-**`hkask-api/src/routes/settings.rs`** (2 tests):
-- `update_settings_merge_preserves_unspecified_fields` — merge-update semantics
-- `update_settings_out_of_range_is_ignored` — OOR values silently ignored
-
-**Added:** `tempfile.workspace = true` to `hkask-cli/Cargo.toml` `[dev-dependencies]`
-
-### Task 3: Auto-compact in non-REPL surfaces ❌ Deferred
-
-Requires propagating `ReplSettings`, governed tool (for condenser MCP), and model metadata into `ChatService::prepare_chat()`. This is a proper feature, not a quick fix — it crosses crate boundaries and violates current layering (`hkask-services` doesn't depend on CLI settings). Recommendation:
-1. Add `context_window: Option<u32>` and `auto_compact: bool` to `ChatRequest`
-2. Add a `compact_context()` method to `ChatService` (or a helper) that calls condenser MCP
-3. Call it from `prepare_chat()` when needed
-
-### Task 4: Populate model_meta on REPL init ✅
-
-- Made `populate_model_meta()` `pub(crate)` in `repl/handlers/model.rs`
-- Added call in `init_repl_state()` (in `repl/init.rs`) right before `Some(state)`
-- Model metadata (context_length, thinking support) now fetched on REPL start, not just on `/model` switch
-
-### Build Status
-
-- `cargo check -p hkask-cli -p hkask-api` — **clean** (0 errors, same 2 pre-existing warnings)
-- `cargo test -p hkask-cli` — 19/19 passed
-- `cargo test -p hkask-api` — 2/2 passed
-- `cargo test -p hkask-services` — 27/27 passed
-- Pre-existing clippy error in `hkask-templates` (unrelated, blocks `-- -D warnings`)
-
-### What Remains
-
-| Task | Status |
-|------|--------|
-| Auto-compact for non-REPL surfaces | Deferred (architectural change) |
-| Integration tests for `populate_model_meta` (needs Okapi mock) | Deferred |
-| Integration test for full `build_input_with_auto_compact` (needs governed tool + episodic storage) | Deferred |
+Full scan of `hkask-types`, `hkask-storage`, `hkask-agents`, `hkask-services`, `hkask-cns`, `hkask-memory`, `hkask-keystore`, `hkask-templates`, `hkask-mcp`. Findings documented below in §3.
 
 ---
 
-## Session 2026-06-10 (Continuation 2) — Auto-Condense Implementation
+## 3. What Remains
 
-### Rename: auto_compact → auto_condense ✅ (partial)
+### HIGH — Production Panics (fix first, these crash the binary)
 
-Rust code is fully renamed. The struct field is `auto_condense` with `#[serde(alias = "auto_compact")]` for backward compat with existing `settings.json` files. All handlers, CLI commands, `/repl` slash commands, and tests use `auto_condense`.
+| # | Crate | Location | Bug |
+|---|-------|----------|-----|
+| 1 | `hkask-agents` | `curator/persona_filter.rs:32-38` | Byte-position mismatch after `to_lowercase()` — panics on non-ASCII input. Same bug at L63-67. |
+| 2 | `hkask-agents` | `pod/mod.rs:192-199` | `.expect()` on user-supplied capability string, not the default. Panics on malformed input. |
+| 3 | `hkask-storage` | `nu_event_store.rs:262` | `span_path[namespace.len() + 1..]` with no bounds check. Panics when fallback namespace doesn't match. |
+| 4 | `hkask-memory` | `semantic.rs:189-197` | `compute_centroid` indexes `centroid[i]` without checking `emb.vector.len() == dim`. OOB panic. |
 
-**Still needs rename in docs:**
-- `AGENTS.md` lines 92, 120 (still say `auto_compact`)
-- `docs/architecture/PRINCIPLES.md` line 190
-- `docs/architecture/hKask-architecture-master.md` lines 68, 73, 96
-- `docs/specifications/REPL-specification.md` lines 31, 386, 410, 495, 682
-- `docs/status/test-inventory.md` line 38
-- `HANDOFF.md` lines 153, 169, 193 (this file itself)
-- `crates/hkask-cli/src/repl/turn.rs` line 279 (stale comment referencing `build_input_with_auto_compact`)
+**Strategy:** Each is a 1-3 line fix (bounds check or char-boundary-safe slicing). Fix, add a regression test per fix, verify with `cargo test -p <crate>`.
 
-### Architecture Discovery: Condensation Was Lost in Refactor
+### HIGH — Security (SSRF bypass, path traversal)
 
-**Critical finding:** The REPL was refactored from the old `build_input_with_auto_compact()` (in `turn.rs`) to `ChatService::execute_turn()` (in `hkask-services`). The new `execute_turn()` does manifest cascade → history suffix → tool results → HHH reframe → `ChatService::chat()` → persona filter — but has **no condensation step**. The 87.5% threshold check and condenser MCP call were dropped.
+| # | Crate | Location | Bug |
+|---|-------|----------|-----|
+| 5 | `hkask-mcp` | `security.rs:95-98` | IPv6 ULA check only matches `fc00::` and `fd00::`, misses rest of `fc00::/7`. Fix: `(segments[0] & 0xfe00) == 0xfc00`. |
+| 6 | `hkask-mcp` | `security.rs:86-100` | Missing IPv6 link-local (`fe80::/10`) check entirely. |
+| 7 | `hkask-storage` | `security.rs:25-32` | `sanitize_path` bypass when parent dir doesn't exist — `canonicalize()` fails, check skipped. |
 
-This means auto-condense isn't just missing from non-REPL — it's missing from the REPL too.
+**Strategy:** Fix the bitmask, add `fe80::/10` check, make `sanitize_path` fail-closed when canonicalize fails. Add test cases for each bypass vector.
 
-### Condenser Crate Analysis
+### HIGH — Data Corruption / Silent Loss
 
-`hkask-mcp-condenser` (`mcp-servers/hkask-mcp-condenser/`) is a **binary-only** crate (no `[lib]` section, has `main.rs` not `lib.rs`). Key internal modules:
+| # | Crate | Location | Bug |
+|---|-------|----------|-----|
+| 8 | `hkask-agents` | `consent.rs:92-101` | `to_stored()` generates new UUID per call — every `grant_consent` INSERTs a new row. Unbounded growth. |
+| 9 | `hkask-storage` | `triples.rs:138-191` | Non-atomic triple update (UPDATE + SELECT + INSERT without transaction). Crash = data loss. |
+| 10 | `hkask-cns` | `energy.rs:238,244,256` | `remaining + rate` uses `+` not `saturating_add`. Wraps u64 in release, budget shrinks. |
+| 11 | `hkask-keystore` | `keychain.rs:53-55,84-86` | All keyring errors mapped to `NotFound`. Permission denied → generates new secret → overwrites real one. |
 
-| Module | Contents |
-|--------|----------|
-| `inference.rs` (162 LOC) | Pure functions: `format_conversation_text()`, `build_summarization_prompt()`, `build_chat_request()`, `extract_summary()`, `approx_token_count()`, `build_summary_output()`, `detect_format()` |
-| `main.rs` (~380 LOC) | MCP server wiring, `condenser_thread_summary` tool handler (lines 247–316), HTTP call via `api_post()` |
-| `engine.rs` (291 LOC) | `CondenserEngine` — profile-based compression for tool outputs |
-| `algorithms.rs` (838 LOC) | `compute_budget`, algorithm implementations |
-| `types.rs` (287 LOC) | `ThreadSummaryRequest`, `ThreadSummaryOutput`, `Profile`, etc. |
+**Strategy:** #8 needs upsert logic or lookup-before-insert. #9 needs a transaction wrapper. #10 is a one-word fix (`saturating_add`). #11 needs proper error variant mapping using the existing `From<KeyringError>` impl.
 
-**Key insight:** The `condenser_thread_summary` handler (lines 247–316 in `main.rs`) follows this pipeline:
-1. `inference::format_conversation_text(&messages)` → conversation text
-2. `inference::build_summarization_prompt(&conversation_text, &current_query)` → prompt
-3. `inference::build_chat_request(format, model, prompt, system_prompt, num_ctx, max_tokens)` → JSON body
-4. `api_post(&http_client, "inference", &url, &chat_request)` → HTTP call
-5. `inference::extract_summary(format, &resp_body)` → summary string
-6. `inference::build_summary_output(summary, msg_count, model, url)` → result
+### HIGH — Project Violation
 
-Steps 1–3 and 5–6 are pure functions already in `inference.rs`. Only step 4 (HTTP POST) needs to be extracted into a library-accessible function.
+| # | Crate | Location | Bug |
+|---|-------|----------|-----|
+| 12 | `hkask-agents` | `adapters/mcp_runtime.rs:266-269` | `#[deprecated]` attribute on `McpRuntimeAdapter`. P6/P7 violation. Delete the type alias and the `#[allow(deprecated)]` at `adapters/mod.rs:11`. |
 
-### Implementation Plan for Auto-Condense
+**Strategy:** Grep for callers of `McpRuntimeAdapter`, replace with `FullMcpAdapter`, delete the alias.
 
-```
-Phase 1: Make condenser a lib+bin crate
-  - Add [lib] to hkask-mcp-condenser/Cargo.toml
-  - Create lib.rs exporting thread_summary as a public async fn
-  - Extract HTTP call from main.rs into lib function
-  verify: cargo check -p hkask-mcp-condenser
+### HIGH — Broken Logic
 
-Phase 2: Add auto-condense to TurnRequest + execute_turn()
-  - Add fields: auto_condense: bool, context_window: Option<u32>, condenser_base_url: Option<String>
-  - After history suffix (step 2 in execute_turn), check 87.5% threshold
-  - If exceeded + auto_condense is on: call condenser lib directly
-  - Build messages from old turns (oldest half, same as old REPL logic)
-  verify: cargo check -p hkask-services + tests
+| # | Crate | Location | Bug |
+|---|-------|----------|-----|
+| 13 | `hkask-types` | `cns.rs:96` | `RetryConfig::delay_for_attempt` truncates `f64` multiplier to `u64` before exponentiation. Backoff broken for non-integer multipliers. |
+| 14 | `hkask-services` | `context.rs:612` + `curator.rs:111` | Curator metacognition uses detached/fresh CNS runtime — always sees zero alerts, zero variety. |
+| 15 | `hkask-services` | `goal.rs:116-121` | `set_goal_state` returns empty `text` and `visibility` despite having the fetched goal. |
+| 16 | `hkask-memory` | `consolidation.rs:185-189` | `consolidation_candidate_count` calls `storage_usage()` (total count) not candidate count. |
+| 17 | `hkask-keystore` | `master_key.rs:45-55` | `InternalSecrets` derives `Debug` — key material in logs/panics. Custom `Debug` impl needed. |
+| 18 | `hkask-mcp` | `runtime.rs:117,156` | TOCTOU race in `start_server` — concurrent calls orphan child processes. |
 
-Phase 3: Wire REPL callers
-  - REPL passes auto_condense=true, context_window from model_meta, condenser_base_url from config
-  - Dual path: REPL can optionally still call via MCP (governed tool) if condenser server is running
-  verify: cargo check -p hkask-cli
+### MEDIUM — Swallowed Errors (21 instances across 5 crates)
 
-Phase 4: Wire non-REPL callers (CLI kask chat -f -, API chat routes)
-  - Pass same condensation params to TurnRequest
-  verify: cargo check + integration
+The most impactful cluster:
+- `hkask-storage`: 5 locations map all DB errors to `NotFound`, 7 locations silently corrupt timestamps with `Utc::now()`.
+- `hkask-templates`: 6 `.ok()` calls on INSERT/DELETE — silent data loss on restart.
+- `hkask-services`: `sovereignty.rs` returns `ConsentError` instead of `ServiceError`.
+- `hkask-agents`: `escalation.rs` `resolve()`/`dismiss()` don't check `rows_affected`.
 
-Phase 5: Rename remaining docs
-  - Update AGENTS.md, architecture docs, spec docs
-  verify: grep -r "auto.compact" returns only serde aliases
-```
+**Strategy:** Work crate-by-crate. Start with `hkask-storage` (most impactful), then `hkask-templates`, then `hkask-agents`.
 
-### Key Design Decisions
+### LOW — Cleanup (11 items)
 
-1. **Condenser called directly via library, not MCP.** The MCP path requires a running condenser server + GovernedTool membrane. For ChatService (shared layer), adding a dependency on the condenser lib (`hkask-mcp-condenser` as lib) is simpler and doesn't require MCP runtime. The REPL can still use MCP path if it wants, but the default is direct.
-
-2. **Condensation in `execute_turn()`, not `prepare_chat()`.** `execute_turn()` already handles history injection via `recall_recent_turns()`. Condensation is a post-history-injection step. It needs episodic storage (for recalling old turns) and inference (for the summarization call) — both available in `execute_turn()`.
-
-3. **Threshold stays at 87.5%.** Same formula: `estimated_tokens = candidate.len() / 4`, `threshold = context_length * 0.875`. If `estimated_tokens > threshold` → condense oldest half of turns.
-
-4. **Oldest-half condensing, same as original REPL.** The old turns (first half by count) get summarized. Recent turns preserved verbatim. Summary injected as `[Previous conversation — summary of earlier turns]`.
-
-### Build Status
-
-- `cargo check -p hkask-cli -p hkask-api` — **clean**
-- `cargo test -p hkask-cli` — 19/19
-- `cargo test -p hkask-api` — 2/2
-- `cargo test -p hkask-services` — 27/27
+Dead code, naming inconsistencies, empty test modules. See scan results in conversation history for full list. Non-urgent but accumulates debt.
 
 ---
 
-## What Remains
+## 4. Recommended Skills and Tools
 
-### HIGH — Documentation fix needed
-
-**Fix architecture master sovereignty claim:**
-- File: `docs/architecture/hKask-architecture-master.md` line ~128
-- Current text says "SovereigntyService: 9 functions + 2 types" but this module does not exist. Sovereignty is distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification`. Update the table and remove the SovereigntyService row.
-
-### HIGH — Pre-existing build errors in two crates
-
-These existed before this session and are NOT related to any changes made:
-
-1. **`hkask-cli`**: `crates/hkask-cli/src/commands/ensemble.rs` references `build_improv_client` which doesn't exist. Also emits 2 warnings.
-2. **`hkask-services`**: Tests for `SqliteSpecStore::load` reference a method that doesn't exist. Only affects test compilation, not production builds.
-
-To verify: `cargo check -p hkask-cli` fails; `cargo check -p hkask-services` succeeds (but test compilation fails).
-
-### MEDIUM — Pre-existing AgentService adapters refactoring (incomplete)
-
-The working tree originally contained an incomplete refactoring adding 7 domain adapter structs (`MemoryAdapters`, `CnsAdapters`, etc.) and 7 adapter accessor methods to `AgentService`. The `adapters.rs` file was never created, so the changes were broken. They were reverted during this session.
-
-If this refactoring is desired:
-- Create `crates/hkask-services/src/adapters.rs` with the 7 adapter structs
-- Wire them into `AgentService::build()` in `context.rs`
-- Update `context.rs` to populate the 6 new fields (`memory_adapters`, `cns_adapters`, etc.)
-- Per the architecture master, the goal is `agent_service.memory().episodic()` etc.
-
-### LOW — Test coverage gaps that exist but are acceptable
-
-The following have no tests but are either shallow (thin wrappers) or require external services:
-- `archival.rs` — GitHub REST API calls; can't test without network
-- `compose.rs` (ComposeService) — needs embedding model; too expensive for unit tests
-- `inference.rs` — thin port resolution; covered indirectly by integration tests
-- `onboarding.rs` — keychain interaction; can't test without OS keychain
-- `verification.rs` — filesystem scanning; already has structural coverage from static analysis
-
-### LOW — Architecture master documentation update
-
-The architecture master (`docs/architecture/hKask-architecture-master.md`) still references:
-- Allosteric gate (now deleted)
-- SovereigntyService with 9+2 items (doesn't exist)
-- RBarThreshold (now deleted)
-
-File: `docs/architecture/hKask-architecture-master.md` should be updated to reflect v0.27.2 state.
-
----
-
-## Recommended Skills and Tools
+| Skill | When |
+|-------|------|
+| `coding-guidelines` | Before every fix — surgical changes, simplicity first |
+| `tdd` | For panic fixes (#1-4) — write failing test first, then fix |
+| `diagnose` | For #14 (curator CNS) — needs tracing to confirm the detached runtime theory |
 
 ```bash
-# Verify build (hkask-cli has pre-existing error — ignore that crate)
-cargo check -p hkask-cns -p hkask-types -p hkask-agents -p hkask-services -p hkask-mcp-condenser
+# Verify after each fix
+cargo check -p <crate>
+cargo clippy -p <crate> -- -D warnings
+cargo test -p <crate>
 
-# Run all tests
-cargo test -p hkask-cns -p hkask-types -p hkask-agents -p hkask-services -p hkask-mcp-condenser
+# Full workspace gate before any PR
+cargo check --workspace
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
 
-# Lint
-cargo clippy -p hkask-cns -p hkask-types -p hkask-agents -p hkask-services -p hkask-mcp-condenser -- -D warnings
-
-# Check for constraint violations (should produce no output)
-grep -rn "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"
-
-# Check dead code (should show only line 171 in acp/mod.rs — compile-time assertion)
-grep -rn "allow(dead_code)" crates/ --include="*.rs" | grep -v "test\|reserved\|never runs\|pub(super)"
+# Project constraint verification
+grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"
 ```
 
-Skills to activate in next session:
-- **coding-guidelines** — for any code changes
-- **essentialist** — if auditing for further dead code
-- **deep-module** — if evaluating module depth
-- **handoff** — to continue from this handoff
+---
+
+## 5. Key Decisions to Preserve
+
+1. **"Operating mode" vs "setup" — not "fast path" vs "interactive".** The onboarding module has two states: setup (zero replicants → create first) and operating (replicants exist → sign in). There is no "fast path" — that name was misleading. The operating mode returns immediately when keys work and replicants exist; setup runs the full creation flow.
+
+2. **WebID namespace is `"replicant"` everywhere.** Registration, ACP restoration, chat, REPL init, and `ReplicantIdentity::derive_webid` all use `"replicant"`. The old `"hkask-replicant"` and `"hkask"` namespaces were bugs. Any new code creating replicant WebIDs must use `"replicant"`.
+
+3. **ReplSettings loads from disk once at REPL init.** The loaded settings are the canonical source for the session. No re-initialization with defaults after load. The `repl_settings` variable from `load_settings()` flows into `ReplState` and is mutable via `/repl` during the session.
+
+4. **Dead code from removed paths was deleted, not commented out.** `sign_in_flow`, `try_list_existing_replicants`, `pick_or_default_replicant`, `InvalidPassphrase` — all removed. Recovery/sign-in is a future feature, not dead code to preserve.
+
+5. **Scan findings are reports, not prescriptions.** The 50 findings describe what exists. The agent doing the fixes should verify each finding before changing code — some may have context not visible in the scan (e.g., the "dead" `TurnRequest` fields may be planned for imminent use).
 
 ---
 
-## Key Decisions to Preserve
-
-1. **Allosteric gate deleted entirely.** The MWC sigmoid (`mwc.rs`, `gate.rs`) and `CurationConfidenceGate` were built — always with empty ports — and produced zero runtime-observable behavior. Binary thresholds are simpler, faster, and were already the backward-compatible fallback. Do NOT reintroduce the allosteric gate without a concrete runtime use case that exercises non-empty ports.
-
-2. **Type migrations REJECTED.** Moving `cns::CnsHealth`, `sovereignty::DataCategory`, `loops::*`, `visibility::*` from `hkask-types` to destination crates would break dependency direction. These are domain vocabulary — they correctly live in `hkask-types`. `RBarThreshold` was the only genuinely dead type.
-
-3. **SovereigntyService split is a documentation error.** No single module with 9+ public items exists. Sovereignty enforcement is correctly distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, and `hkask-services::verification`. Do NOT consolidate — the distributed architecture is correct.
-
-4. **Consent CNS events are OBSERVE-only.** The `cns.consent.denied` ν-event provides observability without opening a feedback path. The denial remains terminal — this is a Prohibition gate (Magna Carta P2), not a Guardrail.
-
-5. **`CurationInput::SpecDriftResolved` is advisory-only.** Automated spec revision would violate Magna Carta P1 (User Sovereignty). The event records that a human resolved drift — it does not trigger any automated action.
-
-6. **Condenser SLA is per-algorithm, not global-only.** The three algorithms (`rtk_style`, `saliency_rank`, `flashrank`) have different expected behaviors and different failure modes. Each health signal is algorithm-specific. The global `check_global_health()` is a supplementary check for systemic issues.
-
-7. **GovernedTool integration test uses real components.** No mocks. `CnsRuntime`, `CyberneticsLoop`, `NuEventStore` with in-memory DB, `EchoToolPort` — all real production code paths. If this test fails, production fails.
-
-8. **`CnsService` was an orphan module.** The file existed in `crates/hkask-services/src/cns.rs` but was never declared in `lib.rs`. Fixed by adding `pub mod cns` and `pub use cns::CnsService`. This means any code previously importing `CnsService` through other paths (if any) may now have conflicts.
-
----
-
-## Final State Metrics
-
-| Metric | Value |
-|--------|-------|
-| Source files | 251 |
-| Dead code sites | 1 (compile-time assertion in `acp/mod.rs:171`) |
-| Constraint violations | 0 |
-| Workspace build | Clean (except 2 pre-existing errors in hkask-cli/hkask-services tests) |
-| Core tests passing | 40 (9 CNS unit + 1 CNS integration + 27 services + 3 agents doc-tests) |
-| Clippy `-D warnings` | Clean on all core crates |
-| Allosteric traces | 0 |
-| Open questions unresolved | 0 (all items resolved or rejected) |
-
-*Generated 2026-06-10 by the hKask epistemic/cybernetic architecture audit (TASK 0–TASK 6).*
-*Version: v0.27.0 → v0.27.2 condensation pass.*
+*Recommended work order: #1-4 (panics) → #12 (violation) → #5-7 (security) → #8-11 (data corruption) → #13-18 (logic) → MEDIUM → LOW*

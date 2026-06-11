@@ -109,7 +109,7 @@ pub(crate) struct ReplState {
 }
 
 pub fn run(
-    _registry: &SqliteRegistry,
+    _registry: &mut SqliteRegistry,
     _runtime: &McpRuntime,
     template_id: Option<&str>,
     _agent_name: &str,

@@ -33,7 +33,7 @@ use super::tool_augmented;
 /// concerns on top (inference, per-agent memory, GovernedTool for tool
 /// discovery, HHH gate, onboarding state).
 pub(super) fn init_repl_state(
-    registry: &hkask_templates::SqliteRegistry,
+    registry: &mut hkask_templates::SqliteRegistry,
     _runtime: &hkask_mcp::runtime::McpRuntime,
     initial_model: Option<&str>,
     rt: &tokio::runtime::Handle,
@@ -129,6 +129,28 @@ pub(super) fn init_repl_state(
         onboarding_outcome.signed_in_agent.as_bytes(),
         "replicant",
     );
+
+    // Load skills from .agents/skills/ and skills/ into the registry before
+    // building AgentService. This populates registry.skills() for bundle
+    // composition, skill listing, and process_manifest resolution.
+    // # REQ: P11 (Digital Public/Private Sphere) — load skills from both zones
+    {
+        let project_root =
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let loader = hkask_templates::SkillLoader::new(&project_root);
+        let result = loader.load_into(registry);
+        if !result.loaded.is_empty() {
+            tracing::info!(
+                target: "hkask.repl",
+                skills_loaded = result.loaded.len(),
+                warnings = result.warnings.len(),
+                "Skills loaded from disk"
+            );
+        }
+        for warning in &result.warnings {
+            tracing::warn!(target: "hkask.repl", warning = %warning, "Skill load warning");
+        }
+    }
 
     // Build shared infrastructure via AgentService::build().
     // This creates: CNS, loop system (cybernetics, episodic, semantic, curation loops),

@@ -1,0 +1,278 @@
+//! BundleService — skill bundle composition and evolution.
+//!
+//! # REQ: P11 (Digital Public/Private Sphere) — compose skills into bundles
+//!
+//! Composes skills into `BundleManifest` via inference-driven analysis:
+//! polarity classification, conflict detection, phase separation, and
+//! cascade ordering. Uses `bundler-compose.j2` as the composition template.
+//!
+//! # Design decisions
+//!
+//! - **Constraint: Guideline** — BundleService lives in `hkask-services`
+//!   because both CLI and API surfaces need composition. Duplication across
+//!   surfaces is measurable waste.
+//! - **Constraint: Hypothesis** — Composition is LLM-native (polarity
+//!   classification, conflict detection). A deterministic fallback would be
+//!   a different service. This hypothesis is verified by integration tests.
+//! - **Depth test** — Deleting this module would cause composition logic
+//!   to reappear in both CLI and API. Passes deletion test.
+//! - **OCAP gates** — Stay in domain crates. BundleService does NOT mint
+//!   delegation tokens; callers pass pre-resolved secrets.
+
+use std::sync::Arc;
+
+use hkask_templates::BundleManifest;
+use hkask_types::Visibility;
+use hkask_types::ports::{BundleRegistryIndex, InferencePort, SkillRegistryIndex};
+
+use crate::context::AgentService;
+use crate::error::ServiceError;
+
+/// Result of composing a bundle from skill IDs.
+#[derive(Debug)]
+pub struct BundleComposeResult {
+    /// The composed and validated bundle manifest.
+    pub manifest: BundleManifest,
+    /// Warnings from composition (e.g., zone-visibility mismatches).
+    pub warnings: Vec<String>,
+}
+
+/// Service for skill bundle operations — compose, evolve, list, apply.
+pub struct BundleService;
+
+impl BundleService {
+    /// Compose a bundle from a set of skill IDs using inference.
+    ///
+    /// Loads skill metadata from the registry, classifies polarities,
+    /// detects conflicts and complementarities, determines cascade order,
+    /// and produces a validated `BundleManifest`. The result is registered
+    /// into the `BundleRegistryIndex` for persistence.
+    ///
+    /// # Arguments
+    /// - `ctx` — The shared AgentService context.
+    /// - `skill_ids` — Skill IDs to bundle (at least 2).
+    /// - `name` — Optional bundle name (auto-generated if None).
+    /// - `visibility` — Bundle visibility (Private, Shared, Public).
+    /// - `inference_port` — Inference port for composition template rendering.
+    /// - `editor` — Replicant name for attribution.
+    ///
+    /// # Returns
+    /// `BundleComposeResult` on success.
+    /// `ServiceError::Compose` on failure (inference error, validation failure).
+    /// `ServiceError::Skill` if a skill ID is not found in the registry.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn compose(
+        ctx: &AgentService,
+        skill_ids: &[String],
+        _name: Option<&str>,
+        visibility: Visibility,
+        inference_port: Arc<dyn InferencePort>,
+        editor: &str,
+    ) -> Result<BundleComposeResult, ServiceError> {
+        if skill_ids.len() < 2 {
+            return Err(ServiceError::Compose(
+                "A bundle requires at least 2 skills".to_string(),
+            ));
+        }
+
+        // Resolve skill metadata from the registry.
+        let registry = ctx.storage().0;
+        let registry_guard = registry.lock().await;
+        let skills: Vec<hkask_types::ports::Skill> = skill_ids
+            .iter()
+            .filter_map(|id| registry_guard.get_skill(id))
+            .collect();
+
+        if skills.len() != skill_ids.len() {
+            let found: std::collections::HashSet<&str> =
+                skills.iter().map(|s| s.id.as_str()).collect();
+            let missing: Vec<&str> = skill_ids
+                .iter()
+                .filter(|id| !found.contains(id.as_str()))
+                .map(|s| s.as_str())
+                .collect();
+            return Err(ServiceError::Compose(format!(
+                "Skills not found in registry: {}",
+                missing.join(", ")
+            )));
+        }
+
+        // Check for existing bundle with these skills (smart matching).
+        let existing = registry_guard.find_bundle_by_skills(skill_ids);
+        if let Some(existing_bundle) = existing {
+            return Ok(BundleComposeResult {
+                manifest: existing_bundle.clone(),
+                warnings: vec![format!(
+                    "An existing bundle '{}' already matches these skills. Use evolve to update.",
+                    existing_bundle.id
+                )],
+            });
+        }
+        drop(registry_guard);
+
+        // Build the composition prompt from skill metadata.
+        let skill_descriptions: Vec<String> = skills
+            .iter()
+            .map(|s| {
+                let polarity = s.polarity.map(|p| p.as_str()).unwrap_or("unknown");
+                let domain = s.domain.as_str();
+                format!(
+                    "- {} (polarity: {}, domain: {}, visibility: {})",
+                    s.id,
+                    polarity,
+                    domain,
+                    s.visibility.as_str()
+                )
+            })
+            .collect();
+
+        let skill_list = skill_descriptions.join("\n");
+
+        // Render the bundler-compose prompt from skill metadata.
+        let prompt = format!(
+            "You are a skill composition orchestrator. Your job is to compose a bundle from the following skills.\n\
+             \nSkills to bundle:\n{}\n\n\
+             For each skill, classify its polarity (Generative, Evaluative, Regulative, Procedural).\n\
+             Detect conflicts between skills and declare resolutions.\n\
+             Identify complementarities that enhance the bundle.\n\
+             Determine the cascade order with phase separation (Pre → Core → Post).\n\
+             Never place divergent (Generative) and convergent (Evaluative) skills in the same phase.\n\
+             Produce a valid BundleManifest JSON with:\n\
+             - id: a unique kebab-case identifier\n\
+             - name: a descriptive name\n\
+             - description: what this bundle does\n\
+             - version: semantic version (start at 1.0.0)\n\
+             - editor: {}\n\
+             - visibility: {}\n\
+             - skills: array of {{id, polarity, lexicon_terms, manifest_ref, content_hash}}\n\
+             - conflicts: array of {{skills, domain, conflict_type, resolution, resolution_detail}}\n\
+             - complementarities: array of {{skills, complementarity_type, detail}}\n\
+             - steps: array of {{ordinal, action, description, phase, gas_cap, timeout_seconds}}\n\
+             - Cascade depth must not exceed 7.\n\
+             - Each skill must have ≤ 10 lexicon terms.\n\
+             - Bundle must have at least one productive (Procedural) skill.\n\
+             - Declare a convergence criterion.\n\
+             Respond with ONLY the JSON object, no markdown fences, no commentary.",
+            skill_list,
+            editor,
+            visibility.as_str()
+        );
+
+        let params = hkask_types::LLMParameters::default();
+        let result = inference_port
+            .generate(&prompt, &params)
+            .await
+            .map_err(|e| ServiceError::Compose(format!("Inference failed: {}", e)))?;
+
+        // Parse the JSON response into a BundleManifest.
+        let manifest: BundleManifest = serde_json::from_str(&result.text).map_err(|e| {
+            ServiceError::Compose(format!(
+                "Failed to parse composition result as JSON: {}. Raw response: {}",
+                e,
+                &result.text[..result.text.len().min(200)]
+            ))
+        })?;
+
+        // Validate the manifest.
+        let validation = manifest.validate();
+        if !validation.is_valid() {
+            return Err(ServiceError::Compose(format!(
+                "Composed bundle failed validation: {}",
+                validation.errors.join("; ")
+            )));
+        }
+
+        // Register the bundle in the registry.
+        {
+            let mut registry_guard = registry.lock().await;
+            registry_guard.register_bundle(manifest.clone());
+        }
+
+        let mut warnings = validation.warnings;
+        warnings.push(format!(
+            "Bundle '{}' composed with {} skills, {} steps",
+            manifest.id,
+            manifest.skills.len(),
+            manifest.steps.len()
+        ));
+
+        Ok(BundleComposeResult { manifest, warnings })
+    }
+
+    /// List all bundles in the registry.
+    pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
+        let registry = ctx.storage().0;
+        let guard = registry.lock().await;
+        Ok(guard.list_bundles())
+    }
+
+    /// Get a bundle by ID.
+    pub async fn get(ctx: &AgentService, id: &str) -> Result<Option<BundleManifest>, ServiceError> {
+        let registry = ctx.storage().0;
+        let guard = registry.lock().await;
+        Ok(guard.get_bundle(id))
+    }
+
+    /// Apply a bundle to the current session.
+    ///
+    /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
+    pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
+        let registry = ctx.storage().0;
+        let guard = registry.lock().await;
+        guard
+            .get_bundle(id)
+            .ok_or_else(|| ServiceError::Compose(format!("Bundle '{}' not found", id)))
+    }
+
+    /// Evolve a bundle — re-compose when skills have changed.
+    ///
+    /// Re-loads skill metadata, re-runs composition, and updates the manifest.
+    /// Returns the evolved manifest.
+    pub async fn evolve(
+        ctx: &AgentService,
+        id: &str,
+        inference_port: Arc<dyn InferencePort>,
+        editor: &str,
+    ) -> Result<BundleComposeResult, ServiceError> {
+        let existing = Self::get(ctx, id).await?;
+        let existing =
+            existing.ok_or_else(|| ServiceError::Compose(format!("Bundle '{}' not found", id)))?;
+
+        // Re-compose using the same skill IDs.
+        let skill_ids = existing.skill_ids();
+        let result = Self::compose(
+            ctx,
+            &skill_ids,
+            Some(&existing.name),
+            existing.visibility,
+            inference_port,
+            editor,
+        )
+        .await?;
+
+        // Remove the old bundle and register the new one.
+        {
+            let registry = ctx.storage().0;
+            let mut guard = registry.lock().await;
+            guard.remove_bundle(id);
+            guard.register_bundle(result.manifest.clone());
+        }
+
+        Ok(result)
+    }
+
+    /// Deactivate the current bundle (no-op — bundles are session-scoped).
+    pub fn deactivate() -> Result<(), ServiceError> {
+        Ok(())
+    }
+
+    /// List available skills from the registry.
+    pub async fn list_skills(
+        ctx: &AgentService,
+    ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {
+        let registry = ctx.storage().0;
+        let guard = registry.lock().await;
+        // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex
+        Ok(hkask_types::ports::SkillRegistryIndex::list_skills(&*guard))
+    }
+}

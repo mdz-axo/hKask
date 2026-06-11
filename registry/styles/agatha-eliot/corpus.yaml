@@ -239,3 +239,76 @@ validation:
   centroid_distance_max: 0.20
   exemplar_count_min: 3
   exemplar_count_max: 7
+
+# ── Entity Declarations ──────────────────────────────────────────────────────
+
+entities:
+  characters:
+    - name: "Hercule Poirot"
+      appears_in: []
+    - name: "Miss Marple"
+      appears_in: []
+    - name: "Dorothea"
+      appears_in: ["middlemarch"]
+    - name: "Silas Marner"
+      appears_in: ["silas-marner"]
+    - name: "Maggie"
+      appears_in: ["mill-on-the-floss"]
+    - name: "Rosamond"
+      appears_in: []
+    - name: "inspector"
+      appears_in: []
+    - name: "constable"
+      appears_in: []
+
+  places:
+    - name: "village"
+      appears_in: []
+    - name: "estate"
+      appears_in: []
+    - name: "parish"
+      appears_in: []
+    - name: "London"
+      appears_in: []
+    - name: "country house"
+      appears_in: []
+
+  events:
+    - name: "murder"
+      appears_in: []
+    - name: "death"
+      appears_in: []
+    - name: "inheritance"
+      appears_in: []
+    - name: "confession"
+      appears_in: []
+
+  concepts:
+    - name: "guilt"
+    - name: "conscience"
+    - name: "justice"
+    - name: "sympathy"
+    - name: "motive"
+    - name: "alibi"
+
+# ── Declared Methods ─────────────────────────────────────────────────────────
+
+methods:
+  - name: "forensic_clarity"
+    description: "Declarative, precise, fact-oriented — Christie's skeleton"
+    signal:
+      avg_sentence_length_max: 20.0
+      adjective_density_max: 5.0
+      adverb_density_max: 2.0
+      hedge_density_max: 1.0
+
+  - name: "moral_realism"
+    description: "Hypotactic accumulation — Eliot's consciousness layer"
+    signal:
+      avg_sentence_length_min: 20.0
+      concrete_noun_ratio_max: 0.55
+
+# ── Budget ───────────────────────────────────────────────────────────────────
+
+budget:
+  per_100_pages: 3750

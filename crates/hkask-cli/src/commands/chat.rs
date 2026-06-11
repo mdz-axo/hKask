@@ -427,11 +427,11 @@ pub async fn chat_with_agent_streaming_with_params(
     }
 }
 
-/// CLI handler for `kask chat` subcommand
+/// CLI entry-point: `kask chat [agent] [-m model]`
 #[allow(clippy::too_many_arguments)]
 pub fn run_chat(
     rt: &tokio::runtime::Runtime,
-    registry: &hkask_templates::SqliteRegistry,
+    registry: &mut hkask_templates::SqliteRegistry,
     runtime: &hkask_mcp::runtime::McpRuntime,
     handle: &tokio::runtime::Handle,
     template: Option<String>,

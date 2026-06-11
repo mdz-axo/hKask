@@ -140,6 +140,10 @@ impl ProviderPool {
     ///
     /// This is the authoritative constructor — all pool creation should go through
     /// here rather than setting fields directly, to maintain the hexagonal boundary.
+    // Called from the binary target (`src/main.rs`) which has a separate module tree
+    // (`mod providers;` rather than `use hkask_mcp_research::providers;`), so the
+    // library target sees this as dead code.
+    #[allow(dead_code)]
     pub(crate) fn new(
         search_providers: Vec<Box<dyn WebSearchProvider>>,
         extract_providers: Vec<Box<dyn WebExtractProvider>>,

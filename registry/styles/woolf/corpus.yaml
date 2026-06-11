@@ -118,3 +118,86 @@ validation:
   centroid_distance_max: 0.18
   exemplar_count_min: 3
   exemplar_count_max: 7
+
+# ── Entity Declarations (5W1H Metadata Layer) ────────────────────────────────────
+
+entities:
+  characters:
+    - name: "Clarissa Dalloway"
+      appears_in: ["mrs-dalloway"]
+    - name: "Septimus Warren Smith"
+      appears_in: ["mrs-dalloway"]
+    - name: "Peter Walsh"
+      appears_in: ["mrs-dalloway"]
+    - name: "Mrs Ramsay"
+      appears_in: ["to-the-lighthouse"]
+    - name: "Lily Briscoe"
+      appears_in: ["to-the-lighthouse"]
+    - name: "Orlando"
+      appears_in: ["orlando"]
+    - name: "Rachel Vinrace"
+      appears_in: ["the-voyage-out"]
+    - name: "Jacob"
+      appears_in: ["jacobs-room"]
+    - name: "Miss"
+      appears_in: []
+    - name: "Lady"
+      appears_in: []
+
+  places:
+    - name: "London"
+      appears_in: ["mrs-dalloway"]
+    - name: "Bond Street"
+      appears_in: ["mrs-dalloway"]
+    - name: "lighthouse"
+      appears_in: ["to-the-lighthouse"]
+    - name: "garden"
+      appears_in: []
+    - name: "sea"
+      appears_in: []
+    - name: "room"
+      appears_in: []
+
+  events:
+    - name: "party"
+      appears_in: ["mrs-dalloway"]
+    - name: "war"
+      appears_in: ["mrs-dalloway", "jacobs-room"]
+    - name: "dinner"
+      appears_in: ["to-the-lighthouse"]
+    - name: "walk"
+      appears_in: []
+    - name: "painting"
+      appears_in: ["to-the-lighthouse"]
+
+  concepts:
+    - name: "consciousness"
+    - name: "memory"
+    - name: "time"
+    - name: "death"
+    - name: "beauty"
+
+# ── Declared Methods ────────────────────────────────────────────────────────────
+
+methods:
+  - name: "hypotaxis"
+    description: "Subordinate clauses nested within main clauses — sentence as tree"
+    signal:
+      parataxis_ratio_max: 0.4
+
+  - name: "free_indirect_discourse"
+    description: "Third-person narration that slips into character consciousness"
+    signal:
+      hedge_density_min: 1.0
+      dialogue_ratio_max: 0.3
+
+  - name: "abstract_prose"
+    description: "Preference for abstract nouns and conceptual vocabulary"
+    signal:
+      concrete_noun_ratio_max: 0.55
+      adjective_density_min: 5.0
+
+# ── Budget ──────────────────────────────────────────────────────────────────────
+
+budget:
+  per_100_pages: 3750

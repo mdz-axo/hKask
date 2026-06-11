@@ -136,3 +136,71 @@ validation:
   centroid_distance_max: 0.18
   exemplar_count_min: 3
   exemplar_count_max: 7
+
+# ── Entity Declarations ──────────────────────────────────────────────────────
+
+entities:
+  characters:
+    - name: "General Grant"
+      appears_in: []
+    - name: "President Lincoln"
+      appears_in: []
+    - name: "Huckleberry Finn"
+      appears_in: []
+    - name: "Tom Sawyer"
+      appears_in: []
+    - name: "Colonel"
+      appears_in: []
+    - name: "General"
+      appears_in: []
+
+  places:
+    - name: "Vicksburg"
+      appears_in: []
+    - name: "Mississippi"
+      appears_in: []
+    - name: "river"
+      appears_in: []
+    - name: "Washington"
+      appears_in: []
+    - name: "Richmond"
+      appears_in: []
+
+  events:
+    - name: "battle"
+      appears_in: []
+    - name: "march"
+      appears_in: []
+    - name: "surrender"
+      appears_in: []
+    - name: "campaign"
+      appears_in: []
+
+  concepts:
+    - name: "truth"
+    - name: "duty"
+    - name: "honor"
+    - name: "facts"
+    - name: "exaggeration"
+
+# ── Declared Methods ─────────────────────────────────────────────────────────
+
+methods:
+  - name: "declarative_sentence"
+    description: "Subject. Verb. Object. Period. No ornament."
+    signal:
+      avg_sentence_length_max: 25.0
+      parataxis_ratio_min: 0.5
+      adjective_density_max: 5.0
+
+  - name: "understatement"
+    description: "Report catastrophe as if it were weather"
+    signal:
+      adverb_density_max: 2.0
+      intensifier_density_max: 1.0
+      hedge_density_max: 1.0
+
+# ── Budget ───────────────────────────────────────────────────────────────────
+
+budget:
+  per_100_pages: 3750

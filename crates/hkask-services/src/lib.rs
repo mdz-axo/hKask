@@ -1,6 +1,7 @@
 //! hKask Service Layer — shared startup infrastructure and domain operations.
 
 pub mod archival;
+pub mod bundle;
 pub mod chat;
 pub mod cns;
 pub mod compose;
@@ -22,6 +23,7 @@ pub mod spec;
 pub mod verification;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
+pub use bundle::{BundleComposeResult, BundleService};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
 };
@@ -49,7 +51,7 @@ pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use settings::settings_path;
 pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
-    publish_skill, read_skill_namespace, read_skill_visibility,
+    publish_skill, read_skill_namespace, read_skill_visibility, resolve_replicant_name,
 };
 pub use sovereignty::SovereigntyService;
 pub use spec::{

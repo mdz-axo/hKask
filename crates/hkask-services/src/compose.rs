@@ -156,6 +156,7 @@ impl ComposeService {
     /// # REQ: svc-compose-001 — compose returns generated prose with exemplar retrieval
     /// # REQ: svc-compose-002 — compose validates centroid distance when no_validate is false
     /// # REQ: svc-compose-003 — compose returns validation=None when no_validate is true
+    /// # REQ: svc-compose-004 — compose uses Jinja2 template from cognition config
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
         // 1. Open DB + construct memory infrastructure
         let db = Database::open(&request.db_path.to_string_lossy(), &request.db_passphrase)?;

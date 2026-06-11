@@ -35,7 +35,7 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
 
 pub fn run_curator(
     rt: &tokio::runtime::Runtime,
-    registry: &hkask_templates::SqliteRegistry,
+    registry: &mut hkask_templates::SqliteRegistry,
     runtime: &hkask_mcp::runtime::McpRuntime,
     handle: &tokio::runtime::Handle,
     action: crate::cli::CuratorAction,

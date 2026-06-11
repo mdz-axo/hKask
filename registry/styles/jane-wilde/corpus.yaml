@@ -139,3 +139,68 @@ validation:
   centroid_distance_max: 0.18
   exemplar_count_min: 3
   exemplar_count_max: 7
+
+# ── Entity Declarations ──────────────────────────────────────────────────────
+
+entities:
+  characters:
+    - name: "Emma Woodhouse"
+      appears_in: []
+    - name: "Elizabeth Bennet"
+      appears_in: []
+    - name: "Mr Darcy"
+      appears_in: []
+    - name: "Dorian Gray"
+      appears_in: []
+    - name: "Lady Bracknell"
+      appears_in: []
+    - name: "Algernon"
+      appears_in: []
+    - name: "Cecily"
+      appears_in: []
+    - name: "Miss"
+      appears_in: []
+    - name: "Lady"
+      appears_in: []
+    - name: "Mrs"
+      appears_in: []
+
+  places:
+    - name: "London"
+    - name: "country"
+    - name: "drawing room"
+    - name: "estate"
+    - name: "garden"
+
+  events:
+    - name: "ball"
+    - name: "dinner"
+    - name: "marriage"
+    - name: "scandal"
+
+  concepts:
+    - name: "wit"
+    - name: "irony"
+    - name: "marriage"
+    - name: "society"
+    - name: "art"
+
+# ── Declared Methods ─────────────────────────────────────────────────────────
+
+methods:
+  - name: "epigram"
+    description: "Inverted expectation — setup then reversal in one sentence"
+    signal:
+      avg_sentence_length_min: 15.0
+      avg_sentence_length_max: 45.0
+
+  - name: "polite_destruction"
+    description: "Criticism wrapped in the language of compliment"
+    signal:
+      hedge_density_min: 1.0
+      intensifier_density_min: 1.0
+
+# ── Budget ───────────────────────────────────────────────────────────────────
+
+budget:
+  per_100_pages: 3750

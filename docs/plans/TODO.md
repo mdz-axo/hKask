@@ -2,7 +2,7 @@
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
 last_updated: 2026-06-11
-version: "1.8.0"
+version: "1.9.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -186,7 +186,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-05** | Fix cargo fmt issues | 2026-05-22 | `cargo fmt --check` passes |
 | **C-06** | Fix hardcoded cryptographic key | 2026-05-22 | `OKAPI_DEV_KEY` const with migration path |
 | **C-08** | MCP server consolidation — Collapse rss-reader + web → research; document replica | 2026-06-11 | New `hkask-mcp-research` (1,044 LOC, ~17 tools). Deleted `hkask-mcp-web` (535 LOC) and `hkask-mcp-rss-reader` (504 LOC). Updated 7 code files, 5 docs, workspace Cargo.toml. |
-| **C-09** | Document hkask-mcp-replica in AGENTS.md, README, PRINCIPLES, mcp-tools-inventory, test-inventory | 2026-06-11 | 6 tools (build, compose, mashup, compare, registry, explain). Added to all canonical MCP server lists. |
+| **C-10** | Tier 1 unit tests — condenser algorithms, profile parsing, classify_tool, registry | 2026-06-11 | 27 tests across types.rs and algorithms.rs. All compression algorithms verified. `algorithms` module promoted to `pub mod` in lib.rs. |
+| **C-11** | Tier 1 unit tests — research freshness, ranking, strip_html, rate_limiter | 2026-06-11 | 23 tests: 6 freshness parsing/brave/serpapi, 5 ranking dedup/rerank, 8 strip_html, 4 rate_limiter. Added `[lib]` target to research crate. |
+| **C-12** | Verify condenser_thread_summary already registered | 2026-06-11 | Confirmed: already `#[tool]` at main.rs:238. 7 tools total. Previous inventory note was stale. |
 
 ---
 
@@ -210,4 +212,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated 2026-06-11 after MCP server consolidation (C-08, C-09).*
+*This TODO is the single source of truth for open work. Last updated 2026-06-11 after Tier 1 unit tests (C-10, C-11, C-12).*

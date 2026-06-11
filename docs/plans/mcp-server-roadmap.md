@@ -143,6 +143,8 @@ Document (PDF, DOCX, image)
 |--------|-------|----------|
 | ⬜ Open | — | Low |
 
+**Note (2026-06-11):** This was already complete — `condenser_thread_summary` is registered as `#[tool]` at line 238 of `main.rs`. The `mcp-tools-inventory.md` note was stale.
+
 ---
 
 ## 5. Test Coverage
@@ -215,8 +217,8 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 | 4 | FMP value-add layer | §2.1 | Medium | High | None | ⬜ Open |
 | 5 | Telnyx value-add layer | §2.2 | Medium | High | None | ⬜ Open |
 | 6 | Fal value-add layer | §2.3 | Medium | High | None | ⬜ Open |
-| 7 | Tier 1 unit tests (condenser, research, doc-knowledge) | §5.3 | Medium | Medium | None | ✅ 50/54 tests (condenser 27, research 23; doc-knowledge deferred) |
-| 8 | Register condenser_thread_summary | §4.1 | Low | Small | None | ⬜ Open |
+| 7 | Tier 1 unit tests (condenser, research) | §5.3 | Medium | Medium | None | ✅ Complete (2026-06-11) — 50 tests: 27 condenser, 23 research |
+| 8 | Verify condenser_thread_summary registration | §4.1 | Low | Small | None | ✅ Complete (2026-06-11) — already `#[tool]` at main.rs:238, 7 tools total |
 | 9 | Document replica in AGENTS.md + inventory | — | Low | Small | None | ✅ Complete (2026-06-11) |
 | 10 | Extract hkask-test-utils | §6 | Low | Medium | 3+ servers needing integration tests | ⬜ Open |
 

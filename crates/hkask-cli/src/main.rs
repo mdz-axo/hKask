@@ -38,7 +38,14 @@ fn main() {
             agent,
             model,
         } => commands::chat::run_chat(
-            &rt, &registry, &runtime, &handle, template, input, agent, model,
+            &rt,
+            &mut registry,
+            &runtime,
+            &handle,
+            template,
+            input,
+            agent,
+            model,
         ),
 
         Commands::Template { action } => commands::template::run_template(&mut registry, action),
@@ -66,14 +73,14 @@ fn main() {
         Commands::Agent { action } => commands::agent::run_agent(&rt, action),
 
         Commands::Curator { action } => {
-            commands::curator::run_curator(&rt, &registry, &runtime, &handle, action)
+            commands::curator::run_curator(&rt, &mut registry, &runtime, &handle, action)
         }
 
         Commands::Replicant { action } => commands::user::run_replicant(action),
 
         Commands::Keystore { action } => commands::keystore::run(action),
 
-        Commands::Bundle { action } => commands::bundle::run_bundle(action),
+        Commands::Bundle { action } => commands::bundle::run_bundle(&rt, action),
 
         Commands::Skill { action } => commands::skill::run_skill(action),
 
