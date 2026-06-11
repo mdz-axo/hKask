@@ -12,9 +12,10 @@
 //! Decision: Guideline — keep direct `service_context.storage().0` access.
 //! Revisit if bundle composition or evolution logic grows beyond registry CRUD.
 
+use axum::Json;
 use axum::extract::{Path, State};
-use axum::{Json, routing::Router};
 use hkask_types::ports::BundleRegistryIndex;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -89,26 +90,14 @@ pub struct DeactivateBundleResponse {
 }
 
 /// Create bundles router
-pub fn bundles_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/v1/bundles", axum::routing::get(list_bundles))
-        .route(
-            "/api/v1/bundles/compose",
-            axum::routing::post(compose_bundle),
-        )
-        .route("/api/v1/bundles/:id", axum::routing::get(get_bundle))
-        .route(
-            "/api/v1/bundles/:id/apply",
-            axum::routing::post(apply_bundle),
-        )
-        .route(
-            "/api/v1/bundles/:id/evolve",
-            axum::routing::post(evolve_bundle),
-        )
-        .route(
-            "/api/v1/bundles/:id/deactivate",
-            axum::routing::delete(deactivate_bundle),
-        )
+pub fn bundles_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_bundles))
+        .routes(routes!(compose_bundle))
+        .routes(routes!(get_bundle))
+        .routes(routes!(apply_bundle))
+        .routes(routes!(evolve_bundle))
+        .routes(routes!(deactivate_bundle))
 }
 
 /// List all bundles
@@ -150,7 +139,7 @@ async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse>
         (status = 404, description = "Bundle not found"),
     ),
 )]
-async fn get_bundle(
+pub(crate) async fn get_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
@@ -178,7 +167,7 @@ async fn get_bundle(
         (status = 400, description = "Invalid request"),
     ),
 )]
-async fn compose_bundle(
+pub(crate) async fn compose_bundle(
     State(state): State<ApiState>,
     Json(request): Json<ComposeBundleRequest>,
 ) -> Result<Json<ComposeBundleResponse>, ApiError> {
@@ -225,7 +214,7 @@ async fn compose_bundle(
         (status = 404, description = "Bundle not found"),
     ),
 )]
-async fn apply_bundle(
+pub(crate) async fn apply_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<ApplyBundleResponse>, ApiError> {
@@ -254,7 +243,7 @@ async fn apply_bundle(
         (status = 404, description = "Bundle not found"),
     ),
 )]
-async fn evolve_bundle(
+pub(crate) async fn evolve_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<EvolveBundleResponse>, ApiError> {
@@ -281,7 +270,7 @@ async fn evolve_bundle(
         (status = 200, description = "Bundle deactivated", body = DeactivateBundleResponse),
     ),
 )]
-async fn deactivate_bundle(Path(_id): Path<String>) -> Json<DeactivateBundleResponse> {
+pub(crate) async fn deactivate_bundle(Path(_id): Path<String>) -> Json<DeactivateBundleResponse> {
     Json(DeactivateBundleResponse {
         status: "deactivated".to_string(),
     })

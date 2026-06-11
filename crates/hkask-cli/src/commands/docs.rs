@@ -31,7 +31,7 @@ pub fn run(action: DocsAction) {
             let openapi_path = output.join("openapi.json");
             super::helpers::write_or_print(&json, Some(&openapi_path), "OpenAPI specification");
             let help = cli::generate_cli_markdown();
-            let cli_path = output.join("cli.md");
+            let cli_path = output.join("cli-reference.md");
             super::helpers::write_or_print(&help, Some(&cli_path), "CLI documentation");
             println!(
                 "\nDocumentation generated successfully in: {}",

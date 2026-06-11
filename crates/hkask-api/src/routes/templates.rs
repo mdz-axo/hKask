@@ -12,10 +12,11 @@
 //! Decision: Guideline — keep direct `service_context.storage().0` access.
 //! Revisit if template matching logic grows beyond name/skill/polarity queries.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::{Json, routing::Router};
 use hkask_templates::RegistryIndex;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -40,13 +41,13 @@ pub struct GrantCapabilityRequest {
 }
 
 /// Create templates router
-pub fn templates_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/templates", axum::routing::get(list_templates))
-        .route("/api/templates/:id", axum::routing::get(get_template))
+pub fn templates_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_templates))
+        .routes(routes!(get_template))
         .route("/api/templates", axum::routing::post(register_template))
         .route(
-            "/api/templates/search/:term",
+            "/api/templates/search/{term}",
             axum::routing::get(search_templates),
         )
 }
@@ -61,7 +62,7 @@ pub fn templates_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
+pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
     let registry = state.agent_service.storage().0.lock().await;
     let entries = registry.list(None);
 
@@ -94,7 +95,7 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn get_template(
+pub(crate) async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<TemplateResponse>, ApiError> {

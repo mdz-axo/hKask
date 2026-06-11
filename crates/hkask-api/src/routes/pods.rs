@@ -1,10 +1,11 @@
 //! Pod lifecycle management routes — call PodManager directly.
 
+use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
-use axum::{Json, routing::Router};
 use hkask_agents::pod::AgentPersona;
 use hkask_types::DelegationResource;
+use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use crate::ApiError;
@@ -41,16 +42,16 @@ pub struct ListPodsResponse {
     pub pods: Vec<PodStatusResponse>,
 }
 
-pub fn pods_router() -> Router<ApiState> {
-    Router::new()
+pub fn pods_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
         .route("/api/pods", axum::routing::get(list_pods))
         .route("/api/pods", axum::routing::post(create_pod))
-        .route("/api/pods/:id/activate", axum::routing::post(activate_pod))
+        .route("/api/pods/{id}/activate", axum::routing::post(activate_pod))
         .route(
-            "/api/pods/:id/deactivate",
+            "/api/pods/{id}/deactivate",
             axum::routing::post(deactivate_pod),
         )
-        .route("/api/pods/:id/status", axum::routing::get(pod_status))
+        .route("/api/pods/{id}/status", axum::routing::get(pod_status))
 }
 
 fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {

@@ -1,7 +1,7 @@
 ---
 title: "hKask CLI Reference (auto-generated)"
 audience: [CLI operators, developers, agents]
-last_updated: 2026-05-29
+last_updated: 2026-06-10
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -138,7 +138,7 @@ kask goal <SUBCOMMAND>
 ```
 
 Subcommands:
-- `create <TEXT> [--visibility private|shared|public]` — Create a goal you own
+- `create <TEXT> [--visibility private|public]` — Create a goal you own
 - `list [--state <STATE>]` — List your goals
 - `set-state <ID> <STATE>` — Transition a goal (legal transitions only)
 
@@ -195,4 +195,4 @@ kask docs all -o docs/
 
 ---
 
-*ℏKask v0.23.0 - A Minimal Viable Container for Agents*
+*ℏKask v0.27.0 - A Minimal Viable Container for Agents*

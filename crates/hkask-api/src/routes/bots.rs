@@ -1,17 +1,15 @@
 //! Bot capability management routes
 
-use axum::{Json, extract::Path, extract::State, http::StatusCode, routing::Router};
+use axum::{Json, extract::Path, extract::State, http::StatusCode};
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{ApiState, GrantCapabilityRequest};
 
 /// Create bots router
-pub fn bots_router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/api/bots/:id/capabilities",
-            axum::routing::get(list_capabilities),
-        )
-        .route("/api/bots/:id/grant", axum::routing::post(grant_capability))
+pub fn bots_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_capabilities))
+        .routes(routes!(grant_capability))
 }
 
 /// List bot capabilities
@@ -27,7 +25,7 @@ pub fn bots_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn list_capabilities(
+pub(crate) async fn list_capabilities(
     State(_state): State<ApiState>,
     Path(_id): Path<String>,
 ) -> Json<Vec<String>> {
@@ -49,7 +47,7 @@ async fn list_capabilities(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn grant_capability(
+pub(crate) async fn grant_capability(
     State(_state): State<ApiState>,
     Path(_id): Path<String>,
     Json(_req): Json<GrantCapabilityRequest>,

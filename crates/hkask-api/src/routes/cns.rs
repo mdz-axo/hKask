@@ -3,7 +3,6 @@
 use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::routing::Router;
 use futures_util::stream::Stream;
 use hkask_types::event::{NuEvent, SpanNamespace};
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
@@ -13,16 +12,17 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 
 /// Create CNS router
-pub fn cns_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/cns/health", axum::routing::get(cns_health))
+pub fn cns_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(cns_health))
         .route("/api/cns/alerts", axum::routing::get(cns_alerts))
-        .route("/api/cns/variety", axum::routing::get(cns_variety))
-        .route("/api/cns/subscribe", axum::routing::get(cns_subscribe))
+        .routes(routes!(cns_variety))
+        .routes(routes!(cns_subscribe))
 }
 
 /// Broadcast channel capacity for SSE events.
@@ -102,7 +102,7 @@ impl CnsObserver for SseObserver {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn cns_health(State(state): State<ApiState>) -> axum::Json<CnsHealthResponse> {
+pub(crate) async fn cns_health(State(state): State<ApiState>) -> axum::Json<CnsHealthResponse> {
     let (cns_runtime, _, _, _) = state.agent_service.cns();
     let health = cns_runtime.read().await.health().await;
 
@@ -129,7 +129,7 @@ async fn cns_alerts(State(_state): State<ApiState>) -> axum::Json<Vec<String>> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn cns_variety(State(state): State<ApiState>) -> axum::Json<CnsVarietyResponse> {
+pub(crate) async fn cns_variety(State(state): State<ApiState>) -> axum::Json<CnsVarietyResponse> {
     let (cns_runtime, _, _, _) = state.agent_service.cns();
     let variety_data = cns_runtime.read().await.variety().await;
 
@@ -162,7 +162,7 @@ async fn cns_variety(State(state): State<ApiState>) -> axum::Json<CnsVarietyResp
 
 /// Query parameters for CNS SSE subscription
 #[derive(Debug, Deserialize, IntoParams, ToSchema)]
-struct CnsSubscribeParams {
+pub(crate) struct CnsSubscribeParams {
     /// Span namespaces to subscribe to (e.g., ["cns.tool", "cns.inference"])
     #[serde(default)]
     spans: Vec<String>,
@@ -183,7 +183,7 @@ struct CnsSubscribeParams {
         (status = 400, description = "Invalid request"),
     ),
 )]
-async fn cns_subscribe(
+pub(crate) async fn cns_subscribe(
     State(state): State<ApiState>,
     Query(params): Query<CnsSubscribeParams>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {

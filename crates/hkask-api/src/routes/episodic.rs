@@ -5,9 +5,10 @@
 //! `DelegationToken` via the HTTP auth middleware (`AuthContext`).
 
 use axum::extract::Extension;
-use axum::{Json, extract::Query, extract::State, routing::Router};
+use axum::{Json, extract::Query, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -16,11 +17,11 @@ use hkask_agents::{MemoryError, RecallRequest, StorageRequest};
 use hkask_types::Confidence;
 
 /// Create episodic memory router
-pub fn episodic_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/episodic/store", axum::routing::post(store_episode))
-        .route("/api/episodic/query", axum::routing::get(query_episodes))
-        .route("/api/episodic/usage", axum::routing::get(storage_usage))
+pub fn episodic_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(store_episode))
+        .routes(routes!(query_episodes))
+        .routes(routes!(storage_usage))
 }
 
 /// Request to store an episodic triple.
@@ -96,7 +97,7 @@ pub struct EpisodicUsageResponse {
         (status = 500, description = "Storage error"),
     ),
 )]
-async fn store_episode(
+pub(crate) async fn store_episode(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<StoreEpisodeRequest>,
@@ -162,7 +163,7 @@ async fn store_episode(
         (status = 500, description = "Query error"),
     ),
 )]
-async fn query_episodes(
+pub(crate) async fn query_episodes(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<QueryEpisodesParams>,
@@ -216,7 +217,7 @@ async fn query_episodes(
         (status = 500, description = "Query error"),
     ),
 )]
-async fn storage_usage(
+pub(crate) async fn storage_usage(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<EpisodicUsageResponse>, ApiError> {

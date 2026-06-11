@@ -17,6 +17,9 @@ use crate::routes::{
 };
 use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusResponse};
 
+// Handler-local types needed in schemas
+use crate::routes::cns::CnsSubscribeParams;
+
 /// API documentation
 #[derive(OpenApi)]
 #[openapi(
@@ -56,6 +59,8 @@ use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusR
         SetGoalStateRequest,
         GoalResponse,
         GoalListResponse,
+        // CNS subscribe params
+        CnsSubscribeParams,
     )),
     tags(
         (name = "templates", description = "Template management"),
@@ -73,7 +78,7 @@ use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusR
     ),
     info(
         title = "hKask API",
-        version = "0.23.0",
+        version = "0.27.0",
         description = "A Minimal Viable Container for Agents - HTTP API"
     ),
     servers(

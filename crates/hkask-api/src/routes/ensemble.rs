@@ -1,46 +1,45 @@
 //! Ensemble multi-agent routes (Phase 7)
 
 use axum::extract::Extension;
-use axum::{
-    Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router,
-};
+use axum::{Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse};
 use hkask_agents::ensemble::StandingSessionConfig;
 use hkask_agents::ensemble::standing_session::StandingSession;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
 
 /// Create ensemble router
-pub fn ensemble_router() -> Router<ApiState> {
+pub fn ensemble_router() -> OpenApiRouter<ApiState> {
     use axum::routing::{get, post};
-    Router::new()
-        .route("/api/ensemble/chat", post(create_chat))
-        .route("/api/ensemble/chat/:session", get(get_chat))
-        .route("/api/ensemble/chat/:session/list", get(list_chats))
-        .route("/api/ensemble/chat/:session/register", post(register_bot))
-        .route("/api/ensemble/chat/:session/send", post(send_message))
-        .route("/api/ensemble/chat/:session/improv", post(improv_turn))
+    OpenApiRouter::new()
+        .routes(routes!(create_chat))
+        .route("/api/ensemble/chat/{session}", get(get_chat))
+        .route("/api/ensemble/chat/{session}/list", get(list_chats))
+        .route("/api/ensemble/chat/{session}/register", post(register_bot))
+        .route("/api/ensemble/chat/{session}/send", post(send_message))
+        .routes(routes!(improv_turn))
         .route("/api/ensemble/deliberation", post(create_deliberation))
         .route(
-            "/api/ensemble/deliberation/:session/start",
+            "/api/ensemble/deliberation/{session}/start",
             post(start_deliberation),
         )
         .route(
-            "/api/ensemble/deliberation/:session/record",
+            "/api/ensemble/deliberation/{session}/record",
             post(record_response),
         )
         .route(
-            "/api/ensemble/deliberation/:session/synthesize",
+            "/api/ensemble/deliberation/{session}/synthesize",
             post(synthesize_deliberation),
         )
         .route("/api/ensemble/deliberation/list", get(list_deliberations))
-        .route("/api/v1/ensemble/standing-start", post(standing_start))
-        .route("/api/v1/ensemble/standing-status", get(standing_status))
+        .routes(routes!(standing_start))
+        .routes(routes!(standing_status))
 }
 
 /// Create chat request
@@ -116,7 +115,7 @@ fn respond(code: StatusCode, success: bool, msg: impl Into<String>) -> impl Into
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn create_chat(
+pub(crate) async fn create_chat(
     State(state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
@@ -234,7 +233,7 @@ async fn send_message(
 /// Execute an improvisation turn in a chat session
 #[utoipa::path(
     post,
-    path = "/api/ensemble/chat/:session/improv",
+    path = "/api/ensemble/chat/{session}/improv",
     tag = "ensemble",
     request_body = ImprovTurnRequest,
     responses(
@@ -243,7 +242,7 @@ async fn send_message(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn improv_turn(
+pub(crate) async fn improv_turn(
     State(state): State<ApiState>,
     Path(session): Path<String>,
     Json(req): Json<ImprovTurnRequest>,
@@ -485,7 +484,7 @@ pub struct StandingStatusResponse {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn standing_start(
+pub(crate) async fn standing_start(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<StandingStartRequest>,
@@ -585,7 +584,7 @@ async fn standing_start(
         (status = 404, description = "No standing session found"),
     ),
 )]
-async fn standing_status(
+pub(crate) async fn standing_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<StandingStatusResponse>, ApiError> {

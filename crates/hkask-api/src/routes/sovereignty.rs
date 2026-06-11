@@ -1,9 +1,10 @@
 //! User sovereignty routes — call consent manager directly.
 
 use axum::extract::Extension;
-use axum::{Json, extract::Query, extract::State, routing::Router};
+use axum::{Json, extract::Query, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -17,24 +18,12 @@ fn parse_data_category(s: &str) -> hkask_types::DataCategory {
     hkask_types::DataCategory::parse(s)
 }
 
-pub fn sovereignty_router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/api/sovereignty/status",
-            axum::routing::get(sovereignty_status),
-        )
-        .route(
-            "/api/sovereignty/consent/grant",
-            axum::routing::post(sovereignty_grant_consent),
-        )
-        .route(
-            "/api/sovereignty/consent/revoke",
-            axum::routing::post(sovereignty_revoke_consent),
-        )
-        .route(
-            "/api/sovereignty/access/check",
-            axum::routing::get(sovereignty_check_access),
-        )
+pub fn sovereignty_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(sovereignty_status))
+        .routes(routes!(sovereignty_grant_consent))
+        .routes(routes!(sovereignty_revoke_consent))
+        .routes(routes!(sovereignty_check_access))
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -74,7 +63,7 @@ pub struct AccessCheckResponse {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn sovereignty_status(
+pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
@@ -117,7 +106,7 @@ async fn sovereignty_status(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn sovereignty_grant_consent(
+pub(crate) async fn sovereignty_grant_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
@@ -146,7 +135,7 @@ async fn sovereignty_grant_consent(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn sovereignty_revoke_consent(
+pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
@@ -170,7 +159,7 @@ async fn sovereignty_revoke_consent(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn sovereignty_check_access(
+pub(crate) async fn sovereignty_check_access(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,

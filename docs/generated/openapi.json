@@ -7,7 +7,7 @@
       "name": "MIT",
       "identifier": "MIT"
     },
-    "version": "0.23.0"
+    "version": "0.27.0"
   },
   "servers": [
     {
@@ -15,9 +15,1721 @@
       "description": "hKask API server"
     }
   ],
-  "paths": {},
+  "paths": {
+    "/api/bots/{id}/capabilities": {
+      "get": {
+        "tags": [
+          "bots"
+        ],
+        "summary": "List bot capabilities",
+        "operationId": "list_capabilities",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Bot WebID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/bots/{id}/grant": {
+      "post": {
+        "tags": [
+          "bots"
+        ],
+        "summary": "Grant capability to bot",
+        "operationId": "grant_capability",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Bot WebID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantCapabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Capability granted"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat with the Curator or a specified agent.",
+        "description": "Accepts an optional `model` field to switch the LLM at request time.\nWhen omitted, the server default (`qwen3:8b`) is used. The response\nechoes the `model` used, confirming which LLM generated the output.\n\nUse `GET /api/models` or `GET /api/models/search?q=...` to discover\navailable model identifiers.",
+        "operationId": "chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Chat response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/chat/stream": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Stream chat inference output as Server-Sent Events.",
+        "description": "Accepts the same `ChatRequest` as `/api/chat` but streams the inference\noutput as SSE `data:` events. Each event carries a JSON object with\n`text_delta`, `model`, and optionally `finish_reason`. The final event\nhas `finish_reason: \"stop\"` and includes `usage` stats.\n\nThis is a surface-layer endpoint — it bypasses ChatService's full\npipeline (memory recall, episodic storage) and calls the inference port\ndirectly for streaming. Use `/api/chat` for the full pipeline with\nmemory integration.",
+        "operationId": "chat_stream",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream of chat chunks",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/cns/health": {
+      "get": {
+        "tags": [
+          "cns"
+        ],
+        "summary": "CNS health endpoint",
+        "operationId": "cns_health",
+        "responses": {
+          "200": {
+            "description": "CNS health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CnsHealthResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/cns/subscribe": {
+      "get": {
+        "tags": [
+          "cns"
+        ],
+        "summary": "Subscribe to CNS events as an SSE stream.",
+        "description": "The endpoint upgrades the HTTP response to a long-lived SSE connection.\nEvents matching the requested span namespaces are forwarded in real time.\nLag notifications are emitted when the client falls behind.",
+        "operationId": "cns_subscribe",
+        "parameters": [
+          {
+            "name": "spans",
+            "in": "query",
+            "description": "Span namespaces to subscribe to (e.g., [\"cns.tool\", \"cns.inference\"])",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE event stream",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/api/cns/variety": {
+      "get": {
+        "tags": [
+          "cns"
+        ],
+        "summary": "CNS variety endpoint",
+        "operationId": "cns_variety",
+        "responses": {
+          "200": {
+            "description": "CNS variety counters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CnsVarietyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/consolidate": {
+      "post": {
+        "operationId": "consolidate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsolidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Consolidation complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsolidateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid passphrase"
+          },
+          "429": {
+            "description": "Rate limited — try again later"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/ensemble/chat": {
+      "post": {
+        "tags": [
+          "ensemble"
+        ],
+        "summary": "Improv turn request\nCreate chat session",
+        "operationId": "create_chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Chat session created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnsembleResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/ensemble/chat/{session}/improv": {
+      "post": {
+        "tags": [
+          "ensemble"
+        ],
+        "summary": "Execute an improvisation turn in a chat session",
+        "operationId": "improv_turn",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImprovTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Improv turn completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImprovTurnResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat session not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/episodic/query": {
+      "get": {
+        "tags": [
+          "episodic"
+        ],
+        "summary": "Query episodic memories for the authenticated caller by entity.",
+        "description": "Routes through `EpisodicStoragePort` with OCAP discipline.\nApplies confidence decay, temporal attention weighting, and deduplication\n(subloops 2a.2–2a.4) before returning results.",
+        "operationId": "query_episodes",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "description": "Entity to query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Episodes retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryEpisodesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Query error"
+          }
+        }
+      }
+    },
+    "/api/episodic/store": {
+      "post": {
+        "tags": [
+          "episodic"
+        ],
+        "summary": "Store an episodic triple for the authenticated caller.",
+        "description": "Routes through `EpisodicStoragePort` with OCAP discipline:\nthe `DelegationToken` from HTTP auth is verified at the membrane.",
+        "operationId": "store_episode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreEpisodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Episode stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreEpisodeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Storage error"
+          }
+        }
+      }
+    },
+    "/api/episodic/usage": {
+      "get": {
+        "tags": [
+          "episodic"
+        ],
+        "summary": "Get episodic storage usage for the authenticated caller.",
+        "operationId": "storage_usage",
+        "responses": {
+          "200": {
+            "description": "Storage usage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodicUsageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Query error"
+          }
+        }
+      }
+    },
+    "/api/goals": {
+      "get": {
+        "tags": [
+          "goals"
+        ],
+        "operationId": "list_goals",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Optional state filter",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Goals listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state filter"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Authority denied"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "goals"
+        ],
+        "operationId": "create_goal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGoalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Goal created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Authority denied"
+          }
+        }
+      }
+    },
+    "/api/goals/{id}/state": {
+      "post": {
+        "tags": [
+          "goals"
+        ],
+        "operationId": "set_goal_state",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Goal ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetGoalStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Goal state changed"
+          },
+          "400": {
+            "description": "Invalid or illegal transition"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Authority denied"
+          },
+          "404": {
+            "description": "Goal not found"
+          }
+        }
+      }
+    },
+    "/api/mcp/invoke": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Invoke an MCP tool directly.",
+        "description": "Requires authentication via Bearer token. Dispatches the tool call\nthrough the MCP runtime with capability verification. The server\nthat owns the tool is resolved automatically from the tool name.",
+        "operationId": "mcp_invoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpInvokeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Tool invocation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpInvokeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Tool or server not found"
+          },
+          "500": {
+            "description": "Tool invocation error"
+          }
+        }
+      }
+    },
+    "/api/mcp/servers": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "List MCP servers",
+        "operationId": "list_servers",
+        "responses": {
+          "200": {
+            "description": "List of MCP servers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/mcp/tools": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "List MCP tools",
+        "description": "Returns all tools discovered from running MCP servers. If no servers\nare started, the list will be empty.",
+        "operationId": "list_tools",
+        "responses": {
+          "200": {
+            "description": "List of MCP tool names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "List all available models from Okapi.",
+        "description": "Queries Okapi's `/api/tags` endpoint and returns metadata for each\nlocally loaded model. Returns an empty list if Okapi is unreachable\n(graceful degradation).",
+        "operationId": "list_models",
+        "responses": {
+          "200": {
+            "description": "List of available models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelListResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Okapi unreachable (returns empty list)"
+          }
+        }
+      }
+    },
+    "/api/models/search": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Search available models by name (fuzzy matching).",
+        "description": "Performs case-insensitive substring matching against Okapi model names.\nUse this endpoint to discover valid model identifiers before passing\nthem to `POST /api/chat` via the `model` field.",
+        "operationId": "search_models",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Fuzzy search query — matches model name (case-insensitive substring)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sovereignty/access/check": {
+      "get": {
+        "tags": [
+          "sovereignty"
+        ],
+        "operationId": "sovereignty_check_access",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Data category to check",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing category parameter"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/sovereignty/consent/grant": {
+      "post": {
+        "tags": [
+          "sovereignty"
+        ],
+        "operationId": "sovereignty_grant_consent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SovereigntyConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Consent granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SovereigntyConsentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid category"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/sovereignty/consent/revoke": {
+      "post": {
+        "tags": [
+          "sovereignty"
+        ],
+        "operationId": "sovereignty_revoke_consent",
+        "responses": {
+          "200": {
+            "description": "Consent revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SovereigntyConsentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Consent not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/sovereignty/status": {
+      "get": {
+        "tags": [
+          "sovereignty"
+        ],
+        "operationId": "sovereignty_status",
+        "responses": {
+          "200": {
+            "description": "Sovereignty status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SovereigntyStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/specs": {
+      "get": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "List specifications — with optional category filter",
+        "operationId": "list_specs",
+        "responses": {
+          "200": {
+            "description": "List of specifications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpecListResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/specs/capture": {
+      "post": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Capture a new specification (MDS §3: spec/goal/capture)",
+        "operationId": "capture_spec",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecCaptureRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Captured specification"
+          }
+        }
+      }
+    },
+    "/api/specs/coherence": {
+      "get": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Get specification collection coherence (MDS §3: spec/graph/coherence)",
+        "operationId": "get_coherence",
+        "responses": {
+          "200": {
+            "description": "Coherence assessment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecCoherenceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/specs/{spec_id}": {
+      "get": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Get a single specification by ID",
+        "operationId": "get_spec",
+        "parameters": [
+          {
+            "name": "spec_id",
+            "in": "path",
+            "description": "Specification ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Specification details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Spec not found"
+          }
+        }
+      }
+    },
+    "/api/specs/{spec_id}/writing-quality": {
+      "get": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Get writing quality assessment for a spec (MDS §3: spec/require/writing-quality)",
+        "operationId": "get_writing_quality",
+        "parameters": [
+          {
+            "name": "spec_id",
+            "in": "path",
+            "description": "Specification ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Writing quality assessment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecWritingQualityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "List templates",
+        "operationId": "list_templates",
+        "responses": {
+          "200": {
+            "description": "List of templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateResponse"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/templates/{id}": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Get template by ID",
+        "operationId": "get_template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Template ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/acp/agents": {
+      "get": {
+        "tags": [
+          "acp"
+        ],
+        "summary": "List all registered ACP agents",
+        "operationId": "acp_list_agents",
+        "responses": {
+          "200": {
+            "description": "List of registered agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/acp/agents/{agent_id}": {
+      "delete": {
+        "tags": [
+          "acp"
+        ],
+        "summary": "Unregister an ACP agent",
+        "operationId": "acp_unregister_agent",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent unregistered"
+          },
+          "400": {
+            "description": "Invalid agent ID"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Agent not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/bundles": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "List all bundles",
+        "operationId": "list_bundles",
+        "responses": {
+          "200": {
+            "description": "List of bundles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/compose": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Compose a new bundle from specified skills",
+        "operationId": "compose_bundle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeBundleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Bundle composed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeBundleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{id}": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Get a specific bundle",
+        "operationId": "get_bundle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bundle manifest",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Bundle not found"
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{id}/apply": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Apply a bundle to the current session",
+        "operationId": "apply_bundle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bundle applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyBundleResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bundle not found"
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{id}/deactivate": {
+      "delete": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Deactivate the current bundle",
+        "operationId": "deactivate_bundle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bundle deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeactivateBundleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{id}/evolve": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Evolve a bundle (re-compose when skills have changed)",
+        "operationId": "evolve_bundle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bundle evolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvolveBundleResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bundle not found"
+          }
+        }
+      }
+    },
+    "/api/v1/curator/escalations": {
+      "get": {
+        "tags": [
+          "curator"
+        ],
+        "operationId": "list_escalations",
+        "responses": {
+          "200": {
+            "description": "List of pending escalations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEscalationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/curator/escalations/{id}/dismiss": {
+      "post": {
+        "tags": [
+          "curator"
+        ],
+        "operationId": "dismiss_escalation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissEscalationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Escalation dismissed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissEscalationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Escalation not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/curator/escalations/{id}/resolve": {
+      "post": {
+        "tags": [
+          "curator"
+        ],
+        "operationId": "resolve_escalation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveEscalationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Escalation resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveEscalationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Escalation not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/curator/metacognition": {
+      "get": {
+        "tags": [
+          "curator"
+        ],
+        "operationId": "metacognition_status",
+        "responses": {
+          "200": {
+            "description": "Curator metacognition status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetacognitionStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/ensemble/standing-start": {
+      "post": {
+        "tags": [
+          "ensemble"
+        ],
+        "summary": "Start a standing ensemble session with initial context",
+        "operationId": "standing_start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StandingStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Standing session started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandingStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/ensemble/standing-status": {
+      "get": {
+        "tags": [
+          "ensemble"
+        ],
+        "summary": "Get standing session status",
+        "operationId": "standing_status",
+        "responses": {
+          "200": {
+            "description": "Standing session status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandingStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "No standing session found"
+          }
+        }
+      }
+    },
+    "/api/v1/git/archive": {
+      "post": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Archive a repository template crate",
+        "description": "Uses `GitCasAdapter::load_template_crate` for template loading (domain\noperation) and `GitCASPort::resolve_ref` for SHA resolution.",
+        "operationId": "archive",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Template crate archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path or missing crate"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/git/resolve/{sha}": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Resolve a git reference to a SHA using GitCASPort",
+        "operationId": "resolve_sha",
+        "parameters": [
+          {
+            "name": "sha",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SHA resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveShaResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
   "components": {
     "schemas": {
+      "AccessCheckResponse": {
+        "type": "object",
+        "required": [
+          "category",
+          "classification",
+          "access_required"
+        ],
+        "properties": {
+          "access_required": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string"
+          }
+        }
+      },
+      "AcpAgentResponse": {
+        "type": "object",
+        "description": "ACP agent response",
+        "required": [
+          "webid",
+          "agent_type",
+          "capabilities",
+          "registered_at",
+          "active"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "agent_type": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "registered_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "webid": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentListResponse": {
+        "type": "object",
+        "description": "Agent list response",
+        "required": [
+          "agents"
+        ],
+        "properties": {
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AcpAgentResponse"
+            }
+          }
+        }
+      },
+      "ApplyBundleResponse": {
+        "type": "object",
+        "description": "Apply bundle response",
+        "required": [
+          "status",
+          "bundle_id",
+          "name",
+          "skill_count"
+        ],
+        "properties": {
+          "bundle_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "skill_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
       "ArchiveEntry": {
         "type": "object",
         "description": "Archive entry response",
@@ -91,7 +1803,6 @@
       },
       "BotStatusReportResponse": {
         "type": "object",
-        "description": "Bot status report response",
         "required": [
           "bot_name",
           "status",
@@ -114,6 +1825,54 @@
             ]
           },
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "BundleListResponse": {
+        "type": "object",
+        "description": "List bundles response",
+        "required": [
+          "bundles"
+        ],
+        "properties": {
+          "bundles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundleSummary"
+            }
+          }
+        }
+      },
+      "BundleSummary": {
+        "type": "object",
+        "description": "Bundle summary for list responses",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "version",
+          "visibility",
+          "skill_count"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "skill_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          },
+          "visibility": {
             "type": "string"
           }
         }
@@ -196,6 +1955,19 @@
           }
         }
       },
+      "CnsSubscribeParams": {
+        "type": "object",
+        "description": "Query parameters for CNS SSE subscription",
+        "properties": {
+          "spans": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Span namespaces to subscribe to (e.g., [\"cns.tool\", \"cns.inference\"])"
+          }
+        }
+      },
       "CnsVarietyResponse": {
         "type": "object",
         "description": "CNS variety response",
@@ -227,29 +1999,155 @@
           }
         }
       },
+      "ComposeBundleRequest": {
+        "type": "object",
+        "description": "Compose bundle request",
+        "required": [
+          "skills"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional bundle name"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Skill IDs to bundle"
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Visibility: private or shared"
+          }
+        }
+      },
+      "ComposeBundleResponse": {
+        "type": "object",
+        "description": "Compose bundle response",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "existing_match": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BundleSummary",
+                "description": "Whether an existing bundle was found matching these skills"
+              }
+            ]
+          },
+          "manifest": {
+            "description": "The composed bundle manifest (if composition was performed)"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message about what happened"
+          }
+        }
+      },
+      "ConsolidateRequest": {
+        "type": "object",
+        "required": [
+          "agent_webid",
+          "passphrase"
+        ],
+        "properties": {
+          "agent_webid": {
+            "type": "string",
+            "description": "Agent WebID whose episodic memory to consolidate"
+          },
+          "confidence_floor": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Confidence floor — semantic triples at or below this are deleted.\nOverrides the SemanticLoop default (0.33)."
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Maximum episodic triples to consolidate (default: 100)",
+            "default": 100,
+            "minimum": 0
+          },
+          "max_semantic_triples": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Maximum semantic triples to retain after consolidation.\nIf exceeded, lowest-confidence triples are deleted.",
+            "minimum": 0
+          },
+          "passphrase": {
+            "type": "string",
+            "description": "Master passphrase for authorization (derived via HKDF-SHA256 to produce\nthe capability_key used as the DB passphrase, matching onboarding flow)"
+          }
+        }
+      },
+      "ConsolidateResponse": {
+        "type": "object",
+        "required": [
+          "consolidated_count",
+          "deleted_count",
+          "failed_count"
+        ],
+        "properties": {
+          "consolidated_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "deleted_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CreateChatRequest": {
+        "type": "object",
+        "description": "Create chat request",
+        "required": [
+          "session_id"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          }
+        }
+      },
       "CreateGoalRequest": {
         "type": "object",
-        "description": "Request to create a goal.",
         "required": [
           "text"
         ],
         "properties": {
           "text": {
-            "type": "string",
-            "description": "Goal text."
+            "type": "string"
           },
           "visibility": {
             "type": [
               "string",
               "null"
-            ],
-            "description": "Visibility: private | shared | public. Defaults to private."
+            ]
           }
         }
       },
       "CreatePodRequest": {
         "type": "object",
-        "description": "Create pod request",
         "required": [
           "template",
           "persona_yaml"
@@ -271,7 +2169,6 @@
       },
       "CreatePodResponse": {
         "type": "object",
-        "description": "Create pod response",
         "required": [
           "pod_id"
         ],
@@ -281,9 +2178,20 @@
           }
         }
       },
+      "DeactivateBundleResponse": {
+        "type": "object",
+        "description": "Deactivate bundle response",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
       "DismissEscalationRequest": {
         "type": "object",
-        "description": "Dismiss escalation request",
         "required": [
           "dismissed_by"
         ],
@@ -295,7 +2203,6 @@
       },
       "DismissEscalationResponse": {
         "type": "object",
-        "description": "Dismiss escalation response",
         "required": [
           "id",
           "status"
@@ -309,9 +2216,85 @@
           }
         }
       },
+      "EnsembleResponse": {
+        "type": "object",
+        "description": "Chat response",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EpisodeResponse": {
+        "type": "object",
+        "description": "A single episodic triple as returned over the API.",
+        "required": [
+          "id",
+          "entity",
+          "attribute",
+          "value",
+          "confidence",
+          "visibility",
+          "valid_from"
+        ],
+        "properties": {
+          "attribute": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "perspective": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid_from": {
+            "type": "string"
+          },
+          "value": {},
+          "visibility": {
+            "type": "string"
+          }
+        }
+      },
+      "EpisodicUsageResponse": {
+        "type": "object",
+        "description": "Response for episodic storage usage.",
+        "required": [
+          "count",
+          "budget"
+        ],
+        "properties": {
+          "budget": {
+            "type": "integer",
+            "description": "Configured storage budget (max triples).",
+            "minimum": 0
+          },
+          "count": {
+            "type": "integer",
+            "description": "Current triple count for the caller's perspective.",
+            "minimum": 0
+          }
+        }
+      },
       "EscalationEntryResponse": {
         "type": "object",
-        "description": "Escalation entry response",
         "required": [
           "id",
           "template_id",
@@ -370,7 +2353,6 @@
       },
       "EscalationStatsResponse": {
         "type": "object",
-        "description": "Escalation stats response",
         "required": [
           "total",
           "pending",
@@ -396,9 +2378,28 @@
           }
         }
       },
+      "EvolveBundleResponse": {
+        "type": "object",
+        "description": "Evolve bundle response",
+        "required": [
+          "changes",
+          "message"
+        ],
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evolved_manifest": {},
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "GoalListResponse": {
         "type": "object",
-        "description": "A list of goals.",
         "required": [
           "goals"
         ],
@@ -413,7 +2414,6 @@
       },
       "GoalResponse": {
         "type": "object",
-        "description": "A goal as returned over the API.",
         "required": [
           "id",
           "text",
@@ -447,9 +2447,48 @@
           }
         }
       },
+      "ImprovTurnRequest": {
+        "type": "object",
+        "description": "Improv turn request",
+        "required": [
+          "user_message"
+        ],
+        "properties": {
+          "user_message": {
+            "type": "string"
+          }
+        }
+      },
+      "ImprovTurnResponse": {
+        "type": "object",
+        "description": "Improv turn response",
+        "required": [
+          "user_message",
+          "judgment_count",
+          "response_count"
+        ],
+        "properties": {
+          "curator_synthesis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "judgment_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "response_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "user_message": {
+            "type": "string"
+          }
+        }
+      },
       "ListEscalationsResponse": {
         "type": "object",
-        "description": "List escalations response",
         "required": [
           "escalations"
         ],
@@ -464,7 +2503,6 @@
       },
       "ListPodsResponse": {
         "type": "object",
-        "description": "List pods response",
         "required": [
           "pods"
         ],
@@ -477,9 +2515,46 @@
           }
         }
       },
+      "McpInvokeRequest": {
+        "type": "object",
+        "description": "MCP invoke request body",
+        "required": [
+          "tool"
+        ],
+        "properties": {
+          "input": {
+            "description": "JSON input arguments (defaults to null)"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Tool name to invoke (e.g., \"inference_generate\")"
+          }
+        }
+      },
+      "McpInvokeResponse": {
+        "type": "object",
+        "description": "MCP invoke response body",
+        "required": [
+          "server",
+          "tool",
+          "result"
+        ],
+        "properties": {
+          "result": {
+            "description": "Result from the tool invocation"
+          },
+          "server": {
+            "type": "string",
+            "description": "MCP server that provided the tool"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Tool name that was invoked"
+          }
+        }
+      },
       "MetacognitionStatusResponse": {
         "type": "object",
-        "description": "Metacognition status response",
         "required": [
           "escalation_stats",
           "bot_reports"
@@ -630,7 +2705,6 @@
       },
       "PodStatusResponse": {
         "type": "object",
-        "description": "Pod status response",
         "required": [
           "pod_id",
           "state",
@@ -667,9 +2741,23 @@
           }
         }
       },
+      "QueryEpisodesResponse": {
+        "type": "object",
+        "description": "Response from querying episodic memories.",
+        "required": [
+          "episodes"
+        ],
+        "properties": {
+          "episodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpisodeResponse"
+            }
+          }
+        }
+      },
       "ResolveEscalationRequest": {
         "type": "object",
-        "description": "Resolve escalation request",
         "required": [
           "resolved_by"
         ],
@@ -681,7 +2769,6 @@
       },
       "ResolveEscalationResponse": {
         "type": "object",
-        "description": "Resolve escalation response",
         "required": [
           "id",
           "status"
@@ -709,14 +2796,205 @@
       },
       "SetGoalStateRequest": {
         "type": "object",
-        "description": "Request to transition a goal's state.",
         "required": [
           "state"
         ],
         "properties": {
           "state": {
-            "type": "string",
-            "description": "Target state: pending | active | completed | blocked | abandoned."
+            "type": "string"
+          }
+        }
+      },
+      "SovereigntyConsentRequest": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SovereigntyConsentResponse": {
+        "type": "object",
+        "required": [
+          "consent",
+          "message",
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "consent": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SovereigntyStatusResponse": {
+        "type": "object",
+        "required": [
+          "explicit_consent",
+          "requires_affirmative_consent",
+          "sovereign_data",
+          "shared_data",
+          "public_data",
+          "granted_categories"
+        ],
+        "properties": {
+          "explicit_consent": {
+            "type": "boolean"
+          },
+          "granted_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "public_data": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires_affirmative_consent": {
+            "type": "string"
+          },
+          "shared_data": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sovereign_data": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SpecCaptureRequestDto": {
+        "type": "object",
+        "description": "Spec capture request — MDS-aligned: uses description + context (not category/domain/criteria).",
+        "required": [
+          "description"
+        ],
+        "properties": {
+          "context": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "SpecCoherenceResponse": {
+        "type": "object",
+        "description": "Spec coherence response — MDS §3: spec/graph/coherence",
+        "required": [
+          "coherence_score",
+          "violations",
+          "suggestions"
+        ],
+        "properties": {
+          "coherence_score": {
+            "type": "number",
+            "format": "double"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SpecDetailResponse": {
+        "type": "object",
+        "description": "Spec detail response (single spec by ID)",
+        "required": [
+          "spec_id",
+          "name",
+          "category",
+          "domain_anchor",
+          "requirements"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "domain_anchor": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "spec_id": {
+            "type": "string"
+          }
+        }
+      },
+      "SpecListResponse": {
+        "type": "object",
+        "description": "Spec list response",
+        "required": [
+          "spec_id",
+          "name",
+          "category",
+          "complete"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "spec_id": {
+            "type": "string"
+          }
+        }
+      },
+      "SpecWritingQualityResponse": {
+        "type": "object",
+        "description": "Spec writing quality response — MDS §3: spec/require/writing-quality",
+        "required": [
+          "dimensions_passing",
+          "meets_publication_standard"
+        ],
+        "properties": {
+          "dimensions_passing": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "meets_publication_standard": {
+            "type": "boolean"
           }
         }
       },
@@ -806,6 +3084,54 @@
           },
           "session_id": {
             "type": "string"
+          }
+        }
+      },
+      "StoreEpisodeRequest": {
+        "type": "object",
+        "description": "Request to store an episodic triple.",
+        "required": [
+          "entity",
+          "attribute",
+          "value"
+        ],
+        "properties": {
+          "attribute": {
+            "type": "string",
+            "description": "Attribute (predicate/property)."
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Confidence (0.0–1.0). Defaults to 1.0."
+          },
+          "entity": {
+            "type": "string",
+            "description": "Entity (subject of the experience)."
+          },
+          "value": {
+            "description": "Value (object of the triple)."
+          }
+        }
+      },
+      "StoreEpisodeResponse": {
+        "type": "object",
+        "description": "Response from storing an episodic triple.",
+        "required": [
+          "entity",
+          "attribute"
+        ],
+        "properties": {
+          "attribute": {
+            "type": "string",
+            "description": "The attribute that was stored."
+          },
+          "entity": {
+            "type": "string",
+            "description": "The entity that was stored."
           }
         }
       },

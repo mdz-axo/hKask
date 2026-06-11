@@ -6,6 +6,7 @@ use hkask_types::WebID;
 use hkask_types::ports::ConsolidationRequest;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -39,8 +40,8 @@ pub struct ConsolidateResponse {
 
 // Router
 
-pub fn consolidation_router() -> axum::Router<crate::ApiState> {
-    axum::Router::new().route("/api/consolidate", axum::routing::post(consolidate))
+pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
+    OpenApiRouter::new().routes(routes!(consolidate))
 }
 
 // Handlers
@@ -56,7 +57,7 @@ pub fn consolidation_router() -> axum::Router<crate::ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn consolidate(
+pub(crate) async fn consolidate(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,

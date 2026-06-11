@@ -4,8 +4,9 @@
 //! Persisted to ~/.config/hkask/settings.json. Magna Carta P3 (Generative
 //! Space): all settings exposed equally across every surface.
 
-use axum::{Json, Router, extract::State, routing::get};
+use axum::{Json, extract::State, routing::get};
 use serde::{Deserialize, Serialize};
+use utoipa_axum::router::OpenApiRouter;
 
 use crate::ApiState;
 use hkask_services::settings_path;
@@ -87,8 +88,8 @@ pub struct UpdateSettingsRequest {
     pub auto_condense: Option<bool>,
 }
 
-pub fn settings_router() -> Router<ApiState> {
-    Router::new().route("/api/settings", get(get_settings).put(update_settings))
+pub fn settings_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new().route("/api/settings", get(get_settings).put(update_settings))
 }
 
 /// GET /api/settings — return current settings.

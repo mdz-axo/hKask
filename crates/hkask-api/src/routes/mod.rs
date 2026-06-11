@@ -1,23 +1,23 @@
 //! HTTP routes — per-domain modules
 
-mod acp;
-mod bots;
-mod bundles;
-mod chat;
-mod cns;
-mod consolidation;
-mod curator;
-mod ensemble;
-mod episodic;
-mod git;
-mod goal;
-mod mcp;
-mod models;
-mod pods;
-mod settings;
-mod sovereignty;
-mod spec;
-mod templates;
+pub(crate) mod acp;
+pub(crate) mod bots;
+pub(crate) mod bundles;
+pub(crate) mod chat;
+pub(crate) mod cns;
+pub(crate) mod consolidation;
+pub(crate) mod curator;
+pub(crate) mod ensemble;
+pub(crate) mod episodic;
+pub(crate) mod git;
+pub(crate) mod goal;
+pub(crate) mod mcp;
+pub(crate) mod models;
+pub(crate) mod pods;
+pub(crate) mod settings;
+pub(crate) mod sovereignty;
+pub(crate) mod spec;
+pub(crate) mod templates;
 
 // Re-export router functions
 pub use acp::acp_router;

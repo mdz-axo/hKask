@@ -8,10 +8,10 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::Router,
 };
 use hkask_services::SpecCaptureRequest;
 use hkask_services::SpecService;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 use serde::{Deserialize, Serialize};
@@ -65,16 +65,13 @@ pub struct SpecWritingQualityResponse {
 }
 
 /// Create spec router
-pub fn spec_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/specs", axum::routing::get(list_specs))
-        .route("/api/specs/capture", axum::routing::post(capture_spec))
-        .route("/api/specs/{spec_id}", axum::routing::get(get_spec))
-        .route("/api/specs/coherence", axum::routing::get(get_coherence))
-        .route(
-            "/api/specs/{spec_id}/writing-quality",
-            axum::routing::get(get_writing_quality),
-        )
+pub fn spec_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_specs))
+        .routes(routes!(capture_spec))
+        .routes(routes!(get_spec))
+        .routes(routes!(get_coherence))
+        .routes(routes!(get_writing_quality))
 }
 
 /// List specifications — with optional category filter
@@ -86,7 +83,7 @@ pub fn spec_router() -> Router<ApiState> {
         (status = 200, description = "List of specifications", body = Vec<SpecListResponse>),
     ),
 )]
-async fn list_specs(
+pub(crate) async fn list_specs(
     State(state): State<ApiState>,
     Query(query): Query<SpecListQuery>,
 ) -> impl IntoResponse {
@@ -124,7 +121,10 @@ async fn list_specs(
         (status = 404, description = "Spec not found"),
     ),
 )]
-async fn get_spec(State(state): State<ApiState>, Path(spec_id): Path<String>) -> impl IntoResponse {
+pub(crate) async fn get_spec(
+    State(state): State<ApiState>,
+    Path(spec_id): Path<String>,
+) -> impl IntoResponse {
     match SpecService::get_by_id(&state.agent_service, &spec_id) {
         Ok(detail) => Json(SpecDetailResponse {
             spec_id: detail.spec_id,
@@ -157,7 +157,7 @@ async fn get_spec(State(state): State<ApiState>, Path(spec_id): Path<String>) ->
         (status = 200, description = "Captured specification"),
     ),
 )]
-async fn capture_spec(
+pub(crate) async fn capture_spec(
     State(state): State<ApiState>,
     Json(req): Json<SpecCaptureRequestDto>,
 ) -> impl IntoResponse {
@@ -193,7 +193,7 @@ async fn capture_spec(
         (status = 200, description = "Coherence assessment", body = SpecCoherenceResponse),
     ),
 )]
-async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
+pub(crate) async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
     match SpecService::coherence(&state.agent_service) {
         Ok(r) => Json(SpecCoherenceResponse {
             coherence_score: r.coherence_score,
@@ -221,7 +221,7 @@ async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
         (status = 200, description = "Writing quality assessment", body = SpecWritingQualityResponse),
     ),
 )]
-async fn get_writing_quality(
+pub(crate) async fn get_writing_quality(
     State(state): State<ApiState>,
     Path(spec_id): Path<String>,
 ) -> impl IntoResponse {

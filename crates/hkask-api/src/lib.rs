@@ -222,24 +222,24 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
 
     Ok(
         utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())
-            .merge(routes::templates_router().into())
-            .merge(routes::bots_router().into())
-            .merge(routes::pods_router().into())
-            .merge(routes::mcp_router().into())
-            .merge(routes::cns_router().into())
-            .merge(routes::sovereignty_router().into())
-            .merge(routes::chat_router().into())
-            .merge(routes::models_router().into())
-            .merge(routes::ensemble_router().into())
-            .merge(routes::acp_router().into())
-            .merge(routes::bundles_router().into())
-            .merge(routes::spec_router().into())
-            .merge(routes::curator_router().into())
-            .merge(routes::episodic_router().into())
-            .merge(routes::consolidation_router().into())
-            .merge(routes::git_router().into())
-            .merge(routes::goal_router().into())
-            .merge(routes::settings_router().into())
+            .merge(routes::templates_router())
+            .merge(routes::bots_router())
+            .merge(routes::pods_router())
+            .merge(routes::mcp_router())
+            .merge(routes::cns_router())
+            .merge(routes::sovereignty_router())
+            .merge(routes::chat_router())
+            .merge(routes::models_router())
+            .merge(routes::ensemble_router())
+            .merge(routes::acp_router())
+            .merge(routes::bundles_router())
+            .merge(routes::spec_router())
+            .merge(routes::curator_router())
+            .merge(routes::episodic_router())
+            .merge(routes::consolidation_router())
+            .merge(routes::git_router())
+            .merge(routes::goal_router())
+            .merge(routes::settings_router())
             .layer(axum::middleware::from_fn_with_state(
                 auth_service,
                 middleware::auth_middleware,
@@ -248,7 +248,32 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
     )
 }
 
-/// Build OpenAPI spec
+/// Build OpenAPI spec with all route paths collected from the router.
+///
+/// Builds the full `OpenApiRouter` (without state or auth middleware) to
+/// collect `#[utoipa::path]` metadata from `routes!()` calls, then extracts
+/// the complete OpenAPI specification including paths.
 pub fn create_openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    use utoipa_axum::router::OpenApiRouter;
+
+    let router: OpenApiRouter<ApiState> = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(routes::templates_router())
+        .merge(routes::bots_router())
+        .merge(routes::pods_router())
+        .merge(routes::mcp_router())
+        .merge(routes::cns_router())
+        .merge(routes::sovereignty_router())
+        .merge(routes::chat_router())
+        .merge(routes::models_router())
+        .merge(routes::ensemble_router())
+        .merge(routes::acp_router())
+        .merge(routes::bundles_router())
+        .merge(routes::spec_router())
+        .merge(routes::curator_router())
+        .merge(routes::episodic_router())
+        .merge(routes::consolidation_router())
+        .merge(routes::git_router())
+        .merge(routes::goal_router())
+        .merge(routes::settings_router());
+    router.into_openapi()
 }

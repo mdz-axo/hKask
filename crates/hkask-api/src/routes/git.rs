@@ -6,10 +6,11 @@
 //! SHA resolution uses `GitCASPort::resolve_ref`.
 
 use axum::extract::Extension;
-use axum::{Json, extract::Path, extract::State, routing::Router};
+use axum::{Json, extract::Path, extract::State};
 use hkask_types::ports::git_cas::RepoId;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -48,10 +49,10 @@ pub struct ResolveShaResponse {
 }
 
 /// Create git router
-pub fn git_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/v1/git/archive", axum::routing::post(archive))
-        .route("/api/v1/git/resolve/:sha", axum::routing::get(resolve_sha))
+pub fn git_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(archive))
+        .routes(routes!(resolve_sha))
 }
 
 /// Archive a repository template crate
@@ -70,7 +71,7 @@ pub fn git_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn archive(
+pub(crate) async fn archive(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ArchiveRequest>,
@@ -119,7 +120,7 @@ async fn archive(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn resolve_sha(
+pub(crate) async fn resolve_sha(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(reference): Path<String>,

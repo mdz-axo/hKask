@@ -1,9 +1,10 @@
 //! Curator escalation and metacognition routes
 
 use axum::extract::Extension;
-use axum::{Json, extract::Path, extract::State, routing::Router};
+use axum::{Json, extract::Path, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -73,24 +74,12 @@ pub struct MetacognitionStatusResponse {
     pub bot_reports: Vec<BotStatusReportResponse>,
 }
 
-pub fn curator_router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/api/v1/curator/escalations",
-            axum::routing::get(list_escalations),
-        )
-        .route(
-            "/api/v1/curator/escalations/:id/resolve",
-            axum::routing::post(resolve_escalation),
-        )
-        .route(
-            "/api/v1/curator/escalations/:id/dismiss",
-            axum::routing::post(dismiss_escalation),
-        )
-        .route(
-            "/api/v1/curator/metacognition",
-            axum::routing::get(metacognition_status),
-        )
+pub fn curator_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_escalations))
+        .routes(routes!(resolve_escalation))
+        .routes(routes!(dismiss_escalation))
+        .routes(routes!(metacognition_status))
 }
 
 #[utoipa::path(
@@ -101,7 +90,7 @@ pub fn curator_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn list_escalations(
+pub(crate) async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ApiError> {
@@ -136,7 +125,7 @@ async fn list_escalations(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn resolve_escalation(
+pub(crate) async fn resolve_escalation(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
@@ -160,7 +149,7 @@ async fn resolve_escalation(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn dismiss_escalation(
+pub(crate) async fn dismiss_escalation(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
@@ -182,7 +171,7 @@ async fn dismiss_escalation(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn metacognition_status(
+pub(crate) async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ApiError> {

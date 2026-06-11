@@ -11,9 +11,9 @@ use axum::{
     Json,
     extract::State,
     response::sse::{Event, Sse},
-    routing::Router,
 };
 use std::convert::Infallible;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
@@ -53,10 +53,10 @@ pub struct ChatResponse {
 }
 
 /// Create chat router
-pub fn chat_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/chat", axum::routing::post(chat))
-        .route("/api/chat/stream", axum::routing::post(chat_stream))
+pub fn chat_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(chat))
+        .routes(routes!(chat_stream))
 }
 
 /// Chat with the Curator or a specified agent.
@@ -78,7 +78,7 @@ pub fn chat_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn chat(
+pub(crate) async fn chat(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ChatRequest>,
@@ -148,7 +148,7 @@ async fn chat(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn chat_stream(
+pub(crate) async fn chat_stream(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ChatRequest>,

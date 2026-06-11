@@ -1,21 +1,20 @@
 //! Goal coordination routes — delegates to GoalService.
 
 use axum::extract::Extension;
-use axum::{Json, extract::Path, extract::Query, extract::State, routing::Router};
+use axum::{Json, extract::Path, extract::Query, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::AuthContext;
 
-pub fn goal_router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/api/goals",
-            axum::routing::get(list_goals).post(create_goal),
-        )
-        .route("/api/goals/:id/state", axum::routing::post(set_goal_state))
+pub fn goal_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_goals))
+        .routes(routes!(create_goal))
+        .routes(routes!(set_goal_state))
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -52,7 +51,7 @@ pub struct GoalListResponse {
         (status = 403, description = "Authority denied"),
     ),
 )]
-async fn create_goal(
+pub(crate) async fn create_goal(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
@@ -82,7 +81,7 @@ async fn create_goal(
         (status = 403, description = "Authority denied"),
     ),
 )]
-async fn list_goals(
+pub(crate) async fn list_goals(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
@@ -116,7 +115,7 @@ async fn list_goals(
         (status = 404, description = "Goal not found"),
     ),
 )]
-async fn set_goal_state(
+pub(crate) async fn set_goal_state(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,

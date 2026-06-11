@@ -8,18 +8,19 @@
 //! Model names returned here can be passed as the `model` field in
 //! `POST /api/chat` requests to select which LLM the Curator or agent uses.
 
-use axum::{Json, extract::State, routing::Router};
+use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::IntoParams;
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 
 /// Create models router
-pub fn models_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/models", axum::routing::get(list_models))
-        .route("/api/models/search", axum::routing::get(search_models))
+pub fn models_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_models))
+        .routes(routes!(search_models))
 }
 
 /// A model available through Okapi.
@@ -78,7 +79,7 @@ pub struct ModelSearchQuery {
         (status = 503, description = "Okapi unreachable (returns empty list)"),
     ),
 )]
-async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
+pub(crate) async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
     use hkask_services::InferenceService;
 
     let ctx = hkask_services::InferenceContext::from(&*state.agent_service);
@@ -117,7 +118,7 @@ async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
         (status = 200, description = "Matching models", body = ModelListResponse),
     ),
 )]
-async fn search_models(
+pub(crate) async fn search_models(
     State(state): State<ApiState>,
     axum::extract::Query(query): axum::extract::Query<ModelSearchQuery>,
 ) -> Json<ModelListResponse> {

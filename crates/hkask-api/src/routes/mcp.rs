@@ -19,20 +19,21 @@
 //! tool result caching) grows beyond simple discovery/invocation.
 
 use axum::extract::Extension;
-use axum::{Json, extract::State, routing::Router};
+use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 
 /// Create MCP router
-pub fn mcp_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/mcp/servers", axum::routing::get(list_servers))
-        .route("/api/mcp/tools", axum::routing::get(list_tools))
-        .route("/api/mcp/invoke", axum::routing::post(mcp_invoke))
+pub fn mcp_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_servers))
+        .routes(routes!(list_tools))
+        .routes(routes!(mcp_invoke))
 }
 
 /// List MCP servers
@@ -45,7 +46,7 @@ pub fn mcp_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
+pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
     let servers = state.agent_service.coordination().1.list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
@@ -63,7 +64,7 @@ async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
+pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     let tools = state.agent_service.coordination().1.discover_tools().await;
     Json(tools)
 }
@@ -107,7 +108,7 @@ pub struct McpInvokeResponse {
         (status = 500, description = "Tool invocation error"),
     ),
 )]
-async fn mcp_invoke(
+pub(crate) async fn mcp_invoke(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<McpInvokeRequest>,

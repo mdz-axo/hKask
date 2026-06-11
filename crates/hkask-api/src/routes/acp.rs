@@ -14,10 +14,11 @@
 
 use axum::extract::{Extension, Path};
 use axum::http::StatusCode;
-use axum::{Json, extract::State, routing::Router};
+use axum::{Json, extract::State};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiError;
 use crate::ApiState;
@@ -71,14 +72,11 @@ pub struct AgentListResponse {
 }
 
 /// Create ACP router
-pub fn acp_router() -> Router<ApiState> {
-    Router::new()
+pub fn acp_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
         .route("/api/v1/acp/register", axum::routing::post(acp_register))
-        .route("/api/v1/acp/agents", axum::routing::get(acp_list_agents))
-        .route(
-            "/api/v1/acp/agents/:agent_id",
-            axum::routing::delete(acp_unregister_agent),
-        )
+        .routes(routes!(acp_list_agents))
+        .routes(routes!(acp_unregister_agent))
 }
 
 /// Register an agent with the ACP runtime
@@ -126,7 +124,7 @@ async fn acp_register(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn acp_list_agents(
+pub(crate) async fn acp_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<AgentListResponse>, ApiError> {
@@ -162,7 +160,7 @@ async fn acp_list_agents(
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn acp_unregister_agent(
+pub(crate) async fn acp_unregister_agent(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
