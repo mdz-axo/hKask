@@ -369,6 +369,98 @@ impl TripleStore {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+    use std::sync::{Arc, Mutex};
+
+    fn make_store() -> TripleStore {
+        let conn = Arc::new(Mutex::new(
+            Connection::open_in_memory().expect("in-memory DB"),
+        ));
+        let store = TripleStore::new(conn);
+        store
+            .lock_conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE triples (
+                    id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                    value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                    confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
+                    owner_webid TEXT NOT NULL
+                )",
+            )
+            .unwrap();
+        store
+    }
+
+    // REQ: triples-timestamp-001 — corrupt valid_from timestamp propagates an error
+    //
+    // Before fix, a corrupt valid_from was silently replaced with Utc::now(),
+    // returning a triple with a fabricated temporal validity bound.
+    // Now it propagates an Infra error, and collect_rows! logs and skips the row.
+    #[test]
+    fn corrupt_valid_from_propagates_infra_error() {
+        let store = make_store();
+        let webid = WebID::new();
+        let id = TripleID::new();
+
+        // Insert a triple with a garbage timestamp that cannot be parsed as RFC3339.
+        store
+            .lock_conn()
+            .unwrap()
+            .execute(
+                "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, NULL, ?7, ?8)",
+                rusqlite::params![
+                    id,
+                    "test-entity",
+                    "attr",
+                    serde_json::to_string(&serde_json::json!("val")).unwrap(),
+                    "not-a-timestamp",
+                    1.0f64,
+                    "private",
+                    webid,
+                ],
+            )
+            .unwrap();
+
+        // Query should return zero triples (row is logged and skipped by collect_rows!).
+        let triples = store.query_by_entity("test-entity").unwrap();
+        assert!(
+            triples.is_empty(),
+            "corrupt timestamp row should be skipped, not returned with Utc::now()"
+        );
+    }
+
+    // REQ: triples-timestamp-002 — well-formed valid_from round-trips correctly
+    #[test]
+    fn valid_from_round_trips_correctly() {
+        let store = make_store();
+        let webid = WebID::new();
+        let triple = Triple::new("entity", "attr", serde_json::json!("val"), webid);
+        store.insert(&triple).unwrap();
+
+        let triples = store.query_by_entity("entity").unwrap();
+        assert_eq!(triples.len(), 1);
+        // valid_from should match the original to second precision.
+        let delta = (triples[0].temporal.valid_from - triple.temporal.valid_from)
+            .num_seconds()
+            .abs();
+        assert!(delta < 2, "valid_from should survive a round-trip");
+    }
+
+    // REQ: triples-notfound-001 — get_by_id on missing id returns None, not an error
+    #[test]
+    fn get_by_id_missing_returns_none() {
+        let store = make_store();
+        let missing = TripleID::new();
+        let result = store.get_by_id(&missing).unwrap();
+        assert!(result.is_none());
+    }
+}
+
 /// Triple → TripleEntry: lossy (flattens access control for CAS storage).
 impl From<&Triple> for TripleEntry {
     fn from(t: &Triple) -> Self {

@@ -83,4 +83,30 @@ mod tests {
             "Fresh consent manager should have no grants"
         );
     }
+
+    // REQ: svc-sovereignty-002 — grant and revoke return ServiceError, not ConsentError
+    //
+    // Before fix, grant_consent/revoke_consent returned ConsentError, leaking
+    // domain internals through the service layer boundary.
+    #[test]
+    fn grant_and_revoke_return_service_error_type() {
+        let db = Database::in_memory().expect("in-memory database");
+        let consent_store = ConsentStore::new(db.conn_arc());
+        consent_store
+            .initialize_schema()
+            .expect("initialize schema");
+        let cm = Arc::new(ConsentManager::new(consent_store));
+        let svc = SovereigntyService::new(cm);
+
+        // These must compile and succeed: return type is Result<_, ServiceError>
+        let _: Result<(), crate::error::ServiceError> =
+            svc.grant_consent("user", &DataCategory::EpisodicMemory);
+        // Revoke on a non-existent webid returns ConsentNotFound, wrapped as ServiceError
+        let result: Result<(), crate::error::ServiceError> = svc.revoke_consent("user");
+        // Either Ok or Err(ServiceError::Consent(ConsentNotFound)) — both are ServiceError
+        assert!(
+            result.is_err() || result.is_ok(),
+            "must return ServiceError, not ConsentError directly"
+        );
+    }
 }

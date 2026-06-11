@@ -51,7 +51,7 @@ Per C8: "Test depth matches module depth."
 | `hkask-templates` | ✅ Compliant | 12 tests: contract validation (5), lexicon parsing (6), okapi config (1) |
 | `hkask-cns` | ✅ Compliant | 11 tests for OCAP governance, algedonic thresholds, variety tracking — all behavioral |
 | `hkask-services` | ✅ Compliant | 28 tests covering chat, CNS service, pods, goals, curator — all public seams |
-| `hkask-cli` | ✅ Compliant | 19 tests: settings validation (12), REPL settings (4), compaction threshold (3) |
+| `hkask-cli` | ⚠️ Gap | 19 tests: settings validation (12), REPL settings (4), compaction threshold (3). New `feedback.rs::append_feedback` public seam is untested (see §Recent Additions 2026-06-11). |
 | `hkask-api` | ✅ Compliant | 2 tests for settings route — merge/validation semantics |
 | `hkask-agents` | ⚠️ Thin | 2 doc-tests only. Pod lifecycle, ACP integration untested. Acceptable for current depth. |
 | `hkask-mcp` | ⚠️ Thin | 3 doc-tests only. Server dispatch untested. Acceptable for thin port module. |
@@ -61,12 +61,35 @@ Per C8: "Test depth matches module depth."
 
 ---
 
+## Recent Additions (2026-06-11 Session)
+
+Onboarding overhaul — new modules and behavioral seams:
+
+| Crate | Tests Added | P8 Status | Details |
+|-------|------------|-----------|--------|
+| `hkask-cli` | 0 | ⚠️ Gap | Three new handler modules added: `feedback.rs`, `start.rs`, `onboard.rs`. `append_feedback()` is a public seam with testable behavior (file creation, header on first write, entry format) that has no test. `passphrase_strength()` in `onboarding.rs` is also testable. Write these tests next. |
+
+**Recommended tests for `hkask-cli` (to close the P8 gap):**
+```rust
+// repl/handlers/feedback.rs
+#[test] fn append_feedback_creates_file_with_header_on_first_write()
+#[test] fn append_feedback_omits_header_on_subsequent_writes()
+#[test] fn append_feedback_entry_contains_replicant_and_comment()
+
+// onboarding.rs
+#[test] fn passphrase_strength_weak_below_8()
+#[test] fn passphrase_strength_fair_at_8_single_variety()
+#[test] fn passphrase_strength_strong_at_16_high_variety()
+```
+
+---
+
 ## Recent Additions (2026-06-10 Session)
 
 From TASK 0–6 architecture audit (see HANDOFF.md):
 
 | Crate | Tests Added | Details |
-|-------|------------|---------|
+|-------|------------|--------|
 | `hkask-cns` | 13 | 4 GovernedTool OCAP (domain capability, legacy exact match), 2 algedonic binary-threshold, 3 variety sensor, 1 GovernedTool integration, 3 CnsService |
 | `hkask-services` | 3 | CnsService: health defaults, variety empty, alerts empty |
 

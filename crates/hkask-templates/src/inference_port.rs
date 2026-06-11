@@ -220,7 +220,7 @@ impl InferencePort for OkapiInference {
                     &prompt,
                     None,
                     &parameters,
-                    None,
+                    Some(false),
                     Some(5),
                 ))
                 .await?;
@@ -261,7 +261,7 @@ impl InferencePort for OkapiInference {
                     &prompt,
                     None,
                     &parameters,
-                    None,
+                    Some(false),
                     Some(5),
                 ))
                 .await?;
@@ -418,7 +418,7 @@ impl OkapiInference {
             prompt,
             Some(images.to_vec()),
             parameters,
-            None,
+            Some(false),
             Some(5),
         );
 
@@ -631,12 +631,24 @@ mod tests {
             max_tokens: 512,
             seed: None,
         };
-        let req = build_request("qwen3:4b", "Write a sentence.", None, &params, None, None);
+        let req = build_request(
+            "qwen3:4b",
+            "Write a sentence.",
+            None,
+            &params,
+            Some(false),
+            None,
+        );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(
             json["think"],
             serde_json::json!(false),
             "think:false must be present to suppress qwen3 reasoning tokens"
+        );
+        assert_eq!(
+            json["stream"],
+            serde_json::json!(false),
+            "stream:false must be explicit so Okapi does not default to chunked streaming"
         );
         assert_eq!(json["messages"][0]["role"], "user");
         assert_eq!(json["messages"][0]["content"], "Write a sentence.");

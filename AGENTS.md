@@ -67,6 +67,7 @@ kask chat                                  # Interactive (Curator, default model
 kask chat -m qwen3:8b                      # Specific model
 kask chat Alice -m llama3.1:70b            # Named agent + model
 echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
+kask onboard                               # Add a new replicant to an existing install
 kask sovereignty verify                    # Magna Carta compliance
 kask settings show                          # Show all settings
 kask settings show temp                     # Show one setting
@@ -74,7 +75,7 @@ kask settings set temp 0.3                  # Set a setting
 kask settings reset                         # Reset all to defaults
 ```
 
-**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`
+**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`
 
 **`/repl` sub-settings** (user-configurable inference params, persisted to `~/.config/hkask/settings.json`):
 

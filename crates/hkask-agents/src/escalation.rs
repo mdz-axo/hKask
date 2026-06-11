@@ -340,6 +340,80 @@ impl EscalationBatch {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+
+    fn make_queue() -> EscalationQueue {
+        let conn = Arc::new(Mutex::new(
+            rusqlite::Connection::open_in_memory().expect("in-memory DB"),
+        ));
+        EscalationQueue::new(conn).expect("init queue")
+    }
+
+    // REQ: escalation-rows-001 — resolve on a missing id returns NotFound, not Ok
+    //
+    // Before fix, resolve() returned Ok(()) for any id — the UPDATE silently
+    // touched 0 rows. Now it checks rows_affected and returns NotFound.
+    #[test]
+    fn resolve_missing_id_returns_not_found() {
+        let q = make_queue();
+        let result = q.resolve("no-such-id", "tester");
+        assert!(
+            matches!(result, Err(EscalationError::NotFound(_))),
+            "expected NotFound, got {:?}",
+            result
+        );
+    }
+
+    // REQ: escalation-rows-002 — dismiss on a missing id returns NotFound
+    #[test]
+    fn dismiss_missing_id_returns_not_found() {
+        let q = make_queue();
+        let result = q.dismiss("no-such-id", "tester");
+        assert!(
+            matches!(result, Err(EscalationError::NotFound(_))),
+            "expected NotFound, got {:?}",
+            result
+        );
+    }
+
+    // REQ: escalation-rows-003 — resolve on an existing entry succeeds
+    #[test]
+    fn resolve_existing_id_succeeds() {
+        let q = make_queue();
+        let id = q
+            .add(
+                TemplateID::new(),
+                BotID::new(),
+                "output".into(),
+                0.9,
+                0,
+                "ctx".into(),
+            )
+            .expect("add escalation");
+        assert!(q.resolve(&id, "tester").is_ok());
+    }
+
+    // REQ: escalation-rows-004 — dismiss on an existing entry succeeds
+    #[test]
+    fn dismiss_existing_id_succeeds() {
+        let q = make_queue();
+        let id = q
+            .add(
+                TemplateID::new(),
+                BotID::new(),
+                "output".into(),
+                0.8,
+                0,
+                "ctx".into(),
+            )
+            .expect("add escalation");
+        assert!(q.dismiss(&id, "tester").is_ok());
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationStats {
     pub total: i64,

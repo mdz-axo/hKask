@@ -87,8 +87,10 @@ pub(crate) fn handle_start(state: &ReplState) {
             println!();
             return;
         }
-        // Move cursor up to overwrite the "Press Enter" prompt
-        print!("\x1b[1A\x1b[2K");
+        // Move cursor up, carriage-return to col 0, then clear the line.
+        // Without \r the cursor sits at end-of-line after \x1b[2K and the
+        // next step title would render mid-line instead of column 0.
+        print!("\x1b[1A\r\x1b[2K");
     }
 
     println!();

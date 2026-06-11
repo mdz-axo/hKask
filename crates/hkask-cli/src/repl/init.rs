@@ -64,7 +64,8 @@ pub(super) fn init_repl_state(
     let repl_settings = crate::commands::settings::load_settings();
 
     // Resolve okapi_base_url from env for InferenceService calls.
-    // This is used before onboarding to create the initial inference port.
+    // Onboarding has already completed above; this is used to build the
+    // inference port that serves the interactive REPL session.
     let okapi_base_url = std::env::var("OKAPI_BASE_URL")
         .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string());
 

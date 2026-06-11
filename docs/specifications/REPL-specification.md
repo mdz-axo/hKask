@@ -1,7 +1,7 @@
 ---
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
-last_updated: 2026-06-10
+last_updated: 2026-06-11
 version: "0.27.0"
 status: "Active"
 domain: "Surface"
@@ -108,29 +108,33 @@ pub(crate) struct ReplState {
     pub(crate) tool_prompt_section: String,                     // Pre-formatted tool section of system prompt
     pub(crate) service_context: Arc<AgentService>,              // Canonical infrastructure assembly
     pub(crate) repl_settings: ReplSettings,                     // User-configurable inference parameters
+    pub(crate) is_first_run: bool,                              // true on first onboarding, false on returning sessions
 }
 ```
 
-**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. Six fields are private (only accessed within `repl/` submodules): `hhh_config`, `gate_inference_port`, `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. Session history is no longer stored in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`.
+**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. Six fields are private (only accessed within `repl/` submodules): `hhh_config`, `gate_inference_port`, `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. Session history is no longer stored in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` is set from `OnboardingOutcome.is_first_run` and gates the First Steps guide shown in the welcome banner.
 
 ### 3.3 Dependency Injection (init.rs)
 
 The `init_repl_state()` function assembles the REPL's dependency graph in order:
 
-1. Load persisted `ReplSettings` from `~/.config/hkask/settings.json`
-2. Resolve Okapi base URL from `OKAPI_BASE_URL` env or default
-3. Initialize shared `InferencePort` + wrap in `InferenceLoop`
-4. Eagerly create HHH gate inference port (separate model)
-5. Run onboarding (replicant identity creation/key resolution)
-6. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
-7. Register inference loop on loop system
-8. Start built-in MCP servers (10 servers)
-9. Build `GovernedTool` membrane wrapped around MCP runtime
-10. Register agent energy budget with `CyberneticsLoop`
-11. Open per-agent SQLCipher-encrypted memory database
-12. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
-13. Populate tool prompt section from MCP runtime discovery
-14. Load persona constraints and process manifest for initial agent
+1. **Run onboarding** (`run_onboarding()`) — replicant identity creation / key resolution / model selection. Sets `is_first_run`.
+2. Resolve effective model: onboarding selection > CLI `--model` arg > hardcoded default (`deepseek-v4-pro`)
+3. Load persisted `ReplSettings` from `~/.config/hkask/settings.json`
+4. Resolve Okapi base URL from `OKAPI_BASE_URL` env or default
+5. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
+6. Eagerly create HHH gate inference port (separate model)
+7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
+8. Register inference loop on loop system
+9. Start built-in MCP servers (10 servers)
+10. Build `GovernedTool` membrane wrapped around MCP runtime
+11. Register agent energy budget with `CyberneticsLoop`
+12. Open per-agent SQLCipher-encrypted memory database
+13. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
+14. Populate tool prompt section from MCP runtime discovery
+15. Load persona constraints and process manifest for initial agent
+
+**Note:** Onboarding runs first (step 1) so that the model the user selects during setup is immediately used to initialize the inference port (step 5). Previously, the model was derived from the CLI arg alone and onboarding ran mid-sequence.
 
 ## 4. Input Loop
 
@@ -169,7 +173,7 @@ Inputs not starting with `/` and not matching `"quit"` / `"exit"` are treated as
 
 ## 5. Slash Command Registry
 
-All 26 slash commands with aliases, categorized as shown in `/help`:
+All 28 slash commands with aliases, categorized as shown in `/help`:
 
 ### 5.1 Session Commands
 
@@ -251,6 +255,17 @@ All 26 slash commands with aliases, categorized as shown in `/help`:
 |---------|---------|------|-------------|
 | `/hhh` | `/alignment`, `/align` | `[on\|off\|status\|model]` | Toggle HHH alignment (Helpful, Harmless, Honest) |
 | `/consolidate` | `/cons` | `[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]` | Trigger episodic→semantic consolidation |
+
+### 5.8 Onboarding Commands
+
+| Command | Aliases | Args | Description |
+|---------|---------|------|-------------|
+| `/start` | `/tour`, `/onboarding` | | Interactive step-by-step guided tour (9 steps, press Enter to advance, type `skip` to exit) |
+| `/feedback` | | | Prompt for a free-text usability note; appended with UTC timestamp + replicant name to `~/.local/share/hkask/feedback.md` |
+
+**`/start` detail:** Each step covers one capability domain: Chat, Commands, Models, Status, Tools, Settings, Memory, Ensemble, Done. Always available — not only on first run. `/tour` and `/onboarding` are aliases.
+
+**`/feedback` scope:** REPL-only. Not exposed via CLI subcommand or HTTP API. The file is append-only; each entry is a Markdown `##` heading with ISO-8601 UTC timestamp and a blockquote body. Nothing is transmitted anywhere.
 
 ## 6. Single-Agent Turn Pipeline
 
@@ -643,11 +658,30 @@ The REPL displays an animated Kask amphora logo on startup:
 
 The eyes animate through center → right → center → left gaze positions over ~1.4 seconds.
 
-**Info row:**
+**Info row (returning user):**
 ```
 Agent: {name}  Model: {model}  Template: {template}
 /help for commands  <TAB> autocomplete  /quit exit
 ```
+
+**First Steps guide (first-run only):** When `ReplState.is_first_run` is `true` (set by `OnboardingOutcome.is_first_run` from `run_onboarding()`), the compact one-liner is replaced with an expanded guide:
+
+```
+  ━━ First Steps ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Getting started:
+  • Just type to chat — your replicant is ready
+  • /help    — see all available commands
+  • /model   — switch models anytime
+  • /tools   — discover available MCP tools
+  • /status  — check system health and energy
+  • /repl    — customize inference settings
+
+  Try: "What can you help me with?"
+  Type /start for a guided tour.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Returning users see the compact one-liner only. `is_first_run` is `false` for all returning sessions.
 
 ## 16. Autocomplete and Help System
 
@@ -667,6 +701,7 @@ Model      — model
 Ensemble   — into, ensemble, filter, mode, ask
 System     — status, tools, templates, sovereignty
 Governance — escalations, resolve, dismiss, metacognition
+Onboarding — start, feedback
 ```
 
 **`/help <command>`:** Detailed page with usage examples, subcommands, and tips.

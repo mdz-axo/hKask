@@ -102,14 +102,10 @@ impl NuEventStore {
         Ok(weighted)
     }
 
-    /// F-SYN-009: typed dispatch. Returns the `λ` for a `SpanCategory`.
+    /// Returns the decay constant `λ` for a `SpanCategory`.
     ///
-    /// The previous `lambda_for_category(&str, ...)` API is preserved
-    /// (F-L1-002 backwards compatibility) but the call site in
-    /// `weighted_algedonic` now uses this typed version. Unknown
-    /// categories fall back to `cybernetics_lambda` — the historical
-    /// behaviour — but the fallback is *explicit* at the type level
-    /// via `SpanCategory::Unknown`.
+    /// Unknown categories fall back to `cybernetics_lambda`.
+    /// The fallback is explicit at the type level via `SpanCategory::Unknown`.
     pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
         match category {
             SpanCategory::Cybernetics => config.cybernetics_lambda,

@@ -217,3 +217,46 @@ impl AgentRegistryStore {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+    use std::sync::{Arc, Mutex};
+
+    fn make_store() -> AgentRegistryStore {
+        let conn = Arc::new(Mutex::new(
+            Connection::open_in_memory().expect("in-memory DB"),
+        ));
+        let store = AgentRegistryStore::new(conn);
+        store.initialize_schema().expect("init schema");
+        store
+    }
+
+    // REQ: agent-registry-notfound-001 — get on missing name returns NotFound
+    //
+    // Before fix, any rusqlite error was mapped to NotFound. Now only
+    // QueryReturnedNoRows maps to NotFound; other errors map to Infra.
+    #[test]
+    fn get_missing_agent_returns_not_found() {
+        let store = make_store();
+        let result = store.get("no-such-agent");
+        assert!(
+            matches!(result, Err(AgentRegistryError::NotFound(_))),
+            "expected NotFound, got {:?}",
+            result
+        );
+    }
+
+    // REQ: agent-registry-notfound-002 — remove on missing name returns NotFound
+    #[test]
+    fn remove_missing_agent_returns_not_found() {
+        let store = make_store();
+        let result = store.remove("no-such-agent");
+        assert!(
+            matches!(result, Err(AgentRegistryError::NotFound(_))),
+            "expected NotFound, got {:?}",
+            result
+        );
+    }
+}

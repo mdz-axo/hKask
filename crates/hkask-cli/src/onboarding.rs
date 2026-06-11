@@ -134,28 +134,17 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     println!("  \x1b[1mChoose a model\x1b[0m for this replicant.");
     let selected_model = select_model().await;
 
-    // Try to reuse secrets from the keychain first (common case for `kask onboard`
-    // when the user already completed first-run setup). Fall through to passphrase
-    // prompt only when keychain lookup fails.
-    let config = if let Ok(config) = ServiceConfig::from_env() {
-        config
-    } else {
-        // Keychain has no secrets yet — collect the passphrase to derive them.
-        println!();
-        println!(
-            "  \x1b[1mMaster passphrase\x1b[0m — enter the same passphrase you used at first setup."
-        );
-        println!("  \x1b[2mThis unlocks the shared encrypted database.\x1b[0m");
-        let passphrase = prompt_passphrase_once()?;
-        let resolved = OnboardingService::derive_secrets(&passphrase, false)
-            .map_err(|e| OnboardingError::Database(format!("Failed to derive secrets: {}", e)))?;
-        ServiceConfig::from_secrets(
-            resolved.acp_secret.clone(),
-            resolved.db_passphrase.clone(),
-            resolved.acp_secret.clone(),
-            name.clone(),
-        )
-    };
+    // Require existing secrets from the keychain — `kask onboard` adds to an existing
+    // installation, it does not bootstrap one. If no secrets are found the user needs
+    // to run `kask chat` first, which performs full first-run setup and stores keys.
+    // Silently deriving and NOT storing secrets here would leave the installation
+    // in an inconsistent state on the next invocation.
+    let config = ServiceConfig::from_env().map_err(|_| {
+        eprintln!("  \x1b[31m✗\x1b[0m No hKask installation found in OS keychain.");
+        eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
+        eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
+        OnboardingError::Database("No keychain secrets — run `kask chat` first".to_string())
+    })?;
 
     // Open the existing registry and register the new replicant.
     let handle = OnboardingService::init_registry(&config)
@@ -463,19 +452,6 @@ fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
     print!("{prompt} ");
     std::io::stdout().flush()?;
     rpassword::read_password()
-}
-
-/// Prompt for a passphrase once, without confirmation.
-/// Used by `run_add_replicant` when verifying an existing installation.
-fn prompt_passphrase_once() -> Result<String, std::io::Error> {
-    loop {
-        let pass = prompt_passphrase("  Master passphrase:")?;
-        if pass.is_empty() {
-            println!("  \x1b[31mPassphrase cannot be empty.\x1b[0m Please try again.");
-            continue;
-        }
-        return Ok(pass);
-    }
 }
 
 /// Evaluate passphrase strength and return a label + color code.
