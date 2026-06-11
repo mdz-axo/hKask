@@ -1,6 +1,6 @@
 ---
 title: "MCP Server Roadmap — Consolidation, Deepening, and RAG Pipeline"
-version: "1.0.0"
+version: "1.1.0"
 last_updated: 2026-06-11
 status: "Active"
 domain: "Cross-cutting"
@@ -9,31 +9,23 @@ mds_categories: [domain, composition, capability, lifecycle, curation]
 
 # MCP Server Roadmap
 
-Surfaced from architecture audit on 2026-06-11. Covers 11 MCP servers (10 listed in AGENTS.md + replica).
+Surfaced from architecture audit on 2026-06-11. Covers 10 MCP servers.
 
-See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) for current tool catalog (~73 tools across 10 servers).
+See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) for current tool catalog (~82 tools across 10 servers).
 
 ---
 
-## 1. Consolidation: Collapse `rss-reader` into `web`
+## Completed (2026-06-11)
 
-**Decision:** The RSS reader's purpose is storing and organizing artifacts found in web searches, before turning them into formal research documents or projects. It is not a standalone RSS client — it is a web artifact management layer.
+### ✅ 1. Consolidation: Collapse `rss-reader` + `web` → `hkask-mcp-research`
 
-**Plan:**
-- Port all 10 RSS tools into `hkask-mcp-web`:
-  - `rss_subscribe`, `rss_unsubscribe`, `rss_list_subscriptions`
-  - `rss_fetch`, `rss_mark_read`, `rss_unread_count`
-  - `rss_search`, `rss_export_opml`, `rss_import_opml`
-  - `rss_discover`
-- Deprecate and delete `hkask-mcp-rss-reader` crate
-- Unified `hkask-mcp-web` surface becomes: **search → extract → organize → research**
-- Update AGENTS.md crate map, `mcp-tools-inventory.md`, and workspace `Cargo.toml`
+**Result:** Created `hkask-mcp-research` with ~17 tools (5 web + 12 RSS) in a unified `ResearchServer`. Web tools always available with at least one search provider key. RSS tools gracefully degrade when `HKASK_RSS_DB` is not configured. Deleted `hkask-mcp-web` and `hkask-mcp-rss-reader`.
 
-**Rationale:** A single "web research" server with search tools + artifact management is a coherent module. Two servers that split the pipeline create artificial boundaries.
+**Updated:** 7 code files (workspace, bootstrap, builtin_servers, serve, web_search, energy estimator, embed user agent), 5 docs (AGENTS.md, README, PRINCIPLES, mcp-tools-inventory, test-inventory).
 
-| Status | Owner | Priority |
-|--------|-------|----------|
-| ✅ Complete | — | High |
+### ✅ 9. Document `hkask-mcp-replica` in AGENTS.md and Inventory
+
+**Result:** Added `hkask-mcp-replica` (6 tools: build, compose, mashup, compare, registry, explain) to AGENTS.md crate map, README.md, `mcp-tools-inventory.md`, PRINCIPLES.md, and test-inventory.md.
 
 ---
 
@@ -151,28 +143,13 @@ Document (PDF, DOCX, image)
 |--------|-------|----------|
 | ⬜ Open | — | Low |
 
-### 4.2 Document `hkask-mcp-replica` in AGENTS.md and Inventory
-
-**Problem:** The `replica` server (style embedding, composition, mashup, comparison, registry, explanation — 6 tools) exists in `mcp-servers/` and compiles, but is not listed in:
-- AGENTS.md crate map (lists 10 MCP servers)
-- `mcp-tools-inventory.md` (lists 10 servers)
-
-**Fix:**
-- Add `hkask-mcp-replica` to AGENTS.md crate map
-- Add to `mcp-tools-inventory.md` with tool listing (6 tools)
-- Server uses DeepInfra `Qwen/Qwen3-Embedding-0.6B` for embeddings by default
-
-| Status | Owner | Priority |
-|--------|-------|----------|
-| ✅ Complete (2026-06-11) | — | Low |
-
 ---
 
 ## 5. Test Coverage
 
 ### 5.1 Current State
 
-9 of 11 MCP servers have **zero tests**. Only `hkask-mcp-spec` has 7 tests.
+9 of 10 MCP servers have **zero tests**. Only `hkask-mcp-spec` has 7 tests.
 
 | Server | Tests | Rationale in Inventory |
 |--------|-------|----------------------|
@@ -184,7 +161,7 @@ Document (PDF, DOCX, image)
 | memory | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
 | doc-knowledge | 0 | Not listed in test inventory |
 | markitdown | 0 | Not listed in test inventory |
-| replica | 0 | Not listed in test inventory or AGENTS.md |
+| replica | 0 | Not listed in test inventory |
 
 ### 5.2 Test Strategy
 
@@ -194,14 +171,14 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 
 | Tier | Servers | Strategy |
 |------|---------|----------|
-| **Tier 1: Internal logic** | condenser, web, doc-knowledge, markitdown | Unit-test algorithms and request builders directly (no rmcp transport needed). These servers have significant internal logic outside API calls. |
+| **Tier 1: Internal logic** | condenser, research, doc-knowledge, markitdown | Unit-test algorithms and request builders directly (no rmcp transport needed). These servers have significant internal logic outside API calls. |
 | **Tier 2: Thin wrappers** | fmp, telnyx, fal | Low-value to unit test passthroughs. Value-add layers (Section 2) should carry tests. |
-| **Tier 3: Integration** | condenser, web (post-consolidation) | `rmcp` transport tests once `hkask-test-utils` is extracted. |
+| **Tier 3: Integration** | condenser, research | `rmcp` transport tests once `hkask-test-utils` is extracted. |
 
 ### 5.3 Priority Targets
 
 1. **condenser** — algorithms (`rtk_style`, `saliency_rank`, `flashrank`) are pure functions testable without any transport
-2. **web** — `strip_html`, `freshness`, `ranking`, `rate_limiter` types are pure logic
+2. **research** — `strip_html`, `freshness`, `ranking`, `rate_limiter`, RSS `db.rs` query functions are pure logic
 3. **doc-knowledge** — chunking logic is algorithmic and testable
 
 | Status | Owner | Priority |
@@ -214,7 +191,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 
 **Problem:** No shared test utilities for MCP server integration tests using `rmcp` transport.
 
-**Decision:** Extract `hkask-test-utils` when 3+ servers need shared fixtures (C4 threshold). Currently, only `hkask-mcp-spec` has any integration tests. The consolidation of `rss-reader` into `web` and the RAG pipeline work will likely push the count past 3.
+**Decision:** Extract `hkask-test-utils` when 3+ servers need shared fixtures (C4 threshold). Currently, only `hkask-mcp-spec` has any integration tests.
 
 **Contains:**
 - `rmcp` server startup/shutdown helpers
@@ -230,18 +207,18 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 
 ## 7. Summary Matrix
 
-| # | Task | Section | Priority | Effort | Dependencies |
-|---|------|---------|----------|--------|--------------|
-| 1 | Collapse rss-reader → web (now research) | §1 | High | Medium | None | ✅ Complete (2026-06-11) |
-| 2 | Define RAG pipeline architecture | §3 | High | Design-only | None |
-| 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete |
-| 4 | FMP value-add layer | §2.1 | Medium | High | None |
-| 5 | Telnyx value-add layer | §2.2 | Medium | High | None |
-| 6 | Fal value-add layer | §2.3 | Medium | High | None |
-| 7 | Tier 1 unit tests (condenser, web, doc-knowledge) | §5.3 | Medium | Medium | None |
-| 8 | Register condenser_thread_summary | §4.1 | Low | Small | None |
-| 9 | Document replica in AGENTS.md + inventory | §4.2 | Low | Small | None | ✅ Complete (2026-06-11) |
-| 10 | Extract hkask-test-utils | §6 | Low | Medium | 3+ servers needing integration tests |
+| # | Task | Section | Priority | Effort | Dependencies | Status |
+|---|------|---------|----------|--------|--------------|--------|
+| 1 | Collapse rss-reader + web → research | — | High | Medium | None | ✅ Complete (2026-06-11) |
+| 2 | Define RAG pipeline architecture | §3 | High | Design-only | None | ⬜ Open |
+| 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete | ⬜ Open |
+| 4 | FMP value-add layer | §2.1 | Medium | High | None | ⬜ Open |
+| 5 | Telnyx value-add layer | §2.2 | Medium | High | None | ⬜ Open |
+| 6 | Fal value-add layer | §2.3 | Medium | High | None | ⬜ Open |
+| 7 | Tier 1 unit tests (condenser, research, doc-knowledge) | §5.3 | Medium | Medium | None | ⬜ Open |
+| 8 | Register condenser_thread_summary | §4.1 | Low | Small | None | ⬜ Open |
+| 9 | Document replica in AGENTS.md + inventory | — | Low | Small | None | ✅ Complete (2026-06-11) |
+| 10 | Extract hkask-test-utils | §6 | Low | Medium | 3+ servers needing integration tests | ⬜ Open |
 
 ---
 
@@ -249,7 +226,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 
 | Document | Relevance |
 |----------|-----------|
-| [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current tool catalog (~73 tools across 10 servers) |
+| [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current tool catalog (~82 tools across 10 servers) |
 | [`docs/status/test-inventory.md`](../status/test-inventory.md) | Test coverage per crate (102 total tests) |
 | [`docs/specifications/test-program.md`](../specifications/test-program.md) | MDS self-applying test methodology |
 | [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |

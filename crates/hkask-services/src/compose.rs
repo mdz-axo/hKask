@@ -41,6 +41,12 @@ pub struct CognitionConfig {
     pub author: String,
     pub embedding: EmbeddingSection,
     pub validation: ValidationSection,
+    /// Jinja2 template for the system prompt. When present, this is rendered
+    /// with context variables (prompt, exemplars, author, rules) and used
+    /// as the system prompt. When absent, falls back to the hardcoded
+    /// Rust function for the author.
+    #[serde(default)]
+    pub jinja2_template: Option<String>,
 }
 
 fn default_author() -> String {
@@ -237,14 +243,25 @@ impl ComposeService {
 
         let exemplar_count = exemplar_passages.len();
 
-        // 5. Compose system prompt
-        let system_prompt = compose_system_prompt(
-            &request.cognition.author,
-            &request.prompt,
-            &exemplar_passages,
-            request.no_validate,
-            request.cognition.validation.centroid_distance_max,
-        );
+        // 5. Compose system prompt — Jinja2 template if declared, else hardcoded
+        let system_prompt = if let Some(ref template) = request.cognition.jinja2_template {
+            render_jinja2_prompt(
+                template,
+                &request.cognition.author,
+                &request.prompt,
+                &exemplar_passages,
+                request.no_validate,
+                request.cognition.validation.centroid_distance_max,
+            )?
+        } else {
+            compose_system_prompt(
+                &request.cognition.author,
+                &request.prompt,
+                &exemplar_passages,
+                request.no_validate,
+                request.cognition.validation.centroid_distance_max,
+            )
+        };
 
         // 6. Generate prose
         let gen_model = std::env::var("OKAPI_MODEL")
@@ -292,6 +309,44 @@ impl ComposeService {
 }
 
 // ── Prompt composition ───────────────────────────────────────────────────
+
+/// Render a Jinja2 system prompt template with context variables.
+///
+/// Template variables:
+/// - `{{ prompt }}` — user's input text
+/// - `{{ author }}` — author identifier
+/// - `{{ exemplars }}` — list of retrieved passage strings
+/// - `{{ exemplar_count }}` — number of exemplars retrieved
+/// - `{{ no_validate }}` — whether validation is skipped
+/// - `{{ centroid_distance_max }}` — validation threshold
+fn render_jinja2_prompt(
+    template: &str,
+    author: &str,
+    prompt: &str,
+    exemplars: &[String],
+    no_validate: bool,
+    centroid_distance_max: f64,
+) -> Result<String, ServiceError> {
+    let mut env = minijinja::Environment::new();
+    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
+    env.add_template("system_prompt", template)
+        .map_err(|e| ServiceError::Compose(format!("Jinja2 template parse error: {e}")))?;
+    let tmpl = env
+        .get_template("system_prompt")
+        .map_err(|e| ServiceError::Compose(format!("Jinja2 template lookup error: {e}")))?;
+
+    let ctx = minijinja::context! {
+        prompt,
+        author,
+        exemplars,
+        exemplar_count => exemplars.len(),
+        no_validate,
+        centroid_distance_max,
+    };
+
+    tmpl.render(&ctx)
+        .map_err(|e| ServiceError::Compose(format!("Jinja2 render error: {e}")))
+}
 
 fn compose_system_prompt(
     author: &str,

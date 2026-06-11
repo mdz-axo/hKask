@@ -1605,6 +1605,7 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "minijinja",
  "reqwest",
  "serde",
  "serde_json",

@@ -244,6 +244,11 @@ pub enum ServiceError {
     #[error("Embed failed: {0}")]
     Embed(String),
 
+    // ── Style composition domain ────────────────────────────────────────
+    /// Style composition failed (Jinja2 rendering, inference, validation).
+    #[error("Compose failed: {0}")]
+    Compose(String),
+
     // ── Skill domain ────────────────────────────────────────────────────────
     /// Skill operation failed (IO, front matter parsing, publish failure).
     #[error("Skill failed: {0}")]

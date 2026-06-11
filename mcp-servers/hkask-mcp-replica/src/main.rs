@@ -236,6 +236,7 @@ impl ReplicaServer {
             let base_url = okapi_base_url();
             let config = hkask_services::CognitionConfig {
                 author: params.author.clone(),
+                jinja2_template: None,
                 embedding: hkask_services::EmbeddingSection {
                     model: model.clone(),
                     dim: 1024,
@@ -393,6 +394,7 @@ impl ReplicaServer {
             let base_url = okapi_base_url();
             let config = hkask_services::CognitionConfig {
                 author: format!("mashup:{}:{}", params.author_a, params.author_b),
+                jinja2_template: None,
                 embedding: hkask_services::EmbeddingSection {
                     model: model.clone(),
                     dim: 1024,

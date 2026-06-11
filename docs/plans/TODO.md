@@ -1,8 +1,8 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-08
-version: "1.7.0"
+last_updated: 2026-06-11
+version: "1.8.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -33,7 +33,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | ⬜ Open | P1-06 — Deferred pending build regression fix |
-| **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web: 3,389 LOC (verified 2026-05-28) |
+| **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web + hkask-mcp-rss-reader → hkask-mcp-research (1,044 LOC, ~17 tools) (consolidated 2026-06-11) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
 
 ---
@@ -53,7 +53,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
-| **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 21 MCP servers' tools | Dev | Medium | ✅ Complete | 21 servers, 119 tools, gas costs, credentials, per-server detail |
+| **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, ~82 tools (updated 2026-06-11: research consolidation, replica added) |
 | **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete | 6 Fowler patterns identified (2 applied, 4 open-low). Created 2026-06-08 |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
@@ -185,7 +185,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-04** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |
 | **C-05** | Fix cargo fmt issues | 2026-05-22 | `cargo fmt --check` passes |
 | **C-06** | Fix hardcoded cryptographic key | 2026-05-22 | `OKAPI_DEV_KEY` const with migration path |
-| **C-07** | ADV-REVIEW-F2 security hardening (T01-T22) | 2026-05-24 | `docs/archive/2026-05-25-documentation-refresh/plans/` |
+| **C-08** | MCP server consolidation — Collapse rss-reader + web → research; document replica | 2026-06-11 | New `hkask-mcp-research` (1,044 LOC, ~17 tools). Deleted `hkask-mcp-web` (535 LOC) and `hkask-mcp-rss-reader` (504 LOC). Updated 7 code files, 5 docs, workspace Cargo.toml. |
+| **C-09** | Document hkask-mcp-replica in AGENTS.md, README, PRINCIPLES, mcp-tools-inventory, test-inventory | 2026-06-11 | 6 tools (build, compose, mashup, compare, registry, explain). Added to all canonical MCP server lists. |
 
 ---
 
@@ -209,4 +210,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated after 2026-06-03 documentation refresh.*
+*This TODO is the single source of truth for open work. Last updated 2026-06-11 after MCP server consolidation (C-08, C-09).*
