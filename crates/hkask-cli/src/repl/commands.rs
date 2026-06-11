@@ -176,6 +176,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]",
         about: "Trigger episodic→semantic consolidation with optional semantic cleanup",
     },
+    SlashCommand {
+        primary: "start",
+        aliases: &["tour", "onboarding"],
+        args: "",
+        about: "Take a guided tour of hKask's key capabilities",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -308,6 +314,7 @@ pub(super) fn handle_slash_command(
             }
         },
         "repl" => handlers::handle_repl_set(arg1, arg2, state),
+        "start" | "tour" | "onboarding" => handlers::handle_start(state),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

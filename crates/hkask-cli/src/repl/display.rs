@@ -21,7 +21,7 @@ pub fn print_onboarding_banner() {
     println!();
 }
 
-pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str) {
+pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str, is_first_run: bool) {
     let ghost = "\x1b[2;36m";
     let body = "\x1b[1;36m";
     let bright = "\x1b[1;37m";
@@ -66,10 +66,34 @@ pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str) {
         model,
         template.unwrap_or("auto-select")
     );
-    println!(
-        "  \x1b[1;36m/help\x1b[0m for commands  \x1b[2m<TAB>\x1b[0m autocomplete  \x1b[2m/quit\x1b[0m exit"
-    );
+
+    if is_first_run {
+        print_first_steps();
+    } else {
+        println!(
+            "  \x1b[1;36m/help\x1b[0m for commands  \x1b[2m<TAB>\x1b[0m autocomplete  \x1b[2m/quit\x1b[0m exit"
+        );
+    }
     println!();
+}
+
+/// First Steps guide — shown after onboarding on the user's first session.
+/// Progressive disclosure: only the most essential commands, with a pointer
+/// to /help and /start for deeper exploration.
+pub(super) fn print_first_steps() {
+    println!("  \x1b[1;33m━━ First Steps ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    println!();
+    println!("  \x1b[1mGetting started:\x1b[0m");
+    println!("  • Just type to chat — your replicant is ready");
+    println!("  • \x1b[36m/help\x1b[0m    — see all available commands");
+    println!("  • \x1b[36m/model\x1b[0m   — switch models anytime");
+    println!("  • \x1b[36m/tools\x1b[0m   — discover available MCP tools");
+    println!("  • \x1b[36m/status\x1b[0m  — check system health and energy");
+    println!("  • \x1b[36m/repl\x1b[0m    — customize inference settings");
+    println!();
+    println!("  \x1b[2mTry: \"What can you help me with?\"\x1b[0m");
+    println!("  \x1b[2mType \x1b[36m/start\x1b[0m\x1b[2m for a guided tour.\x1b[0m");
+    println!("  \x1b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
 }
 
 pub(super) fn print_help() {

@@ -166,7 +166,9 @@ where
     T: Send + 'static,
 {
     tokio::task::spawn_blocking(move || {
-        let conn = db.lock().unwrap();
+        let conn = db
+            .lock()
+            .map_err(|_| anyhow::anyhow!("database lock poisoned"))?;
         f(&conn)
     })
 }
@@ -753,7 +755,9 @@ impl ResearchServer {
         let db1 = require_rss_db!(self, span);
         let sid1 = stream_id.clone();
         let lookup = tokio::task::spawn_blocking(move || {
-            let conn = db1.lock().unwrap();
+            let conn = db1
+                .lock()
+                .map_err(|_| anyhow::anyhow!("database lock poisoned"))?;
             let url = resolve_feed_url(&conn, &sid1)
                 .ok_or_else(|| anyhow::anyhow!("Feed URL not found for stream_id"))?;
             let etag: Option<String> = conn

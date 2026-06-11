@@ -214,7 +214,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 | 1 | Collapse rss-reader + web → research | — | High | Medium | None | ✅ Complete (2026-06-11) |
 | 2 | Define RAG pipeline architecture | §3 | High | Design-only | None | ⬜ Open |
 | 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete | ⬜ Open |
-| 4 | FMP value-add layer | §2.1 | Medium | High | None | ⬜ Open |
+| 4 | FMP value-add layer (Tier 1: moat, management, working capital, expectations gap) | §2.1 | Medium | High | None | ✅ Complete (2026-06-11) — 4 MAIA-framework tools, 20 tests, 1 new module (analysis.rs) |
 | 5 | Telnyx value-add layer | §2.2 | Medium | High | None | ⬜ Open |
 | 6 | Fal value-add layer | §2.3 | Medium | High | None | ⬜ Open |
 | 7 | Tier 1 unit tests (condenser, research) | §5.3 | Medium | Medium | None | ✅ Complete (2026-06-11) — 50 tests: 27 condenser, 23 research |

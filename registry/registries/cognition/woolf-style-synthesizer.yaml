@@ -149,6 +149,9 @@ sources:
 # EMBEDDING CONFIGURATION
 # =============================================================================
 
+validation:
+  centroid_distance_max: 0.18
+
 embedding:
   corpus_config: "registry/styles/woolf/corpus.yaml"
   model: "Qwen/Qwen3-Embedding-0.6B"
@@ -162,9 +165,7 @@ embedding:
     distance_threshold: 0.30
     salience_min: 0.0
     salience_top_k: null
-  validation:
-    centroid_distance_max: 0.18
-    centroid_distance_hard_limit: 0.25
+
   cluster:
     radius: 0.18
 

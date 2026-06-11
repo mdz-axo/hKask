@@ -38,7 +38,24 @@ pub(super) fn init_repl_state(
     initial_model: Option<&str>,
     rt: &tokio::runtime::Handle,
 ) -> Option<ReplState> {
-    let initial_model_str = initial_model.unwrap_or("deepseek-v4-pro");
+    // Runs before the interactive loop. If keys are already configured,
+    // this is transparent. Otherwise, walks the user through creating or
+    // signing into a replicant.
+    let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
+        Ok(outcome) => outcome,
+        Err(e) => {
+            eprintln!("Onboarding failed: {}", e);
+            eprintln!("Run `kask chat` to set up your replicant identity.");
+            return None;
+        }
+    };
+
+    // Use the model selected during onboarding, falling back to CLI arg or default.
+    let initial_model_str = onboarding_outcome
+        .selected_model
+        .as_deref()
+        .or(initial_model)
+        .unwrap_or("deepseek-v4-pro");
 
     // Default REPL settings — used to initialize energy budget before
     // ReplState is fully constructed. Loads from ~/.config/hkask/settings.json
@@ -88,18 +105,6 @@ pub(super) fn init_repl_state(
                 );
                 None
             }
-        }
-    };
-
-    // Runs before the interactive loop. If keys are already configured,
-    // this is transparent. Otherwise, walks the user through creating or
-    // signing into a replicant.
-    let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
-        Ok(outcome) => outcome,
-        Err(e) => {
-            eprintln!("Onboarding failed: {}", e);
-            eprintln!("Run `kask chat` to set up your replicant identity.");
-            return None;
         }
     };
 
@@ -261,6 +266,7 @@ pub(super) fn init_repl_state(
         process_manifest: None,             // populated below
         service_context: ctx.clone(),
         repl_settings,
+        is_first_run: onboarding_outcome.is_first_run,
     };
 
     // Discover available MCP tools and format the system prompt section.

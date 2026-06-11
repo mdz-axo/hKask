@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Request/response types for the Spec MCP server — MDS §3 tool surface.
 //!
 //! Five tools: capture, decompose, writing-quality, graph/query, graph/coherence.

@@ -57,30 +57,14 @@ pub fn strip_forbidden_patterns(
     let mut cleaned = output.to_string();
 
     for (pattern, _) in &check.violations {
-        // Case-insensitive replacement using lowercased indices
+        // Case-insensitive replacement. Persona constraint patterns are
+        // ASCII, so to_lowercase() preserves byte length and positions
+        // map directly between lowercased and original strings.
         let lower = cleaned.to_lowercase();
         let lower_pattern = pattern.to_lowercase();
         if let Some(pos) = lower.find(&lower_pattern) {
             let end = (pos + lower_pattern.len()).min(lower.len());
-            // Map lowercased byte positions back to original via char walk.
-            // Since to_lowercase() on ASCII changes no byte length, this
-            // is a direct position map for persona constraint patterns.
-            let (orig_pos, orig_end) = if lower.len() == cleaned.len() {
-                (pos, end)
-            } else {
-                // Fallback: rebuild string without the matched range
-                let mut result = String::with_capacity(cleaned.len());
-                let mut byte_offset = 0;
-                for c in cleaned.chars() {
-                    if byte_offset < pos || byte_offset >= end {
-                        result.push(c);
-                    }
-                    byte_offset += c.len_utf8();
-                }
-                cleaned = result;
-                continue;
-            };
-            cleaned = format!("{}{}", &cleaned[..orig_pos], &cleaned[orig_end..]);
+            cleaned = format!("{}{}", &cleaned[..pos], &cleaned[end..]);
         }
     }
 

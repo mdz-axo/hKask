@@ -547,7 +547,10 @@ impl MemoryServer {
 
         // Copy source → destination using SQLite's backup API
         let result = {
-            let src_conn = db_conn.lock().map_err(|_| "lock poisoned").unwrap();
+            let src_conn = match db_conn.lock() {
+                Ok(guard) => guard,
+                Err(_) => return self.internal_error(span, "backup", "lock poisoned"),
+            };
             rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
                 .map_err(|e| format!("Backup setup failed: {}", e))
                 .and_then(|backup| {
@@ -605,7 +608,10 @@ impl MemoryServer {
 
         // Clear current database, then copy backup → current
         let result = {
-            let mut dst_conn = db_conn.lock().map_err(|_| "lock poisoned").unwrap();
+            let mut dst_conn = match db_conn.lock() {
+                Ok(guard) => guard,
+                Err(_) => return self.internal_error(span, "restore", "lock poisoned"),
+            };
             if let Err(e) = dst_conn.execute_batch(
                 "PRAGMA writable_schema = 1; \
                  DELETE FROM sqlite_master WHERE type IN ('table', 'index', 'trigger'); \

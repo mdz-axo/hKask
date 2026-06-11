@@ -190,7 +190,8 @@ mod tests {
         assert_eq!(margins.len(), 3);
         assert_eq!(margins[0].0, "2022");
         assert_eq!(margins[2].0, "2024");
-        assert!((margins[1].1 - 0.44).abs() < 0.001);
+        // Index 1 = 2023 with margin 0.43
+        assert!((margins[1].1 - 0.43).abs() < 0.001);
     }
 
     // REQ: FMP-MOAT — extract_gross_margins handles empty/malformed JSON
@@ -216,5 +217,169 @@ mod tests {
     fn extract_wc_days_missing_fields() {
         assert!(extract_wc_days(&serde_json::json!([])).is_none());
         assert!(extract_wc_days(&serde_json::json!([{"year": "2024"}])).is_none());
+    }
+}
+
+// ── Tool 2: Management Scorecard ──
+
+/// CEO capital allocation rating.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CeoRating {
+    Excellent,
+    Good,
+    Neutral,
+    Poor,
+    InsufficientData,
+}
+
+/// Classify CEO capital allocation quality from returns on capital (ROIC/ROE) and
+/// invested capital changes over time.
+///
+/// MAIA framework: Good = decreasing capital with steady/improving returns, OR
+/// increasing capital with improving returns. Bad = increasing capital with
+/// decreasing returns.
+pub fn ceo_capital_allocation_score(returns: &[f64], invested_capital: &[f64]) -> CeoRating {
+    if returns.len() < 3 || invested_capital.len() < 3 {
+        return CeoRating::InsufficientData;
+    }
+
+    // Compute direction: first half vs second half averages
+    let mid = returns.len() / 2;
+    let early_return = returns[..mid].iter().sum::<f64>() / mid as f64;
+    let late_return = returns[mid..].iter().sum::<f64>() / (returns.len() - mid) as f64;
+    let early_capital = invested_capital[..mid].iter().sum::<f64>() / mid as f64;
+    let late_capital =
+        invested_capital[mid..].iter().sum::<f64>() / (invested_capital.len() - mid) as f64;
+
+    let return_improving = late_return > early_return;
+    let capital_decreasing = late_capital < early_capital;
+    let capital_increasing = late_capital > early_capital;
+
+    // MAIA: Good = decreasing capital + steady/improving returns,
+    //       OR increasing capital + improving returns
+    if (capital_increasing || capital_decreasing) && return_improving {
+        // Distinguish Excellent (returns significantly improved)
+        if late_return > early_return * 1.1 {
+            CeoRating::Excellent
+        } else {
+            CeoRating::Good
+        }
+    } else if capital_increasing && !return_improving {
+        // MAIA: Bad = increasing capital + decreasing returns
+        CeoRating::Poor
+    } else {
+        CeoRating::Neutral
+    }
+}
+
+/// Extract ROIC values from FMP key-metrics JSON array.
+/// Returns Vec of (year, roic) sorted by year ascending.
+pub fn extract_roic(metrics_json: &Value) -> Vec<(String, f64)> {
+    let arr = match metrics_json.as_array() {
+        Some(a) => a,
+        None => return vec![],
+    };
+    let mut values: Vec<(String, f64)> = arr
+        .iter()
+        .filter_map(|entry| {
+            let year = entry.get("calendarYear")?.as_str().unwrap_or("");
+            let roic = entry.get("roic")?.as_f64()?;
+            Some((year.to_string(), roic))
+        })
+        .collect();
+    values.sort_by(|a, b| a.0.cmp(&b.0));
+    values
+}
+
+/// Extract invested capital from balance sheet JSON by computing total assets.
+/// Returns Vec of (year, total_assets) sorted by year ascending.
+pub fn extract_invested_capital(balance_sheets: &Value) -> Vec<(String, f64)> {
+    let arr = match balance_sheets.as_array() {
+        Some(a) => a,
+        None => return vec![],
+    };
+    let mut values: Vec<(String, f64)> = arr
+        .iter()
+        .filter_map(|entry| {
+            let year = entry.get("calendarYear")?.as_str().unwrap_or("");
+            let assets = entry.get("totalAssets")?.as_f64()?;
+            Some((year.to_string(), assets))
+        })
+        .collect();
+    values.sort_by(|a, b| a.0.cmp(&b.0));
+    values
+}
+
+#[cfg(test)]
+mod management_tests {
+    use super::*;
+
+    // REQ: FMP-MGMT — ceo_capital_allocation_score returns InsufficientData with < 3 periods
+    #[test]
+    fn ceo_score_insufficient_data() {
+        assert_eq!(
+            ceo_capital_allocation_score(&[0.15, 0.16], &[100.0, 105.0]),
+            CeoRating::InsufficientData
+        );
+    }
+
+    // REQ: FMP-MGMT — ceo_capital_allocation_score rates excellent when decreasing capital + improving returns
+    #[test]
+    fn ceo_score_excellent_decreasing_capital_improving_returns() {
+        let returns = [0.10, 0.10, 0.12, 0.12, 0.15, 0.20];
+        let capital = [500.0, 490.0, 480.0, 460.0, 440.0, 420.0];
+        assert_eq!(
+            ceo_capital_allocation_score(&returns, &capital),
+            CeoRating::Excellent
+        );
+    }
+
+    // REQ: FMP-MGMT — ceo_capital_allocation_score rates good when capital stable + improving returns
+    #[test]
+    fn ceo_score_good_increasing_capital_improving_returns() {
+        // Returns improve but by less than 10% → Good, not Excellent
+        let returns = [0.10, 0.10, 0.11, 0.108, 0.108, 0.109];
+        let capital = [100.0, 110.0, 120.0, 130.0, 140.0, 150.0];
+        assert_eq!(
+            ceo_capital_allocation_score(&returns, &capital),
+            CeoRating::Good
+        );
+    }
+
+    // REQ: FMP-MGMT — ceo_capital_allocation_score rates poor when increasing capital + decreasing returns
+    #[test]
+    fn ceo_score_poor_increasing_capital_decreasing_returns() {
+        let returns = [0.20, 0.18, 0.18, 0.15, 0.12, 0.10];
+        let capital = [100.0, 120.0, 140.0, 180.0, 220.0, 300.0];
+        assert_eq!(
+            ceo_capital_allocation_score(&returns, &capital),
+            CeoRating::Poor
+        );
+    }
+
+    // REQ: FMP-MGMT — extract_roic parses FMP key-metrics JSON
+    #[test]
+    fn extract_roic_from_json() {
+        let json = serde_json::json!([
+            {"calendarYear": "2024", "roic": 0.18},
+            {"calendarYear": "2023", "roic": 0.16},
+        ]);
+        let roic = extract_roic(&json);
+        assert_eq!(roic.len(), 2);
+        assert!((roic[0].1 - 0.16).abs() < 0.001);
+        assert!((roic[1].1 - 0.18).abs() < 0.001);
+    }
+
+    // REQ: FMP-MGMT — extract_invested_capital parses balance sheet JSON
+    #[test]
+    fn extract_invested_capital_from_json() {
+        let json = serde_json::json!([
+            {"calendarYear": "2024", "totalAssets": 1000.0},
+            {"calendarYear": "2023", "totalAssets": 900.0},
+        ]);
+        let cap = extract_invested_capital(&json);
+        assert_eq!(cap.len(), 2);
+        assert!((cap[0].1 - 900.0).abs() < 0.001);
     }
 }

@@ -150,6 +150,12 @@ sources:
 # 3. CLUSTER BOUNDARIES: Style cluster boundaries distinguish this author's
 #    style from other authors' styles in the embedding space.
 
+# Maximum cosine distance from the style centroid for generated prose.
+# If centroid distance exceeds this threshold, the output fails validation.
+# The CNS receives a span with the measured distance.
+validation:
+  centroid_distance_max: 0.15
+
 embedding:
   corpus_config: "registry/styles/hemingway/corpus.yaml"
   model: "Qwen/Qwen3-Embedding-0.6B"
@@ -170,12 +176,7 @@ embedding:
     # Limit to the top K most salient matching passages.
     # null = no limit (all passages above salience_min are eligible).
     salience_top_k: null
-  validation:
-    # Maximum cosine distance from the style centroid for generated prose.
-    centroid_distance_max: 0.15
-    # If centroid distance exceeds this threshold, the output fails validation.
-    # The CNS receives a span with the measured distance.
-    centroid_distance_hard_limit: 0.25
+
   cluster:
     # Boundary radius for the Hemingway style cluster in embedding space.
     # Generated prose should fall inside this radius from the centroid.

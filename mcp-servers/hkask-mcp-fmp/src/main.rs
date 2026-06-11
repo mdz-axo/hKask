@@ -393,6 +393,245 @@ impl FmpServer {
             "data_periods": gross_margins.len(),
         }))
     }
+
+    #[tool(
+        description = "CEO capital allocation scorecard (MAIA framework): rates how well management allocates capital by comparing returns on capital vs invested capital over time"
+    )]
+    async fn fmp_management_scorecard(
+        &self,
+        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("fmp_management_scorecard", &self.webid);
+        if let Err(e) = validate_symbol(&symbol) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        let limit = "10";
+        let metrics_result = fmp_get(
+            &self.client,
+            "/key-metrics",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", limit)],
+        )
+        .await;
+
+        let bs_result = fmp_get(
+            &self.client,
+            "/balance-sheet-statement",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", limit)],
+        )
+        .await;
+
+        let (metrics, balance_sheets) = match (metrics_result, bs_result) {
+            (Ok(m), Ok(b)) => (m, b),
+            (Err(e), _) | (_, Err(e)) => return span.error(e.kind, e.to_json_string()),
+        };
+
+        let roic_values = analysis::extract_roic(&metrics);
+        let capital_values = analysis::extract_invested_capital(&balance_sheets);
+        let roic_nums: Vec<f64> = roic_values.iter().map(|(_, v)| *v).collect();
+        let capital_nums: Vec<f64> = capital_values.iter().map(|(_, v)| *v).collect();
+
+        let rating = analysis::ceo_capital_allocation_score(&roic_nums, &capital_nums);
+
+        span.ok_json(serde_json::json!({
+            "symbol": symbol,
+            "ceo_rating": rating,
+            "returns_on_capital": roic_values,
+            "invested_capital": capital_values,
+            "data_periods": roic_nums.len(),
+            "framework": "MAIA: Good = decreasing capital with improving returns, OR increasing capital with improving returns. Bad = increasing capital with decreasing returns.",
+        }))
+    }
+
+    #[tool(
+        description = "Working capital cycle analysis (MAIA CFO scorecard): tracks days payable, days sales outstanding, and cash conversion cycle over time"
+    )]
+    async fn fmp_working_capital_cycle(
+        &self,
+        Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("fmp_working_capital_cycle", &self.webid);
+        if let Err(e) = validate_symbol(&symbol) {
+            return span.error(e.kind, e.to_json_string());
+        }
+        let limit_str = (limit.unwrap_or(10) as usize).min(40).to_string();
+
+        let result = fmp_get(
+            &self.client,
+            "/key-metrics",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", &limit_str)],
+        )
+        .await;
+
+        let metrics = match result {
+            Ok(v) => v,
+            Err(e) => return span.error(e.kind, e.to_json_string()),
+        };
+
+        // Extract working capital days per period
+        let arr = match metrics.as_array() {
+            Some(a) => a,
+            None => return span.ok_json(serde_json::json!({"symbol": symbol, "error": "no data"})),
+        };
+
+        let periods: Vec<serde_json::Value> = arr
+            .iter()
+            .filter_map(|entry| {
+                let year = entry.get("calendarYear")?.as_str().unwrap_or("");
+                let period = entry.get("period").and_then(|p| p.as_str()).unwrap_or("");
+                let dpo = entry.get("daysOfPayablesOutstanding")?.as_f64()?;
+                let dso = entry.get("daysOfSalesOutstanding")?.as_f64()?;
+                let dio = entry
+                    .get("daysOfInventoryOutstanding")
+                    .and_then(|v| v.as_f64());
+                let ccc = entry.get("cashConversionCycle").and_then(|v| v.as_f64());
+                Some(serde_json::json!({
+                    "year": year,
+                    "period": period,
+                    "dpo": dpo,
+                    "dso": dso,
+                    "dio": dio,
+                    "spread": dpo - dso,
+                    "cash_conversion_cycle": ccc,
+                }))
+            })
+            .collect();
+
+        // MAIA CFO score: consistency of working capital management
+        // Measure stability of DPO−DSO spread across periods
+        let spreads: Vec<f64> = periods
+            .iter()
+            .filter_map(|p| p.get("spread")?.as_f64())
+            .collect();
+        let spread_stability = analysis::gross_margin_stability(&spreads);
+
+        let cfo_rating = if spread_stability > 0.8 {
+            "stable"
+        } else if spread_stability > 0.5 {
+            "moderate"
+        } else {
+            "volatile"
+        };
+
+        span.ok_json(serde_json::json!({
+            "symbol": symbol,
+            "cfo_working_capital_rating": cfo_rating,
+            "spread_stability": spread_stability,
+            "periods": periods,
+            "data_points": periods.len(),
+            "framework": "MAIA CFO scorecard: stability of working capital management through economic conditions. The level is structural; consistency is management skill.",
+        }))
+    }
+
+    #[tool(
+        description = "Expectations gap analysis (MAIA valuation framework): reverse-engineers market-implied expectations and compares to analyst consensus"
+    )]
+    async fn fmp_expectations_gap(
+        &self,
+        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("fmp_expectations_gap", &self.webid);
+        if let Err(e) = validate_symbol(&symbol) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        // Parallel fetch: profile (for P/E, P/B, P/S) + analyst estimates
+        let profile_result = fmp_get(
+            &self.client,
+            "/profile",
+            &self.api_key,
+            &[("symbol", &symbol)],
+        )
+        .await;
+
+        let estimates_result = fmp_get(
+            &self.client,
+            "/analyst-estimates",
+            &self.api_key,
+            &[("symbol", &symbol), ("period", "annual")],
+        )
+        .await;
+
+        let (profile_arr, estimates_arr) = match (profile_result, estimates_result) {
+            (Ok(p), Ok(e)) => (p, e),
+            (Err(e), _) | (_, Err(e)) => return span.error(e.kind, e.to_json_string()),
+        };
+
+        // Extract market multiples from profile
+        let profile = profile_arr.as_array().and_then(|a| a.first());
+        let profile_data: Option<(f64, f64, f64, f64)> = match profile {
+            Some(p) => {
+                let eps = p.get("eps").and_then(|v| v.as_f64()).unwrap_or(-1.0);
+                let price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let bv = p
+                    .get("bookValuePerShare")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(-1.0);
+                let sales_per_share = p
+                    .get("revenuePerShare")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(-1.0);
+                if price > 0.0 && eps > 0.0 && bv > 0.0 && sales_per_share > 0.0 {
+                    Some((price / eps, price / bv, price / sales_per_share, price))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+
+        // Extract analyst growth estimates
+        let estimates = estimates_arr.as_array();
+        let analyst_growth: Option<Vec<serde_json::Value>> = estimates.and_then(|arr| {
+            let items: Vec<serde_json::Value> = arr
+                .iter()
+                .filter_map(|e| {
+                    let year = e.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                    let revenue_growth =
+                        e.get("estimatedRevenueGrowth").and_then(|v| v.as_f64())?;
+                    let eps_growth = e.get("estimatedEpsGrowth").and_then(|v| v.as_f64())?;
+                    Some(serde_json::json!({
+                        "year": year,
+                        "estimated_revenue_growth": revenue_growth,
+                        "estimated_eps_growth": eps_growth,
+                    }))
+                })
+                .collect();
+            if items.is_empty() { None } else { Some(items) }
+        });
+
+        let (pe, pb, ps, price) = match profile_data {
+            Some((pe, pb, ps, price)) => (pe, pb, ps, price),
+            None => {
+                return span.ok_json(serde_json::json!({
+                    "symbol": symbol,
+                    "error": "insufficient data for expectations gap analysis",
+                }));
+            }
+        };
+
+        // MAIA valuation insight: The market price embeds expectations.
+        // High P/E = market expects high growth. Compare to analyst consensus.
+        // A P/E of 15 with 5% expected growth vs P/E of 30 with 30% expected growth.
+        let market_implied_expensive = pe > 25.0 || ps > 5.0;
+        let market_implied_cheap = pe < 12.0 && ps < 2.0;
+
+        span.ok_json(serde_json::json!({
+            "symbol": symbol,
+            "current_price": price,
+            "market_multiples": {
+                "price_to_earnings": pe,
+                "price_to_book": pb,
+                "price_to_sales": ps,
+            },
+            "market_sentiment": if market_implied_expensive { "high_expectations" } else if market_implied_cheap { "low_expectations" } else { "moderate_expectations" },
+            "analyst_estimates": analyst_growth,
+            "framework": "MAIA expectations investing: compare market-implied expectations (price multiples) against analyst consensus. Low market expectations + reasonable analyst growth = potential opportunity. High market expectations = setup for disappointment.",
+        }))
+    }
 }
 
 #[tokio::main]

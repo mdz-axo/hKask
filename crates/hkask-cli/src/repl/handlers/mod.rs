@@ -10,6 +10,7 @@ pub(crate) mod info;
 pub(crate) mod invoke;
 pub(crate) mod model;
 pub(crate) mod repl_settings;
+pub(crate) mod start;
 pub(crate) mod status;
 
 pub(crate) use agent::{handle_agent, handle_agents};
@@ -22,4 +23,5 @@ pub(crate) use info::{handle_history, handle_pods, handle_templates, handle_tool
 pub(crate) use invoke::handle_invoke;
 pub(crate) use model::handle_model;
 pub(crate) use repl_settings::{ReplSettings, handle_repl_set, to_llm_params};
+pub(crate) use start::handle_start;
 pub(crate) use status::handle_status;

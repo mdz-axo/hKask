@@ -259,9 +259,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             let keychain = Keychain::default();
             let entry = Entry::new(&keychain.service_name, key_name)
                 .map_err(|e| KeychainError::Platform(e.to_string()))?;
-            let secret = entry
-                .get_password()
-                .map_err(|e| KeychainError::NotFound(e.to_string()))?;
+            let secret = entry.get_password().map_err(KeychainError::from)?;
             Ok(Zeroizing::new(secret.into_bytes()))
         }
         SecretRef::Derived {

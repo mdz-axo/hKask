@@ -1,138 +1,117 @@
-# Handoff — hKask Core Crate Audit & Onboarding Fixes
+# Handoff — Replica Metadata Layer & Academic Pipeline
 
-**Date:** 2026-06-11
-**Version:** 0.27.0
-**Status:** Onboarding fixes complete. 50 findings from core crate scan ready for triage.
+## Session Context
 
----
+Built the complete metadata layer for the style replica system: salience scoring (graph centrality), entity tagging (5W1H), method signal extraction, budget-gated triple storage, and Jinja2 system prompt rendering. Added entity declarations to all 5 corpus YAMLs. Documented the academic author pipeline in MDS and replica MCP server. The entire system compiles clean (40/40 tests pass) but has **not been run end-to-end with real data** — that is the clear next step.
 
-## 1. Session Context
+## What Was Done
 
-This session reviewed the hKask onboarding flow and first-replicant creation against the Magna Carta design principles, fixed 4 bugs (ACP WebID mismatch, ReplSettings overwrite, onboarding path collapse, namespace inconsistency), then performed a systematic code scan across all 9 core crates. The scan produced 50 findings (18 must-fix, 21 should-fix, 11 cleanup). All onboarding fixes compile clean and pass tests. The scan findings are untouched — no code changes beyond the 4 onboarding fixes.
+### New file
+- `crates/hkask-memory/src/salience.rs` — 753 lines, 12 tests. Method signal computation (10 stylometric metrics), entity tagging (substring matching), batch salience scoring (`(one_hop + two_hop/2) / 2`), declared method matching with signal thresholds, budget config (`per_100_pages` or `absolute`).
 
----
+### Code changes
+- `crates/hkask-memory/src/lib.rs` — Added `pub mod salience`
+- `crates/hkask-services/src/embed.rs` — 6-phase pipeline: tag → salience → budget gate → embed → triples → centroid. Added `text` triple for exemplar retrieval. New config types: `EntityConfig`, `Entity`, `DeclaredMethod`, `BudgetConfig`. New result fields: `budget`, `tagged_passages`, `triples_stored`, `embedding_only`.
+- `crates/hkask-services/src/compose.rs` — Added `jinja2_template: Option<String>` to `CognitionConfig`. `render_jinja2_prompt()` renders system prompt from YAML template with context variables (`prompt`, `exemplars`, `author`, `no_validate`, `centroid_distance_max`). Salience-filtered retrieval pipeline (`salience_min`, `salience_top_k` in `RetrievalSection`). Hardcoded per-author system prompts removed; `generic_system_prompt()` is the fallback.
+- `crates/hkask-services/src/error.rs` — Added `Compose(String)` variant
+- `crates/hkask-services/Cargo.toml` — Added `minijinja.workspace = true`
+- `crates/hkask-services/src/lib.rs` — Updated exports
+- `crates/hkask-cli/src/commands/embed_corpus.rs` — Budget/storage stats in CLI output
+- `mcp-servers/hkask-mcp-replica/src/main.rs` — `BuildResult` new fields, `okapi_url` wired to `replica_build`, registry Remove purges triples, `replica_explain` documents metadata layer + exemplar types + academic pipeline
 
-## 2. What Was Done
+### YAML configs
+- `registry/registries/cognition/*.yaml` ×5 — All now have `author:`, `jinja2_template` (system prompt), `salience_min`, `salience_top_k` in retrieval section
+- `registry/styles/*/corpus.yaml` ×5 — All now have `entities:` (characters, places, events, concepts), `methods:` (declared with signal thresholds), `budget:` (per_100_pages: 3750)
 
-### Onboarding Fixes (all verified: `cargo clippy -D warnings`, `cargo test`)
+### Documentation
+- `docs/architecture/MDS.md` — Added Replicant Architecture section: three exemplar types table, academic author pipeline (5-step discovery), human exemplar principle
+- `mcp-servers/hkask-mcp-replica/src/main.rs` `replica_explain` — `exemplar_types` object documenting all three types + pipeline steps + infrastructure reuse
 
-- **ACP WebID namespace mismatch** — `crates/hkask-services/src/onboarding.rs` L84: Changed ACP state restoration from `WebID::from_persona()` (namespace `"hkask"`) to `WebID::from_persona_with_namespace(..., "replicant")`. Removed orphaned `use std::str::FromStr`.
-- **ReplSettings overwrite** — `crates/hkask-cli/src/repl/init.rs` L221: Removed `let repl_settings = ReplSettings::default();` that shadowed the loaded settings from `~/.config/hkask/settings.json`. Removed orphaned `ReplSettings` import.
-- **Onboarding path collapse** — `crates/hkask-cli/src/onboarding.rs`: Replaced three-scenario branching with two modes: **operating** (keys + replicants exist → return) and **setup** (create first replicant). Removed dead code: `sign_in_flow`, `try_list_existing_replicants`, `pick_or_default_replicant`, `InvalidPassphrase` variant. Renamed module doc and functions.
-- **`ReplicantIdentity::derive_webid` namespace** — `crates/hkask-types/src/identity.rs` L61: Changed from `"hkask-replicant"` to `"replicant"`.
+### Build status
+- `cargo check -p hkask-services` — ✅ Clean
+- `cargo check -p hkask-mcp-replica` — ✅ Clean
+- `cargo test -p hkask-memory` — ✅ 12/12
+- `cargo test -p hkask-services` — ✅ 28/28
+- `cargo check -p hkask-cli` — ⚠️ Pre-existing error in `curator.rs` (unrelated `&mut` vs `&` mismatch)
 
-### Core Crate Scan
+## What Remains
 
-Full scan of `hkask-types`, `hkask-storage`, `hkask-agents`, `hkask-services`, `hkask-cns`, `hkask-memory`, `hkask-keystore`, `hkask-templates`, `hkask-mcp`. Findings documented below in §3.
+### HIGH — End-to-end validation
 
----
+The metadata layer is wired but never tested with real data. Entity declarations exist in YAML but no corpus has been embedded with them. Priority steps:
 
-## 3. What Remains
+1. **Run `kask embed-corpus run` against Hemingway** with the updated `corpus.yaml` (entities, methods, budget declared). Verify:
+   - Entity tags are produced (non-zero character/place/event/concept counts)
+   - Method signals are computed and methods are matched
+   - Salience scores are non-zero (passages sharing entities get connectedness)
+   - Budget gate selects a subset of passages for triple storage
+   - Triples are stored correctly: `text`, structural metadata, entity tags, method tags, method signals, salience
+   - CLI output shows budget stats
 
-### HIGH — Production Panics (fix first, these crash the binary)
+2. **Run `kask compose run` with Hemingway synthesizer** to verify Jinja2 rendering:
+   - `--cognition registry/registries/cognition/hemingway-style-synthesizer.yaml`
+   - Verify the Jinja2 template renders correctly (no `UndefinedBehavior::Strict` errors)
+   - Verify exemplar passages contain actual prose text (not metadata)
+   - Verify centroid validation runs
 
-| # | Crate | Location | Bug |
-|---|-------|----------|-----|
-| 1 | `hkask-agents` | `curator/persona_filter.rs:32-38` | Byte-position mismatch after `to_lowercase()` — panics on non-ASCII input. Same bug at L63-67. |
-| 2 | `hkask-agents` | `pod/mod.rs:192-199` | `.expect()` on user-supplied capability string, not the default. Panics on malformed input. |
-| 3 | `hkask-storage` | `nu_event_store.rs:262` | `span_path[namespace.len() + 1..]` with no bounds check. Panics when fallback namespace doesn't match. |
-| 4 | `hkask-memory` | `semantic.rs:189-197` | `compute_centroid` indexes `centroid[i]` without checking `emb.vector.len() == dim`. OOB panic. |
+3. **Repeat for Woolf** to verify the second synthesizer template works with a different author
 
-**Strategy:** Each is a 1-3 line fix (bounds check or char-boundary-safe slicing). Fix, add a regression test per fix, verify with `cargo test -p <crate>`.
+### MEDIUM — Academic author pipeline design
 
-### HIGH — Security (SSRF bypass, path traversal)
+Four open architectural questions surfaced at end of session:
 
-| # | Crate | Location | Bug |
-|---|-------|----------|-----|
-| 5 | `hkask-mcp` | `security.rs:95-98` | IPv6 ULA check only matches `fc00::` and `fd00::`, misses rest of `fc00::/7`. Fix: `(segments[0] & 0xfe00) == 0xfc00`. |
-| 6 | `hkask-mcp` | `security.rs:86-100` | Missing IPv6 link-local (`fe80::/10`) check entirely. |
-| 7 | `hkask-storage` | `security.rs:25-32` | `sanitize_path` bypass when parent dir doesn't exist — `canonicalize()` fails, check skipped. |
+1. **Content acquisition**: `download_text()` does HTTP GET → bytes → String. Works for Gutenberg plaintext. Fails for PDFs (arXiv), HTML (institutional pages), YouTube transcripts. Research MCP has `web_extract` for HTML. `hkask-mcp-markitdown` handles PDFs. Need a provider dispatch layer or a decision to keep Gutenberg-only and have academic configs point to pre-processed `.txt` files.
 
-**Strategy:** Fix the bitmask, add `fe80::/10` check, make `sanitize_path` fail-closed when canonicalize fails. Add test cases for each bypass vector.
+2. **Entity model for academics**: The 5W1H model is literary (characters, places, events, concepts). For academics it would be co-authors, venues, topics, paradigms. Method signals (parataxis ratio, dialogue ratio) are meaningless for academic prose. Need either a `corpus_type: "literary" | "academic"` field or a separate `AcademicCorpusConfig`.
 
-### HIGH — Data Corruption / Silent Loss
+3. **Work enumeration**: "Find all work by David Dunning" requires multiple search calls across Google Scholar, arXiv, institutional pages, YouTube. Research MCP's `web_search` returns 10 results per call. Need either a new `replica_discover` MCP tool or agent-driven orchestration of existing tools.
 
-| # | Crate | Location | Bug |
-|---|-------|----------|-----|
-| 8 | `hkask-agents` | `consent.rs:92-101` | `to_stored()` generates new UUID per call — every `grant_consent` INSERTs a new row. Unbounded growth. |
-| 9 | `hkask-storage` | `triples.rs:138-191` | Non-atomic triple update (UPDATE + SELECT + INSERT without transaction). Crash = data loss. |
-| 10 | `hkask-cns` | `energy.rs:238,244,256` | `remaining + rate` uses `+` not `saturating_add`. Wraps u64 in release, budget shrinks. |
-| 11 | `hkask-keystore` | `keychain.rs:53-55,84-86` | All keyring errors mapped to `NotFound`. Permission denied → generates new secret → overwrites real one. |
+4. **Confirmation boundary**: Disambiguation requires Curator confirmation ("Is this the David Dunning from Michigan?"). MCP tools are request/response — they don't pause mid-execution. Should disambiguation happen at the agent/Curator level, outside the tool?
 
-**Strategy:** #8 needs upsert logic or lookup-before-insert. #9 needs a transaction wrapper. #10 is a one-word fix (`saturating_add`). #11 needs proper error variant mapping using the existing `From<KeyringError>` impl.
+### LOW — Stale manifest
 
-### HIGH — Project Violation
+`registry/manifests/style-corpus-embed.yaml` describes an 8-step MCP-tool pipeline that doesn't match the actual `EmbedService::embed_corpus` Rust function. Should be deleted or rewritten.
 
-| # | Crate | Location | Bug |
-|---|-------|----------|-----|
-| 12 | `hkask-agents` | `adapters/mcp_runtime.rs:266-269` | `#[deprecated]` attribute on `McpRuntimeAdapter`. P6/P7 violation. Delete the type alias and the `#[allow(deprecated)]` at `adapters/mod.rs:11`. |
+## Key Decisions to Preserve
 
-**Strategy:** Grep for callers of `McpRuntimeAdapter`, replace with `FullMcpAdapter`, delete the alias.
+1. **Salience = `(one_hop + two_hop/2) / 2`** — Pure graph centrality. No config weights, no position boost, no diversity bonus. One-hop is fraction of passages sharing ≥1 entity. Two-hop is fraction reachable within 2 hops (always ≥ one-hop). The `/2` on two-hop biases toward direct connections. This replaced an earlier weighted-category formula that had arbitrary character/place/event/concept/method weights.
 
-### HIGH — Broken Logic
+2. **Budget gates triple storage, not embedding** — All passages get vectors. Only budget-selected passages get metadata triples. Foundational rules always get triples regardless of budget. Budget derived from `passage_count / 250 × per_100_pages` (default 3,750/100pg).
 
-| # | Crate | Location | Bug |
-|---|-------|----------|-----|
-| 13 | `hkask-types` | `cns.rs:96` | `RetryConfig::delay_for_attempt` truncates `f64` multiplier to `u64` before exponentiation. Backoff broken for non-integer multipliers. |
-| 14 | `hkask-services` | `context.rs:612` + `curator.rs:111` | Curator metacognition uses detached/fresh CNS runtime — always sees zero alerts, zero variety. |
-| 15 | `hkask-services` | `goal.rs:116-121` | `set_goal_state` returns empty `text` and `visibility` despite having the fetched goal. |
-| 16 | `hkask-memory` | `consolidation.rs:185-189` | `consolidation_candidate_count` calls `storage_usage()` (total count) not candidate count. |
-| 17 | `hkask-keystore` | `master_key.rs:45-55` | `InternalSecrets` derives `Debug` — key material in logs/panics. Custom `Debug` impl needed. |
-| 18 | `hkask-mcp` | `runtime.rs:117,156` | TOCTOU race in `start_server` — concurrent calls orphan child processes. |
+3. **Jinja2 templates are the canonical system prompt source** — When `jinja2_template` is present in cognition YAML, it's rendered with context variables and used as the system prompt. When absent, `generic_system_prompt()` is the fallback. Hardcoded per-author Rust functions were removed. The `format` filter bug (`"%.2f"` vs minijinja's `{}` syntax) was fixed by using direct `{{ centroid_distance_max }}` interpolation.
 
-### MEDIUM — Swallowed Errors (21 instances across 5 crates)
+4. **Human exemplar principle** — All replica types model a named human individual whose body of work constitutes a representational corpus. The logical validity derives from the relationship between the human and their work. This applies equally to public domain authors, mashup personas, and academic authors.
 
-The most impactful cluster:
-- `hkask-storage`: 5 locations map all DB errors to `NotFound`, 7 locations silently corrupt timestamps with `Utc::now()`.
-- `hkask-templates`: 6 `.ok()` calls on INSERT/DELETE — silent data loss on restart.
-- `hkask-services`: `sovereignty.rs` returns `ConsentError` instead of `ServiceError`.
-- `hkask-agents`: `escalation.rs` `resolve()`/`dismiss()` don't check `rows_affected`.
+5. **Academic pipeline reuses research MCP, not new infrastructure** — `web_search`, `web_extract`, `web_find_similar`, `web_browse` from `hkask-mcp-research` provide the discovery layer. No new search infrastructure needed.
 
-**Strategy:** Work crate-by-crate. Start with `hkask-storage` (most impactful), then `hkask-templates`, then `hkask-agents`.
+## Recommended Skills
 
-### LOW — Cleanup (11 items)
+- **coding-guidelines** — Before any code changes, surface assumptions and enforce simplicity
+- **tdd** — For any new tests during end-to-end validation
+- **condenser-continuation** — If this session's context needs restoration after a reset
 
-Dead code, naming inconsistencies, empty test modules. See scan results in conversation history for full list. Non-urgent but accumulates debt.
-
----
-
-## 4. Recommended Skills and Tools
-
-| Skill | When |
-|-------|------|
-| `coding-guidelines` | Before every fix — surgical changes, simplicity first |
-| `tdd` | For panic fixes (#1-4) — write failing test first, then fix |
-| `diagnose` | For #14 (curator CNS) — needs tracing to confirm the detached runtime theory |
+## Commands
 
 ```bash
-# Verify after each fix
-cargo check -p <crate>
-cargo clippy -p <crate> -- -D warnings
-cargo test -p <crate>
+# Build and test
+cargo check -p hkask-services -p hkask-mcp-replica
+cargo test -p hkask-memory -- salience
+cargo test -p hkask-services
 
-# Full workspace gate before any PR
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
-cargo test --workspace
+# End-to-end validation (requires Okapi running)
+kask embed-corpus run \
+  --config registry/styles/hemingway/corpus.yaml \
+  --db /tmp/hkask-test-styles.db \
+  --passphrase test-pass \
+  --okapi-url http://127.0.0.1:11435
 
-# Project constraint verification
-grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"
+kask compose run \
+  --prompt "Write a war scene in the style of Hemingway." \
+  --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml \
+  --db /tmp/hkask-test-styles.db \
+  --passphrase test-pass
+
+# Verify triples
+sqlite3 /tmp/hkask-test-styles.db "SELECT COUNT(*) FROM triples;"
+sqlite3 /tmp/hkask-test-styles.db "SELECT entity, attribute, value FROM triples WHERE entity LIKE 'style:hemingway:%' LIMIT 20;"
 ```
-
----
-
-## 5. Key Decisions to Preserve
-
-1. **"Operating mode" vs "setup" — not "fast path" vs "interactive".** The onboarding module has two states: setup (zero replicants → create first) and operating (replicants exist → sign in). There is no "fast path" — that name was misleading. The operating mode returns immediately when keys work and replicants exist; setup runs the full creation flow.
-
-2. **WebID namespace is `"replicant"` everywhere.** Registration, ACP restoration, chat, REPL init, and `ReplicantIdentity::derive_webid` all use `"replicant"`. The old `"hkask-replicant"` and `"hkask"` namespaces were bugs. Any new code creating replicant WebIDs must use `"replicant"`.
-
-3. **ReplSettings loads from disk once at REPL init.** The loaded settings are the canonical source for the session. No re-initialization with defaults after load. The `repl_settings` variable from `load_settings()` flows into `ReplState` and is mutable via `/repl` during the session.
-
-4. **Dead code from removed paths was deleted, not commented out.** `sign_in_flow`, `try_list_existing_replicants`, `pick_or_default_replicant`, `InvalidPassphrase` — all removed. Recovery/sign-in is a future feature, not dead code to preserve.
-
-5. **Scan findings are reports, not prescriptions.** The 50 findings describe what exists. The agent doing the fixes should verify each finding before changing code — some may have context not visible in the scan (e.g., the "dead" `TurnRequest` fields may be planned for imminent use).
-
----
-
-*Recommended work order: #1-4 (panics) → #12 (violation) → #5-7 (security) → #8-11 (data corruption) → #13-18 (logic) → MEDIUM → LOW*

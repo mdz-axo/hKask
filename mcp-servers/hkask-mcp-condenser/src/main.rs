@@ -97,7 +97,12 @@ impl CondenserServer {
     #[tool(description = "Liveness and profile info")]
     async fn condenser_ping(&self) -> String {
         let span = ToolSpanGuard::new("condenser_ping", &self.webid);
-        let engine = self.engine.lock().unwrap();
+        let engine = match self.engine.lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
+            }
+        };
         let health = engine.check_global_health();
         span.ok_json(serde_json::json!({
             "status": "ok",
@@ -137,7 +142,12 @@ impl CondenserServer {
             },
             None => None,
         };
-        let mut engine = self.engine.lock().unwrap();
+        let mut engine = match self.engine.lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
+            }
+        };
         let result = engine.compress(&tool_name, &output, cat);
         span.ok_json(serde_json::to_value(&result).unwrap_or_default())
     }
@@ -152,7 +162,12 @@ impl CondenserServer {
             Ok(p) => p,
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e.to_json_string()),
         };
-        let mut engine = self.engine.lock().unwrap();
+        let mut engine = match self.engine.lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
+            }
+        };
         engine.set_profile(p);
         span.ok_json(serde_json::json!({
             "profile": p.to_string(),
@@ -164,7 +179,12 @@ impl CondenserServer {
     #[tool(description = "Cumulative compression statistics")]
     async fn condenser_stats(&self) -> String {
         let span = ToolSpanGuard::new("condenser_stats", &self.webid);
-        let engine = self.engine.lock().unwrap();
+        let engine = match self.engine.lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
+            }
+        };
         span.ok_json(serde_json::to_value(engine.get_stats()).unwrap_or_default())
     }
 
@@ -174,7 +194,12 @@ impl CondenserServer {
         Parameters(ClassifyRequest { tool_name }): Parameters<ClassifyRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("condenser_classify", &self.webid);
-        let engine = self.engine.lock().unwrap();
+        let engine = match self.engine.lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
+            }
+        };
         let (category, algorithm) = engine.classify(&tool_name);
         span.ok_json(serde_json::json!({
             "tool_name": tool_name,

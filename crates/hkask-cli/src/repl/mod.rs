@@ -106,6 +106,9 @@ pub(crate) struct ReplState {
     /// REPL settings — user-configurable inference parameters.
     /// Exposed via /repl command. Magna Carta P3 (Generative Space).
     pub(crate) repl_settings: ReplSettings,
+    /// Whether this session started from a first-run onboarding (true)
+    /// or a returning session (false). Controls First Steps display.
+    pub(crate) is_first_run: bool,
 }
 
 pub fn run(
@@ -143,7 +146,12 @@ pub fn run(
         // No history file yet — that's fine
     }
 
-    display::print_banner(&state.current_agent, template_id, &state.current_model);
+    display::print_banner(
+        &state.current_agent,
+        template_id,
+        &state.current_model,
+        state.is_first_run,
+    );
 
     loop {
         let prompt = if let Some(ref session) = state.active_session {
