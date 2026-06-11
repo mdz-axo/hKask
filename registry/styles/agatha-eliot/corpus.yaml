@@ -111,10 +111,10 @@ works:
 
   # ── Eliot ────────────────────────────────────────────────────────────────
 
-  - title: "Middlemarch"
-    slug: middlemarch
-    url: "https://www.gutenberg.org/cache/epub/145/pg145.txt"
-    year: 1871
+  - title: "Adam Bede"
+    slug: adam-bede
+    url: "https://www.gutenberg.org/cache/epub/507/pg507.txt"
+    year: 1859
     type: novel
     public_domain: true
 
@@ -132,10 +132,24 @@ works:
     type: novel
     public_domain: true
 
-  - title: "Adam Bede"
-    slug: adam-bede
-    url: "https://www.gutenberg.org/cache/epub/507/pg507.txt"
-    year: 1859
+  - title: "Romola"
+    slug: romola
+    url: "https://www.gutenberg.org/cache/epub/24020/pg24020.txt"
+    year: 1863
+    type: novel
+    public_domain: true
+
+  - title: "Felix Holt, the Radical"
+    slug: felix-holt
+    url: "https://www.gutenberg.org/cache/epub/40882/pg40882.txt"
+    year: 1866
+    type: novel
+    public_domain: true
+
+  - title: "Middlemarch"
+    slug: middlemarch
+    url: "https://www.gutenberg.org/cache/epub/145/pg145.txt"
+    year: 1871
     type: novel
     public_domain: true
 
@@ -143,13 +157,6 @@ works:
     slug: daniel-deronda
     url: "https://www.gutenberg.org/cache/epub/7469/pg7469.txt"
     year: 1876
-    type: novel
-    public_domain: true
-
-  - title: "Romola"
-    slug: romola
-    url: "https://www.gutenberg.org/cache/epub/24020/pg24020.txt"
-    year: 1863
     type: novel
     public_domain: true
 
