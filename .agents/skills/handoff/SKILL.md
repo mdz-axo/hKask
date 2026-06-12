@@ -60,7 +60,19 @@ Numbered list of architectural or design decisions made during this session, wit
 
 ## Output Destination
 
-Write the handoff document to the **project root** as `HANDOFF.md`.
+Write the handoff document to `docs/handoffs/` with the filename format:
+
+```
+[brief-description]-[YYYY-MM-DD].md
+```
+
+**Examples:**
+- `docs/handoffs/wlt-cns-ph5-2026-06-12.md`
+- `docs/handoffs/repl-srvr-2026-06-12.md`
+- `docs/handoffs/cndsr-cmpr-2026-06-12.md`
+
+The brief description should be ≤12 characters, using abbreviations where needed (e.g., `wlt` for wallet, `cns` for CNS, `ph5` for phase 5, `srvr` for server, `cndsr` for condenser, `cmpr` for compression).
+The date is the session date in ISO 8601 format.
 
 If the user specifies a different path, use that instead.
 
@@ -68,7 +80,7 @@ Do NOT write the handoff document inside any skill directory (`.agents/skills/*/
 
 ## Rules
 
-1. **Never write files inside this skill's directory.** The `.agents/skills/handoff/` directory contains only the skill definition (SKILL.md). Handoff documents are session artifacts — write them to the project root as `HANDOFF.md` or to a user-specified path. Writing inside the skill directory clutters it and risks overwriting SKILL.md, which destroys the skill for future agents.
+1. **Never write files inside this skill's directory.** The `.agents/skills/handoff/` directory contains only the skill definition (SKILL.md). Handoff documents are session artifacts — write them to `docs/handoffs/[brief-description]-[date].md` or to a user-specified path. Writing inside the skill directory clutters it and risks overwriting SKILL.md, which destroys the skill for future agents.
 2. **Reference, don't duplicate.** Files, PRDs, ADRs, specs — point to them by path. The next agent can read them.
 3. **Progress, not process.** "Removed KillZoneDetector from runtime.rs" not "First I opened runtime.rs, then I deleted lines 45-60, then I..."
 4. **Decisions carry rationale.** Every decision must include *why* and what alternatives were considered.

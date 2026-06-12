@@ -17,6 +17,8 @@ pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_energy_estimator; // Per-server energy cost table
+pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
+pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estimation (Phase 5)
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;
@@ -26,6 +28,8 @@ pub use energy::{
 };
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
+pub use wallet_budget::WalletBackedBudget;
+pub use wallet_energy_estimator::WalletEnergyEstimator;
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;

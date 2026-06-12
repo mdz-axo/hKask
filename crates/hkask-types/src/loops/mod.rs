@@ -122,6 +122,10 @@ pub enum SignalMetric {
     MetacognitionBotFailures,
     /// Seconds since last CAS snapshot vs. policy interval (Cybernetics Loop 6)
     SnapshotInterval,
+    /// Wallet rJoule balance ratio (0.0 = empty, 1.0 = full relative to 30-day avg)
+    WalletBalanceRatio,
+    /// Wallet treasury reserve ratio (0.0 = below min_reserve, 1.0 = healthy)
+    WalletTreasuryRatio,
 }
 
 impl std::fmt::Display for SignalMetric {
@@ -164,6 +168,8 @@ impl SignalMetric {
             SignalMetric::MetacognitionCriticalAlerts => "metacognition_critical_alerts",
             SignalMetric::MetacognitionBotFailures => "metacognition_bot_failures",
             SignalMetric::SnapshotInterval => "snapshot_interval",
+            SignalMetric::WalletBalanceRatio => "wallet_balance_ratio",
+            SignalMetric::WalletTreasuryRatio => "wallet_treasury_ratio",
         }
     }
 }

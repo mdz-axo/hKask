@@ -9,6 +9,7 @@
 use chrono::{Duration, Utc};
 use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{
     ChainId, DepositAddress, DepositReference, PrivacyMode, RJoule, TransactionType, TxHash,
     WalletBalance, WalletConfig, WalletError, WalletId, WalletTransaction,
@@ -34,6 +35,9 @@ pub struct WalletManager {
     chains: HashMap<ChainId, Box<dyn ChainPort>>,
     privacy: Option<Box<dyn PrivacyPort>>,
     wallet_seed: Zeroizing<[u8; 32]>,
+    /// Optional CNS event sink for span emission (Phase 5).
+    /// When present, wallet operations emit cns.wallet.* spans.
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl WalletManager {
@@ -55,7 +59,26 @@ impl WalletManager {
             chains,
             privacy,
             wallet_seed: Zeroizing::new(seed_arr),
+            event_sink: None,
         })
+    }
+
+    /// Attach a CNS event sink for span emission.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
+    /// Emit a CNS span if an event sink is configured.
+    fn emit_span(&self, namespace: &str, verb: &str, phase: Phase, obs: serde_json::Value) {
+        if let Some(ref sink) = self.event_sink {
+            let span = Span::new(SpanNamespace::new(namespace), verb);
+            let event = NuEvent::new(hkask_types::WebID::new(), span, phase, obs, 0);
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "hkask.wallet", namespace = namespace, verb = verb, error = %e, "Failed to persist CNS span");
+            }
+        }
     }
 
     // ── Balance ──────────────────────────────────────────────────────────────
@@ -129,6 +152,20 @@ impl WalletManager {
         // For now, we use a single wallet model — all deposits credit the default wallet.
         // Multi-wallet support is a future enhancement.
         let wallet_id = WalletId::default(); // TODO: resolve from deposit address lookup
+
+        // CNS span: deposit detected
+        self.emit_span(
+            "cns.wallet.deposit",
+            "detected",
+            Phase::Sense,
+            serde_json::json!({
+                "chain": "solana",
+                "amount_usdc_micro": event.amount_usdc_micro,
+                "tx_hash": event.tx_hash.0,
+                "privacy": "transparent",
+            }),
+        );
+
         let rj_amount = self.usdc_to_rjoules(event.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
         let balance = self.store.get_balance(wallet_id)?.unwrap();
@@ -145,6 +182,19 @@ impl WalletManager {
             balance_after: balance.rjoules,
             timestamp: Utc::now(),
         })?;
+
+        // CNS span: balance credited
+        self.emit_span(
+            "cns.wallet.balance",
+            "credited",
+            Phase::Act,
+            serde_json::json!({
+                "wallet_id": wallet_id.to_string(),
+                "rjoules_credited": rj_amount.as_u64(),
+                "balance_after": balance.rjoules,
+            }),
+        );
+
         Ok(())
     }
 
@@ -169,6 +219,19 @@ impl WalletManager {
                 return Ok(());
             }
         };
+
+        // CNS span: shielded deposit detected
+        self.emit_span(
+            "cns.wallet.deposit_shielded",
+            "detected",
+            Phase::Sense,
+            serde_json::json!({
+                "amount_usdc_micro": transfer.amount_usdc_micro,
+                "commitment": transfer.commitment,
+                "privacy": "shielded",
+            }),
+        );
+
         let rj_amount = self.usdc_to_rjoules(transfer.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
         let balance = self.store.get_balance(wallet_id)?.unwrap();
@@ -185,6 +248,19 @@ impl WalletManager {
             balance_after: balance.rjoules,
             timestamp: Utc::now(),
         })?;
+
+        // CNS span: balance credited
+        self.emit_span(
+            "cns.wallet.balance",
+            "credited",
+            Phase::Act,
+            serde_json::json!({
+                "wallet_id": wallet_id.to_string(),
+                "rjoules_credited": rj_amount.as_u64(),
+                "balance_after": balance.rjoules,
+            }),
+        );
+
         Ok(())
     }
 
@@ -211,6 +287,19 @@ impl WalletManager {
         let balance = self.store.debit_rjoules(wallet_id, amount_rj)?;
         let amount_usdc_micro = self.rjoules_to_usdc(amount_rj);
 
+        // CNS span: conversion
+        self.emit_span(
+            "cns.wallet.conversion",
+            "converted",
+            Phase::Act,
+            serde_json::json!({
+                "wallet_id": wallet_id.to_string(),
+                "rjoules": amount_rj.as_u64(),
+                "usdc_micro": amount_usdc_micro,
+                "direction": "rj_to_usdc",
+            }),
+        );
+
         // 2. Build and sign transaction
         let tx_hash = match privacy {
             PrivacyMode::Transparent => {
@@ -219,11 +308,49 @@ impl WalletManager {
                     .get(&chain)
                     .ok_or(WalletError::ChainNotEnabled { chain })?;
                 let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
+
+                // CNS span: withdrawal built
+                self.emit_span(
+                    "cns.wallet.withdrawal",
+                    "built",
+                    Phase::Act,
+                    serde_json::json!({
+                        "chain": chain.to_string(),
+                        "to_address": to_address,
+                        "amount_usdc_micro": amount_usdc_micro,
+                        "privacy": "transparent",
+                    }),
+                );
+
                 let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
+
+                // CNS span: withdrawal signed
+                self.emit_span(
+                    "cns.wallet.withdrawal",
+                    "signed",
+                    Phase::Act,
+                    serde_json::json!({
+                        "chain": chain.to_string(),
+                    }),
+                );
+
                 // Combine tx_bytes + signature (chain-specific format)
                 let mut signed_tx = tx_bytes;
                 signed_tx.extend_from_slice(&signature);
-                port.submit_signed_tx(&signed_tx).await?
+                let tx_hash = port.submit_signed_tx(&signed_tx).await?;
+
+                // CNS span: withdrawal submitted
+                self.emit_span(
+                    "cns.wallet.withdrawal",
+                    "submitted",
+                    Phase::Act,
+                    serde_json::json!({
+                        "chain": chain.to_string(),
+                        "tx_hash": tx_hash.0,
+                    }),
+                );
+
+                tx_hash
             }
             PrivacyMode::Shielded => {
                 let privacy_port = self
@@ -276,6 +403,19 @@ impl WalletManager {
         let address = port.derive_deposit_address(0)?;
         self.store
             .store_deposit_address(wallet_id, chain, &address, 0, privacy)?;
+
+        // CNS span: deposit address derived
+        self.emit_span(
+            "cns.wallet.deposit",
+            "derived",
+            Phase::Act,
+            serde_json::json!({
+                "wallet_id": wallet_id.to_string(),
+                "chain": chain.to_string(),
+                "privacy": privacy.to_string(),
+            }),
+        );
+
         Ok(DepositAddress {
             address,
             chain,

@@ -32,6 +32,7 @@ use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost, EnergyError};
 use crate::energy_budget_management::EnergyBudgetManager;
 use crate::runtime::CnsRuntime;
 use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
+use crate::wallet_budget::WalletBackedBudget;
 
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
@@ -126,6 +127,14 @@ impl CyberneticsLoop {
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         self.energy_budget_manager
             .register_energy_budget(agent, budget)
+            .await;
+    }
+
+    /// Register a wallet-backed budget for an agent (Phase 5).
+    /// Wallet budgets are checked before gas budgets in the membrane.
+    pub async fn register_wallet_budget(&self, agent: WebID, budget: WalletBackedBudget) {
+        self.energy_budget_manager
+            .register_wallet_budget(agent, budget)
             .await;
     }
 
@@ -330,7 +339,8 @@ impl HkaskLoop for CyberneticsLoop {
         LoopId::Cybernetics
     }
 
-    /// Produces signals for: per-agent energy ratio, variety deficit, queue depth.
+    /// Produces signals for: per-agent energy ratio, variety deficit, queue depth,
+    /// wallet balance ratio, wallet treasury ratio.
     async fn sense(&self) -> Vec<Signal> {
         // Process pending directives before sensing state
         self.process_inbox().await;
@@ -346,6 +356,21 @@ impl HkaskLoop for CyberneticsLoop {
                 SignalMetric::EnergyRemaining,
                 ratio,
                 self.set_points.gas_min_remaining,
+            ));
+        }
+
+        // Wallet health signals: balance ratio for wallet-backed agents
+        // Wallet balance ratio: 0.0 = empty, 1.0 = full.
+        // Set-point: 0.1 (alert when below 10% of capacity).
+        // This is a simplified model — the full implementation would use
+        // a 30-day moving average as the denominator.
+        let wallet_ratios = self.energy_budget_manager.wallet_balance_ratios().await;
+        for (ratio, _cap) in wallet_ratios {
+            signals.push(Signal::new(
+                LoopId::Cybernetics,
+                SignalMetric::WalletBalanceRatio,
+                ratio,
+                0.1, // alert when below 10%
             ));
         }
 
@@ -407,6 +432,22 @@ impl HkaskLoop for CyberneticsLoop {
                         LoopId::Cybernetics,
                         ActionType::Throttle,
                         serde_json::json!({"reason": "communication_backpressure", "queue_depth": dev.signal.value, "threshold": dev.signal.set_point}),
+                    ))
+                }
+                SignalMetric::WalletBalanceRatio
+                    if dev.direction == DeviationDirection::BelowSetPoint =>
+                {
+                    // Wallet balance low — escalate to Curator
+                    let severity = if dev.signal.value <= 0.0 {
+                        "critical" // balance = 0 → Curator + Human
+                    } else {
+                        "warning" // balance < 10% → Curator
+                    };
+                    tracing::warn!(target: "cns.wallet", balance_ratio = dev.signal.value, severity = severity, "Wallet balance alert");
+                    Some(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Escalate,
+                        serde_json::json!({"reason": "wallet_balance_low", "balance_ratio": dev.signal.value, "severity": severity, "threshold": dev.signal.set_point}),
                     ))
                 }
                 _ => None,

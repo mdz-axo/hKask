@@ -2236,6 +2236,7 @@ dependencies = [
  "chrono",
  "hkask-storage",
  "hkask-types",
+ "hkask-wallet",
  "parking_lot",
  "serde",
  "serde_json",

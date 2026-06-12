@@ -19,6 +19,7 @@
 //! the Curation directive. `apply_clear_override()` resumes normal replenishment.
 
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost, EnergyError};
+use crate::wallet_budget::WalletBackedBudget;
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -45,6 +46,10 @@ struct OverrideRecord {
 /// from `GovernedTool` without going through the full loop.
 pub struct EnergyBudgetManager {
     energy_budgets: Arc<RwLock<HashMap<WebID, EnergyBudget>>>,
+    /// Wallet-backed budgets — checked before gas budgets.
+    /// When an agent has a wallet budget, gas operations debit rJoules
+    /// instead of consuming from the dimensionless gas pool.
+    wallet_budgets: Arc<RwLock<HashMap<WebID, WalletBackedBudget>>>,
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
 }
 
@@ -59,6 +64,7 @@ impl EnergyBudgetManager {
     pub fn new() -> Self {
         Self {
             energy_budgets: Arc::new(RwLock::new(HashMap::new())),
+            wallet_budgets: Arc::new(RwLock::new(HashMap::new())),
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -69,16 +75,30 @@ impl EnergyBudgetManager {
         budgets.insert(agent, budget);
     }
 
+    /// Register a wallet-backed budget for an agent.
+    /// Wallet budgets are checked before gas budgets.
+    pub async fn register_wallet_budget(&self, agent: WebID, budget: WalletBackedBudget) {
+        let mut budgets = self.wallet_budgets.write().await;
+        budgets.insert(agent, budget);
+    }
+
     /// Check whether an agent can proceed with the given energy cost estimate.
     ///
+    /// Checks wallet budgets first, then gas budgets.
     /// Returns `true` if the agent has no registered budget (soft limit)
     /// or if the budget has sufficient remaining capacity.
     pub async fn can_proceed(&self, agent: &WebID, gas: EnergyCost) -> bool {
+        // Check wallet budget first
+        let wallet_budgets = self.wallet_budgets.read().await;
+        if let Some(budget) = wallet_budgets.get(agent) {
+            return budget.can_proceed(gas);
+        }
+        drop(wallet_budgets);
+        // Fall back to gas budget
         let budgets = self.energy_budgets.read().await;
         if let Some(budget) = budgets.get(agent) {
             budget.can_proceed(gas)
         } else {
-            // No budget registered — allow by default (soft limit)
             true
         }
     }
@@ -90,32 +110,46 @@ impl EnergyBudgetManager {
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call `settle_gas()` after.
+    /// Checks wallet budgets first, then gas budgets.
     pub async fn reserve_gas(
         &self,
         agent: &WebID,
         gas: EnergyCost,
     ) -> Result<EnergyCost, EnergyError> {
+        // Check wallet budget first
+        let wallet_budgets = self.wallet_budgets.read().await;
+        if let Some(budget) = wallet_budgets.get(agent) {
+            return budget.reserve(gas);
+        }
+        drop(wallet_budgets);
+        // Fall back to gas budget
         let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.reserve(gas)
         } else {
-            // No budget registered — allow by default (soft limit)
             Ok(EnergyCost::ZERO)
         }
     }
 
     /// Settle gas: if actual < reserved, the difference is refunded.
+    /// Checks wallet budgets first, then gas budgets.
     pub async fn settle_gas(
         &self,
         agent: &WebID,
         reserved_gas: EnergyCost,
         actual_gas: EnergyCost,
     ) -> Result<EnergyCost, EnergyError> {
+        // Check wallet budget first
+        let wallet_budgets = self.wallet_budgets.read().await;
+        if let Some(budget) = wallet_budgets.get(agent) {
+            return budget.settle(reserved_gas, actual_gas);
+        }
+        drop(wallet_budgets);
+        // Fall back to gas budget
         let mut budgets = self.energy_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.settle(reserved_gas, actual_gas)
         } else {
-            // No budget registered — cost is 0 (soft limit)
             Ok(EnergyCost::ZERO)
         }
     }
@@ -294,5 +328,30 @@ impl EnergyBudgetManager {
             .values()
             .map(|budget| (budget.remaining, budget.cap))
             .collect()
+    }
+
+    /// Iterate over wallet-backed budgets to produce wallet health signals.
+    /// Returns `(balance_ratio, cap_ratio)` for each wallet-backed agent.
+    /// balance_ratio: 0.0 = empty, 1.0 = full (relative to a nominal capacity).
+    pub async fn wallet_balance_ratios(&self) -> Vec<(f64, f64)> {
+        let budgets = self.wallet_budgets.read().await;
+        let mut ratios = Vec::new();
+        for budget in budgets.values() {
+            // Get the wallet balance and compute a ratio.
+            // We use a nominal capacity of 1_000_000 rJ as the denominator
+            // (this is a simplified model — production would use 30-day moving avg).
+            match budget.wallet_manager.get_balance(budget.wallet_id) {
+                Ok(balance) => {
+                    let nominal_cap: f64 = 1_000_000.0; // 1M rJ nominal capacity
+                    let ratio = (balance.rjoules as f64 / nominal_cap).clamp(0.0, 1.0);
+                    ratios.push((ratio, 1.0));
+                }
+                Err(_) => {
+                    // Wallet error → treat as empty
+                    ratios.push((0.0, 1.0));
+                }
+            }
+        }
+        ratios
     }
 }

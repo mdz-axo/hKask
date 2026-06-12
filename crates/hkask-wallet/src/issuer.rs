@@ -13,6 +13,7 @@ use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 pub use hkask_types::wallet::ApiKeyMaterial;
 use hkask_types::wallet::{
     ApiKeyCapability, ApiKeyId, ChainId, Ed25519PublicKey, PrivacyMode, RJoule, WalletError,
@@ -36,6 +37,8 @@ pub struct ApiKeyIssuer {
     /// Not directly read by issuer methods — signing delegates to `signing.rs`.
     #[allow(dead_code)]
     wallet_seed: Zeroizing<[u8; 32]>,
+    /// Optional CNS event sink for span emission (Phase 5).
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl ApiKeyIssuer {
@@ -49,7 +52,26 @@ impl ApiKeyIssuer {
         Ok(ApiKeyIssuer {
             store,
             wallet_seed: Zeroizing::new(seed_arr),
+            event_sink: None,
         })
+    }
+
+    /// Attach a CNS event sink for span emission.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
+    /// Emit a CNS span if an event sink is configured.
+    fn emit_span(&self, namespace: &str, verb: &str, phase: Phase, obs: serde_json::Value) {
+        if let Some(ref sink) = self.event_sink {
+            let span = Span::new(SpanNamespace::new(namespace), verb);
+            let event = NuEvent::new(hkask_types::WebID::new(), span, phase, obs, 0);
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "hkask.wallet", namespace = namespace, verb = verb, error = %e, "Failed to persist CNS span");
+            }
+        }
     }
 
     /// "Print" a new API key.
@@ -95,6 +117,20 @@ impl ApiKeyIssuer {
         // Store the public key + capability metadata
         self.store.store_api_key(&capability)?;
 
+        // CNS span: key issued
+        self.emit_span(
+            "cns.wallet.key_issued",
+            "issued",
+            Phase::Act,
+            serde_json::json!({
+                "key_id": key_id.to_string(),
+                "wallet_id": wallet_id.to_string(),
+                "spending_limit_rj": spending_limit_rj.as_u64(),
+                "expiry_days": expiry_days,
+                "privacy_mode": privacy_mode.to_string(),
+            }),
+        );
+
         Ok(ApiKeyMaterial {
             key_id,
             private_key_hex: hex::encode(private_key_bytes),
@@ -105,7 +141,19 @@ impl ApiKeyIssuer {
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
-        self.store.revoke_api_key(key_id)
+        self.store.revoke_api_key(key_id)?;
+
+        // CNS span: key revoked
+        self.emit_span(
+            "cns.wallet.key_revoked",
+            "revoked",
+            Phase::Act,
+            serde_json::json!({
+                "key_id": key_id.to_string(),
+            }),
+        );
+
+        Ok(())
     }
 
     /// List active (non-revoked) API keys for a wallet.
