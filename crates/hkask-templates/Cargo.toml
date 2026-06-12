@@ -19,6 +19,4 @@ chrono.workspace = true
 uuid.workspace = true
 rusqlite.workspace = true
 tokio.workspace = true
-reqwest.workspace = true
 async-trait.workspace = true
-futures-util.workspace = true

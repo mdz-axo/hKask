@@ -6,12 +6,12 @@
 //! - `markitdown_ocr` — Explicitly OCR a document using local vision model
 //!
 //! OCR requires `HKASK_OCR_MODEL` to be set to a vision-capable model name
-//! that exists in the Okapi model catalog (e.g., a model with vision support).
-//! Use `InferenceService::list_models()` to discover available models.
+//! that exists in the inference catalog (e.g., a model with vision support).
+//! Use `InferenceRouter::list_models()` to discover available models.
 
+use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_templates::{OkapiConfig, OkapiInference};
 use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -66,8 +66,8 @@ pub struct MarkitdownServer {
     webid: WebID,
     /// Configured OCR model (from HKASK_OCR_MODEL env var). None means OCR is unavailable.
     ocr_model: Option<String>,
-    /// Okapi configuration for inference.
-    okapi_config: OkapiConfig,
+    /// Inference configuration for the router.
+    inference_config: InferenceConfig,
 }
 
 impl MarkitdownServer {
@@ -76,14 +76,14 @@ impl MarkitdownServer {
         ocr_model: Option<String>,
         okapi_base_url: &str,
     ) -> anyhow::Result<Self> {
-        let okapi_config = OkapiConfig {
-            base_url: okapi_base_url.to_string(),
-            ..OkapiConfig::default()
+        let inference_config = InferenceConfig {
+            ollama_base_url: okapi_base_url.to_string(),
+            ..InferenceConfig::default()
         };
         Ok(Self {
             webid,
             ocr_model,
-            okapi_config,
+            inference_config,
         })
     }
 
@@ -104,8 +104,8 @@ impl MarkitdownServer {
 
     /// Perform OCR by sending base64-encoded bytes to a vision model.
     ///
-    /// Reuses the server's `OkapiInference` client with `model_override` so we
-    /// don't allocate a new HTTP client per call.
+    /// Creates an `InferenceRouter` from the server's config and dispatches
+    /// via `generate_vision` with a model override.
     async fn do_ocr(
         &self,
         file_bytes: &[u8],
@@ -119,11 +119,7 @@ impl MarkitdownServer {
         let b64_data =
             base64::Engine::encode(&base64::engine::general_purpose::STANDARD, file_bytes);
 
-        let inference = OkapiInference::new(
-            &self.ocr_model.clone().unwrap_or_default(),
-            self.okapi_config.clone(),
-        )
-        .map_err(|e| format!("Failed to create inference client: {}", e))?;
+        let router = InferenceRouter::new(self.inference_config.clone());
 
         let params = LLMParameters {
             temperature: 0.1, // Low temperature for faithful extraction
@@ -131,8 +127,8 @@ impl MarkitdownServer {
             ..Default::default()
         };
 
-        let result = inference
-            .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], Some(model), None, &params)
+        let result = router
+            .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(model))
             .await
             .map_err(|e| format!("OCR inference failed: {}", e))?;
 

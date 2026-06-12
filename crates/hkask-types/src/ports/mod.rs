@@ -109,7 +109,7 @@ pub struct InferenceResult {
 }
 
 /// LLM invocation boundary. Uses `Pin<Box<dyn Future>>` (not `async_trait`) for object-safety.
-/// Impls: `OkapiInference` (hkask-templates), `Arc<dyn InferencePort>` (blanket).
+/// Impls: `InferenceRouter` (hkask-inference), `Arc<dyn InferencePort>` (blanket).
 pub trait InferencePort: Send + Sync {
     fn generate(
         &self,
@@ -169,6 +169,18 @@ pub trait InferencePort: Send + Sync {
         } else {
             self.generate_stream(prompt, parameters)
         }
+    }
+
+    /// Vision inference — send base64-encoded images to a multimodal model.
+    /// Default: falls back to `generate_with_model()` (text-only). Override for vision-capable backends.
+    fn generate_vision(
+        &self,
+        prompt: &str,
+        images: &[String],
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
+        self.generate_with_model(prompt, parameters, model_override)
     }
 }
 
@@ -235,6 +247,15 @@ impl InferencePort for Arc<dyn InferencePort> {
         m: Option<&str>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
         self.as_ref().generate_stream_with_model(p, pa, m)
+    }
+    fn generate_vision(
+        &self,
+        p: &str,
+        imgs: &[String],
+        pa: &LLMParameters,
+        m: Option<&str>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
+        self.as_ref().generate_vision(p, imgs, pa, m)
     }
 }
 

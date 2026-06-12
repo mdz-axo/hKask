@@ -137,6 +137,58 @@ impl OllamaBackend {
         )
     }
 
+    /// Send a vision request with base64-encoded images to Ollama.
+    pub async fn generate_vision(
+        &self,
+        model: &str,
+        prompt: &str,
+        images: &[String],
+        params: &LLMParameters,
+    ) -> Result<InferenceResult, InferenceError> {
+        validate_prompt(prompt)?;
+        let request = build_chat_request(
+            model,
+            prompt,
+            Some(images.to_vec()),
+            params,
+            Some(false),
+            Some(5),
+        );
+
+        let response = self
+            .client
+            .post(format!("{}/v1/chat/completions", self.base_url))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(InferenceError::Connection(format!(
+                "Ollama vision status {}: {}",
+                status, error_text
+            )));
+        }
+
+        let chat_response = response
+            .json()
+            .await
+            .map_err(|e| InferenceError::Json(format!("Ollama vision JSON parse: {}", e)))?;
+
+        let result = chat_response_to_result(chat_response)?;
+        info!(
+            target: "hkask.inference",
+            provider = "OM",
+            model = %result.model,
+            tokens = result.usage.total_tokens,
+            finish_reason = %result.finish_reason,
+            "Ollama vision inference completed"
+        );
+        Ok(result)
+    }
+
     /// List models available in the local Ollama instance via `/api/tags`.
     pub async fn list_models(&self) -> Result<Vec<OllamaModelEntry>, InferenceError> {
         let response = self

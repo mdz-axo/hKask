@@ -29,9 +29,8 @@ fn embedding_model() -> String {
     std::env::var("HKASK_EMBEDDING_MODEL").unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string())
 }
 
-fn okapi_base_url() -> String {
-    std::env::var("OKAPI_BASE_URL")
-        .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string())
+fn inference_config() -> hkask_inference::InferenceConfig {
+    hkask_inference::InferenceConfig::from_env()
 }
 
 struct ReplicaServer {
@@ -199,7 +198,7 @@ impl ReplicaServer {
                 &config_path,
                 &params.db_path,
                 &params.passphrase,
-                Some(&okapi_base_url()),
+                Some(&inference_config().ollama_base_url),
                 None,
                 Some(progress),
             )
@@ -233,7 +232,7 @@ impl ReplicaServer {
 
         let run = async {
             let model = embedding_model();
-            let base_url = okapi_base_url();
+            let inf_cfg = inference_config();
             let config = hkask_services::CognitionConfig {
                 author: params.author.clone(),
                 jinja2_template: None,
@@ -248,7 +247,7 @@ impl ReplicaServer {
                 },
             };
 
-            let inference_ctx = InferenceContext::from_parts(None, &model, &base_url);
+            let inference_ctx = InferenceContext::from_parts(None, &model, inf_cfg);
 
             let request = hkask_services::ComposeRequest {
                 prompt: params.prompt,
@@ -391,7 +390,7 @@ impl ReplicaServer {
                 .store(&blended_ref, &blended, &model)
                 .map_err(|e| e.to_string())?;
 
-            let base_url = okapi_base_url();
+            let inf_cfg = inference_config();
             let config = hkask_services::CognitionConfig {
                 author: format!("mashup:{}:{}", params.author_a, params.author_b),
                 jinja2_template: None,
@@ -406,7 +405,7 @@ impl ReplicaServer {
                 },
             };
 
-            let inference_ctx = InferenceContext::from_parts(None, &model, &base_url);
+            let inference_ctx = InferenceContext::from_parts(None, &model, inf_cfg);
 
             let request = hkask_services::ComposeRequest {
                 prompt: params.prompt,

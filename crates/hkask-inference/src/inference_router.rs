@@ -156,6 +156,42 @@ impl InferenceRouter {
             .filter(|m| m.model.to_lowercase().contains(&lower))
             .collect()
     }
+
+    /// Vision inference — dispatch to the appropriate backend with base64 images.
+    /// Currently only Ollama supports multimodal; other providers fall back to text-only.
+    pub async fn generate_vision(
+        &self,
+        prompt: &str,
+        images: &[String],
+        params: &LLMParameters,
+        model_override: Option<&str>,
+    ) -> Result<InferenceResult, InferenceError> {
+        let model_name = model_override
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "deepseek-v4-pro".to_string());
+        let (provider, model) = self.resolve(&model_name)?;
+        let model = model.to_string();
+        let prompt = prompt.to_string();
+        let params = params.clone();
+        let images = images.to_vec();
+
+        match provider {
+            ProviderId::Ollama => {
+                self.ollama
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("Ollama backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
+                    .await
+            }
+            ProviderId::Fireworks | ProviderId::DeepInfra => {
+                // Cloud providers: fall back to text-only (images embedded in prompt if needed)
+                self.generate_with_model(&prompt, &params, Some(&model_name))
+                    .await
+            }
+        }
+    }
 }
 
 impl InferencePort for InferenceRouter {
@@ -310,5 +346,24 @@ impl InferencePort for InferenceRouter {
                     .generate_stream(&model, &prompt, &parameters)
             }
         }
+    }
+
+    fn generate_vision(
+        &self,
+        prompt: &str,
+        images: &[String],
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+    ) -> Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        let prompt = prompt.to_string();
+        let images = images.to_vec();
+        let parameters = parameters.clone();
+        let model_override = model_override.map(|s| s.to_string());
+        Box::pin(async move {
+            self.generate_vision(&prompt, &images, &parameters, model_override.as_deref())
+                .await
+        })
     }
 }

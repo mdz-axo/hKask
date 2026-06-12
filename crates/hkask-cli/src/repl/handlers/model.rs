@@ -30,27 +30,27 @@ pub(crate) fn populate_model_meta(
 
 /// Fetch per-model detail from Ollama's `/api/show` endpoint.
 /// Returns `None` if the endpoint is unreachable or the model is not found.
-async fn fetch_model_show(config: &InferenceConfig, model: &str) -> Option<OkapiModelShow> {
+async fn fetch_model_show(config: &InferenceConfig, model: &str) -> Option<ModelShowInfo> {
     let client = config.build_client().ok()?;
     let request = client
         .get(format!("{}/api/show", config.ollama_base_url))
         .query(&[("name", model)]);
     match request.send().await {
-        Ok(resp) => resp.json::<OkapiModelShow>().await.ok(),
+        Ok(resp) => resp.json::<ModelShowInfo>().await.ok(),
         Err(_) => None,
     }
 }
 
 /// Per-model detail from Ollama's `/api/show` endpoint.
 #[derive(Debug, Clone, serde::Deserialize)]
-struct OkapiModelShow {
+struct ModelShowInfo {
     #[serde(default)]
     pub model_info: Option<std::collections::HashMap<String, serde_json::Value>>,
     #[serde(default)]
     pub capabilities: Option<Vec<String>>,
 }
 
-impl OkapiModelShow {
+impl ModelShowInfo {
     fn context_length(&self) -> Option<u32> {
         self.model_info.as_ref()?.iter().find_map(|(k, v)| {
             if k.ends_with(".context_length") {

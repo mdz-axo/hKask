@@ -11,10 +11,10 @@
 //! 7. **Store triples** — budget-selected passages get metadata triples
 //! 8. **Centroid** — mean vector over prose passages
 
+use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, BudgetConfig, DeclaredMethod, EntityTags, MethodSignals};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
-use hkask_templates::{OkapiConfig, OkapiEmbedding};
 use hkask_types::Visibility;
 use hkask_types::id::WebID;
 
@@ -548,14 +548,15 @@ impl EmbedService {
             p.completed_passages = 0;
         }
 
-        let okapi_config = match okapi_url {
-            Some(url) => OkapiConfig {
-                base_url: url.to_string(),
-                ..OkapiConfig::default()
-            },
-            None => OkapiConfig::local_dev(),
+        let inf_cfg = match okapi_url {
+            Some(url) => {
+                let mut cfg = InferenceConfig::default();
+                cfg.ollama_base_url = url.to_string();
+                cfg
+            }
+            None => InferenceConfig::default(),
         };
-        let embedder = OkapiEmbedding::with_model(&config.embedding.model, okapi_config)?;
+        let embedder = EmbeddingRouter::new(inf_cfg);
 
         let batch_size = config.embedding.batch_size;
         let mut embedded_count = 0;
@@ -567,7 +568,7 @@ impl EmbedService {
         for chunk in all_refs_and_texts.chunks(batch_size) {
             let texts: Vec<&str> = chunk.iter().map(|(_, text)| *text).collect();
             let vectors = embedder
-                .embed_sentences(&texts)
+                .embed_sentences(&config.embedding.model, &texts)
                 .await
                 .map_err(|e| ServiceError::Embed(format!("Failed to embed batch: {e}")))?;
 
