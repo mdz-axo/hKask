@@ -89,56 +89,56 @@ impl InferenceRouter {
         let mut entries = Vec::new();
 
         // Ollama models
-        if let Some(ref backend) = self.ollama {
-            if let Ok(models) = backend.list_models().await {
-                for m in models {
-                    entries.push(RouterModelEntry {
-                        prefixed_name: ProviderId::Ollama.prefix_model(&m.name),
-                        provider: ProviderId::Ollama,
-                        model: m.name.clone(),
-                        family: m.details.as_ref().and_then(|d| d.family.clone()),
-                        parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
-                        quantization_level: m
-                            .details
-                            .as_ref()
-                            .and_then(|d| d.quantization_level.clone()),
-                        size_bytes: m.size,
-                    });
-                }
+        if let Some(ref backend) = self.ollama
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry {
+                    prefixed_name: ProviderId::Ollama.prefix_model(&m.name),
+                    provider: ProviderId::Ollama,
+                    model: m.name.clone(),
+                    family: m.details.as_ref().and_then(|d| d.family.clone()),
+                    parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
+                    quantization_level: m
+                        .details
+                        .as_ref()
+                        .and_then(|d| d.quantization_level.clone()),
+                    size_bytes: m.size,
+                });
             }
         }
 
         // Fireworks models
-        if let Some(ref backend) = self.fireworks {
-            if let Ok(models) = backend.list_models().await {
-                for m in models {
-                    entries.push(RouterModelEntry {
-                        prefixed_name: ProviderId::Fireworks.prefix_model(&m.id),
-                        provider: ProviderId::Fireworks,
-                        model: m.id.clone(),
-                        family: None,
-                        parameter_size: None,
-                        quantization_level: None,
-                        size_bytes: None,
-                    });
-                }
+        if let Some(ref backend) = self.fireworks
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry {
+                    prefixed_name: ProviderId::Fireworks.prefix_model(&m.id),
+                    provider: ProviderId::Fireworks,
+                    model: m.id.clone(),
+                    family: None,
+                    parameter_size: None,
+                    quantization_level: None,
+                    size_bytes: None,
+                });
             }
         }
 
         // DeepInfra models
-        if let Some(ref backend) = self.deepinfra {
-            if let Ok(models) = backend.list_models().await {
-                for m in models {
-                    entries.push(RouterModelEntry {
-                        prefixed_name: ProviderId::DeepInfra.prefix_model(&m.id),
-                        provider: ProviderId::DeepInfra,
-                        model: m.id.clone(),
-                        family: None,
-                        parameter_size: None,
-                        quantization_level: None,
-                        size_bytes: None,
-                    });
-                }
+        if let Some(ref backend) = self.deepinfra
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry {
+                    prefixed_name: ProviderId::DeepInfra.prefix_model(&m.id),
+                    provider: ProviderId::DeepInfra,
+                    model: m.id.clone(),
+                    family: None,
+                    parameter_size: None,
+                    quantization_level: None,
+                    size_bytes: None,
+                });
             }
         }
 

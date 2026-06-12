@@ -485,6 +485,35 @@ pub enum EmbedCorpusAction {
     },
 }
 
+/// Style subcommands — compose prose or embed corpora
+#[derive(Subcommand)]
+pub enum StyleAction {
+    /// Generate prose with exemplar retrieval and centroid validation
+    Compose {
+        #[arg(short, long)]
+        prompt: String,
+        #[arg(short, long)]
+        cognition: PathBuf,
+        #[arg(short, long)]
+        db: PathBuf,
+        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
+        passphrase: String,
+        #[arg(long)]
+        no_validate: bool,
+    },
+    /// Download, chunk, embed, and store a style corpus
+    EmbedCorpus {
+        #[arg(short, long)]
+        config: PathBuf,
+        #[arg(short, long)]
+        db: PathBuf,
+        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
+        passphrase: String,
+        #[arg(long = "ollama-url")]
+        ollama_url: Option<String>,
+    },
+}
+
 /// Skill bundle management actions
 #[derive(Subcommand)]
 pub enum BundleAction {

@@ -152,16 +152,10 @@ pub enum Commands {
         action: SkillAction,
     },
 
-    /// Style composition — generate prose with exemplar retrieval
-    Compose {
+    /// Style operations — compose prose or embed corpora
+    Style {
         #[command(subcommand)]
-        action: ComposeAction,
-    },
-
-    /// Style corpus embedding (download, chunk, embed, store)
-    EmbedCorpus {
-        #[command(subcommand)]
-        action: EmbedCorpusAction,
+        action: StyleAction,
     },
 
     /// List available LLM models

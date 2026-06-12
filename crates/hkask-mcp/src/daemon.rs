@@ -227,6 +227,12 @@ pub struct DaemonListener {
     listener: Option<UnixListener>,
 }
 
+impl Default for DaemonListener {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DaemonListener {
     /// Create a listener bound to the default socket path.
     pub fn new() -> Self {

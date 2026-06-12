@@ -547,11 +547,10 @@ impl EmbedService {
         }
 
         let inf_cfg = match ollama_url {
-            Some(url) => {
-                let mut cfg = InferenceConfig::default();
-                cfg.ollama_base_url = url.to_string();
-                cfg
-            }
+            Some(url) => InferenceConfig {
+                ollama_base_url: url.to_string(),
+                ..Default::default()
+            },
             None => InferenceConfig::default(),
         };
         let embedder = EmbeddingRouter::new(inf_cfg);

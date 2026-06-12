@@ -27,7 +27,7 @@ impl OllamaBackend {
         let client = config
             .build_client()
             .map(Arc::new)
-            .map_err(|e| InferenceError::Connection(e))?;
+            .map_err(InferenceError::Connection)?;
         Ok(Self {
             base_url: config.ollama_base_url.clone(),
             client,

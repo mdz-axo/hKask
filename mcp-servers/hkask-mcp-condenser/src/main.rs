@@ -38,6 +38,14 @@ const THREAD_SUMMARY_SYSTEM_PROMPT: &str = "You are a context condensation assis
 /// Context window size passed to the inference engine for thread summarization.
 const THREAD_SUMMARY_NUM_CTX: u32 = 8192;
 
+/// Grouped inference configuration to keep constructor argument count manageable.
+struct InferenceConfig {
+    url: Option<String>,
+    model: String,
+    api_key: Option<String>,
+    timeout_secs: u64,
+}
+
 pub struct CondenserServer {
     webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
@@ -58,16 +66,13 @@ impl CondenserServer {
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
         episodic: Option<EpisodicMemory>,
-        inference_url: Option<String>,
-        inference_model: String,
-        inference_api_key: Option<String>,
-        inference_timeout_secs: u64,
+        inference: InferenceConfig,
         capability_tier: CapabilityTier,
     ) -> Result<Self, anyhow::Error> {
         let mut client_builder = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(inference_timeout_secs));
+            .timeout(std::time::Duration::from_secs(inference.timeout_secs));
 
-        if let Some(api_key) = &inference_api_key {
+        if let Some(api_key) = &inference.api_key {
             let mut headers = reqwest::header::HeaderMap::new();
             let auth_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}"))?;
             headers.insert(reqwest::header::AUTHORIZATION, auth_value);
@@ -80,8 +85,8 @@ impl CondenserServer {
             daemon,
             engine: Mutex::new(CondenserEngine::new()),
             episodic: episodic.map(Arc::new),
-            inference_url,
-            inference_model,
+            inference_url: inference.url,
+            inference_model: inference.model,
             http_client: client_builder.build()?,
             capability_tier,
         })
@@ -476,10 +481,12 @@ async fn main() -> anyhow::Result<()> {
                 replicant.clone(),
                 daemon_client.clone(),
                 episodic,
-                inference_url,
-                inference_model,
-                inference_api_key,
-                inference_timeout_secs,
+                InferenceConfig {
+                    url: inference_url,
+                    model: inference_model,
+                    api_key: inference_api_key,
+                    timeout_secs: inference_timeout_secs,
+                },
                 ctx.capability_tier,
             )
         },

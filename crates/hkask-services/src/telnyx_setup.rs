@@ -115,10 +115,10 @@ pub async fn get_messaging_profile(api_key: &str) -> Result<String, ServiceError
 
     if resp.status().is_success() {
         let json: serde_json::Value = resp.json().await.unwrap_or_default();
-        if let Some(first) = json["data"].as_array().and_then(|a| a.first()) {
-            if let Some(id) = first["id"].as_str() {
-                return Ok(id.to_string());
-            }
+        if let Some(first) = json["data"].as_array().and_then(|a| a.first())
+            && let Some(id) = first["id"].as_str()
+        {
+            return Ok(id.to_string());
         }
     }
 

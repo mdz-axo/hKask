@@ -11,8 +11,9 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 # Spec-Code Drift Set
 
 Computed: 2026-06-08
-Method: Set-difference of named entities from `docs/architecture/*.md` and `docs/specifications/*.md`
-         against `pub` API surfaces from `crates/*/src/**/*.rs`.
+Method: >
+  Set-difference of named entities from `docs/architecture/*.md` and `docs/specifications/*.md`
+  against `pub` API surfaces from `crates/*/src/**/*.rs`.
 
 ## Drift Items
 

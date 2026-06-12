@@ -84,9 +84,7 @@ fn main() {
 
         Commands::Skill { action } => commands::skill::run_skill(action),
 
-        Commands::Compose { action } => commands::compose::run(&rt, action),
-
-        Commands::EmbedCorpus { action } => commands::embed_corpus::run(&rt, action),
+        Commands::Style { action } => commands::style::run(&rt, action),
 
         Commands::Models => commands::models::run(&rt),
 

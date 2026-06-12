@@ -185,6 +185,49 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         e
     })?;
 
+    // ── Telnyx: phone + WhatsApp setup (optional) ──
+    if let Some(ref profile) = user_profile {
+        if !profile.phone.is_empty() {
+            println!();
+            println!(
+                "  \x1b[1mPhone & WhatsApp\x1b[0m — {} can reach you via SMS, WhatsApp, and calls.",
+                display_name
+            );
+            let enable =
+                prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
+            if enable.trim().to_lowercase() == "y" {
+                match setup_telnyx_for_replicant(&display_name, &profile.phone).await {
+                    Ok((phone, whatsapp)) => {
+                        let mut agent = match handle.store.get(&display_name) {
+                            Ok(a) => a,
+                            Err(e) => {
+                                eprintln!("  \x1b[31m✗\x1b[0m Failed to read back replicant: {e}");
+                                return Err(OnboardingError::Database(format!(
+                                    "Failed to read back replicant: {e}"
+                                )));
+                            }
+                        };
+                        agent.definition.phone_number = Some(phone);
+                        agent.definition.whatsapp_id = Some(whatsapp);
+                        if let Err(e) = handle.store.insert(&agent) {
+                            eprintln!("  \x1b[31m✗\x1b[0m Failed to update replicant: {e}");
+                            return Err(OnboardingError::Database(format!(
+                                "Failed to update replicant: {e}"
+                            )));
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("  \x1b[33m⚠\x1b[0m  Telnyx setup skipped: {e}");
+                        eprintln!(
+                            "  You can set up phone/WhatsApp later via `kask pod assign {} telnyx`.",
+                            display_name
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     // Summary
     println!();
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");

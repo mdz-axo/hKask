@@ -65,8 +65,6 @@ pub struct TelnyxServer {
     client: reqwest::Client,
     /// Human user's phone number (from HKASK_USER_PHONE env var)
     user_phone: Option<String>,
-    /// Human user's name (from HKASK_USER_NAME env var)
-    user_name: Option<String>,
 }
 
 impl TelnyxServer {
@@ -76,7 +74,6 @@ impl TelnyxServer {
         daemon: Option<DaemonClient>,
         api_key: String,
         user_phone: Option<String>,
-        user_name: Option<String>,
     ) -> Result<Self, anyhow::Error> {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}")) {
@@ -92,7 +89,6 @@ impl TelnyxServer {
             daemon,
             client,
             user_phone,
-            user_name,
         })
     }
 
@@ -359,7 +355,7 @@ impl TelnyxServer {
                 let result = api_post(&self.client, "Telnyx", &url, &payload).await;
                 self.record_experience(
                     "telnyx_notify_user",
-                    &format!("sms to user"),
+                    "sms to user",
                     if result.is_ok() { "success" } else { "error" },
                     serde_json::json!({"message_length": message.len()}),
                 );
@@ -388,7 +384,6 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let user_phone = std::env::var("HKASK_USER_PHONE").ok();
-    let user_name = std::env::var("HKASK_USER_NAME").ok();
 
     hkask_mcp::run_server(
         "hkask-mcp-telnyx",
@@ -405,7 +400,6 @@ async fn main() -> anyhow::Result<()> {
                 daemon_client.clone(),
                 api_key,
                 user_phone.clone(),
-                user_name.clone(),
             )
         },
         vec![hkask_mcp::CredentialRequirement::required(

@@ -6,36 +6,23 @@
 //!
 //! Cognition: registry/registries/cognition/*-synthesizer.yaml
 
-use crate::cli::ComposeAction;
 use hkask_inference::InferenceConfig;
 use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceContext};
 
 use std::path::PathBuf;
 
-pub fn run(rt: &tokio::runtime::Runtime, action: ComposeAction) {
-    match action {
-        ComposeAction::Run {
-            prompt,
-            cognition,
-            db,
-            passphrase,
-            no_validate,
-        } => run_compose(rt, prompt, cognition, db, passphrase, no_validate),
-    }
-}
-
-fn run_compose(
+pub fn run(
     rt: &tokio::runtime::Runtime,
     prompt: String,
-    cognition_path: PathBuf,
-    db_path: PathBuf,
+    cognition: PathBuf,
+    db: PathBuf,
     passphrase: String,
     no_validate: bool,
 ) {
-    let config_str = std::fs::read_to_string(&cognition_path).unwrap_or_else(|e| {
+    let config_str = std::fs::read_to_string(&cognition).unwrap_or_else(|e| {
         eprintln!(
             "Failed to read cognition config {}: {}",
-            cognition_path.display(),
+            cognition.display(),
             e
         );
         std::process::exit(1);
@@ -54,7 +41,7 @@ fn run_compose(
 
     let request = ComposeRequest {
         prompt,
-        db_path,
+        db_path: db,
         db_passphrase: passphrase,
         cognition: config,
         inference_ctx,

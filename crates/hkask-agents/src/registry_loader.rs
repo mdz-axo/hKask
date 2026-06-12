@@ -182,9 +182,6 @@ impl RawYamlAgent {
                 source_path
             ))
         })?;
-        let phone_number = header.phone_number.clone();
-        let whatsapp_id = header.whatsapp_id.clone();
-
         let agent_kind = AgentKind::parse(&header.agent_type).ok_or_else(|| {
             RegistryLoaderError::InvalidDefinition(format!(
                 "Unknown agent type '{}' in {}",
@@ -193,8 +190,8 @@ impl RawYamlAgent {
         })?;
 
         // Extract header fields before moving out of self (borrow checker)
-        let phone_number = header.phone_number.clone();
-        let whatsapp_id = header.whatsapp_id.clone();
+        let _phone_number = header.phone_number.clone();
+        let _whatsapp_id = header.whatsapp_id.clone();
         let header_name = header.name.clone();
 
         Ok(AgentDefinition {
@@ -217,8 +214,8 @@ impl RawYamlAgent {
             }),
             depends_on: self.depends_on,
             process_manifest: self.process_manifest,
-            phone_number,
-            whatsapp_id,
+            phone_number: _phone_number,
+            whatsapp_id: _whatsapp_id,
         })
     }
 }

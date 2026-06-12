@@ -1,26 +1,14 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
-use crate::cli::EmbedCorpusAction;
 use hkask_services::{EmbedProgress, EmbedService};
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn run(rt: &tokio::runtime::Runtime, action: EmbedCorpusAction) {
-    match action {
-        EmbedCorpusAction::Run {
-            config,
-            db,
-            passphrase,
-            ollama_url,
-        } => run_embed(rt, config, db, passphrase, ollama_url),
-    }
-}
-
-fn run_embed(
+pub fn run(
     rt: &tokio::runtime::Runtime,
-    config_path: PathBuf,
-    db_path: PathBuf,
+    config: PathBuf,
+    db: PathBuf,
     passphrase: String,
     ollama_url: Option<String>,
 ) {
@@ -29,8 +17,8 @@ fn run_embed(
     });
 
     let result = rt.block_on(EmbedService::embed_corpus(
-        &config_path,
-        &db_path.to_string_lossy(),
+        &config,
+        &db.to_string_lossy(),
         &passphrase,
         ollama_url.as_deref(),
         None,

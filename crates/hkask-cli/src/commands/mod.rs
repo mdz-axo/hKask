@@ -31,6 +31,7 @@ pub mod settings;
 pub mod skill;
 pub mod sovereignty;
 pub mod spec;
+pub mod style;
 pub mod template;
 pub mod user;
 pub mod web_search;

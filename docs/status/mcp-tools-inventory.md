@@ -22,7 +22,7 @@ Updated 2026-06-11: `hkask-mcp-web` + `hkask-mcp-rss-reader` → `hkask-mcp-rese
 | research | `hkask-mcp-research` | ~17 | L4 (Communication) | See per-server detail |
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
 | fmp | `hkask-mcp-fmp` | 11 | L4 (Communication) | `HKASK_FMP_API_KEY` |
-| telnyx | `hkask-mcp-telnyx` | 7 | L4 (Communication) | `HKASK_TELNYX_API_KEY` |
+| telnyx | `hkask-mcp-telnyx` | 8 | L4 (Communication) | `HKASK_TELNYX_API_KEY` |
 | fal | `hkask-mcp-fal` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
@@ -138,9 +138,11 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### telnyx
 
-**Crate:** `hkask-mcp-telnyx` · **Loop:** L4 · **Tools:** 7
+**Crate:** `hkask-mcp-telnyx` · **Loop:** L4 · **Tools:** 8
 
 **Required:** `HKASK_TELNYX_API_KEY`
+
+**Optional env vars:** `HKASK_USER_PHONE` (human user's phone), `HKASK_REPLICANT_PHONE` (replicant's phone)
 
 | Tool | Description |
 |------|-------------|
@@ -151,6 +153,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `telnyx_make_call` | Make a phone call |
 | `telnyx_send_whatsapp` | Send a WhatsApp message |
 | `telnyx_list_voices` | List available TTS voices |
+| `telnyx_notify_user` | Send message to human user via best channel (SMS/WhatsApp/call) — composed value-add tool |
 
 ---
 
