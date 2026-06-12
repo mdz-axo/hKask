@@ -203,8 +203,9 @@ impl ComposeService {
         let prefix = format!("style:{}", &request.cognition.author);
         let retrieval = &request.cognition.embedding.retrieval;
         let mut matched: Vec<(f64, String, f64)> = Vec::new(); // (distance, entity_ref, salience)
+        let results_count = results.len();
 
-        for r in results {
+        for r in &results {
             if !r.embedding.entity_ref.starts_with(&prefix)
                 || r.embedding.entity_ref == request.cognition.embedding.centroid_entity_ref
                 || r.embedding.entity_ref.contains(":rule:")
@@ -233,7 +234,7 @@ impl ComposeService {
         debug!(
             "Filtered: {} of {} results passed prefix/distance/salience gates (threshold={})",
             matched.len(),
-            results.len(),
+            results_count,
             retrieval.distance_threshold
         );
 
@@ -243,7 +244,18 @@ impl ComposeService {
             matched.truncate(top_k);
         }
 
-        // Extract passage text from triples
+        // Extract passage text from triples.
+        //
+        // NOTE: Passages in the embedding-only set (not budget-selected for triples)
+        // will lack a `text` triple and fall back to placeholder strings like
+        // "[work_title: entity_ref]". These are useless as style exemplars.
+        //
+        // Two resolution paths (architectural decision pending):
+        //   (a) Lower the budget threshold so more passages earn triple storage.
+        //   (b) Store `text` triples for ALL passages regardless of budget, and
+        //       only gate the richer metadata (entity tags, method signals, salience)
+        //       on the budget. The `text` triple is ~150 words — tiny compared to
+        //       the 11 method signals and entity tags.
         let exemplar_passages: Vec<String> = matched
             .into_iter()
             .take(retrieval.k_max)

@@ -346,7 +346,8 @@ impl ResearchServer {
             version: SERVER_VERSION.to_string(),
             providers,
         };
-        span.ok_json(serde_json::to_value(&output).unwrap_or_default())
+        // PingOutput contains only strings and booleans — never NaN/Inf.
+        span.ok_json(serde_json::to_value(&output).expect("PingOutput serialization is infallible"))
     }
 
     #[tool(

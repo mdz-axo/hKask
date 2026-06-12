@@ -129,6 +129,36 @@ macro_rules! impl_from_serde_json {
     };
 }
 
+/// Collect mapped rows, propagating the **first error** instead of logging and skipping.
+///
+/// Use for targeted single-result queries (e.g., `get_by_id`) where a malformed
+/// row is a hard error, not graceful degradation. The two-function form matches
+/// the `collect_rows!` signature for `row_mapper → converter` pipelines.
+///
+/// # Example
+/// ```ignore
+/// let triples = collect_rows_strict!(
+///     stmt,
+///     rusqlite::params![id],
+///     TripleStore::row_to_triple_row,
+///     TripleStore::row_to_triple
+/// )?;
+/// ```
+#[macro_export]
+macro_rules! collect_rows_strict {
+    ($stmt:expr, $params:expr, $mapper:expr, $convert:expr) => {{
+        let mapped: Vec<std::result::Result<_, rusqlite::Error>> =
+            $stmt.query_map($params, $mapper)?.collect();
+        let mut results = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            let row = row_result?;
+            let item = $convert(row)?;
+            results.push(item);
+        }
+        results
+    }};
+}
+
 /// Collect mapped rows into a result vector with graceful error logging.
 ///
 /// Eliminates the repeated `collect → for row_result in mapped { match Ok/Err }`

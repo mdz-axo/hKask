@@ -46,6 +46,23 @@ fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
         .collect()
 }
 
+/// Build an OpenAI-compatible chat completion request.
+///
+/// # Design decisions
+///
+/// - `stream: false` is explicit in all non-streaming calls. Without it, Okapi
+///   defaults to chunked transfer encoding for large responses, which reqwest's
+///   `response.json()` cannot collect as a single JSON blob.
+///
+/// - `think: false` is always sent. Non-thinking models (llama3.1, deepseek,
+///   ministral) silently ignore it. Thinking models (qwen3, deepseek-r1) disable
+///   chain-of-thought when they receive it. This is the correct default for
+///   structured generation tasks.
+///
+///   **Known limitation:** Okapi's `/v1/chat/completions` handler does not
+///   forward the `think` field to Ollama's native `/api/chat`. Until Okapi is
+///   updated, qwen3 models will spend all tokens on internal reasoning and
+///   produce empty visible content. Workaround: use non-thinking models.
 fn build_request(
     model: &str,
     prompt: &str,

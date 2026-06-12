@@ -149,7 +149,10 @@ impl CondenserServer {
             }
         };
         let result = engine.compress(&tool_name, &output, cat);
-        span.ok_json(serde_json::to_value(&result).unwrap_or_default())
+        // CompressedOutput contains only strings, integers, and a clamped f64 — never NaN/Inf.
+        span.ok_json(
+            serde_json::to_value(&result).expect("CompressedOutput serialization is infallible"),
+        )
     }
 
     #[tool(description = "Set compression profile (heavy/normal/soft/light)")]
@@ -185,7 +188,11 @@ impl CondenserServer {
                 return span.internal_error(serde_json::json!({"error": "engine lock poisoned"}));
             }
         };
-        span.ok_json(serde_json::to_value(engine.get_stats()).unwrap_or_default())
+        // CondenserStats contains only strings and integers — never NaN/Inf.
+        span.ok_json(
+            serde_json::to_value(engine.get_stats())
+                .expect("CondenserStats serialization is infallible"),
+        )
     }
 
     #[tool(description = "Classify tool name to context category")]
@@ -331,7 +338,10 @@ impl CondenserServer {
         let result =
             inference::build_summary_output(summary, msg_count, self.inference_model.clone(), url);
 
-        span.ok_json(serde_json::to_value(&result).unwrap_or_default())
+        // ThreadSummaryOutput contains only strings and integers — never NaN/Inf.
+        span.ok_json(
+            serde_json::to_value(&result).expect("ThreadSummaryOutput serialization is infallible"),
+        )
     }
 }
 

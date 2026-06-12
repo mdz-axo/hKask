@@ -210,9 +210,15 @@ impl SpecServer {
     }
 }
 
-/// Serialize response and convert to ok_json
+/// Serialize response and convert to ok_json.
+/// Returns an internal error span entry if serialization fails (e.g. NaN/Inf in an f64 field).
 fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
-    span.ok_json(serde_json::to_value(resp).unwrap_or_default())
+    match serde_json::to_value(resp) {
+        Ok(val) => span.ok_json(val),
+        Err(e) => {
+            span.internal_error(serde_json::json!({"error": format!("serialization failed: {e}")}))
+        }
+    }
 }
 
 #[tool_router(server_handler)]

@@ -210,7 +210,9 @@ impl TripleStore {
         let mut stmt = conn.prepare(&format!(
             "SELECT {TRIPLE_COLUMNS} FROM triples WHERE id = ?1 AND valid_to IS NULL"
         ))?;
-        let triples = collect_rows!(
+        // Use strict collection: a corrupt row on a primary-key lookup is an error,
+        // not graceful degradation.
+        let triples = collect_rows_strict!(
             stmt,
             rusqlite::params![id],
             Self::row_to_triple_row,

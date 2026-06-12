@@ -228,17 +228,23 @@ struct TaggedPassage {
 }
 
 impl TaggedPassage {
-    /// Count how many triples this passage would consume if stored.
-    fn triple_count(&self) -> usize {
-        // 1 text + 6 structural + entity tags + method tags + 1 salience + 10 signals
-        1 + 6
-            + self.tags.characters.len()
+    /// Count how many metadata triples this passage would consume if stored.
+    /// Excludes the `text` triple — text is stored for all passages regardless
+    /// of budget, since it's required for exemplar retrieval in compose.
+    fn metadata_triple_count(&self) -> usize {
+        // 6 structural + entity tags + method tags + 1 salience + 10 signals
+        6 + self.tags.characters.len()
             + self.tags.places.len()
             + self.tags.events.len()
             + self.tags.concepts.len()
             + self.tags.methods.len()
             + 1
             + 11 // salience + 10 method signals
+    }
+
+    /// Total triple count including text (for reporting only).
+    fn triple_count(&self) -> usize {
+        1 + self.metadata_triple_count()
     }
 }
 
@@ -501,7 +507,7 @@ impl EmbedService {
         let mut indexed: Vec<(usize, f32, usize)> = all_passages
             .iter()
             .enumerate()
-            .map(|(i, p)| (i, p.salience, p.triple_count()))
+            .map(|(i, p)| (i, p.salience, p.metadata_triple_count()))
             .collect();
         indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -663,6 +669,21 @@ impl EmbedService {
 }
 
 // ── Triple storage helper ──────────────────────────────────────────────────
+
+fn store_passage_text(
+    semantic: &SemanticMemory,
+    passage: &TaggedPassage,
+    owner: WebID,
+) -> Result<(), ServiceError> {
+    let triple = Triple::new(&passage.entity_ref, "text", json!(passage.text), owner)
+        .with_visibility(Visibility::Public);
+    semantic.store(triple).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to store text triple ({}): {e}",
+            passage.entity_ref
+        ))
+    })
+}
 
 fn store_passage_triples(
     semantic: &SemanticMemory,
