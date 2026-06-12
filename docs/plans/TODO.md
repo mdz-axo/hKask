@@ -32,7 +32,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
-| **P1-06** | Citation compliance audit | Curator | Medium | ⬜ Open | P1-06 — Deferred pending build regression fix |
+| **P1-06** | Citation compliance audit | Curator | Medium | ✅ Complete | 9 target docs compliant (2026-06-11); 12 additional docs pending |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web + hkask-mcp-rss-reader → hkask-mcp-research (1,044 LOC, ~17 tools) (consolidated 2026-06-11) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
 
@@ -55,7 +55,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
 | **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, ~82 tools (updated 2026-06-11: research consolidation, replica added) |
 | **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
-| **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete | 6 Fowler patterns identified (2 applied, 4 open-low). Created 2026-06-08 |
+| **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete → Archived | 6 Fowler patterns identified (2 applied, 4 open-low). Archived 2026-06-11; open items deferred to P1 threshold. |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
 
 **Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`docs/status/spec-code-drift.yaml`](../status/spec-code-drift.yaml) and [`docs/status/curation-decisions.yaml`](../status/curation-decisions.yaml). Summary of resolutions:
