@@ -164,9 +164,15 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Us
 }
 
 fn build_store() -> Store {
-    let config = hkask_services::ServiceConfig::from_env().expect("Failed to resolve config");
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .expect("Failed to open DB");
+    let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
+        eprintln!("Failed to resolve config: {e}");
+        std::process::exit(1);
+    });
+    let db =
+        hkask_storage::Database::open(&config.db_path, &config.db_passphrase).unwrap_or_else(|e| {
+            eprintln!("Failed to open DB: {e}");
+            std::process::exit(1);
+        });
     Arc::new(Mutex::new(UserStore::new(db.conn_arc())))
 }
 

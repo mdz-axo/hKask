@@ -24,7 +24,7 @@ style_synthesizer: composition/agatha-eliot-style-synthesizer
 centroid_entity_ref: "style:agatha-eliot:centroid"
 
 embedding:
-  model: "Qwen/Qwen3-Embedding-0.6B"
+  model: "DI/Qwen/Qwen3-Embedding-0.6B"
   dim: 1024
   batch_size: 64
 

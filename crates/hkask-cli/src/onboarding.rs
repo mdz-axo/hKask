@@ -11,8 +11,9 @@
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
 use hkask_services::{
-    OnboardingService, ResolvedSecrets, ServiceConfig, get_messaging_profile, order_number,
-    search_available_numbers, send_welcome_sms, verify_api_key,
+    OnboardingService, ReplicantContactConfig, ResolvedSecrets, ServiceConfig,
+    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms,
+    verify_api_key,
 };
 use hkask_types::{RegisteredAgent, UserProfile};
 use thiserror::Error;
@@ -175,10 +176,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         &name,
         &description,
         user_profile.as_ref(),
-        None,
-        None,
-        None,
-        None,
+        ReplicantContactConfig::default(),
     )
     .await
     .map_err(|e| {
@@ -434,10 +432,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         &name,
         &description,
         Some(&user_profile),
-        None, // phone_number — set post-creation via Telnyx setup
-        None, // whatsapp_id — set post-creation via Telnyx setup
-        None, // voice_description — set post-creation via voice design
-        None, // voice_id — set post-creation via voice design
+        ReplicantContactConfig::default(),
     )
     .await
     .inspect_err(|e| {

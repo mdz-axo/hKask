@@ -605,8 +605,11 @@ impl AgentService {
             Err(e) => {
                 tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
                 Arc::new(
-                    hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
-                        .expect("Fallback CAS adapter"),
+                    hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates")).map_err(
+                        |e| {
+                            ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string()))
+                        },
+                    )?,
                 )
             }
         };

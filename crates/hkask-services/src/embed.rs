@@ -549,9 +549,9 @@ impl EmbedService {
         let inf_cfg = match ollama_url {
             Some(url) => InferenceConfig {
                 ollama_base_url: url.to_string(),
-                ..Default::default()
+                ..InferenceConfig::from_env()
             },
-            None => InferenceConfig::default(),
+            None => InferenceConfig::from_env(),
         };
         let embedder = EmbeddingRouter::new(inf_cfg);
 

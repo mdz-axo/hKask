@@ -13,6 +13,16 @@ use hkask_types::{
 use crate::config::ServiceConfig;
 use crate::error::ServiceError;
 
+/// Optional contact and voice configuration for a new replicant.
+/// Grouped to keep `register_replicant` argument count manageable.
+#[derive(Default)]
+pub struct ReplicantContactConfig {
+    pub phone_number: Option<String>,
+    pub whatsapp_id: Option<String>,
+    pub voice_description: Option<String>,
+    pub voice_id: Option<String>,
+}
+
 /// Pre-resolved secrets from onboarding, passed explicitly instead of
 /// mutating environment variables.
 #[derive(Debug, Clone)]
@@ -117,10 +127,7 @@ impl OnboardingService {
         name: &str,
         description: &str,
         user_profile: Option<&UserProfile>,
-        phone_number: Option<&str>,
-        whatsapp_id: Option<&str>,
-        voice_description: Option<&str>,
-        voice_id: Option<&str>,
+        contact: ReplicantContactConfig,
     ) -> Result<(), ServiceError> {
         let display_name = if let Some(profile) = user_profile {
             profile.replicant_display_name(name)
@@ -155,10 +162,10 @@ impl OnboardingService {
             persona: None,
             depends_on: vec![],
             process_manifest: None,
-            phone_number: phone_number.map(|s| s.to_string()),
-            whatsapp_id: whatsapp_id.map(|s| s.to_string()),
-            voice_description: voice_description.map(|s| s.to_string()),
-            voice_id: voice_id.map(|s| s.to_string()),
+            phone_number: contact.phone_number.map(|s| s.to_string()),
+            whatsapp_id: contact.whatsapp_id.map(|s| s.to_string()),
+            voice_description: contact.voice_description.map(|s| s.to_string()),
+            voice_id: contact.voice_id.map(|s| s.to_string()),
         };
 
         let registered = RegisteredAgent {

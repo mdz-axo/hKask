@@ -20,9 +20,8 @@ style_synthesizer: composition/hemingway-style-synthesizer
 
 # ── Embedding Model Configuration ──────────────────────────────────────────────
 embedding:
-  model: "Qwen/Qwen3-Embedding-0.6B"
+  model: "DI/Qwen/Qwen3-Embedding-0.6B"
   dim: 1024
-  embedding_provider: "OM"
   batch_size: 64
 
 # ── Corpus Sources ─────────────────────────────────────────────────────────────

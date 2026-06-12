@@ -17,9 +17,19 @@ pub fn list_templates(
 
 /// Template list command (local in-memory, for REPL use)
 pub fn list_templates_local() -> Vec<RegistryEntry> {
-    let registry = SqliteRegistry::new(None).unwrap_or_else(|_| {
-        SqliteRegistry::new(None).expect("SqliteRegistry::new(None) must succeed")
-    });
+    let registry = match SqliteRegistry::new(None) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(target: "hkask.cli", error = %e, "SqliteRegistry in-memory failed, retrying");
+            match SqliteRegistry::new(None) {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::error!(target: "hkask.cli", error = %e, "SqliteRegistry in-memory failed twice, returning empty");
+                    return Vec::new();
+                }
+            }
+        }
+    };
     registry.list(None)
 }
 

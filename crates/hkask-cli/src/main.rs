@@ -18,9 +18,7 @@ fn main() {
 
     let mut registry = commands::helpers::or_exit(
         match &cli.registry {
-            Some(path) => {
-                SqliteRegistry::new(Some(path.to_str().expect("path must be valid UTF-8")))
-            }
+            Some(path) => SqliteRegistry::new(Some(&path.to_string_lossy())),
             None => SqliteRegistry::new(None),
         },
         "Failed to initialize registry",

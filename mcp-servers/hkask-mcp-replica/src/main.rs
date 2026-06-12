@@ -251,14 +251,11 @@ impl ReplicaServer {
                 );
             });
 
-            // NOTE: EmbedService::embed_corpus still takes ollama_url: Option<&str>
-            // instead of InferenceConfig. When the service layer is updated to accept
-            // InferenceConfig directly, pass inference_config() here instead.
             let result = EmbedService::embed_corpus(
                 &config_path,
                 &params.db_path,
                 &params.passphrase,
-                Some(&inference_config().ollama_base_url),
+                None,
                 None,
                 Some(progress),
             )

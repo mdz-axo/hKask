@@ -88,7 +88,6 @@ pub(super) fn init_repl_state(
             .with_model(initial_model_str),
     );
 
-
     // Build a ServiceConfig from onboarding outcome for AgentService::build().
     let service_config = match &onboarding_outcome.resolved_secrets {
         Some(secrets) => {
