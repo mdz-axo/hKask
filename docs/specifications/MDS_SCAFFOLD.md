@@ -44,8 +44,6 @@ docs/
 │   ├── MDS.md                          # FRAMEWORK (taxonomy + methodology)
 │   ├── PRINCIPLES.md                      # FRAMEWORK (P1-P9)
 │   ├── magna-carta.md                     # FRAMEWORK (user sovereignty)
-│   ├── refactoring-plan-services-2026-06-09.md  # PLAN (service layer refactoring)
-│   ├── semantic-condensation-analysis.md        # ANALYSIS (condensation algorithms)
 │   ├── ADR-024-*.md                       # DECISION RECORD
 │   ├── ADR-025-*.md                       # DECISION RECORD
 │   ├── ADR-026-*.md                       # DECISION RECORD
@@ -55,7 +53,6 @@ docs/
 │   ├── ADR-032-*.md                       # DECISION RECORD (draft)
 │   ├── ADR-033-*.md                       # DECISION RECORD (draft)
 │   ├── ADR-034-*.md                       # DECISION RECORD (draft)
-│   ├── agatha-eliot-moe-plan.md           # DESIGN (MoE architecture)
 │   ├── loop-architecture.md              # FRAMEWORK (4-loop authority model)
 │   └── reference/
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
@@ -78,7 +75,6 @@ docs/
 │   ├── test-program.md                    # Test program spec
 │   ├── REPL-specification.md              # REPL specification
 │   ├── MDS-agent-service.md                # AgentService specification
-│   ├── AGENTSERVICE-IMPLEMENTATION.md      # AgentService implementation plan
 │   └── hhh-alignment-research.md          # HHH alignment research
 ├── plans/
 │   ├── TODO.md                            # Open work

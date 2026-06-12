@@ -223,7 +223,7 @@ impl AgentService {
     }
 
     // --- Coordination ---
-    /// Shared inference port (returns a clone of the Option<Arc>).
+    /// Shared inference port (returns a clone of the `Option<Arc>`).
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
