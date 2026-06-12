@@ -356,3 +356,105 @@ pub fn sign_api_key_capability(capability: &ApiKeyCapability) -> Result<String, 
     let signature = signing_key.sign(&canonical_bytes);
     Ok(hex::encode(signature.to_bytes()))
 }
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::id::{ApiKeyId, WalletId};
+    use hkask_types::wallet::{Ed25519PublicKey, PrivacyMode, RJoule};
+
+    /// Set a test master key in the environment for derivation tests.
+    /// Uses a fixed 32-byte hex key so derivations are deterministic.
+    fn set_test_master_key() {
+        // SAFETY: set_var is unsafe in Rust 2024 due to potential race conditions
+        // with other threads reading the environment. In a single-threaded test
+        // context, this is safe.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+            );
+        }
+    }
+
+    // REQ: P3-keystore — resolve_treasury_key returns different keys per chain
+    #[test]
+    fn treasury_keys_differ_per_chain() {
+        set_test_master_key();
+        let solana_key = resolve_treasury_key(ChainId::Solana).unwrap();
+        let hedera_key = resolve_treasury_key(ChainId::Hedera).unwrap();
+        assert_ne!(&*solana_key, &*hedera_key);
+        assert_eq!(solana_key.len(), 32);
+        assert_eq!(hedera_key.len(), 32);
+    }
+
+    // REQ: P3-keystore — resolve_treasury_key is deterministic
+    #[test]
+    fn treasury_key_is_deterministic() {
+        set_test_master_key();
+        let key1 = resolve_treasury_key(ChainId::Solana).unwrap();
+        let key2 = resolve_treasury_key(ChainId::Solana).unwrap();
+        assert_eq!(&*key1, &*key2);
+    }
+
+    // REQ: P3-keystore — resolve_wallet_seed returns 32 bytes
+    #[test]
+    fn wallet_seed_is_32_bytes() {
+        set_test_master_key();
+        let seed = resolve_wallet_seed().unwrap();
+        assert_eq!(seed.len(), 32);
+    }
+
+    // REQ: P3-keystore — resolve_wallet_seed is deterministic
+    #[test]
+    fn wallet_seed_is_deterministic() {
+        set_test_master_key();
+        let seed1 = resolve_wallet_seed().unwrap();
+        let seed2 = resolve_wallet_seed().unwrap();
+        assert_eq!(&*seed1, &*seed2);
+    }
+
+    // REQ: P3-keystore — sign_api_key_capability produces verifiable signature
+    #[test]
+    fn sign_api_key_capability_produces_signature() {
+        set_test_master_key();
+        let cap = ApiKeyCapability {
+            wallet_id: WalletId::new(),
+            key_id: ApiKeyId::new(),
+            public_key: Ed25519PublicKey([0u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        let sig = sign_api_key_capability(&cap).unwrap();
+        // Ed25519 signature is 64 bytes → 128 hex chars
+        assert_eq!(sig.len(), 128);
+        assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    // REQ: P3-keystore — signature changes when capability is tampered
+    #[test]
+    fn signature_changes_on_tampered_capability() {
+        set_test_master_key();
+        let mut cap = ApiKeyCapability {
+            wallet_id: WalletId::new(),
+            key_id: ApiKeyId::new(),
+            public_key: Ed25519PublicKey([0u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        let sig1 = sign_api_key_capability(&cap).unwrap();
+        cap.spending_limit_rj = RJoule::new(9999); // tamper
+        let sig2 = sign_api_key_capability(&cap).unwrap();
+        assert_ne!(sig1, sig2);
+    }
+}

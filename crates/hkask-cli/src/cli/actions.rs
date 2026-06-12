@@ -453,36 +453,6 @@ pub enum SpecAction {
     },
 }
 
-/// Style composition — generate prose with exemplar retrieval and centroid validation
-#[derive(Subcommand)]
-pub enum ComposeAction {
-    Run {
-        #[arg(short, long)]
-        prompt: String,
-        #[arg(short, long)]
-        cognition: PathBuf,
-        #[arg(short, long)]
-        db: PathBuf,
-        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
-        passphrase: String,
-        #[arg(long)]
-        no_validate: bool,
-    },
-}
-
-/// Style corpus embedding — download, chunk, embed, store
-#[derive(Subcommand)]
-pub enum EmbedCorpusAction {
-    Run {
-        #[arg(short, long)]
-        config: PathBuf,
-        #[arg(short, long)]
-        db: PathBuf,
-        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
-        passphrase: String,
-    },
-}
-
 /// Style subcommands — compose prose or embed corpora
 #[derive(Subcommand)]
 pub enum StyleAction {

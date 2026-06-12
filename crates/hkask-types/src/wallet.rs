@@ -11,7 +11,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::error::InfrastructureError;
-use crate::id::{ApiKeyId, WalletId};
+pub use crate::id::{ApiKeyId, WalletId};
 
 // ── rJoule — stable value unit ────────────────────────────────────────────────
 
@@ -163,6 +163,18 @@ impl fmt::Display for Ed25519PublicKey {
 
 // ── DepositAddress — validated deposit destination ─────────────────────────────
 
+/// On-chain transaction hash — newtype to prevent confusion with other hex strings.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TxHash(pub String);
+
+impl fmt::Display for TxHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+// ── DepositAddress — validated deposit destination ─────────────────────────────
+
 /// A deposit address with chain and privacy metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DepositAddress {
@@ -269,7 +281,7 @@ impl ApiKeyCapability {
     /// Whether this key is currently active (not revoked, not expired).
     /// Revocation is tracked in storage (`revoked_at` timestamp), not on the capability itself.
     pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
-        self.expiry.map_or(false, |exp| now > exp)
+        self.expiry.is_some_and(|exp| now > exp)
     }
 
     /// Remaining rJoule budget on this key.

@@ -621,9 +621,9 @@ pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
                 let mut edges = 0usize;
                 let mut pairs = 0usize;
                 for (a_idx, a_set) in sample_sets.iter().enumerate() {
-                    for b_idx in (a_idx + 1)..sample.len() {
+                    for &b in &sample[(a_idx + 1)..] {
                         pairs += 1;
-                        if a_set.contains(&sample[b_idx]) {
+                        if a_set.contains(&b) {
                             edges += 1;
                         }
                     }

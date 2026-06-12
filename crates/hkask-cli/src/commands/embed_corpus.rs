@@ -2,13 +2,19 @@
 
 use hkask_services::{EmbedProgress, EmbedService};
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 pub fn run(rt: &tokio::runtime::Runtime, config: PathBuf, db: PathBuf, passphrase: String) {
     let progress: hkask_services::ProgressFn = Arc::new(|p: &EmbedProgress| {
         eprint!("\r\x1b[K{}", p.format_full());
+        let _ = std::io::stderr().flush();
     });
+
+    eprintln!("=== Embedding corpus ===");
+    eprintln!("Config: {}", config.display());
+    eprintln!("DB: {}", db.display());
 
     let result = rt.block_on(EmbedService::embed_corpus(
         &config,
@@ -20,6 +26,7 @@ pub fn run(rt: &tokio::runtime::Runtime, config: PathBuf, db: PathBuf, passphras
 
     // Clear the progress line
     eprint!("\r\x1b[K");
+    let _ = std::io::stderr().flush();
 
     match result {
         Ok(r) => {
@@ -51,7 +58,7 @@ pub fn run(rt: &tokio::runtime::Runtime, config: PathBuf, db: PathBuf, passphras
                 r.passage_count, r.centroid_stored
             );
             eprintln!(
-                "Validation config: centroid_distance_max={}, exemplar_count={}..{}",
+                "Validation config: centroid_distance_max={}, exemplar_count_min={}, exemplar_count_max={}",
                 r.validation.centroid_distance_max,
                 r.validation.exemplar_count_min,
                 r.validation.exemplar_count_max,

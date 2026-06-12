@@ -1,0 +1,150 @@
+//! Signing module — isolated security boundary for all key operations.
+//!
+//! # Security Boundary `[OUGHT-DECL]`
+//! This is the ONLY module where treasury key material is loaded, used for
+//! signing, and zeroized. No un-zeroized key material ever leaves this module.
+//! All functions accept transaction bytes and return signatures — keys are
+//! loaded, used, and dropped within each call.
+//!
+//! # Audit Surface
+//! This is the single module a security auditor must review for key handling
+//! correctness. All other modules operate on already-signed data or public keys.
+//!
+//! # Specialized sub-wallet scope `[OUGHT-DECL]`
+//! hKask wallet is a specialized sub-wallet — one of several wallets the user
+//! holds. It only signs two things:
+//! 1. Withdrawal transactions (USDC from treasury → user's primary wallet)
+//! 2. API key capability tokens (Ed25519 signatures proving wallet ownership)
+//!
+//! It does NOT sign deposit transactions (user's primary wallet signs those).
+
+use ed25519_dalek::Signer;
+use hkask_keystore::resolve_treasury_key;
+use hkask_types::wallet::{ApiKeyCapability, ChainId, WalletError};
+use zeroize::Zeroizing;
+
+/// Loaded signing key — exists only within signing.rs.
+///
+/// # Security `[OUGHT-DECL]`
+/// - Wrapped in `Zeroizing<[u8; 32]>` for automatic zeroize on drop
+/// - `Debug` impl redacts key material (MUST-2)
+/// - Never leaves this module in un-zeroized form (MUST-11)
+struct LoadedKey {
+    bytes: Zeroizing<[u8; 32]>,
+}
+
+impl LoadedKey {
+    fn from_zeroizing(key: Zeroizing<Vec<u8>>) -> Result<Self, WalletError> {
+        let arr: [u8; 32] = key[..32].try_into().map_err(|_| {
+            WalletError::Infra(hkask_types::InfrastructureError::Database(
+                "treasury key must be 32 bytes".into(),
+            ))
+        })?;
+        Ok(LoadedKey {
+            bytes: Zeroizing::new(arr),
+        })
+    }
+
+    fn as_bytes(&self) -> &[u8; 32] {
+        &self.bytes
+    }
+}
+
+impl std::fmt::Debug for LoadedKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoadedKey")
+            .field("bytes", &"[REDACTED]")
+            .finish()
+    }
+}
+
+/// Sign a withdrawal transaction for a specific chain.
+///
+/// Loads the chain-specific treasury key via HKDF, signs the transaction bytes,
+/// and zeroizes the key on drop. Key material exists in memory only for the
+/// duration of this function call.
+///
+/// # Security
+/// - Treasury key is `Zeroizing<Vec<u8>>` — automatically zeroed on drop
+/// - No key material is returned to the caller — only the signature
+/// - Per-operation key loading: key derived fresh each call, not held long-term
+pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
+    let treasury_key: Zeroizing<Vec<u8>> = resolve_treasury_key(chain).map_err(|e| {
+        WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
+    })?;
+
+    let loaded = LoadedKey::from_zeroizing(treasury_key)?;
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(loaded.as_bytes());
+    let signature = signing_key.sign(tx_bytes);
+    Ok(signature.to_bytes().to_vec())
+    // loaded (Secret) drops here → key material zeroed
+    // treasury_key (Zeroizing) already dropped at from_zeroizing
+}
+
+/// Sign an API key capability token with the wallet's Ed25519 key.
+///
+/// Delegates to `hkask_keystore::sign_api_key_capability` which handles
+/// wallet seed derivation, canonical JSON serialization, signing, and
+/// zeroizing internally.
+///
+/// # Returns
+/// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
+pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletError> {
+    hkask_keystore::sign_api_key_capability(capability)
+        .map_err(|e| WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string())))
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::wallet::{ApiKeyId, Ed25519PublicKey, PrivacyMode, RJoule, WalletId};
+
+    fn set_test_master_key() {
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+            );
+        }
+    }
+
+    // REQ: P4-signing — sign_withdrawal produces valid signature bytes
+    #[test]
+    fn sign_withdrawal_produces_signature() {
+        set_test_master_key();
+        let tx_bytes = b"test withdrawal transaction";
+        let sig = sign_withdrawal(ChainId::Solana, tx_bytes).unwrap();
+        assert_eq!(sig.len(), 64); // Ed25519 signature is 64 bytes
+    }
+
+    // REQ: P4-signing — sign_withdrawal produces different signatures per chain
+    #[test]
+    fn sign_withdrawal_differs_per_chain() {
+        set_test_master_key();
+        let tx_bytes = b"test transaction";
+        let sol_sig = sign_withdrawal(ChainId::Solana, tx_bytes).unwrap();
+        let hed_sig = sign_withdrawal(ChainId::Hedera, tx_bytes).unwrap();
+        assert_ne!(sol_sig, hed_sig);
+    }
+
+    // REQ: P4-signing — sign_capability produces hex-encoded signature
+    #[test]
+    fn sign_capability_produces_hex_signature() {
+        set_test_master_key();
+        let cap = ApiKeyCapability {
+            wallet_id: WalletId::new(),
+            key_id: ApiKeyId::new(),
+            public_key: Ed25519PublicKey([0u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        let sig = sign_capability(&cap).unwrap();
+        assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
+    }
+}

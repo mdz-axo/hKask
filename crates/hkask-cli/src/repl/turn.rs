@@ -159,7 +159,13 @@ pub(super) fn single_agent_turn(
                     .ollama_base_url
                     .clone(),
             ),
-            condenser_model: Some(state.current_model.clone()),
+            condenser_model: Some(
+                state
+                    .current_model
+                    .strip_prefix("OM/")
+                    .unwrap_or(&state.current_model)
+                    .to_string(),
+            ),
         };
 
         let chat_result = rt.block_on(ChatService::execute_turn(

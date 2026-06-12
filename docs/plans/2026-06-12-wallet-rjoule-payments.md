@@ -2,7 +2,7 @@
 
 **Session date:** 2026-06-12
 **Project:** hKask v0.27.0
-**Status:** Phase 1 complete ✅ — Phase 2 in progress
+**Status:** Phases 1–3 complete ✅ — Phase 4 in progress
 
 ---
 
@@ -663,12 +663,14 @@ cargo test -p hkask-storage -- wallet_store
 ```
 
 **Success criteria:**
-- [ ] All 5 tables created via migration
-- [ ] `credit_rjoules` + `debit_rjoules` maintain balance invariant (never negative)
-- [ ] `consume_deposit_reference` burns reference (spent=true) and returns correct wallet_id
-- [ ] `get_api_key_by_public_key` finds key by Ed25519 public key bytes
-- [ ] `update_spent_rj` correctly tracks cumulative spending
-- [ ] Integration test: create wallet → credit → debit → verify balance → record transaction → retrieve history
+- [x] All 5 tables created via migration
+- [x] `credit_rjoules` + `debit_rjoules` maintain balance invariant (never negative)
+- [x] `consume_deposit_reference` burns reference (spent=true) and returns correct wallet_id
+- [x] `get_api_key_by_public_key` finds key by Ed25519 public key bytes
+- [x] `update_spent_rj` correctly tracks cumulative spending
+- [x] Integration test: create wallet → credit → debit → verify balance → record transaction → retrieve history
+
+**Bugs found and fixed:** Deadlock in `credit_rjoules` (mutex re-entrancy), orphan rule violation (`impl_from_rusqlite!` for cross-crate type), SQLite timestamp format mismatch, `collect_rows_strict!` type annotation errors.
 
 ---
 
@@ -740,11 +742,13 @@ cargo test -p hkask-keystore -- treasury
 ```
 
 **Success criteria:**
-- [ ] `resolve_treasury_key(Solana)` and `resolve_treasury_key(Hedera)` return different keys
-- [ ] Same master passphrase → same treasury key (deterministic)
-- [ ] `resolve_wallet_seed()` returns 32 zeroizing bytes
-- [ ] `sign_api_key_capability` produces verifiable Ed25519 signature
-- [ ] Signature verification succeeds with correct capability, fails with tampered capability
+- [x] `resolve_treasury_key(Solana)` and `resolve_treasury_key(Hedera)` return different keys
+- [x] Same master passphrase → same treasury key (deterministic)
+- [x] `resolve_wallet_seed()` returns 32 zeroizing bytes
+- [x] `sign_api_key_capability` produces verifiable Ed25519 signature
+- [x] Signature verification succeeds with correct capability, fails with tampered capability
+
+**Deviation from plan:** Added `serde_json` and `chrono` to keystore Cargo.toml (needed for canonical JSON signing and test timestamps).
 
 ---
 

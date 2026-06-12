@@ -489,9 +489,7 @@ impl WalletStore {
 
 // ── Row conversion helpers ─────────────────────────────────────────────────────
 
-fn tx_type_to_columns(
-    tx_type: &TransactionType,
-) -> (
+type TxTypeColumns = (
     &'static str,
     Option<String>,
     Option<String>,
@@ -499,7 +497,9 @@ fn tx_type_to_columns(
     Option<String>,
     Option<String>,
     Option<i64>,
-) {
+);
+
+fn tx_type_to_columns(tx_type: &TransactionType) -> TxTypeColumns {
     match tx_type {
         TransactionType::Deposit {
             chain,
@@ -575,13 +575,13 @@ fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransactio
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
             tool: r.tool_name.unwrap_or_default(),
             gas: r.gas_units.unwrap_or(0) as u64,
-            rj: RJoule::new(r.amount_rj.abs() as u64),
+            rj: RJoule::new(r.amount_rj.unsigned_abs()),
         },
         "refund" => TransactionType::Refund {
             key_id: ApiKeyId::from_str(r.key_id.as_deref().unwrap_or(""))
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
             reason: r.tool_name.unwrap_or_default(),
-            rj: RJoule::new(r.amount_rj.abs() as u64),
+            rj: RJoule::new(r.amount_rj.unsigned_abs()),
         },
         other => {
             return Err(WalletError::Infra(InfrastructureError::Database(format!(

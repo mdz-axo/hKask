@@ -197,7 +197,7 @@ impl Default for CondenserStats {
     }
 }
 
-/// Request for thread summarization via local inference.
+/// Request for thread summarization via the centralized inference router.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ThreadSummaryRequest {
     /// Conversation messages to summarize, as an array of {role, content} objects.
@@ -208,11 +208,8 @@ pub struct ThreadSummaryRequest {
     pub max_tokens: Option<u32>,
     /// Override the server's default inference model.
     /// When provided, this model is used instead of the server-configured default.
-    /// Useful for IDE installations where the active session model should match.
+    /// Supports provider-prefixed names (OM/, FW/, DI/) for backend routing.
     pub model: Option<String>,
-    /// Override the server's default inference URL.
-    /// When provided, requests are sent to this URL instead of the server-configured default.
-    pub inference_url: Option<String>,
 }
 
 /// Output of a thread summarization.
@@ -222,7 +219,6 @@ pub struct ThreadSummaryOutput {
     pub original_message_count: usize,
     pub summary_tokens_approx: usize,
     pub inference_model: String,
-    pub inference_url: String,
 }
 
 #[cfg(test)]

@@ -480,6 +480,11 @@ impl EmbedService {
         }
 
         // ── Compute batch salience (graph centrality) ────────────────
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Tagging; // still in metadata phase
+            p.current_work = "computing salience".into();
+        }
         let all_tags: Vec<EntityTags> = all_passages.iter().map(|p| p.tags.clone()).collect();
         let salience_scores = salience::compute_salience_batch(&all_tags);
         for (passage, score) in all_passages.iter_mut().zip(salience_scores.iter()) {
@@ -495,6 +500,10 @@ impl EmbedService {
         );
 
         // ── Phase 3: Budget gate ───────────────────────────────────────
+        {
+            let mut p = shared.lock().unwrap();
+            p.current_work = "applying budget gate".into();
+        }
         let total_passages = all_passages.len();
         let budget = config.budget.resolve(total_passages);
 
@@ -537,6 +546,12 @@ impl EmbedService {
         );
 
         // ── Phase 4: Embed all passages ────────────────────────────────
+        tracing::info!(
+            total_passages = total_passages,
+            batch_size = config.embedding.batch_size,
+            model = %config.embedding.model,
+            "Starting embedding phase"
+        );
         {
             let mut p = shared.lock().unwrap();
             p.phase = EmbedPhase::Embedding;
@@ -738,6 +753,7 @@ fn store_passage_triples(
 async fn download_text(url: &str) -> Result<String, ServiceError> {
     let resp = reqwest::Client::builder()
         .user_agent(USER_AGENT)
+        .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| ServiceError::Embed(format!("Failed to build HTTP client: {e}")))?
         .get(url)

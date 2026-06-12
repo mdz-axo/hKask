@@ -1,7 +1,7 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
 use crate::repl::handlers::repl_settings::ModelMeta;
-use hkask_inference::InferenceConfig;
+use hkask_inference::{InferenceConfig, ProviderId};
 use hkask_services::{InferenceContext, InferenceService};
 
 pub(crate) fn populate_model_meta(
@@ -29,12 +29,28 @@ pub(crate) fn populate_model_meta(
 }
 
 /// Fetch per-model detail from Ollama's `/api/show` endpoint.
-/// Returns `None` if the endpoint is unreachable or the model is not found.
+///
+/// Only works for Ollama models (OM/ prefix or unprefixed with default
+/// provider = Ollama). Returns `None` for Fireworks/DeepInfra models or
+/// if the endpoint is unreachable.
 async fn fetch_model_show(config: &InferenceConfig, model: &str) -> Option<ModelShowInfo> {
+    // Resolve the raw Ollama model name, stripping any provider prefix.
+    let ollama_model = match ProviderId::parse_from_model(model) {
+        Some((ProviderId::Ollama, stripped)) => stripped.to_string(),
+        Some((_, _)) => return None, // FW/DI: no /api/show equivalent
+        None => {
+            if config.default_provider == ProviderId::Ollama {
+                model.to_string()
+            } else {
+                return None;
+            }
+        }
+    };
+
     let client = config.build_client().ok()?;
     let request = client
         .get(format!("{}/api/show", config.ollama_base_url))
-        .query(&[("name", model)]);
+        .query(&[("name", &ollama_model)]);
     match request.send().await {
         Ok(resp) => resp.json::<ModelShowInfo>().await.ok(),
         Err(_) => None,

@@ -1,0 +1,50 @@
+//! hKask Wallet — rJoule payments, multi-chain deposits, API key issuance.
+//!
+//! # Specialized sub-wallet `[OUGHT-DECL]`
+//! The hKask wallet is a specialized sub-wallet — one of several crypto wallets
+//! the user holds. It only does what hKask needs:
+//! - Receive deposits (USDC → rJoules)
+//! - Track rJoule balances
+//! - Issue API key capability tokens
+//! - Process withdrawals (rJoules → USDC)
+//!
+//! The user's primary wallet (Phantom, HashPack, MetaMask) handles key storage,
+//! multi-chain asset management, and DeFi interactions.
+//!
+//! # Security `[OUGHT-DECL]`
+//! - `signing.rs` — isolated security boundary for all key operations
+//! - Per-operation key loading: keys derived via HKDF, used, zeroized immediately
+//! - No long-lived treasury key material
+//! - API key private keys returned to user once, never stored by hKask
+//! - `Zeroizing` wrappers on all secret key material
+//!
+//! # Crate Map
+//! - `chain.rs` — `ChainPort` trait + `DepositEvent`
+//! - `privacy.rs` — `PrivacyPort` trait + `ShieldedTransfer`
+//! - `signing.rs` — Isolated signing module (security boundary)
+//! - `manager.rs` — `WalletManager` + deposit reference logic
+//! - `issuer.rs` — `ApiKeyIssuer` + `ApiKeyMaterial`
+//! - `solana.rs` — `SolanaPort` (feature-gated: "solana")
+//! - `hedera.rs` — `HederaPort` (feature-gated: "hedera")
+//! - `hinkal.rs` — `HinkalPort` (feature-gated: "hinkal")
+
+pub mod chain;
+pub mod issuer;
+pub mod manager;
+pub mod privacy;
+pub mod signing;
+
+#[cfg(feature = "solana")]
+pub mod solana;
+
+#[cfg(feature = "hedera")]
+pub mod hedera;
+
+#[cfg(feature = "hinkal")]
+pub mod hinkal;
+
+pub use chain::{ChainPort, DepositEvent};
+pub use issuer::{ApiKeyIssuer, ApiKeyMaterial};
+pub use manager::WalletManager;
+pub use privacy::{PrivacyPort, ShieldedTransfer};
+pub use signing::{sign_capability, sign_withdrawal};

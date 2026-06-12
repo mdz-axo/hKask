@@ -102,6 +102,6 @@ pub use time::now_rfc3339;
 pub use visibility::{AccessControl, Confidence, TemporalBounds, Visibility};
 pub use wallet::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
-    PrivacyMode, RJoule, TransactionType, WalletBalance, WalletConfig, WalletError,
+    PrivacyMode, RJoule, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
     WalletTransaction,
 };

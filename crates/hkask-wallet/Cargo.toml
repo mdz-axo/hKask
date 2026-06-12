@@ -1,0 +1,41 @@
+[package]
+name = "hkask-wallet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "rJoule wallet — multi-chain deposits, API key issuance, Hinkal privacy integration"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-keystore = { path = "../hkask-keystore" }
+hkask-storage = { path = "../hkask-storage" }
+ed25519-dalek.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+chrono.workspace = true
+async-trait.workspace = true
+zeroize.workspace = true
+hex.workspace = true
+subtle.workspace = true
+rand.workspace = true
+hmac.workspace = true
+sha2.workspace = true
+tracing.workspace = true
+
+# Chain SDKs — feature-gated to keep default build lightweight
+solana-sdk = { version = "2", optional = true }
+solana-client = { version = "2", optional = true }
+spl-token = { version = "6", optional = true }
+# Hedera — use hiero-sdk (rebranded) when available; mirror node REST API as fallback
+reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls"] }
+
+[features]
+default = []
+solana = ["dep:solana-sdk", "dep:solana-client", "dep:spl-token"]
+hedera = ["dep:reqwest"]
+hinkal = ["dep:reqwest"]
+
+[dev-dependencies]
+hkask-storage = { path = "../hkask-storage" }
