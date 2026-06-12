@@ -26,11 +26,16 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 | Standing Session | `StandingSessionPort` | `ports/standing_session.rs` | `StandingSessionStoreAdapter` |
 | Sovereignty | `SovereigntyPort` | `sovereignty.rs` (impl) | `SovereigntyChecker` (implements `SovereigntyPort` from `hkask-types/src/sovereignty.rs`) |
 
-### hkask-templates (3)
+### hkask-inference (1)
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
-| Inference | `InferencePort` | `inference_port.rs` | `OkapiInference` |
+| Inference | `InferencePort` | `inference_router.rs` | `InferenceRouter` |
+
+### hkask-templates (2)
+
+| Port | Trait | File | Impls |
+|---|---|---|---|
 | MCP Dispatch | `McpPort` | `ports.rs` | `McpDispatcher` (in hkask-mcp) |
 | Registry | `RegistryIndex` | `ports.rs` | `Registry`, `SqliteRegistry` |
 
@@ -38,8 +43,8 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
-| Inference Client | `InferenceClient` | `ports.rs` | `OkapiImprovClient`, `OkapiHttpClient`, `MockInferenceClient` |
-| Metrics Source | `MetricsSource` | `ports.rs` | `OkapiSseAdapter`, `MockMetricsSource` |
+| Inference Client | `InferenceClient` | `ports.rs` | `InferencePortAdapter`, `CircuitBreakerInferenceAdapter`, `MockInferenceClient` |
+| Metrics Source | `MetricsSource` | `ports.rs` | `MockMetricsSource` |
 | Capability Query | `CapabilityQueryPort` | `ocap_enforcement.rs` | `WebIDCapabilityRegistry` |
 
 ### hkask-cns (1)
@@ -79,7 +84,7 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 | `SpecSigner` | Dead — zero implementations |
 | `CapabilityProviderPort` | Dead — zero implementations |
 | `CuratorMetacognitionPort` | Dead — zero implementations |
-| `OkapiClientTrait` | Dead — zero callers |
+| `OkapiClientTrait` | Dead — replaced by `InferenceClient` trait |
 | `InputValidator` | Inlined to `AgentPersonaInput::validate()` |
 | `GoalMemoryPort` | Inlined to `GoalMemory::store_semantic()` etc. |
 | `GoalRepositoryPort` | Inlined to `SqliteGoalRepository` |

@@ -74,10 +74,10 @@ impl MarkitdownServer {
     pub fn new(
         webid: WebID,
         ocr_model: Option<String>,
-        okapi_base_url: &str,
+        ollama_base_url: &str,
     ) -> anyhow::Result<Self> {
         let inference_config = InferenceConfig {
-            ollama_base_url: okapi_base_url.to_string(),
+            ollama_base_url: ollama_base_url.to_string(),
             ..InferenceConfig::default()
         };
         Ok(Self {
@@ -417,7 +417,7 @@ impl MarkitdownServer {
     }
 
     #[tool(
-        description = "OCR a document using a local vision model. Requires HKASK_OCR_MODEL env var or explicit model parameter. The model must be a vision-capable model available in the Okapi catalog."
+        description = "OCR a document using a local vision model. Requires HKASK_OCR_MODEL env var or explicit model parameter. The model must be a vision-capable model available in the inference catalog."
     )]
     async fn markitdown_ocr(
         &self,

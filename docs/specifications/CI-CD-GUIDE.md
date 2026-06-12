@@ -335,13 +335,13 @@ cargo clean
 
 1. Ensure runner is online and has required tools
 2. Check runner logs for specific errors
-3. Verify Docker is running (for Okapi containers)
+3. Verify Ollama is running (for local inference)
 
 **Chaos tests fail:**
 
 Chaos injection testing has been removed from CI. Resilience and circuit breaker
 logic is covered by unit tests in `hkask-ensemble` via the main CI pipeline.
-E2E chaos tests against live Okapi can be run manually with
+E2E chaos tests against live inference providers can be run manually with
 `OKAPI_E2E_TEST=1 cargo test --package hkask-testing --test chaos_integration`.
 
 ---

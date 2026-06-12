@@ -1,7 +1,7 @@
 //! Circuit Breaker — Cybernetics Regulation Function
 //
 //! Circuit breaking is a CNS regulation mechanism: it enforces homeostatic
-//! control over external service calls (e.g. Okapi inference) by preventing
+//! control over external service calls (e.g. inference) by preventing
 //! cascading failures when downstream systems degrade. This is a Cybernetics
 //! concern, not a templates concern — the CNS governs when the system must
 //! shed load to preserve stability (Ashby's Law of Requisite Variety).
@@ -39,7 +39,7 @@ impl Default for CircuitBreakerConfig {
     }
 }
 
-/// Circuit breaker for Okapi calls
+/// Circuit breaker for inference calls
 pub struct CircuitBreaker {
     state: AtomicU32,
     failure_count: AtomicU32,
@@ -68,7 +68,7 @@ impl CircuitBreaker {
 
     /// Create a circuit breaker with inference-appropriate defaults.
     ///
-    /// Suitable for wrapping Okapi inference calls: 5 failures to open,
+    /// Suitable for wrapping inference calls: 5 failures to open,
     /// 60s open timeout, 2 successes to close from half-open.
     pub fn default_for_inference(name: &str) -> Self {
         Self::new(name.to_string(), CircuitBreakerConfig::default())

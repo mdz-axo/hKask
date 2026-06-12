@@ -106,7 +106,7 @@ impl TableEnergyEstimator {
             .map(|(k, v)| (k.to_string(), v))
             .collect();
         let mut tool_costs: HashMap<(String, String), u64> = HashMap::new();
-        // thread_summary makes an HTTP call to Okapi — more expensive than local compression
+        // thread_summary makes an HTTP call to the inference engine — more expensive than local compression
         tool_costs.insert(
             (
                 "hkask-mcp-condenser".to_string(),

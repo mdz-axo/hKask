@@ -9,7 +9,7 @@
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
 //! thread summarization via a local or cloud inference engine.
 //! Supports Ollama (/api/chat) and OpenAI-compatible (/v1/chat/completions)
-//! endpoints (OpenRouter, LiteLLM, etc.). Format detected from INFERENCE_URL.
+//! endpoints (Fireworks, DeepInfra, etc.). Format detected from INFERENCE_URL.
 //!
 //! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
 //! persist compressed outputs to episodic memory via the `condenser:persist` tool.
@@ -333,7 +333,7 @@ impl CondenserServer {
                 format!("{}/api/chat", inference_url.trim_end_matches('/'))
             }
             ApiFormat::OpenAi => {
-                // Base URL already ends with /v1 (e.g. https://openrouter.ai/api/v1)
+                // Fireworks/DeepInfra base URLs end with /v1
                 format!("{}/chat/completions", inference_url.trim_end_matches('/'))
             }
         };
@@ -386,7 +386,7 @@ async fn main() -> anyhow::Result<()> {
                 .credentials
                 .get("INFERENCE_MODEL")
                 .cloned()
-                .unwrap_or_else(|| "qwen3:8b".to_string());
+                .unwrap_or_else(|| "deepseek-v4-flash:cloud".to_string());
             let inference_api_key = ctx.credentials.get("INFERENCE_API_KEY").cloned();
             let inference_timeout_secs = ctx
                 .credentials
@@ -426,7 +426,7 @@ fn credential_requirements() -> Vec<hkask_mcp::CredentialRequirement> {
         ),
         opt(
             "INFERENCE_MODEL",
-            "Model for summarization (default: qwen3:8b)",
+            "Model for summarization (default: deepseek-v4-flash:cloud)",
         ),
         opt(
             "INFERENCE_API_KEY",

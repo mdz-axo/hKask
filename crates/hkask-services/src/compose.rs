@@ -300,8 +300,7 @@ impl ComposeService {
         };
 
         // 6. Generate prose
-        let gen_model = std::env::var("OKAPI_MODEL")
-            .unwrap_or_else(|_| request.cognition.embedding.model.clone());
+        let gen_model = request.cognition.embedding.model.clone();
         let inference = crate::InferenceService::resolve_port(&request.inference_ctx, &gen_model)?;
         let params = LLMParameters {
             temperature: 0.7,

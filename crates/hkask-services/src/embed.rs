@@ -7,7 +7,7 @@
 //! 3. **Tag** — entity matching + method signal extraction
 //! 4. **Salience** — weighted graph degree centrality per passage
 //! 5. **Budget gate** — sort by salience, top-N by triple budget
-//! 6. **Embed** — all passages get vectors (via Okapi/DeepInfra)
+//! 6. **Embed** — all passages get vectors (via inference providers)
 //! 7. **Store triples** — budget-selected passages get metadata triples
 //! 8. **Centroid** — mean vector over prose passages
 
@@ -285,7 +285,7 @@ impl EmbedService {
         config_path: &Path,
         db_path: &str,
         db_passphrase: &str,
-        okapi_url: Option<&str>,
+        ollama_url: Option<&str>,
         cache_dir: Option<&Path>,
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
@@ -548,7 +548,7 @@ impl EmbedService {
             p.completed_passages = 0;
         }
 
-        let inf_cfg = match okapi_url {
+        let inf_cfg = match ollama_url {
             Some(url) => {
                 let mut cfg = InferenceConfig::default();
                 cfg.ollama_base_url = url.to_string();

@@ -50,7 +50,7 @@ pub(crate) fn handle_ensemble(
             let parts: Vec<&str> = rest.split_whitespace().collect();
             if parts.len() < 3 {
                 println!("  Usage: \x1b[36m/ensemble join <session> <bot> <role>\x1b[0m");
-                println!("  Roles: memory_bot, spandrel_bot, okapi_bot, scholar_bot");
+                println!("  Roles: memory_bot, spandrel_bot, inference_bot, scholar_bot");
             } else {
                 rt.block_on(async {
                     match crate::commands::ensemble_chat_register(
@@ -73,7 +73,7 @@ pub(crate) fn handle_ensemble(
                 if parts.is_empty() {
                     println!("  Usage: \x1b[36m/ensemble invite <bot> [role]\x1b[0m");
                     println!(
-                        "  Roles: memory_bot, spandrel_bot, okapi_bot, scholar_bot (default: custom)"
+                        "  Roles: memory_bot, spandrel_bot, inference_bot, scholar_bot (default: custom)"
                     );
                 } else {
                     let bot = parts[0];

@@ -39,7 +39,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 - `kask` CLI binary — User-facing command interface (interactive chat, template management, pod operations)
 - `hkask-api` — HTTP API server (optional, for programmatic access including `/api/chat` endpoint)
 - SQLite database — Persistent storage for registry, goals, CNS state
-- Okapi LLM — External dependency for inference (local or remote)
+- Inference Router — Multi-provider LLM inference (Ollama local, Fireworks.ai cloud, DeepInfra cloud)
 
 **Key Features:**
 - Interactive CLI chat with Curator persona
@@ -67,42 +67,44 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
-| **Okapi LLM** | LLM inference (chat, SOAP, templates) | Yes (for inference features) | `http://127.0.0.1:11435` |
+| **Ollama** | Local LLM inference | Recommended | `http://127.0.0.1:11434` |
+| **Fireworks.ai** | Cloud LLM inference | Optional (requires API key) | `https://api.fireworks.ai/inference` |
+| **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com/v1/openai` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
 | **Git** | Template loading (optional) | Optional | — |
 
-### 2.3 Okapi LLM Setup
+### 2.3 Inference Provider Setup
 
-hKask requires Okapi for inference. Options:
+hKask uses a multi-provider inference router supporting local and cloud LLM backends.
 
-**Option A: Local Okapi (Development)**
-```bash
-# Install Okapi (mdz-axo/Okapi)
-git clone https://github.com/mdz-axo/Okapi.git
-cd Okapi
-cargo run --release
-
-# Okapi starts at http://127.0.0.1:11435 by default
-```
-
-**Option B: Remote Okapi (Production)**
-```bash
-# Configure remote Okapi endpoint
-export OKAPI_BASE_URL="https://okapi.example.com"
-export OKAPI_API_KEY="your-api-key-here"
-```
-
-**Option C: Ollama Compatibility**
-Okapi is compatible with Ollama API. You can use Ollama as a drop-in replacement:
+**Option A: Local Ollama (Recommended for Development)**
 ```bash
 # Install Ollama
-curl https://ollama.com/install.sh | sh
+curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull model
+# Pull a model
 ollama pull qwen3:8b
 
-# Configure hKask to use Ollama
-export OKAPI_BASE_URL="http://localhost:11434"
+# Ollama starts at http://127.0.0.1:11434 by default
+# hKask auto-detects Ollama at this address
+```
+
+**Option B: Fireworks.ai (Cloud)**
+```bash
+# Configure Fireworks.ai API key
+export FIREWORKS_API_KEY="your-api-key-here"
+
+# Optional: override default base URL
+export FIREWORKS_BASE_URL="https://api.fireworks.ai/inference"
+```
+
+**Option C: DeepInfra (Cloud)**
+```bash
+# Configure DeepInfra API key
+export DEEPINFRA_API_KEY="your-api-key-here"
+
+# Optional: override default base URL
+export DEEPINFRA_BASE_URL="https://api.deepinfra.com/v1/openai"
 ```
 
 ---

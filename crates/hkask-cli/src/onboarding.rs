@@ -214,7 +214,7 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
     Ok(replicants[choice - 1].definition.name.clone())
 }
 
-/// Fetch available models from Okapi for the onboarding model selection step.
+/// Fetch available models from inference providers for the onboarding model selection step.
 /// Returns up to 8 models, sorted with smaller/faster models first.
 async fn fetch_models_for_onboarding() -> Vec<ModelInfo> {
     let inference_config = hkask_inference::InferenceConfig::from_env();
@@ -335,15 +335,15 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
 /// Let the user select a model during onboarding.
 ///
-/// Fetches available models from Okapi. If models are found, shows a numbered
-/// list and lets the user pick. If Okapi is unreachable, falls back to a
+/// Fetches available models. If models are found, shows a numbered
+/// list and lets the user pick. If no providers are reachable, falls back to a
 /// free-text prompt with a sensible default.
 async fn select_model() -> String {
     let default_model = "deepseek-v4-pro".to_string();
     let models = fetch_models_for_onboarding().await;
 
     if models.is_empty() {
-        println!("  \x1b[2m(Okapi unreachable — using default model)\x1b[0m");
+        println!("  \x1b[2m(No providers reachable — using default model)\x1b[0m");
         let input = prompt_line(&format!(
             "  Model name (default: \x1b[36m{}\x1b[0m):",
             default_model

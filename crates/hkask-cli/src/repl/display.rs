@@ -173,7 +173,7 @@ pub(super) fn print_command_help(cmd_name: &str) {
                     "    \x1b[36m/ensemble participants\x1b[0m — Show who's in the current session"
                 );
                 println!();
-                println!("  Roles: memory_bot, spandrel_bot, okapi_bot, scholar_bot");
+                println!("  Roles: memory_bot, spandrel_bot, inference_bot, scholar_bot");
                 println!("  Use \x1b[36m/into <session>\x1b[0m to enter ensemble mode");
             }
             "into" => {
@@ -229,7 +229,9 @@ pub(super) fn print_command_help(cmd_name: &str) {
                     "  \x1b[2m/model qwen\x1b[0m            — Fuzzy search for models matching 'qwen'"
                 );
                 println!();
-                println!("  Models are loaded from Okapi. Use a model name from /model");
+                println!(
+                    "  Models are loaded from configured providers. Use a model name from /model"
+                );
                 println!("  to change the LLM used by the current agent.");
             }
             _ => {}

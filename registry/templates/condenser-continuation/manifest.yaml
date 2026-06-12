@@ -8,7 +8,7 @@ crate:
     Continuation skill for resuming hKask condenser implementation work after
     context reset. Restores session state, prioritizes remaining tasks,
     verifies build status, and composes a structured continuation plan.
-    Inference-agnostic: works with Okapi, Ollama, or any hKask-supported
+    Inference-agnostic: works with Ollama, Fireworks, DeepInfra, or any hKask-supported
     inference engine.
 
 templates:

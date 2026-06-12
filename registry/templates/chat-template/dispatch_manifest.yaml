@@ -8,7 +8,7 @@
 dispatch:
   - id: inference
     type: inference
-    route: okapi
+    route: inference
     description: "Primary LLM inference for chat"
 
   - id: episodic_write

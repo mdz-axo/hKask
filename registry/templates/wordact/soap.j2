@@ -36,10 +36,10 @@ contract:
 When you identify a next step and a skill is loaded, propose it on the final line using ACTION syntax:
 
 For probes (read-only, auto-execute): ACTION: <skill-id>/<probe-id>
-(e.g. ACTION: okapi-watcher/probe-health)
+(e.g. ACTION: inference-watcher/probe-health)
 
 For interventions (mutations, require consent): ACTION: <skill-id>/<intervention-id>
-(e.g. ACTION: okapi-watcher/restart-okapi)
+(e.g. ACTION: inference-watcher/restart-ollama)
 
 Prefer probes first to gather evidence. Probes run immediately. Interventions wait for the operator to say 'ok'.
 {% endif %}

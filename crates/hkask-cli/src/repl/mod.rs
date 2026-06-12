@@ -42,7 +42,7 @@ use helper::KaskHelper;
 /// REPL state — initialized once, reused across all turns.
 ///
 /// Holds the shared inference port, InferenceLoop (with energy budget
-/// and circuit breaker), memory adapters, and Okapi config so they
+/// and circuit breaker), memory adapters, and inference config so they
 /// aren't reconstructed per chat turn. Also groups mutable REPL state
 /// to keep function signatures manageable.
 pub(crate) struct ReplState {

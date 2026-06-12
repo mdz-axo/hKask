@@ -64,7 +64,7 @@ You are a skill translator. Your job is to convert a classified source skill int
 |----------------|--------------------|--------------------|
 | REST API calls | `web` MCP server | `web` MCP server |
 | File system operations | `.j2` contract input/output | `read_file`, `write_file`, `edit_file` tools |
-| LLM inference | `inference` MCP server (Okapi) | `inference` MCP server |
+| LLM inference | `inference` MCP server (hkask-inference router) | `inference` MCP server |
 | Database queries | `hkask-storage` (SQLite/SQLCipher) | `hkask-storage` |
 | Key/value store | `hkask-keystore` (AES-256-GCM) | `hkask-keystore` |
 | Event bus / pubsub | `hkask-cns` algedonic alerts | CNS alerts |

@@ -12,21 +12,15 @@ use crate::types::ThreadSummaryOutput;
 pub enum ApiFormat {
     /// Ollama format: POST /api/chat with `think`, `options.num_ctx`, `options.num_predict`
     Ollama,
-    /// OpenAI-compatible format (OpenRouter, LiteLLM, etc.): POST /v1/chat/completions
+    /// OpenAI-compatible format (Fireworks, DeepInfra, etc.): POST /v1/chat/completions
     OpenAi,
 }
 
 /// Detect the API format from the inference URL.
 ///
-/// - URLs containing `openrouter.ai` → `OpenAi`
-/// - URLs whose path ends with `/v1` (common for OpenAI-compatible proxies) → `OpenAi`
-/// - Everything else → `Ollama` (existing behavior, backward compatible)
+/// - URLs whose path ends with `/v1` (Fireworks, DeepInfra, OpenAI-compatible proxies) → `OpenAi`
+/// - Everything else → `Ollama`
 pub fn detect_format(url: &str) -> ApiFormat {
-    let lower = url.to_lowercase();
-    if lower.contains("openrouter.ai") {
-        return ApiFormat::OpenAi;
-    }
-    // Heuristic: /v1 as the final path segment indicates OpenAI-compatible base URL
     let trimmed = url.trim_end_matches('/');
     if trimmed.ends_with("/v1") {
         return ApiFormat::OpenAi;

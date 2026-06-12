@@ -14,7 +14,7 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
 | `condenser_persist` | Persist compressed output to episodic memory | `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` |
-| `condenser_thread_summary` | LLM-powered conversation summarization via Okapi | `OKAPI_URL` |
+| `condenser_thread_summary` | LLM-powered conversation summarization via inference engine | `INFERENCE_URL` |
 
 ## Compression Profiles
 
@@ -41,11 +41,11 @@ Environment variables (all optional):
 |----------|-------------|---------|
 | `HKASK_DB_PATH` | SQLite database path for episodic persistence | In-memory (no persistence) |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if `HKASK_DB_PATH` is set |
-| `OKAPI_URL` | Okapi inference engine URL (e.g. `http://127.0.0.1:11435`) | Thread summary unavailable |
-| `OKAPI_MODEL` | Model for summarization | `qwen3:8b` |
-| `OKAPI_API_KEY` | API key if Okapi authentication is enabled | — |
+| `INFERENCE_URL` | Inference engine URL (Ollama, Fireworks, DeepInfra, or OpenAI-compatible) | Thread summary unavailable |
+| `INFERENCE_MODEL` | Model for summarization | `deepseek-v4-flash:cloud` |
+| `INFERENCE_API_KEY` | API key if the inference endpoint requires authentication | — |
 
-Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. Without `OKAPI_URL`, `condenser_thread_summary` returns a permission-denied error. All other tools work without configuration (graceful degradation).
+Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. Without `INFERENCE_URL`, `condenser_thread_summary` returns a permission-denied error. All other tools work without configuration (graceful degradation).
 
 ## Context Categories
 
@@ -74,6 +74,6 @@ hkask-mcp-condenser
 # With persistence
 HKASK_DB_PATH=/path/to/db HKASK_DB_PASSPHRASE=secret hkask-mcp-condenser
 
-# With Okapi thread summarization
-OKAPI_URL=http://127.0.0.1:11435 hkask-mcp-condenser
+# With inference thread summarization
+INFERENCE_URL=http://127.0.0.1:11435 hkask-mcp-condenser
 ```

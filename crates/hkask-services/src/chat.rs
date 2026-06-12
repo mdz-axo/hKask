@@ -860,7 +860,7 @@ pub struct TurnRequest {
     /// Model context window size in tokens, used for condensation threshold.
     /// None disables condensation (e.g., model metadata not yet fetched).
     pub context_window: Option<u32>,
-    /// Base URL for the inference engine used by the condenser (e.g., Okapi URL).
+    /// Base URL for the inference engine used by the condenser (e.g., Ollama URL).
     pub condenser_base_url: Option<String>,
     /// Model to use for condenser summarization (defaults to chat model if None).
     pub condenser_model: Option<String>,

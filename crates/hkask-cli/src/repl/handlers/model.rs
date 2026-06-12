@@ -89,7 +89,7 @@ pub(crate) fn handle_model(
             let models = rt.block_on(InferenceService::search_models(&ctx, ""));
             match models {
                 Ok(models) if models.is_empty() => {
-                    println!("  No models found — Okapi may be unreachable.");
+                    println!("  No models found — no providers reachable.");
                 }
                 Ok(models) => {
                     println!("  \x1b[1mAvailable models ({}):\x1b[0m", models.len());
@@ -111,7 +111,7 @@ pub(crate) fn handle_model(
                     println!("  Use \x1b[36m/model <name>\x1b[0m to switch to a specific model");
                 }
                 Err(e) => {
-                    println!("  No models found — Okapi may be unreachable: {}", e);
+                    println!("  No models found — error listing models: {}", e);
                 }
             }
         } else {
@@ -127,7 +127,7 @@ pub(crate) fn handle_model(
                 state.current_model = arg1.to_string();
                 println!("  Model set to: \x1b[1m{}\x1b[0m", state.current_model);
                 println!(
-                    "  \x1b[2m(Okapi unreachable — model name stored for next inference)\x1b[0m"
+                    "  \x1b[2m(Provider unreachable — model name stored for next inference)\x1b[0m"
                 );
             }
             Ok(models) if models.len() == 1 => {
@@ -171,7 +171,7 @@ pub(crate) fn handle_model(
                 state.current_model = arg1.to_string();
                 println!("  Model set to: \x1b[1m{}\x1b[0m", state.current_model);
                 println!(
-                    "  \x1b[2m(Okapi unreachable — model name stored for next inference)\x1b[0m"
+                    "  \x1b[2m(Provider unreachable — model name stored for next inference)\x1b[0m"
                 );
             }
         }

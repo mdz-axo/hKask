@@ -108,11 +108,11 @@ impl SpecCategory {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DomainAnchor {
-    Okapi,
+    Inference,
     Hkask,
 }
 
-str_enum!(DomainAnchor { Okapi => "okapi", Hkask => "hkask" });
+str_enum!(DomainAnchor { Inference => "inference", Hkask => "hkask" });
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Criterion {

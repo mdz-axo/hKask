@@ -222,7 +222,7 @@ jobs:
 
       - name: No hardcoded secrets
         run: |
-          violations=$(grep -rn 'OKAPI_DEV_KEY\|password[[:space:]]*=[[:space:]]*"' crates/ --include="*.rs" || true)
+          violations=$(grep -rn 'FW_API_KEY[[:space:]]*=[[:space:]]*"\|DI_API_KEY[[:space:]]*=[[:space:]]*"\|password[[:space:]]*=[[:space:]]*"' crates/ --include="*.rs" || true)
           if [ -n "$violations" ]; then
             echo "SECURITY INVARIANT VIOLATED: Hardcoded secrets detected:"
             echo "$violations"
