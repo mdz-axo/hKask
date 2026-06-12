@@ -119,6 +119,8 @@ impl OnboardingService {
         user_profile: Option<&UserProfile>,
         phone_number: Option<&str>,
         whatsapp_id: Option<&str>,
+        voice_description: Option<&str>,
+        voice_id: Option<&str>,
     ) -> Result<(), ServiceError> {
         let display_name = if let Some(profile) = user_profile {
             profile.replicant_display_name(name)
@@ -155,6 +157,8 @@ impl OnboardingService {
             process_manifest: None,
             phone_number: phone_number.map(|s| s.to_string()),
             whatsapp_id: whatsapp_id.map(|s| s.to_string()),
+            voice_description: voice_description.map(|s| s.to_string()),
+            voice_id: voice_id.map(|s| s.to_string()),
         };
 
         let registered = RegisteredAgent {

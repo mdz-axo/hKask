@@ -157,6 +157,13 @@ pub struct AgentDefinition {
     /// Replicant's WhatsApp Business ID (linked to phone_number).
     #[serde(default)]
     pub whatsapp_id: Option<String>,
+    /// Voice description for Telnyx experimental voice design.
+    /// Natural language description of the desired voice (e.g., "warm female, British accent, professional").
+    #[serde(default)]
+    pub voice_description: Option<String>,
+    /// Selected voice ID from the Telnyx TTS catalog (e.g., "female", "Alice", "Adam").
+    #[serde(default)]
+    pub voice_id: Option<String>,
 }
 
 impl AgentDefinition {

@@ -34,9 +34,11 @@ pub async fn verify_api_key(api_key: &str) -> Result<bool, ServiceError> {
 
 /// Search available phone numbers. Returns a list of phone numbers in E.164 format.
 /// If `area_code` is provided, filters to that NPA.
+/// If `contains` is provided, filters to numbers containing that digit sequence.
 pub async fn search_available_numbers(
     api_key: &str,
     area_code: Option<&str>,
+    contains: Option<&str>,
 ) -> Result<Vec<String>, ServiceError> {
     let client = telnyx_client(api_key)?;
     let mut url = format!(
@@ -44,6 +46,9 @@ pub async fn search_available_numbers(
     );
     if let Some(code) = area_code {
         url.push_str(&format!("&filter[npa]={code}"));
+    }
+    if let Some(pattern) = contains {
+        url.push_str(&format!("&filter[phone_number][contains]={pattern}"));
     }
     let resp = client
         .get(&url)

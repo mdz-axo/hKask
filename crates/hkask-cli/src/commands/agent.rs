@@ -75,6 +75,8 @@ pub async fn agent_register(
         process_manifest: None,
         phone_number: None,
         whatsapp_id: None,
+        voice_description: None,
+        voice_id: None,
     };
     let reg = RegisteredAgent {
         definition: def,

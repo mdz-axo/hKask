@@ -11,9 +11,8 @@
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
 use hkask_services::{
-    InferenceContext, InferenceService, ModelInfo, OnboardingService, ResolvedSecrets,
-    ServiceConfig, get_messaging_profile, order_number, search_available_numbers, send_welcome_sms,
-    verify_api_key,
+    OnboardingService, ResolvedSecrets, ServiceConfig, get_messaging_profile, order_number,
+    search_available_numbers, send_welcome_sms, verify_api_key,
 };
 use hkask_types::{RegisteredAgent, UserProfile};
 use thiserror::Error;
@@ -153,10 +152,10 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         name.clone()
     };
 
-    // Q2: Description / charter
+    // Q2: Tag line
     println!();
     let description = prompt_line(&format!(
-        "  What should \x1b[36m{}\x1b[0m help you with? (e.g., 'research assistant'):",
+        "  Tag line for \x1b[36m{}\x1b[0m: (e.g., 'research assistant'):",
         display_name
     ))?;
     let description = if description.trim().is_empty() {
@@ -178,6 +177,8 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         user_profile.as_ref(),
         None,
         None,
+        None,
+        None,
     )
     .await
     .map_err(|e| {
@@ -186,43 +187,44 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     })?;
 
     // ── Telnyx: phone + WhatsApp setup (optional) ──
-    if let Some(ref profile) = user_profile {
-        if !profile.phone.is_empty() {
-            println!();
-            println!(
-                "  \x1b[1mPhone & WhatsApp\x1b[0m — {} can reach you via SMS, WhatsApp, and calls.",
-                display_name
-            );
-            let enable =
-                prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
-            if enable.trim().to_lowercase() == "y" {
-                match setup_telnyx_for_replicant(&display_name, &profile.phone).await {
-                    Ok((phone, whatsapp)) => {
-                        let mut agent = match handle.store.get(&display_name) {
-                            Ok(a) => a,
-                            Err(e) => {
-                                eprintln!("  \x1b[31m✗\x1b[0m Failed to read back replicant: {e}");
-                                return Err(OnboardingError::Database(format!(
-                                    "Failed to read back replicant: {e}"
-                                )));
-                            }
-                        };
-                        agent.definition.phone_number = Some(phone);
-                        agent.definition.whatsapp_id = Some(whatsapp);
-                        if let Err(e) = handle.store.insert(&agent) {
-                            eprintln!("  \x1b[31m✗\x1b[0m Failed to update replicant: {e}");
+    if let Some(ref profile) = user_profile
+        && !profile.phone.is_empty()
+    {
+        println!();
+        println!(
+            "  \x1b[1mPhone & WhatsApp\x1b[0m — {} can reach you via SMS, WhatsApp, and calls.",
+            display_name
+        );
+        let enable = prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
+        if enable.trim().to_lowercase() == "y" {
+            match setup_telnyx_for_replicant(&display_name, &profile.phone).await {
+                Ok((phone, whatsapp, voice_description, voice_id)) => {
+                    let mut agent = match handle.store.get(&display_name) {
+                        Ok(a) => a,
+                        Err(e) => {
+                            eprintln!("  \x1b[31m✗\x1b[0m Failed to read back replicant: {e}");
                             return Err(OnboardingError::Database(format!(
-                                "Failed to update replicant: {e}"
+                                "Failed to read back replicant: {e}"
                             )));
                         }
+                    };
+                    agent.definition.phone_number = Some(phone);
+                    agent.definition.whatsapp_id = Some(whatsapp);
+                    agent.definition.voice_description = voice_description;
+                    agent.definition.voice_id = voice_id;
+                    if let Err(e) = handle.store.insert(&agent) {
+                        eprintln!("  \x1b[31m✗\x1b[0m Failed to update replicant: {e}");
+                        return Err(OnboardingError::Database(format!(
+                            "Failed to update replicant: {e}"
+                        )));
                     }
-                    Err(e) => {
-                        eprintln!("  \x1b[33m⚠\x1b[0m  Telnyx setup skipped: {e}");
-                        eprintln!(
-                            "  You can set up phone/WhatsApp later via `kask pod assign {} telnyx`.",
-                            display_name
-                        );
-                    }
+                }
+                Err(e) => {
+                    eprintln!("  \x1b[33m⚠\x1b[0m  Telnyx setup skipped: {e}");
+                    eprintln!(
+                        "  You can set up phone/WhatsApp later via `kask pod assign {} telnyx`.",
+                        display_name
+                    );
                 }
             }
         }
@@ -238,7 +240,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         "  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m",
         display_name
     );
-    println!("  \x1b[1mPurpose:\x1b[0m   {}", description);
+    println!("  \x1b[1mTag line:\x1b[0m  {}", description);
     println!(
         "  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m",
         selected_model
@@ -284,27 +286,6 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
         1..=replicants.len(),
     )?;
     Ok(replicants[choice - 1].definition.name.clone())
-}
-
-/// Fetch available models from inference providers for the onboarding model selection step.
-/// Returns up to 8 models, sorted with smaller/faster models first.
-async fn fetch_models_for_onboarding() -> Vec<ModelInfo> {
-    let inference_config = hkask_inference::InferenceConfig::from_env();
-    let ctx = InferenceContext::from_parts(
-        None, // No shared port during onboarding
-        "deepseek-v4-pro",
-        inference_config,
-    );
-    match InferenceService::list_models(&ctx).await {
-        Ok(models) => {
-            // Sort: smaller models first (easier for new users to run)
-            let mut sorted = models;
-            sorted.sort_by_key(|m| m.size_bytes.unwrap_or(u64::MAX));
-            sorted.truncate(8);
-            sorted
-        }
-        Err(_) => Vec::new(),
-    }
 }
 
 /// Flow: Create the user's first replicant
@@ -379,10 +360,10 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     };
     let display_name = user_profile.replicant_display_name(&name);
 
-    // Q6: Description / charter
+    // Q6: Tag line
     println!();
     let description = prompt_line(&format!(
-        "  What should \x1b[36m{}\x1b[0m help you with? (e.g., 'coding assistant, research helper')",
+        "  Tag line for \x1b[36m{}\x1b[0m: (e.g., 'finance assistant, research helper')",
         display_name
     ))?;
     let description = if description.trim().is_empty() {
@@ -455,6 +436,8 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         Some(&user_profile),
         None, // phone_number — set post-creation via Telnyx setup
         None, // whatsapp_id — set post-creation via Telnyx setup
+        None, // voice_description — set post-creation via voice design
+        None, // voice_id — set post-creation via voice design
     )
     .await
     .inspect_err(|e| {
@@ -474,13 +457,15 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         let enable = prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
         if enable.trim().to_lowercase() == "y" {
             match setup_telnyx_for_replicant(&display_name, &user_profile.phone).await {
-                Ok((phone, whatsapp)) => {
+                Ok((phone, whatsapp, voice_description, voice_id)) => {
                     // Update the replicant's definition with the new phone number
                     let mut agent = handle.store.get(&display_name).map_err(|e| {
                         OnboardingError::Database(format!("Failed to read back replicant: {e}"))
                     })?;
                     agent.definition.phone_number = Some(phone);
                     agent.definition.whatsapp_id = Some(whatsapp);
+                    agent.definition.voice_description = voice_description;
+                    agent.definition.voice_id = voice_id;
                     handle.store.insert(&agent).map_err(|e| {
                         OnboardingError::Database(format!("Failed to update replicant: {e}"))
                     })?;
@@ -507,13 +492,13 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     })
 }
 
-/// Provision a phone number and send a welcome SMS for a newly created replicant.
+/// Provision a phone number, design the replicant's voice, and send a welcome SMS.
 ///
-/// Returns (phone_number, whatsapp_id) on success. Both are the same E.164 number.
+/// Returns (phone_number, whatsapp_id, voice_description, voice_id) on success.
 async fn setup_telnyx_for_replicant(
     replicant_name: &str,
     user_phone: &str,
-) -> Result<(String, String), OnboardingError> {
+) -> Result<(String, String, Option<String>, Option<String>), OnboardingError> {
     // Check for API key
     let api_key = match std::env::var("HKASK_TELNYX_API_KEY") {
         Ok(k) if !k.is_empty() => k,
@@ -536,29 +521,77 @@ async fn setup_telnyx_for_replicant(
     }
     println!("  \x1b[32m✓\x1b[0m API key valid");
 
-    // Search available numbers (try to match user's area code)
-    let area_code = user_phone
+    // ── Number selection ──
+    let user_area_code = user_phone
         .strip_prefix('+')
         .and_then(|s| s.get(..3))
         .or_else(|| user_phone.get(..3));
-    println!("  Searching available phone numbers...");
-    let numbers = search_available_numbers(&api_key, area_code)
+
+    // (a1) Same area code as user?
+    let area_code: Option<String> = if let Some(ref uac) = user_area_code {
+        println!();
+        println!(
+            "  Your area code is \x1b[36m{}\x1b[0m. Should {} use the same area code?",
+            uac, replicant_name
+        );
+        let same = prompt_line("  Same area code? [Y/n]:")?;
+        if same.trim().to_lowercase() != "n" {
+            Some(uac.to_string())
+        } else {
+            // (a2) Different area code
+            let custom = prompt_line("  What area code (3 digits)?:")?;
+            let custom = custom.trim().to_string();
+            if custom.is_empty() {
+                println!("  Using your area code ({}).", uac);
+                Some(uac.to_string())
+            } else {
+                Some(custom)
+            }
+        }
+    } else {
+        None
+    };
+
+    // (b) Preferred digit sequence?
+    println!();
+    let preferred =
+        prompt_line("  Any preferred digits in the number? (e.g., '1234', or Enter to skip):")?;
+    let preferred = preferred.trim().to_string();
+    let contains_filter = if preferred.is_empty() {
+        None
+    } else {
+        Some(preferred.as_str())
+    };
+
+    // Search with filters
+    println!("  Searching available numbers...");
+    let numbers = search_available_numbers(&api_key, area_code.as_deref(), contains_filter)
         .await
         .map_err(|e| OnboardingError::Database(format!("Number search failed: {e}")))?;
 
-    if numbers.is_empty() {
-        return Err(OnboardingError::Database(
-            "No available phone numbers found. Try again later or check your Telnyx account."
-                .to_string(),
-        ));
-    }
-
-    // Pick the first available number (user can refine later)
-    let chosen_number = numbers[0].clone();
-    println!(
-        "  \x1b[32m✓\x1b[0m Found number: \x1b[36m{}\x1b[0m",
-        chosen_number
-    );
+    let chosen_number = if numbers.is_empty() {
+        // Retry without the contains filter
+        if contains_filter.is_some() {
+            println!("  No numbers with that pattern — searching without it...");
+            let fallback = search_available_numbers(&api_key, area_code.as_deref(), None)
+                .await
+                .map_err(|e| OnboardingError::Database(format!("Number search failed: {e}")))?;
+            if fallback.is_empty() {
+                return Err(OnboardingError::Database(
+                    "No available phone numbers found. Try a different area code or check your Telnyx account."
+                        .to_string(),
+                ));
+            }
+            pick_number(&fallback, replicant_name)?
+        } else {
+            return Err(OnboardingError::Database(
+                "No available phone numbers found. Try a different area code or check your Telnyx account."
+                    .to_string(),
+            ));
+        }
+    } else {
+        pick_number(&numbers, replicant_name)?
+    };
 
     // Get or create a messaging profile
     println!("  Setting up messaging profile...");
@@ -576,6 +609,27 @@ async fn setup_telnyx_for_replicant(
         "  \x1b[32m✓\x1b[0m Number ordered: \x1b[36m{}\x1b[0m",
         ordered
     );
+
+    // ── Voice design ──
+    println!();
+    println!(
+        "  \x1b[1mVoice Design\x1b[0m — how should {} sound?",
+        replicant_name
+    );
+
+    // Q: Clone the human's voice or describe a custom voice?
+    let clone_voice = prompt_line(&format!(
+        "  Should {}'s voice be a clone of your voice? [y/N]:",
+        replicant_name
+    ))?;
+
+    let (voice_description, voice_id) = if clone_voice.trim().to_lowercase() == "y" {
+        println!("  \x1b[2mVoice cloning requires audio samples — coming soon.\x1b[0m");
+        println!("  For now, describe the voice you want in words.");
+        design_custom_voice(replicant_name)?
+    } else {
+        design_custom_voice(replicant_name)?
+    };
 
     // Send welcome SMS
     println!("  Sending welcome message to your phone...");
@@ -603,71 +657,131 @@ async fn setup_telnyx_for_replicant(
     );
     println!();
 
-    Ok((ordered.clone(), ordered))
+    Ok((ordered.clone(), ordered, voice_description, voice_id))
 }
 
-/// Let the user select a model during onboarding.
-///
-/// Fetches available models. If models are found, shows a numbered
-/// list and lets the user pick. If no providers are reachable, falls back to a
-/// free-text prompt with a sensible default.
+/// Show a numbered list of available phone numbers and let the user pick one.
+fn pick_number(numbers: &[String], replicant_name: &str) -> Result<String, OnboardingError> {
+    println!("  \x1b[1mAvailable numbers for {}\x1b[0m:", replicant_name);
+    for (i, n) in numbers.iter().enumerate() {
+        println!("    {}. \x1b[36m{}\x1b[0m", i + 1, n);
+    }
+    let choice = prompt_choice(
+        &format!("  Pick a number (1-{}):", numbers.len()),
+        1..=numbers.len(),
+    )?;
+    let chosen = numbers[choice - 1].clone();
+    println!("  \x1b[32m✓\x1b[0m Selected: \x1b[36m{}\x1b[0m", chosen);
+    Ok(chosen)
+}
+
+/// Telnyx static TTS voice catalog — shown as reference during voice design.
+const TELNYX_VOICES: &[(&str, &str, &str)] = &[
+    ("female", "Female", "en-US"),
+    ("male", "Male", "en-US"),
+    ("Alice", "Alice", "en-US"),
+    ("Bob", "Bob", "en-US"),
+    ("Eva", "Eva", "en-US"),
+    ("Adam", "Adam", "en-GB"),
+    ("Bridget", "Bridget", "en-GB"),
+    ("Chloe", "Chloe", "fr-FR"),
+    ("Denise", "Denise", "de-DE"),
+    ("Ellen", "Ellen", "es-ES"),
+];
+
+/// Collect a voice description and optionally pick from the static catalog.
+fn design_custom_voice(
+    replicant_name: &str,
+) -> Result<(Option<String>, Option<String>), OnboardingError> {
+    println!(
+        "  Describe {}'s voice (e.g., 'warm female, British accent, professional but friendly'):",
+        replicant_name
+    );
+    let desc = prompt_line("  Voice description:")?;
+    let desc = desc.trim().to_string();
+    let voice_description = if desc.is_empty() { None } else { Some(desc) };
+
+    // Show static voice catalog as fallback/reference
+    println!();
+    println!("  \x1b[1mStatic voice catalog\x1b[0m (Telnyx TTS — pick one as fallback):");
+    for (i, (id, name, lang)) in TELNYX_VOICES.iter().enumerate() {
+        println!("    {}. \x1b[36m{}\x1b[0m — {} ({})", i + 1, name, id, lang);
+    }
+    println!(
+        "    {}. Skip — use description only",
+        TELNYX_VOICES.len() + 1
+    );
+
+    let choice = prompt_choice(
+        &format!(
+            "  Pick a voice (1-{}, or Enter to skip):",
+            TELNYX_VOICES.len() + 1
+        ),
+        1..=(TELNYX_VOICES.len() + 1),
+    );
+
+    let voice_id = match choice {
+        Ok(n) if n <= TELNYX_VOICES.len() => Some(TELNYX_VOICES[n - 1].0.to_string()),
+        _ => None,
+    };
+
+    if let Some(ref vid) = voice_id {
+        println!("  \x1b[32m✓\x1b[0m Voice selected: \x1b[36m{}\x1b[0m", vid);
+    }
+
+    Ok((voice_description, voice_id))
+}
+
+/// Curated list of cloud near-frontier models for replicant cognition.
+/// All available via DeepInfra by default.
+const ONBOARDING_MODELS: &[&str] = &[
+    "deepseek-v4-pro",
+    "GLM5.1",
+    "Qwen3.5 397B",
+    "Kimi2.6",
+    "minimax-m3",
+    "nemotron-3-super",
+    "gemma4",
+];
+
+/// Let the user select a model from the curated cloud frontier list.
 async fn select_model() -> String {
     let default_model = "deepseek-v4-pro".to_string();
-    let models = fetch_models_for_onboarding().await;
 
-    if models.is_empty() {
-        println!("  \x1b[2m(No providers reachable — using default model)\x1b[0m");
-        let input = prompt_line(&format!(
-            "  Model name (default: \x1b[36m{}\x1b[0m):",
+    println!("  \x1b[1mAvailable models\x1b[0m (via DeepInfra):");
+    for (i, name) in ONBOARDING_MODELS.iter().enumerate() {
+        let marker = if *name == default_model {
+            " (default)"
+        } else {
+            ""
+        };
+        println!("    {}. \x1b[36m{}\x1b[0m{}", i + 1, name, marker);
+    }
+    println!(
+        "    {}. Enter a model name manually",
+        ONBOARDING_MODELS.len() + 1
+    );
+
+    let choice = prompt_choice(
+        &format!(
+            "  Select a model (1-{}, default: \x1b[36m{}\x1b[0m):",
+            ONBOARDING_MODELS.len() + 1,
             default_model
-        ));
-        match input {
-            Ok(s) if s.trim().is_empty() => default_model,
-            Ok(s) => s.trim().to_string(),
-            Err(_) => default_model,
-        }
-    } else {
-        println!("  \x1b[1mAvailable models:\x1b[0m");
-        for (i, m) in models.iter().enumerate() {
-            let size_str = m
-                .size_bytes
-                .map(|s| format!("{:.1}GB", s as f64 / 1_073_741_824.0))
-                .unwrap_or_else(|| "?".to_string());
-            let family = m.family.as_deref().unwrap_or("-");
-            let params = m.parameter_size.as_deref().unwrap_or("-");
-            println!(
-                "    {}. \x1b[36m{}\x1b[0m  {:<10} {:<8} {}",
-                i + 1,
-                m.name,
-                family,
-                params,
-                size_str
-            );
-        }
-        println!("    {}. Enter a model name manually", models.len() + 1);
+        ),
+        1..=(ONBOARDING_MODELS.len() + 1),
+    );
 
-        let choice = prompt_choice(
-            &format!(
-                "  Select a model (1-{}, default: \x1b[36m{}\x1b[0m):",
-                models.len() + 1,
-                default_model
-            ),
-            1..=(models.len() + 1),
-        );
-
-        match choice {
-            Ok(n) if n <= models.len() => models[n - 1].name.clone(),
-            Ok(_) => {
-                // User chose "enter manually"
-                let input = prompt_line("  Model name:");
-                match input {
-                    Ok(s) if s.trim().is_empty() => default_model,
-                    Ok(s) => s.trim().to_string(),
-                    Err(_) => default_model,
-                }
+    match choice {
+        Ok(n) if n <= ONBOARDING_MODELS.len() => ONBOARDING_MODELS[n - 1].to_string(),
+        Ok(_) => {
+            let input = prompt_line("  Model name:");
+            match input {
+                Ok(s) if s.trim().is_empty() => default_model,
+                Ok(s) => s.trim().to_string(),
+                Err(_) => default_model,
             }
-            Err(_) => default_model,
         }
+        Err(_) => default_model,
     }
 }
 
@@ -679,7 +793,7 @@ fn print_creation_summary(name: &str, description: &str, model: &str) {
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
     println!();
     println!("  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m", name);
-    println!("  \x1b[1mPurpose:\x1b[0m   {}", description);
+    println!("  \x1b[1mTag line:\x1b[0m  {}", description);
     println!("  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m", model);
     println!("  \x1b[1mSecurity:\x1b[0m  Keys stored in OS keychain (encrypted DB)");
     println!();
