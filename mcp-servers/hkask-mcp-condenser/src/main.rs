@@ -7,26 +7,27 @@
 //! Provides compression algorithms (rtk_style, saliency_rank, flashrank) for reducing
 //! tool output size while preserving essential information. Phase 1 implements local
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
-//! thread summarization via a local or cloud inference engine.
-//! Supports Ollama (/api/chat) and OpenAI-compatible (/v1/chat/completions)
-//! endpoints (Fireworks, DeepInfra, etc.). Format detected from INFERENCE_URL.
+//! thread summarization via the centralized hKask inference router.
 //!
 //! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
 //! persist compressed outputs to episodic memory via the `condenser:persist` tool.
 //! Without those credentials, the server operates in memory-only mode (graceful
 //! degradation).
 //!
-//! When `INFERENCE_URL` is provided, the
-//! `condenser_thread_summary` tool calls the inference engine
-//! to summarize conversation history for context condensation.
+//! The `condenser_thread_summary` tool uses the centralized `InferencePort`
+//! (hkask-inference router) for LLM-powered summarization. No standalone
+//! HTTP client or inference URL configuration is needed — the router handles
+//! provider dispatch (Ollama, Fireworks, DeepInfra) automatically.
 
-use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard, api_post};
+use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
 use hkask_mcp_condenser::engine::CondenserEngine;
-use hkask_mcp_condenser::inference::{self, ApiFormat};
+use hkask_mcp_condenser::inference;
 use hkask_mcp_condenser::types::*;
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
-use hkask_types::{McpErrorKind, Visibility, WebID};
+use hkask_types::ports::InferencePort;
+use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
 
@@ -34,17 +35,6 @@ use std::sync::{Arc, Mutex};
 const THREAD_SUMMARY_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \
      preserve technical details (file paths, error messages, decisions) while \
      eliminating verbosity. Use bullet points. Be concise.";
-
-/// Context window size passed to the inference engine for thread summarization.
-const THREAD_SUMMARY_NUM_CTX: u32 = 8192;
-
-/// Grouped inference configuration to keep constructor argument count manageable.
-struct InferenceConfig {
-    url: Option<String>,
-    model: String,
-    api_key: Option<String>,
-    timeout_secs: u64,
-}
 
 pub struct CondenserServer {
     webid: WebID,
@@ -54,9 +44,10 @@ pub struct CondenserServer {
     daemon: Option<hkask_mcp::DaemonClient>,
     engine: Mutex<CondenserEngine>,
     episodic: Option<Arc<EpisodicMemory>>,
-    inference_url: Option<String>,
-    inference_model: String,
-    http_client: reqwest::Client,
+    /// Centralized inference port (hkask-inference router)
+    inference_port: Arc<dyn InferencePort>,
+    /// Default model for thread summarization (e.g., "qwen3:8b")
+    default_model: String,
     capability_tier: CapabilityTier,
 }
 
@@ -66,38 +57,24 @@ impl CondenserServer {
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
         episodic: Option<EpisodicMemory>,
-        inference: InferenceConfig,
+        inference_port: Arc<dyn InferencePort>,
+        default_model: String,
         capability_tier: CapabilityTier,
-    ) -> Result<Self, anyhow::Error> {
-        let mut client_builder = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(inference.timeout_secs));
-
-        if let Some(api_key) = &inference.api_key {
-            let mut headers = reqwest::header::HeaderMap::new();
-            let auth_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}"))?;
-            headers.insert(reqwest::header::AUTHORIZATION, auth_value);
-            client_builder = client_builder.default_headers(headers);
-        }
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             webid,
             replicant,
             daemon,
             engine: Mutex::new(CondenserEngine::new()),
             episodic: episodic.map(Arc::new),
-            inference_url: inference.url,
-            inference_model: inference.model,
-            http_client: client_builder.build()?,
+            inference_port,
+            default_model,
             capability_tier,
-        })
+        }
     }
 
     fn has_persistence(&self) -> bool {
         self.episodic.is_some()
-    }
-
-    fn has_inference(&self) -> bool {
-        self.inference_url.is_some()
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.
@@ -162,15 +139,14 @@ impl CondenserServer {
             "mode": mode,
             "capabilities": {
                 "persistence": self.has_persistence(),
-                "inference": self.has_inference(),
+                "inference": true,
                 "keystore": self.capability_tier.keystore_available,
                 "cns": self.capability_tier.cns_available(),
             },
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
             "health": health,
-            "inference_url": self.inference_url,
-            "inference_model": self.inference_model,
+            "default_model": self.default_model,
         }))
     }
 
@@ -333,7 +309,7 @@ impl CondenserServer {
     }
 
     #[tool(
-        description = "Summarize conversation history using a local inference engine for context condensation. Call when approaching context window limits to condense older messages."
+        description = "Summarize conversation history using the centralized hKask inference router for context condensation. Call when approaching context window limits to condense older messages."
     )]
     async fn condenser_thread_summary(
         &self,
@@ -342,24 +318,11 @@ impl CondenserServer {
             current_query,
             max_tokens,
             model,
-            inference_url,
         }): Parameters<ThreadSummaryRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("condenser_thread_summary", &self.webid);
 
-        // Use request-provided inference config if given, otherwise fall back to server defaults.
-        let effective_url = inference_url.as_deref().or(self.inference_url.as_deref());
-        let effective_model = model.as_deref().unwrap_or(&self.inference_model);
-
-        let Some(inference_url) = effective_url else {
-            return span.error(
-                McpErrorKind::PermissionDenied,
-                McpToolError::permission_denied(
-                    "Inference not configured — set INFERENCE_URL to enable thread summarization",
-                )
-                .to_json_string(),
-            );
-        };
+        let effective_model = model.as_deref().unwrap_or(&self.default_model);
 
         let msg_count = messages.len();
         if msg_count == 0 {
@@ -375,43 +338,50 @@ impl CondenserServer {
         let summarization_prompt =
             inference::build_summarization_prompt(&conversation_text, &current_query);
 
-        // Detect API format from the effective URL (may differ from server default).
-        let api_format = inference::detect_format(inference_url);
-
-        let chat_request = inference::build_chat_request(
-            api_format,
-            effective_model,
-            &summarization_prompt,
-            THREAD_SUMMARY_SYSTEM_PROMPT,
-            THREAD_SUMMARY_NUM_CTX,
-            max_tok,
+        // Compose the full prompt: system + user
+        let full_prompt = format!(
+            "{}\n\nUser: {}",
+            THREAD_SUMMARY_SYSTEM_PROMPT, summarization_prompt
         );
 
-        let url = match api_format {
-            ApiFormat::Ollama => {
-                format!("{}/api/chat", inference_url.trim_end_matches('/'))
-            }
-            ApiFormat::OpenAi => {
-                // Fireworks/DeepInfra base URLs end with /v1
-                format!("{}/chat/completions", inference_url.trim_end_matches('/'))
+        let params = LLMParameters {
+            temperature: 0.3,
+            top_p: 0.9,
+            top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
+            frequency_penalty: 0.0,
+            presence_penalty: 0.0,
+            max_tokens: max_tok,
+            seed: None,
+        };
+
+        let result = match self
+            .inference_port
+            .generate_with_model(&full_prompt, &params, Some(effective_model))
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Inference failed: {e}")).to_json_string(),
+                );
             }
         };
 
-        // Use shared api_post with automatic HTTP error classification
-        let resp_body = match api_post(&self.http_client, "inference", &url, &chat_request).await {
-            Ok(v) => v,
-            Err(e) => return span.error(e.kind, e.to_json_string()),
-        };
-
-        // Extract and validate the summary content
-        let summary = match inference::extract_summary(api_format, &resp_body) {
-            Ok(s) => s,
-            Err(e) => return span.error(McpErrorKind::Internal, e.to_json_string()),
-        };
+        let summary = result.text;
+        if summary.trim().is_empty() {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal("Inference engine returned an empty summary")
+                    .to_json_string(),
+            );
+        }
         let summary_len = summary.len();
 
-        let result =
-            inference::build_summary_output(summary, msg_count, effective_model.to_string(), url);
+        let output =
+            inference::build_summary_output(summary, msg_count, effective_model.to_string());
 
         self.record_experience(
             "condenser_thread_summary",
@@ -420,9 +390,8 @@ impl CondenserServer {
             serde_json::json!({"model": effective_model.to_string(), "summary_length": summary_len}),
         );
 
-        // ThreadSummaryOutput contains only strings and integers — never NaN/Inf.
         span.ok_json(
-            serde_json::to_value(&result).expect("ThreadSummaryOutput serialization is infallible"),
+            serde_json::to_value(&output).expect("ThreadSummaryOutput serialization is infallible"),
         )
     }
 }
@@ -446,6 +415,11 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
+    // Build the centralized inference router from environment.
+    let inference_config = InferenceConfig::from_env();
+    let inference_router = InferenceRouter::new(inference_config);
+    let inference_port: Arc<dyn InferencePort> = Arc::new(inference_router);
+
     hkask_mcp::run_server(
         "hkask-mcp-condenser",
         env!("CARGO_PKG_VERSION"),
@@ -464,32 +438,21 @@ async fn main() -> anyhow::Result<()> {
                 None => None,
             };
 
-            let inference_url = ctx.credentials.get("INFERENCE_URL").cloned();
-            let inference_model = ctx
+            let default_model = ctx
                 .credentials
                 .get("INFERENCE_MODEL")
                 .cloned()
-                .unwrap_or_else(|| "deepseek-v4-flash:cloud".to_string());
-            let inference_api_key = ctx.credentials.get("INFERENCE_API_KEY").cloned();
-            let inference_timeout_secs = ctx
-                .credentials
-                .get("INFERENCE_TIMEOUT_SECS")
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(30);
+                .unwrap_or_else(|| "qwen3:8b".to_string());
 
-            CondenserServer::new(
+            Ok(CondenserServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
                 episodic,
-                InferenceConfig {
-                    url: inference_url,
-                    model: inference_model,
-                    api_key: inference_api_key,
-                    timeout_secs: inference_timeout_secs,
-                },
+                Arc::clone(&inference_port),
+                default_model,
                 ctx.capability_tier,
-            )
+            ))
         },
         credential_requirements(),
     )
@@ -552,20 +515,8 @@ fn credential_requirements() -> Vec<hkask_mcp::CredentialRequirement> {
             "Passphrase for the database (required if HKASK_DB_PATH is set)",
         ),
         opt(
-            "INFERENCE_URL",
-            "Inference engine URL for thread summarization (Ollama, Fireworks, DeepInfra, or OpenAI-compatible)",
-        ),
-        opt(
             "INFERENCE_MODEL",
-            "Model for summarization (default: deepseek-v4-flash:cloud)",
-        ),
-        opt(
-            "INFERENCE_API_KEY",
-            "API key if the inference endpoint requires authentication",
-        ),
-        opt(
-            "INFERENCE_TIMEOUT_SECS",
-            "Timeout for inference requests in seconds (default: 30)",
+            "Model for thread summarization (default: qwen3:8b). Supports provider prefixes (OM/, FW/, DI/).",
         ),
     ]
 }

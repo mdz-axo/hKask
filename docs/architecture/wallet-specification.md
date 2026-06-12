@@ -55,7 +55,7 @@ hkask-wallet/
 │   ├── privacy.rs          — PrivacyPort trait (7 public items) + ShieldedTransfer
 │   ├── signing.rs          — Isolated security boundary (2 public functions)
 │   ├── manager.rs          — WalletManager (12 methods, justified) + deposit reference logic
-│   ├── issuer.rs           — ApiKeyIssuer (5 public items) + ApiKeyMaterial re-export
+│   ├── issuer.rs           — ApiKeyIssuer (6 public items) + ApiKeyMaterial re-export
 │   ├── solana.rs           — SolanaPort (feature-gated: "solana")
 │   ├── hedera.rs           — HederaPort (feature-gated: "hedera")
 │   └── hinkal.rs           — HinkalPort (feature-gated: "hinkal")
@@ -109,7 +109,7 @@ graph TD
 | Gate | Result |
 |------|--------|
 | **G1 — Exist** | 3 items pruned: `error.rs` (pass-through), `deposit_ref.rs` (merged into manager.rs), `TxHash` (moved to hkask-types). All surviving components encode behavior beyond direct calls. |
-| **G2 — Surface** | `chain.rs`: 7 (at threshold). `privacy.rs`: 7 (at threshold). `manager.rs`: 13 (justified — each method has distinct caller). `issuer.rs`: 5. `signing.rs`: 2. |
+| **G2 — Surface** | `chain.rs`: 7 (at threshold). `privacy.rs`: 7 (at threshold). `manager.rs`: 13 (justified — each method has distinct caller). `issuer.rs`: 6. `signing.rs`: 2. |
 | **G3 — Contract** | 0 pass-through abstractions. All traits add behavior beyond direct dependency calls. |
 
 ---
@@ -133,7 +133,7 @@ graph TD
 | `WalletTransaction` | Struct | Clone |
 | `DepositReference` | Struct | Clone |
 | `TxHash(String)` | Newtype | Clone — public tx hash |
-| `WalletError` (15 variants) | thiserror::Error | Typed errors with context |
+| `WalletError` (10 variants) | thiserror::Error | Typed errors with context |
 
 ### 3.2 Key Material Types — Internal to signing.rs
 

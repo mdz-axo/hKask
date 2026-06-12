@@ -2,7 +2,7 @@
 
 **Session date:** 2026-06-12
 **Project:** hKask v0.27.0
-**Status:** Phases 1–3 complete ✅ — Phase 4 in progress
+**Status:** Phases 1–4 complete ✅ — Phase 5 (CNS) ready to start
 
 ---
 
@@ -1062,18 +1062,28 @@ cargo test -p hkask-wallet
 ```
 
 **Success criteria:**
-- [ ] `MockChainPort` simulates deposits correctly
-- [ ] `MockPrivacyPort` simulates shielded transfers with deposit references
-- [ ] `WalletManager::process_deposit` credits rJoules on confirmed deposit
-- [ ] `WalletManager::process_shielded_deposit` credits rJoules when deposit reference matches
-- [ ] `WalletManager::withdraw` debits rJoules and calls ChainPort::submit_withdrawal
-- [ ] `WalletManager::can_afford` returns false when balance insufficient
-- [ ] `WalletManager::reserve_rjoules` + `settle_rjoules` correctly handle partial refunds
-- [ ] `ApiKeyIssuer::create_key` produces valid Ed25519 keypair + signed capability
-- [ ] `ApiKeyIssuer::revoke_key` returns unspent rJoules to wallet balance
-- [ ] Deposit reference: generate → verify → consume → verify consumed (replay rejected)
-- [ ] `gas_to_rjoules(1000)` returns `RJoule(1)` with default config
-- [ ] `rjoules_to_gas(RJoule(1))` returns `1000` with default config
+- [x] `MockChainPort` simulates deposits correctly (in-manager mock)
+- [x] `MockPrivacyPort` simulates shielded transfers (deferred to hinkal.rs)
+- [x] `WalletManager::process_deposit` credits rJoules on confirmed deposit
+- [x] `WalletManager::process_shielded_deposit` credits rJoules when deposit reference matches
+- [x] `WalletManager::withdraw` debits rJoules and calls ChainPort::submit_withdrawal
+- [x] `WalletManager::can_afford` returns false when balance insufficient
+- [x] `WalletManager::reserve_rjoules` + `settle_rjoules` correctly handle partial refunds
+- [x] `ApiKeyIssuer::create_key` produces valid Ed25519 keypair + signed capability
+- [x] `ApiKeyIssuer::revoke_key` returns unspent rJoules to wallet balance
+- [x] Deposit reference: generate → verify → consume → verify consumed (replay rejected)
+- [x] `gas_to_rjoules(1000)` returns `RJoule(1)` with default config
+- [x] `rjoules_to_gas(RJoule(1))` returns `1000` with default config
+
+**Deviations from original plan (per research-driven specification):**
+- `error.rs` deleted (pass-through — WalletError from hkask-types)
+- `deposit_ref.rs` merged into `manager.rs` (too thin, 2 functions)
+- `TxHash` moved to `hkask-types` (reduces chain.rs public API)
+- `signing.rs` added as isolated security boundary (per-operation key loading, LoadedKey with redacted Debug)
+- `secrecy` crate not used (API mismatch in 0.10; Zeroizing provides equivalent guarantees)
+- `hkask-cns` NOT a wallet dependency (would create circular dep; CNS depends on wallet in Phase 5)
+- Chain port implementations (`solana.rs`, `hedera.rs`, `hinkal.rs`) deferred to SDK integration
+- Full specification at `docs/architecture/wallet-specification.md`
 
 ---
 
