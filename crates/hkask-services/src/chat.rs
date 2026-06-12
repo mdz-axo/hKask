@@ -730,6 +730,77 @@ impl ChatService {
         cleaned
     }
 
+    /// Condense the oldest half of conversation history when approaching context limits.
+    ///
+    /// Fetches raw episodes, splits at midpoint, summarizes the oldest half via the
+    /// inference port, and returns a rebuilt input with `[Condensed history]` +
+    /// `[Recent conversation]` blocks. Returns `None` on any failure (graceful
+    /// degradation — caller falls back to uncondensed context).
+    async fn condense_history(
+        ctx: &AgentService,
+        req: &TurnRequest,
+        token: &DelegationToken,
+        base_input: &str,
+    ) -> Option<String> {
+        let episodes = Self::recall_raw_episodes(
+            &req.episodic_storage,
+            &req.agent_webid,
+            token,
+            req.context_turns * 2,
+        );
+        if episodes.len() < 4 {
+            return None; // too few messages to meaningfully condense
+        }
+
+        let midpoint = episodes.len() / 2;
+        let old_half = &episodes[..midpoint];
+        let recent_half = &episodes[midpoint..];
+
+        let recent_text = hkask_mcp_condenser::inference::format_conversation_text(recent_half);
+        let old_text = hkask_mcp_condenser::inference::format_conversation_text(old_half);
+        let summary_prompt =
+            hkask_mcp_condenser::inference::build_summarization_prompt(&old_text, &req.input);
+
+        let full_prompt = format!("{CONDENSER_SYSTEM_PROMPT}\n\nUser: {summary_prompt}");
+
+        let condenser_model = req.condenser_model.as_deref().unwrap_or(&req.model);
+        let params = LLMParameters {
+            temperature: 0.3,
+            top_p: 0.9,
+            top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
+            frequency_penalty: 0.0,
+            presence_penalty: 0.0,
+            max_tokens: 500,
+            seed: None,
+        };
+
+        let port = ctx.inference_port()?;
+        let result = port
+            .generate_with_model(&full_prompt, &params, Some(condenser_model))
+            .await
+            .ok()?;
+
+        let summary = result.text;
+        if summary.trim().is_empty() {
+            return None;
+        }
+
+        tracing::debug!(
+            target: "cns.chat.condense",
+            agent = %req.agent_name,
+            old_msgs = old_half.len(),
+            recent_msgs = recent_half.len(),
+            summary_len = summary.len(),
+            "History condensed"
+        );
+
+        Some(format!(
+            "{base_input}\n\n[Condensed history]\n{summary}\n\n[Recent conversation]\n{recent_text}"
+        ))
+    }
+
     /// Execute a full single-agent turn — manifest cascade, history suffix,
     /// inference via `ChatService::chat()`, and persona filter.
     ///
@@ -774,10 +845,24 @@ impl ChatService {
             &token,
             req.context_turns,
         );
-        let input_with_context = match history_suffix {
+        let mut input_with_context = match history_suffix {
             Some(s) => format!("{}\n\n{}", base_input, s),
-            None => base_input,
+            None => base_input.clone(),
         };
+
+        // 2b. Auto-condense: if enabled and context exceeds 87.5% of window,
+        // condense the oldest half of history to free context space.
+        if req.auto_condense
+            && let Some(window) = req.context_window
+        {
+            let threshold = (window as f64 * 0.875) as usize;
+            if hkask_mcp_condenser::inference::approx_token_count(&input_with_context) > threshold
+                && let Some(condensed) = Self::condense_history(ctx, req, &token, &base_input).await
+            {
+                input_with_context = condensed;
+            }
+            // Graceful degradation: on failure, use uncondensed context.
+        }
 
         // 3. Apply tool results from previous iterations (if any).
         let effective_input = if let Some(ref tool_results) = req.tool_results {

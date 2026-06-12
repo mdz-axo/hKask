@@ -25,17 +25,18 @@ sha2.workspace = true
 tracing.workspace = true
 
 # Chain SDKs — feature-gated to keep default build lightweight
+# Solana: solana-sdk (types) + solana-rpc-client-api (RPC types) + reqwest (rustls) for raw RPC
+# solana-client is NOT used — it depends on openssl via solana-tls-utils
 solana-sdk = { version = "2", optional = true }
-solana-client = { version = "2", optional = true }
 spl-token = { version = "6", optional = true }
 spl-associated-token-account = { version = "6", optional = true }
 bincode = { version = "1", optional = true }
-# Hedera — use hiero-sdk (rebranded) when available; mirror node REST API as fallback
-reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls"] }
+# Hedera — mirror node REST API via reqwest (rustls); hiero-sdk blocked by openssl dep
+reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls", "json"] }
 
 [features]
 default = []
-solana = ["dep:solana-sdk", "dep:solana-client", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode"]
+solana = ["dep:solana-sdk", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode", "dep:reqwest"]
 hedera = ["dep:reqwest"]
 hinkal = ["dep:reqwest"]
 

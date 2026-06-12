@@ -680,7 +680,9 @@ already persisted in `EpisodicStoragePort`.
 
 ## 18. Auto-Condense
 
-Auto-condense triggers at 87.5% of the model's context window via the condenser MCP server. The pipeline in `ChatService::execute_turn()` appends recent conversation history as a suffix via `recall_recent_turns()`, then checks if approximate token count exceeds 87.5% of `context_window`. When triggered, it splits history in half, calls the condenser's `condenser_thread_summary` tool (which uses the centralized hKask inference router) to condense the oldest half, and replaces the history suffix with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails, the full (uncondensed) context is used with a CNS warning log.
+Auto-condense triggers at 87.5% of the model's context window during `ChatService::execute_turn()`. After appending recent conversation history as a suffix via `recall_recent_turns()`, the pipeline checks if the approximate token count exceeds 87.5% of `context_window`. When triggered, it fetches raw episodes via `recall_raw_episodes()`, splits them in half, and calls `InferencePort::generate_with_model()` directly (bypassing the MCP tool for efficiency) to condense the oldest half into a structured summary. The history suffix is replaced with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails or returns empty, the full uncondensed context is used with no error surfaced to the user.
+
+Enabled by default (`auto_condense: on`). Toggle via `/repl auto_condense off` or the API settings endpoint.
 
 ## 19. Key Design Decisions
 

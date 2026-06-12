@@ -24,7 +24,6 @@ use async_trait::async_trait;
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
 use reqwest::Client;
 use serde::Deserialize;
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::chain::{ChainPort, DepositEvent};
@@ -43,9 +42,6 @@ const USDC_TOKEN_TESTNET: &str = "0.0.2276698";
 
 /// HTTP request timeout.
 const REQUEST_TIMEOUT_SECS: u64 = 30;
-
-/// Hedera has deterministic finality — 1 confirmation is sufficient.
-const MIN_CONFIRMATIONS: u64 = 1;
 
 // ── Mirror node REST API response types ──────────────────────────────────────
 
@@ -71,18 +67,22 @@ struct MirrorTransfer {
     token_id: Option<String>,
 }
 
+// These types are defined for future use (account balance queries).
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct MirrorAccountResponse {
     account: String,
     balance: Option<MirrorBalance>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct MirrorBalance {
     balance: u64,
     tokens: Option<Vec<MirrorTokenBalance>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct MirrorTokenBalance {
     #[serde(rename = "token_id")]
@@ -105,8 +105,6 @@ pub struct HederaPort {
     treasury_account: String,
     /// HTS USDC token ID.
     usdc_token: String,
-    /// Minimum confirmations for deposit finality (1 for Hedera).
-    min_confirmations: u64,
 }
 
 impl HederaPort {
@@ -134,7 +132,6 @@ impl HederaPort {
             mirror_node_url: mirror_node_url.to_string(),
             treasury_account: treasury_account.to_string(),
             usdc_token: usdc_token.unwrap_or(USDC_TOKEN_MAINNET).to_string(),
-            min_confirmations: MIN_CONFIRMATIONS,
         })
     }
 
