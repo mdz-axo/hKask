@@ -176,7 +176,7 @@ pub trait InferencePort: Send + Sync {
     fn generate_vision(
         &self,
         prompt: &str,
-        images: &[String],
+        _images: &[String],
         parameters: &LLMParameters,
         model_override: Option<&str>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {

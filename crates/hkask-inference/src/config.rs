@@ -7,7 +7,6 @@
 //! - `FW_API_KEY` — Fireworks API key (required for FW provider)
 //! - `DI_BASE_URL` — DeepInfra base URL (default: https://api.deepinfra.com/v1/openai)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
-//! - `OKAPI_BASE_URL` — Legacy; maps to `OM_BASE_URL` if `OM_BASE_URL` is unset
 //!
 //! # Model Naming Convention
 //!
@@ -130,21 +129,24 @@ impl InferenceConfig {
     /// Resolve from environment variables.
     ///
     /// Reads `OM_BASE_URL`, `FW_BASE_URL`, `FW_API_KEY`, `DI_BASE_URL`, `DI_API_KEY`.
-    /// Falls back to `OKAPI_BASE_URL` for `OM_BASE_URL` if unset (legacy migration).
+    /// Also accepts `FIREWORKS_API_KEY` and `DEEPINFRA_API_KEY` as fallback names.
     pub fn from_env() -> Self {
-        let ollama_base_url = std::env::var("OM_BASE_URL")
-            .or_else(|_| std::env::var("OKAPI_BASE_URL"))
-            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+        let ollama_base_url =
+            std::env::var("OM_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
 
         let fireworks_base_url = std::env::var("FW_BASE_URL")
             .unwrap_or_else(|_| "https://api.fireworks.ai/inference".to_string());
 
-        let fireworks_api_key = std::env::var("FW_API_KEY").unwrap_or_default();
+        let fireworks_api_key = std::env::var("FW_API_KEY")
+            .or_else(|_| std::env::var("FIREWORKS_API_KEY"))
+            .unwrap_or_default();
 
         let deepinfra_base_url = std::env::var("DI_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepinfra.com/v1/openai".to_string());
 
-        let deepinfra_api_key = std::env::var("DI_API_KEY").unwrap_or_default();
+        let deepinfra_api_key = std::env::var("DI_API_KEY")
+            .or_else(|_| std::env::var("DEEPINFRA_API_KEY"))
+            .unwrap_or_default();
 
         Self {
             default_provider: ProviderId::Ollama,

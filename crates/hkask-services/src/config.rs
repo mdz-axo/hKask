@@ -17,9 +17,6 @@ use hkask_inference::InferenceConfig;
 
 /// Default path for the primary database file.
 pub const DEFAULT_DB_PATH: &str = "hkask.db";
-/// Default base URL for the Ollama inference server (legacy, use InferenceConfig).
-#[deprecated(since = "0.28.0", note = "Use InferenceConfig::default() instead")]
-pub const DEFAULT_OKAPI_BASE_URL: &str = "http://127.0.0.1:11434";
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_MODEL: &str = "deepseek-v4-pro";

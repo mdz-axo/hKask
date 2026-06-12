@@ -299,8 +299,10 @@ impl ComposeService {
             )
         };
 
-        // 6. Generate prose
-        let gen_model = request.cognition.embedding.model.clone();
+        // 6. Generate prose — model comes from InferenceContext (operational concern),
+        // not from CognitionConfig (pipeline/corpus concern). The embedding model
+        // is tied to stored vector dimensions; the generation model is deployment-specific.
+        let gen_model = request.inference_ctx.default_model.clone();
         let inference = crate::InferenceService::resolve_port(&request.inference_ctx, &gen_model)?;
         let params = LLMParameters {
             temperature: 0.7,

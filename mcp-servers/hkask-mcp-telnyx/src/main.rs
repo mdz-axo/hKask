@@ -1,6 +1,7 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
 use hkask_mcp::server::{ToolSpanGuard, api_get, api_post, validate_tool_url};
+use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -44,11 +45,20 @@ pub struct ListVoicesRequest {
 
 pub struct TelnyxServer {
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<DaemonClient>,
     client: reqwest::Client,
 }
 
 impl TelnyxServer {
-    pub fn new(webid: WebID, api_key: String) -> Result<Self, anyhow::Error> {
+    pub fn new(
+        webid: WebID,
+        replicant: String,
+        daemon: Option<DaemonClient>,
+        api_key: String,
+    ) -> Result<Self, anyhow::Error> {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}")) {
             headers.insert(reqwest::header::AUTHORIZATION, val);
@@ -57,7 +67,50 @@ impl TelnyxServer {
             .default_headers(headers)
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
-        Ok(Self { webid, client })
+        Ok(Self {
+            webid,
+            replicant,
+            daemon,
+            client,
+        })
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool,
+                "input": input_summary,
+                "outcome": outcome,
+                "detail": detail,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.telnyx.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.telnyx.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.telnyx.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
     }
 }
 

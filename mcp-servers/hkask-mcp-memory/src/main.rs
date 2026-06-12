@@ -131,6 +131,10 @@ pub struct MemoryServer {
     semantic: Arc<SemanticMemory>,
     db: Option<Arc<std::sync::Mutex<rusqlite::Connection>>>,
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<hkask_mcp::DaemonClient>,
 }
 
 impl MemoryServer {
@@ -139,12 +143,16 @@ impl MemoryServer {
         semantic: Arc<SemanticMemory>,
         db: Option<Arc<std::sync::Mutex<rusqlite::Connection>>>,
         webid: WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
     ) -> Self {
         Self {
             episodic,
             semantic,
             db,
             webid,
+            replicant,
+            daemon,
         }
     }
 
@@ -155,6 +163,44 @@ impl MemoryServer {
         e: impl std::fmt::Display,
     ) -> String {
         hkask_mcp::tool_internal_error(span, context, e)
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool,
+                "input": input_summary,
+                "outcome": outcome,
+                "detail": detail,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.memory.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.memory.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.memory.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -190,9 +236,17 @@ impl MemoryServer {
             .with_confidence(confidence.unwrap_or(1.0))
             .with_visibility(Visibility::Private);
         match self.episodic.store(triple) {
-            Ok(()) => span.ok_json(json!({
-                "stored": true, "entity": entity, "attribute": attribute,
-            })),
+            Ok(()) => {
+                self.record_experience(
+                    "episodic_store",
+                    &format!("{}:{}", entity, attribute),
+                    "stored",
+                    serde_json::json!({"entity": entity, "attribute": attribute}),
+                );
+                span.ok_json(json!({
+                    "stored": true, "entity": entity, "attribute": attribute,
+                }))
+            }
             Err(e) => span.internal_error(
                 json!({"error": format!("Failed to store episodic triple: {}", e)}),
             ),
@@ -297,6 +351,12 @@ impl MemoryServer {
             .with_confidence(confidence.unwrap_or(1.0));
         match self.semantic.store(triple) {
             Ok(()) => {
+                self.record_experience(
+                    "semantic_store",
+                    &format!("{}:{}", entity, attribute),
+                    "stored",
+                    serde_json::json!({"entity": entity, "attribute": attribute}),
+                );
                 span.ok_json(json!({"stored": true, "entity": entity, "attribute": attribute}))
             }
             Err(e) => self.internal_error(span, "store semantic triple", e),
@@ -388,6 +448,12 @@ impl MemoryServer {
                         })
                     })
                     .collect();
+                self.record_experience(
+                    "semantic_search",
+                    &format!("dim={}", query_vector.len()),
+                    "success",
+                    serde_json::json!({"count": serialized.len()}),
+                );
                 span.ok_json(json!({"count": serialized.len(), "results": serialized}))
             }
             Err(e) => self.internal_error(span, "search embeddings", e),
@@ -642,6 +708,22 @@ impl MemoryServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.memory", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let daemon_client = if daemon_ok {
+        Some(hkask_mcp::DaemonClient::new())
+    } else {
+        None
+    };
+
     hkask_mcp::run_server(
         "hkask-mcp-memory",
         env!("CARGO_PKG_VERSION"),
@@ -662,6 +744,8 @@ async fn main() -> anyhow::Result<()> {
                 semantic,
                 Some(db.conn_arc()),
                 ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
             ))
         },
         vec![
@@ -676,4 +760,45 @@ async fn main() -> anyhow::Result<()> {
         ],
     )
     .await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = hkask_mcp::DaemonClient::new();
+    let auth = client.auth_query(replicant).await?;
+    match auth {
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some(ref webid),
+            ..
+        } => {
+            tracing::info!(target: "hkask.mcp.memory", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+        }
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: false,
+            action: Some(ref action),
+            ..
+        } if action == "prompt_user" => {
+            anyhow::bail!(
+                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected auth response: {:?}", other),
+    }
+    let assignment = client.assignment_query(replicant, "memory").await?;
+    match assignment {
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: true } => {
+            tracing::info!(target: "hkask.mcp.memory", replicant = %replicant, "Replicant assigned to memory role");
+        }
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: false } => {
+            anyhow::bail!(
+                "Replicant '{}' is not assigned to the memory MCP role. Use 'kask replicant assign {} memory' to grant this role.",
+                replicant,
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+    }
+    tracing::info!(target: "hkask.mcp.memory", replicant = %replicant, "P4 dual-gate verification complete");
+    Ok(())
 }

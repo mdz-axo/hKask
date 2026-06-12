@@ -64,6 +64,10 @@ fn default_ocr_max_tokens() -> u32 {
 
 pub struct MarkitdownServer {
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<hkask_mcp::DaemonClient>,
     /// Configured OCR model (from HKASK_OCR_MODEL env var). None means OCR is unavailable.
     ocr_model: Option<String>,
     /// Inference configuration for the router.
@@ -73,6 +77,8 @@ pub struct MarkitdownServer {
 impl MarkitdownServer {
     pub fn new(
         webid: WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
         ocr_model: Option<String>,
         ollama_base_url: &str,
     ) -> anyhow::Result<Self> {
@@ -82,9 +88,46 @@ impl MarkitdownServer {
         };
         Ok(Self {
             webid,
+            replicant,
+            daemon,
             ocr_model,
             inference_config,
         })
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool, "input": input_summary, "outcome": outcome,
+                "detail": detail, "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.markitdown.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.markitdown.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.markitdown.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
     }
 
     /// Resolve OCR model: explicit override > HKASK_OCR_MODEL env.
@@ -148,6 +191,7 @@ impl MarkitdownServer {
         Parameters(ConvertRequest { path, force_ocr }): Parameters<ConvertRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("markitdown_convert", &self.webid);
+        let path_clone = path.clone();
         validate_field!(span, "path", &path, 4096);
 
         let format = convert::detect_format(&path);
@@ -178,14 +222,21 @@ impl MarkitdownServer {
                     .await
                 {
                     Ok(text) => {
-                        return span.ok_json(serde_json::json!({
+                        let result = serde_json::json!({
                             "format": format,
                             "path": path,
                             "method": "ocr",
                             "model": model,
                             "text": text,
                             "word_count": text.split_whitespace().count(),
-                        }));
+                        });
+                        self.record_experience(
+                            "markitdown_convert",
+                            &path_clone,
+                            "success",
+                            result.clone(),
+                        );
+                        return span.ok_json(result);
                     }
                     Err(e) => {
                         return span.error(
@@ -290,13 +341,22 @@ impl MarkitdownServer {
         };
 
         match extract_result {
-            ExtractOutcome::Success { text, word_count } => span.ok_json(serde_json::json!({
-                "format": format,
-                "path": path,
-                "method": "text_extraction",
-                "text": text,
-                "word_count": word_count,
-            })),
+            ExtractOutcome::Success { text, word_count } => {
+                let result = serde_json::json!({
+                    "format": format,
+                    "path": path,
+                    "method": "text_extraction",
+                    "text": text,
+                    "word_count": word_count,
+                });
+                self.record_experience(
+                    "markitdown_convert",
+                    &path_clone,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
             ExtractOutcome::NeedsOcr {
                 partial_text,
                 word_count,
@@ -321,7 +381,7 @@ impl MarkitdownServer {
                                             "text_extraction_ocr_fallback_insufficient",
                                         )
                                     };
-                                span.ok_json(serde_json::json!({
+                                let result = serde_json::json!({
                                     "format": format,
                                     "path": path,
                                     "method": method,
@@ -329,7 +389,14 @@ impl MarkitdownServer {
                                     "text": final_text,
                                     "word_count": final_word_count,
                                     "extraction_word_count": word_count,
-                                }))
+                                });
+                                self.record_experience(
+                                    "markitdown_convert",
+                                    &path_clone,
+                                    "success",
+                                    result.clone(),
+                                );
+                                span.ok_json(result)
                             }
                             Err(e) => {
                                 // OCR also failed — return whatever text extraction got
@@ -428,6 +495,7 @@ impl MarkitdownServer {
         }): Parameters<OcrRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("markitdown_ocr", &self.webid);
+        let path_clone = path.clone();
         validate_field!(span, "path", &path, 4096);
 
         let model = match self.resolve_ocr_model(model.as_deref()) {
@@ -450,12 +518,16 @@ impl MarkitdownServer {
         };
 
         match self.do_ocr(&file_bytes, &model, max_tokens).await {
-            Ok(text) => span.ok_json(serde_json::json!({
-                "path": path,
-                "model": model,
-                "text": text,
-                "word_count": text.split_whitespace().count(),
-            })),
+            Ok(text) => {
+                let result = serde_json::json!({
+                    "path": path,
+                    "model": model,
+                    "text": text,
+                    "word_count": text.split_whitespace().count(),
+                });
+                self.record_experience("markitdown_ocr", &path_clone, "success", result.clone());
+                span.ok_json(result)
+            }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable(e).to_json_string(),

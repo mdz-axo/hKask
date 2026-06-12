@@ -276,16 +276,65 @@ pub struct StoreQaRequest {
 
 pub struct DocKnowledgeServer {
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<hkask_mcp::DaemonClient>,
     semantic: Option<SemanticMemory>,
 }
 
 impl DocKnowledgeServer {
-    pub fn new(webid: WebID, semantic: Option<SemanticMemory>) -> Result<Self, anyhow::Error> {
-        Ok(Self { webid, semantic })
+    pub fn new(
+        webid: WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
+        semantic: Option<SemanticMemory>,
+    ) -> Result<Self, anyhow::Error> {
+        Ok(Self {
+            webid,
+            replicant,
+            daemon,
+            semantic,
+        })
     }
 
     fn has_semantic(&self) -> bool {
         self.semantic.is_some()
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool, "input": input_summary, "outcome": outcome,
+                "detail": detail, "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.doc_knowledge.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.doc_knowledge.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.doc_knowledge.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -348,12 +397,19 @@ impl DocKnowledgeServer {
         let total_passages = passages.len();
         let serialized = serialize_passages(passages);
 
-        span.ok_json(json!({
+        let result = json!({
             "total_passages": total_passages, "passages": serialized,
             "max_tokens": max_tokens.unwrap_or(512), "overlap_tokens": overlap_tokens.unwrap_or(64),
             "max_words": max_words, "min_words": min_words, "sentence_boundary": boundary,
             "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
-        }))
+        });
+        self.record_experience(
+            "doc_knowledge_chunk",
+            &entity_ref_prefix,
+            "success",
+            result.clone(),
+        );
+        span.ok_json(result)
     }
 
     #[tool(description = "Detect document format from path/extension")]
@@ -448,6 +504,7 @@ impl DocKnowledgeServer {
         }): Parameters<ParseRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_parse", &self.webid);
+        let path_clone = path.clone();
 
         validate_non_empty!(span, McpErrorKind::InvalidArgument, "path", path);
 
@@ -500,14 +557,21 @@ impl DocKnowledgeServer {
         let medium = chunk_tier("medium", medium_max_tokens, 512);
         let fine = chunk_tier("fine", fine_max_tokens, 128);
 
-        span.ok_json(json!({
+        let result = json!({
             "format": format, "path": path,
             "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
             "medium_max_tokens": medium_max_tokens.unwrap_or(512),
             "fine_max_tokens": fine_max_tokens.unwrap_or(128),
             "coarse": serialize_passages(coarse), "medium": serialize_passages(medium),
             "fine": serialize_passages(fine),
-        }))
+        });
+        self.record_experience(
+            "doc_knowledge_parse",
+            &path_clone,
+            "success",
+            result.clone(),
+        );
+        span.ok_json(result)
     }
 
     #[tool(
@@ -568,6 +632,7 @@ impl DocKnowledgeServer {
         }): Parameters<StoreQaRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("doc_knowledge_store_qa", &self.webid);
+        let source_doc = source_document.clone();
 
         let Some(semantic) = &self.semantic else {
             return span.error(
@@ -612,11 +677,24 @@ impl DocKnowledgeServer {
         }
 
         if errors.is_empty() {
-            span.ok_json(json!({ "stored": stored, "source_document": source_document }))
+            let result = json!({ "stored": stored, "source_document": source_document });
+            self.record_experience(
+                "doc_knowledge_store_qa",
+                &source_doc,
+                "success",
+                result.clone(),
+            );
+            span.ok_json(result)
         } else {
-            span.internal_error(
-                json!({ "stored": stored, "errors": errors, "source_document": source_document }),
-            )
+            let result =
+                json!({ "stored": stored, "errors": errors, "source_document": source_document });
+            self.record_experience(
+                "doc_knowledge_store_qa",
+                &source_doc,
+                "partial",
+                result.clone(),
+            );
+            span.internal_error(result)
         }
     }
 }
@@ -625,6 +703,22 @@ impl DocKnowledgeServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.doc_knowledge", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let daemon_client = if daemon_ok {
+        Some(hkask_mcp::DaemonClient::new())
+    } else {
+        None
+    };
+
     hkask_mcp::run_server(
         "hkask-mcp-doc-knowledge",
         env!("CARGO_PKG_VERSION"),
@@ -647,7 +741,12 @@ async fn main() -> anyhow::Result<()> {
                 }
                 None => None,
             };
-            DocKnowledgeServer::new(ctx.webid, semantic)
+            DocKnowledgeServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                semantic,
+            )
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
@@ -661,4 +760,48 @@ async fn main() -> anyhow::Result<()> {
         ],
     )
     .await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = hkask_mcp::DaemonClient::new();
+
+    let auth = client.auth_query(replicant).await?;
+    match auth {
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some(ref webid),
+            ..
+        } => {
+            tracing::info!(target: "hkask.mcp.doc_knowledge", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+        }
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: false,
+            action: Some(ref action),
+            ..
+        } if action == "prompt_user" => {
+            anyhow::bail!(
+                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected auth response: {:?}", other),
+    }
+
+    let assignment = client.assignment_query(replicant, "doc_knowledge").await?;
+    match assignment {
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: true } => {
+            tracing::info!(target: "hkask.mcp.doc_knowledge", replicant = %replicant, "Replicant assigned to doc_knowledge role");
+        }
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: false } => {
+            anyhow::bail!(
+                "Replicant '{}' is not assigned to the doc_knowledge MCP role. Use 'kask replicant assign {} doc_knowledge' to grant this role.",
+                replicant,
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+    }
+
+    tracing::info!(target: "hkask.mcp.doc_knowledge", replicant = %replicant, "P4 dual-gate verification complete");
+    Ok(())
 }

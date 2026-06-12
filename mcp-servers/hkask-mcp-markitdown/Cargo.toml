@@ -18,6 +18,7 @@ schemars.workspace = true
 tracing.workspace = true
 anyhow.workspace = true
 base64.workspace = true
+chrono.workspace = true
 pdf-extract = "0.7"
 
 [dev-dependencies]

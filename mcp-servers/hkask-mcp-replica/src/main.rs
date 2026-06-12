@@ -25,8 +25,16 @@ use std::sync::Arc;
 /// Override with `HKASK_EMBEDDING_MODEL` env var.
 const DEFAULT_EMBEDDING_MODEL: &str = "Qwen/Qwen3-Embedding-0.6B";
 
+/// Default generation model for prose composition.
+/// Override with `HKASK_REPLICA_MODEL` env var.
+const DEFAULT_GENERATION_MODEL: &str = "deepseek-v4-flash:cloud";
+
 fn embedding_model() -> String {
     std::env::var("HKASK_EMBEDDING_MODEL").unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string())
+}
+
+fn generation_model() -> String {
+    std::env::var("HKASK_REPLICA_MODEL").unwrap_or_else(|_| DEFAULT_GENERATION_MODEL.to_string())
 }
 
 fn inference_config() -> hkask_inference::InferenceConfig {
@@ -35,10 +43,59 @@ fn inference_config() -> hkask_inference::InferenceConfig {
 
 struct ReplicaServer {
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<hkask_mcp::DaemonClient>,
 }
 
 fn internal_error(span: ToolSpanGuard, context: &str, e: impl std::fmt::Display) -> String {
     hkask_mcp::tool_internal_error(span, context, e)
+}
+
+impl ReplicaServer {
+    fn new(webid: WebID, replicant: String, daemon: Option<hkask_mcp::DaemonClient>) -> Self {
+        Self {
+            webid,
+            replicant,
+            daemon,
+        }
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool, "input": input_summary, "outcome": outcome,
+                "detail": detail, "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.replica.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.replica.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.replica.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
+    }
 }
 
 // ── Request/Response types ──────────────────────────────────────────────────
@@ -194,6 +251,9 @@ impl ReplicaServer {
                 );
             });
 
+            // NOTE: EmbedService::embed_corpus still takes ollama_url: Option<&str>
+            // instead of InferenceConfig. When the service layer is updated to accept
+            // InferenceConfig directly, pass inference_config() here instead.
             let result = EmbedService::embed_corpus(
                 &config_path,
                 &params.db_path,
@@ -221,7 +281,16 @@ impl ReplicaServer {
         };
 
         match run.await {
-            Ok(json) => span.ok_json(serde_json::from_str(&json).unwrap_or(json!({}))),
+            Ok(json) => {
+                let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or(json!({}));
+                self.record_experience(
+                    "replica_build",
+                    &config_path.to_string_lossy(),
+                    "success",
+                    parsed.clone(),
+                );
+                span.ok_json(parsed)
+            }
             Err(e) => internal_error(span, "build replica", e),
         }
     }
@@ -229,9 +298,11 @@ impl ReplicaServer {
     #[tool(description = "Generate prose in an author's style.")]
     async fn replica_compose(&self, Parameters(params): Parameters<ComposeRequest>) -> String {
         let span = ToolSpanGuard::new("replica_compose", &self.webid);
+        let author = params.author.clone();
 
         let run = async {
             let model = embedding_model();
+            let gen_model = generation_model();
             let inf_cfg = inference_config();
             let config = hkask_services::CognitionConfig {
                 author: params.author.clone(),
@@ -247,7 +318,7 @@ impl ReplicaServer {
                 },
             };
 
-            let inference_ctx = InferenceContext::from_parts(None, &model, inf_cfg);
+            let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
 
             let request = hkask_services::ComposeRequest {
                 prompt: params.prompt,
@@ -272,7 +343,11 @@ impl ReplicaServer {
         };
 
         match run.await {
-            Ok(json) => span.ok_json(serde_json::from_str(&json).unwrap_or(json!({}))),
+            Ok(json) => {
+                let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or(json!({}));
+                self.record_experience("replica_compose", &author, "success", parsed.clone());
+                span.ok_json(parsed)
+            }
             Err(e) => internal_error(span, "compose prose", e),
         }
     }
@@ -347,6 +422,8 @@ impl ReplicaServer {
     #[tool(description = "Generate prose blending two authors' styles.")]
     async fn replica_mashup(&self, Parameters(params): Parameters<MashupRequest>) -> String {
         let span = ToolSpanGuard::new("replica_mashup", &self.webid);
+        let author_a = params.author_a.clone();
+        let author_b = params.author_b.clone();
 
         let run = async {
             let blend = params.blend.clamp(0.0, 1.0);
@@ -386,6 +463,7 @@ impl ReplicaServer {
             let dist_b = hkask_services::cosine_distance(&blended, &emb_b.vector);
 
             let model = embedding_model();
+            let gen_model = generation_model();
             store
                 .store(&blended_ref, &blended, &model)
                 .map_err(|e| e.to_string())?;
@@ -405,7 +483,7 @@ impl ReplicaServer {
                 },
             };
 
-            let inference_ctx = InferenceContext::from_parts(None, &model, inf_cfg);
+            let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
 
             let request = hkask_services::ComposeRequest {
                 prompt: params.prompt,
@@ -433,7 +511,12 @@ impl ReplicaServer {
         };
 
         match run.await {
-            Ok(json) => span.ok_json(serde_json::from_str(&json).unwrap_or(json!({}))),
+            Ok(json) => {
+                let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or(json!({}));
+                let summary = format!("{} x {}", author_a, author_b);
+                self.record_experience("replica_mashup", &summary, "success", parsed.clone());
+                span.ok_json(parsed)
+            }
             Err(e) => internal_error(span, "mashup styles", e),
         }
     }
@@ -582,11 +665,90 @@ impl ReplicaServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.replica", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let daemon_client = if daemon_ok {
+        Some(hkask_mcp::DaemonClient::new())
+    } else {
+        None
+    };
+
     run_server(
         "hkask-mcp-replica",
         env!("CARGO_PKG_VERSION"),
-        |ctx| Ok(ReplicaServer { webid: ctx.webid }),
-        vec![],
+        |ctx| {
+            Ok(ReplicaServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+            ))
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_EMBEDDING_MODEL",
+                "Embedding model for corpus vectorization (default: Qwen/Qwen3-Embedding-0.6B)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_REPLICA_MODEL",
+                "Generation model for prose composition (default: deepseek-v4-flash:cloud)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "OM_BASE_URL",
+                "Ollama base URL for embedding and inference (default: http://127.0.0.1:11434)",
+            ),
+        ],
     )
     .await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = hkask_mcp::DaemonClient::new();
+
+    let auth = client.auth_query(replicant).await?;
+    match auth {
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some(ref webid),
+            ..
+        } => {
+            tracing::info!(target: "hkask.mcp.replica", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+        }
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: false,
+            action: Some(ref action),
+            ..
+        } if action == "prompt_user" => {
+            anyhow::bail!(
+                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected auth response: {:?}", other),
+    }
+
+    let assignment = client.assignment_query(replicant, "replica").await?;
+    match assignment {
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: true } => {
+            tracing::info!(target: "hkask.mcp.replica", replicant = %replicant, "Replicant assigned to replica role");
+        }
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: false } => {
+            anyhow::bail!(
+                "Replicant '{}' is not assigned to the replica MCP role. Use 'kask replicant assign {} replica' to grant this role.",
+                replicant,
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+    }
+
+    tracing::info!(target: "hkask.mcp.replica", replicant = %replicant, "P4 dual-gate verification complete");
+    Ok(())
 }
