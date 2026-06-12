@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
-use hkask_templates::{OkapiConfig, OkapiEmbedding};
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
 use serde::Deserialize;
@@ -170,14 +169,12 @@ impl ComposeService {
         let embedding_store_direct =
             EmbeddingStore::with_dim(Arc::clone(&conn), request.cognition.embedding.dim);
 
-        // 2. Create OkapiEmbedding and embed prompt
-        let okapi_config = OkapiConfig {
-            base_url: request.inference_ctx.okapi_base_url.clone(),
-            ..OkapiConfig::default()
-        };
+        // 2. Create EmbeddingRouter and embed prompt
         let embedder =
-            OkapiEmbedding::with_model(&request.cognition.embedding.model, okapi_config)?;
-        let prompt_vector = embedder.embed_sentence(&request.prompt).await?;
+            hkask_inference::EmbeddingRouter::new(request.inference_ctx.inference_config.clone());
+        let prompt_vector = embedder
+            .embed_sentence(&request.cognition.embedding.model, &request.prompt)
+            .await?;
 
         // 3. KNN search for exemplar passages
         let results =
@@ -324,7 +321,9 @@ impl ComposeService {
         let validation = if request.no_validate {
             None
         } else {
-            let prose_vector = embedder.embed_sentence(&generated_prose).await?;
+            let prose_vector = embedder
+                .embed_sentence(&request.cognition.embedding.model, &generated_prose)
+                .await?;
             match embedding_store_direct.get(&request.cognition.embedding.centroid_entity_ref) {
                 Ok(centroid_embedding) => {
                     let distance = cosine_distance(&prose_vector, &centroid_embedding.vector);

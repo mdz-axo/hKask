@@ -397,8 +397,11 @@ impl ChatService {
                 (Some(port), _) => Arc::clone(port),
                 (None, Some(port)) => port,
                 (None, None) => {
-                    let inf_ctx =
-                        InferenceContext::from_parts(None, &model, &ctx.config().okapi_base_url);
+                    let inf_ctx = InferenceContext::from_parts(
+                        None,
+                        &model,
+                        ctx.config().inference_config.clone(),
+                    );
                     InferenceService::resolve_port(&inf_ctx, &model)?
                 }
             };

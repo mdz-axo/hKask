@@ -63,18 +63,17 @@ pub(super) fn init_repl_state(
     // Mutable here so the user can override via /repl during the session.
     let repl_settings = crate::commands::settings::load_settings();
 
-    // Resolve okapi_base_url from env for InferenceService calls.
+    // Resolve inference config from env for InferenceService calls.
     // Onboarding has already completed above; this is used to build the
     // inference port that serves the interactive REPL session.
-    let okapi_base_url = std::env::var("OKAPI_BASE_URL")
-        .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string());
+    let inference_config = hkask_inference::InferenceConfig::from_env();
 
     // Initialize inference port once — reused across all chat turns.
     // Route through InferenceService so all surfaces share the same logic.
     let inference_ctx = InferenceContext::from_parts(
         None, // No shared port yet — we're creating it now
         initial_model_str,
-        &okapi_base_url,
+        inference_config.clone(),
     );
     let inference_port: Arc<dyn InferencePort> =
         match InferenceService::resolve_port(&inference_ctx, initial_model_str) {
@@ -95,7 +94,7 @@ pub(super) fn init_repl_state(
     // Created eagerly to avoid cold-start latency when /hhh on is first called.
     let gate_inference_port: Option<Arc<dyn InferencePort>> = {
         let gate_ctx =
-            InferenceContext::from_parts(None, hhh_gate::HHH_DEFAULT_GATE_MODEL, &okapi_base_url);
+            InferenceContext::from_parts(None, hhh_gate::HHH_DEFAULT_GATE_MODEL, inference_config);
         match InferenceService::resolve_port(&gate_ctx, hhh_gate::HHH_DEFAULT_GATE_MODEL) {
             Ok(port) => Some(port),
             Err(e) => {

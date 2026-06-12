@@ -1307,6 +1307,7 @@ dependencies = [
  "hkask-agents",
  "hkask-api",
  "hkask-cns",
+ "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
@@ -1343,6 +1344,21 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-inference"
+version = "0.27.0"
+dependencies = [
+ "chrono",
+ "futures-util",
+ "hkask-types",
+ "reqwest",
+ "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tracing",
@@ -1598,6 +1614,7 @@ dependencies = [
  "hex",
  "hkask-agents",
  "hkask-cns",
+ "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
  "hkask-mcp-condenser",
@@ -1649,6 +1666,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
+ "hkask-inference",
  "hkask-storage",
  "hkask-types",
  "minijinja",

@@ -7,6 +7,7 @@ description = "Shared service layer for hKask surfaces (CLI, API)"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
+hkask-inference = { path = "../hkask-inference" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-cns = { path = "../hkask-cns" }

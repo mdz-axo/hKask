@@ -7,6 +7,7 @@
 //! secrets, or explicit parameters, then pass it to `AgentService::build()`.
 
 use crate::error::ServiceError;
+use hkask_inference::InferenceConfig;
 
 // ── Default values ──────────────────────────────────────────────────────────
 // Centralized here so all three constructors share the same defaults.
@@ -16,7 +17,8 @@ use crate::error::ServiceError;
 
 /// Default path for the primary database file.
 pub const DEFAULT_DB_PATH: &str = "hkask.db";
-/// Default base URL for the Okapi inference server.
+/// Default base URL for the Ollama inference server (legacy, use InferenceConfig).
+#[deprecated(since = "0.28.0", note = "Use InferenceConfig::default() instead")]
 pub const DEFAULT_OKAPI_BASE_URL: &str = "http://127.0.0.1:11434";
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
@@ -64,8 +66,8 @@ pub struct ServiceConfig {
     /// independent.
     pub mcp_secret: Vec<u8>,
 
-    /// Base URL for Okapi inference server.
-    pub okapi_base_url: String,
+    /// Inference configuration for the multi-provider router.
+    pub inference_config: InferenceConfig,
 
     /// CNS variety threshold for algedonic alerts.
     pub cns_threshold: u64,
@@ -119,8 +121,7 @@ impl ServiceConfig {
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
-        let okapi_base_url =
-            std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| DEFAULT_OKAPI_BASE_URL.to_string());
+        let inference_config = InferenceConfig::from_env();
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
@@ -147,7 +148,7 @@ impl ServiceConfig {
             db_passphrase,
             acp_secret,
             mcp_secret: mcp_secret_vec,
-            okapi_base_url,
+            inference_config,
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
@@ -174,8 +175,7 @@ impl ServiceConfig {
     ) -> Self {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
-        let okapi_base_url =
-            std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| DEFAULT_OKAPI_BASE_URL.to_string());
+        let inference_config = InferenceConfig::from_env();
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
@@ -188,7 +188,7 @@ impl ServiceConfig {
             db_passphrase,
             acp_secret: acp_secret.into_bytes(),
             mcp_secret: mcp_secret.into_bytes(),
-            okapi_base_url,
+            inference_config,
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
@@ -212,7 +212,7 @@ impl ServiceConfig {
             db_passphrase: String::new(),
             acp_secret: vec![0u8; 32],
             mcp_secret: vec![0u8; 32],
-            okapi_base_url: DEFAULT_OKAPI_BASE_URL.to_string(),
+            inference_config: InferenceConfig::default(),
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,

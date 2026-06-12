@@ -55,7 +55,7 @@ pub(crate) fn handle_hhh(arg: &str, state: &mut super::super::ReplState) {
                 let ctx = InferenceContext::from_parts(
                     state.gate_inference_port.clone(),
                     &state.service_context.config().default_model,
-                    &state.service_context.config().okapi_base_url,
+                    state.service_context.config().inference_config.clone(),
                 );
                 match InferenceService::resolve_port(&ctx, model_name) {
                     Ok(port) => {

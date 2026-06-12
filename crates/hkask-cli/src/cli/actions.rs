@@ -452,8 +452,6 @@ pub enum ComposeAction {
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: String,
         #[arg(long)]
-        okapi_url: Option<String>,
-        #[arg(long)]
         no_validate: bool,
     },
 }

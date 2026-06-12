@@ -42,7 +42,6 @@ use hkask_storage::{
     ConsentStore, Database, DatabaseError, EmbeddingStore, SovereigntyBoundaryStore,
     SqliteSpecStore, StandingSessionStore, TripleStore, in_memory_db,
 };
-use hkask_templates::OkapiConfig;
 use hkask_templates::SqliteRegistry;
 use hkask_types::CapabilityChecker;
 use hkask_types::CuratorHandle;
@@ -512,28 +511,13 @@ impl AgentService {
         let inference_port: Option<Arc<dyn InferencePort>> = if config.in_memory {
             None
         } else {
-            let okapi_config = OkapiConfig {
-                base_url: config.okapi_base_url.clone(),
-                ..OkapiConfig::default()
-            };
-            match hkask_templates::OkapiInference::new(&config.default_model, okapi_config) {
-                Ok(inference) => {
-                    let port: Arc<dyn InferencePort> = Arc::new(inference);
-                    let inference_loop = hkask_agents::InferenceLoop::new()
-                        .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
-                        .with_model(&config.default_model);
-                    loop_system.register_loop(Arc::new(inference_loop)).await;
-                    Some(port)
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "hkask.services",
-                        error = %e,
-                        "Inference port initialization failed — inference unavailable"
-                    );
-                    None
-                }
-            }
+            let router = hkask_inference::InferenceRouter::new(config.inference_config.clone());
+            let port: Arc<dyn InferencePort> = Arc::new(router);
+            let inference_loop = hkask_agents::InferenceLoop::new()
+                .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
+                .with_model(&config.default_model);
+            loop_system.register_loop(Arc::new(inference_loop)).await;
+            Some(port)
         };
 
         // Episodic + Semantic loops

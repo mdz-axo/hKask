@@ -1,21 +1,16 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
 use crate::repl::handlers::repl_settings::ModelMeta;
+use hkask_inference::InferenceConfig;
 use hkask_services::{InferenceContext, InferenceService};
-use hkask_templates::OkapiConfig;
 
-/// Fetch model metadata from Ollama via Okapi's /api/show endpoint.
-/// Populates repl_settings.model_meta on successful fetch.
 pub(crate) fn populate_model_meta(
     state: &mut super::super::ReplState,
     rt: &tokio::runtime::Handle,
 ) {
-    let config = OkapiConfig {
-        base_url: state.service_context.config().okapi_base_url.clone(),
-        ..OkapiConfig::default()
-    };
+    let config = state.service_context.config().inference_config.clone();
     let model = state.current_model.clone();
-    if let Some(show) = rt.block_on(hkask_templates::fetch_model_show(&config, &model)) {
+    if let Some(show) = rt.block_on(fetch_model_show(&config, &model)) {
         let context_length = show.context_length().unwrap_or(4096);
         let supports_thinking = show.supports_thinking();
         let capabilities = show.capabilities.unwrap_or_default();
@@ -30,6 +25,56 @@ pub(crate) fn populate_model_meta(
             ""
         };
         println!("  Window: {} tokens  {}", context_length, thinking_str);
+    }
+}
+
+/// Fetch per-model detail from Ollama's `/api/show` endpoint.
+/// Returns `None` if the endpoint is unreachable or the model is not found.
+async fn fetch_model_show(config: &InferenceConfig, model: &str) -> Option<OkapiModelShow> {
+    let client = config.build_client().ok()?;
+    let request = client
+        .get(format!("{}/api/show", config.ollama_base_url))
+        .query(&[("name", model)]);
+    match request.send().await {
+        Ok(resp) => resp.json::<OkapiModelShow>().await.ok(),
+        Err(_) => None,
+    }
+}
+
+/// Per-model detail from Ollama's `/api/show` endpoint.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct OkapiModelShow {
+    #[serde(default)]
+    pub model_info: Option<std::collections::HashMap<String, serde_json::Value>>,
+    #[serde(default)]
+    pub capabilities: Option<Vec<String>>,
+}
+
+impl OkapiModelShow {
+    fn context_length(&self) -> Option<u32> {
+        self.model_info.as_ref()?.iter().find_map(|(k, v)| {
+            if k.ends_with(".context_length") {
+                v.as_u64().map(|n| n as u32)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn supports_thinking(&self) -> bool {
+        if let Some(ref caps) = self.capabilities
+            && caps.iter().any(|c| c == "reasoning" || c == "thinking")
+        {
+            return true;
+        }
+        if let Some(ref info) = self.model_info
+            && info.iter().any(|(k, v)| {
+                (k.contains("reasoning") || k.contains("thinking")) && v.as_bool().unwrap_or(false)
+            })
+        {
+            return true;
+        }
+        false
     }
 }
 

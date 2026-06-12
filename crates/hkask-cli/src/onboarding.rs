@@ -217,12 +217,11 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
 /// Fetch available models from Okapi for the onboarding model selection step.
 /// Returns up to 8 models, sorted with smaller/faster models first.
 async fn fetch_models_for_onboarding() -> Vec<ModelInfo> {
-    let okapi_base_url = std::env::var("OKAPI_BASE_URL")
-        .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string());
+    let inference_config = hkask_inference::InferenceConfig::from_env();
     let ctx = InferenceContext::from_parts(
         None, // No shared port during onboarding
         "deepseek-v4-pro",
-        &okapi_base_url,
+        inference_config,
     );
     match InferenceService::list_models(&ctx).await {
         Ok(models) => {

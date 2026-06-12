@@ -7,6 +7,7 @@
 //! Cognition: registry/registries/cognition/*-synthesizer.yaml
 
 use crate::cli::ComposeAction;
+use hkask_inference::InferenceConfig;
 use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceContext};
 
 use std::path::PathBuf;
@@ -18,17 +19,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: ComposeAction) {
             cognition,
             db,
             passphrase,
-            okapi_url,
             no_validate,
-        } => run_compose(
-            rt,
-            prompt,
-            cognition,
-            db,
-            passphrase,
-            okapi_url,
-            no_validate,
-        ),
+        } => run_compose(rt, prompt, cognition, db, passphrase, no_validate),
     }
 }
 
@@ -38,7 +30,6 @@ fn run_compose(
     cognition_path: PathBuf,
     db_path: PathBuf,
     passphrase: String,
-    okapi_url: Option<String>,
     no_validate: bool,
 ) {
     let config_str = std::fs::read_to_string(&cognition_path).unwrap_or_else(|e| {
@@ -58,14 +49,8 @@ fn run_compose(
         config.embedding.model, config.embedding.dim, config.embedding.centroid_entity_ref
     );
 
-    let inference_ctx = InferenceContext::from_parts(
-        None,
-        &config.embedding.model,
-        match &okapi_url {
-            Some(url) => url.as_str(),
-            None => hkask_services::DEFAULT_OKAPI_BASE_URL,
-        },
-    );
+    let inference_ctx =
+        InferenceContext::from_parts(None, &config.embedding.model, InferenceConfig::from_env());
 
     let request = ComposeRequest {
         prompt,

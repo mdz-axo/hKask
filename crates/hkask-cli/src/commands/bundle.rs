@@ -23,10 +23,9 @@ use crate::commands;
 /// inference port for standalone CLI commands — the REPL reuses its shared
 /// port, but standalone commands (`kask bundle compose`) create one on demand.
 fn resolve_composition_port() -> Arc<dyn InferencePort> {
-    let okapi_base_url = std::env::var("OKAPI_BASE_URL")
-        .unwrap_or_else(|_| hkask_services::DEFAULT_OKAPI_BASE_URL.to_string());
+    let inference_config = hkask_inference::InferenceConfig::from_env();
     let ctx =
-        hkask_services::InferenceContext::from_parts(None, "deepseek-v4-pro", &okapi_base_url);
+        hkask_services::InferenceContext::from_parts(None, "deepseek-v4-pro", inference_config);
     commands::helpers::or_exit(
         hkask_services::InferenceService::resolve_port(&ctx, "deepseek-v4-pro"),
         "Failed to initialize inference port for bundle composition",

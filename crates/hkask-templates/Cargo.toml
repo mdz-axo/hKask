@@ -7,6 +7,7 @@ description = "Registry, hLexicon, and template execution for hKask"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
+hkask-inference = { path = "../hkask-inference" }
 hkask-storage = { path = "../hkask-storage" }
 minijinja.workspace = true
 serde.workspace = true

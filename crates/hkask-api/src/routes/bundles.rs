@@ -168,11 +168,10 @@ fn resolve_api_composition_port(
         return Ok(port);
     }
     // Fallback: create a fresh inference port
-    let okapi_url = state.agent_service.config().okapi_base_url.clone();
     let ctx = hkask_services::InferenceContext::from_parts(
         None,
         &state.agent_service.config().default_model,
-        &okapi_url,
+        state.agent_service.config().inference_config.clone(),
     );
     hkask_services::InferenceService::resolve_port(
         &ctx,
