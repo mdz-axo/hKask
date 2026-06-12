@@ -126,6 +126,8 @@ pub enum SignalMetric {
     WalletBalanceRatio,
     /// Wallet treasury reserve ratio (0.0 = below min_reserve, 1.0 = healthy)
     WalletTreasuryRatio,
+    /// Wallet API key health (1.0 = exhausted/expired, 0.0 = healthy)
+    WalletKeyHealth,
 }
 
 impl std::fmt::Display for SignalMetric {
@@ -170,6 +172,7 @@ impl SignalMetric {
             SignalMetric::SnapshotInterval => "snapshot_interval",
             SignalMetric::WalletBalanceRatio => "wallet_balance_ratio",
             SignalMetric::WalletTreasuryRatio => "wallet_treasury_ratio",
+            SignalMetric::WalletKeyHealth => "wallet_key_health",
         }
     }
 }

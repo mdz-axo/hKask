@@ -16,9 +16,23 @@
 //! Both coexist in the `GovernedTool` membrane via `EnergyBudgetManager`.
 
 use crate::energy::{EnergyCost, EnergyError};
-use hkask_types::wallet::{ApiKeyId, RJoule, WalletId};
+use chrono::Utc;
+use hkask_types::wallet::{ApiKeyCapability, ApiKeyId, RJoule, WalletId};
 use hkask_wallet::WalletManager;
 use std::sync::Arc;
+
+/// Health status of an API key tracked by a wallet-backed budget.
+#[derive(Debug, Clone)]
+pub struct KeyHealth {
+    /// The key has spent its full spending limit.
+    pub exhausted: bool,
+    /// The key's expiry timestamp has passed.
+    pub expired: bool,
+    /// rJoules spent so far.
+    pub spent_rj: u64,
+    /// Spending limit (0 if no limit set).
+    pub limit_rj: u64,
+}
 
 /// An energy budget backed by a wallet's rJoule balance.
 ///
@@ -123,6 +137,22 @@ impl WalletBackedBudget {
                 remaining: EnergyCost(0),
             })?;
         Ok(actual_gas)
+    }
+
+    /// Check the health of the attached API key (if any).
+    ///
+    /// Returns `None` if no key is attached or the key can't be found.
+    /// Returns `KeyHealth` with exhaustion and expiry status otherwise.
+    pub fn check_key_health(&self) -> Option<KeyHealth> {
+        let key_id = self.key_id?;
+        let capability: ApiKeyCapability = self.wallet_manager.get_api_key(key_id).ok()??;
+        let now = Utc::now();
+        Some(KeyHealth {
+            exhausted: capability.spent_rj.as_u64() >= capability.spending_limit_rj.as_u64(),
+            expired: capability.expiry.is_some_and(|exp| now > exp),
+            spent_rj: capability.spent_rj.as_u64(),
+            limit_rj: capability.spending_limit_rj.as_u64(),
+        })
     }
 }
 

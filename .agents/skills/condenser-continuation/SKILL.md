@@ -35,22 +35,15 @@ The hKask condenser has two implementation options, both exposed as an MCP serve
 
 A self-contained MCP server with 7 tools: `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist`, `thread_summary`. No running hKask instance required — compiles standalone. Binary: `hkask-mcp-condenser`.
 
-### Option B: Thread Summary via Inference Engine
+### Thread Summary via Centralized Inference Router
 
-Adds a `condenser_thread_summary` tool that calls an inference engine's chat endpoint for LLM-powered summarization. Works with any hKask-supported inference backend:
+The `condenser_thread_summary` tool uses the centralized hKask inference router (`InferencePort` trait, implemented by `InferenceRouter`). The router dispatches to Ollama, Fireworks, or DeepInfra based on the model name's provider prefix (OM/, FW/, DI/). No standalone HTTP client or per-tool inference URL configuration — the router is built once at startup from standard hKask environment variables (`OM_BASE_URL`, `FW_API_KEY`, `DI_API_KEY`).
 
-| Engine | Endpoint | Config |
-|--------|----------|--------|
-| Ollama | `/api/chat` | `INFERENCE_URL`, `INFERENCE_MODEL` |
-| Other | HTTP chat API | `INFERENCE_URL`, `INFERENCE_MODEL` + engine-specific vars |
-
-**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3), the chat request must include `"think": false` (or equivalent) to prevent the model from spending all output tokens on internal reasoning. This is engine-specific configuration, not a global setting.
-
-**Graceful degradation:** Without an inference endpoint configured, `thread_summary` returns a clear error. All other Option A tools continue working.
+**Graceful degradation:** If no inference backends are reachable, `thread_summary` returns an error. All other tools continue working.
 
 ### MCP Server Configuration
 
-The condenser MCP server is registered in the MCP runtime config (not in any editor-specific settings file). Required env vars depend on which inference backend is in use.
+The condenser MCP server is registered in the MCP runtime config (not in any editor-specific settings file). The only condenser-specific credential is `INFERENCE_MODEL` (default: `qwen3:8b`), which can be overridden per-request via the tool's `model` parameter.
 
 ## Procedure
 
@@ -90,8 +83,8 @@ Assemble a structured continuation document with:
 ## Constraints
 
 1. **Headless only.** No visual UI, no Grafana, no dashboards. The condenser is CLI/MCP/API only.
-2. **Inference-agnostic.** Templates must not hardcode any specific inference engine. Use the `inference` MCP server abstraction.
-3. **Graceful degradation.** If no inference endpoint is available, the skill must still restore context and prioritize tasks — only `thread_summary` is unavailable.
+2. **Inference-agnostic.** The condenser uses the centralized hKask inference router (`InferencePort`). No standalone HTTP client or inference URL configuration.
+3. **Graceful degradation.** If the inference router has no reachable backends, the skill must still restore context and prioritize tasks — only `thread_summary` is unavailable.
 4. **No sensitive data in outputs.** API keys, tokens, and PII must be redacted from continuation documents.
 5. **Reference, don't duplicate.** Point to files by path, never reproduce their contents in continuation documents.
 6. **Decisions carry rationale.** Every architectural decision in the continuation document must include *why* it was made.
@@ -102,10 +95,10 @@ Assemble a structured continuation document with:
 |------|--------|
 | `mcp-servers/hkask-mcp-condenser/src/main.rs` | MCP server entry point, all tool implementations |
 | `mcp-servers/hkask-mcp-condenser/src/engine.rs` | Pure domain logic — compression dispatch, profile management, stats |
-| `mcp-servers/hkask-mcp-condenser/src/inference.rs` | Inference-backed summarization — message formatting, response validation |
+| `mcp-servers/hkask-mcp-condenser/src/inference.rs` | Pure formatting functions — prompt building, text formatting, token estimation, output construction |
 | `mcp-servers/hkask-mcp-condenser/src/types.rs` | Request/response types including `ThreadSummaryRequest`/`ThreadSummaryOutput` |
 | `mcp-servers/hkask-mcp-condenser/src/algorithms.rs` | Compression and classification algorithms |
-| `mcp-servers/hkask-mcp-condenser/Cargo.toml` | Dependencies including `reqwest` for inference HTTP calls |
+| `mcp-servers/hkask-mcp-condenser/Cargo.toml` | Dependencies including `hkask-inference` for the centralized inference router |
 
 ## Debug
 

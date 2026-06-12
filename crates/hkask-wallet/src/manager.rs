@@ -97,6 +97,15 @@ impl WalletManager {
         Ok(balance)
     }
 
+    /// Get an API key's capability metadata for CNS health monitoring.
+    /// Returns `None` if the key doesn't exist or has been revoked.
+    pub fn get_api_key(
+        &self,
+        key_id: hkask_types::wallet::ApiKeyId,
+    ) -> Result<Option<hkask_types::wallet::ApiKeyCapability>, WalletError> {
+        self.store.get_api_key(key_id)
+    }
+
     // ── Deposit monitoring ───────────────────────────────────────────────────
 
     /// Start the background deposit monitoring loop.

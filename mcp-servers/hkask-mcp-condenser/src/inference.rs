@@ -49,6 +49,7 @@ pub fn build_summary_output(
         inference_model,
     }
 }
+
 /// Approximate token count using whitespace splitting.
 pub fn approx_token_count(text: &str) -> usize {
     text.split_whitespace().count()

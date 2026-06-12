@@ -374,6 +374,18 @@ impl HkaskLoop for CyberneticsLoop {
             ));
         }
 
+        // Key health signals: 1.0 = exhausted/expired, 0.0 = healthy.
+        // Set-point: 0.0 (any non-zero value = alert).
+        let key_alerts = self.energy_budget_manager.wallet_key_alerts().await;
+        for (_agent, _reason) in &key_alerts {
+            signals.push(Signal::new(
+                LoopId::Cybernetics,
+                SignalMetric::WalletKeyHealth,
+                1.0, // alert active
+                0.0, // set-point: no alerts
+            ));
+        }
+
         // Variety deficit signal from CNS
         let cns = self.cns.read().await;
         let health = cns.health().await;
@@ -448,6 +460,17 @@ impl HkaskLoop for CyberneticsLoop {
                         LoopId::Curation,
                         ActionType::Escalate,
                         serde_json::json!({"reason": "wallet_balance_low", "balance_ratio": dev.signal.value, "severity": severity, "threshold": dev.signal.set_point}),
+                    ))
+                }
+                SignalMetric::WalletKeyHealth
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
+                    // Key exhausted or expired — escalate to Curator (informational)
+                    tracing::info!(target: "cns.wallet", "API key health alert — exhausted or expired");
+                    Some(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Escalate,
+                        serde_json::json!({"reason": "wallet_key_unhealthy", "severity": "warning", "threshold": dev.signal.set_point}),
                     ))
                 }
                 _ => None,

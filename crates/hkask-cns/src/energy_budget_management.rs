@@ -354,4 +354,22 @@ impl EnergyBudgetManager {
         }
         ratios
     }
+
+    /// Check API key health for all wallet-backed budgets.
+    /// Returns `(agent, reason)` for each key that is exhausted or expired.
+    pub async fn wallet_key_alerts(&self) -> Vec<(WebID, String)> {
+        let budgets = self.wallet_budgets.read().await;
+        let mut alerts = Vec::new();
+        for (agent, budget) in budgets.iter() {
+            if let Some(health) = budget.check_key_health() {
+                if health.exhausted {
+                    alerts.push((*agent, "key_exhausted".into()));
+                }
+                if health.expired {
+                    alerts.push((*agent, "key_expired".into()));
+                }
+            }
+        }
+        alerts
+    }
 }

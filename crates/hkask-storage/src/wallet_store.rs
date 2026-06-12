@@ -853,4 +853,94 @@ mod tests {
             Some(wallet)
         );
     }
+
+    // REQ: MUST-10 — sum(ledger deltas) == current_balance
+    // Property test: for any sequence of credits and debits, the sum of all
+    // transaction rjoules_delta values must equal the current wallet balance.
+    #[test]
+    fn balance_equals_sum_of_ledger_deltas() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.ensure_wallet(wallet).unwrap();
+
+        // Perform a random-ish sequence of credits and debits.
+        // Using fixed values for deterministic reproducibility.
+        let operations: [(bool, u64); 12] = [
+            (true, 5000),  // credit 5000
+            (true, 3000),  // credit 3000
+            (false, 1200), // debit 1200
+            (true, 750),   // credit 750
+            (false, 3000), // debit 3000
+            (false, 500),  // debit 500
+            (true, 10000), // credit 10000
+            (false, 2000), // debit 2000
+            (true, 150),   // credit 150
+            (false, 8000), // debit 8000
+            (false, 1500), // debit 1500
+            (true, 2500),  // credit 2500
+        ];
+
+        let mut expected_sum: i64 = 0;
+        for (is_credit, amount) in &operations {
+            let rj = RJoule::new(*amount);
+            if *is_credit {
+                let balance = store.credit_rjoules(wallet, rj).unwrap();
+                expected_sum += *amount as i64;
+                // Record the transaction (as WalletManager does)
+                store
+                    .record_transaction(&WalletTransaction {
+                        id: 0,
+                        wallet_id: wallet,
+                        tx_type: TransactionType::Deposit {
+                            chain: ChainId::Solana,
+                            privacy: PrivacyMode::Transparent,
+                            tx_hash: format!("test_tx_{}", expected_sum),
+                            amount_usdc_micro: *amount * 1000,
+                        },
+                        rjoules_delta: *amount as i64,
+                        balance_after: balance.rjoules,
+                        timestamp: chrono::Utc::now(),
+                    })
+                    .unwrap();
+            } else {
+                // Only debit if we can afford it
+                if store.get_balance(wallet).unwrap().unwrap().rjoules >= *amount {
+                    let balance = store.debit_rjoules(wallet, rj).unwrap();
+                    expected_sum -= *amount as i64;
+                    store
+                        .record_transaction(&WalletTransaction {
+                            id: 0,
+                            wallet_id: wallet,
+                            tx_type: TransactionType::Withdrawal {
+                                chain: ChainId::Solana,
+                                privacy: PrivacyMode::Transparent,
+                                tx_hash: format!("test_tx_{}", expected_sum),
+                                amount_usdc_micro: *amount * 1000,
+                            },
+                            rjoules_delta: -(*amount as i64),
+                            balance_after: balance.rjoules,
+                            timestamp: chrono::Utc::now(),
+                        })
+                        .unwrap();
+                }
+            }
+        }
+
+        // Verify: current balance == sum of all deltas
+        let balance = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(
+            balance.rjoules as i64, expected_sum,
+            "MUST-10 VIOLATION: balance {} != sum of ledger deltas {}",
+            balance.rjoules, expected_sum,
+        );
+
+        // Cross-verify via transaction ledger
+        let txs = store.get_transactions(wallet, 100, 0).unwrap();
+        let ledger_sum: i64 = txs.iter().map(|tx| tx.rjoules_delta).sum();
+        assert_eq!(
+            balance.rjoules as i64, ledger_sum,
+            "MUST-10 VIOLATION: balance {} != ledger sum {}",
+            balance.rjoules, ledger_sum,
+        );
+    }
 }

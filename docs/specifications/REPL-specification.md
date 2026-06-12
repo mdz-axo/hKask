@@ -680,7 +680,7 @@ already persisted in `EpisodicStoragePort`.
 
 ## 18. Auto-Condense
 
-Auto-condense triggers at 87.5% of the model's context window via the condenser library. The pipeline in `ChatService::execute_turn()` appends recent conversation history as a suffix via `recall_recent_turns()`, then checks if approximate token count exceeds 87.5% of `context_window`. When triggered, it splits history in half, calls `hkask_mcp_condenser::thread_summary()` to condense the oldest half, and replaces the history suffix with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails, the full (uncondensed) context is used with a CNS warning log.
+Auto-condense triggers at 87.5% of the model's context window via the condenser MCP server. The pipeline in `ChatService::execute_turn()` appends recent conversation history as a suffix via `recall_recent_turns()`, then checks if approximate token count exceeds 87.5% of `context_window`. When triggered, it splits history in half, calls the condenser's `condenser_thread_summary` tool (which uses the centralized hKask inference router) to condense the oldest half, and replaces the history suffix with `[Condensed history]` + `[Recent conversation]` blocks. Graceful degradation: if the condenser call fails, the full (uncondensed) context is used with a CNS warning log.
 
 ## 19. Key Design Decisions
 

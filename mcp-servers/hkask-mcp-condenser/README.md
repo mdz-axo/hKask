@@ -14,7 +14,7 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
 | `condenser_persist` | Persist compressed output to episodic memory | `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` |
-| `condenser_thread_summary` | LLM-powered conversation summarization via inference engine | `INFERENCE_URL` |
+| `condenser_thread_summary` | LLM-powered conversation summarization via centralized inference router | — |
 
 ## Compression Profiles
 
@@ -41,11 +41,9 @@ Environment variables (all optional):
 |----------|-------------|---------|
 | `HKASK_DB_PATH` | SQLite database path for episodic persistence | In-memory (no persistence) |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if `HKASK_DB_PATH` is set |
-| `INFERENCE_URL` | Inference engine URL (Ollama, Fireworks, DeepInfra, or OpenAI-compatible) | Thread summary unavailable |
-| `INFERENCE_MODEL` | Model for summarization | `deepseek-v4-flash:cloud` |
-| `INFERENCE_API_KEY` | API key if the inference endpoint requires authentication | — |
+| `INFERENCE_MODEL` | Model for thread summarization | `qwen3:8b` (supports OM/, FW/, DI/ prefixes) |
 
-Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. Without `INFERENCE_URL`, `condenser_thread_summary` returns a permission-denied error. All other tools work without configuration (graceful degradation).
+Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `OM_BASE_URL`, `FW_API_KEY`, `DI_API_KEY` environment variables).
 
 ## Context Categories
 
@@ -74,6 +72,6 @@ hkask-mcp-condenser
 # With persistence
 HKASK_DB_PATH=/path/to/db HKASK_DB_PASSPHRASE=secret hkask-mcp-condenser
 
-# With inference thread summarization
-INFERENCE_URL=http://127.0.0.1:11435 hkask-mcp-condenser
+# With inference thread summarization (uses centralized hKask inference router)
+hkask-mcp-condenser
 ```

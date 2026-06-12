@@ -2548,6 +2548,7 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "hkask-wallet",
  "minijinja",
  "reqwest",
  "serde",
