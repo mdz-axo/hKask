@@ -50,10 +50,12 @@ docs/
 │   ├── ADR-025-*.md                       # DECISION RECORD
 │   ├── ADR-026-*.md                       # DECISION RECORD
 │   ├── ADR-027-*.md                       # DECISION RECORD
-│   ├── ADR-030-*.md                       # DECISION RECORD (proposed)
+│   ├── ADR-030-*.md                       # DECISION RECORD (draft)
 │   ├── ADR-031-*.md                       # DECISION RECORD
 │   ├── ADR-032-*.md                       # DECISION RECORD (draft)
 │   ├── ADR-033-*.md                       # DECISION RECORD (draft)
+│   ├── ADR-034-*.md                       # DECISION RECORD (draft)
+│   ├── agatha-eliot-moe-plan.md           # DESIGN (MoE architecture)
 │   ├── loop-architecture.md              # FRAMEWORK (4-loop authority model)
 │   └── reference/
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
@@ -75,6 +77,8 @@ docs/
 │   ├── TESTING_STANDARDS.md               # Testing protocol
 │   ├── test-program.md                    # Test program spec
 │   ├── REPL-specification.md              # REPL specification
+│   ├── MDS-agent-service.md                # AgentService specification
+│   ├── AGENTSERVICE-IMPLEMENTATION.md      # AgentService implementation plan
 │   └── hhh-alignment-research.md          # HHH alignment research
 ├── plans/
 │   ├── TODO.md                            # Open work

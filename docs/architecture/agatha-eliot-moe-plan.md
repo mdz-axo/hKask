@@ -1,3 +1,13 @@
+---
+title: "Agatha Eliot — Two-Vector MoE Architecture"
+audience: [architects, developers]
+last_updated: 2026-06-10
+version: "0.27.0"
+status: "Draft"
+domain: "Technology"
+mds_categories: [composition]
+---
+
 # Agatha Eliot — Option B: True Two-Vector MoE Architecture
 
 **Status:** Design document. Not implemented.

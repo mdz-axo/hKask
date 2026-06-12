@@ -1,3 +1,13 @@
+---
+title: "AgentService Refactoring — Implementation Plan"
+audience: [architects, developers]
+last_updated: 2026-06-10
+version: "0.27.0"
+status: "Draft"
+domain: "Cross-cutting"
+mds_categories: [lifecycle, composition]
+---
+
 # AgentService Refactoring — Implementation Plan
 
 **Version:** 0.27.1  

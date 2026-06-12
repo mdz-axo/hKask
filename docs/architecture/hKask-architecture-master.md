@@ -267,6 +267,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADR-031-consolidation-authorization.md`](ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
 | [`ADR-032-mcp-gateway-membrane.md`](ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
 | [`ADR-033-dampener-override-cooldown.md`](ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
+| [`ADR-034-academic-author-pipeline.md`](ADR-034-academic-author-pipeline.md) | Academic author pipeline — corpus_type discriminator, pre-processing, enumeration, disambiguation |
 
 ---
 
@@ -302,6 +303,10 @@ docs/architecture/
 ├── ADR-031-consolidation-authorization.md  # Decision record
 ├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
 ├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
+├── ADR-034-academic-author-pipeline.md      # Decision record (Draft)
+├── agatha-eliot-moe-plan.md                 # Design (MoE architecture)
+├── semantic-condensation-analysis.md        # Analysis (condensation algorithms)
+├── refactoring-plan-services-2026-06-09.md  # Plan (service layer refactoring)
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
@@ -311,7 +316,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 22 active architecture documents (2 specs + 4 framework + 1 index + 9 ADRs + 6 reference artifacts).
+**Total:** 24 active architecture documents (4 framework + 1 index + 10 ADRs + 3 design/analysis/plan + 6 reference artifacts).
 
 ---
 

@@ -1,3 +1,13 @@
+---
+title: "ADR-034: Academic Author Pipeline Architecture"
+audience: [architects, developers]
+last_updated: 2026-06-11
+version: "0.27.0"
+status: "Draft"
+domain: "Cross-cutting"
+mds_categories: [composition, curation]
+---
+
 # ADR-034 — Academic Author Pipeline Architecture
 
 **Status:** Proposed (design decisions documented, implementation pending)

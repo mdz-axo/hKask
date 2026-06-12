@@ -3,7 +3,7 @@ title: "hKask Services Refactoring Plan — Multi-Perspective Review"
 audience: [architects, developers]
 last_updated: 2026-06-09
 version: "0.27.0"
-status: "Active — Awaiting Q1 decision before Step 1 execution"
+status: "Draft"
 domain: "Technology"
 mds_categories: [domain, composition, trust, lifecycle, curation]
 ---

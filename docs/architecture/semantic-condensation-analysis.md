@@ -1,3 +1,13 @@
+---
+title: "Semantic Root-Cause Analysis — Graph Condensation"
+audience: [architects, developers]
+last_updated: 2026-06-09
+version: "0.27.0"
+status: "Draft"
+domain: "Technology"
+mds_categories: [lifecycle]
+---
+
 # Semantic Root-Cause Analysis — hKask Graph Condensation
 
 **Date:** 2026-06-09  
