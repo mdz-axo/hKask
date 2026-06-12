@@ -259,6 +259,11 @@ pub enum ServiceError {
     #[error("Verification failed: {0}")]
     Verification(String),
 
+    // ── Wallet domain ───────────────────────────────────────────────────
+    /// Wallet operation failed.
+    #[error("Wallet error: {0}")]
+    Wallet(String),
+
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
     #[error("{0}")]

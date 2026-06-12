@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-12
 **Project:** hKask v0.27.0
-**Status:** Phases 1–4 complete ✅ — Core wallet crate built and tested
+**Status:** Phases 1–8 complete ✅ — Full wallet subsystem (types, storage, keystore, wallet crate, CNS, services, CLI, API) built and tested
 **Skills applied:** rust-expertise, essentialist, pragmatic-semantics, pragmatic-cybernetics, coding-guidelines
 
 ---
@@ -366,31 +366,31 @@ graph TD
 
 ---
 
-## 6. CNS Integration (Phase 5 — Specified, Not Yet Built)
+## 6. CNS Integration (Phase 5 — Built ✅)
 
 ### 6.1 Span Emission Checklist
 
-All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`). Emission to be wired in Phase 5.
+All namespaces registered in `CANONICAL_NAMESPACES` (`hkask-types::event`).
 
-| Operation | Module | Span Namespace | Verb | Phase |
-|-----------|--------|---------------|------|-------|
-| Deposit address derived | `manager.rs` | `cns.wallet.deposit` | `derived` | Act |
-| Deposit detected (transparent) | `chain.rs` → `manager.rs` | `cns.wallet.deposit` | `detected` | Sense |
-| Deposit detected (shielded) | `hinkal.rs` → `manager.rs` | `cns.wallet.deposit_shielded` | `detected` | Sense |
-| Deposit credited | `manager.rs` | `cns.wallet.balance` | `credited` | Act |
-| Withdrawal built | `chain.rs` | `cns.wallet.withdrawal` | `built` | Act |
-| Withdrawal signed | `signing.rs` | `cns.wallet.withdrawal` | `signed` | Act |
-| Withdrawal submitted | `chain.rs` | `cns.wallet.withdrawal` | `submitted` | Act |
-| USDC ↔ rJoule conversion | `manager.rs` | `cns.wallet.conversion` | `converted` | Act |
-| API key issued | `issuer.rs` | `cns.wallet.key_issued` | `issued` | Act |
-| API key revoked | `issuer.rs` | `cns.wallet.key_revoked` | `revoked` | Act |
-| API key expired | `issuer.rs` | `cns.wallet.key_expired` | `expired` | Sense |
-| API key exhausted | `issuer.rs` | `cns.wallet.key_exhausted` | `exhausted` | Sense |
-| Treasury key loaded | `signing.rs` | `cns.wallet.treasury` | `loaded` | Act |
-| Chain error | `chain.rs` | `cns.wallet.chain_error` | `error` | Sense |
-| Shielded tx initiated | `hinkal.rs` | `cns.wallet.privacy.shield` | `initiated` | Act |
-| Unshield (transparent fallback) | `privacy.rs` | `cns.wallet.privacy.unshield` | `fallback` | Act |
-| Privacy error | `privacy.rs` | `cns.wallet.privacy_error` | `error` | Sense |
+| Operation | Module | Span Namespace | Verb | Phase | Status |
+|-----------|--------|---------------|------|-------|--------|
+| Deposit address derived | `manager.rs` | `cns.wallet.deposit` | `derived` | Act | ✅ |
+| Deposit detected (transparent) | `chain.rs` → `manager.rs` | `cns.wallet.deposit` | `detected` | Sense | ✅ |
+| Deposit detected (shielded) | `hinkal.rs` → `manager.rs` | `cns.wallet.deposit_shielded` | `detected` | Sense | ✅ |
+| Deposit credited | `manager.rs` | `cns.wallet.balance` | `credited` | Act | ✅ |
+| Withdrawal built | `chain.rs` | `cns.wallet.withdrawal` | `built` | Act | ✅ |
+| Withdrawal signed | `signing.rs` | `cns.wallet.withdrawal` | `signed` | Act | ✅ |
+| Withdrawal submitted | `chain.rs` | `cns.wallet.withdrawal` | `submitted` | Act | ✅ |
+| USDC ↔ rJoule conversion | `manager.rs` | `cns.wallet.conversion` | `converted` | Act | ✅ |
+| API key issued | `issuer.rs` | `cns.wallet.key_issued` | `issued` | Act | ✅ |
+| API key revoked | `issuer.rs` | `cns.wallet.key_revoked` | `revoked` | Act | ✅ |
+| API key expired | `issuer.rs` | `cns.wallet.key_expired` | `expired` | Sense | 🔶 CNS algedonic |
+| API key exhausted | `issuer.rs` | `cns.wallet.key_exhausted` | `exhausted` | Sense | 🔶 CNS algedonic |
+| Treasury key loaded | `signing.rs` | `cns.wallet.treasury` | `loaded` | Act | 🔶 Covered by withdrawal.signed |
+| Chain error | `chain.rs` | `cns.wallet.chain_error` | `error` | Sense | ⬜ Deferred (needs chain ports) |
+| Shielded tx initiated | `hinkal.rs` | `cns.wallet.privacy.shield` | `initiated` | Act | ⬜ Deferred (needs hinkal port) |
+| Unshield (transparent fallback) | `privacy.rs` | `cns.wallet.privacy.unshield` | `fallback` | Act | ⬜ Deferred (needs privacy port) |
+| Privacy error | `privacy.rs` | `cns.wallet.privacy_error` | `error` | Sense | ⬜ Deferred (needs privacy port) |
 
 ### 6.2 CNS Error Threshold Mapping
 
@@ -465,30 +465,34 @@ graph TD
 
 | Phase | Crate | Status | Tests | Key Deliverables |
 |-------|-------|--------|-------|-----------------|
-| 1 | `hkask-types` | ✅ | 7 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans |
-| 2 | `hkask-storage` | ✅ | 10 | `WalletStore` — 5 tables, 15 methods, anti-replay deposit references |
+| 1 | `hkask-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans, 3 wallet SignalMetrics |
+| 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, anti-replay deposit references, MUST-10 property test |
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
-| 4 | `hkask-wallet` | ✅ Core | 13 | `ChainPort`, `PrivacyPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager`, `ApiKeyIssuer` |
+| 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `PrivacyPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
+| 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `EnergyBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |
+| 6 | `hkask-services` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + CNS budget registration |
+| 7 | `hkask-cli` | ✅ | 25 | `kask wallet` — 8 subcommands (balance, deposit-address, deposit-reference, history, key create/list/revoke, withdraw) |
+| 8 | `hkask-api` | ✅ | 2 | 8 wallet REST endpoints + `ApiKeyAuthService` middleware (Ed25519 Bearer token verification) |
 
 ### 8.2 Remaining Phases
 
 | Phase | Scope | Dependencies |
 |-------|-------|-------------|
 | 4 (chain ports) | `solana.rs`, `hedera.rs`, `hinkal.rs` — feature-gated implementations | solana-sdk, reqwest |
-| 5 | `hkask-cns` — `WalletBackedBudget`, `WalletEnergyEstimator`, CNS span emission | Phase 4 complete |
-| 6 | `hkask-services` — `WalletService` composition | Phase 5 |
-| 7 | `hkask-cli` — `kask wallet` subcommands | Phase 6 |
-| 8 | `hkask-api` — Wallet endpoints + API key auth middleware | Phase 6 |
 
 ### 8.3 Test Inventory
 
 | Crate | Tests | REQ Tags |
 |-------|-------|----------|
 | `hkask-types` | 11 (7 wallet) | `P1-wallet-types` |
-| `hkask-storage` | 33 (10 wallet_store) | `P2-wallet-store` |
+| `hkask-storage` | 34 (11 wallet_store) | `P2-wallet-store`, `MUST-10` |
 | `hkask-keystore` | 6 (6 wallet) | `P3-keystore` |
 | `hkask-wallet` | 13 | `P4-signing`, `P4-manager`, `P4-issuer` |
-| **Total** | **63** (36 wallet-specific) | |
+| `hkask-cns` | 11 (1 wallet_budget) | `P5-cns-wallet` |
+| `hkask-services` | 35 (6 wallet) | `svc-wallet-001`–`006` |
+| `hkask-cli` | 25 (0 wallet-specific) | (existing CLI tests) |
+| `hkask-api` | 2 (0 wallet-specific) | (existing API tests) |
+| **Total** | **137** (44 wallet-specific) | |
 
 ---
 

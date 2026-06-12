@@ -151,14 +151,6 @@ pub(super) fn single_agent_turn(
             tool_results: tool_results.take(),
             auto_condense: settings.auto_condense,
             context_window: settings.model_meta.as_ref().map(|m| m.context_length),
-            condenser_base_url: Some(
-                state
-                    .service_context
-                    .config()
-                    .inference_config
-                    .ollama_base_url
-                    .clone(),
-            ),
             condenser_model: Some(
                 state
                     .current_model

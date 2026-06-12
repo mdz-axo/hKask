@@ -1,0 +1,176 @@
+//! API key authentication middleware — Ed25519 Bearer token verification.
+//!
+//! Authenticates requests using hKask-issued API keys (Ed25519 keypairs).
+//! The private key IS the API key — presented as a hex-encoded Bearer token.
+//!
+//! # Flow
+//! 1. Extract Bearer token from Authorization header
+//! 2. Parse as Ed25519 private key (hex-encoded 32 bytes → 64 hex chars)
+//! 3. Derive public key from private key
+//! 4. Look up ApiKeyCapability by public key in WalletStore
+//! 5. Verify: not revoked, not expired, spending limit not exceeded
+//! 6. Attach WalletContext to request extensions
+//!
+//! # OCAP alignment (P4)
+//! The API key IS a capability token. The middleware verifies the capability
+//! and extracts its attenuation (spending limit). Downstream handlers use
+//! the attached wallet context for gas→rJoule billing.
+
+use axum::{
+    body::Body,
+    extract::State,
+    http::{Request, StatusCode},
+    middleware::Next,
+    response::{IntoResponse, Response},
+};
+use ed25519_dalek::SigningKey;
+use hkask_storage::WalletStore;
+use hkask_types::wallet::{ApiKeyId, RJoule, WalletId};
+use std::sync::Arc;
+
+/// Wallet context attached to authenticated requests.
+#[derive(Debug, Clone)]
+pub struct WalletContext {
+    pub wallet_id: WalletId,
+    pub key_id: ApiKeyId,
+    pub spending_limit_rj: RJoule,
+    pub spent_rj: RJoule,
+}
+
+/// Middleware state for API key authentication.
+#[derive(Clone)]
+pub struct ApiKeyAuthService {
+    wallet_store: Arc<WalletStore>,
+}
+
+impl ApiKeyAuthService {
+    /// Create a new API key auth service backed by a WalletStore.
+    pub fn new(wallet_store: Arc<WalletStore>) -> Self {
+        Self { wallet_store }
+    }
+
+    /// Authenticate a request using an Ed25519 API key Bearer token.
+    fn authenticate(&self, request: &Request<Body>) -> Result<WalletContext, ApiKeyAuthError> {
+        let header = request
+            .headers()
+            .get("Authorization")
+            .ok_or(ApiKeyAuthError::MissingAuthorization)?;
+
+        let header_str = header
+            .to_str()
+            .map_err(|_| ApiKeyAuthError::InvalidAuthorizationFormat)?;
+
+        let token = header_str
+            .strip_prefix("Bearer ")
+            .ok_or(ApiKeyAuthError::InvalidAuthorizationFormat)?;
+
+        // Parse hex-encoded Ed25519 private key (64 hex chars = 32 bytes)
+        let private_key_bytes =
+            hex::decode(token).map_err(|_| ApiKeyAuthError::InvalidKeyFormat)?;
+
+        if private_key_bytes.len() != 32 {
+            return Err(ApiKeyAuthError::InvalidKeyFormat);
+        }
+
+        let mut key_arr = [0u8; 32];
+        key_arr.copy_from_slice(&private_key_bytes);
+
+        let signing_key = SigningKey::from_bytes(&key_arr);
+        let public_key_bytes = signing_key.verifying_key().to_bytes();
+
+        // Look up the capability by public key.
+        // The store query already filters `WHERE revoked_at IS NULL`,
+        // so revoked keys are never returned.
+        let capability = self
+            .wallet_store
+            .get_api_key_by_public_key(&public_key_bytes)
+            .map_err(|_| ApiKeyAuthError::StoreError)?
+            .ok_or(ApiKeyAuthError::UnknownApiKey)?;
+
+        // Verify key is not expired
+        if let Some(expiry) = capability.expiry
+            && chrono::Utc::now() > expiry
+        {
+            return Err(ApiKeyAuthError::KeyExpired);
+        }
+
+        // Verify spending limit not exceeded
+        if capability.spent_rj.as_u64() >= capability.spending_limit_rj.as_u64() {
+            return Err(ApiKeyAuthError::SpendingLimitExceeded);
+        }
+
+        Ok(WalletContext {
+            wallet_id: capability.wallet_id,
+            key_id: capability.key_id,
+            spending_limit_rj: capability.spending_limit_rj,
+            spent_rj: capability.spent_rj,
+        })
+    }
+}
+
+/// Errors returned by API key authentication.
+#[derive(Debug, thiserror::Error)]
+pub enum ApiKeyAuthError {
+    #[error("Missing Authorization header")]
+    MissingAuthorization,
+    #[error("Invalid Authorization header format (expected: Bearer <hex-key>)")]
+    InvalidAuthorizationFormat,
+    #[error("Invalid API key format (expected: 64-character hex string)")]
+    InvalidKeyFormat,
+    #[error("Unknown API key")]
+    UnknownApiKey,
+    #[error("API key has been revoked")]
+    KeyRevoked,
+    #[error("API key has expired")]
+    KeyExpired,
+    #[error("API key spending limit exceeded")]
+    SpendingLimitExceeded,
+    #[error("Wallet store error")]
+    StoreError,
+}
+
+impl IntoResponse for ApiKeyAuthError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            ApiKeyAuthError::MissingAuthorization => {
+                (StatusCode::UNAUTHORIZED, "Missing Authorization header")
+            }
+            ApiKeyAuthError::InvalidAuthorizationFormat => (
+                StatusCode::UNAUTHORIZED,
+                "Invalid Authorization header format",
+            ),
+            ApiKeyAuthError::InvalidKeyFormat => {
+                (StatusCode::UNAUTHORIZED, "Invalid API key format")
+            }
+            ApiKeyAuthError::UnknownApiKey => (StatusCode::UNAUTHORIZED, "Unknown API key"),
+            ApiKeyAuthError::KeyRevoked => (StatusCode::FORBIDDEN, "API key has been revoked"),
+            ApiKeyAuthError::KeyExpired => (StatusCode::FORBIDDEN, "API key has expired"),
+            ApiKeyAuthError::SpendingLimitExceeded => {
+                (StatusCode::FORBIDDEN, "API key spending limit exceeded")
+            }
+            ApiKeyAuthError::StoreError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal authentication error",
+            ),
+        };
+        (status, message).into_response()
+    }
+}
+
+/// Axum middleware function for API key authentication.
+///
+/// Only applied to wallet routes. Non-wallet routes use the existing
+/// capability token auth middleware.
+pub async fn api_key_auth_middleware(
+    State(auth): State<Arc<ApiKeyAuthService>>,
+    request: Request<Body>,
+    next: Next,
+) -> Result<Response, ApiKeyAuthError> {
+    let ctx = auth.authenticate(&request)?;
+
+    // Attach wallet context to request extensions for downstream handlers
+    let mut request = request;
+    request.extensions_mut().insert(ctx);
+
+    Ok(next.run(request).await)
+}

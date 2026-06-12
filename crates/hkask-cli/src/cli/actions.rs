@@ -561,3 +561,75 @@ pub enum SettingsAction {
     /// Reset all settings to defaults
     Reset,
 }
+
+#[derive(Subcommand)]
+pub enum WalletAction {
+    /// Show rJoule balance with USDC and gas equivalents
+    Balance,
+    /// Show or derive a deposit address for receiving USDC
+    DepositAddress {
+        /// Blockchain network (solana or hedera)
+        #[arg(short, long)]
+        chain: Option<String>,
+        /// Use shielded/privacy mode
+        #[arg(short, long)]
+        private: bool,
+    },
+    /// Generate a one-time deposit reference for shielded deposits
+    DepositReference {
+        /// Blockchain network (solana or hedera)
+        #[arg(short, long)]
+        chain: String,
+    },
+    /// Show paginated transaction history
+    History {
+        /// Maximum transactions to show
+        #[arg(short, long)]
+        limit: Option<u32>,
+    },
+    /// API key management
+    Key {
+        #[command(subcommand)]
+        action: KeyAction,
+    },
+    /// Withdraw rJoules as USDC to an external address
+    Withdraw {
+        /// Amount in rJoules to withdraw
+        amount_rj: u64,
+        /// Destination address (Solana base58 or Hedera 0.0.XXXXX)
+        #[arg(short, long)]
+        to: String,
+        /// Blockchain network (solana or hedera)
+        #[arg(short, long)]
+        chain: Option<String>,
+        /// Use shielded/privacy mode
+        #[arg(short, long)]
+        private: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum KeyAction {
+    /// Create a new API key with spending limit
+    Create {
+        /// Spending limit in rJoules
+        #[arg(short, long)]
+        limit: u64,
+        /// Expiry in days (no expiry if omitted)
+        #[arg(short, long)]
+        expiry: Option<u32>,
+        /// Restrict to shielded/privacy mode
+        #[arg(short, long)]
+        private: bool,
+        /// Restrict to a specific chain
+        #[arg(short, long)]
+        chain: Option<String>,
+    },
+    /// List active API keys
+    List,
+    /// Revoke an API key (returns unspent rJoules to wallet)
+    Revoke {
+        /// Key ID to revoke
+        key_id: String,
+    },
+}

@@ -52,6 +52,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use hkask_services::AgentService;
+use hkask_services::WalletService;
 use utoipa::OpenApi;
 
 use energy::ApiEnergyGovernanceAdapter;
@@ -88,6 +89,9 @@ pub struct ApiState {
     /// CNS gas governance port for ensemble sessions — surface-specific
     /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
     pub gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort>,
+    /// Wallet service for rJoule payments and API key management — surface-specific.
+    /// Built from config during `ApiState::with_defaults()` or `from_service_context()`.
+    pub wallet_service: Option<Arc<WalletService>>,
 }
 
 impl ApiState {
@@ -162,6 +166,7 @@ impl ApiState {
             git_cas,
             git_cas_port,
             gas_governance,
+            wallet_service: None,
         })
     }
 
@@ -189,6 +194,12 @@ impl ApiState {
     /// Set the spec store for MDS specifications
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
         self.spec_store = Some(store);
+        self
+    }
+
+    /// Attach a wallet service for rJoule payments and API key management.
+    pub fn with_wallet_service(mut self, svc: Arc<WalletService>) -> Self {
+        self.wallet_service = Some(svc);
         self
     }
 
@@ -240,6 +251,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
             .merge(routes::git_router())
             .merge(routes::goal_router())
             .merge(routes::settings_router())
+            .merge(routes::wallet_router())
             .layer(axum::middleware::from_fn_with_state(
                 auth_service,
                 middleware::auth_middleware,

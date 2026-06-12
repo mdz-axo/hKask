@@ -28,12 +28,14 @@ tracing.workspace = true
 solana-sdk = { version = "2", optional = true }
 solana-client = { version = "2", optional = true }
 spl-token = { version = "6", optional = true }
+spl-associated-token-account = { version = "6", optional = true }
+bincode = { version = "1", optional = true }
 # Hedera — use hiero-sdk (rebranded) when available; mirror node REST API as fallback
 reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls"] }
 
 [features]
 default = []
-solana = ["dep:solana-sdk", "dep:solana-client", "dep:spl-token"]
+solana = ["dep:solana-sdk", "dep:solana-client", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode"]
 hedera = ["dep:reqwest"]
 hinkal = ["dep:reqwest"]
 

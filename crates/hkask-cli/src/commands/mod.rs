@@ -34,6 +34,7 @@ pub mod spec;
 pub mod style;
 pub mod template;
 pub mod user;
+pub mod wallet;
 pub mod web_search;
 
 // Re-exports from template

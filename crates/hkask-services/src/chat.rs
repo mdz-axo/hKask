@@ -22,6 +22,11 @@ use hkask_types::{
 use crate::error::ServiceError;
 use crate::{AgentService, InferenceContext, InferenceService};
 
+/// System prompt for the auto-condense summarization request.
+const CONDENSER_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \
+     preserve technical details (file paths, error messages, decisions) while \
+     eliminating verbosity. Use bullet points. Be concise.";
+
 /// Token usage breakdown for gas accounting.
 #[derive(Clone)]
 pub struct TokenUsage {
@@ -613,7 +618,7 @@ impl ChatService {
     /// Recall raw episodes (not formatted text) for condensation.
     ///
     /// Returns episodes as `Vec<(role, content)>` tuples suitable for
-    /// passing to the condenser library's `thread_summary()`.
+    /// passing to the condenser's `condenser_thread_summary` MCP tool.
     /// Each episode yields one user message and one assistant message.
     pub fn recall_raw_episodes(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
@@ -860,8 +865,6 @@ pub struct TurnRequest {
     /// Model context window size in tokens, used for condensation threshold.
     /// None disables condensation (e.g., model metadata not yet fetched).
     pub context_window: Option<u32>,
-    /// Base URL for the inference engine used by the condenser (e.g., Ollama URL).
-    pub condenser_base_url: Option<String>,
     /// Model to use for condenser summarization (defaults to chat model if None).
     pub condenser_model: Option<String>,
 }

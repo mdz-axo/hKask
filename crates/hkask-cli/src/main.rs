@@ -119,5 +119,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
+
+        Commands::Wallet { action } => commands::wallet::run(action),
     }
 }

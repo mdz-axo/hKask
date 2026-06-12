@@ -19,6 +19,7 @@ hkask-cns = { path = "../hkask-cns" }
 hkask-api = { path = "../hkask-api" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-services = { path = "../hkask-services" }
+hkask-wallet = { path = "../hkask-wallet" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-memory = { path = "../hkask-memory" }
 axum.workspace = true

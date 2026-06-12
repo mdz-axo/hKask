@@ -23,6 +23,7 @@ pub mod sovereignty;
 pub mod spec;
 pub mod telnyx_setup;
 pub mod verification;
+pub mod wallet;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use bundle::{BundleComposeResult, BundleService};
@@ -66,3 +67,4 @@ pub use telnyx_setup::{
 pub use verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
+pub use wallet::WalletService;

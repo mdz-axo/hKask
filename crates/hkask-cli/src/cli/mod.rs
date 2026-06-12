@@ -218,4 +218,10 @@ pub enum Commands {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
     },
+
+    /// Wallet operations — balance, deposits, withdrawals, API keys
+    Wallet {
+        #[command(subcommand)]
+        action: WalletAction,
+    },
 }

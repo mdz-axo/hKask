@@ -15,6 +15,9 @@ hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-services = { path = "../hkask-services" }
+hkask-wallet = { path = "../hkask-wallet" }
+ed25519-dalek.workspace = true
+hex.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 utoipa.workspace = true

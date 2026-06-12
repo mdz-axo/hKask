@@ -106,6 +106,21 @@ impl WalletManager {
         self.store.get_api_key(key_id)
     }
 
+    /// Ensure a wallet row exists (idempotent — creates if missing).
+    pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), WalletError> {
+        self.store.ensure_wallet(wallet_id)
+    }
+
+    /// Get paginated transaction history for a wallet.
+    pub fn get_transactions(
+        &self,
+        wallet_id: WalletId,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<WalletTransaction>, WalletError> {
+        self.store.get_transactions(wallet_id, limit, offset)
+    }
+
     // ── Deposit monitoring ───────────────────────────────────────────────────
 
     /// Start the background deposit monitoring loop.
