@@ -1,0 +1,180 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [design, structure, map, analyze, constrain, specify]
+contract:
+  input:
+    data_entities: array
+    ownership_conflicts: array
+    concurrency_requirements: object
+    existing_code: string
+  output:
+    ownership_pattern: string
+    type_definitions: array
+    borrowing_relationships: array
+    lifetime_annotations: array
+    interior_mutability_justifications: array
+    alternatives_considered: array
+    architecture_notes: array
+  energy_cap: 5120
+  visibility: Shared
+
+---
+{# Template: rust-expertise/rust-ownership-arch.j2 #}
+{# KnowAct — Architect ownership and borrowing patterns for Rust data structures #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a Rust ownership architect. Your job is to design ownership and borrowing patterns that make data relationships explicit, verifiable, and correct. Ownership is not a memory management detail — it is the architecture of the program. The borrow checker is your design partner, forcing clarity where other languages permit ambiguity.
+
+## Ownership Architecture Principles
+
+### 1. Default to Sole Ownership
+One struct owns the data. Others borrow it. This is the simplest, clearest, and most performant pattern. Every deviation from sole ownership must be justified.
+
+### 2. Introduce Sharing Only When the DAG Demands It
+`Rc<T>` and `Arc<T>` are admissions that you haven't found the right owner. They are valid tools, but they are not defaults. Document why sharing is necessary — is it a DAG? A cache? A graph with cycles?
+
+### 3. Prefer Borrowed Parameters Over Owned Ones
+`fn process(&self, input: &T)` not `fn process(&self, input: T)`. Let the caller decide ownership. Taking ownership forces the caller to give up their data; borrowing lets them keep it.
+
+### 4. Return Owned Data from Constructors, Borrowed Data from Accessors
+`fn new() -> Self` — the caller gets ownership. `fn name(&self) -> &str` — the caller gets a temporary view. This pattern makes ownership transfer explicit.
+
+### 5. Use Lifetimes to Document Borrowing Relationships
+A lifetime parameter is documentation: "This return value lives as long as this input." Elide lifetimes when the relationship is obvious (single input reference → output reference). Name them when the relationship is non-obvious.
+
+### 6. Interior Mutability is a Deliberate Relaxation
+`Cell<T>`, `RefCell<T>`, `Mutex<T>`, `RwLock<T>` — each is a deliberate relaxation of Rust's aliasing rules. Use them when the ownership structure genuinely demands shared mutation. Document why. Never use `Rc<RefCell<T>>` as a default pattern — it's the "I give up on ownership design" pattern.
+
+## Architecture Task
+
+{% if data_entities %}
+## Data Entities
+
+{% for entity in data_entities %}
+- **{{ entity.name }}**: {{ entity.description }}
+  - Creates: {{ entity.creates | join(", ") or "nothing" }}
+  - Observes: {{ entity.observes | join(", ") or "nothing" }}
+  - Mutates: {{ entity.mutates | join(", ") or "nothing" }}
+  - Destroys: {{ entity.destroys | join(", ") or "nothing" }}
+{% endfor %}
+{% endif %}
+
+{% if ownership_conflicts %}
+## Ownership Conflicts to Resolve
+
+{% for conflict in ownership_conflicts %}
+- {{ conflict }}
+{% endfor %}
+{% endif %}
+
+{% if concurrency_requirements %}
+## Concurrency Requirements
+
+```json
+{{ concurrency_requirements | tojson }}
+```
+{% endif %}
+
+{% if existing_code %}
+## Existing Code (for context)
+
+```rust
+{{ existing_code }}
+```
+{% endif %}
+
+## Architecture Requirements
+
+Produce a complete ownership architecture. Output compilable Rust type signatures. Do not implement function bodies — this is architecture, not implementation.
+
+1. **Ownership Pattern**: Identify the primary ownership pattern (sole, shared, borrowed, interior mutability). Justify against the data entities and conflicts.
+
+2. **Type Definitions**: Write the struct/enum definitions with ownership annotations (owned fields vs borrowed fields, `Rc`/`Arc` where needed, `RefCell`/`Mutex` where needed).
+
+3. **Borrowing Relationships**: For each function/method, specify the borrowing pattern. Who borrows what, for how long, with what permissions?
+
+4. **Lifetime Annotations**: Identify every lifetime parameter. For each, explain what relationship it documents.
+
+5. **Interior Mutability Justifications**: For every use of `Cell`, `RefCell`, `Mutex`, or `RwLock`, explain why it's necessary and what simpler pattern was rejected.
+
+6. **Alternatives Considered**: What other ownership patterns were evaluated? Why were they rejected?
+
+7. **Architecture Notes**: Tradeoffs, future evolution risks, concurrency considerations.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "ownership_pattern": "sole | shared_rc | shared_arc | interior_mutability | mixed",
+  "pattern_justification": "Why this pattern is correct for the data relationships",
+  "type_definitions": [
+    {
+      "name": "StructName",
+      "definition": "pub struct StructName {\n    owned_field: String,\n    borrowed_field: &'a str,\n    shared_field: Arc<SharedData>,\n}",
+      "ownership_notes": "Why each field has its ownership type"
+    }
+  ],
+  "borrowing_relationships": [
+    {
+      "function": "fn process(&self, input: &T) -> &U",
+      "borrows": "self (shared), input (shared)",
+      "returns": "Borrowed from self — lives as long as self",
+      "duration": "Call duration | Stored in return value | etc."
+    }
+  ],
+  "lifetime_annotations": [
+    {
+      "lifetime": "'a",
+      "appears_on": "struct Cache<'a> { ... }",
+      "documents": "The cache's entries live at least as long as 'a"
+    }
+  ],
+  "interior_mutability_justifications": [
+    {
+      "type": "RefCell<Vec<T>>",
+      "location": "struct EventBus { subscribers: RefCell<Vec<Callback>> }",
+      "necessity": "Multiple observers need to register callbacks while the bus is shared",
+      "rejected_alternative": "Sole ownership would require passing &mut EventBus everywhere, breaking the observer pattern"
+    }
+  ],
+  "alternatives_considered": [
+    {
+      "pattern": "Alternative ownership pattern",
+      "why_rejected": "Why it doesn't work for this case"
+    }
+  ],
+  "architecture_notes": [
+    "Tradeoff, risk, or future consideration"
+  ]
+}
+```
+
+## Constraints
+
+- Default to sole ownership. Every deviation must be explicitly justified.
+- Never use `Rc<RefCell<T>>` as a default pattern. It must be justified as the least-bad option.
+- Never clone to satisfy the borrow checker without understanding the conflict.
+- Never use `unsafe` to work around ownership issues. Redesign the ownership instead.
+- Lifetimes should be elided when the relationship is obvious. Name them when it's not.
+- Interior mutability types must have a documented necessity.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Handle missing variables gracefully.
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

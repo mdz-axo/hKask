@@ -1,0 +1,112 @@
+# Template crate manifest for rust-expertise skill
+# ℏKask v0.27.0
+
+crate:
+  name: rust-expertise
+  version: "0.27.0"
+  description: >
+    Idiomatic Rust design and implementation through the lens of Graydon Hoare's
+    programming philosophy. Type-driven design, ownership as architecture, fearless
+    refactoring, zero-cost abstraction, and the compiler as design partner. Seven
+    KnowAct templates covering philosophy assessment, type design, ownership
+    architecture, error design, idiom auditing, safety boundary design, and
+    refactoring toward deeper modules.
+
+templates:
+  - id: rust-expertise/rust-philosophy-assess
+    path: rust-philosophy-assess.j2
+    type: KnowAct
+    lexicon_terms:
+      [assess, orient, detect, classify, analyze, ground, contextualise]
+    description: >
+      Assess a Rust design problem against the eight philosophical foundations
+      (type-driven design, ownership as architecture, fearless refactoring,
+      zero-cost abstraction, explicit over implicit, composition over inheritance,
+      error as values, unsafe as contract). Surfaces invariants, invalid states,
+      ownership relationships, error domains, and safety boundaries.
+
+  - id: rust-expertise/rust-type-design
+    path: rust-type-design.j2
+    type: KnowAct
+    lexicon_terms: [design, specify, constrain, structure, compose, simplify]
+    description: >
+      Design Rust types that make invalid states unrepresentable. Choose type
+      kind (enum/struct/newtype), push validation to construction, minimise
+      public API, derive strategically, and implement traits for capability
+      rather than taxonomy.
+
+  - id: rust-expertise/rust-ownership-arch
+    path: rust-ownership-arch.j2
+    type: KnowAct
+    lexicon_terms: [design, structure, map, analyze, constrain, specify]
+    description: >
+      Architect ownership and borrowing patterns for Rust data structures.
+      Default to sole ownership, introduce sharing only when the ownership DAG
+      demands it, prefer borrowed parameters, use lifetimes as documentation,
+      and treat interior mutability as a deliberate relaxation.
+
+  - id: rust-expertise/rust-error-design
+    path: rust-error-design.j2
+    type: KnowAct
+    lexicon_terms: [design, classify, structure, specify, constrain, compose]
+    description: >
+      Design error types as first-class citizens. Typed errors for library code
+      (thiserror), opaque errors for application boundaries (anyhow), error
+      variants that carry context, propagation with ?, and deliberate handling
+      at every level.
+
+  - id: rust-expertise/rust-idiom-audit
+    path: rust-idiom-audit.j2
+    type: KnowAct
+    lexicon_terms: [audit, detect, classify, evaluate, score, verify, analyze]
+    description: >
+      Audit existing Rust code for idiomatic compliance across six dimensions:
+      type strength, ownership clarity, error handling hygiene, trait usage,
+      unsafe audit, and module depth. Produces a violations report with severity
+      scores and corrective recommendations.
+
+  - id: rust-expertise/rust-safety-boundary
+    path: rust-safety-boundary.j2
+    type: KnowAct
+    lexicon_terms:
+      [audit, verify, constrain, specify, detect, evaluate, isolate]
+    description: >
+      Design and audit unsafe code boundaries. Minimise the unsafe surface,
+      document safety invariants, prefer unsafe fn over unsafe blocks, ensure
+      every unsafe block is auditable in isolation, and verify that safe
+      abstractions correctly encapsulate unsafe operations.
+
+  - id: rust-expertise/rust-refactor-plan
+    path: rust-refactor-plan.j2
+    type: KnowAct
+    lexicon_terms:
+      [plan, transform, simplify, deepen, structure, compose, design]
+    description: >
+      Plan idiomatic refactoring of non-idiomatic Rust toward deeper modules and
+      stronger types. Extract newtypes, replace booleans with enums, consolidate
+      unsafe, strengthen error types, simplify ownership, and deepen shallow
+      modules.
+
+hlexicon_terms:
+  - assess
+  - orient
+  - detect
+  - classify
+  - analyze
+  - ground
+  - contextualise
+  - design
+  - specify
+  - constrain
+  - structure
+  - compose
+  - simplify
+  - map
+  - audit
+  - evaluate
+  - score
+  - verify
+  - isolate
+  - plan
+  - transform
+  - deepen

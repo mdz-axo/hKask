@@ -5,7 +5,7 @@
 //! - `OM_BASE_URL` — Ollama base URL (default: http://127.0.0.1:11434)
 //! - `FW_BASE_URL` — Fireworks base URL (default: https://api.fireworks.ai/inference)
 //! - `FW_API_KEY` — Fireworks API key (required for FW provider)
-//! - `DI_BASE_URL` — DeepInfra base URL (default: https://api.deepinfra.com/v1/openai)
+//! - `DI_BASE_URL` — DeepInfra base URL (default: https://api.deepinfra.com)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
 //!
 //! # Model Naming Convention
@@ -117,7 +117,7 @@ impl Default for InferenceConfig {
             ollama_base_url: "http://127.0.0.1:11434".to_string(),
             fireworks_base_url: "https://api.fireworks.ai/inference".to_string(),
             fireworks_api_key: String::new(),
-            deepinfra_base_url: "https://api.deepinfra.com/v1/openai".to_string(),
+            deepinfra_base_url: "https://api.deepinfra.com".to_string(),
             deepinfra_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
@@ -142,7 +142,7 @@ impl InferenceConfig {
             .unwrap_or_default();
 
         let deepinfra_base_url = std::env::var("DI_BASE_URL")
-            .unwrap_or_else(|_| "https://api.deepinfra.com/v1/openai".to_string());
+            .unwrap_or_else(|_| "https://api.deepinfra.com".to_string());
 
         let deepinfra_api_key = std::env::var("DI_API_KEY")
             .or_else(|_| std::env::var("DEEPINFRA_API_KEY"))

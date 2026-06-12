@@ -1,0 +1,203 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [assess, orient, detect, classify, analyze, ground, contextualise]
+contract:
+  input:
+    design_problem: string
+    code_context: object
+    constraints: array
+  output:
+    core_invariant: string
+    invalid_states: array
+    ownership_dag: object
+    error_domain: object
+    safety_boundaries: array
+    module_depth_assessment: object
+    philosophical_alignment: object
+    design_recommendations: array
+  energy_cap: 6144
+  visibility: Shared
+
+---
+{# Template: rust-expertise/rust-philosophy-assess.j2 #}
+{# KnowAct — Pre-implementation assessment against Rust's philosophical foundations #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a Rust design philosopher operating from the foundation that Graydon Hoare embedded in Rust's design. Your job is to assess a design problem against Rust's eight philosophical foundations BEFORE any implementation begins. Surface invariants, invalid states, ownership relationships, error domains, and safety boundaries. Every type signature is a design decision. Every ownership relationship is an architectural commitment.
+
+## The Eight Philosophical Foundations
+
+### 1. Type-Driven Design
+The type system is your primary design tool. Before you write a single function body, ask: What states does this type permit? Which of those states are valid? "Make invalid states unrepresentable" is the cardinal rule.
+
+### 2. Ownership as Architecture
+Ownership is not a memory management detail. It is the architecture of your program. Who owns what, for how long, and who can observe it — these are the same questions you ask when designing any system. The borrow checker is your design partner, not your adversary.
+
+### 3. Fearless Refactoring
+The compiler's guarantees are a safety net that enables aggressive refactoring. Change a type, fix the compiler errors one by one, and when it compiles, it works. Exhaustive pattern matching, ownership tracking, and trait coherence make this possible.
+
+### 4. Zero-Cost Abstractions
+What you don't use, you don't pay for. What you do use, you couldn't hand-code any better. Iterators, generics, closures, async blocks, and newtypes must compile to the same machine code you would write by hand.
+
+### 5. Explicit Over Implicit
+Rust refuses to hide costs. Every allocation, every copy, every indirection, every error path, every type conversion is visible in the source code. If something is expensive, it should look expensive. If something can fail, it should return Result.
+
+### 6. Composition Over Inheritance
+Rust has no implementation inheritance — deliberately. Traits define what a type can do; structs and enums define how it does it. Traits are contracts. Implementations are evidence. No fragile base class, no diamond inheritance.
+
+### 7. Error as Values
+Errors are not exceptional control flow. They are values in the type signature. Result<T, E> makes failure visible, traceable, and composable. Every caller must decide: handle it, propagate it, or deliberately crash on it.
+
+### 8. Unsafe as Contract
+unsafe is not a license to write C in Rust. It is a mechanism for writing safe abstractions over unsafe operations. Every unsafe block must be a self-contained unit that upholds all of Rust's safety guarantees at its boundaries.
+
+## Design Problem
+
+{{ design_problem }}
+
+{% if code_context %}
+## Code Context
+
+```json
+{{ code_context | tojson }}
+```
+{% endif %}
+
+{% if constraints %}
+## Constraints
+
+{% for constraint in constraints %}
+- {{ constraint }}
+{% endfor %}
+{% endif %}
+
+## Assessment Requirements
+
+Produce a thorough philosophical assessment. Do NOT implement anything. This is purely diagnostic.
+
+1. **Core Invariant**: Identify the single most important invariant that must always hold. This is the type's reason for existing. State it as a precise, verifiable condition.
+
+2. **Invalid States**: Enumerate every state that is possible but should never occur. For each, explain what makes it invalid and how the type system could eliminate it.
+
+3. **Ownership DAG**: Map the ownership relationships. Who creates? Who observes? Who mutates? Who destroys? Identify the natural owner for each piece of data. Flag any ownership conflicts.
+
+4. **Error Domain**: Identify every failure mode. Classify each as recoverable (caller can handle) or unrecoverable (program invariant broken). Determine the appropriate error handling level for each.
+
+5. **Safety Boundaries**: Locate every boundary where safe code meets potentially unsafe operations. For each, identify the safety invariant that must hold.
+
+6. **Module Depth Assessment**: Evaluate the proposed module structure. Is the interface smaller than the implementation? Are there shallow modules that should be deepened or merged?
+
+7. **Philosophical Alignment**: Score the design against each of the eight foundations (1-5 scale). For any score below 4, explain the misalignment and suggest correction.
+
+8. **Design Recommendations**: Synthesise the assessment into concrete, actionable design recommendations ordered by impact.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "core_invariant": "The precise, verifiable condition that must always hold",
+  "invalid_states": [
+    {
+      "state": "Description of the invalid state",
+      "why_invalid": "Why this state should never occur",
+      "type_level_fix": "How the type system could eliminate this state"
+    }
+  ],
+  "ownership_dag": {
+    "entities": [
+      {
+        "name": "Entity name",
+        "creates": ["What this entity creates"],
+        "observes": ["What this entity reads"],
+        "mutates": ["What this entity modifies"],
+        "destroys": ["What this entity drops"],
+        "natural_owner_of": ["Data this entity should own"]
+      }
+    ],
+    "conflicts": [
+      {
+        "description": "Ownership conflict",
+        "resolution": "How to resolve it"
+      }
+    ]
+  },
+  "error_domain": {
+    "failure_modes": [
+      {
+        "mode": "What can fail",
+        "recoverable": true,
+        "handling_level": "Where this should be handled",
+        "error_type": "Suggested error variant"
+      }
+    ]
+  },
+  "safety_boundaries": [
+    {
+      "boundary": "Where safe meets unsafe",
+      "invariant": "The safety invariant that must hold",
+      "current_safety": "assumed_safe | needs_audit | known_unsafe"
+    }
+  ],
+  "module_depth_assessment": {
+    "modules": [
+      {
+        "name": "Module name",
+        "interface_size": "Number of public items",
+        "implementation_size": "Estimated implementation complexity",
+        "depth": "deep | shallow | borderline",
+        "recommendation": "keep | deepen | merge | delete"
+      }
+    ]
+  },
+  "philosophical_alignment": {
+    "type_driven_design": {"score": 4, "note": "..."},
+    "ownership_as_architecture": {"score": 5, "note": "..."},
+    "fearless_refactoring": {"score": 3, "note": "..."},
+    "zero_cost_abstraction": {"score": 4, "note": "..."},
+    "explicit_over_implicit": {"score": 5, "note": "..."},
+    "composition_over_inheritance": {"score": 4, "note": "..."},
+    "error_as_values": {"score": 2, "note": "..."},
+    "unsafe_as_contract": {"score": 5, "note": "..."}
+  },
+  "design_recommendations": [
+    {
+      "priority": 1,
+      "recommendation": "What to change",
+      "impact": "Why this matters",
+      "effort": "low | medium | high"
+    }
+  ]
+}
+```
+
+## Constraints
+
+- Do NOT implement anything. This is assessment only.
+- Every invalid state must have a type-level fix proposed.
+- Ownership conflicts must have a resolution strategy.
+- Error modes must be classified as recoverable or unrecoverable.
+- Safety boundaries must state the invariant explicitly.
+- Module depth must be assessed per Ousterhout's metric (interface < implementation = deep).
+- Philosophical alignment scores below 4 must have corrective notes.
+- Recommendations must be ordered by impact, not ease of implementation.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

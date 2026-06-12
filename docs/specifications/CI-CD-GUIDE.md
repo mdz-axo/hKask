@@ -31,7 +31,7 @@ hKask/
 │   └── config.toml             # Cargo configuration
 ├── rust-toolchain.toml         # Rust toolchain specification
 ├── Cargo.toml                  # Workspace manifest
-└── crates/                     # Core crates (11 total)
+├── crates/                     # Core crates (12 total)
 ```
 
 ---
@@ -160,17 +160,19 @@ cargo fmt
 
 ### 1. CI Pipeline (`.github/workflows/ci.yml`)
 
-**Triggers:** Push to `main`/`develop`, pull requests
+**Triggers:** Push to `main`, pull requests, manual dispatch
 
 **Jobs:**
-- **Format Check** — Verifies code formatting with `cargo fmt`
-- **Linting** — Runs `cargo clippy` with strict warnings
-- **Build** — Compiles all workspace members
+- **Format Check** — Verifies code formatting with `cargo fmt --all --check`
+- **Linting** — Runs `cargo clippy --workspace --all-targets -- -D warnings`
+- **Build** — Compiles all workspace members (`cargo build --workspace --all-targets`) and docs (`cargo doc --workspace --no-deps`)
 - **Unit Tests** — Runs `cargo test --workspace --lib`
-- **Integration Tests** — Runs integration test suite
-- **Security Audit** — Runs `cargo audit`
-- **Dependency Check** — Runs `cargo outdated`
-- **Release Build** — Builds production binary (main branch only)
+- **Integration Tests** — Runs `cargo test --workspace --tests`
+- **Doctests** — Runs `cargo test --workspace --doc`
+- **Cybernetic Unit Tests** — Runs CNS/MCP/memory tests with `cyber_` prefix
+- **Security Invariants** — No unwrap on hot paths, no wildcard capabilities, no hardcoded secrets, no stubs (P6), no deprecated (P7), no undocumented unsafe, no visual UI
+- **Dependency Check** — Runs `cargo deny check`
+- **Release Build** — Builds production binary (main branch only, after all tests pass)
 
 **Features:**
 - Parallel job execution where possible
@@ -189,7 +191,6 @@ cargo fmt
   - `x86_64-unknown-linux-musl`
   - `aarch64-unknown-linux-gnu`
 - **Create GitHub Release** — Generates release with assets
-- **Publish to crates.io** — Optional crate publishing
 
 **Release Assets:**
 - Binary tarballs (`.tar.gz`)
@@ -198,14 +199,11 @@ cargo fmt
 
 ### 3. Documentation (`.github/workflows/docs.yml`)
 
-**Triggers:** Push to `main`/`develop`, PRs, manual dispatch
+**Triggers:** Push to `main`, PRs (on crate/doc/readme changes), manual dispatch
 
 **Jobs:**
-- **Generate Documentation** — `cargo doc --workspace`
-- **Deploy to GitHub Pages** — Auto-deploy from main branch
-- **Documentation Health** — Runs docs-health, link, and metadata checks
-- **Link Check** — Validates markdown links
-- **Documentation Coverage** — Checks API documentation completeness
+- **Generate Documentation** — `cargo doc --workspace --no-deps`
+- **Upload Artifact** — Documentation artifact retained for 30 days
 
 ---
 
@@ -410,5 +408,5 @@ E2E chaos tests against live inference providers can be run manually with
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.23.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
 *As simple as possible, but no simpler.*

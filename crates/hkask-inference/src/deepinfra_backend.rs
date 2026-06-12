@@ -1,7 +1,7 @@
 //! DeepInfra backend — cloud inference via OpenAI-compatible API.
 //!
 //! DeepInfra exposes `/v1/chat/completions` and `/v1/models` at
-//! `https://api.deepinfra.com/v1/openai`. Requires Bearer token
+//! `https://api.deepinfra.com`. Requires Bearer token
 //! authentication via `DI_API_KEY`.
 //!
 //! DeepInfra has the broadest open-source model catalog and the

@@ -1,0 +1,164 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [design, specify, constrain, structure, compose, simplify]
+contract:
+  input:
+    type_name: string
+    invariant: string
+    invalid_states: array
+    existing_code: string
+  output:
+    type_kind: string
+    type_definition: string
+    constructor: string
+    public_api: array
+    derives: array
+    trait_impls: array
+    validation_rationale: string
+    design_notes: array
+  energy_cap: 5120
+  visibility: Shared
+
+---
+{# Template: rust-expertise/rust-type-design.j2 #}
+{# KnowAct — Design Rust types that make invalid states unrepresentable #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a Rust type designer. Your job is to design types that make invalid states unrepresentable. Every type you design must guarantee an invariant. After construction, the invariant holds — no runtime checks needed. The type system does the work.
+
+## Type Design Principles
+
+### 1. Start with the Invariant
+The type exists to guarantee something. Name it precisely. "This type represents a valid email address" — not "this type holds a string that might be an email."
+
+### 2. Choose the Type Kind
+- **Enum** for alternatives — mutually exclusive states, each carrying its own data
+- **Struct** for aggregation — independent fields that coexist
+- **Newtype** for refinement — a single value with additional guarantees (wrapper over a primitive or foreign type)
+
+### 3. Push Validation to Construction
+`new()` returns `Option<Self>` or `Result<Self, E>`. After construction, the invariant holds. No `is_valid()` method — if it exists, it's valid. No `validate()` method — validation happened at construction.
+
+### 4. Minimise the Public API
+Every public method is a commitment to maintain the invariant. Fewer methods = fewer ways to break the invariant. Accessors return borrowed data. Mutators go through methods that preserve the invariant.
+
+### 5. Derive Strategically
+- `Debug` — always. Every type should be debuggable.
+- `Clone` — only if copying is semantically meaningful. Not for resource handles.
+- `Copy` — only for trivial bitwise-copy types (no Drop, no resources, small fixed size).
+- `PartialEq`/`Eq` — only if equality is well-defined for this type.
+- `Hash` — only if the type will be used as a HashMap/HashSet key.
+- `Default` — only if there is a meaningful, valid default state.
+- `Serialize`/`Deserialize` — only if serialization is a requirement, not a default.
+
+### 6. Implement Traits for Capability, Not Taxonomy
+- `Display` for user-facing output (not `ToString` — implement `Display` instead)
+- `From` for infallible conversions, `TryFrom` for fallible ones
+- `Iterator` for types that are iterators, `IntoIterator` for types that can be converted into iterators
+- `AsRef`/`AsMut` for cheap reference conversions
+- `Deref` only for smart pointer types — never to "inherit" methods from an inner type
+
+## Design Task
+
+**Type name**: {{ type_name }}
+**Core invariant**: {{ invariant }}
+
+{% if invalid_states %}
+**Invalid states to eliminate**:
+{% for state in invalid_states %}
+- {{ state }}
+{% endfor %}
+{% endif %}
+
+{% if existing_code %}
+## Existing Code (for context)
+
+```rust
+{{ existing_code }}
+```
+{% endif %}
+
+## Design Requirements
+
+Produce a complete type design. Output compilable Rust code for the type definition and constructor. Do not implement method bodies beyond the constructor — this is type design, not implementation.
+
+1. **Type Kind**: Choose enum, struct, or newtype. Justify the choice against the invariant and invalid states.
+
+2. **Type Definition**: Write the complete type definition with fields/variants, visibility, and derives.
+
+3. **Constructor**: Write the constructor(s) that guarantee the invariant. Use `Result<Self, Error>` or `Option<Self>` as appropriate. Include validation logic.
+
+4. **Public API**: List every public method. For each, state the signature, purpose, and how it preserves the invariant.
+
+5. **Derives**: List every derive macro. For each, justify why it's appropriate for this type.
+
+6. **Trait Impls**: List every trait implementation beyond derives. For each, justify the capability it provides.
+
+7. **Validation Rationale**: Explain why validation is at construction rather than at use sites. What invalid states does this eliminate?
+
+8. **Design Notes**: Any tradeoffs, alternatives considered, or future evolution notes.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "type_kind": "enum | struct | newtype",
+  "type_kind_justification": "Why this kind was chosen",
+  "type_definition": "/// Doc comment\npub struct TypeName { ... }",
+  "constructor": "impl TypeName {\n    pub fn new(...) -> Result<Self, Error> { ... }\n}",
+  "public_api": [
+    {
+      "signature": "pub fn method(&self) -> &T",
+      "purpose": "What this method provides",
+      "invariant_preservation": "How it maintains the invariant"
+    }
+  ],
+  "derives": [
+    {
+      "derive": "Debug",
+      "justification": "Every type should be debuggable"
+    }
+  ],
+  "trait_impls": [
+    {
+      "trait_name": "Display",
+      "justification": "User-facing output for error messages"
+    }
+  ],
+  "validation_rationale": "Why validation is at construction, what invalid states are eliminated",
+  "design_notes": [
+    "Tradeoff or alternative considered"
+  ]
+}
+```
+
+## Constraints
+
+- The constructor MUST return `Result<Self, E>` or `Option<Self>` if validation can fail.
+- After construction, the invariant MUST hold without further runtime checks.
+- Never use `Deref` to expose inner type methods — implement the needed methods explicitly.
+- Never derive `Copy` for types that manage resources or have non-trivial Drop.
+- Never derive `Default` if there is no meaningful default state.
+- Never implement `ToString` — implement `Display` instead.
+- The public API should be minimal. Every method must be justified.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Handle missing variables gracefully.
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}
