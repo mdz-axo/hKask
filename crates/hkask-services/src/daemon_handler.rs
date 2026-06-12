@@ -1,31 +1,67 @@
 //! DaemonHandler implementation — bridges the Unix socket daemon to hKask's
-//! PodManager, UserStore, and memory infrastructure.
+//! PodManager, UserStore, memory infrastructure, and internal narrative generation.
 //!
 //! This is the hKask-side implementation of the `DaemonHandler` trait defined
 //! in `hkask-mcp`. It wires daemon queries to the live agent and memory stack.
+//!
+//! # Narrative Generation
+//!
+//! When an agent is in server mode, tool calls accumulate as episodic experiences.
+//! Every N experiences (NARRATIVE_THRESHOLD), the handler triggers internal narrative
+//! generation: it queries the agent's recent episodic memories, calls inference to
+//! produce observations about patterns and user intent, and stores those observations
+//! as additional episodic memories. This is how the agent "thinks about" what it's
+//! observing in the MCP session — the same way a chat-mode agent thinks about
+//! conversation turns.
 
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use hkask_agents::pod::PodManager;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_storage::user_store::UserStore;
+use hkask_types::LLMParameters;
+use hkask_types::ports::InferencePort;
 use tracing;
+
+/// Number of experiences before triggering internal narrative generation.
+const NARRATIVE_THRESHOLD: usize = 10;
+
+/// System prompt for narrative generation — the agent reflects on what it's observing.
+const NARRATIVE_SYSTEM_PROMPT: &str = "You are an observant agent monitoring an MCP tool session. \
+     Below is a log of recent tool calls made through the session. \
+     Analyze the log and generate 2-3 concise observations about: \
+     patterns in tool usage, what the user seems to be trying to accomplish, \
+     notable events or anomalies. \
+     Format each observation as a single sentence on its own line. \
+     Be specific — reference actual tool names and patterns from the log. \
+     Do not repeat the log content verbatim; synthesize insights.";
 
 /// hKask-side implementation of the daemon handler trait.
 ///
-/// Wraps PodManager for assignment/capability/memory queries and
-/// UserStore for authentication. Created during AgentService::build()
-/// and passed to the DaemonListener.
+/// Wraps PodManager for assignment/capability/memory queries,
+/// UserStore for authentication, and InferencePort for narrative generation.
 pub struct ServiceDaemonHandler {
     pod_manager: Arc<PodManager>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
+    /// Inference port for narrative generation (None if inference unavailable)
+    inference_port: Option<Arc<dyn InferencePort>>,
+    /// Per-replicant counter of stored experiences (triggers narrative generation)
+    experience_counts: Mutex<HashMap<String, usize>>,
 }
 
 impl ServiceDaemonHandler {
-    pub fn new(pod_manager: Arc<PodManager>, user_store: Arc<std::sync::Mutex<UserStore>>) -> Self {
+    pub fn new(
+        pod_manager: Arc<PodManager>,
+        user_store: Arc<std::sync::Mutex<UserStore>>,
+        inference_port: Option<Arc<dyn InferencePort>>,
+    ) -> Self {
         Self {
             pod_manager,
             user_store,
+            inference_port,
+            experience_counts: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -33,7 +69,6 @@ impl ServiceDaemonHandler {
 #[async_trait::async_trait]
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
-        // Collect all user-store data before any await (MutexGuard is not Send)
         let has_sessions = {
             let store = match self.user_store.lock() {
                 Ok(s) => s,
@@ -57,7 +92,6 @@ impl DaemonHandler for ServiceDaemonHandler {
         }
 
         tracing::debug!(target: "hkask.daemon", replicant = %replicant, "Replicant has active sessions");
-        // Now safe to await — MutexGuard dropped
         if let Some(pod_id) = self.pod_manager.find_pod_by_name(replicant).await {
             let webid = self.pod_manager.get_pod_webid(&pod_id).await;
             (true, webid.map(|w| w.to_string()))
@@ -70,21 +104,11 @@ impl DaemonHandler for ServiceDaemonHandler {
         match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
                 let assigned = self.pod_manager.is_assigned_to_role(&pod_id, role).await;
-                tracing::debug!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    role = %role,
-                    assigned = assigned,
-                    "Assignment check"
-                );
+                tracing::debug!(target: "hkask.daemon", replicant = %replicant, role = %role, assigned = assigned, "Assignment check");
                 assigned
             }
             None => {
-                tracing::warn!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    "Pod not found for assignment check"
-                );
+                tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Pod not found for assignment check");
                 false
             }
         }
@@ -94,13 +118,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
                 let granted = self.pod_manager.has_capability(&pod_id, tool).await;
-                tracing::debug!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    tool = %tool,
-                    granted = granted,
-                    "Capability check"
-                );
+                tracing::debug!(target: "hkask.daemon", replicant = %replicant, tool = %tool, granted = granted, "Capability check");
                 granted
             }
             None => false,
@@ -118,32 +136,23 @@ impl DaemonHandler for ServiceDaemonHandler {
         let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
             None => {
-                tracing::warn!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    "Pod not found for store_experience"
-                );
+                tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Pod not found for store_experience");
                 return (false, None, None);
             }
         };
 
-        let ctx =
-            match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    tracing::warn!(
-                        target: "hkask.daemon",
-                        replicant = %replicant,
-                        error = %e,
-                        "Failed to create PodContext for store_experience"
-                    );
-                    return (false, None, None);
-                }
-            };
+        let ctx = match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id)
+            .await
+        {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                tracing::warn!(target: "hkask.daemon", replicant = %replicant, error = %e, "Failed to create PodContext");
+                return (false, None, None);
+            }
+        };
 
         let conf = confidence.unwrap_or(0.85);
 
-        // Store episodic (first-person, private, perspective-scoped)
         let episodic_result = ctx.store_episodic(
             entity,
             attribute,
@@ -151,7 +160,6 @@ impl DaemonHandler for ServiceDaemonHandler {
             hkask_types::Confidence::new(conf),
         );
 
-        // Store semantic (third-person, public, no perspective)
         let semantic_value = generalize_value(value);
         let semantic_result = ctx.store_semantic(
             entity,
@@ -160,42 +168,178 @@ impl DaemonHandler for ServiceDaemonHandler {
             hkask_types::Confidence::new(conf),
         );
 
-        match (episodic_result, semantic_result) {
+        let result = match (episodic_result, semantic_result) {
             (Ok(ep_id), Ok(sem_id)) => {
-                tracing::debug!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    episodic_id = %ep_id,
-                    semantic_id = %sem_id,
-                    "Dual-encoded experience"
-                );
+                tracing::debug!(target: "hkask.daemon", replicant = %replicant, episodic_id = %ep_id, semantic_id = %sem_id, "Dual-encoded experience");
                 (true, Some(ep_id), Some(sem_id))
             }
             (Ok(ep_id), Err(e)) => {
-                tracing::warn!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    episodic_id = %ep_id,
-                    semantic_error = %e,
-                    "Episodic stored, semantic failed"
-                );
+                tracing::warn!(target: "hkask.daemon", replicant = %replicant, episodic_id = %ep_id, semantic_error = %e, "Episodic stored, semantic failed");
                 (true, Some(ep_id), None)
             }
             (Err(e), _) => {
-                tracing::warn!(
-                    target: "hkask.daemon",
-                    replicant = %replicant,
-                    error = %e,
-                    "Failed to store episodic experience"
-                );
+                tracing::warn!(target: "hkask.daemon", replicant = %replicant, error = %e, "Failed to store episodic experience");
                 (false, None, None)
             }
+        };
+
+        // Check if we should trigger narrative generation
+        if result.0 && self.inference_port.is_some() {
+            let count = {
+                let mut counts = self
+                    .experience_counts
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                let c = counts.entry(replicant.to_string()).or_insert(0);
+                *c += 1;
+                *c
+            };
+
+            if count % NARRATIVE_THRESHOLD == 0 {
+                tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, count = count, "Triggering narrative generation");
+                let pod_manager = Arc::clone(&self.pod_manager);
+                let inference = Arc::clone(self.inference_port.as_ref().unwrap());
+                let replicant_name = replicant.to_string();
+                tokio::spawn(async move {
+                    generate_narrative(&pod_manager, &*inference, &replicant_name).await;
+                });
+            }
         }
+
+        result
     }
 }
 
-/// Generalize a value for semantic memory by stripping caller-specific details
-/// while preserving the generalizable pattern.
+/// Generate internal narrative observations from recent session experiences.
+///
+/// Queries the agent's episodic memory for recent "mcp_session" triples,
+/// formats them as a log, calls inference to produce observations, and
+/// stores those observations as new episodic memories.
+async fn generate_narrative(
+    pod_manager: &PodManager,
+    inference: &dyn InferencePort,
+    replicant: &str,
+) {
+    let pod_id = match pod_manager.find_pod_by_name(replicant).await {
+        Some(id) => id,
+        None => {
+            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, "Pod not found for narrative generation");
+            return;
+        }
+    };
+
+    let ctx = match hkask_agents::pod::PodContext::from_manager(pod_manager, &pod_id).await {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to create PodContext for narrative");
+            return;
+        }
+    };
+
+    // Query recent episodic memories for this session
+    let episodes = match ctx.recall_episodic("mcp_session") {
+        Ok(eps) => eps,
+        Err(e) => {
+            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to recall episodic memories");
+            return;
+        }
+    };
+
+    if episodes.is_empty() {
+        return;
+    }
+
+    // Build a log summary from recent experiences (last 20 max)
+    let recent: Vec<_> = episodes.iter().rev().take(20).collect();
+    let mut log_lines = Vec::new();
+    for ep in recent.iter().rev() {
+        let val = &ep.value;
+        if let Some(tool) = val.get("tool").and_then(|v| v.as_str()) {
+            let input = val.get("input").and_then(|v| v.as_str()).unwrap_or("?");
+            let outcome = val.get("outcome").and_then(|v| v.as_str()).unwrap_or("?");
+            log_lines.push(format!(
+                "- {}: input='{}', outcome={}",
+                tool, input, outcome
+            ));
+        }
+    }
+
+    if log_lines.is_empty() {
+        return;
+    }
+
+    let session_log = log_lines.join("\n");
+    let prompt = format!(
+        "{}\n\nRecent MCP session activity for replicant '{}':\n{}",
+        NARRATIVE_SYSTEM_PROMPT, replicant, session_log
+    );
+
+    // Call inference
+    let params = LLMParameters {
+        temperature: 0.7,
+        max_tokens: 256,
+        ..LLMParameters::default()
+    };
+
+    let inference_result = match inference.generate(&prompt, &params).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Inference failed for narrative generation");
+            return;
+        }
+    };
+
+    // Parse observations (one per line)
+    let observations: Vec<&str> = inference_result
+        .text
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with('-') && !l.starts_with('*'))
+        .collect();
+
+    if observations.is_empty() {
+        // If no clean lines, use the whole response as one observation
+        let trimmed = inference_result.text.trim();
+        if !trimmed.is_empty() {
+            let _ = ctx.store_episodic(
+                "narrative",
+                "thought",
+                serde_json::json!({"observation": trimmed, "timestamp": chrono::Utc::now().to_rfc3339()}),
+                hkask_types::Confidence::new(0.7),
+            );
+        }
+        return;
+    }
+
+    // Store each observation as an episodic memory
+    let obs_count = observations.len();
+    for obs in observations {
+        let value = serde_json::json!({
+            "observation": obs,
+            "source": "internal_narrative",
+            "triggered_by": format!("{} experiences", recent.len()),
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+        });
+
+        match ctx.store_episodic(
+            "narrative",
+            "thought",
+            value,
+            hkask_types::Confidence::new(0.7),
+        ) {
+            Ok(id) => {
+                tracing::debug!(target: "hkask.daemon.narrative", replicant = %replicant, triple_id = %id, observation = %obs, "Narrative observation stored");
+            }
+            Err(e) => {
+                tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to store narrative observation");
+            }
+        }
+    }
+
+    tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, observation_count = obs_count, "Narrative generation complete");
+}
+
+/// Generalize a value for semantic memory by stripping caller-specific details.
 fn generalize_value(value: &serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {

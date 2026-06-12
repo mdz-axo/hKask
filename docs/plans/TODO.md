@@ -163,7 +163,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-59** | Fix OQ-3 to note 'arsenal' is not a hKask term | 2026-06-07 | OPEN_QUESTIONS.md OQ-3 rationale |
 | **R-60** | Add mds_categories to ADR template body frontmatter | 2026-06-07 | ADR_TEMPLATE.md |
 | **R-62** | Fix DOCUMENTATION_STANDARDS §6.2 location paths (standards/→specifications/, adr/→architecture/) | 2026-06-07 | DOCUMENTATION_STANDARDS.md §6.2 |
-| **R-63** | Add forward-references from canonical specs to reference docs (okapi, ports-inventory, utoipa, template-header, hLexicon, Curator persona) | 2026-06-07 | MDS.md §7.2, MDS.md §7.1-7.2 |
+| **R-63** | Add forward-references from canonical specs to reference docs (inference, ports-inventory, utoipa, template-header, hLexicon, Curator persona) | 2026-06-07 | MDS.md §7.2, MDS.md §7.1-7.2 |
 | **R-65** | Add 7 untracked future questions from FUTURE.md to OPEN_QUESTIONS.md | 2026-06-07 | FUT-002, FUT-003, FUT-004, FUT-005, FUT-007, FUT-008, FUT-009 |
 | **R-66** | Add 7 untracked future questions to OPEN_QUESTIONS.md (review FUTURE.md synthesis) | 2026-06-07 | OPEN_QUESTIONS §Review Findings, FUT-002 through FUT-009 |
 | **R-67** | Update cli-reference.md last_updated to 2026-06-07 | 2026-06-07 | docs/generated/cli-reference.md |

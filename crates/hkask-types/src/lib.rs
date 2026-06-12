@@ -39,7 +39,8 @@ pub mod visibility;
 pub mod sql_impls;
 
 pub use agent_def::{
-    AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
+    AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility,
+    Right, UserProfile,
 };
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use audit::{AuditEntry, AuditOutcome};

@@ -89,6 +89,20 @@ pub enum PodAction {
         verbose: bool,
     },
     List,
+    Assign {
+        #[arg()]
+        name: String,
+        #[arg()]
+        role: String,
+    },
+    Mode {
+        #[arg()]
+        name: String,
+        #[arg()]
+        mode: String,
+        #[arg(short, long)]
+        role: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

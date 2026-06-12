@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-10
+last_updated: 2026-06-12
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -146,6 +146,88 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 
 ---
 
+## Daemon & Replicant Server Mode
+
+**Crates:** `hkask-mcp` (daemon transport), `hkask-services` (daemon handler), `hkask-agents` (AgentMode)
+
+### Summary
+
+Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Zed, VSCode) and other hKask agents. The daemon — a Unix domain socket at `~/.config/hkask/daemon.sock` — mediates authentication, role assignment, capability verification, and dual memory encoding between out-of-process MCP binaries and the in-process agent stack.
+
+### Architecture
+
+```mermaid
+graph TD
+    subgraph "hKask System (Background Service)"
+        AS["AgentService::build()"]
+        PM["PodManager"]
+        US["UserStore"]
+        IP["InferencePort"]
+        DH["ServiceDaemonHandler"]
+        DL["DaemonListener<br/>(~/.config/hkask/daemon.sock)"]
+        AS --> PM
+        AS --> US
+        AS --> IP
+        AS --> DH
+        DH --> DL
+    end
+
+    subgraph "MCP Binary (Out-of-Process)"
+        BIN["hkask-mcp-research"]
+        BIN -->|"1. auth_query"| DL
+        BIN -->|"2. assignment_query"| DL
+        BIN -->|"3. capability_query"| DL
+        BIN -->|"4. store_experience"| DL
+    end
+
+    subgraph "Callers"
+        IDE["Zed IDE"]
+        HK["hKask Agent"]
+    end
+
+    IDE -->|"stdio MCP"| BIN
+    HK -->|"GovernedTool"| BIN
+
+    DH -->|"check_auth"| US
+    DH -->|"check_assignment"| PM
+    DH -->|"check_capability"| PM
+    DH -->|"store_experience → dual encoding"| PM
+    DH -->|"every 10: generate_narrative"| IP
+```
+
+### Startup Flow
+
+1. `kask login <replicant>` — authenticate (creates session in UserStore)
+2. `kask pod assign <replicant> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
+3. `kask pod mode <replicant> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
+4. IDE spawns MCP binary with `HKASK_REPLICANT=<replicant>`
+5. Binary connects to daemon → auth → assignment → capability → serve
+
+### Memory Flow
+
+- Tool calls → `record_experience()` (fire-and-forget from MCP binary)
+- Daemon `store_experience` → dual encoding: episodic (first-person, private) + semantic (third-person, public)
+- Every 10 experiences → `generate_narrative()` → inference analyzes session log → stores observations as episodic "narrative"/"thought"
+- Existing consolidation pipeline extracts semantic knowledge from both streams
+
+### Agent Modes
+
+| Mode | Behavior | Mutual Exclusion |
+|------|----------|-----------------|
+| **Chat** | Conversational loop, calls tools via GovernedTool | Cannot coexist with Server (initially) |
+| **Server** | Presents as MCP server(s), handles incoming tool calls, records episodic memories | Cannot coexist with Chat (initially) |
+
+Concurrent chat+server mode planned for future release (3-6 months).
+
+### Key Constraints
+
+1. **P4 Dual Gate:** Every MCP server startup requires both capability verification (OCAP token) and assignment verification (sovereignty/consent).
+2. **P2 Affirmative Consent:** Passphrase entry via `kask login` creates session. Daemon checks session existence — no passphrase stored with MCP binary.
+3. **Out-of-process isolation:** MCP binaries communicate with hKask only through the daemon socket. No direct access to PodManager, memory, or inference.
+4. **Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both.
+
+---
+
 ## Reference Artifacts
 
 Detailed lookup tables and diagrams in `reference/`:
@@ -176,6 +258,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADR-032-mcp-gateway-membrane.md`](ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
 | [`ADR-033-dampener-override-cooldown.md`](ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
 | [`ADR-034-academic-author-pipeline.md`](ADR-034-academic-author-pipeline.md) | Academic author pipeline — corpus_type discriminator, pre-processing, enumeration, disambiguation |
+| [`ADR-035-replicant-server-mode.md`](ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
 
 ---
 
@@ -212,6 +295,7 @@ docs/architecture/
 ├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
 ├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
 ├── ADR-034-academic-author-pipeline.md      # Decision record (Draft)
+├── ADR-035-replicant-server-mode.md          # Decision record (Active)
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference

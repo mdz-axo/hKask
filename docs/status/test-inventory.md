@@ -1,7 +1,7 @@
 ---
 title: "Test Inventory"
-version: "2.0.0"
-last_updated: 2026-06-10
+version: "2.1.0"
+last_updated: 2026-06-12
 status: Active
 domain: "Cross-cutting"
 generated_from: "cargo test --workspace -- --list"
@@ -9,7 +9,7 @@ generated_from: "cargo test --workspace -- --list"
 
 # Test Inventory
 
-Re-derived from `cargo test --workspace -- --list` on 2026-06-10.
+Re-derived from `cargo test --workspace -- --list` on 2026-06-12.
 Per MDS §8 and `docs/specifications/test-program.md`.
 
 ---
@@ -18,16 +18,27 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 
 | Crate/MCP Server | Tests | Module |
 |------------------|-------|--------|
-| `hkask-services` | 28 | chat (9), cns (3), pods (3), goal (3), curator (2), 8 others |
-| `hkask-cli` | 19 | settings (12), repl_settings (4), turn/compaction (3) |
+| `hkask-services` | 29 | chat (9), cns (3), pods (3), goal (3), curator (2), 9 others |
+| `hkask-cli` | 25 | settings (12), repl_settings (4), turn/compaction (3), onboarding (3), feedback (3) |
 | `hkask-storage` | 18 | spec_store (6), spec_types (5), store_macros (4 doc-tests), lock_helpers (3 doc-tests) |
 | `hkask-templates` | 12 | contract_validator (5), lexicon (6), okapi_config (1 doc-test) |
 | `hkask-cns` | 11 | governed_tool (4 OCAP + 1 doc-test + 1 integration), algedonic (2), variety (3) |
+| `hkask-agents` | 8 | mode (4: activation, exclusion, assignment, switch), curator persona_filter (4) |
 | `hkask-mcp-spec` | 7 | goal_capture (2 + 1 fuzz), coherence (1), graph_query (1), writing_quality (1), tool listing (1) |
-| `hkask-mcp` | 3 | validate_field (2 doc-tests), server (1 doc-test) |
+| `hkask-mcp` | 5 | daemon (5: auth, unauth, assignment, capability, dual-encoding) |
+| `hkask-mcp-condenser` | 27 | algorithms (16), types (11) |
+| `hkask-mcp-fmp` | 20 | analysis (20: management 6, moat/working capital 14) |
+| `hkask-mcp-research` | 23 | strip_html (8), freshness (6), ranking (5), rate_limiter (4) |
 | `hkask-api` | 2 | settings merge, settings validation |
-| `hkask-agents` | 2 | pod (doc-test), lib (doc-test) |
 | `hkask-types` | 0 | Shallow module — types only (C8) |
+| `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
+| `hkask-mcp-replica` | 0 | Shallow module — pass-through to compose/embed services (C8) |
+| `hkask-mcp-doc-knowledge` | 0 | Shallow module — pass-through to parsing/chunking (C8) |
+| `hkask-mcp-markitdown` | 0 | Shallow module — pass-through to conversion/OCR (C8) |
+| `hkask-mcp-telnyx` | 0 | Shallow module — API proxy (C8) |
+| `hkask-mcp-fal` | 0 | Shallow module — API proxy (C8) |
+
+**Total: 187 tests across 18 crates** (↑ from 130)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |

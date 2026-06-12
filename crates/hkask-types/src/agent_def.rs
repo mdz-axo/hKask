@@ -150,6 +150,13 @@ pub struct AgentDefinition {
     pub depends_on: Vec<String>,
     #[serde(default)]
     pub process_manifest: Option<String>,
+    /// Replicant's own phone number (E.164 format, e.g., "+15551234567").
+    /// Set during onboarding when user opts into phone/WhatsApp capabilities.
+    #[serde(default)]
+    pub phone_number: Option<String>,
+    /// Replicant's WhatsApp Business ID (linked to phone_number).
+    #[serde(default)]
+    pub whatsapp_id: Option<String>,
 }
 
 impl AgentDefinition {
@@ -223,4 +230,25 @@ pub struct RegisteredAgent {
     pub token_hash: String,
     pub registered_at: String,
     pub source_yaml: String,
+}
+
+/// The human user's identity — collected once during first onboarding,
+/// shared across all their replicants. Stored in the registry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserProfile {
+    pub first_name: String,
+    pub last_name: String,
+    /// Phone number in E.164 format (e.g., "+15551234567")
+    pub phone: String,
+    /// Email address — forward-looking, no email MCP server yet
+    pub email: String,
+}
+
+impl UserProfile {
+    /// Compose a replicant's full display name from the user-chosen first name
+    /// and the human's last name, following the naming protocol:
+    /// "{chosen_name} r{human_last_name}"
+    pub fn replicant_display_name(&self, chosen_first_name: &str) -> String {
+        format!("{} r{}", chosen_first_name, self.last_name)
+    }
 }

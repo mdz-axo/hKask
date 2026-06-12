@@ -120,6 +120,32 @@ impl PodService {
             .map(PodID::from_uuid)
             .map_err(|_| ServiceError::PodNotFound(format!("Invalid pod ID '{}'", id)))
     }
+
+    /// Assign an MCP role to a replicant by name.
+    pub async fn assign_role(
+        ctx: &AgentService,
+        name: &str,
+        role: &str,
+    ) -> Result<(), ServiceError> {
+        ctx.pod_manager()
+            .assign_role(name, role)
+            .await
+            .map_err(ServiceError::Pod)
+    }
+
+    /// Set the agent mode for a replicant by name.
+    /// Mode: "server" (requires role), "chat", or "exit".
+    pub async fn set_mode(
+        ctx: &AgentService,
+        name: &str,
+        mode: &str,
+        role: Option<&str>,
+    ) -> Result<(), ServiceError> {
+        ctx.pod_manager()
+            .set_mode(name, mode, role)
+            .await
+            .map_err(ServiceError::Pod)
+    }
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────

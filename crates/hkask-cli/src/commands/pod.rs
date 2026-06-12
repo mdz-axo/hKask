@@ -50,6 +50,20 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+pub async fn assign_role(name: &str, role: &str) -> Result<(), String> {
+    let ctx = super::helpers::build_service_context();
+    PodService::assign_role(&ctx, name, role)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), String> {
+    let ctx = super::helpers::build_service_context();
+    PodService::set_mode(&ctx, name, mode, role)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
     use crate::commands;
     match action {
@@ -120,5 +134,24 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
             }
             Err(e) => eprintln!("Pod listing unavailable: {e}"),
         },
+        PodAction::Assign { name, role } => {
+            crate::block_on!(
+                rt,
+                commands::assign_role(&name, &role),
+                "Failed to assign role"
+            );
+            println!("Assigned MCP role '{}' to replicant '{}'", role, name);
+        }
+        PodAction::Mode { name, mode, role } => {
+            crate::block_on!(
+                rt,
+                commands::set_mode(&name, &mode, role.as_deref()),
+                "Failed to set mode"
+            );
+            match role {
+                Some(r) => println!("Set replicant '{}' to server mode serving '{}'", name, r),
+                None => println!("Set replicant '{}' to {} mode", name, mode),
+            }
+        }
     }
 }

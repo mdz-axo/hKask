@@ -364,6 +364,51 @@ impl PodManager {
             })
             .unwrap_or(false)
     }
+
+    /// Assign an MCP role to a pod by name.
+    pub async fn assign_role(&self, name: &str, role: &str) -> AgentPodResult<()> {
+        let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
+            AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))
+        })?;
+        let mut pods = self.pods.write().await;
+        let pod = pods
+            .get_mut(&pod_id)
+            .ok_or_else(|| AgentPodError::PodNotFound(pod_id))?;
+        if !pod.assigned_mcp_roles.iter().any(|r| r == role) {
+            pod.assigned_mcp_roles.push(role.to_string());
+            tracing::info!(target: "hkask.pod", pod_id = %pod_id, name = %name, role = %role, "MCP role assigned");
+        }
+        Ok(())
+    }
+
+    /// Set the agent mode for a pod by name.
+    /// Mode can be "server" (with role), "chat", or "exit".
+    pub async fn set_mode(&self, name: &str, mode: &str, role: Option<&str>) -> AgentPodResult<()> {
+        let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
+            AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))
+        })?;
+        let mut pods = self.pods.write().await;
+        let pod = pods
+            .get_mut(&pod_id)
+            .ok_or_else(|| AgentPodError::PodNotFound(pod_id))?;
+        match mode {
+            "server" => {
+                let r = role.ok_or_else(|| {
+                    AgentPodError::PersonaParseError("role required for server mode".to_string())
+                })?;
+                pod.enter_server_mode(r)?;
+            }
+            "chat" => pod.enter_chat_mode()?,
+            "exit" => pod.exit_mode()?,
+            other => {
+                return Err(AgentPodError::PersonaParseError(format!(
+                    "Unknown mode: {}",
+                    other
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for PodManager {

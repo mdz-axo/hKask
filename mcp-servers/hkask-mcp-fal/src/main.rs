@@ -1,6 +1,7 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_tool_url};
+use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -99,13 +100,65 @@ pub struct Generate3dRequest {
 
 pub struct FalServer {
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<DaemonClient>,
     client: reqwest::Client,
 }
 
 impl FalServer {
-    pub fn new(webid: WebID, api_key: String) -> Result<Self, anyhow::Error> {
+    pub fn new(
+        webid: WebID,
+        replicant: String,
+        daemon: Option<DaemonClient>,
+        api_key: String,
+    ) -> Result<Self, anyhow::Error> {
         let client = build_client(&api_key)?;
-        Ok(Self { webid, client })
+        Ok(Self {
+            webid,
+            replicant,
+            daemon,
+            client,
+        })
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool,
+                "input": input_summary,
+                "outcome": outcome,
+                "detail": detail,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.fal.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.fal.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.fal.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
     }
 
     async fn queue_post(&self, endpoint: &str, body: Value) -> Result<Value, McpToolError> {
@@ -234,12 +287,20 @@ impl FalServer {
         }): Parameters<GenerateImageRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("fal_generate_image", &self.webid);
+        let size = image_size.clone();
         let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
             "num_images": num_images.unwrap_or(1),
         });
-        span.finish(fal_post(&self.client, "fal-ai/flux/schnell", body).await)
+        let result = fal_post(&self.client, "fal-ai/flux/schnell", body).await;
+        self.record_experience(
+            "fal_generate_image",
+            &prompt,
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"image_size": size, "num_images": num_images}),
+        );
+        span.finish(result)
     }
 
     #[tool(description = "Transform an image with a prompt")]
@@ -370,6 +431,22 @@ impl FalServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.fal", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let daemon_client = if daemon_ok {
+        Some(DaemonClient::new())
+    } else {
+        None
+    };
+
     hkask_mcp::run_server(
         "hkask-mcp-fal",
         env!("CARGO_PKG_VERSION"),
@@ -379,7 +456,7 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_FAL_API_KEY")
                 .expect("required credential checked by run_stdio_server")
                 .clone();
-            FalServer::new(ctx.webid, api_key)
+            FalServer::new(ctx.webid, replicant.clone(), daemon_client.clone(), api_key)
         },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_FAL_API_KEY",
@@ -387,4 +464,48 @@ async fn main() -> anyhow::Result<()> {
         )],
     )
     .await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = DaemonClient::new();
+
+    let auth = client.auth_query(replicant).await?;
+    match auth {
+        DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some(ref webid),
+            ..
+        } => {
+            tracing::info!(target: "hkask.mcp.fal", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+        }
+        DaemonResponse::AuthResponse {
+            authenticated: false,
+            action: Some(ref action),
+            ..
+        } if action == "prompt_user" => {
+            anyhow::bail!(
+                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected auth response: {:?}", other),
+    }
+
+    let assignment = client.assignment_query(replicant, "fal").await?;
+    match assignment {
+        DaemonResponse::AssignmentResponse { assigned: true } => {
+            tracing::info!(target: "hkask.mcp.fal", replicant = %replicant, "Replicant assigned to fal role");
+        }
+        DaemonResponse::AssignmentResponse { assigned: false } => {
+            anyhow::bail!(
+                "Replicant '{}' is not assigned to the fal MCP role. Use 'kask replicant assign {} fal' to grant this role.",
+                replicant,
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+    }
+
+    tracing::info!(target: "hkask.mcp.fal", replicant = %replicant, "P4 dual-gate verification complete");
+    Ok(())
 }

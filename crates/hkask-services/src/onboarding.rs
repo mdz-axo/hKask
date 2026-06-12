@@ -6,7 +6,9 @@ use std::sync::Arc;
 use hkask_agents::AcpRuntime;
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
-use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, WebID, now_rfc3339};
+use hkask_types::{
+    AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID, now_rfc3339,
+};
 
 use crate::config::ServiceConfig;
 use crate::error::ServiceError;
@@ -106,13 +108,24 @@ impl OnboardingService {
     /// Creates a WebID, registers with ACP (granting default replicant
     /// capabilities), builds an `AgentDefinition` and `RegisteredAgent`,
     /// and persists them.
+    ///
+    /// If `user_profile` is provided, the replicant's display name follows
+    /// the naming protocol: "{chosen_name} r{human_last_name}".
     pub async fn register_replicant(
         acp: &Arc<AcpRuntime>,
         store: &AgentRegistryStore,
         name: &str,
         description: &str,
+        user_profile: Option<&UserProfile>,
+        phone_number: Option<&str>,
+        whatsapp_id: Option<&str>,
     ) -> Result<(), ServiceError> {
-        let webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
+        let display_name = if let Some(profile) = user_profile {
+            profile.replicant_display_name(name)
+        } else {
+            name.to_string()
+        };
+        let webid = WebID::from_persona_with_namespace(display_name.as_bytes(), "replicant");
 
         let default_capabilities = vec![
             "tool:inference:call".to_string(),
@@ -127,7 +140,7 @@ impl OnboardingService {
             .map_err(ServiceError::Acp)?;
 
         let definition = AgentDefinition {
-            name: name.to_string(),
+            name: display_name,
             agent_kind: AgentKind::Replicant,
             charter: Some(Charter {
                 description: description.to_string(),
@@ -140,6 +153,8 @@ impl OnboardingService {
             persona: None,
             depends_on: vec![],
             process_manifest: None,
+            phone_number: phone_number.map(|s| s.to_string()),
+            whatsapp_id: whatsapp_id.map(|s| s.to_string()),
         };
 
         let registered = RegisteredAgent {
@@ -154,6 +169,25 @@ impl OnboardingService {
             .map_err(ServiceError::AgentRegistryStore)?;
 
         Ok(())
+    }
+
+    /// Store the human user's profile in the registry.
+    pub fn store_user_profile(
+        store: &AgentRegistryStore,
+        profile: &UserProfile,
+    ) -> Result<(), ServiceError> {
+        store
+            .store_user_profile(profile)
+            .map_err(|e| ServiceError::AgentRegistryStore(e.to_string()))
+    }
+
+    /// Retrieve the human user's profile from the registry.
+    pub fn get_user_profile(
+        store: &AgentRegistryStore,
+    ) -> Result<Option<UserProfile>, ServiceError> {
+        store
+            .get_user_profile()
+            .map_err(|e| ServiceError::AgentRegistryStore(e.to_string()))
     }
 
     /// Verify sign-in: initialize the registry with the given config and

@@ -1,6 +1,6 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 use crate::Store;
-use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
+use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent, UserProfile};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -32,7 +32,11 @@ impl AgentRegistryStore {
                 registered_at TEXT NOT NULL,
                 source_yaml TEXT NOT NULL
             );
-            CREATE INDEX IF NOT EXISTS idx_agent_registry_kind ON agent_registry(agent_kind);",
+            CREATE INDEX IF NOT EXISTS idx_agent_registry_kind ON agent_registry(agent_kind);
+            CREATE TABLE IF NOT EXISTS user_profile (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                profile_json TEXT NOT NULL
+            );",
         )?;
         Ok(())
     }
@@ -91,7 +95,7 @@ impl AgentRegistryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
-             FROM agent_registry ORDER BY name",
+             FROM agent_registry ORDER BY name ",
         )?;
 
         let agents = collect_rows!(
@@ -132,7 +136,7 @@ impl AgentRegistryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
-             FROM agent_registry WHERE agent_kind = ?1 ORDER BY name",
+             FROM agent_registry WHERE agent_kind = ?1 ORDER BY name ",
         )?;
 
         let agents = collect_rows!(
@@ -177,6 +181,29 @@ impl AgentRegistryStore {
         }
         Ok(())
     }
+
+    /// Store the human user's profile. Replaces any existing profile (single-row table).
+    pub fn store_user_profile(&self, profile: &UserProfile) -> Result<(), AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let json = serde_json::to_string(profile)?;
+        conn.execute(
+            "INSERT OR REPLACE INTO user_profile (id, profile_json) VALUES (1, ?1)",
+            rusqlite::params![json],
+        )?;
+        Ok(())
+    }
+
+    /// Retrieve the human user's profile. Returns None if no profile has been stored.
+    pub fn get_user_profile(&self) -> Result<Option<UserProfile>, AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare("SELECT profile_json FROM user_profile WHERE id = 1")?;
+        let result: Result<String, _> = stmt.query_row([], |row| row.get(0));
+        match result {
+            Ok(json) => Ok(Some(serde_json::from_str(&json)?)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(AgentRegistryError::from(e)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -187,10 +214,10 @@ mod tests {
 
     fn make_store() -> AgentRegistryStore {
         let conn = Arc::new(Mutex::new(
-            Connection::open_in_memory().expect("in-memory DB"),
+            Connection::open_in_memory().expect("in-memory DB "),
         ));
         let store = AgentRegistryStore::new(conn);
-        store.initialize_schema().expect("init schema");
+        store.initialize_schema().expect("init schema ");
         store
     }
 
@@ -201,7 +228,7 @@ mod tests {
     #[test]
     fn get_missing_agent_returns_not_found() {
         let store = make_store();
-        let result = store.get("no-such-agent");
+        let result = store.get("no-such-agent ");
         assert!(
             matches!(result, Err(AgentRegistryError::NotFound(_))),
             "expected NotFound, got {:?}",
@@ -213,7 +240,7 @@ mod tests {
     #[test]
     fn remove_missing_agent_returns_not_found() {
         let store = make_store();
-        let result = store.remove("no-such-agent");
+        let result = store.remove("no-such-agent ");
         assert!(
             matches!(result, Err(AgentRegistryError::NotFound(_))),
             "expected NotFound, got {:?}",

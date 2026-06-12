@@ -52,7 +52,7 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-mcp-replica` | Authorial style embedding and composition |
 
 **10 MCP servers:** memory, condenser, research, spec, fmp, telnyx, fal, replica, doc-knowledge, markitdown
-**Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP)
+**Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
 **External:** Ollama, Fireworks.ai, DeepInfra, ACP (acp-runtime), MCP (rmcp)
 
 ---
@@ -74,7 +74,32 @@ kask settings show                          # Show all settings
 kask settings show temp                     # Show one setting
 kask settings set temp 0.3                  # Set a setting
 kask settings reset                         # Reset all to defaults
+kask pod create -t <template> -p <persona.yaml>  # Create agent pod
+kask pod activate <pod-id>                   # Activate pod
+kask pod list                                # List all pods
+kask pod assign <name> <role>                # Assign MCP role to replicant (e.g., kask pod assign Bob research)
+kask pod mode <name> server -r <role>        # Put replicant in server mode serving a role
+kask pod mode <name> chat                    # Put replicant in chat mode
+kask pod mode <name> exit                    # Exit current mode
 ```
+
+### Replicant Server Mode (MCP)
+
+Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Zed, VSCode) and other hKask agents. The daemon (`~/.config/hkask/daemon.sock`) mediates authentication, role assignment, capability verification, and dual memory encoding.
+
+**Startup flow:**
+1. `kask login <replicant>` — authenticate (creates session in UserStore)
+2. `kask pod assign <replicant> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
+3. `kask pod mode <replicant> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
+4. IDE spawns MCP binary with `HKASK_REPLICANT=<replicant>`
+5. Binary connects to daemon → auth → assignment → capability → serve
+
+**Memory flow:**
+- Tool calls → `record_experience()` → daemon `store_experience` → dual encoding (episodic + semantic)
+- Every 10 experiences → `generate_narrative()` → inference analyzes session log → stores observations as episodic "narrative"/"thought"
+- Existing consolidation pipeline extracts semantic knowledge from both streams
+
+**Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both. Concurrency planned for future release.
 
 **Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`
 

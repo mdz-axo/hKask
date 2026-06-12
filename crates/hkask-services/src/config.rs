@@ -109,7 +109,7 @@ pub struct ServiceConfig {
 impl ServiceConfig {
     /// Resolve configuration from environment variables and keychain.
     ///
-    /// Reads `HKASK_DB_PATH`, `OKAPI_BASE_URL`, `HKASK_TEMPLATE_CACHE_PATH`,
+    /// Reads `HKASK_DB_PATH`, `HKASK_TEMPLATE_CACHE_PATH`,
     /// and `HKASK_MEMORY_DB_PATH` from environment. ACP and MCP secrets are
     /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
     pub fn from_env() -> Result<Self, ServiceError> {

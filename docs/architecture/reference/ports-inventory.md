@@ -84,7 +84,6 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 | `SpecSigner` | Dead — zero implementations |
 | `CapabilityProviderPort` | Dead — zero implementations |
 | `CuratorMetacognitionPort` | Dead — zero implementations |
-| `OkapiClientTrait` | Dead — replaced by `InferenceClient` trait |
 | `InputValidator` | Inlined to `AgentPersonaInput::validate()` |
 | `GoalMemoryPort` | Inlined to `GoalMemory::store_semantic()` etc. |
 | `GoalRepositoryPort` | Inlined to `SqliteGoalRepository` |

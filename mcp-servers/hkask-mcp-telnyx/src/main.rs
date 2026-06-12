@@ -165,7 +165,14 @@ impl TelnyxServer {
             "to": to,
             "text": text,
         });
-        span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
+        let result = api_post(&self.client, "Telnyx", &url, &payload).await;
+        self.record_experience(
+            "telnyx_send_sms",
+            &format!("{} -> {}", from, to),
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"text_length": text.len()}),
+        );
+        span.finish(result)
     }
 
     #[tool(description = "Make a phone call")]
@@ -187,7 +194,14 @@ impl TelnyxServer {
             "to": to,
             "webhook_url": webhook_url,
         });
-        span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
+        let result = api_post(&self.client, "Telnyx", &url, &payload).await;
+        self.record_experience(
+            "telnyx_make_call",
+            &format!("{} -> {}", from, to),
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({}),
+        );
+        span.finish(result)
     }
 
     #[tool(description = "Send a WhatsApp message")]
@@ -257,6 +271,22 @@ impl TelnyxServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.telnyx", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let daemon_client = if daemon_ok {
+        Some(DaemonClient::new())
+    } else {
+        None
+    };
+
     hkask_mcp::run_server(
         "hkask-mcp-telnyx",
         env!("CARGO_PKG_VERSION"),
@@ -266,7 +296,7 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_TELNYX_API_KEY")
                 .expect("required credential checked by run_stdio_server")
                 .clone();
-            TelnyxServer::new(ctx.webid, api_key)
+            TelnyxServer::new(ctx.webid, replicant.clone(), daemon_client.clone(), api_key)
         },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_TELNYX_API_KEY",
@@ -274,4 +304,48 @@ async fn main() -> anyhow::Result<()> {
         )],
     )
     .await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = DaemonClient::new();
+
+    let auth = client.auth_query(replicant).await?;
+    match auth {
+        DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some(ref webid),
+            ..
+        } => {
+            tracing::info!(target: "hkask.mcp.telnyx", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+        }
+        DaemonResponse::AuthResponse {
+            authenticated: false,
+            action: Some(ref action),
+            ..
+        } if action == "prompt_user" => {
+            anyhow::bail!(
+                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected auth response: {:?}", other),
+    }
+
+    let assignment = client.assignment_query(replicant, "telnyx").await?;
+    match assignment {
+        DaemonResponse::AssignmentResponse { assigned: true } => {
+            tracing::info!(target: "hkask.mcp.telnyx", replicant = %replicant, "Replicant assigned to telnyx role");
+        }
+        DaemonResponse::AssignmentResponse { assigned: false } => {
+            anyhow::bail!(
+                "Replicant '{}' is not assigned to the telnyx MCP role. Use 'kask replicant assign {} telnyx' to grant this role.",
+                replicant,
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+    }
+
+    tracing::info!(target: "hkask.mcp.telnyx", replicant = %replicant, "P4 dual-gate verification complete");
+    Ok(())
 }

@@ -661,6 +661,7 @@ impl AgentService {
         let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
             Arc::clone(&pod_manager),
             Arc::clone(&user_store),
+            inference_port.clone(),
         ));
         let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
         daemon_listener.bind().await.map_err(|e| {
