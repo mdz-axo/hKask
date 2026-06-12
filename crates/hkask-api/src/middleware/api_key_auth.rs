@@ -119,8 +119,6 @@ pub enum ApiKeyAuthError {
     InvalidKeyFormat,
     #[error("Unknown API key")]
     UnknownApiKey,
-    #[error("API key has been revoked")]
-    KeyRevoked,
     #[error("API key has expired")]
     KeyExpired,
     #[error("API key spending limit exceeded")]
@@ -143,7 +141,6 @@ impl IntoResponse for ApiKeyAuthError {
                 (StatusCode::UNAUTHORIZED, "Invalid API key format")
             }
             ApiKeyAuthError::UnknownApiKey => (StatusCode::UNAUTHORIZED, "Unknown API key"),
-            ApiKeyAuthError::KeyRevoked => (StatusCode::FORBIDDEN, "API key has been revoked"),
             ApiKeyAuthError::KeyExpired => (StatusCode::FORBIDDEN, "API key has expired"),
             ApiKeyAuthError::SpendingLimitExceeded => {
                 (StatusCode::FORBIDDEN, "API key spending limit exceeded")

@@ -9,10 +9,10 @@
 //! - replica_explain  — explain centroids and style-space topology
 
 use hkask_mcp::run_server;
-use hkask_mcp::server::ToolSpanGuard;
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_services::{EmbedProgress, EmbedService, InferenceContext};
 use hkask_storage::{Database, EmbeddingStore};
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -222,6 +222,77 @@ struct RegistryEntry {
 struct RegistryResult {
     entries: Vec<RegistryEntry>,
     message: String,
+}
+
+// ── Replica Discovery types ──────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct DiscoverRequest {
+    /// Full name of the academic author to research (e.g., "David Dunning")
+    author_name: String,
+    /// Discovery mode: "agentic" (fully automated) or "curated" (human-in-the-loop)
+    #[serde(default = "default_curated")]
+    mode: String,
+    /// Maximum number of works to include in the corpus
+    #[serde(default = "default_max_works")]
+    max_works: u32,
+    /// Whether to search for and include YouTube transcripts
+    #[serde(default = "default_true")]
+    include_transcripts: bool,
+    /// Whether to include institutional pages and open web content
+    #[serde(default = "default_true")]
+    include_web: bool,
+    /// Optional path to write the generated corpus.yaml
+    output_path: Option<String>,
+}
+
+fn default_curated() -> String {
+    "curated".to_string()
+}
+fn default_max_works() -> u32 {
+    20
+}
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Serialize)]
+struct DiscoverResult {
+    /// The manifest ID to execute for discovery
+    manifest_id: String,
+    /// Parameters forwarded to the manifest
+    parameters: serde_json::Value,
+    /// Human-readable summary of what will happen
+    summary: String,
+    /// Estimated phases
+    phases: Vec<DiscoverPhase>,
+}
+
+#[derive(Debug, Serialize)]
+struct DiscoverPhase {
+    ordinal: u32,
+    name: String,
+    description: String,
+    sources: Vec<String>,
+}
+
+// ── Cache Work types ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct CacheWorkRequest {
+    /// Work slug (used as filename: {slug}.txt)
+    slug: String,
+    /// Extracted markdown/text content to cache
+    content: String,
+    /// Cache directory path (e.g., "./.cache")
+    cache_dir: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CacheWorkResult {
+    slug: String,
+    path: String,
+    bytes_written: u64,
 }
 
 // ── Server implementation ───────────────────────────────────────────────────
@@ -654,6 +725,173 @@ impl ReplicaServer {
                 "human_exemplar_principle": "All exemplar types model a named human individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work — the corpus IS the evidence of their voice, style, and intellectual framework."
             }
         }))
+    }
+
+    #[tool(
+        description = "Discover an academic author's body of work and generate a corpus.yaml for replica_build. Delegates to the replica-discovery skill manifest which orchestrates multi-source search (Semantic Scholar, arXiv, web, YouTube transcripts), content extraction, and corpus generation. Supports agentic (fully automated) and curated (human-in-the-loop) modes."
+    )]
+    async fn replica_discover(&self, Parameters(params): Parameters<DiscoverRequest>) -> String {
+        let span = ToolSpanGuard::new("replica_discover", &self.webid);
+        let author_name = params.author_name.clone();
+
+        // Validate mode
+        let mode = match params.mode.as_str() {
+            "agentic" | "curated" => params.mode.clone(),
+            other => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!(
+                        "Invalid mode '{}'. Use 'agentic' or 'curated'.",
+                        other
+                    ))
+                    .to_json_string(),
+                );
+            }
+        };
+
+        let author_name_lower = author_name.to_lowercase();
+
+        // Build parameters for the manifest
+        let manifest_params = serde_json::json!({
+            "author_name": author_name,
+            "author_name_lower": author_name_lower,
+            "mode": mode,
+            "max_works": params.max_works,
+            "include_transcripts": params.include_transcripts,
+            "include_web": params.include_web,
+            "output_path": params.output_path,
+        });
+
+        // Build phase descriptions for the response
+        let phases = vec![
+            DiscoverPhase {
+                ordinal: 1,
+                name: "Name Disambiguation".into(),
+                description: "Search across multiple sources to confirm author identity".into(),
+                sources: vec!["web_search (deep)".into()],
+            },
+            DiscoverPhase {
+                ordinal: 2,
+                name: "Academic Paper Search".into(),
+                description: "Enumerate papers via Semantic Scholar and arXiv".into(),
+                sources: vec!["semantic_scholar".into(), "arxiv".into()],
+            },
+            DiscoverPhase {
+                ordinal: 3,
+                name: "Web + Institutional Content".into(),
+                description: "Find faculty pages, interviews, and open web content".into(),
+                sources: vec!["web_search (web)".into()],
+            },
+            DiscoverPhase {
+                ordinal: 4,
+                name: "YouTube Transcript Discovery".into(),
+                description: "Search for talks, interviews, lectures on YouTube".into(),
+                sources: vec![
+                    "web_search (youtube.com)".into(),
+                    "serpapi_transcript".into(),
+                ],
+            },
+            DiscoverPhase {
+                ordinal: 5,
+                name: "Content Extraction".into(),
+                description: "Extract full text from all discovered works".into(),
+                sources: vec!["web_extract".into(), "markitdown (PDF)".into()],
+            },
+            DiscoverPhase {
+                ordinal: 6,
+                name: "Corpus YAML Generation".into(),
+                description: "Generate corpus.yaml from discovered works".into(),
+                sources: vec!["minijinja template".into()],
+            },
+        ];
+
+        let summary = format!(
+            "Discovering corpus for '{}' in {} mode. Will search Semantic Scholar, arXiv, web{}, and generate a corpus.yaml with up to {} works.",
+            params.author_name,
+            mode,
+            if params.include_transcripts {
+                ", YouTube transcripts"
+            } else {
+                ""
+            },
+            params.max_works,
+        );
+
+        let result = DiscoverResult {
+            manifest_id: "mcp/replica-discovery".into(),
+            parameters: manifest_params,
+            summary,
+            phases,
+        };
+
+        let output = serde_json::to_value(&result)
+            .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"}));
+
+        self.record_experience(
+            "replica_discover",
+            &params.author_name,
+            "delegated_to_manifest",
+            output.clone(),
+        );
+
+        span.ok_json(output)
+    }
+
+    #[tool(
+        description = "Cache an extracted work's content to disk for reuse by replica_build. Writes content to {cache_dir}/{slug}.txt so the embedding pipeline can skip re-downloading."
+    )]
+    async fn replica_cache_work(&self, Parameters(params): Parameters<CacheWorkRequest>) -> String {
+        let span = ToolSpanGuard::new("replica_cache_work", &self.webid);
+
+        // Validate slug: alphanumeric + hyphens only, no path traversal
+        if params.slug.is_empty()
+            || !params
+                .slug
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Invalid slug '{}': must be alphanumeric with hyphens/underscores only",
+                    params.slug
+                ))
+                .to_json_string(),
+            );
+        }
+
+        let cache_dir = PathBuf::from(&params.cache_dir);
+        let cache_path = cache_dir.join(format!("{}.txt", params.slug));
+
+        // Create cache directory if it doesn't exist
+        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+            return span.internal_error(serde_json::json!({
+                "error": format!("Failed to create cache directory '{}': {}", cache_dir.display(), e),
+            }));
+        }
+
+        let bytes = params.content.as_bytes();
+        match std::fs::write(&cache_path, bytes) {
+            Ok(()) => {
+                let result = CacheWorkResult {
+                    slug: params.slug.clone(),
+                    path: cache_path.to_string_lossy().to_string(),
+                    bytes_written: bytes.len() as u64,
+                };
+                let output = serde_json::to_value(&result)
+                    .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"}));
+                self.record_experience(
+                    "replica_cache_work",
+                    &params.slug,
+                    "success",
+                    output.clone(),
+                );
+                span.ok_json(output)
+            }
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Failed to write cache file '{}': {}", cache_path.display(), e),
+            })),
+        }
     }
 }
 

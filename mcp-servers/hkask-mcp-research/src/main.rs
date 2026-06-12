@@ -20,8 +20,9 @@ use rusqlite::Connection;
 use cache::{ResponseCache, cache_key};
 use db::*;
 use providers::{
-    BraveProvider, BrowserbaseProvider, ExaProvider, FirecrawlProvider, ProviderPool,
-    RawFetchProvider, SerapiProvider, TavilyProvider, WebSearchPort,
+    ArxivProvider, BraveProvider, BrowserbaseProvider, ExaProvider, FirecrawlProvider,
+    ProviderPool, RawFetchProvider, SemanticScholarProvider, SerapiProvider, TavilyProvider,
+    WebSearchPort,
 };
 use rss_types::{
     Continuation, DiscoverRequest, EditTagRequest, FetchRequest, FetchResult, GetEntriesRequest,
@@ -96,6 +97,10 @@ impl ResearchServer {
         let mut search_providers: Vec<Box<dyn providers::WebSearchProvider>> = Vec::new();
         let mut extract_providers: Vec<Box<dyn providers::WebExtractProvider>> = Vec::new();
         let mut browse_providers: Vec<Box<dyn providers::WebBrowseProvider>> = Vec::new();
+
+        // Free providers — no API key required
+        search_providers.push(Box::new(SemanticScholarProvider::new()));
+        search_providers.push(Box::new(ArxivProvider::new()));
 
         let exa_provider = exa_api_key
             .as_ref()

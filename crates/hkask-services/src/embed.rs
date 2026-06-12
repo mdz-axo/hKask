@@ -11,12 +11,13 @@
 //! 7. **Store triples** — budget-selected passages get metadata triples
 //! 8. **Centroid** — mean vector over prose passages
 
-use hkask_inference::{EmbeddingRouter, InferenceConfig};
+use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, BudgetConfig, DeclaredMethod, EntityTags, MethodSignals};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::Visibility;
 use hkask_types::id::WebID;
+use hkask_types::template::LLMParameters;
 
 use serde::Deserialize;
 use serde_json::json;
@@ -769,11 +770,208 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
         )));
     }
 
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
     let bytes = resp
         .bytes()
         .await
         .map_err(|e| ServiceError::Embed(format!("Failed to read response: {e}")))?;
-    Ok(String::from_utf8_lossy(&bytes).to_string())
+
+    // ── PDF detection: Content-Type or .pdf extension ──
+    let is_pdf = content_type.contains("application/pdf")
+        || url.ends_with(".pdf")
+        || bytes.starts_with(b"%PDF");
+
+    if is_pdf {
+        // Write PDF bytes to a temp file for pdf-extract
+        let tmp_dir = std::env::temp_dir();
+        let tmp_path = tmp_dir.join(format!("hkask-download-{}.pdf", uuid::Uuid::new_v4()));
+        std::fs::write(&tmp_path, &bytes)
+            .map_err(|e| ServiceError::Embed(format!("Failed to write temp PDF: {e}")))?;
+
+        let text = pdf_extract::extract_text(&tmp_path).map_err(|e| {
+            ServiceError::Embed(format!("Failed to extract text from PDF '{}': {e}", url))
+        })?;
+
+        // Clean up temp file
+        let _ = std::fs::remove_file(&tmp_path);
+
+        let word_count = text.split_whitespace().count();
+        if word_count < 10 {
+            tracing::warn!(
+                url = %url,
+                word_count = word_count,
+                "PDF text extraction returned near-empty result — attempting OCR fallback"
+            );
+
+            // Attempt OCR via Ollama with LightOnOCR model
+            match ocr_pdf_bytes(&bytes, url).await {
+                Ok(ocr_text) => {
+                    let ocr_words = ocr_text.split_whitespace().count();
+                    if ocr_words > word_count {
+                        tracing::info!(
+                            url = %url,
+                            ocr_words = ocr_words,
+                            extracted_words = word_count,
+                            method = "ocr_fallback",
+                            "OCR succeeded where text extraction failed"
+                        );
+                        return Ok(ocr_text);
+                    }
+                    tracing::warn!(
+                        url = %url,
+                        ocr_words = ocr_words,
+                        "OCR also returned low word count — returning extraction result"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        url = %url,
+                        error = %e,
+                        "OCR fallback failed — returning extraction result"
+                    );
+                }
+            }
+        }
+
+        tracing::info!(
+            url = %url,
+            word_count = word_count,
+            method = "pdf_extract",
+            "Downloaded and extracted PDF"
+        );
+        return Ok(text);
+    }
+
+    // ── HTML detection ──
+    let is_html = content_type.contains("text/html")
+        || content_type.contains("application/xhtml")
+        || bytes.starts_with(b"<!DOCTYPE")
+        || bytes.starts_with(b"<html");
+
+    let raw = String::from_utf8_lossy(&bytes).to_string();
+
+    if is_html {
+        // Simple HTML tag stripping (same approach as RawFetchProvider)
+        let text = strip_html_tags(&raw);
+        tracing::info!(
+            url = %url,
+            word_count = text.split_whitespace().count(),
+            method = "html_strip",
+            "Downloaded and stripped HTML"
+        );
+        return Ok(text);
+    }
+
+    Ok(raw)
+}
+
+/// Strip HTML tags from text, preserving whitespace between block elements.
+fn strip_html_tags(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let mut in_tag = false;
+    let mut last_was_newline = false;
+
+    for ch in html.chars() {
+        if ch == '<' {
+            in_tag = true;
+            continue;
+        }
+        if in_tag {
+            if ch == '>' {
+                in_tag = false;
+                // Add newline after block-level closing tags
+                if !last_was_newline {
+                    result.push('\n');
+                    last_was_newline = true;
+                }
+            }
+            continue;
+        }
+        // Skip common HTML entities
+        if ch == '&' {
+            // Consume until ';'
+            continue;
+        }
+        if ch.is_whitespace() {
+            if !last_was_newline {
+                result.push(' ');
+                last_was_newline = false;
+            }
+        } else {
+            result.push(ch);
+            last_was_newline = false;
+        }
+    }
+
+    // Collapse multiple newlines
+    let collapsed: String = result
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    collapsed
+}
+
+/// Default OCR model for scanned PDF fallback.
+const DEFAULT_OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
+
+/// OCR system prompt — instructs the vision model to extract text faithfully.
+const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Output the text exactly as it appears, preserving the document structure and layout as closely as possible. If the document contains tables, preserve them in a readable format. Do not add commentary or description — only the extracted text.";
+
+/// Attempt OCR on PDF bytes using Ollama with the LightOnOCR vision model.
+///
+/// Encodes the PDF bytes as base64 and sends them to a vision-capable model
+/// via the inference router. Uses low temperature (0.1) for faithful extraction.
+/// If the model is not available, returns an error with a download link.
+async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
+    let ocr_model = std::env::var("HKASK_OCR_MODEL")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_OCR_MODEL.to_string());
+
+    let b64_data = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+
+    let inf_cfg = InferenceConfig::from_env();
+    let router = InferenceRouter::new(inf_cfg);
+
+    let params = LLMParameters {
+        temperature: 0.1,
+        max_tokens: 4096,
+        ..Default::default()
+    };
+
+    match router
+        .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(&ocr_model))
+        .await
+    {
+        Ok(result) => Ok(result.text),
+        Err(e) => {
+            let err_msg = e.to_string();
+            // Detect model-not-found errors and provide helpful guidance
+            if err_msg.contains("not found")
+                || err_msg.contains("model")
+                || err_msg.contains("unavailable")
+            {
+                Err(ServiceError::Embed(format!(
+                    "OCR model '{}' is not available. Download it from: https://ollama.com/maternion/LightOnOCR-2:1b\nThen run: ollama pull {}\n\nOriginal PDF '{}' could not be text-extracted (likely scanned). Set HKASK_OCR_MODEL to override the default model.",
+                    ocr_model, ocr_model, url
+                )))
+            } else {
+                Err(ServiceError::Embed(format!(
+                    "OCR inference failed for '{}': {}",
+                    url, err_msg
+                )))
+            }
+        }
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────

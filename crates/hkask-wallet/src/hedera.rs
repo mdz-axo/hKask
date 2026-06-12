@@ -274,16 +274,16 @@ impl ChainPort for HederaPort {
         // 1. Add `hiero-sdk-proto` + `tonic` (with rustls TLS) as optional deps
         // 2. Construct `TransactionBody` protobuf with CryptoTransfer
         // 3. Serialize, sign externally, submit via gRPC to consensus node
-        Err(WalletError::ChainNotEnabled {
+        Err(WalletError::ChainError {
             chain: ChainId::Hedera,
+            message: "Withdrawal transactions not yet implemented — requires hiero-sdk-proto + tonic (rustls) for gRPC submission. See crates/hkask-wallet/src/hedera.rs for integration path.".into(),
         })
     }
 
     async fn submit_signed_tx(&self, _signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        // See build_withdrawal_tx documentation.
-        // Transaction submission requires gRPC to a Hedera consensus node.
-        Err(WalletError::ChainNotEnabled {
+        Err(WalletError::ChainError {
             chain: ChainId::Hedera,
+            message: "Transaction submission not yet implemented — see build_withdrawal_tx documentation.".into(),
         })
     }
 

@@ -53,27 +53,20 @@ pub struct WalletBackedBudget {
     /// When set, the key cannot spend more than this total.
     pub spending_limit_rj: Option<RJoule>,
     /// Reference to the wallet manager for balance operations.
+    /// The manager's `WalletConfig.gas_per_rjoule` is the authoritative conversion rate.
     pub wallet_manager: Arc<WalletManager>,
-    /// Conversion rate: how many dimensionless gas units equal 1 rJoule.
-    /// Default: 1000 gas = 1 rJ (configurable via WalletConfig).
-    pub gas_per_rjoule: u64,
     /// Always true for wallet budgets — insufficient balance = rejection.
     pub hard_limit: bool,
 }
 
 impl WalletBackedBudget {
     /// Create a new wallet-backed budget.
-    pub fn new(
-        wallet_id: WalletId,
-        wallet_manager: Arc<WalletManager>,
-        gas_per_rjoule: u64,
-    ) -> Self {
+    pub fn new(wallet_id: WalletId, wallet_manager: Arc<WalletManager>) -> Self {
         Self {
             wallet_id,
             key_id: None,
             spending_limit_rj: None,
             wallet_manager,
-            gas_per_rjoule,
             hard_limit: true,
         }
     }
@@ -94,26 +87,45 @@ impl WalletBackedBudget {
     /// Check whether an operation costing `gas` can proceed.
     ///
     /// Converts gas to rJoules and checks the wallet balance.
+    /// If an API key is attached, also checks the key's spending limit.
     /// Returns `true` if the wallet can afford the cost.
     pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let cost_rj = self.gas_to_rjoules(gas.0);
+        // Check wallet balance
         match self.wallet_manager.can_afford(self.wallet_id, cost_rj) {
-            Ok(true) => true,
-            Ok(false) | Err(_) => false,
+            Ok(true) => {}
+            Ok(false) | Err(_) => return false,
         }
+        // Check key spending limit if a key is attached
+        if let Some(limit) = self.spending_limit_rj
+            && let Some(health) = self.check_key_health()
+        {
+            let would_spend = health.spent_rj + cost_rj.as_u64();
+            if would_spend > limit.as_u64() {
+                return false;
+            }
+        }
+        true
     }
 
     /// Reserve rJoules for an in-flight operation.
     ///
     /// Converts gas to rJoules and optimistically reserves the amount.
     /// The actual debit happens at `settle()` time.
+    /// Also checks key spending limit if a key is attached.
     pub fn reserve(&self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+        if !self.can_proceed(gas) {
+            return Err(EnergyError::BudgetExceeded {
+                requested: gas,
+                remaining: EnergyCost(0),
+            });
+        }
         let cost_rj = self.gas_to_rjoules(gas.0);
         self.wallet_manager
             .reserve_rjoules(self.wallet_id, cost_rj)
             .map_err(|_e| EnergyError::BudgetExceeded {
                 requested: gas,
-                remaining: EnergyCost(0), // wallet errors don't map cleanly to gas units
+                remaining: EnergyCost(0),
             })?;
         Ok(gas)
     }

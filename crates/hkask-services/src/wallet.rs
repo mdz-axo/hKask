@@ -183,21 +183,17 @@ impl WalletService {
     ///
     /// The agent's tool invocations will debit rJoules from the wallet
     /// instead of consuming from the dimensionless gas pool.
+    /// The gas→rJoule conversion rate is taken from the WalletManager's config.
     pub async fn register_wallet_budget(
         &self,
         agent: hkask_types::WebID,
         wallet_id: WalletId,
-        gas_per_rjoule: u64,
     ) -> Result<(), ServiceError> {
         let loop_ = self
             .cybernetics
             .as_ref()
             .ok_or_else(|| ServiceError::Wallet("CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into()))?;
-        let budget = hkask_cns::WalletBackedBudget::new(
-            wallet_id,
-            Arc::clone(&self.manager),
-            gas_per_rjoule,
-        );
+        let budget = hkask_cns::WalletBackedBudget::new(wallet_id, Arc::clone(&self.manager));
         loop_
             .read()
             .await

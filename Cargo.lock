@@ -2225,6 +2225,7 @@ dependencies = [
  "hkask-types",
  "hkask-wallet",
  "minijinja",
+ "pdf-extract",
  "reqwest",
  "serde",
  "serde_json",

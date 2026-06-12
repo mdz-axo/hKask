@@ -6,19 +6,23 @@ use async_trait::async_trait;
 use crate::types::*;
 use hkask_mcp::server::validate_tool_url;
 
+mod arxiv;
 mod brave;
 mod browserbase;
 mod exa;
 mod firecrawl;
 mod raw_fetch;
+mod semantic_scholar;
 mod serapi;
 mod tavily;
 
+pub use arxiv::ArxivProvider;
 pub use brave::BraveProvider;
 pub use browserbase::BrowserbaseProvider;
 pub use exa::ExaProvider;
 pub use firecrawl::FirecrawlProvider;
 pub use raw_fetch::{RawFetchProvider, truncate_str};
+pub use semantic_scholar::SemanticScholarProvider;
 pub use serapi::SerapiProvider;
 pub use tavily::TavilyProvider;
 

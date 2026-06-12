@@ -178,6 +178,7 @@ pub enum SearchCapability {
     News,
     Freshness,
     Semantic,
+    Transcript,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

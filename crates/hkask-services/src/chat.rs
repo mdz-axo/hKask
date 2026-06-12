@@ -945,7 +945,7 @@ pub struct TurnRequest {
     pub tool_results: Option<String>,
     /// Whether to auto-condense conversation history when approaching context limits.
     /// When true and context exceeds 87.5% of `context_window`, the oldest half
-    /// of messages are condensed via the condenser library.
+    /// of messages are condensed via `InferencePort::generate_with_model()`.
     pub auto_condense: bool,
     /// Model context window size in tokens, used for condensation threshold.
     /// None disables condensation (e.g., model metadata not yet fetched).
