@@ -73,6 +73,8 @@ pub async fn agent_register(
         persona: None,
         depends_on: vec![],
         process_manifest: None,
+        phone_number: None,
+        whatsapp_id: None,
     };
     let reg = RegisteredAgent {
         definition: def,

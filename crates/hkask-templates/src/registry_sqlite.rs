@@ -4,8 +4,10 @@
 //! consistent with `hkask_storage::Database::conn_arc()`. Use `new_with_conn()`
 //! when opening through `hkask_storage::Database` (SQLCipher-encrypted).
 
-use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
-use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex, SkillZone};
+use crate::ports::{Result, TemplateError};
+use hkask_types::ports::{
+    BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex, SkillZone,
+};
 use hkask_types::{
     BundleManifest, HLexicon, InfrastructureError, Skill, SkillPolarity, TemplateType, Visibility,
 };

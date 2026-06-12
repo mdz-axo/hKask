@@ -24,12 +24,6 @@ pub enum McpError {
     NoRuntime(String),
 }
 
-/// Git CAS errors
-///
-/// Re-exported from `hkask_types::GitError` for backward compatibility.
-/// The canonical definition lives in `hkask_types`.
-pub use hkask_types::GitError;
-
 /// Shared core error variants used across multiple agent domains.
 ///
 /// Consolidates `Infra(#[from] InfrastructureError)`, `NoSnapshot`,

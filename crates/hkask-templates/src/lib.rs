@@ -25,7 +25,7 @@ pub use hkask_types::ports::SkillZone;
 pub use hkask_types::{BundleManifest, SkillPolarity};
 
 pub use manifest_loader::resolve_manifest;
-pub use ports::{McpPort, RegistryEntry, RegistryIndex, Result, TemplateError};
+pub use ports::{McpPort, Result, TemplateError};
 pub use prompt_strategy::PromptStrategy;
 
 pub use registry::Registry;

@@ -263,6 +263,11 @@ pub enum ServiceError {
     /// Operation rate limited (too soon after previous invocation).
     #[error("{0}")]
     RateLimited(String),
+
+    // ── Configuration / setup ───────────────────────────────────────────
+    /// Configuration or external service setup failed.
+    #[error("Config error: {0}")]
+    Config(String),
 }
 
 impl From<uuid::Error> for ServiceError {

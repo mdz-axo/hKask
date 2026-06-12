@@ -36,7 +36,7 @@ pub use curator::context::CuratorContext;
 pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 
-pub use error::{CoreError, GitError, MemoryError};
+pub use error::{CoreError, MemoryError};
 pub use hkask_storage::{
     EscalationBatch, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,
     EscalationStatus,

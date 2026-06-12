@@ -40,29 +40,7 @@ pub enum TemplateError {
 
 pub type Result<T> = std::result::Result<T, TemplateError>;
 
-/// Registry entry for template discovery
-///
-/// Canonical definition lives in `hkask_types::ports::RegistryEntry`.
-/// Re-exported here for backward compatibility.
-pub use hkask_types::ports::RegistryEntry;
-
-/// Registry index port
-///
-/// Canonical definition lives in `hkask_types::ports::RegistryIndex`.
-/// Re-exported here for backward compatibility.
-pub use hkask_types::ports::RegistryIndex;
-
-/// Registry error type
-///
-/// Canonical definition lives in `hkask_types::ports::RegistryError`.
-/// Re-exported here for backward compatibility.
-pub use hkask_types::ports::RegistryError;
-
-/// Tool information metadata
-///
-/// Canonical definition lives in `hkask_types::ports::ToolInfo`.
-/// Re-exported here for backward compatibility.
-pub use hkask_types::ports::ToolInfo;
+use hkask_types::ports::ToolInfo;
 
 /// MCP port for tool invocation
 ///

@@ -178,7 +178,7 @@ impl OnboardingService {
     ) -> Result<(), ServiceError> {
         store
             .store_user_profile(profile)
-            .map_err(|e| ServiceError::AgentRegistryStore(e.to_string()))
+            .map_err(ServiceError::AgentRegistryStore)
     }
 
     /// Retrieve the human user's profile from the registry.
@@ -187,7 +187,7 @@ impl OnboardingService {
     ) -> Result<Option<UserProfile>, ServiceError> {
         store
             .get_user_profile()
-            .map_err(|e| ServiceError::AgentRegistryStore(e.to_string()))
+            .map_err(ServiceError::AgentRegistryStore)
     }
 
     /// Verify sign-in: initialize the registry with the given config and

@@ -82,9 +82,8 @@ use hkask_mcp::GitCasAdapter;
 pub use context::PodContext;
 pub use manager::{PodManager, PodStatus};
 
-pub use types::{
-    AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile,
-};
+pub use hkask_types::{TemplateCrate, TemplateFile};
+pub use types::{AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState};
 
 /// Agent Pod — Runtime container for ACP agents
 pub struct AgentPod {

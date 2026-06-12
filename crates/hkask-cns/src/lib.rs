@@ -17,15 +17,6 @@ pub mod runtime; // Loop 6 — runtime
 pub mod set_points; // Loop 6 — set-points config & loaders
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_energy_estimator; // Per-server energy cost table
-// variety module merged into runtime.rs (TASK 2 deletion test):
-// VarietyMonitor and VarietyTracker are now co-located with their
-// sole consumer (CnsRuntime), increasing module depth.
-pub mod variety {
-    //! Thin re-export for backward compatibility.
-    //! All types live in `crate::runtime` since v0.27.2.
-    pub use crate::runtime::VarietyMonitor;
-}
-
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;
@@ -45,7 +36,3 @@ pub use set_points::{
     load_set_points,
 };
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
-
-// Re-export types moved to hkask-types for backward compatibility
-pub use hkask_types::cns::{CircuitState, CnsHealth};
-pub use hkask_types::ports::CircuitBreakerPort;

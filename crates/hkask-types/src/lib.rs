@@ -92,7 +92,7 @@ pub use ports::{
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, ZeroizingSecret, derivation_contexts};
-pub use sovereignty::{DataCategory, SovereigntyPort, UserSovereigntyState};
+pub use sovereignty::{DataCategory, UserSovereigntyState};
 pub use template::{LLMParameters, TemplateCrate, TemplateFile};
 pub use text::blake3_hash;
 pub use time::now_rfc3339;

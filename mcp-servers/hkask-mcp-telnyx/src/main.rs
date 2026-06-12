@@ -2,7 +2,7 @@
 
 use hkask_mcp::server::{ToolSpanGuard, api_get, api_post, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -43,6 +43,19 @@ pub struct ListVoicesRequest {
     pub language: Option<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NotifyUserRequest {
+    /// Message content to send to the human user
+    pub message: String,
+    /// Preferred channel: "sms", "whatsapp", or "call". Defaults to "sms".
+    #[serde(default = "default_channel")]
+    pub channel: String,
+}
+
+fn default_channel() -> String {
+    "sms".to_string()
+}
+
 pub struct TelnyxServer {
     webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
@@ -50,6 +63,10 @@ pub struct TelnyxServer {
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
     daemon: Option<DaemonClient>,
     client: reqwest::Client,
+    /// Human user's phone number (from HKASK_USER_PHONE env var)
+    user_phone: Option<String>,
+    /// Human user's name (from HKASK_USER_NAME env var)
+    user_name: Option<String>,
 }
 
 impl TelnyxServer {
@@ -58,6 +75,8 @@ impl TelnyxServer {
         replicant: String,
         daemon: Option<DaemonClient>,
         api_key: String,
+        user_phone: Option<String>,
+        user_name: Option<String>,
     ) -> Result<Self, anyhow::Error> {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}")) {
@@ -72,6 +91,8 @@ impl TelnyxServer {
             replicant,
             daemon,
             client,
+            user_phone,
+            user_name,
         })
     }
 
@@ -267,6 +288,85 @@ impl TelnyxServer {
             "source": "static catalog (Telnyx Call Control API docs)",
         }))
     }
+
+    #[tool(
+        description = "Send a message to the human user via the best available channel (SMS, WhatsApp, or call). Uses the replicant's own number as sender and the user's phone as recipient."
+    )]
+    async fn telnyx_notify_user(
+        &self,
+        Parameters(NotifyUserRequest { message, channel }): Parameters<NotifyUserRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("telnyx_notify_user", &self.webid);
+
+        let user_phone = match &self.user_phone {
+            Some(p) if !p.is_empty() => p.clone(),
+            _ => {
+                return span.error(
+                    McpErrorKind::FailedPrecondition,
+                    serde_json::json!({
+                        "error": "User phone not configured. Set HKASK_USER_PHONE or complete onboarding."
+                    }).to_string(),
+                );
+            }
+        };
+
+        let replicant_phone = std::env::var("HKASK_REPLICANT_PHONE").ok();
+
+        match channel.as_str() {
+            "whatsapp" => {
+                let from = replicant_phone.unwrap_or_else(|| user_phone.clone());
+                let url = format!("{BASE_URL}/messages");
+                let payload = serde_json::json!({
+                    "from": from,
+                    "to": user_phone,
+                    "type": "whatsapp",
+                    "whatsapp": {
+                        "content_type": "text",
+                        "content": message,
+                    },
+                });
+                span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
+            }
+            "call" => {
+                let from = match replicant_phone {
+                    Some(ref p) => p.clone(),
+                    None => {
+                        return span.error(
+                            McpErrorKind::FailedPrecondition,
+                            serde_json::json!({
+                                "error": "Replicant phone not configured. Set HKASK_REPLICANT_PHONE or assign a number via onboarding."
+                            }).to_string(),
+                        );
+                    }
+                };
+                let url = format!("{BASE_URL}/calls");
+                let payload = serde_json::json!({
+                    "from": from,
+                    "to": user_phone,
+                    "connection_id": "default",
+                });
+                span.finish(api_post(&self.client, "Telnyx", &url, &payload).await)
+            }
+            _ => {
+                // Default: SMS
+                let from = replicant_phone.unwrap_or_else(|| user_phone.clone());
+                let url = format!("{BASE_URL}/messages");
+                let payload = serde_json::json!({
+                    "from": from,
+                    "to": user_phone,
+                    "text": message,
+                });
+                let result = api_post(&self.client, "Telnyx", &url, &payload).await;
+                self.record_experience(
+                    "telnyx_notify_user",
+                    &format!("sms to user"),
+                    if result.is_ok() { "success" } else { "error" },
+                    serde_json::json!({"message_length": message.len()}),
+                );
+                span.finish(result)
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -287,6 +387,9 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
+    let user_phone = std::env::var("HKASK_USER_PHONE").ok();
+    let user_name = std::env::var("HKASK_USER_NAME").ok();
+
     hkask_mcp::run_server(
         "hkask-mcp-telnyx",
         env!("CARGO_PKG_VERSION"),
@@ -296,7 +399,14 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_TELNYX_API_KEY")
                 .expect("required credential checked by run_stdio_server")
                 .clone();
-            TelnyxServer::new(ctx.webid, replicant.clone(), daemon_client.clone(), api_key)
+            TelnyxServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                api_key,
+                user_phone.clone(),
+                user_name.clone(),
+            )
         },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_TELNYX_API_KEY",

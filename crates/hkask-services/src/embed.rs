@@ -29,10 +29,8 @@ use crate::error::ServiceError;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
-pub use hkask_memory::salience::{
-    BudgetConfig as BudgetConfigReexport, DeclaredMethod as DeclaredMethodReexport,
-    MethodSignals as MethodSignalsReexport,
-};
+// (salience type re-exports deleted — essentialist review: zero external callers.
+//  Import BudgetConfig, DeclaredMethod, MethodSignals directly from hkask_memory::salience.)
 
 /// Progress callback — called every 3 seconds during embedding.
 pub type ProgressFn = Arc<dyn Fn(&EmbedProgress) + Send + Sync>;

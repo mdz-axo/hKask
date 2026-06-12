@@ -32,6 +32,10 @@ struct YamlAgentHeader {
     name: String,
     #[serde(rename = "type")]
     agent_type: String,
+    #[serde(default)]
+    phone_number: Option<String>,
+    #[serde(default)]
+    whatsapp_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -178,6 +182,8 @@ impl RawYamlAgent {
                 source_path
             ))
         })?;
+        let phone_number = header.phone_number.clone();
+        let whatsapp_id = header.whatsapp_id.clone();
 
         let agent_kind = AgentKind::parse(&header.agent_type).ok_or_else(|| {
             RegistryLoaderError::InvalidDefinition(format!(
@@ -186,8 +192,13 @@ impl RawYamlAgent {
             ))
         })?;
 
+        // Extract header fields before moving out of self (borrow checker)
+        let phone_number = header.phone_number.clone();
+        let whatsapp_id = header.whatsapp_id.clone();
+        let header_name = header.name.clone();
+
         Ok(AgentDefinition {
-            name: header.name.clone(),
+            name: header_name,
             agent_kind,
             charter: self.charter.map(|c| hkask_types::Charter {
                 description: c.description,
@@ -206,6 +217,8 @@ impl RawYamlAgent {
             }),
             depends_on: self.depends_on,
             process_manifest: self.process_manifest,
+            phone_number,
+            whatsapp_id,
         })
     }
 }

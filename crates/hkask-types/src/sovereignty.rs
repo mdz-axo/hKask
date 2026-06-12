@@ -287,15 +287,3 @@ impl Default for UserSovereigntyState {
         Self::new()
     }
 }
-
-// Sovereignty Port Types
-
-/// Sovereignty port — abstraction for sovereignty checking
-///
-/// Implemented by `SovereigntyChecker` in `hkask-agents`.
-/// Enables MCP and other infrastructure crates to depend on the
-/// abstraction without depending on the orchestration crate.
-pub trait SovereigntyPort: Send + Sync {
-    /// Check if data category is accessible by requester
-    fn can_access(&self, data_category: &DataCategory, requester: &crate::WebID) -> bool;
-}

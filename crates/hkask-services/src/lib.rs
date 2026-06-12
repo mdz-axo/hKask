@@ -21,6 +21,7 @@ pub mod settings;
 pub mod skill;
 pub mod sovereignty;
 pub mod spec;
+pub mod telnyx_setup;
 pub mod verification;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
@@ -38,10 +39,8 @@ pub use config::ServiceConfig;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use embed::{
-    BudgetConfigReexport as BudgetConfig, ChunkingConfig, CorpusConfig,
-    DeclaredMethodReexport as DeclaredMethod, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
-    EmbeddingConfig, Entity, EntityConfig, FoundationalRule,
-    MethodSignalsReexport as MethodSignals, ProgressFn, ValidationConfig, Work,
+    ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
+    EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };
 pub use ensemble::{CyberneticsLoopGasAdapter, EnsembleService};
 pub use error::ServiceError;
@@ -58,6 +57,9 @@ pub use sovereignty::SovereigntyService;
 pub use spec::{
     CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
     SpecService, WritingQualityResult,
+};
+pub use telnyx_setup::{
+    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms, verify_api_key,
 };
 pub use verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,

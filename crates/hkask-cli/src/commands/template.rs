@@ -2,8 +2,9 @@
 
 use crate::cli::TemplateAction;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
-use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
+use hkask_templates::{SqliteRegistry, TemplateError};
 use hkask_types::TemplateType;
+use hkask_types::ports::{RegistryEntry, RegistryIndex};
 use serde_json::Value;
 
 /// Template list command

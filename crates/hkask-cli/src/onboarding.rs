@@ -12,9 +12,10 @@
 
 use hkask_services::{
     InferenceContext, InferenceService, ModelInfo, OnboardingService, ResolvedSecrets,
-    ServiceConfig,
+    ServiceConfig, get_messaging_profile, order_number, search_available_numbers, send_welcome_sms,
+    verify_api_key,
 };
-use hkask_types::RegisteredAgent;
+use hkask_types::{RegisteredAgent, UserProfile};
 use thiserror::Error;
 
 use crate::repl::display;
@@ -108,20 +109,55 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     println!("\n  \x1b[1mAdd a new replicant\x1b[0m");
     println!("  Each replicant is a distinct AI identity with its own memory and charter.\n");
 
-    // Q1: Replicant name
-    let name = prompt_line("  Replicant name:")?;
+    // Require existing secrets from the keychain — `kask onboard` adds to an existing
+    // installation, it does not bootstrap one.
+    let config = ServiceConfig::from_env().map_err(|_| {
+        eprintln!("  \x1b[31m✗\x1b[0m No hKask installation found in OS keychain.");
+        eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
+        eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
+        OnboardingError::Database("No keychain secrets — run `kask chat` first".to_string())
+    })?;
+
+    // Open the existing registry.
+    let handle = OnboardingService::init_registry(&config)
+        .await
+        .map_err(|e| {
+            eprintln!("  \x1b[31m✗\x1b[0m Cannot open registry: {}", e);
+            eprintln!("  Make sure you have completed first-run setup (`kask chat`).");
+            e
+        })?;
+
+    // Load the user profile for naming protocol
+    let user_profile = OnboardingService::get_user_profile(&handle.store).map_err(|e| {
+        eprintln!("  \x1b[31m✗\x1b[0m Cannot read user profile: {}", e);
+        e
+    })?;
+
+    // Q1: Replicant first name
+    if let Some(ref profile) = user_profile {
+        println!(
+            "  Your replicant's full name will be \x1b[36m[chosen] r{}\x1b[0m.",
+            profile.last_name
+        );
+    }
+    let name = prompt_line("  Replicant first name:")?;
     let name = if name.trim().is_empty() {
         println!("  Name cannot be empty. Using 'Assistant' as default.");
         "Assistant".to_string()
     } else {
         name.trim().to_string()
     };
+    let display_name = if let Some(ref profile) = user_profile {
+        profile.replicant_display_name(&name)
+    } else {
+        name.clone()
+    };
 
     // Q2: Description / charter
     println!();
     let description = prompt_line(&format!(
         "  What should \x1b[36m{}\x1b[0m help you with? (e.g., 'research assistant'):",
-        name
+        display_name
     ))?;
     let description = if description.trim().is_empty() {
         "A helpful AI assistant".to_string()
@@ -134,48 +170,41 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     println!("  \x1b[1mChoose a model\x1b[0m for this replicant.");
     let selected_model = select_model().await;
 
-    // Require existing secrets from the keychain — `kask onboard` adds to an existing
-    // installation, it does not bootstrap one. If no secrets are found the user needs
-    // to run `kask chat` first, which performs full first-run setup and stores keys.
-    // Silently deriving and NOT storing secrets here would leave the installation
-    // in an inconsistent state on the next invocation.
-    let config = ServiceConfig::from_env().map_err(|_| {
-        eprintln!("  \x1b[31m✗\x1b[0m No hKask installation found in OS keychain.");
-        eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
-        eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
-        OnboardingError::Database("No keychain secrets — run `kask chat` first".to_string())
+    OnboardingService::register_replicant(
+        &handle.acp,
+        &handle.store,
+        &name,
+        &description,
+        user_profile.as_ref(),
+        None,
+        None,
+    )
+    .await
+    .map_err(|e| {
+        eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
+        e
     })?;
 
-    // Open the existing registry and register the new replicant.
-    let handle = OnboardingService::init_registry(&config)
-        .await
-        .map_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Cannot open registry: {}", e);
-            eprintln!("  Make sure you have completed first-run setup (`kask chat`).");
-            e
-        })?;
-
-    OnboardingService::register_replicant(&handle.acp, &handle.store, &name, &description)
-        .await
-        .map_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
-            e
-        })?;
-
-    // Summary — no "Getting started" section since the user is already set up.
+    // Summary
     println!();
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
     println!("  \x1b[1;32m  ✓  Replicant added!\x1b[0m");
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
     println!();
-    println!("  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m", name);
+    println!(
+        "  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m",
+        display_name
+    );
     println!("  \x1b[1mPurpose:\x1b[0m   {}", description);
     println!(
         "  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m",
         selected_model
     );
     println!();
-    println!("  Start a session: \x1b[36mkask chat {}\x1b[0m", name);
+    println!(
+        "  Start a session: \x1b[36mkask chat {}\x1b[0m",
+        display_name
+    );
     println!();
 
     Ok(())
@@ -238,10 +267,64 @@ async fn fetch_models_for_onboarding() -> Vec<ModelInfo> {
 /// Flow: Create the user's first replicant
 async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingError> {
     println!("\n  \x1b[1mWelcome to hKask!\x1b[0m");
-    println!("  Let's set up your first replicant — your personal AI assistant.\n");
+    println!("  Let's set up your profile and your first replicant.\n");
 
-    // Q1: Replicant name
-    let name = prompt_line("  What would you like to name your replicant?")?;
+    // ── Human identity (collected first — replicant naming depends on it) ──
+
+    // Q1: Human first name
+    let human_first = prompt_line("  What is your first name?")?;
+    let human_first = human_first.trim().to_string();
+    if human_first.is_empty() {
+        println!("  Name cannot be empty. Please enter your first name.");
+        return Err(OnboardingError::Cancelled);
+    }
+
+    // Q2: Human last name
+    println!();
+    let human_last = prompt_line("  What is your last name?")?;
+    let human_last = human_last.trim().to_string();
+    if human_last.is_empty() {
+        println!("  Name cannot be empty. Please enter your last name.");
+        return Err(OnboardingError::Cancelled);
+    }
+
+    // Q3: Human phone
+    println!();
+    println!("  Your phone number lets your replicant reach you via call, SMS, or WhatsApp.");
+    let human_phone = prompt_line("  Your phone number (e.g., +15551234567):")?;
+    let human_phone = human_phone.trim().to_string();
+    if human_phone.is_empty() {
+        println!("  Skipping phone — you can add it later via settings.");
+    }
+    let human_phone = if human_phone.is_empty() {
+        String::new()
+    } else {
+        human_phone
+    };
+
+    // Q4: Human email
+    println!();
+    let human_email = prompt_line("  Your email address:")?;
+    let human_email = human_email.trim().to_string();
+
+    let user_profile = UserProfile {
+        first_name: human_first.clone(),
+        last_name: human_last.clone(),
+        phone: human_phone.clone(),
+        email: human_email,
+    };
+
+    // ── Replicant creation ──
+
+    // Q5: Replicant first name (naming protocol explained)
+    println!();
+    println!("  \x1b[1mNow, name your replicant.\x1b[0m");
+    println!(
+        "  Your replicant's full name will be \x1b[36m[chosen] r{}\x1b[0m —",
+        human_last
+    );
+    println!("  so you always know it's your assistant.");
+    let name = prompt_line("  What first name should your replicant have?")?;
     let name = name.trim().to_string();
     if name.is_empty() {
         println!("  Name cannot be empty. Using 'Curator' as default.");
@@ -251,12 +334,13 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     } else {
         name
     };
+    let display_name = user_profile.replicant_display_name(&name);
 
-    // Q2: Description / charter
+    // Q6: Description / charter
     println!();
     let description = prompt_line(&format!(
         "  What should \x1b[36m{}\x1b[0m help you with? (e.g., 'coding assistant, research helper')",
-        name
+        display_name
     ))?;
     let description = if description.trim().is_empty() {
         "A helpful AI assistant".to_string()
@@ -264,13 +348,13 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         description.trim().to_string()
     };
 
-    // Q3: Model selection
+    // Q7: Model selection
     println!();
     println!("  \x1b[1mChoose a model\x1b[0m for your replicant to use.");
     println!("  Models determine how your replicant thinks and responds.");
     let selected_model = select_model().await;
 
-    // Q4: Master passphrase (with confirmation)
+    // Q8: Master passphrase (with confirmation)
     println!();
     println!("  Choose a \x1b[1mmaster passphrase\x1b[0m to encrypt your data.");
     println!("  This passphrase derives all your internal security keys.");
@@ -303,7 +387,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         resolved.acp_secret.clone(),
         resolved.db_passphrase.clone(),
         resolved.acp_secret.clone(), // MCP secret fallback to ACP
-        name.clone(),
+        display_name.clone(),
     );
     let handle = OnboardingService::init_registry(&config)
         .await
@@ -313,24 +397,170 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
             cleanup(&config);
         })?;
 
-    // Register the new replicant
-    OnboardingService::register_replicant(&handle.acp, &handle.store, &name, &description)
-        .await
-        .inspect_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
-            eprintln!("  Run `kask chat` to retry onboarding.");
-            cleanup(&config);
-        })?;
+    // Store the user profile
+    OnboardingService::store_user_profile(&handle.store, &user_profile).inspect_err(|e| {
+        eprintln!("  \x1b[31m✗\x1b[0m Failed to store user profile: {}", e);
+        cleanup(&config);
+    })?;
+
+    // Register the new replicant with naming protocol applied
+    OnboardingService::register_replicant(
+        &handle.acp,
+        &handle.store,
+        &name,
+        &description,
+        Some(&user_profile),
+        None, // phone_number — set post-creation via Telnyx setup
+        None, // whatsapp_id — set post-creation via Telnyx setup
+    )
+    .await
+    .inspect_err(|e| {
+        eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
+        eprintln!("  Run `kask chat` to retry onboarding.");
+        cleanup(&config);
+    })?;
+
+    // ── Telnyx: phone + WhatsApp setup (optional) ──
+
+    if !user_profile.phone.is_empty() {
+        println!();
+        println!(
+            "  \x1b[1mPhone & WhatsApp\x1b[0m — {} can reach you via SMS, WhatsApp, and calls.",
+            display_name
+        );
+        let enable = prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
+        if enable.trim().to_lowercase() == "y" {
+            match setup_telnyx_for_replicant(&display_name, &user_profile.phone).await {
+                Ok((phone, whatsapp)) => {
+                    // Update the replicant's definition with the new phone number
+                    let mut agent = handle.store.get(&display_name).map_err(|e| {
+                        OnboardingError::Database(format!("Failed to read back replicant: {e}"))
+                    })?;
+                    agent.definition.phone_number = Some(phone);
+                    agent.definition.whatsapp_id = Some(whatsapp);
+                    handle.store.insert(&agent).map_err(|e| {
+                        OnboardingError::Database(format!("Failed to update replicant: {e}"))
+                    })?;
+                }
+                Err(e) => {
+                    eprintln!("  \x1b[33m⚠\x1b[0m  Telnyx setup skipped: {e}");
+                    eprintln!(
+                        "  You can set up phone/WhatsApp later via `kask pod assign {} telnyx`.",
+                        display_name
+                    );
+                }
+            }
+        }
+    }
 
     // Post-creation summary
-    print_creation_summary(&name, &description, &selected_model);
+    print_creation_summary(&display_name, &description, &selected_model);
 
     Ok(OnboardingOutcome {
-        signed_in_agent: name,
+        signed_in_agent: display_name,
         resolved_secrets: Some(resolved),
         selected_model: Some(selected_model),
         is_first_run: true,
     })
+}
+
+/// Provision a phone number and send a welcome SMS for a newly created replicant.
+///
+/// Returns (phone_number, whatsapp_id) on success. Both are the same E.164 number.
+async fn setup_telnyx_for_replicant(
+    replicant_name: &str,
+    user_phone: &str,
+) -> Result<(String, String), OnboardingError> {
+    // Check for API key
+    let api_key = match std::env::var("HKASK_TELNYX_API_KEY") {
+        Ok(k) if !k.is_empty() => k,
+        _ => {
+            return Err(OnboardingError::Database(
+                "HKASK_TELNYX_API_KEY not set. Add it to your environment (see env.example) and try again.".to_string(),
+            ));
+        }
+    };
+
+    // Verify the key works
+    println!("  Verifying Telnyx API key...");
+    if !verify_api_key(&api_key)
+        .await
+        .map_err(|e| OnboardingError::Database(format!("Telnyx API error: {e}")))?
+    {
+        return Err(OnboardingError::Database(
+            "Telnyx API key rejected. Check your key at telnyx.com and ensure your account is funded.".to_string(),
+        ));
+    }
+    println!("  \x1b[32m✓\x1b[0m API key valid");
+
+    // Search available numbers (try to match user's area code)
+    let area_code = user_phone
+        .strip_prefix('+')
+        .and_then(|s| s.get(..3))
+        .or_else(|| user_phone.get(..3));
+    println!("  Searching available phone numbers...");
+    let numbers = search_available_numbers(&api_key, area_code)
+        .await
+        .map_err(|e| OnboardingError::Database(format!("Number search failed: {e}")))?;
+
+    if numbers.is_empty() {
+        return Err(OnboardingError::Database(
+            "No available phone numbers found. Try again later or check your Telnyx account."
+                .to_string(),
+        ));
+    }
+
+    // Pick the first available number (user can refine later)
+    let chosen_number = numbers[0].clone();
+    println!(
+        "  \x1b[32m✓\x1b[0m Found number: \x1b[36m{}\x1b[0m",
+        chosen_number
+    );
+
+    // Get or create a messaging profile
+    println!("  Setting up messaging profile...");
+    let profile_id = get_messaging_profile(&api_key)
+        .await
+        .map_err(|e| OnboardingError::Database(format!("Messaging profile error: {e}")))?;
+    println!("  \x1b[32m✓\x1b[0m Messaging profile ready");
+
+    // Order the number
+    println!("  Ordering phone number...");
+    let ordered = order_number(&api_key, &chosen_number, &profile_id)
+        .await
+        .map_err(|e| OnboardingError::Database(format!("Number order failed: {e}")))?;
+    println!(
+        "  \x1b[32m✓\x1b[0m Number ordered: \x1b[36m{}\x1b[0m",
+        ordered
+    );
+
+    // Send welcome SMS
+    println!("  Sending welcome message to your phone...");
+    send_welcome_sms(&api_key, &ordered, user_phone, replicant_name)
+        .await
+        .map_err(|e| OnboardingError::Database(format!("Welcome SMS failed: {e}")))?;
+    println!(
+        "  \x1b[32m✓\x1b[0m Welcome SMS sent to \x1b[36m{}\x1b[0m",
+        user_phone
+    );
+    println!();
+    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    println!(
+        "  \x1b[1;32m  ✓  {} is now reachable!\x1b[0m",
+        replicant_name
+    );
+    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    println!();
+    println!("  \x1b[1mNumber:\x1b[0m     \x1b[36m{}\x1b[0m", ordered);
+    println!("  \x1b[1mSMS:\x1b[0m        \x1b[32mReady\x1b[0m");
+    println!("  \x1b[1mWhatsApp:\x1b[0m   \x1b[32mReady\x1b[0m");
+    println!(
+        "  \x1b[1mContact:\x1b[0m    Check your phone — {} just texted you!",
+        replicant_name
+    );
+    println!();
+
+    Ok((ordered.clone(), ordered))
 }
 
 /// Let the user select a model during onboarding.

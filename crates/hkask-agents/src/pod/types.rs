@@ -234,9 +234,3 @@ impl AgentPersona {
         Ok(())
     }
 }
-
-/// Template crate structure (loaded from Git CAS)
-///
-/// Re-exported from `hkask_types::TemplateCrate` for backward compatibility.
-/// The canonical definition lives in `hkask_types`.
-pub use hkask_types::{TemplateCrate, TemplateFile};
