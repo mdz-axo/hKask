@@ -61,6 +61,9 @@ From `diagnose`: build a feedback loop before hypothesizing. A 2-second determin
 
 Write the regression test **before the fix** — but only if there is a correct seam for it. If no correct seam exists, that itself is an architecture finding.
 
+[^beck-tdd]: Beck, Kent. *Test-Driven Development: By Example.* Addison-Wesley, 2003. — The red-green-refactor cycle and the principle of writing tests before implementation.
+[^feathers-seam]: Feathers, Michael. *Working Effectively with Legacy Code.* Prentice Hall, 2004. Chapter 4: "The Seam Model" — a seam is a place where behavior can be altered without editing in place.
+
 ---
 
 ## 2. Test Classification
@@ -88,6 +91,8 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 - Add a `// TEST-DEBT: tests private <detail>` comment above the test
 - Link the debt in the test traceability section of the relevant MDS category
 - The debt is resolved when a deeper interface makes the test unnecessary
+
+[^feathers-test-categories]: Feathers, Michael. *Working Effectively with Legacy Code.* Prentice Hall, 2004. Chapter 13: "I Need to Make a Change but I Don't Know What Tests to Write" — characterization tests vs. regression tests, and the concept of test debt.
 
 ---
 
@@ -124,6 +129,8 @@ mod tests {
     // When a seam doesn't exist, that's a finding (see §2.2)
 }
 ```
+
+[^rust-book]: Klabnik, Steve, and Carol Nichols. *The Rust Programming Language.* No Starch Press, 2019. Chapter 11: "Writing Automated Tests" — `#[cfg(test)]` modules, `#[test]` attribute, and test organization conventions.
 
 ---
 
@@ -212,6 +219,8 @@ Each MDS category has a distinct testing emphasis:
 | **Key invariant** | Coherence threshold gates curation decisions |
 | **Anti-pattern** | Testing Jaccard similarity in isolation without testing the full curation pipeline |
 
+[^ddmvss-strategy]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/MDS.md` — the 5-category, 6-tool framework that defines the test strategy categories.
+
 ---
 
 ## 5. Workflow (Per Skill)
@@ -289,6 +298,10 @@ When making changes:
 | **architecture-review** | `improve-codebase-architecture` + `zoom-out` + `grill-me` | Refactoring with big-picture context and stress-testing |
 | **spec-session** | `tdd` + `skill-bundler` | Writing MDS specs with test traceability |
 
+[^beck-tdd-workflow]: Beck, Kent. *Test-Driven Development: By Example.* Addison-Wesley, 2003. — The red-green-refactor cycle as a workflow discipline.
+[^pocock-tdd-skill]: Pocock, M. (2025). *TDD Skill.* Project-local skill: `.agents/skills/tdd/SKILL.md`
+[^diagnose-skill]: hKask Team. (2026). *Diagnose Skill.* Project-local skill: `.agents/skills/diagnose/SKILL.md`
+
 ---
 
 ## 6. Test Traceability
@@ -342,6 +355,8 @@ Priority is determined by risk: security and correctness-critical paths first.
 | Test Debt | `grep -r "TEST-DEBT" crates/ --include="*.rs" \| wc -l` | Decreasing over time |
 | P6/P7 | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 
+[^traceability-matrix]: hKask Team. (2026). *Traceability Matrix.* `docs/specifications/TRACEABILITY_MATRIX.md` — bidirectional code→test traceability with requirement tags.
+
 ---
 
 ## 7. Integration Test Infrastructure
@@ -370,6 +385,8 @@ For the `MCP ≡ CLI ≡ API` axiom (REQ-IFC-001), create integration tests that
 2. Assert that the result is structurally identical
 3. Run as `tests/surface_parity.rs` in `hkask-api`
 
+[^meszaros-xunit]: Meszaros, Gerard. *xUnit Test Patterns: Refactoring Test Code.* Addison-Wesley, 2007. — Shared fixtures, test doubles, and the test infrastructure patterns referenced in this section.
+
 ---
 
 ## 8. Skill Integration
@@ -385,6 +402,8 @@ The following skills are project-local in `hKask/.agents/skills/` and govern tes
 | `zoom-out` | Module map, caller graph, data flow, boundary summary | Unfamiliar code, lost in the weeds |
 | `grill-me` | Socratic interrogation of design decisions | Before implementing, after reviewing, during architecture review |
 | `skill-bundler` | Compose multiple skills into a coordinated session | When multiple skills need to coordinate |
+
+[^karpathy-guidelines-skill]: Karpathy, A. (2025). *Coding Guidelines Skill.* Project-local skill: `.agents/skills/coding-guidelines/SKILL.md` — the four behavioral principles governing all code changes.
 
 ---
 

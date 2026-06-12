@@ -14,6 +14,8 @@ mds_categories: [curation]
 
 **Usage:** Copy this template to `docs/architecture/ADR-NNN-kebab-case-title.md` and fill in sections.
 
+[^nygard-adr]: Nygard, M. (2011). *Documenting Architecture Decisions.* Relevance. http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions — the original ADR format that this template adapts for hKask.
+
 ---
 
 ## Template
@@ -217,6 +219,8 @@ ADRs must include at least one external citation per major section:
 
 See [`../standards/DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_STANDARDS.md) §5 for citation format.
 
+[^kruchten-4plus1]: Kruchten, P. (1995). *The 4+1 View Model of Architecture.* IEEE Software. — The architectural view model that informs ADR organization: logical, process, development, physical, and scenarios.
+
 ---
 
 ## Examples
@@ -242,6 +246,8 @@ See [`../standards/DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_
 
 ### Bad Consequence
 > **Positive:** Better security. (no specifics, not verifiable)
+
+[^togaf-adm]: The Open Group. (2022). *TOGAF Standard, 10th Edition — Architecture Development Method.* — The enterprise architecture framework whose decision-recording practices inform ADR quality standards.
 
 ---
 

@@ -30,6 +30,8 @@ The current directory layout (grouped by artifact type) serves the MDS category 
 | 4 | **Lifecycle** | [`MDS.md`](../architecture/MDS.md) | `architecture/` | [`CI-CD-GUIDE.md`](../specifications/CI-CD-GUIDE.md), [`DEPLOYMENT.md`](../specifications/DEPLOYMENT.md) |
 | 5 | **Curation** | [`MDS.md`](../architecture/MDS.md) + [`WRITING_EXCELLENCE.md`](../specifications/WRITING_EXCELLENCE.md) | `architecture/` + `specifications/` | — |
 
+[^evans-ddd]: Evans, Eric. *Domain-Driven Design: Tackling Complexity in the Heart of Software.* Addison-Wesley, 2003. — Bounded contexts and the domain model that MDS categories map to document locations.
+
 ---
 
 ## 2. Document Structure
@@ -91,6 +93,8 @@ docs/
     └── openapi.json                        # OpenAPI specification
 ```
 
+[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture.* https://alistair.cockburn.us/hexagonal-architecture/ — Ports and adapters pattern that informs the document structure's separation of architecture, specifications, and generated artifacts.
+
 ---
 
 ## 3. Lifecycle Enforcement
@@ -105,6 +109,8 @@ Draft → Active → Deprecated → Superseded → Removed
 - **Deprecated/Superseded** documents moved to `docs/archive/YYYY-MM-DD-<label>/`
 - **Removed** documents deleted; git history is archive of record
 - `docs/archive/` is gitignored
+
+[^nygard-adr]: Nygard, M. (2011). *Documenting Architecture Decisions.* Relevance. http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions — ADR lifecycle states (Draft → Active → Deprecated → Superseded) that MDS_SCAFFOLD enforces.
 
 ---
 
@@ -124,11 +130,15 @@ Per [`MDS.md`](../architecture/MDS.md) §3.2 and the axiom `Spec-document comple
 
 **Result:** 5/5 categories have authoritative spec documents. 3/5 categories have code-implementation gaps (marked ⚠️). All drift items have curation decisions recorded in [`curation-decisions.yaml`](../status/curation-decisions.yaml). Code-implementation gaps are tracked in [`spec-code-drift.yaml`](../status/spec-code-drift.yaml) and [`plans/TODO.md`](../plans/TODO.md).
 
+[^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md` — P1-P9 principles and constraint forces that govern spec-code completeness.
+
 ---
 
 ## 5. Metadata Requirements
 
 Per [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §2.
+
+[^doc-standards]: hKask Team. (2026). *Documentation Standards.* `docs/specifications/DOCUMENTATION_STANDARDS.md` — Metadata requirements for all hKask documentation.
 
 ---
 

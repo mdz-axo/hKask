@@ -18,6 +18,8 @@ mds_categories: [composition]
 
 The hKask template system needs to register, discover, and dispatch templates. Three domain contexts — WordAct, FlowDef, KnowAct — each produce templates. The architecture faced a choice between three separate registries (one per domain) or a single unified registry with a type discriminator.
 
+[^hlexicon]: hKask Team. (2026). *hLexicon — Canonical Vocabulary.* `docs/architecture/reference/hKask-hLexicon.md` — the 87-term vocabulary that grounds all template types.
+
 ## Decision
 
 **Single unified registry with `template_type` discriminator.**
@@ -31,6 +33,8 @@ pub enum TemplateType {
 ```
 
 The registry stores all three types in a single SQLite table with `template_type` as a column. Discovery, search, and cascade all operate on the unified index. The type discriminator provides domain-specific filtering without requiring separate indices.
+
+[^fowler-registry]: Fowler, M. (2002). *Patterns of Enterprise Application Architecture.* Addison-Wesley. Registry pattern (pp. 490–494) — a well-known object that other objects use to find common objects and services.
 
 ## Rationale
 
@@ -65,6 +69,8 @@ The registry stores all three types in a single SQLite table with `template_type
 - Cross-domain cascade requires cross-registry resolution
 - Violates P1 (three traits, one consumer each)
 
+[^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md` — P1-P9 principles and constraint forces governing all architectural decisions.
+
 ## Compliance
 
 | Principle | Compliance |
@@ -72,6 +78,9 @@ The registry stores all three types in a single SQLite table with `template_type
 | P1 (No trait without two consumers) | ✅ `RegistryIndex` used by `Registry` and `SqliteRegistry` |
 | P4 (No builder without fallibility) | ✅ `SqliteRegistry::new()` is fallible |
 | C4 (Repetition is missing primitive) | ✅ Unified registry eliminated domain-specific repetition |
+
+[^principles-p1]: hKask Team. (2026). *Architecture Principles — P1.* `docs/architecture/PRINCIPLES.md` §2.1 — No trait without two consumers.
+[^principles-c4]: hKask Team. (2026). *Architecture Principles — C4.* `docs/architecture/PRINCIPLES.md` §3.4 — Repetition signals a missing primitive.
 
 ## References
 

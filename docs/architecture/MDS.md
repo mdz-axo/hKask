@@ -28,6 +28,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | 4 | **Lifecycle** | Bootstrap, evolution, deprecation, lifecycle, and persistence are expressible as spec transitions | Bootstrap manifest, evolution rules, deprecation policy, CNS span registry | → Domain (entities), → Trust (audit) |
 | 5 | **Curation** | Every spec artifact has been evaluated for coherence by a curator with documented rationale | Curation decision log, coherence score | → Domain (hLexicon grounding), → Lifecycle (health) |
 
+[^evans-ddd]: Evans, Eric. *Domain-Driven Design: Tackling Complexity in the Heart of Software.* Addison-Wesley, 2003. — Bounded contexts, ubiquitous language, and the domain model that MDS categories extend.
+
 ---
 
 ## 2. Completeness Predicate
@@ -50,6 +52,8 @@ curated?(G) :=
 A goal-set G is **MDS-complete** iff `complete?(G, c)` holds for all 5 categories **and** `curated?(G)` holds.
 
 Curation decisions (Accept/Revise/Reject) are made by the Curator or human — not by a tool in the spec server. The spec server validates coherence; the Curator makes decisions.
+
+[^hoare-triple]: Hoare, C.A.R. "An Axiomatic Basis for Computer Programming." *Communications of the ACM*, 1969. — The {P} C {Q} Hoare triple that inspires MDS's completeness predicate: precondition → command → postcondition.
 
 ---
 
@@ -104,6 +108,8 @@ The planned `replica_discover` tool would orchestrate this pipeline:
 4. **Corpus config generation**: Produce a `corpus.yaml` with the discovered works, ready for `replica_build`.
 5. **Embedding and replication**: Standard pipeline from this point forward — chunk, tag, embed, store triples, compute centroid.
 
+[^mcp-spec]: Anthropic. "Model Context Protocol Specification." 2024. https://modelcontextprotocol.io/ — the MCP tool surface model that hkask-mcp-spec implements.
+
 ---
 
 ## 4. hLexicon Extension — Spec Terms
@@ -124,6 +130,8 @@ The planned `replica_discover` tool would orchestrate this pipeline:
 | `compare` | KnowAct | Measure stylistic distance between author centroids |
 | `reconcile` | KnowAct | Resolve goal tensions without collapsing them |
 
+[^hlexicon]: hKask Team. (2026). *hLexicon — Canonical Vocabulary.* `docs/architecture/reference/hKask-hLexicon.md` — the 87-term vocabulary that grounds all MDS spec terms.
+
 ---
 
 ## 5. Capability-Driven Model
@@ -138,6 +146,8 @@ MDS is capability-driven, not constraint-driven:
 | Lifecycle | Governed (gates) | Curated (invitations) |
 | Failure mode | Over-constrained | Under-governed |
 | hKask alignment | — | OCAP, capability tokens, attenuation |
+
+[^ocap]: Miller, M. (2006). *Robust Composition: Towards a National Research Agenda for Object Capability Security.* HP Labs. — Object capability model: access is granted by possession of a capability token.
 
 ---
 
@@ -154,6 +164,8 @@ MDS_cycle(S, D) :=
 ```
 
 The spec server handles capture → decompose → quality → coherence. Curation is external.
+
+[^beck-tdd]: Beck, Kent. *Test-Driven Development: By Example.* Addison-Wesley, 2003. — The red-green-refactor cycle that MDS's capture→decompose→validate→curate cycle parallels.
 
 ---
 
@@ -316,6 +328,8 @@ coherence_metric:
   threshold: 0.7
 ```
 
+[^fowler-poeaa]: Fowler, M. (2002). *Patterns of Enterprise Application Architecture.* Addison-Wesley. — Template pattern: a standard structure that captures domain knowledge in a reusable form.
+
 ---
 
 ## 8. Testing Protocol
@@ -336,6 +350,8 @@ coherence_metric:
 | Trust | OCAP boundary enforcement + threat model audit |
 | Lifecycle | Bootstrap + evolution + deprecation + CNS span emission |
 | Curation | Coherence scoring + decision rationale documentation |
+
+[^principles-p8]: hKask Team. (2026). *Architecture Principles — P8.* `docs/architecture/PRINCIPLES.md` §2.8 — Every `#[test]` verifies a stated behavioral property of a public seam.
 
 ---
 

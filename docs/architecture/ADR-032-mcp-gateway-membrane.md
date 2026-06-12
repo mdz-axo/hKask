@@ -31,6 +31,8 @@ This creates an architectural gap: the documented capability membrane is selecti
 
 **Constraints:** Headless constraint (§1.6) — no visual UI for capability negotiation; 10-server surface area must remain tractable
 
+[^mds]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/MDS.md` §7.1-7.2 — Capability membrane model and security architecture.
+
 ## Decision
 
 **Classify MCP servers into two tiers with explicit membrane policy per tier.**
@@ -64,6 +66,8 @@ Servers that provide read-only queries or agent-scoped operations with no cross-
 
 **Rationale:** The two-tier model matches the actual threat model: cross-agent state (secrets, trust) needs protection; per-agent state (memory, inference) is already scoped by `WebID`.
 
+[^ocap-model]: Miller, M. (2006). *Robust Composition: Towards a National Research Agenda for Object Capability Security.* HP Labs. — Object capability model: access is granted by possession of a capability token, not by ambient authority.
+
 ## Consequences
 
 ### Positive
@@ -84,6 +88,8 @@ Servers that provide read-only queries or agent-scoped operations with no cross-
 - This ADR formalizes the current de facto state, adding classification and documentation
 - Implementation is incremental: existing Tier 2 servers don't change, Tier 1 additions are additive
 
+[^strangler]: Fowler, Martin. "Strangler Fig Application." martinfowler.com, 2004. https://martinfowler.com/bliki/StranglerFigApplication.html — incremental migration by introducing new paths alongside existing ones.
+
 ## Compliance
 
 | Principle | Compliance | Evidence |
@@ -94,6 +100,8 @@ Servers that provide read-only queries or agent-scoped operations with no cross-
 | **P6** (Delete stubs, don't publish) | ✅ | No stub membrane — each server is either governed or documented-exempt |
 | **C1** (Type worn before tailored) | ✅ | Tier classification declared in server metadata |
 | **C5** (Every error variant is unique recovery path) | ✅ | `GovernedTool` errors: `Unauthorized`, `TokenExpired`, `InsufficientCapability` |
+
+[^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md` — P1-P9 principles and constraint forces.
 
 ## Verification
 
@@ -112,6 +120,8 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 - Tier 1 server uses `GovernedTool` for all tool registrations
 - All 10 servers declare membrane tier
 - No stub implementations
+
+[^principles-p6]: hKask Team. (2026). *Architecture Principles — P6.* `docs/architecture/PRINCIPLES.md` §2.6 — Delete stubs, don't publish. No `todo!()` or `unimplemented!()`.
 
 ## Related Documents
 

@@ -26,6 +26,8 @@ This creates a trust starvation risk: a low-trust issuer (e.g., a bot with `Agen
 
 **Constraints:** OCAP model requires all override issuers to present capability tokens; headless constraint means no visual UI for override negotiation
 
+[^ashby]: Ashby, W.R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Chapter 11: Regulation — the Dampener is a cybernetic regulator that suppresses oscillations in the control system.
+
 ## Decision
 
 **Override cooldown is per-issuer, keyed by `WebID`.**
@@ -54,6 +56,8 @@ Each issuer gets its own cooldown window. Override from issuer A does not suppre
 
 **Rationale:** Per-issuer cooldown preserves the Dampener's core purpose (preventing override storms from any single issuer) while eliminating cross-issuer starvation. The 64-entry capacity bound prevents memory growth proportional to active issuers while being sufficient for any realistic deployment (11 core crates, each with at most a few active agents).
 
+[^ocap-isolation]: Miller, M. (2006). *Robust Composition: Towards a National Research Agenda for Object Capability Security.* HP Labs. — Per-issuer isolation follows the object capability principle: each capability holder operates in its own security domain.
+
 ## Consequences
 
 ### Positive
@@ -74,6 +78,8 @@ Each issuer gets its own cooldown window. Override from issuer A does not suppre
 - Cooldown duration stays at 120s per issuer (same behavioral guarantee per-issuer)
 - The Dampener's dedup logic (same override content filtered) remains unchanged
 
+[^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md` — P1-P9 principles and constraint forces.
+
 ## Compliance
 
 | Principle | Compliance | Evidence |
@@ -81,6 +87,8 @@ Each issuer gets its own cooldown window. Override from issuer A does not suppre
 | **P4** (No builder without fallibility) | ✅ | `check_override()` returns `Result`, capacity eviction is explicit |
 | **C5** (Every error variant is unique recovery path) | ✅ | `OverrideRejected::CooldownActive(WebID, Duration)` provides issuer-specific recovery |
 | **C7** (Divergence must yield) | ✅ | Per-issuer cooldown is a convergence from the current global model |
+
+[^principles-c7]: hKask Team. (2026). *Architecture Principles — C7.* `docs/architecture/PRINCIPLES.md` §3.7 — Divergence must yield to convergence.
 
 ## Verification
 
@@ -103,6 +111,8 @@ cargo test -p hkask-cns
 - 64-entry capacity bound documented and enforced
 - All CNS tests pass
 - No `Option<Instant>` global cooldown remains
+
+[^principles-p6]: hKask Team. (2026). *Architecture Principles — P6.* `docs/architecture/PRINCIPLES.md` §2.6 — Delete stubs, don't publish.
 
 ## Related Documents
 

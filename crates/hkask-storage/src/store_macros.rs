@@ -137,12 +137,16 @@ macro_rules! impl_from_serde_json {
 ///
 /// # Example
 /// ```ignore
+/// // Note: no `?` on the call — the macro propagates errors internally
+/// // via `?`, returning `Vec<T>` on success or early-returning from
+/// // the enclosing function on the first error.
 /// let triples = collect_rows_strict!(
 ///     stmt,
 ///     rusqlite::params![id],
 ///     TripleStore::row_to_triple_row,
 ///     TripleStore::row_to_triple
-/// )?;
+/// );
+/// Ok(triples.into_iter().next())
 /// ```
 #[macro_export]
 macro_rules! collect_rows_strict {

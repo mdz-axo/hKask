@@ -18,6 +18,8 @@ mds_categories: [lifecycle]
 
 hKask stores knowledge as subject-predicate-object triples. A simple triple store records the current state but loses history. For an agent platform where learning is incremental and provenance is critical, the system must track both *when a fact was true in the domain* (valid time) and *when we learned about it* (transaction time).
 
+[^rdf]: W3C. (2014). *RDF 1.1 Concepts and Abstract Syntax.* https://www.w3.org/TR/rdf11-concepts/ — the subject-predicate-object triple model that hKask's knowledge representation extends with temporal dimensions.
+
 ## Decision
 
 **Bitemporal triple schema** with valid time, transaction time, confidence, and observer identity.
@@ -37,6 +39,8 @@ CREATE TABLE triples (
     source      TEXT            -- provenance reference
 );
 ```
+
+[^snodgrass-sql]: Snodgrass, R. T. (1999). *Developing Time-Oriented Database Applications in SQL.* Morgan Kaufmann. — The SQL design patterns for valid-time and transaction-time tables.
 
 ## Rationale
 
@@ -69,12 +73,17 @@ CREATE TABLE triples (
 
 **Simple triple store without time dimensions** loses all history and provenance. Not suitable for an agent platform where learning correctness depends on knowing the order and timing of knowledge acquisition.
 
+[^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md` — P1-P9 principles and constraint forces.
+
 ## Compliance
 
 | Principle | Compliance |
 |-----------|-----------|
 | C5 (Every error variant is unique) | ✅ `TripleError` has distinct variants for schema, confidence, time parse |
 | P3 (No module directory without encapsulation) | ✅ `triples.rs` encapsulates all triple semantics |
+
+[^principles-c5]: hKask Team. (2026). *Architecture Principles — C5.* `docs/architecture/PRINCIPLES.md` §3.5 — Every error variant is unique.
+[^principles-p3]: hKask Team. (2026). *Architecture Principles — P3.* `docs/architecture/PRINCIPLES.md` §2.3 — No module directory without encapsulation.
 
 ## References
 

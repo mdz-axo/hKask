@@ -125,6 +125,7 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 - HIGH #2: Architecture master sovereignty claim — updated AgentService section to current named-accessor pattern, noted sovereignty distribution across `hkask-types`/`hkask-agents`/`hkask-services`
 - LOW #3: Architecture master allosteric/RBarThreshold update — confirmed already resolved (no references in arch master; remaining occurrences are historical docs, GML templates, or deletion-acknowledging code comments)
 - LOW #4: Citation compliance audit (PS-07) — completed; 23 files with footnote citation gaps identified and catalogued
+- MEDIUM: AgentService adapters refactoring — completed; 5 stale comments in `hkask-api/src/routes/` (acp.rs, mcp.rs, templates.rs) updated from old grouped-tuple references to current named accessors. Zero old accessor patterns remain in codebase.
 - PROJECT_STATUS.md updated: What Remains pruned, citation audit table added
 
 ## Session (2026-06-10)
@@ -142,7 +143,6 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 
 | Priority | Task |
 |----------|------|
-| MEDIUM | AgentService adapters refactoring (incomplete, reverted) |
 | LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
 | NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
 
