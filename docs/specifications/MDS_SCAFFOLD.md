@@ -78,7 +78,9 @@ docs/
 │   └── hhh-alignment-research.md          # HHH alignment research
 ├── plans/
 │   ├── TODO.md                            # Open work
-├── status/                                 # Status files (7 active: PROJECT_STATUS, test-inventory, mcp-tools-inventory, spec-code-drift, curation-decisions, fowler-audit-status, adversarial-simplification-inventory)
+│   ├── bundler-completion.md              # Bundler completion plan
+│   ├── mcp-server-roadmap.md              # MCP server roadmap
+├── status/                                 # Status files (6 active: PROJECT_STATUS, test-inventory, mcp-tools-inventory, spec-code-drift, curation-decisions, adversarial-simplification-inventory)
 ├── user-guides/                           # User-facing guides
 │   ├── AGENT-POD-CREATION-GUIDE.md       # Pod creation guide
 │   └── COMMON-AGENT-PATTERNS.md          # Agent patterns reference

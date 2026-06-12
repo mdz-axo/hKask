@@ -304,9 +304,6 @@ docs/architecture/
 ├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
 ├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
 ├── ADR-034-academic-author-pipeline.md      # Decision record (Draft)
-├── agatha-eliot-moe-plan.md                 # Design (MoE architecture)
-├── semantic-condensation-analysis.md        # Analysis (condensation algorithms)
-├── refactoring-plan-services-2026-06-09.md  # Plan (service layer refactoring)
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
@@ -316,7 +313,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 24 active architecture documents (4 framework + 1 index + 10 ADRs + 3 design/analysis/plan + 6 reference artifacts).
+**Total:** 21 active architecture documents (4 framework + 1 index + 10 ADRs + 6 reference artifacts).
 
 ---
 
