@@ -192,6 +192,22 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ---
 
+## Completed (2026-06-12 Inference Engine + Replica Pipeline Fixes)
+
+| ID | Task | Date | Evidence |
+|----|------|------|----------|
+| **C-14** | Fix DeepInfra base URL (`/v1/openai` → `https://api.deepinfra.com`) | 2026-06-12 | `crates/hkask-inference/src/config.rs` — double-`/v1/` bug fixed for embeddings and chat |
+| **C-15** | Fix `EmbedService` API key stripping (`Default::default()` → `from_env()`) | 2026-06-12 | `crates/hkask-services/src/embed.rs` — `DI_API_KEY` now reaches embedding router |
+| **C-16** | Fix replica + markitdown MCP servers passing partial configs | 2026-06-12 | `mcp-servers/hkask-mcp-replica/src/main.rs`, `mcp-servers/hkask-mcp-markitdown/src/{main,tools}.rs` |
+| **C-17** | Add auto `.env` loading to all 11 binaries via `dotenvy` | 2026-06-12 | Workspace `Cargo.toml` + 11 `main.rs` files — API keys loaded from `.env` on startup |
+| **C-18** | Fix `embed-mashups.sh` — dead `--okapi-url`, wrong subcommand, stale URLs | 2026-06-12 | Script now uses `kask style embed-corpus`, no URL flags needed |
+| **C-19** | Add `DI/` prefix to 5 corpus configs + remove dead `embedding_provider` fields | 2026-06-12 | `registry/styles/*/corpus.yaml` — embeddings route to DeepInfra via `EmbeddingRouter` |
+| **C-20** | Fix O(n³) salience hang — cap two-hop expansion to 50 neighbors | 2026-06-12 | `crates/hkask-memory/src/salience.rs` — 1832-passage corpus now completes in seconds |
+| **C-21** | Update DEPLOYMENT.md + CI-CD-GUIDE.md — replace Okapi with multi-provider inference | 2026-06-12 | Env vars, examples, systemd/Docker/K8s, troubleshooting all updated |
+| **C-22** | End-to-end verification — Hemingway corpus embedded via DeepInfra | 2026-06-12 | 1832 embeddings, centroid stored, 28,989 triples — full pipeline completes |
+
+---
+
 ## Verification
 
 ```bash

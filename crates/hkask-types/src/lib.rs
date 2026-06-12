@@ -35,6 +35,8 @@ pub mod text;
 pub mod time;
 pub mod visibility;
 
+pub mod wallet;
+
 #[cfg(feature = "sql")]
 pub mod sql_impls;
 
@@ -67,7 +69,8 @@ pub use error::{
 pub use event::{NuEvent, NuEventSink};
 pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
 pub use id::{
-    BotID, EmbeddingID, EventID, GoalID, Id, IdKind, PodID, TemplateID, TripleID, UserID, WebID,
+    ApiKeyId, BotID, EmbeddingID, EventID, GoalID, Id, IdKind, PodID, TemplateID, TripleID, UserID,
+    WalletId, WebID,
 };
 pub use identity::{
     HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserSession,
@@ -97,3 +100,8 @@ pub use template::{LLMParameters, TemplateCrate, TemplateFile};
 pub use text::blake3_hash;
 pub use time::now_rfc3339;
 pub use visibility::{AccessControl, Confidence, TemporalBounds, Visibility};
+pub use wallet::{
+    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
+    PrivacyMode, RJoule, TransactionType, WalletBalance, WalletConfig, WalletError,
+    WalletTransaction,
+};

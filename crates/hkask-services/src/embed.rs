@@ -283,7 +283,6 @@ impl EmbedService {
         config_path: &Path,
         db_path: &str,
         db_passphrase: &str,
-        ollama_url: Option<&str>,
         cache_dir: Option<&Path>,
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
@@ -371,7 +370,7 @@ impl EmbedService {
 
         for (work_idx, work) in config.works.iter().enumerate() {
             if work_idx > 0 {
-                std::thread::sleep(std::time::Duration::from_secs(1));
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
 
             {
@@ -546,13 +545,7 @@ impl EmbedService {
             p.completed_passages = 0;
         }
 
-        let inf_cfg = match ollama_url {
-            Some(url) => InferenceConfig {
-                ollama_base_url: url.to_string(),
-                ..InferenceConfig::from_env()
-            },
-            None => InferenceConfig::from_env(),
-        };
+        let inf_cfg = InferenceConfig::from_env();
         let embedder = EmbeddingRouter::new(inf_cfg);
 
         let batch_size = config.embedding.batch_size;

@@ -106,6 +106,21 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.set_point",
     "cns.memory.encode",
     "cns.memory.budget",
+    // Wallet spans — rJoule payments, multi-chain deposits, API key lifecycle
+    "cns.wallet.balance",
+    "cns.wallet.deposit",
+    "cns.wallet.deposit_shielded",
+    "cns.wallet.withdrawal",
+    "cns.wallet.conversion",
+    "cns.wallet.key_issued",
+    "cns.wallet.key_revoked",
+    "cns.wallet.key_expired",
+    "cns.wallet.key_exhausted",
+    "cns.wallet.treasury",
+    "cns.wallet.chain_error",
+    "cns.wallet.privacy.shield",
+    "cns.wallet.privacy.unshield",
+    "cns.wallet.privacy_error",
 ];
 
 impl SpanNamespace {

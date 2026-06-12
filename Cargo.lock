@@ -1383,6 +1383,7 @@ dependencies = [
  "hmac",
  "keyring",
  "rand 0.9.4",
+ "serde_json",
  "sha2",
  "subtle",
  "thiserror",
@@ -1540,6 +1541,7 @@ version = "0.27.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "dotenvy",
  "hkask-inference",
  "hkask-mcp",
  "hkask-services",

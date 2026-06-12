@@ -1,8 +1,10 @@
 //! OS keychain integration
 
+use ed25519_dalek::Signer;
 use hkask_types::SecretRef;
 use hkask_types::WebID;
 use hkask_types::derivation_contexts;
+use hkask_types::wallet::{ApiKeyCapability, ChainId};
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
 use tracing::warn;
@@ -289,4 +291,68 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             Ok(Zeroizing::new(bytes))
         }
     }
+}
+
+// ── Wallet key derivation ──────────────────────────────────────────────────────
+
+/// Derive a chain-specific treasury key seed from the master key.
+///
+/// Uses HKDF-SHA256 with domain-separated context strings.
+/// Same master passphrase → same treasury key for a given chain.
+///
+/// # Context strings
+/// - Solana: `"hkask:treasury-solana"`
+/// - Hedera: `"hkask:treasury-hedera"`
+///
+/// # Returns
+/// 32-byte seed suitable for constructing a chain-specific keypair
+/// (Ed25519 for Solana, ED25519/ECDSA for Hedera). The actual keypair
+/// construction happens in `hkask-wallet` where the chain SDKs live.
+pub fn resolve_treasury_key(chain: ChainId) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    let context = match chain {
+        ChainId::Solana => derivation_contexts::TREASURY_SOLANA,
+        ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
+    };
+    resolve(&SecretRef::derived(
+        derivation_contexts::MASTER_KEY_ENV,
+        context,
+    ))
+}
+
+/// Derive the wallet seed for HD derivation, deposit references, and API key signing.
+///
+/// Context: `"hkask:wallet-seed"`
+///
+/// This seed is used for:
+/// - Deriving deposit addresses (BIP44-style per chain)
+/// - Generating deposit references (HKDF with nonce + expiry)
+/// - Signing API key capability tokens (Ed25519)
+///
+/// # Returns
+/// 32-byte seed wrapped in `Zeroizing` for secure memory handling.
+pub fn resolve_wallet_seed() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve(&SecretRef::derived(
+        derivation_contexts::MASTER_KEY_ENV,
+        derivation_contexts::WALLET_SEED,
+    ))
+}
+
+/// Sign an `ApiKeyCapability` with the wallet's Ed25519 key.
+///
+/// The signature proves the capability was issued by the wallet holder.
+/// Verification: derive public key from wallet seed, verify signature
+/// against the canonical JSON bytes of the capability.
+///
+/// # Returns
+/// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
+pub fn sign_api_key_capability(capability: &ApiKeyCapability) -> Result<String, KeychainError> {
+    let seed = resolve_wallet_seed()?;
+    let seed_bytes: [u8; 32] = seed[..32]
+        .try_into()
+        .map_err(|_| KeychainError::Platform("wallet seed must be 32 bytes".into()))?;
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed_bytes);
+    let canonical_bytes =
+        serde_json::to_vec(capability).map_err(|e| KeychainError::Platform(e.to_string()))?;
+    let signature = signing_key.sign(&canonical_bytes);
+    Ok(hex::encode(signature.to_bytes()))
 }

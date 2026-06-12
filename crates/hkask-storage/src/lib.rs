@@ -25,6 +25,7 @@ pub use standing_session::{
 };
 pub mod triples;
 pub mod user_store;
+pub mod wallet_store;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
@@ -49,3 +50,4 @@ pub use spec_types::{
 
 pub use triples::{Triple, TripleError, TripleStore};
 pub use user_store::UserStoreError;
+pub use wallet_store::WalletStore;

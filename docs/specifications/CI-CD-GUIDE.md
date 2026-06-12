@@ -340,7 +340,7 @@ cargo clean
 Chaos injection testing has been removed from CI. Resilience and circuit breaker
 logic is covered by unit tests in `hkask-ensemble` via the main CI pipeline.
 E2E chaos tests against live inference providers can be run manually with
-`OKAPI_E2E_TEST=1 cargo test --package hkask-testing --test chaos_integration`.
+`HKASK_E2E_TEST=1 cargo test --package hkask-testing --test chaos_integration`.
 
 ---
 

@@ -480,8 +480,6 @@ pub enum EmbedCorpusAction {
         db: PathBuf,
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: String,
-        #[arg(long = "ollama-url")]
-        ollama_url: Option<String>,
     },
 }
 
@@ -509,8 +507,6 @@ pub enum StyleAction {
         db: PathBuf,
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: String,
-        #[arg(long = "ollama-url")]
-        ollama_url: Option<String>,
     },
 }
 

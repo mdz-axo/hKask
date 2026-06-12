@@ -2,14 +2,14 @@
 # Embed style replicator corpora via hKask's inference engine (DeepInfra)
 # Usage: bash embed-mashups.sh [twain|wilde|hemingway|woolf|eliot|all]
 #
-# Prerequisites:
-#   DI_API_KEY must be set in the environment (DeepInfra API key).
-#   Corpus configs use model "DI/Qwen/Qwen3-Embedding-0.6B" — the DI/ prefix
-#   routes through EmbeddingRouter to DeepInfra's /v1/embeddings endpoint.
+# The kask binary auto-loads .env from the current directory on startup.
+# Ensure DEEPINFRA_API_KEY (or DI_API_KEY) is set in .env or the environment.
+# Corpus configs use model "DI/Qwen/Qwen3-Embedding-0.6B" — the DI/ prefix
+# routes through EmbeddingRouter to DeepInfra's /v1/embeddings endpoint.
 #
 # Environment:
-#   DI_API_KEY      — DeepInfra API key (required)
-#   DI_BASE_URL     — DeepInfra base URL (default: https://api.deepinfra.com/v1/openai)
+#   DI_API_KEY / DEEPINFRA_API_KEY — DeepInfra API key
+#   DI_BASE_URL     — DeepInfra base URL (default: https://api.deepinfra.com)
 #   HKASK_DB_PATH   — Database path (default: /tmp/hkask-test-styles.db)
 
 set -e
@@ -26,12 +26,6 @@ elif [ -x "target/release/kask" ]; then
 else
     echo "ERROR: kask binary not found at target/debug/kask or target/release/kask" >&2
     echo "Build with: cargo build" >&2
-    exit 1
-fi
-
-if [ -z "${DI_API_KEY:-}" ] && [ -z "${DEEPINFRA_API_KEY:-}" ]; then
-    echo "ERROR: Neither DI_API_KEY nor DEEPINFRA_API_KEY is set. DeepInfra API key is required for embedding." >&2
-    echo "Get one at https://deepinfra.com/ and export DI_API_KEY=<your-key>" >&2
     exit 1
 fi
 
@@ -67,10 +61,10 @@ case "${1:-all}" in
         echo "  kask pod mode <replicant> server -r replica"
         echo ""
         echo "Or via CLI compose:"
-        echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml --db $DB --passphrase test-pass"
-        echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/woolf-style-synthesizer.yaml --db $DB --passphrase test-pass"
-        echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/ulysses-s-twain-mashup.yaml --db $DB --passphrase test-pass"
-        echo "  kask compose run --prompt '...' --cognition registry/registries/cognition/agatha-eliot-mashup.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/woolf-style-synthesizer.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/ulysses-s-twain-mashup.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/agatha-eliot-mashup.yaml --db $DB --passphrase test-pass"
         ;;
     *)
         echo "Usage: bash embed-mashups.sh [twain|wilde|hemingway|woolf|eliot|all]"

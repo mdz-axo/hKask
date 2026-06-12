@@ -5,13 +5,7 @@ use hkask_services::{EmbedProgress, EmbedService};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn run(
-    rt: &tokio::runtime::Runtime,
-    config: PathBuf,
-    db: PathBuf,
-    passphrase: String,
-    ollama_url: Option<String>,
-) {
+pub fn run(rt: &tokio::runtime::Runtime, config: PathBuf, db: PathBuf, passphrase: String) {
     let progress: hkask_services::ProgressFn = Arc::new(|p: &EmbedProgress| {
         eprint!("\r\x1b[K{}", p.format_full());
     });
@@ -20,7 +14,6 @@ pub fn run(
         &config,
         &db.to_string_lossy(),
         &passphrase,
-        ollama_url.as_deref(),
         None,
         Some(progress),
     ));

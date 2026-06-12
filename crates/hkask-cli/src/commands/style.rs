@@ -16,7 +16,6 @@ pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
             config,
             db,
             passphrase,
-            ollama_url,
-        } => super::embed_corpus::run(rt, config, db, passphrase, ollama_url),
+        } => super::embed_corpus::run(rt, config, db, passphrase),
     }
 }

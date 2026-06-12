@@ -517,20 +517,32 @@ impl EntityTags {
 // ── Salience Score ────────────────────────────────────────────────────────
 
 /// Compute salience scores for all tagged passages using graph centrality.
+/// Compute passage salience scores for budget-gated triple storage.
 ///
-/// Builds a bipartite graph (passages ↔ entities/methods), then computes
-/// one-hop and two-hop connectedness for each passage.
+/// Salience = connectedness × (1 − redundancy):
 ///
-/// - **one_hop(p)**: fraction of passages that share ≥1 tag with p.
-/// - **two_hop(p)**: fraction of passages reachable from p in ≤2 hops
-///   (one-hop set ∪ their neighbors). Always ≥ one_hop(p).
+///   connectedness = (one_hop + avg_neighbor_quality) / 2
+///   redundancy    = local_clustering_coefficient(sampled_neighbors)
+///   salience      = connectedness × (1 − redundancy)
 ///
-/// Salience = (one_hop + two_hop/2) / 2
+/// **one_hop** — degree centrality: fraction of all passages sharing at
+/// least one entity with this passage. High = well-connected.
 ///
-/// This naturally biases toward direct connections: one-hop has full
-/// weight, two-hop is halved. No configuration needed.
+/// **avg_neighbor_quality** — mean one_hop score of this passage's
+/// neighbors (evenly sampled, max 50). Being connected to well-connected
+/// passages boosts this term (eigenvector-like).
 ///
-/// Returns a vector of salience scores in the same order as the input.
+/// **redundancy** — Watts-Strogatz local clustering coefficient: what
+/// fraction of my neighbor pairs are themselves connected? High clustering
+/// = I sit in a dense, redundant clique. Low clustering = I bridge
+/// otherwise-disconnected communities.
+///
+/// The multiplicative penalty ensures moderate clustering gets moderate
+/// reduction rather than being zeroed out. Only fully interconnected
+/// cliques (redundancy=1) get salience=0.
+///
+/// All expansion steps are capped at 50 sampled neighbors to bound
+/// worst-case complexity at O(n × k × d) where k=50, d=average degree.
 /// Foundational rules (passages with zero tags) get salience 0.0.
 pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
     let n = all_tags.len();
@@ -565,34 +577,68 @@ pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
         neighbors[i] = seen.into_iter().collect();
     }
 
-    // One-hop: fraction of passages directly connected
+    // One-hop: degree centrality — fraction of passages directly connected
     let n_f = n as f32;
     let one_hop: Vec<f32> = neighbors.iter().map(|nb| nb.len() as f32 / n_f).collect();
 
-    // Two-hop: fraction of passages reachable in ≤2 hops (includes one-hop set)
-    let two_hop: Vec<f32> = neighbors
+    // For each passage, compute connectedness and redundancy via capped sampling.
+    // Both expansions capped at 50 neighbors to bound O(n × k × d).
+    const MAX_SAMPLE: usize = 50;
+
+    let salience: Vec<f32> = neighbors
         .iter()
         .enumerate()
         .map(|(i, nb)| {
-            let mut reachable: std::collections::HashSet<usize> =
-                std::collections::HashSet::from_iter(nb.iter().copied());
-            for &j in nb {
-                for &k in &neighbors[j] {
-                    if k != i {
-                        reachable.insert(k);
+            if nb.is_empty() {
+                return 0.0;
+            }
+
+            // Evenly sample neighbors (avoids bias toward first neighbors)
+            let sample: Vec<usize> = if nb.len() > MAX_SAMPLE {
+                let step = nb.len() / MAX_SAMPLE;
+                nb.iter().step_by(step.max(1)).copied().collect()
+            } else {
+                nb.clone()
+            };
+
+            // ── avg_neighbor_quality: mean one_hop of sampled neighbors ──
+            let avg_nq: f32 = sample.iter().map(|&j| one_hop[j]).sum::<f32>() / sample.len() as f32;
+
+            // ── connectedness = (one_hop + avg_neighbor_quality) / 2 ──
+            let connectedness = (one_hop[i] + avg_nq) / 2.0;
+
+            // ── redundancy: local clustering coefficient ──
+            // What fraction of sampled neighbor pairs are themselves connected?
+            let redundancy = if sample.len() < 2 {
+                0.0
+            } else {
+                // Build hash sets for sampled neighbors for O(1) edge checks
+                let sample_sets: Vec<std::collections::HashSet<usize>> = sample
+                    .iter()
+                    .map(|&j| neighbors[j].iter().copied().collect())
+                    .collect();
+
+                let mut edges = 0usize;
+                let mut pairs = 0usize;
+                for (a_idx, a_set) in sample_sets.iter().enumerate() {
+                    for b_idx in (a_idx + 1)..sample.len() {
+                        pairs += 1;
+                        if a_set.contains(&sample[b_idx]) {
+                            edges += 1;
+                        }
                     }
                 }
-            }
-            reachable.len() as f32 / n_f
+                edges as f32 / pairs as f32
+            };
+
+            // ── salience = connectedness × (1 − redundancy) ──
+            // Multiplicative penalty: moderate clustering → moderate reduction.
+            // Only fully interconnected cliques (redundancy=1) get zeroed.
+            connectedness * (1.0 - redundancy)
         })
         .collect();
 
-    // Salience = (one_hop + two_hop/2) / 2 — biases toward direct connections
-    one_hop
-        .iter()
-        .zip(two_hop.iter())
-        .map(|(&oh, &th)| (oh + th / 2.0) / 2.0)
-        .collect()
+    salience
 }
 
 // ── Budget ────────────────────────────────────────────────────────────────
@@ -719,10 +765,11 @@ mod tests {
     }
 
     #[test]
-    fn two_hop_always_gte_one_hop() {
-        // By definition, passages reachable in ≤2 hops includes those
-        // reachable in 1 hop.
-        let tags = [
+    fn clustering_zero_when_neighbors_disconnected() {
+        // Three passages each with a unique entity — no shared entities
+        // between neighbors, so clustering coefficient = 0.
+        // Salience should equal connectedness (no redundancy penalty).
+        let tags = vec![
             EntityTags {
                 characters: vec!["A".into()],
                 ..Default::default()
@@ -737,72 +784,74 @@ mod tests {
             },
             EntityTags::default(),
         ];
-        // Compute raw hop fractions to verify invariant
-        let n = tags.len();
-        let mut entity_to_passages: std::collections::HashMap<&str, Vec<usize>> =
-            std::collections::HashMap::new();
-        for (i, t) in tags.iter().enumerate() {
-            for tag in t.all_tags() {
-                entity_to_passages.entry(tag).or_default().push(i);
-            }
-        }
-        for (i, t) in tags.iter().enumerate() {
-            let mut one_hop_set: std::collections::HashSet<usize> =
-                std::collections::HashSet::new();
-            for tag in t.all_tags() {
-                if let Some(ps) = entity_to_passages.get(tag) {
-                    for &p in ps {
-                        if p != i {
-                            one_hop_set.insert(p);
-                        }
-                    }
-                }
-            }
-            let mut two_hop_set = one_hop_set.clone();
-            for &j in &one_hop_set {
-                for tag in tags[j].all_tags() {
-                    if let Some(ps) = entity_to_passages.get(tag) {
-                        for &p in ps {
-                            if p != i {
-                                two_hop_set.insert(p);
-                            }
-                        }
-                    }
-                }
-            }
-            let one = one_hop_set.len() as f32 / n as f32;
-            let two = two_hop_set.len() as f32 / n as f32;
-            assert!(two >= one, "passage {i}: two_hop={two} < one_hop={one}");
-        }
+        let scores = compute_salience_batch(&tags);
+        // Passage 1 (bridge: shares A with 0, B with 2) should have
+        // clustering=0 since 0 and 2 don't share entities.
+        // Its salience should be >0 (connectedness with no penalty).
+        assert!(
+            scores[1] > 0.0,
+            "bridge passage should have positive salience"
+        );
+        // Passage 0 and 2 each have one neighbor (1), so |sample|=1 → clustering=0
+        assert!(scores[0] > 0.0);
+        assert!(scores[2] > 0.0);
+        // Passage 3 isolated
+        assert!((scores[3] - 0.0).abs() < 0.01);
     }
 
     #[test]
-    fn two_hop_amplifies_connected_neighbors() {
-        // A: protagonist only. B: protagonist + rare_place (bridge).
-        // C: rare_place only. D: isolated.
+    fn bridge_scores_higher_than_dense_clique() {
+        // Four passages: A and B share entity X. C and D share entity Y.
+        // Passage B also shares Y — making it a bridge between the two clusters.
+        // Passage A is in a dense clique with B (they share X, and B shares Y with C/D
+        // but A doesn't — so A's only neighbor is B, |sample|=1, clustering=0).
+        //
+        // Actually construct a clearer case:
+        // A: shares X with B, C.  B: shares X with A, C.  C: shares X with A, B.
+        // All three form a triangle → high clustering for all.
+        // D: shares Y with E.  E: shares Y with D, and also X with A,B,C (bridge).
+        // E connects the X-clique to D → E should score higher than clique members.
         let tags = vec![
+            // A: X only (clique member)
             EntityTags {
-                characters: vec!["protagonist".into()],
+                characters: vec!["X".into()],
                 ..Default::default()
             },
+            // B: X only (clique member)
             EntityTags {
-                characters: vec!["protagonist".into()],
-                places: vec!["rare_place".into()],
+                characters: vec!["X".into()],
                 ..Default::default()
             },
+            // C: X only (clique member)
             EntityTags {
-                places: vec!["rare_place".into()],
+                characters: vec!["X".into()],
                 ..Default::default()
             },
-            EntityTags::default(),
+            // D: Y only (peripheral)
+            EntityTags {
+                characters: vec!["Y".into()],
+                ..Default::default()
+            },
+            // E: X + Y (bridge between X-clique and D)
+            EntityTags {
+                characters: vec!["X".into(), "Y".into()],
+                ..Default::default()
+            },
         ];
         let scores = compute_salience_batch(&tags);
+        // E (bridge) should outscore A/B/C (clique members) because
+        // E's neighbors include D (who is NOT connected to A/B/C),
+        // giving E lower clustering than the pure X-clique members.
         assert!(
-            scores[1] > scores[0],
-            "B bridges protagonist and rare_place"
+            scores[4] > scores[0],
+            "bridge E should outscore clique member A"
         );
-        assert!(scores[2] > 0.0, "C connects to B via rare_place");
-        assert!((scores[3] - 0.0).abs() < 0.01, "D is isolated");
+        assert!(scores[4] > 0.0, "bridge should have positive salience");
+        // D (peripheral, one neighbor E) should have some salience
+        assert!(
+            scores[3] > 0.0,
+            "peripheral touching bridge should have salience"
+        );
     }
 
     #[test]

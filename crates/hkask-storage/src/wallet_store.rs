@@ -1,0 +1,856 @@
+//! WalletStore — SQLite-backed persistence for rJoule balances, transactions, API keys.
+//!
+//! # Schema (5 tables)
+//! - `wallet_balances` — one row per wallet, current rJoule balance
+//! - `wallet_transactions` — append-only ledger of all balance changes
+//! - `api_keys` — issued Ed25519 capability tokens with spending limits
+//! - `deposit_addresses` — derived deposit addresses per wallet per chain
+//! - `deposit_references` — one-time shielded deposit references (anti-replay)
+
+use crate::Store;
+use hkask_types::{
+    ApiKeyCapability, ApiKeyId, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
+    InfrastructureError, PrivacyMode, RJoule, TransactionType, WalletBalance, WalletError,
+    WalletId, WalletTransaction, now_rfc3339,
+};
+use std::str::FromStr;
+
+define_store!(WalletStore);
+
+// ── Row types for query mapping ────────────────────────────────────────────────
+
+struct WalletBalanceRow {
+    wallet_id: String,
+    balance_rj: i64,
+    usdc_equivalent_micro: i64,
+}
+
+struct WalletTransactionRow {
+    id: i64,
+    wallet_id: String,
+    tx_type: String,
+    tx_subtype: Option<String>,
+    chain: Option<String>,
+    on_chain_tx_hash: Option<String>,
+    amount_rj: i64,
+    balance_after_rj: i64,
+    key_id: Option<String>,
+    tool_name: Option<String>,
+    gas_units: Option<i64>,
+    created_at: String,
+}
+
+struct ApiKeyRow {
+    key_id: String,
+    wallet_id: String,
+    public_key: Vec<u8>,
+    spending_limit_rj: i64,
+    spent_rj: i64,
+    privacy_mode: String,
+    preferred_chain: Option<String>,
+    expires_at: Option<String>,
+    issued_at: String,
+}
+
+struct DepositAddressRow {
+    chain: String,
+    address: String,
+    privacy_mode: String,
+}
+
+// ── WalletStore implementation ──────────────────────────────────────────────────
+
+impl WalletStore {
+    // ── Balance ──────────────────────────────────────────────────────────────
+
+    /// Get the current balance for a wallet, or None if the wallet doesn't exist.
+    pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT wallet_id, balance_rj, usdc_equivalent_micro FROM wallet_balances WHERE wallet_id = ?1",
+        )?;
+        let rows: Vec<WalletBalance> = collect_rows_strict!(
+            stmt,
+            rusqlite::params![wallet_id.to_string()],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<WalletBalanceRow> {
+                Ok(WalletBalanceRow {
+                    wallet_id: row.get(0)?,
+                    balance_rj: row.get(1)?,
+                    usdc_equivalent_micro: row.get(2)?,
+                })
+            },
+            |r: WalletBalanceRow| -> Result<WalletBalance, WalletError> {
+                Ok(WalletBalance {
+                    wallet_id: WalletId::from_str(&r.wallet_id)?,
+                    rjoules: r.balance_rj as u64,
+                    usdc_equivalent_micro: r.usdc_equivalent_micro as u64,
+                    gas_equivalent: 0, // computed by caller with config
+                })
+            }
+        );
+        Ok(rows.into_iter().next())
+    }
+
+    /// Ensure a wallet row exists (idempotent — creates if missing).
+    /// Takes an already-locked connection to avoid deadlock.
+    fn ensure_wallet_with_conn(
+        &self,
+        conn: &rusqlite::Connection,
+        wallet_id: WalletId,
+    ) -> Result<(), WalletError> {
+        conn.execute(
+            "INSERT OR IGNORE INTO wallet_balances (wallet_id) VALUES (?1)",
+            rusqlite::params![wallet_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// Ensure a wallet row exists (idempotent — creates if missing).
+    /// Public version that acquires its own lock.
+    pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        self.ensure_wallet_with_conn(&conn, wallet_id)
+    }
+
+    /// Credit rJoules to a wallet. Returns the new balance.
+    /// Creates the wallet row if it doesn't exist.
+    pub fn credit_rjoules(
+        &self,
+        wallet_id: WalletId,
+        amount: RJoule,
+    ) -> Result<WalletBalance, WalletError> {
+        let conn = self.lock_conn()?;
+        self.ensure_wallet_with_conn(&conn, wallet_id)?;
+        let now = now_rfc3339();
+        conn.execute(
+            "UPDATE wallet_balances SET balance_rj = balance_rj + ?1, updated_at = ?2 WHERE wallet_id = ?3",
+            rusqlite::params![amount.as_u64() as i64, now, wallet_id.to_string()],
+        )?;
+        drop(conn);
+        self.get_balance(wallet_id)?
+            .ok_or(WalletError::Infra(InfrastructureError::Database(
+                "wallet vanished after credit".into(),
+            )))
+    }
+
+    /// Debit rJoules from a wallet. Returns error if balance insufficient.
+    /// The caller must verify `balance >= amount` before calling.
+    pub fn debit_rjoules(
+        &self,
+        wallet_id: WalletId,
+        amount: RJoule,
+    ) -> Result<WalletBalance, WalletError> {
+        let conn = self.lock_conn()?;
+        let current: i64 = conn.query_row(
+            "SELECT balance_rj FROM wallet_balances WHERE wallet_id = ?1",
+            rusqlite::params![wallet_id.to_string()],
+            |row| row.get(0),
+        )?;
+        let amount_i64 = amount.as_u64() as i64;
+        if current < amount_i64 {
+            return Err(WalletError::InsufficientBalance {
+                have: RJoule::new(current as u64),
+                need: amount,
+            });
+        }
+        let now = now_rfc3339();
+        conn.execute(
+            "UPDATE wallet_balances SET balance_rj = balance_rj - ?1, updated_at = ?2 WHERE wallet_id = ?3",
+            rusqlite::params![amount_i64, now, wallet_id.to_string()],
+        )?;
+        drop(conn);
+        self.get_balance(wallet_id)?
+            .ok_or(WalletError::Infra(InfrastructureError::Database(
+                "wallet vanished after debit".into(),
+            )))
+    }
+
+    // ── Transactions ─────────────────────────────────────────────────────────
+
+    /// Record a transaction in the append-only ledger.
+    pub fn record_transaction(&self, tx: &WalletTransaction) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        let (tx_type_str, tx_subtype, chain, tx_hash, key_id, tool_name, gas_units) =
+            tx_type_to_columns(&tx.tx_type);
+        conn.execute(
+            "INSERT INTO wallet_transactions (wallet_id, tx_type, tx_subtype, chain, on_chain_tx_hash, amount_rj, balance_after_rj, key_id, tool_name, gas_units) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            rusqlite::params![
+                tx.wallet_id.to_string(),
+                tx_type_str,
+                tx_subtype,
+                chain,
+                tx_hash,
+                tx.rjoules_delta,
+                tx.balance_after as i64,
+                key_id,
+                tool_name,
+                gas_units,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Get paginated transaction history for a wallet.
+    pub fn get_transactions(
+        &self,
+        wallet_id: WalletId,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<WalletTransaction>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, wallet_id, tx_type, tx_subtype, chain, on_chain_tx_hash, amount_rj, balance_after_rj, key_id, tool_name, gas_units, created_at FROM wallet_transactions WHERE wallet_id = ?1 ORDER BY id DESC LIMIT ?2 OFFSET ?3",
+        )?;
+        let rows: Vec<WalletTransaction> = collect_rows_strict!(
+            stmt,
+            rusqlite::params![wallet_id.to_string(), limit, offset],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<WalletTransactionRow> {
+                Ok(WalletTransactionRow {
+                    id: row.get(0)?,
+                    wallet_id: row.get(1)?,
+                    tx_type: row.get(2)?,
+                    tx_subtype: row.get(3)?,
+                    chain: row.get(4)?,
+                    on_chain_tx_hash: row.get(5)?,
+                    amount_rj: row.get(6)?,
+                    balance_after_rj: row.get(7)?,
+                    key_id: row.get(8)?,
+                    tool_name: row.get(9)?,
+                    gas_units: row.get(10)?,
+                    created_at: row.get(11)?,
+                })
+            },
+            |r: WalletTransactionRow| -> Result<WalletTransaction, WalletError> {
+                row_to_wallet_transaction(r)
+            }
+        );
+        Ok(rows)
+    }
+
+    // ── API Keys ─────────────────────────────────────────────────────────────
+
+    /// Store a newly issued API key capability.
+    pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "INSERT INTO api_keys (key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                capability.key_id.to_string(),
+                capability.wallet_id.to_string(),
+                capability.public_key.as_bytes(),
+                capability.spending_limit_rj.as_u64() as i64,
+                capability.spent_rj.as_u64() as i64,
+                capability.privacy_mode.to_string(),
+                capability.preferred_chain.map(|c| c.to_string()),
+                capability.expiry.map(|e| e.to_rfc3339()),
+                capability.issued_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Look up an API key by its ID.
+    pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE key_id = ?1",
+        )?;
+        let rows: Vec<ApiKeyCapability> = collect_rows_strict!(
+            stmt,
+            rusqlite::params![key_id.to_string()],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<ApiKeyRow> {
+                Ok(ApiKeyRow {
+                    key_id: row.get(0)?,
+                    wallet_id: row.get(1)?,
+                    public_key: row.get(2)?,
+                    spending_limit_rj: row.get(3)?,
+                    spent_rj: row.get(4)?,
+                    privacy_mode: row.get(5)?,
+                    preferred_chain: row.get(6)?,
+                    expires_at: row.get(7)?,
+                    issued_at: row.get(8)?,
+                })
+            },
+            |r: ApiKeyRow| -> Result<ApiKeyCapability, WalletError> {
+                row_to_api_key_capability(r)
+            }
+        );
+        Ok(rows.into_iter().next())
+    }
+
+    /// Look up an API key by its Ed25519 public key (for Bearer token auth).
+    pub fn get_api_key_by_public_key(
+        &self,
+        public_key: &[u8],
+    ) -> Result<Option<ApiKeyCapability>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE public_key = ?1 AND revoked_at IS NULL",
+        )?;
+        let rows: Vec<ApiKeyCapability> = collect_rows_strict!(
+            stmt,
+            rusqlite::params![public_key],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<ApiKeyRow> {
+                Ok(ApiKeyRow {
+                    key_id: row.get(0)?,
+                    wallet_id: row.get(1)?,
+                    public_key: row.get(2)?,
+                    spending_limit_rj: row.get(3)?,
+                    spent_rj: row.get(4)?,
+                    privacy_mode: row.get(5)?,
+                    preferred_chain: row.get(6)?,
+                    expires_at: row.get(7)?,
+                    issued_at: row.get(8)?,
+                })
+            },
+            |r: ApiKeyRow| -> Result<ApiKeyCapability, WalletError> {
+                row_to_api_key_capability(r)
+            }
+        );
+        Ok(rows.into_iter().next())
+    }
+
+    /// List all active (non-revoked) API keys for a wallet.
+    pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE wallet_id = ?1 AND revoked_at IS NULL ORDER BY issued_at DESC",
+        )?;
+        let rows: Vec<ApiKeyCapability> = collect_rows_strict!(
+            stmt,
+            rusqlite::params![wallet_id.to_string()],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<ApiKeyRow> {
+                Ok(ApiKeyRow {
+                    key_id: row.get(0)?,
+                    wallet_id: row.get(1)?,
+                    public_key: row.get(2)?,
+                    spending_limit_rj: row.get(3)?,
+                    spent_rj: row.get(4)?,
+                    privacy_mode: row.get(5)?,
+                    preferred_chain: row.get(6)?,
+                    expires_at: row.get(7)?,
+                    issued_at: row.get(8)?,
+                })
+            },
+            |r: ApiKeyRow| -> Result<ApiKeyCapability, WalletError> {
+                row_to_api_key_capability(r)
+            }
+        );
+        Ok(rows)
+    }
+
+    /// Revoke an API key. Returns unspent rJoules to the wallet.
+    /// Idempotent — revoking an already-revoked key is a no-op.
+    pub fn revoke_api_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+        let rows = conn.execute(
+            "UPDATE api_keys SET revoked_at = ?1 WHERE key_id = ?2 AND revoked_at IS NULL",
+            rusqlite::params![now, key_id.to_string()],
+        )?;
+        if rows == 0 {
+            return Ok(()); // already revoked or doesn't exist — no-op
+        }
+        // Return unspent rJoules to wallet
+        let (wallet_id_str, spent, limit): (String, i64, i64) = conn.query_row(
+            "SELECT wallet_id, spent_rj, spending_limit_rj FROM api_keys WHERE key_id = ?1",
+            rusqlite::params![key_id.to_string()],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        let unspent = limit - spent;
+        if unspent > 0 {
+            conn.execute(
+                "UPDATE wallet_balances SET balance_rj = balance_rj + ?1, updated_at = ?2 WHERE wallet_id = ?3",
+                rusqlite::params![unspent, now, wallet_id_str],
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Update the spent_rj counter on an API key (called after each tool invocation).
+    pub fn update_spent_rj(&self, key_id: ApiKeyId, spent: RJoule) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "UPDATE api_keys SET spent_rj = ?1 WHERE key_id = ?2",
+            rusqlite::params![spent.as_u64() as i64, key_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    // ── Deposit Addresses ────────────────────────────────────────────────────
+
+    /// Store a derived deposit address for a wallet.
+    pub fn store_deposit_address(
+        &self,
+        wallet_id: WalletId,
+        chain: ChainId,
+        address: &str,
+        index: u64,
+        privacy: PrivacyMode,
+    ) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO deposit_addresses (wallet_id, chain, address, derivation_index, privacy_mode) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                wallet_id.to_string(),
+                chain.to_string(),
+                address,
+                index as i64,
+                privacy.to_string(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Get all deposit addresses for a wallet.
+    pub fn get_deposit_addresses(
+        &self,
+        wallet_id: WalletId,
+    ) -> Result<Vec<DepositAddress>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT wallet_id, chain, address, derivation_index, privacy_mode FROM deposit_addresses WHERE wallet_id = ?1 ORDER BY derivation_index",
+        )?;
+        let rows: Vec<DepositAddress> = collect_rows_strict!(
+            stmt,
+            rusqlite::params![wallet_id.to_string()],
+            |row: &rusqlite::Row<'_>| -> rusqlite::Result<DepositAddressRow> {
+                Ok(DepositAddressRow {
+                    chain: row.get(1)?,
+                    address: row.get(2)?,
+                    privacy_mode: row.get(4)?,
+                })
+            },
+            |r: DepositAddressRow| -> Result<DepositAddress, WalletError> {
+                Ok(DepositAddress {
+                    address: r.address,
+                    chain: ChainId::from_str(&r.chain)
+                        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+                    privacy_mode: PrivacyMode::from_str(&r.privacy_mode)
+                        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+                })
+            }
+        );
+        Ok(rows)
+    }
+
+    // ── Deposit References ───────────────────────────────────────────────────
+
+    /// Store a one-time shielded deposit reference.
+    pub fn store_deposit_reference(&self, reference: &DepositReference) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "INSERT INTO deposit_references (reference, wallet_id, chain, expires_at) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![
+                reference.reference,
+                reference.wallet_id.to_string(),
+                reference.chain.to_string(),
+                reference.expires_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Consume a deposit reference — atomically marks it spent and returns the wallet_id.
+    /// Returns None if the reference doesn't exist, is already spent, or has expired.
+    pub fn consume_deposit_reference(
+        &self,
+        reference: &str,
+    ) -> Result<Option<WalletId>, WalletError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+        // Atomic check-and-set: only consume if not already spent and not expired
+        let rows = conn.execute(
+            "UPDATE deposit_references SET spent = 1 WHERE reference = ?1 AND spent = 0 AND expires_at > ?2",
+            rusqlite::params![reference, now],
+        )?;
+        if rows == 0 {
+            return Ok(None); // not found, already spent, or expired
+        }
+        let wallet_id_str: String = conn.query_row(
+            "SELECT wallet_id FROM deposit_references WHERE reference = ?1",
+            rusqlite::params![reference],
+            |row| row.get(0),
+        )?;
+        Ok(Some(WalletId::from_str(&wallet_id_str)?))
+    }
+
+    /// Purge expired deposit references. Returns count of purged rows.
+    pub fn purge_expired_references(&self) -> Result<u64, WalletError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+        let rows = conn.execute(
+            "DELETE FROM deposit_references WHERE expires_at <= ?1",
+            rusqlite::params![now],
+        )?;
+        Ok(rows as u64)
+    }
+}
+
+// ── Row conversion helpers ─────────────────────────────────────────────────────
+
+fn tx_type_to_columns(
+    tx_type: &TransactionType,
+) -> (
+    &'static str,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<i64>,
+) {
+    match tx_type {
+        TransactionType::Deposit {
+            chain,
+            privacy,
+            tx_hash,
+            ..
+        } => (
+            "deposit",
+            Some(privacy.to_string()),
+            Some(chain.to_string()),
+            Some(tx_hash.clone()),
+            None,
+            None,
+            None,
+        ),
+        TransactionType::Withdrawal {
+            chain,
+            privacy,
+            tx_hash,
+            ..
+        } => (
+            "withdrawal",
+            Some(privacy.to_string()),
+            Some(chain.to_string()),
+            Some(tx_hash.clone()),
+            None,
+            None,
+            None,
+        ),
+        TransactionType::Spend {
+            key_id, tool, gas, ..
+        } => (
+            "spend",
+            None,
+            None,
+            None,
+            Some(key_id.to_string()),
+            Some(tool.clone()),
+            Some(*gas as i64),
+        ),
+        TransactionType::Refund { key_id, reason, .. } => (
+            "refund",
+            None,
+            None,
+            None,
+            Some(key_id.to_string()),
+            Some(reason.clone()),
+            None,
+        ),
+    }
+}
+
+fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransaction, WalletError> {
+    let tx_type = match r.tx_type.as_str() {
+        "deposit" => TransactionType::Deposit {
+            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("solana"))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+            privacy: PrivacyMode::from_str(r.tx_subtype.as_deref().unwrap_or("transparent"))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+            tx_hash: r.on_chain_tx_hash.unwrap_or_default(),
+            amount_usdc_micro: 0, // reconstructed from amount_rj / config
+        },
+        "withdrawal" => TransactionType::Withdrawal {
+            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("solana"))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+            privacy: PrivacyMode::from_str(r.tx_subtype.as_deref().unwrap_or("transparent"))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+            tx_hash: r.on_chain_tx_hash.unwrap_or_default(),
+            amount_usdc_micro: 0,
+        },
+        "spend" => TransactionType::Spend {
+            key_id: ApiKeyId::from_str(r.key_id.as_deref().unwrap_or(""))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
+            tool: r.tool_name.unwrap_or_default(),
+            gas: r.gas_units.unwrap_or(0) as u64,
+            rj: RJoule::new(r.amount_rj.abs() as u64),
+        },
+        "refund" => TransactionType::Refund {
+            key_id: ApiKeyId::from_str(r.key_id.as_deref().unwrap_or(""))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
+            reason: r.tool_name.unwrap_or_default(),
+            rj: RJoule::new(r.amount_rj.abs() as u64),
+        },
+        other => {
+            return Err(WalletError::Infra(InfrastructureError::Database(format!(
+                "unknown tx_type: {other}"
+            ))));
+        }
+    };
+    Ok(WalletTransaction {
+        id: r.id as u64,
+        wallet_id: WalletId::from_str(&r.wallet_id)?,
+        tx_type,
+        rjoules_delta: r.amount_rj,
+        balance_after: r.balance_after_rj as u64,
+        timestamp: chrono::NaiveDateTime::parse_from_str(&r.created_at, "%Y-%m-%d %H:%M:%S")
+            .map(|dt| dt.and_utc())
+            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
+    })
+}
+
+fn row_to_api_key_capability(r: ApiKeyRow) -> Result<ApiKeyCapability, WalletError> {
+    let public_key_bytes: [u8; 32] = r.public_key.try_into().map_err(|_| {
+        WalletError::Infra(InfrastructureError::Database(
+            "public_key must be 32 bytes".into(),
+        ))
+    })?;
+    Ok(ApiKeyCapability {
+        wallet_id: WalletId::from_str(&r.wallet_id)?,
+        key_id: ApiKeyId::from_str(&r.key_id)?,
+        public_key: Ed25519PublicKey(public_key_bytes),
+        spending_limit_rj: RJoule::new(r.spending_limit_rj as u64),
+        spent_rj: RJoule::new(r.spent_rj as u64),
+        expiry: r.expires_at.map(|e| {
+            chrono::DateTime::parse_from_rfc3339(&e)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| chrono::Utc::now())
+        }),
+        issued_at: chrono::DateTime::parse_from_rfc3339(&r.issued_at)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now()),
+        privacy_mode: PrivacyMode::from_str(&r.privacy_mode)
+            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+        preferred_chain: r
+            .preferred_chain
+            .map(|c| ChainId::from_str(&c))
+            .transpose()
+            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+    })
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::in_memory_db;
+
+    fn make_store() -> WalletStore {
+        let db = in_memory_db();
+        WalletStore::new(db.conn_arc())
+    }
+
+    // REQ: P2-wallet-store — credit_rjoules increases balance
+    #[test]
+    fn credit_rjoules_increases_balance() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        let balance = store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+        assert_eq!(balance.rjoules, 1000);
+    }
+
+    // REQ: P2-wallet-store — debit_rjoules decreases balance
+    #[test]
+    fn debit_rjoules_decreases_balance() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+        let balance = store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
+        assert_eq!(balance.rjoules, 700);
+    }
+
+    // REQ: P2-wallet-store — debit_rjoules rejects insufficient balance
+    #[test]
+    fn debit_rjoules_rejects_insufficient_balance() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(100)).unwrap();
+        let err = store.debit_rjoules(wallet, RJoule::new(500)).unwrap_err();
+        assert!(matches!(err, WalletError::InsufficientBalance { .. }));
+    }
+
+    // REQ: P2-wallet-store — balance never goes negative
+    #[test]
+    fn balance_never_negative() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(50)).unwrap();
+        // Debit exactly the balance
+        let balance = store.debit_rjoules(wallet, RJoule::new(50)).unwrap();
+        assert_eq!(balance.rjoules, 0);
+        // Debit more should fail
+        assert!(store.debit_rjoules(wallet, RJoule::new(1)).is_err());
+    }
+
+    // REQ: P2-wallet-store — transaction ledger is append-only
+    #[test]
+    fn transaction_ledger_is_append_only() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+        let balance = store.get_balance(wallet).unwrap().unwrap();
+
+        let tx = WalletTransaction {
+            id: 0, // auto-increment, ignored on insert
+            wallet_id: wallet,
+            tx_type: TransactionType::Deposit {
+                chain: ChainId::Solana,
+                privacy: PrivacyMode::Transparent,
+                tx_hash: "test_tx".into(),
+                amount_usdc_micro: 1_000_000,
+            },
+            rjoules_delta: 1000,
+            balance_after: balance.rjoules,
+            timestamp: chrono::Utc::now(),
+        };
+        store.record_transaction(&tx).unwrap();
+
+        let txs = store.get_transactions(wallet, 10, 0).unwrap();
+        assert_eq!(txs.len(), 1);
+        assert_eq!(txs[0].rjoules_delta, 1000);
+    }
+
+    // REQ: P2-wallet-store — deposit reference is consumed atomically (anti-replay)
+    #[test]
+    fn deposit_reference_anti_replay() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.ensure_wallet(wallet).unwrap();
+
+        let dep_ref = DepositReference {
+            reference: "test_ref_001".into(),
+            wallet_id: wallet,
+            chain: ChainId::Solana,
+            nonce: [0u8; 16],
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
+        };
+        store.store_deposit_reference(&dep_ref).unwrap();
+
+        // First consumption succeeds
+        let result = store.consume_deposit_reference("test_ref_001").unwrap();
+        assert_eq!(result, Some(wallet));
+
+        // Second consumption fails (already spent)
+        let result2 = store.consume_deposit_reference("test_ref_001").unwrap();
+        assert_eq!(result2, None);
+    }
+
+    // REQ: P2-wallet-store — expired deposit reference cannot be consumed
+    #[test]
+    fn expired_deposit_reference_rejected() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.ensure_wallet(wallet).unwrap();
+
+        let dep_ref = DepositReference {
+            reference: "expired_ref".into(),
+            wallet_id: wallet,
+            chain: ChainId::Solana,
+            nonce: [0u8; 16],
+            expires_at: chrono::Utc::now() - chrono::Duration::hours(1), // already expired
+        };
+        store.store_deposit_reference(&dep_ref).unwrap();
+
+        let result = store.consume_deposit_reference("expired_ref").unwrap();
+        assert_eq!(result, None);
+    }
+
+    // REQ: P2-wallet-store — API key store and retrieve by public key
+    #[test]
+    fn api_key_store_and_retrieve_by_public_key() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.ensure_wallet(wallet).unwrap();
+
+        let pubkey = Ed25519PublicKey([1u8; 32]);
+        let cap = ApiKeyCapability {
+            wallet_id: wallet,
+            key_id: ApiKeyId::new(),
+            public_key: pubkey,
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&cap).unwrap();
+
+        let retrieved = store.get_api_key_by_public_key(pubkey.as_bytes()).unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().key_id, cap.key_id);
+    }
+
+    // REQ: P2-wallet-store — API key revocation returns unspent rJoules
+    #[test]
+    fn api_key_revocation_returns_unspent_rjoules() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(10000)).unwrap();
+
+        let cap = ApiKeyCapability {
+            wallet_id: wallet,
+            key_id: ApiKeyId::new(),
+            public_key: Ed25519PublicKey([2u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::new(1200), // 3800 unspent
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        let key_id = cap.key_id;
+        store.store_api_key(&cap).unwrap();
+
+        // Debit the wallet by the key's spending limit (simulating allocation)
+        store.debit_rjoules(wallet, RJoule::new(5000)).unwrap();
+        let before = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(before.rjoules, 5000); // 10000 - 5000
+
+        store.revoke_api_key(key_id).unwrap();
+        let after = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(after.rjoules, 8800); // 5000 + 3800 unspent returned
+    }
+
+    // REQ: P2-wallet-store — purge_expired_references cleans up
+    #[test]
+    fn purge_expired_references_cleans_up() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.ensure_wallet(wallet).unwrap();
+
+        // Store an expired reference
+        let expired = DepositReference {
+            reference: "old_ref".into(),
+            wallet_id: wallet,
+            chain: ChainId::Solana,
+            nonce: [0u8; 16],
+            expires_at: chrono::Utc::now() - chrono::Duration::hours(1),
+        };
+        store.store_deposit_reference(&expired).unwrap();
+
+        // Store a valid reference
+        let valid = DepositReference {
+            reference: "new_ref".into(),
+            wallet_id: wallet,
+            chain: ChainId::Solana,
+            nonce: [1u8; 16],
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
+        };
+        store.store_deposit_reference(&valid).unwrap();
+
+        let purged = store.purge_expired_references().unwrap();
+        assert_eq!(purged, 1);
+
+        // Expired is gone
+        assert_eq!(store.consume_deposit_reference("old_ref").unwrap(), None);
+        // Valid still works
+        assert_eq!(
+            store.consume_deposit_reference("new_ref").unwrap(),
+            Some(wallet)
+        );
+    }
+}

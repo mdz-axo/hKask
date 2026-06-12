@@ -147,8 +147,8 @@ kask chat -f questions.txt
 **Chat Features:**
 - Auto-template selection based on input type (questions, actions, defaults)
 - Explicit template selection via `--template` flag
-- Okapi inference with configurable parameters (temperature: 0.7, max_tokens: 512)
-- Graceful error handling when Okapi is unavailable
+- Multi-provider inference (Ollama, Fireworks, DeepInfra) with configurable parameters (temperature: 0.7, max_tokens: 512)
+- Graceful error handling when providers are unavailable
 
 ### 3.3 API Server (Optional)
 
@@ -186,10 +186,11 @@ kask sovereignty status
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `OKAPI_BASE_URL` | Okapi API endpoint | `http://127.0.0.1:11435` | No |
-| `OKAPI_API_KEY` | Okapi API key (Bearer auth) | — | No |
-| `OKAPI_TIMEOUT_SECS` | Request timeout | `30` | No |
-| `OKAPI_POOL_MAX_IDLE` | Connection pool size | `10` | No |
+| `OM_BASE_URL` | Ollama base URL | `http://127.0.0.1:11434` | No |
+| `FW_BASE_URL` | Fireworks API endpoint | `https://api.fireworks.ai/inference` | No |
+| `FW_API_KEY` | Fireworks API key (also `FIREWORKS_API_KEY`) | — | For FW provider |
+| `DI_BASE_URL` | DeepInfra base URL | `https://api.deepinfra.com` | No |
+| `DI_API_KEY` | DeepInfra API key (also `DEEPINFRA_API_KEY`) | — | For DI provider |
 | `HKASK_DATABASE_URL` | SQLite database path | `./hkask.db` | No |
 | `HKASK_LOG_LEVEL` | Logging verbosity | `info` | No |
 | `RUST_LOG` | Rust tracing filter | — | No |
@@ -198,6 +199,16 @@ kask sovereignty status
 | `HKASK_SOAP_MAX_TOKENS` | Max tokens for SOAP | `2048` | No |
 | `HKASK_SOAP_TIMEOUT_SECS` | SOAP inference timeout | `30` | No |
 | `HKASK_SOAP_PERSONA_PATH` | Jack persona file path | `hkask-templates/personas/jack-nurse.md` | No |
+
+Model names use 2-letter provider prefixes for routing:
+- `OM/` → Ollama (local) — no API key needed
+- `FW/` → Fireworks.ai (cloud) — requires `FW_API_KEY`
+- `DI/` → DeepInfra (cloud) — requires `DI_API_KEY`
+- No prefix → defaults to Ollama
+
+API keys can be set in environment variables or in a `.env` file in the
+working directory. The `kask` binary and all MCP servers auto-load `.env`
+on startup via `dotenvy`.
 
 ### 4.2 Chat Configuration
 
@@ -220,9 +231,9 @@ To customize chat behavior, modify the source code in:
 
 ```bash
 # Production environment
-export OKAPI_BASE_URL="https://okapi.example.com"
-export OKAPI_API_KEY="your-api-key-here"
-export OKAPI_TIMEOUT_SECS=60
+export OM_BASE_URL="http://ollama.internal:11434"
+export DI_API_KEY="your-deepinfra-key"
+export FW_API_KEY="your-fireworks-key"
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
 export HKASK_LOG_LEVEL="warn"
 export RUST_LOG="hkask=info,hyper=warn"
@@ -267,7 +278,8 @@ Type=simple
 User=hkask
 Group=hkask
 ExecStart=/usr/local/bin/hkask-api serve --host 0.0.0.0 --port 8080
-Environment=OKAPI_BASE_URL=https://okapi.example.com
+Environment=OM_BASE_URL=http://ollama.internal:11434
+Environment=DI_API_KEY=${DEEPINFRA_KEY}
 Environment=HKASK_DATABASE_URL=/var/lib/hkask/hkask.db
 Environment=RUST_LOG=hkask=info
 Restart=on-failure
@@ -305,7 +317,7 @@ RUN useradd -m hkask
 USER hkask
 
 ENV HKASK_DATABASE_URL=/home/hkask/hkask.db
-ENV OKAPI_BASE_URL=http://host.docker.internal:8080
+ENV OM_BASE_URL=http://host.docker.internal:11434
 
 EXPOSE 8080
 
@@ -341,8 +353,13 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: OKAPI_BASE_URL
-          value: "http://okapi.default.svc.cluster.local:8080"
+        - name: OM_BASE_URL
+          value: "http://ollama.default.svc.cluster.local:11434"
+        - name: DI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hkask-secrets
+              key: deepinfra-api-key
         - name: HKASK_DATABASE_URL
           value: "/data/hkask.db"
         volumeMounts:
@@ -497,7 +514,7 @@ chmod 600 /var/lib/hkask/hkask.db
 
 - Run API behind reverse proxy (nginx, Traefik)
 - Enable TLS termination at proxy
-- Restrict Okapi API access to internal network
+- Restrict inference provider access to internal network
 - Use firewall rules to limit API access
 
 ### 9.3 Capability Security
@@ -514,12 +531,12 @@ chmod 600 /var/lib/hkask/hkask.db
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| `Failed to initialize Okapi` | Okapi not running | Start Okapi service or check `OKAPI_BASE_URL` |
-| `Inference error: error sending request` | Okapi connection refused | Verify Okapi is running at configured URL |
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `FW_API_KEY` in env or `.env` file |
+| `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |
 | `Capability denied` | Missing/invalid token | Grant capability with `kask bot grant` |
-| `Chat response slow` | High inference latency | Check Okapi load; reduce `max_tokens` |
+| `Chat response slow` | High inference latency | Check provider load; reduce `max_tokens` |
 
 ### 10.2 Chat-Specific Issues
 
@@ -533,9 +550,9 @@ chmod 600 /var/lib/hkask/hkask.db
 - Check template exists: `kask template get <id>`
 - Verify template type matches input (prompt, cognition, process)
 
-**Okapi timeout:**
-- Increase `OKAPI_TIMEOUT_SECS` (default: 30)
-- Check Okapi server load
+**Inference timeout:**
+- Increase request timeout in `InferenceConfig` (default: 120s)
+- Check provider server load
 - Reduce `HKASK_SOAP_MAX_TOKENS`
 
 ### 10.3 Debug Mode
@@ -548,10 +565,16 @@ kask chat --interactive --verbose
 # View detailed CNS spans
 kask cns health --verbose
 
-# Test Okapi connectivity directly
-curl http://127.0.0.1:11435/api/generate \
+# Test Ollama connectivity directly
+curl http://127.0.0.1:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{"prompt": "test", "model": "qwen3:8b"}'
+
+# Test DeepInfra embeddings
+curl https://api.deepinfra.com/v1/embeddings \
+  -H "Authorization: Bearer $DEEPINFRA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "Qwen/Qwen3-Embedding-0.6B", "input": ["test"]}'
 ```
 
 ### 10.4 Support

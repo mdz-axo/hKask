@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 /// Default embedding model (DeepInfra Qwen3-Embedding-0.6B).
 /// Override with `HKASK_EMBEDDING_MODEL` env var.
-const DEFAULT_EMBEDDING_MODEL: &str = "Qwen/Qwen3-Embedding-0.6B";
+const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
 
 /// Default generation model for prose composition.
 /// Override with `HKASK_REPLICA_MODEL` env var.
@@ -255,7 +255,6 @@ impl ReplicaServer {
                 &config_path,
                 &params.db_path,
                 &params.passphrase,
-                None,
                 None,
                 Some(progress),
             )
@@ -662,6 +661,7 @@ impl ReplicaServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
     let daemon_ok = match try_daemon_flow(&replicant).await {
