@@ -8,6 +8,7 @@
 //! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, ServerContext, run_stdio_server)
 
 pub mod adapter_container;
+pub mod daemon; // Unix socket transport for MCP binary ↔ hKask daemon
 pub mod dispatch; // Tool dispatch through GovernedTool membrane (includes RawMcpToolPort)
 pub mod git_cas;
 pub mod runtime;
@@ -15,6 +16,7 @@ pub(crate) mod security;
 pub mod server;
 
 pub(crate) use adapter_container::AdapterContainer;
+pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;
 pub use git_cas::{GitCasAdapter, GixCasAdapter};

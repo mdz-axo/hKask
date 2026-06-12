@@ -24,8 +24,8 @@ Two sessions were completed on 2026-06-11:
 
 1. **Wrong endpoint fixed:** `/api/generate` → `/v1/chat/completions`
 2. **Missing `stream: false` fixed:** Added `Some(false)` to all three non-streaming `build_request` call sites
-3. **`think: bool = false` added to `OkapiRequest`:** qwen3 models spend all tokens on internal reasoning without this field
-4. **`OkapiConfig::for_inference()` added** (`crates/hkask-templates/src/okapi_config.rs`): 120-second timeout
+3. **`think: bool = false` added to `ChatRequest`:** qwen3 models spend all tokens on internal reasoning without this field
+4. **`InferenceConfig` (120s timeout default) added** (`crates/hkask-templates/src/okapi_config.rs`): 120-second timeout
 5. **`InferenceService::resolve_port()` updated** (`crates/hkask-services/src/inference.rs`): uses `for_inference()`
 6. **Three pinning tests added** to `inference_port.rs`
 
@@ -70,13 +70,7 @@ Two sessions were completed on 2026-06-11:
 
 **To verify:** Run compose with `RUST_LOG=hkask_services=debug` to see KNN distances.
 
-### HIGH #2 — `think: false` not forwarded by Okapi for qwen3
 
-**Status:** hKask side is correct — `think: false` is serialized in `build_request()`. The limitation is in Okapi's `/v1/chat/completions` handler, which does not forward the field to Ollama's `/api/chat`.
-
-**Done:** Added doc comment on `build_request()` documenting the design decisions and Okapi limitation.
-
-**Remaining:** File an issue/PR with `mdz-axo/Okapi` to forward unknown fields or expose a dedicated `think` parameter. (GitHub credentials not available in this session.)
 
 ### MEDIUM — Academic author pipeline architecture
 
@@ -112,19 +106,19 @@ Clippy: `-D warnings` clean on all three crates.
 
 ## 5. What Remains
 
-### Needs Okapi running
+### Needs Ollama running
 
 | Item | Command |
 |------|---------|
-| Verify exemplar retrieval | `RUST_LOG=hkask_services=debug kask compose run --prompt "Write a war scene in the style of Hemingway." --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml --db /tmp/hkask-test-styles.db --passphrase test-pass --okapi-url http://127.0.0.1:11435` |
-| Embed Woolf corpus | `kask embed-corpus run --config registry/styles/woolf/corpus.yaml --db /tmp/hkask-test-styles.db --passphrase test-pass --okapi-url http://127.0.0.1:11435` |
+| Verify exemplar retrieval | `RUST_LOG=hkask_services=debug kask compose run --prompt "Write a war scene in the style of Hemingway." --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml --db /tmp/hkask-test-styles.db --passphrase test-pass` |
+| Embed Woolf corpus | `kask embed-corpus run --config registry/styles/woolf/corpus.yaml --db /tmp/hkask-test-styles.db --passphrase test-pass` |
 | Validate Woolf compose | `kask compose run --cognition registry/registries/cognition/woolf-style-synthesizer.yaml ...` |
 
 ### Needs GitHub credentials
 
 | Item | Action |
 |------|--------|
-| File Okapi `think` forwarding issue | Create issue on `mdz-axo/Okapi` for `/v1/chat/completions` → Ollama `/api/chat` field forwarding |
+
 
 ### Architectural decisions pending
 
@@ -141,7 +135,7 @@ Clippy: `-D warnings` clean on all three crates.
 | Architecture master sovereignty claim | HIGH | `docs/architecture/hKask-architecture-master.md` |
 | Architecture master allosteric terms | LOW | `docs/architecture/hKask-architecture-master.md` |
 | Citation compliance audit (P1-06) | LOW | Document cross-reference verification |
-| Onboarding smoke test | MEDIUM | Needs Okapi running |
+| Onboarding smoke test | MEDIUM | Needs Ollama running |
 
 ---
 
@@ -149,8 +143,8 @@ Clippy: `-D warnings` clean on all three crates.
 
 1. **`/v1/chat/completions` is the canonical inference endpoint.** Do not revert to `/api/generate`.
 2. **`stream: false` must be explicit in all non-streaming requests.**
-3. **`think: false` always sent in `OkapiRequest`.** Non-thinking models ignore it; thinking models disable CoT.
-4. **`OkapiConfig::for_inference()` at 120s timeout, not `OkapiConfig::default()` at 30s.**
+3. **`think: false` always sent in `ChatRequest`.** Non-thinking models ignore it; thinking models disable CoT.
+4. **`InferenceConfig` (120s timeout default), not the previous 30s default.**
 5. **`validation` is a top-level key in `CognitionConfig` YAML, not nested under `embedding`.**
 6. **Salience formula is `(one_hop + two_hop/2) / 2`.** Budget gates triple storage, not embedding.
 7. **`distance_threshold: 0.50` is the new default** for instruction-style prompts (was 0.30, too tight).
@@ -185,14 +179,12 @@ curl -s -X POST http://127.0.0.1:11435/api/generate \
 kask embed-corpus run \
   --config registry/styles/woolf/corpus.yaml \
   --db /tmp/hkask-test-styles.db \
-  --passphrase test-pass \
-  --okapi-url http://127.0.0.1:11435
+  --passphrase test-pass
 
 # Compose with debug logging to verify exemplar retrieval
-RUST_LOG=hkask_services=debug OKAPI_MODEL=deepseek-v4-flash:cloud kask compose run \
+RUST_LOG=hkask_services=debug OM/deepseek-v4-pro kask compose run \
   --prompt "Write a war scene in the style of Hemingway." \
   --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml \
   --db /tmp/hkask-test-styles.db \
-  --passphrase test-pass \
-  --okapi-url http://127.0.0.1:11435
+  --passphrase test-pass
 ```

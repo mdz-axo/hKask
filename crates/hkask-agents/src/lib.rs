@@ -43,7 +43,7 @@ pub use hkask_storage::{
 };
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
-pub use pod::{AgentPersona, PodID, PodManager, PodStatus};
+pub use pod::{AgentMode, AgentPersona, PodID, PodManager, PodStatus};
 pub use ports::{
     AcpPort, EpisodicStoragePort, GitCasAdapter, RecallRequest, RecalledEpisode, RecalledSemantic,
     SemanticStoragePort, StorageRequest,

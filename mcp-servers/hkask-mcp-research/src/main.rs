@@ -42,6 +42,10 @@ const RATE_LIMIT_WINDOW_SECS: u64 = 60;
 
 pub struct ResearchServer {
     webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<hkask_mcp::DaemonClient>,
     /// Web search/extract/browse provider pool
     pool: Arc<dyn WebSearchPort>,
     /// Response cache for web search/extract results
@@ -59,6 +63,8 @@ impl ResearchServer {
     #[allow(dead_code)]
     fn new(
         ctx: &ServerContext,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
         brave_api_key: Option<String>,
         firecrawl_api_key: Option<String>,
         tavily_api_key: Option<String>,
@@ -138,6 +144,8 @@ impl ResearchServer {
 
         Ok(Self {
             webid: ctx.webid,
+            replicant,
+            daemon,
             pool: Arc::new(ProviderPool::new(
                 search_providers,
                 extract_providers,
@@ -152,6 +160,62 @@ impl ResearchServer {
             rss_db,
             rss_client,
         })
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    ///
+    /// Generates a literal chat stream entry and sends it to the daemon for
+    /// dual encoding (episodic + semantic). Fire-and-forget — failures are
+    /// logged but never block the tool response.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool,
+                "input": input_summary,
+                "outcome": outcome,
+                "detail": detail,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(
+                            target: "hkask.mcp.research.memory",
+                            tool = %tool_name,
+                            "Experience stored via daemon"
+                        );
+                    }
+                    Ok(other) => {
+                        tracing::warn!(
+                            target: "hkask.mcp.research.memory",
+                            tool = %tool_name,
+                            response = ?other,
+                            "Unexpected daemon response for store_experience"
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "hkask.mcp.research.memory",
+                            tool = %tool_name,
+                            error = %e,
+                            "Failed to store experience via daemon"
+                        );
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -399,6 +463,12 @@ impl ResearchServer {
         );
 
         if let Some(cached) = self.cache.get(&ckey).await {
+            self.record_experience(
+                "web_search",
+                &req.query,
+                "cache_hit",
+                serde_json::json!({"results": "served from cache"}),
+            );
             return span.ok_json(cached);
         }
 
@@ -450,6 +520,18 @@ impl ResearchServer {
             .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }));
 
         self.cache.insert(ckey, output.clone()).await;
+
+        self.record_experience(
+            "web_search",
+            &req.query,
+            "success",
+            serde_json::json!({
+                "results_count": search_output.count,
+                "strategy": search_output.strategy,
+                "top_result": search_output.results.first().map(|r| r.title.clone()),
+            }),
+        );
+
         span.ok_json(output)
     }
 
@@ -578,6 +660,12 @@ impl ResearchServer {
         let ckey = cache_key("extract", &url, &cache_params, &fingerprint);
 
         if let Some(cached) = self.cache.get(&ckey).await {
+            self.record_experience(
+                "web_extract",
+                &url,
+                "cache_hit",
+                serde_json::json!({"format": fmt}),
+            );
             return span.ok_json(cached);
         }
 
@@ -600,6 +688,18 @@ impl ResearchServer {
         if let Ok(ref json) = json_result {
             self.cache.insert(ckey, json.clone()).await;
         }
+
+        self.record_experience(
+            "web_extract",
+            &url,
+            if json_result.is_ok() {
+                "success"
+            } else {
+                "error"
+            },
+            serde_json::json!({"format": fmt}),
+        );
+
         span.finish(json_result)
     }
 
@@ -993,7 +1093,38 @@ impl ResearchServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    // Attempt daemon connection for P4 dual-gate verification.
+    // Falls back to direct mode if daemon is not available (development).
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(
+                target: "hkask.mcp.research",
+                replicant = %replicant,
+                error = %e,
+                "Daemon unavailable — falling back to direct mode (no OCAP verification)"
+            );
+            false
+        }
+    };
+
+    if !daemon_ok {
+        tracing::warn!(
+            target: "hkask.mcp.research",
+            "Running without daemon — P4 dual-gate verification skipped. Start hKask daemon for full OCAP enforcement."
+        );
+    }
+
     let dotenv = hkask_mcp::load_dotenv();
+
+    // Create daemon client if daemon flow succeeded
+    let daemon_client = if daemon_ok {
+        Some(hkask_mcp::DaemonClient::new())
+    } else {
+        None
+    };
 
     hkask_mcp::run_server_with_preloaded(
         "hkask-mcp-research",
@@ -1007,6 +1138,8 @@ async fn main() -> anyhow::Result<()> {
 
             ResearchServer::new(
                 &ctx,
+                replicant.clone(),
+                daemon_client.clone(),
                 parse_env("HKASK_BRAVE_API_KEY"),
                 parse_env("HKASK_FIRECRAWL_API_KEY"),
                 parse_env("HKASK_TAVILY_API_KEY"),
@@ -1017,27 +1150,122 @@ async fn main() -> anyhow::Result<()> {
                 parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES"),
             )
         },
-        vec![
-            // Web credentials
-            CredentialRequirement::optional("HKASK_BRAVE_API_KEY", "Brave Search API key"),
-            CredentialRequirement::optional("HKASK_FIRECRAWL_API_KEY", "Firecrawl API key"),
-            CredentialRequirement::optional("HKASK_TAVILY_API_KEY", "Tavily API key"),
-            CredentialRequirement::optional("HKASK_SERPAPI_API_KEY", "SerpAPI key"),
-            CredentialRequirement::optional("HKASK_EXA_API_KEY", "Exa API key"),
-            CredentialRequirement::optional("HKASK_BROWSERBASE_API_KEY", "Browserbase API key"),
-            CredentialRequirement::optional("HKASK_WEB_CACHE_TTL_SECS", "Cache TTL seconds"),
-            CredentialRequirement::optional("HKASK_WEB_CACHE_MAX_ENTRIES", "Max cache entries"),
-            // RSS credentials
-            CredentialRequirement::optional(
-                "HKASK_RSS_DB",
-                "Path to the RSS reader SQLite database (RSS tools unavailable if absent)",
-            ),
-            CredentialRequirement::optional(
-                "HKASK_DB_PASSPHRASE",
-                "Passphrase for SQLCipher encryption (required if HKASK_RSS_DB is set)",
-            ),
-        ],
+        credential_requirements(),
         dotenv,
     )
     .await
+}
+
+/// Attempt the daemon-mediated P4 dual-gate flow:
+/// 1. Auth query — is the replicant authenticated?
+/// 2. Assignment query — is the replicant assigned to "research"?
+/// 3. Capability queries — does the replicant hold tool capabilities?
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = hkask_mcp::DaemonClient::new();
+
+    // Gate 1: Authentication (P2 — Affirmative Consent)
+    let auth = client.auth_query(replicant).await?;
+    match auth {
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some(ref webid),
+            ..
+        } => {
+            tracing::info!(
+                target: "hkask.mcp.research",
+                replicant = %replicant,
+                webid = %webid,
+                "Replicant authenticated via daemon"
+            );
+        }
+        hkask_mcp::DaemonResponse::AuthResponse {
+            authenticated: false,
+            action: Some(ref action),
+            ..
+        } if action == "prompt_user" => {
+            anyhow::bail!(
+                "Replicant '{}' is not authenticated. The daemon will prompt for passphrase. \
+                 Enter the replicant's passphrase in the hKask terminal.",
+                replicant
+            );
+        }
+        other => {
+            anyhow::bail!("Unexpected auth response: {:?}", other);
+        }
+    }
+
+    // Gate 2: Assignment (P4 — sovereignty/consent)
+    let assignment = client.assignment_query(replicant, "research").await?;
+    match assignment {
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: true } => {
+            tracing::info!(
+                target: "hkask.mcp.research",
+                replicant = %replicant,
+                "Replicant assigned to research role"
+            );
+        }
+        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: false } => {
+            anyhow::bail!(
+                "Replicant '{}' is not assigned to the research MCP role. \
+                 Use 'kask replicant assign {} research' to grant this role.",
+                replicant,
+                replicant
+            );
+        }
+        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+    }
+
+    // Gate 3: Capabilities (P4 — OCAP tokens)
+    let required_tools = ["web_search", "web_extract", "web_browse"];
+    for tool in &required_tools {
+        let cap = client.capability_query(replicant, tool).await?;
+        match cap {
+            hkask_mcp::DaemonResponse::CapabilityResponse { granted: true } => {
+                tracing::debug!(
+                    target: "hkask.mcp.research",
+                    replicant = %replicant,
+                    tool = %tool,
+                    "Capability granted"
+                );
+            }
+            hkask_mcp::DaemonResponse::CapabilityResponse { granted: false } => {
+                tracing::warn!(
+                    target: "hkask.mcp.research",
+                    replicant = %replicant,
+                    tool = %tool,
+                    "Capability denied — tool will not be available"
+                );
+            }
+            other => anyhow::bail!("Unexpected capability response for '{}': {:?}", tool, other),
+        }
+    }
+
+    tracing::info!(
+        target: "hkask.mcp.research",
+        replicant = %replicant,
+        "P4 dual-gate verification complete — starting MCP server"
+    );
+    Ok(())
+}
+
+fn credential_requirements() -> Vec<CredentialRequirement> {
+    let opt = CredentialRequirement::optional;
+    vec![
+        opt("HKASK_BRAVE_API_KEY", "Brave Search API key"),
+        opt("HKASK_FIRECRAWL_API_KEY", "Firecrawl API key"),
+        opt("HKASK_TAVILY_API_KEY", "Tavily API key"),
+        opt("HKASK_SERPAPI_API_KEY", "SerpAPI key"),
+        opt("HKASK_EXA_API_KEY", "Exa API key"),
+        opt("HKASK_BROWSERBASE_API_KEY", "Browserbase API key"),
+        opt("HKASK_WEB_CACHE_TTL_SECS", "Cache TTL seconds"),
+        opt("HKASK_WEB_CACHE_MAX_ENTRIES", "Max cache entries"),
+        opt(
+            "HKASK_RSS_DB",
+            "Path to the RSS reader SQLite database (RSS tools unavailable if absent)",
+        ),
+        opt(
+            "HKASK_DB_PASSPHRASE",
+            "Passphrase for SQLCipher encryption (required if HKASK_RSS_DB is set)",
+        ),
+    ]
 }

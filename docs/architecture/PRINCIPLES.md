@@ -26,7 +26,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>10 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>10 MCP servers + Inference Router]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -307,7 +307,7 @@ fi
 ```mermaid
 graph TD
     subgraph External[External Systems]
-        LLM[Okapi LLM]
+        LLM[Inference Router (OM/FW/DI)]
         MCP_EXT[MCP Servers]
         GIT[Git CAS]
         KEYCHAIN[OS Keychain]
@@ -315,7 +315,7 @@ graph TD
     end
     
     subgraph Adapters[Adapters Layer]
-        LLM_ADAPTER[LLM Adapter<br/>OkapiConnector]
+        LLM_ADAPTER[LLM Adapter<br/>InferenceRouter]
         MCP_ADAPTER[MCP Adapter<br/>McpRuntime]
         GIT_ADAPTER[Git Adapter<br/>ArtifactStore]
         KEY_ADAPTER[Key Adapter<br/>KeystoreService]

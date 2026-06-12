@@ -1,7 +1,7 @@
 ---
 name: condenser-continuation
 visibility: public
-description: "Continuation skill for resuming hKask condenser implementation work after context reset. Restores session state, prioritizes remaining tasks, verifies build status, and composes a structured continuation plan. Works with any hKask-supported inference engine (Okapi, Ollama, etc.)."
+description: "Continuation skill for resuming hKask condenser implementation work after context reset. Restores session state, prioritizes remaining tasks, verifies build status, and composes a structured continuation plan. Works with any hKask-supported inference engine (Ollama, Fireworks, DeepInfra, etc.)."
 ---
 
 # Condenser Continuation Skill
@@ -41,11 +41,8 @@ Adds a `condenser_thread_summary` tool that calls an inference engine's chat end
 
 | Engine | Endpoint | Config |
 |--------|----------|--------|
-| Okapi | `/api/chat` | `INFERENCE_URL`, `INFERENCE_MODEL`, `INFERENCE_API_KEY` |
 | Ollama | `/api/chat` | `INFERENCE_URL`, `INFERENCE_MODEL` |
 | Other | HTTP chat API | `INFERENCE_URL`, `INFERENCE_MODEL` + engine-specific vars |
-
-All accept legacy `OKAPI_*` aliases for backward compatibility.
 
 **Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3), the chat request must include `"think": false` (or equivalent) to prevent the model from spending all output tokens on internal reasoning. This is engine-specific configuration, not a global setting.
 

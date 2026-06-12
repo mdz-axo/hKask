@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 10 MCP servers + Okapi |
+| 2 | **Essential Tools** | 10 MCP servers + Inference Router (Ollama, Fireworks, DeepInfra) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -160,7 +160,7 @@ Invoke any tool from 10 MCP set; observe routing
 13. `fork` public template via storage MCP; observe divergent branch
 14. Merge two branches; observe structural success + conflict requiring ensemble
 15. Attempt to clone private artifact; observe OCAP rejection
-16. Observe okapi-curator reflect on inference outcomes, propose template revision
+16. Observe curator reflect on inference outcomes, propose template revision
 17. CNS records change, observes new outcomes
 
 ---

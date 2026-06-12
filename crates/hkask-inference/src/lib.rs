@@ -11,7 +11,7 @@
 //!   ├── FireworksBackend — FW/ prefix → api.fireworks.ai
 //!   └── DeepInfraBackend — DI/ prefix → api.deepinfra.com
 //!
-//! EmbeddingRouter (implements EmbeddingGenerationPort)
+//! EmbeddingRouter
 //!   ├── OllamaEmbedding    — OM/ prefix → /api/embed
 //!   ├── FireworksEmbedding — FW/ prefix → /v1/embeddings
 //!   └── DeepInfraEmbedding — DI/ prefix → /v1/embeddings

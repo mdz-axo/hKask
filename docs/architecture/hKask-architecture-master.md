@@ -158,7 +158,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
+| [`reference/inference-integration.md`](reference/inference-integration.md) | Inference Router API contract (Ollama, Fireworks, DeepInfra) |
 
 
 ---
@@ -218,7 +218,7 @@ docs/architecture/
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
     ├── hKask-Curator-persona.md           # Persona spec
-    └── okapi-integration.md               # Okapi API contract
+    └── inference-integration.md               # Inference Router API contract
 ```
 
 **Total:** 21 active architecture documents (4 framework + 1 index + 10 ADRs + 6 reference artifacts).

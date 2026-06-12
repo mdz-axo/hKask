@@ -35,6 +35,7 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | Crate | Purpose |
 |-------|---------|
 | `hkask-types` | ID types, ν-event, hLexicon |
+| `hkask-inference` | Inference router (Ollama, Fireworks, DeepInfra) |
 | `hkask-storage` | SQLite + SQLCipher + sqlite-vec |
 | `hkask-memory` | Semantic/episodic pipelines |
 | `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
@@ -51,8 +52,8 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-mcp-replica` | Authorial style embedding and composition |
 
 **10 MCP servers:** memory, condenser, research, spec, fmp, telnyx, fal, replica, doc-knowledge, markitdown
-**Internal cognition:** inference (Okapi), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP)
-**External:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
+**Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP)
+**External:** Ollama, Fireworks.ai, DeepInfra, ACP (acp-runtime), MCP (rmcp)
 
 ---
 

@@ -66,7 +66,7 @@ for its category cluster.
 
 | [`hKask-hLexicon.md`](architecture/reference/hKask-hLexicon.md) | domain | Minimal composition vocabulary |
 | [`ports-inventory.md`](architecture/reference/ports-inventory.md) | interface | Hexagonal port inventory |
-| [`okapi-integration.md`](architecture/reference/okapi-integration.md) | domain | Okapi LLM API contract |
+| [`inference-integration.md`](architecture/reference/inference-integration.md) | domain | Inference Router API contract |
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | interface | API and CLI documentation generation |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | composition | hLexicon functional role headers |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | domain | Canonical human-facing replicant |

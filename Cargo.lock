@@ -1389,6 +1389,7 @@ version = "0.27.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "dirs",
  "hex",
  "hkask-cns",
  "hkask-keystore",

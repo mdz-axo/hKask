@@ -124,7 +124,7 @@ After all domain migrations, unify shared infrastructure:
 
 | Step | Action | Target |
 |------|--------|--------|
-| 6a | Replace all `OkapiConfig::local_dev()` call sites | → `InferenceService` |
+| 6a | Replace all direct inference construction with `InferenceService` | → `InferenceService` |
 | 6b | Replace `ReplState`, `ApiState`, `build_loop_system()`, `commands/loops.rs` | → `ServiceContext` |
 | 6c | Replace `open_registry_db()`, `Stores::init()`, `ServerContext::open_database()` | → `ServiceContext::build()` |
 | 6d | Replace `resolve_acp_secret()` / `CapabilityChecker::new()` | → `ServiceContext::build()` |
@@ -184,7 +184,7 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 ```
 [ ] Every domain service extracted and both surfaces delegating
 [ ] ServiceContext owns all shared state assembly
-[ ] InferenceService replaces all OkapiConfig::local_dev() sites
+[ ] InferenceService constructs InferenceRouter from InferenceConfig
 [ ] ServiceError unified; surface adapters translate to presentation format
 [ ] CNS/Loop/EventSink wiring unified in ServiceContext::build()
 [ ] Secret resolution and ACP bootstrap unified in ServiceContext::build()

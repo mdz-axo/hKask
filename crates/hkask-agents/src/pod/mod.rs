@@ -82,7 +82,9 @@ use hkask_mcp::GitCasAdapter;
 pub use context::PodContext;
 pub use manager::{PodManager, PodStatus};
 
-pub use types::{AgentKind, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile};
+pub use types::{
+    AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile,
+};
 
 /// Agent Pod — Runtime container for ACP agents
 pub struct AgentPod {
@@ -106,6 +108,10 @@ pub struct AgentPod {
     pub max_attenuation: u8,
     /// Sovereignty checker for this pod
     pub(crate) sovereignty_checker: SovereigntyChecker,
+    /// Current operating mode (None = not in any active mode)
+    pub mode: Option<AgentMode>,
+    /// MCP server roles this agent is assigned to serve (e.g., ["research", "condenser"])
+    pub assigned_mcp_roles: Vec<String>,
 }
 
 /// Agent pod error types
@@ -163,6 +169,15 @@ pub enum AgentPodError {
 
     #[error("Pod must be activated before creating context")]
     PodNotActivated,
+
+    #[error("Agent is already in {0} mode — exit current mode first")]
+    ModeConflict(AgentMode),
+
+    #[error("Agent must be Activated before entering a mode (current state: {0})")]
+    ModeRequiresActivation(PodLifecycleState),
+
+    #[error("Agent is not assigned to MCP role '{0}'. Assigned roles: {1:?}")]
+    RoleNotAssigned(String, Vec<String>),
 }
 
 impl From<hkask_types::ports::ToolPortError> for AgentPodError {
@@ -222,6 +237,8 @@ impl AgentPod {
             created_at: current_timestamp()?,
             max_attenuation: SYSTEM_MAX_ATTENUATION,
             sovereignty_checker,
+            mode: None,
+            assigned_mcp_roles: Vec::new(),
         })
     }
 
@@ -372,6 +389,89 @@ impl AgentPod {
         self.state
     }
 
+    // ── Agent Mode Transitions ──
+
+    /// Enter server mode for a specific MCP role.
+    ///
+    /// P4 Dual Gate:
+    /// 1. Agent must be Activated (lifecycle gate)
+    /// 2. Agent must be assigned to the role (sovereignty/consent gate)
+    /// 3. Agent must not already be in another mode (mutual exclusion)
+    ///
+    /// Capability verification (P4 Gate 1) is performed by the daemon
+    /// at connection time, not here.
+    pub fn enter_server_mode(&mut self, role: &str) -> AgentPodResult<()> {
+        if self.state != PodLifecycleState::Activated {
+            return Err(AgentPodError::ModeRequiresActivation(self.state));
+        }
+        if let Some(ref current) = self.mode {
+            return Err(AgentPodError::ModeConflict(*current));
+        }
+        if !self.assigned_mcp_roles.iter().any(|r| r == role) {
+            return Err(AgentPodError::RoleNotAssigned(
+                role.to_string(),
+                self.assigned_mcp_roles.clone(),
+            ));
+        }
+        self.mode = Some(AgentMode::Server);
+        tracing::info!(
+            target: "cns.pod",
+            span = "cns.agent_pod.server_mode_enter",
+            pod_id = %self.id,
+            webid = %self.webid,
+            role = %role,
+            "Agent entered server mode"
+        );
+        Ok(())
+    }
+
+    /// Enter chat mode.
+    ///
+    /// Requires: Activated state, not already in another mode.
+    pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {
+        if self.state != PodLifecycleState::Activated {
+            return Err(AgentPodError::ModeRequiresActivation(self.state));
+        }
+        if let Some(ref current) = self.mode {
+            return Err(AgentPodError::ModeConflict(*current));
+        }
+        self.mode = Some(AgentMode::Chat);
+        tracing::info!(
+            target: "cns.pod",
+            span = "cns.agent_pod.chat_mode_enter",
+            pod_id = %self.id,
+            webid = %self.webid,
+            "Agent entered chat mode"
+        );
+        Ok(())
+    }
+
+    /// Exit the current mode, returning the agent to no active mode.
+    pub fn exit_mode(&mut self) -> AgentPodResult<()> {
+        let previous = self.mode.take();
+        if let Some(mode) = previous {
+            tracing::info!(
+                target: "cns.pod",
+                span = "cns.agent_pod.mode_exit",
+                pod_id = %self.id,
+                webid = %self.webid,
+                mode = %mode,
+                "Agent exited mode"
+            );
+        }
+        Ok(())
+    }
+
+    /// Check if the agent is currently in server mode.
+    pub fn is_in_server_mode(&self) -> bool {
+        self.mode == Some(AgentMode::Server)
+    }
+
+    /// Check if the agent is currently in chat mode.
+    pub fn is_in_chat_mode(&self) -> bool {
+        self.mode == Some(AgentMode::Chat)
+    }
+
     /// Execute action with sovereignty check
     ///
     /// This method performs an OCAP sovereignty check before executing
@@ -436,4 +536,114 @@ fn derive_ocap_secret(webid: &WebID) -> AgentPodResult<Zeroizing<String>> {
     let bytes =
         hkask_keystore::resolve(&secret_ref).map_err(|e| AgentPodError::KeyDerivation(e.into()))?;
     Ok(Zeroizing::new(hex::encode(&*bytes)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{DenyAllConsent, SovereigntyConsent};
+    use std::sync::Arc;
+
+    fn test_persona() -> AgentPersona {
+        AgentPersona::from_yaml(
+            "agent:\n  name: test-agent\n  type: Replicant\ncharter:\n  description: test\n  editor: test\ncapabilities: []\nrights: []\nresponsibilities: []\nvisibility:\n  default: public\n"
+        ).expect("test persona parse")
+    }
+
+    fn test_pod() -> AgentPod {
+        // SAFETY: test runs in single-threaded context, no other code reads HKASK_MASTER_KEY concurrently
+        unsafe {
+            std::env::set_var("HKASK_MASTER_KEY", "0123456789abcdef0123456789abcdef");
+        }
+        let persona = test_persona();
+        let template_dir = std::path::PathBuf::from("/tmp/hkask-test");
+        let crate_dir = template_dir.join("test-template");
+        std::fs::create_dir_all(&crate_dir).ok();
+        std::fs::write(
+            crate_dir.join("agent_persona.yaml"),
+            "agent:\n  name: test\n  type: Bot\n",
+        )
+        .ok();
+        std::fs::write(crate_dir.join("dispatch_manifest.yaml"), "name: test\n").ok();
+        let git = hkask_mcp::GitCasAdapter::from_path(template_dir);
+        AgentPod::new(
+            "test-template",
+            &persona,
+            &git,
+            Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
+        )
+        .expect("test pod creation")
+    }
+
+    // REQ: P4-dual-gate — Mode transitions require Activated state
+    #[test]
+    fn mode_requires_activation() {
+        let mut pod = test_pod();
+        // Pod starts in Populated state — mode entry should fail
+        let err = pod.enter_server_mode("research").unwrap_err();
+        assert!(matches!(err, AgentPodError::ModeRequiresActivation(_)));
+        let err = pod.enter_chat_mode().unwrap_err();
+        assert!(matches!(err, AgentPodError::ModeRequiresActivation(_)));
+    }
+
+    // REQ: P4-dual-gate — Mode mutual exclusion (initially single-mode)
+    #[test]
+    fn mode_mutual_exclusion() {
+        let mut pod = test_pod();
+        // Manually set Activated state for testing mode transitions
+        pod.state = PodLifecycleState::Activated;
+        pod.assigned_mcp_roles = vec!["research".to_string()];
+
+        // Enter server mode
+        pod.enter_server_mode("research")
+            .expect("enter server mode");
+        assert!(pod.is_in_server_mode());
+
+        // Attempting chat mode while in server mode should fail
+        let err = pod.enter_chat_mode().unwrap_err();
+        assert!(matches!(
+            err,
+            AgentPodError::ModeConflict(AgentMode::Server)
+        ));
+
+        // Attempting server mode again should also fail
+        let err = pod.enter_server_mode("research").unwrap_err();
+        assert!(matches!(
+            err,
+            AgentPodError::ModeConflict(AgentMode::Server)
+        ));
+    }
+
+    // REQ: P4-dual-gate — Role assignment check (sovereignty/consent gate)
+    #[test]
+    fn role_not_assigned_denied() {
+        let mut pod = test_pod();
+        pod.state = PodLifecycleState::Activated;
+        // No roles assigned
+        pod.assigned_mcp_roles = vec![];
+
+        let err = pod.enter_server_mode("research").unwrap_err();
+        assert!(matches!(err, AgentPodError::RoleNotAssigned(_, _)));
+    }
+
+    // REQ: P4-dual-gate — Mode exit and re-entry
+    #[test]
+    fn mode_exit_and_switch() {
+        let mut pod = test_pod();
+        pod.state = PodLifecycleState::Activated;
+        pod.assigned_mcp_roles = vec!["research".to_string()];
+
+        // Enter server, exit, enter chat
+        pod.enter_server_mode("research").expect("enter server");
+        pod.exit_mode().expect("exit server");
+        assert!(pod.mode.is_none());
+
+        pod.enter_chat_mode().expect("enter chat");
+        assert!(pod.is_in_chat_mode());
+
+        // Exit chat, re-enter server
+        pod.exit_mode().expect("exit chat");
+        pod.enter_server_mode("research").expect("re-enter server");
+        assert!(pod.is_in_server_mode());
+    }
 }

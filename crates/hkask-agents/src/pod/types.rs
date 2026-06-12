@@ -8,6 +8,27 @@ pub use hkask_types::AgentKind;
 
 use super::AgentPodError;
 
+/// Agent operating mode — how the agent is currently interacting with the world.
+///
+/// Initially mutually exclusive: an agent can be in Chat mode OR Server mode,
+/// not both. Concurrency support planned for future release.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AgentMode {
+    /// Conversational mode: chatting with users/agents, calling tools.
+    Chat,
+    /// Server mode: presenting as MCP server(s), handling incoming tool calls.
+    Server,
+}
+
+impl std::fmt::Display for AgentMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AgentMode::Chat => write!(f, "chat"),
+            AgentMode::Server => write!(f, "server"),
+        }
+    }
+}
+
 /// Pod lifecycle state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PodLifecycleState {
