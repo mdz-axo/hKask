@@ -42,6 +42,7 @@ futures-util.workspace = true
 rustyline = "18.0.0"
 dirs = "6"
 rpassword = "7"
+dotenvy.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

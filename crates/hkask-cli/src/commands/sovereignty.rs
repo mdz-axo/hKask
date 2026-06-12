@@ -20,11 +20,20 @@ fn build_consent() -> (
     hkask_services::AgentService,
     hkask_services::SovereigntyService,
 ) {
-    let config = hkask_services::ServiceConfig::from_env().expect("Config env");
-    let rt = tokio::runtime::Runtime::new().expect("runtime");
+    let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
+        eprintln!("Config env: {e}");
+        std::process::exit(1);
+    });
+    let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
+        eprintln!("runtime: {e}");
+        std::process::exit(1);
+    });
     let svc = rt
         .block_on(hkask_services::AgentService::build(config))
-        .expect("build svc");
+        .unwrap_or_else(|e| {
+            eprintln!("build svc: {e}");
+            std::process::exit(1);
+        });
     let cm = svc.sovereignty();
     (svc, cm)
 }

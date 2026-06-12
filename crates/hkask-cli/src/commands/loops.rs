@@ -15,7 +15,10 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     // Build AgentService with all shared infrastructure
     let ctx = rt
         .block_on(hkask_services::AgentService::build(config))
-        .expect("Failed to build service context for loop system");
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to build service context for loop system: {e}");
+            std::process::exit(1);
+        });
 
     // Start the loop system
     println!("Starting Loop System (per-loop default tick intervals)");
@@ -32,8 +35,10 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     }
     println!();
 
-    rt.block_on(loops.start())
-        .expect("Failed to start loop system: lock poisoned");
+    rt.block_on(loops.start()).unwrap_or_else(|e| {
+        eprintln!("Failed to start loop system: {e}");
+        std::process::exit(1);
+    });
 
     // Run until Ctrl+C
     println!("Loop system running. Press Ctrl+C to shutdown.");

@@ -444,36 +444,38 @@ impl HkaskLoop for CyberneticsLoop {
             let target_id = action.target;
 
             // Send CurationInput::Alert on direct alerts channel.
-            if action.action_type == ActionType::Escalate
-                && target_id == LoopId::Curation
-                && let Some(ref alerts_tx) = self.alerts_tx
-            {
-                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
-                let alert = RuntimeAlert {
-                    current: deficit,
-                    threshold,
-                    deficit,
-                    timestamp: chrono::Utc::now(),
-                };
-                if let Err(e) = alerts_tx.send(CurationInput::Alert(alert)) {
-                    tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send CurationInput::Alert");
+            if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
+                if let Some(ref alerts_tx) = self.alerts_tx {
+                    let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
+                    let alert = RuntimeAlert {
+                        current: deficit,
+                        threshold,
+                        deficit,
+                        timestamp: chrono::Utc::now(),
+                    };
+                    if let Err(e) = alerts_tx.send(CurationInput::Alert(alert)) {
+                        tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send CurationInput::Alert");
+                    }
+                } else {
+                    tracing::warn!(target: "cns.cybernetics", "Algedonic escalation computed but alerts channel not connected — feedback loop closure broken. Wire with_alerts_channel().");
                 }
             }
 
-            if action.action_type == ActionType::Escalate
-                && target_id == LoopId::Curation
-                && let Some(ref sink) = self.event_sink
-            {
-                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
-                let event = NuEvent::new(
-                    WebID::new(),
-                    Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
-                    Phase::Act,
-                    serde_json::json!({"deficit": deficit, "threshold": threshold}),
-                    0,
-                );
-                if let Err(e) = sink.persist(&event) {
-                    tracing::warn!(target: "cns.algedonic", error = %e, "Failed to persist algedonic alert to NuEventStore");
+            if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
+                if let Some(ref sink) = self.event_sink {
+                    let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
+                    let event = NuEvent::new(
+                        WebID::new(),
+                        Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
+                        Phase::Act,
+                        serde_json::json!({"deficit": deficit, "threshold": threshold}),
+                        0,
+                    );
+                    if let Err(e) = sink.persist(&event) {
+                        tracing::warn!(target: "cns.algedonic", error = %e, "Failed to persist algedonic alert to NuEventStore");
+                    }
+                } else {
+                    tracing::warn!(target: "cns.algedonic", "Algedonic alert not persisted — event_sink not connected. Alert history lost on restart. Wire with_event_sink().");
                 }
             }
         }

@@ -39,7 +39,7 @@ impl Keychain {
     }
 
     pub fn store(&self, webid: &WebID, secret: &str) -> Result<(), KeychainError> {
-        let entry = Entry::new(&self.service_name, &webid.0.to_string())
+        let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         entry
@@ -50,14 +50,14 @@ impl Keychain {
     }
 
     pub fn retrieve(&self, webid: &WebID) -> Result<String, KeychainError> {
-        let entry = Entry::new(&self.service_name, &webid.0.to_string())
+        let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         entry.get_password().map_err(KeychainError::from)
     }
 
     pub fn delete(&self, webid: &WebID) -> Result<(), KeychainError> {
-        let entry = Entry::new(&self.service_name, &webid.0.to_string())
+        let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         entry

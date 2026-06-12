@@ -80,12 +80,8 @@ impl MarkitdownServer {
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
         ocr_model: Option<String>,
-        ollama_base_url: &str,
+        inference_config: InferenceConfig,
     ) -> anyhow::Result<Self> {
-        let inference_config = InferenceConfig {
-            ollama_base_url: ollama_base_url.to_string(),
-            ..InferenceConfig::default()
-        };
         Ok(Self {
             webid,
             replicant,

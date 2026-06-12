@@ -10,6 +10,9 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
 
 fn main() {
+    // Load .env from current directory (silently skip if absent)
+    dotenvy::dotenv().ok();
+
     let cli = hkask_cli::cli::Cli::parse();
     hkask_cli::cli::init_logging(cli.verbose);
 

@@ -115,3 +115,6 @@ async-stream = "0.3"
 # URL parsing
 url = "2"
 urlencoding = "2"
+
+# Environment file loading
+dotenvy = "0.15"

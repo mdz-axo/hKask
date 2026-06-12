@@ -184,9 +184,15 @@ impl HkaskError {
         HkaskError::CapabilityDenied(reason.into())
     }
 
-    /// Check if error is retryable
+    /// Check if error is retryable.
+    ///
+    /// Delegates to [`McpErrorKind::is_retryable`] via [`Self::to_mcp_kind`].
+    /// Retryable errors: infrastructure I/O failures (network, file system)
+    /// that map to [`McpErrorKind::Unavailable`]. All other error classes
+    /// (database, serialization, permission, token, lock poisoning) are
+    /// non-retryable — retrying would not change the outcome.
     pub fn is_retryable(&self) -> bool {
-        false
+        self.to_mcp_kind().is_retryable()
     }
 
     /// Check if error requires user intervention

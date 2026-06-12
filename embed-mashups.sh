@@ -29,8 +29,8 @@ else
     exit 1
 fi
 
-if [ -z "${DI_API_KEY:-}" ]; then
-    echo "ERROR: DI_API_KEY is not set. DeepInfra API key is required for embedding." >&2
+if [ -z "${DI_API_KEY:-}" ] && [ -z "${DEEPINFRA_API_KEY:-}" ]; then
+    echo "ERROR: Neither DI_API_KEY nor DEEPINFRA_API_KEY is set. DeepInfra API key is required for embedding." >&2
     echo "Get one at https://deepinfra.com/ and export DI_API_KEY=<your-key>" >&2
     exit 1
 fi
@@ -41,7 +41,7 @@ embed_one() {
     echo "=== Embedding ${name} ==="
     echo "Started at $(date)"
     echo "Model: DI/Qwen/Qwen3-Embedding-0.6B (DeepInfra)"
-    $KASK embed-corpus run \
+    $KASK style embed-corpus \
         --config "$config" \
         --db "$DB" \
         --passphrase test-pass 2>&1

@@ -1093,6 +1093,7 @@ impl ResearchServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
     // Attempt daemon connection for P4 dual-gate verification.

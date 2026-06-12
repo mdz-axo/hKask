@@ -28,7 +28,10 @@ pub fn run(action: SpecAction) {
                     context: None,
                 },
             )
-            .expect("Failed to capture spec");
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to capture spec: {e}");
+                std::process::exit(1);
+            });
 
             println!("Specification captured:");
             println!("  ID: {}", resp.spec_id);
@@ -70,11 +73,15 @@ pub fn run(action: SpecAction) {
                 .spec_store()
                 .load(spec_id)
                 .map_err(hkask_services::ServiceError::Spec)
-                .expect("Failed to load specification");
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to load specification: {e}");
+                    std::process::exit(1);
+                });
             let curator = DefaultSpecCurator::default();
-            let record = curator
-                .evaluate(&spec, &[])
-                .expect("Failed to evaluate specification");
+            let record = curator.evaluate(&spec, &[]).unwrap_or_else(|e| {
+                eprintln!("Failed to evaluate specification: {e}");
+                std::process::exit(1);
+            });
 
             println!("Specification validation:");
             println!("  ID: {}", record.spec_id);
@@ -93,11 +100,15 @@ pub fn run(action: SpecAction) {
                 .spec_store()
                 .load(spec_id)
                 .map_err(hkask_services::ServiceError::Spec)
-                .expect("Failed to load specification");
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to load specification: {e}");
+                    std::process::exit(1);
+                });
             let curator = DefaultSpecCurator::default();
-            let record = curator
-                .evaluate(&spec, &[])
-                .expect("Failed to cultivate specification");
+            let record = curator.evaluate(&spec, &[]).unwrap_or_else(|e| {
+                eprintln!("Failed to cultivate specification: {e}");
+                std::process::exit(1);
+            });
 
             println!("Specification cultivation:");
             println!("  ID: {}", record.spec_id);

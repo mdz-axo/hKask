@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
                 replicant.clone(),
                 daemon_client.clone(),
                 ocr_model,
-                &inference_config.ollama_base_url,
+                inference_config,
             )
         },
         vec![

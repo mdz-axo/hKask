@@ -21,3 +21,4 @@ schemars.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 chrono.workspace = true
+dotenvy.workspace = true

@@ -27,7 +27,7 @@ use crate::middleware::AuthContext;
 /// Parse a WebID from a string, returning a structured error on failure.
 fn parse_webid(raw: &str) -> Result<WebID, ApiError> {
     uuid::Uuid::parse_str(raw)
-        .map(WebID)
+        .map(WebID::from_uuid)
         .map_err(|_| ApiError::BadRequest {
             message: format!("Invalid WebID format: {}", raw),
         })

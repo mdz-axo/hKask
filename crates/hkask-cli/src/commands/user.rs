@@ -10,6 +10,15 @@ use zeroize::Zeroizing;
 
 type Store = Arc<Mutex<UserStore>>;
 
+/// Unwrap an I/O result or print the error and exit.
+/// Used for interactive stdin/stdout operations where failure is terminal.
+fn io_or_die<T>(result: std::io::Result<T>, context: &str) -> T {
+    result.unwrap_or_else(|e| {
+        eprintln!("I/O error ({context}): {e}");
+        std::process::exit(1);
+    })
+}
+
 fn validate_passphrase(passphrase: &str) -> Result<(), UserError> {
     if passphrase.len() < 8 || !passphrase.chars().all(|c| c.is_alphanumeric()) {
         return Err(UserError::from(
@@ -186,26 +195,26 @@ pub fn register_replicant() {
     let mut phone = String::new();
 
     print!("Replicant name: ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut name).unwrap();
+    io_or_die(io::stdout().flush(), "flush stdout");
+    io_or_die(io::stdin().read_line(&mut name), "read name");
     print!("First name: ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut first).unwrap();
+    io_or_die(io::stdout().flush(), "flush stdout");
+    io_or_die(io::stdin().read_line(&mut first), "read first name");
     print!("Last name: ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut last).unwrap();
+    io_or_die(io::stdout().flush(), "flush stdout");
+    io_or_die(io::stdin().read_line(&mut last), "read last name");
     print!("Email: ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut email).unwrap();
+    io_or_die(io::stdout().flush(), "flush stdout");
+    io_or_die(io::stdin().read_line(&mut email), "read email");
     print!("Phone (optional): ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut phone).unwrap();
+    io_or_die(io::stdout().flush(), "flush stdout");
+    io_or_die(io::stdin().read_line(&mut phone), "read phone");
 
     loop {
         print!("Enter passphrase: ");
-        io::stdout().flush().unwrap();
+        io_or_die(io::stdout().flush(), "flush stdout");
         let mut passphrase = String::new();
-        io::stdin().read_line(&mut passphrase).unwrap();
+        io_or_die(io::stdin().read_line(&mut passphrase), "read passphrase");
         let passphrase = passphrase.trim().to_string();
         if let Err(e) = validate_passphrase(&passphrase) {
             eprintln!("  ✗ {}", e);
@@ -241,14 +250,14 @@ pub fn login_replicant() {
     use std::io::{self, Write};
     let mut name = String::new();
     print!("Replicant name: ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut name).unwrap();
+    io_or_die(io::stdout().flush(), "flush stdout");
+    io_or_die(io::stdin().read_line(&mut name), "read name");
     let store = build_store();
     if let Ok(Some(identity)) = store.lock().unwrap().get_replicant(name.trim()) {
         print!("Enter passphrase: ");
-        io::stdout().flush().unwrap();
+        io_or_die(io::stdout().flush(), "flush stdout");
         let mut passphrase = String::new();
-        io::stdin().read_line(&mut passphrase).unwrap();
+        io_or_die(io::stdin().read_line(&mut passphrase), "read passphrase");
         match store.lock().unwrap().login(name.trim(), passphrase.trim()) {
             Ok(session) => {
                 println!("  ✓ Logged in as {}", identity.replicant_name);

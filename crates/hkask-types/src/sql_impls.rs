@@ -75,7 +75,7 @@ impl FromSql for WebID {
 
 impl ToSql for WebID {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::Owned(self.0.to_string().into()))
+        Ok(ToSqlOutput::Owned(self.as_uuid().to_string().into()))
     }
 }
 

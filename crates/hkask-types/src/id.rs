@@ -153,7 +153,7 @@ use uuid::Uuid;
 
 /// WebID — Unique identifier for agents (bots and replicants)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct WebID(pub Uuid);
+pub struct WebID(Uuid);
 
 impl WebID {
     pub fn new() -> Self {
