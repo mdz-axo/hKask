@@ -56,6 +56,19 @@ fn default_channel() -> String {
     "sms".to_string()
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TtsGenerateRequest {
+    /// Text to convert to speech
+    pub text: String,
+    /// Voice ID from the Telnyx catalog (e.g., "female", "Alice", "Adam")
+    #[serde(default = "default_voice")]
+    pub voice_id: String,
+}
+
+fn default_voice() -> String {
+    "female".to_string()
+}
+
 pub struct TelnyxServer {
     webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
@@ -362,6 +375,67 @@ impl TelnyxServer {
                 span.finish(result)
             }
         }
+    }
+
+    #[tool(
+        description = "Generate TTS audio from text using a Telnyx voice. Returns the path to a WAV file that can be played locally."
+    )]
+    async fn telnyx_tts_generate(
+        &self,
+        Parameters(TtsGenerateRequest { text, voice_id }): Parameters<TtsGenerateRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("telnyx_tts_generate", &self.webid);
+
+        let url = format!("{BASE_URL}/tts");
+        let payload = serde_json::json!({
+            "text": text,
+            "voice_id": voice_id,
+            "format": "wav",
+        });
+
+        let resp = match self.client.post(&url).json(&payload).send().await {
+            Ok(r) => r,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    serde_json::json!({"error": format!("TTS API unreachable: {e}")}).to_string(),
+                );
+            }
+        };
+
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return span.error(
+                McpErrorKind::Unavailable,
+                serde_json::json!({"error": format!("TTS generation failed: {body}")}).to_string(),
+            );
+        }
+
+        // Save audio to temp file
+        let bytes = match resp.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    serde_json::json!({"error": format!("Failed to read audio: {e}")}).to_string(),
+                );
+            }
+        };
+
+        let file_name = format!("hkask-tts-{}.wav", uuid::Uuid::new_v4());
+        let path = std::env::temp_dir().join(&file_name);
+        if let Err(e) = std::fs::write(&path, &bytes) {
+            return span.error(
+                McpErrorKind::Internal,
+                serde_json::json!({"error": format!("Failed to save audio: {e}")}).to_string(),
+            );
+        }
+
+        span.ok_json(serde_json::json!({
+            "audio_path": path.to_string_lossy(),
+            "voice_id": voice_id,
+            "text_length": text.len(),
+        }))
     }
 }
 

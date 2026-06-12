@@ -871,11 +871,13 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
     Ok(raw)
 }
 
-/// Strip HTML tags from text, preserving whitespace between block elements.
+/// Strip HTML tags from text, decoding common entities and preserving
+/// paragraph breaks from existing newlines in the HTML source.
 fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
-    let mut last_was_newline = false;
+    let mut entity_buf = String::new();
+    let mut in_entity = false;
 
     for ch in html.chars() {
         if ch == '<' {
@@ -885,31 +887,48 @@ fn strip_html_tags(html: &str) -> String {
         if in_tag {
             if ch == '>' {
                 in_tag = false;
-                // Add newline after block-level closing tags
-                if !last_was_newline {
-                    result.push('\n');
-                    last_was_newline = true;
+            }
+            continue;
+        }
+        if ch == '&' {
+            in_entity = true;
+            entity_buf.clear();
+            entity_buf.push(ch);
+            continue;
+        }
+        if in_entity {
+            entity_buf.push(ch);
+            if ch == ';' {
+                in_entity = false;
+                // Decode known entities, pass unknown ones through literally
+                match entity_buf.as_str() {
+                    "&amp;" => result.push('&'),
+                    "&lt;" => result.push('<'),
+                    "&gt;" => result.push('>'),
+                    "&quot;" => result.push('"'),
+                    "&apos;" => result.push('\''),
+                    "&#160;" | "&nbsp;" => result.push(' '),
+                    _ => {
+                        // Unknown entity — pass through literally rather than drop
+                        result.push_str(&entity_buf);
+                    }
                 }
             }
             continue;
         }
-        // Skip common HTML entities
-        if ch == '&' {
-            // Consume until ';'
-            continue;
-        }
         if ch.is_whitespace() {
-            if !last_was_newline {
-                result.push(' ');
-                last_was_newline = false;
-            }
+            result.push(' ');
         } else {
             result.push(ch);
-            last_was_newline = false;
         }
     }
 
-    // Collapse multiple newlines
+    // If we ended mid-entity, push what we accumulated
+    if in_entity {
+        result.push_str(&entity_buf);
+    }
+
+    // Collapse multiple whitespace and blank lines
     let collapsed: String = result
         .lines()
         .map(|l| l.trim())
@@ -917,7 +936,12 @@ fn strip_html_tags(html: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
+    // Collapse multiple spaces within lines
     collapsed
+        .split(' ')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Default OCR model for scanned PDF fallback.
@@ -944,8 +968,14 @@ async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> 
 
     let params = LLMParameters {
         temperature: 0.1,
+        top_p: 1.0,
+        top_k: 1,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+        min_p: 0.0,
+        typical_p: 0.0,
         max_tokens: 4096,
-        ..Default::default()
+        seed: None,
     };
 
     match router
@@ -955,11 +985,8 @@ async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> 
         Ok(result) => Ok(result.text),
         Err(e) => {
             let err_msg = e.to_string();
-            // Detect model-not-found errors and provide helpful guidance
-            if err_msg.contains("not found")
-                || err_msg.contains("model")
-                || err_msg.contains("unavailable")
-            {
+            // Detect model-not-found errors (Ollama returns "model 'X' not found")
+            if err_msg.contains("not found") {
                 Err(ServiceError::Embed(format!(
                     "OCR model '{}' is not available. Download it from: https://ollama.com/maternion/LightOnOCR-2:1b\nThen run: ollama pull {}\n\nOriginal PDF '{}' could not be text-extracted (likely scanned). Set HKASK_OCR_MODEL to override the default model.",
                     ocr_model, ocr_model, url

@@ -7,7 +7,7 @@ use crate::types::*;
 ///
 /// Uses the same API key for all engines. When the query is a YouTube video ID
 /// (11-character alphanumeric) or a youtube.com/watch?v= URL, routes to the
-/// `youtube_transcript` engine. Otherwise uses Google search.
+/// `youtube_video_transcript` engine. Otherwise uses Google search.
 pub struct SerapiProvider {
     client: reqwest::Client,
     api_key: String,

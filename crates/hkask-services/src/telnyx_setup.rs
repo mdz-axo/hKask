@@ -184,3 +184,44 @@ pub async fn send_welcome_sms(
 
     Ok(())
 }
+
+/// Generate TTS audio from text using a Telnyx voice.
+/// Returns the path to a WAV file saved in the system temp directory.
+pub async fn tts_generate(
+    api_key: &str,
+    text: &str,
+    voice_id: &str,
+) -> Result<String, ServiceError> {
+    let client = telnyx_client(api_key)?;
+    let payload = serde_json::json!({
+        "text": text,
+        "voice_id": voice_id,
+        "format": "wav",
+    });
+
+    let resp = client
+        .post(format!("{BASE_URL}/tts"))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Config(format!("TTS API unreachable: {e}")))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(ServiceError::Config(format!(
+            "TTS generation failed: {body}"
+        )));
+    }
+
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| ServiceError::Config(format!("Failed to read audio: {e}")))?;
+
+    let file_name = format!("hkask-tts-{}.wav", uuid::Uuid::new_v4());
+    let path = std::env::temp_dir().join(&file_name);
+    std::fs::write(&path, &bytes)
+        .map_err(|e| ServiceError::Config(format!("Failed to save audio: {e}")))?;
+
+    Ok(path.to_string_lossy().to_string())
+}

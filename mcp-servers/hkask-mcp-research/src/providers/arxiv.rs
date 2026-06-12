@@ -194,7 +194,8 @@ fn parse_arxiv_atom(xml: &str) -> Vec<SearchResult> {
 }
 
 /// Extract text content between XML tags like <title>...</title>.
-/// Strips leading/trailing whitespace and normalizes newlines.
+/// Strips leading/trailing whitespace, normalizes newlines, and decodes
+/// common XML entities (&amp;, &lt;, &gt;, &quot;, &apos;).
 fn extract_tag(xml: &str, tag: &str) -> String {
     let open = format!("<{tag}>");
     let close = format!("</{tag}>");
@@ -208,10 +209,16 @@ fn extract_tag(xml: &str, tag: &str) -> String {
         None => return String::new(),
     };
 
-    xml[start..end]
-        .trim()
-        .replace('\n', " ")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    let raw = xml[start..end].trim().replace('\n', " ");
+    let decoded = decode_xml_entities(&raw);
+    decoded.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Decode common XML character entities into their literal characters.
+fn decode_xml_entities(s: &str) -> String {
+    s.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
 }

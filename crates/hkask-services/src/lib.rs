@@ -62,7 +62,8 @@ pub use spec::{
     SpecService, WritingQualityResult,
 };
 pub use telnyx_setup::{
-    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms, verify_api_key,
+    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms, tts_generate,
+    verify_api_key,
 };
 pub use verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,

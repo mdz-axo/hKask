@@ -12,7 +12,7 @@
 
 use hkask_services::{
     OnboardingService, ReplicantContactConfig, ResolvedSecrets, ServiceConfig,
-    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms,
+    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms, tts_generate,
     verify_api_key,
 };
 use hkask_types::{RegisteredAgent, UserProfile};
@@ -722,9 +722,61 @@ fn design_custom_voice(
 
     if let Some(ref vid) = voice_id {
         println!("  \x1b[32m✓\x1b[0m Voice selected: \x1b[36m{}\x1b[0m", vid);
+
+        // Offer sample playback
+        println!();
+        let hear = prompt_line("  Hear a sample of this voice? [y/N]:")?;
+        if hear.trim().to_lowercase() == "y" {
+            let api_key = match std::env::var("HKASK_TELNYX_API_KEY") {
+                Ok(k) if !k.is_empty() => k,
+                _ => {
+                    println!("  \x1b[33m⚠\x1b[0m  No API key — skipping sample.");
+                    return Ok((voice_description, voice_id));
+                }
+            };
+            let sample_text = format!(
+                "Hello, I am {}, your hKask replicant. This is what I sound like.",
+                replicant_name
+            );
+            println!("  Generating voice sample...");
+            match tts_generate(&api_key, &sample_text, vid).await {
+                Ok(path) => {
+                    println!("  \x1b[32m✓\x1b[0m Sample ready. Playing...");
+                    play_audio(&path);
+                }
+                Err(e) => {
+                    println!("  \x1b[33m⚠\x1b[0m  TTS unavailable: {e}", e);
+                    println!("  The voice will be used for phone calls — you'll hear it then.");
+                }
+            }
+        }
     }
 
     Ok((voice_description, voice_id))
+}
+
+/// Play an audio file using the system's audio player.
+/// Tries ffplay first, falls back to aplay, then paplay.
+fn play_audio(path: &str) {
+    let players = ["ffplay", "aplay", "paplay"];
+    for player in &players {
+        let args = if *player == "ffplay" {
+            vec!["-nodisp", "-autoexit", path]
+        } else {
+            vec![path]
+        };
+        if std::process::Command::new(player)
+            .args(&args)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .and_then(|mut c| c.wait())
+            .is_ok()
+        {
+            return;
+        }
+    }
+    println!("  \x1b[2m(Audio player not found — install ffmpeg for sample playback)\x1b[0m");
 }
 
 /// Curated list of cloud near-frontier models for replicant cognition.
