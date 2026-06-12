@@ -1,4 +1,4 @@
-//! Confidence-Based Router for Okapi inference
+//! Confidence-Based Router for inference
 //!
 //! Calculates confidence from token probabilities and escalates to larger models
 //! when confidence is below threshold.

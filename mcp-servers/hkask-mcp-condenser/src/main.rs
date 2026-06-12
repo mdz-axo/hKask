@@ -8,7 +8,7 @@
 //! tool output size while preserving essential information. Phase 1 implements local
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
 //! thread summarization via a local or cloud inference engine.
-//! Supports Ollama/Okapi (/api/chat) and OpenAI-compatible (/v1/chat/completions)
+//! Supports Ollama (/api/chat) and OpenAI-compatible (/v1/chat/completions)
 //! endpoints (OpenRouter, LiteLLM, etc.). Format detected from INFERENCE_URL.
 //!
 //! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
@@ -16,11 +16,11 @@
 //! Without those credentials, the server operates in memory-only mode (graceful
 //! degradation).
 //!
-//! When `INFERENCE_URL` (or legacy `OKAPI_URL`) is provided, the
+//! When `INFERENCE_URL` is provided, the
 //! `condenser_thread_summary` tool calls the inference engine
 //! to summarize conversation history for context condensation.
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, api_post};
+use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard, api_post};
 use hkask_mcp_condenser::engine::CondenserEngine;
 use hkask_mcp_condenser::inference::{self, ApiFormat};
 use hkask_mcp_condenser::types::*;
@@ -44,8 +44,8 @@ pub struct CondenserServer {
     episodic: Option<Arc<EpisodicMemory>>,
     inference_url: Option<String>,
     inference_model: String,
-    api_format: ApiFormat,
     http_client: reqwest::Client,
+    capability_tier: CapabilityTier,
 }
 
 impl CondenserServer {
@@ -56,6 +56,7 @@ impl CondenserServer {
         inference_model: String,
         inference_api_key: Option<String>,
         inference_timeout_secs: u64,
+        capability_tier: CapabilityTier,
     ) -> Result<Self, anyhow::Error> {
         let mut client_builder = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(inference_timeout_secs));
@@ -67,19 +68,14 @@ impl CondenserServer {
             client_builder = client_builder.default_headers(headers);
         }
 
-        let api_format = inference_url
-            .as_deref()
-            .map(inference::detect_format)
-            .unwrap_or(ApiFormat::Ollama);
-
         Ok(Self {
             webid,
             engine: Mutex::new(CondenserEngine::new()),
             episodic: episodic.map(Arc::new),
             inference_url,
             inference_model,
-            api_format,
             http_client: client_builder.build()?,
+            capability_tier,
         })
     }
 
@@ -104,14 +100,24 @@ impl CondenserServer {
             }
         };
         let health = engine.check_global_health();
+        let mode = if self.capability_tier.embedded {
+            "embedded"
+        } else {
+            "standalone"
+        };
         span.ok_json(serde_json::json!({
             "status": "ok",
             "version": SERVER_VERSION,
+            "mode": mode,
+            "capabilities": {
+                "persistence": self.has_persistence(),
+                "inference": self.has_inference(),
+                "keystore": self.capability_tier.keystore_available,
+                "cns": self.capability_tier.cns_available(),
+            },
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
             "health": health,
-            "persistence": self.has_persistence(),
-            "inference": self.has_inference(),
             "inference_url": self.inference_url,
             "inference_model": self.inference_model,
         }))
@@ -276,15 +282,21 @@ impl CondenserServer {
             messages,
             current_query,
             max_tokens,
+            model,
+            inference_url,
         }): Parameters<ThreadSummaryRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("condenser_thread_summary", &self.webid);
 
-        let Some(inference_url) = &self.inference_url else {
+        // Use request-provided inference config if given, otherwise fall back to server defaults.
+        let effective_url = inference_url.as_deref().or(self.inference_url.as_deref());
+        let effective_model = model.as_deref().unwrap_or(&self.inference_model);
+
+        let Some(inference_url) = effective_url else {
             return span.error(
                 McpErrorKind::PermissionDenied,
                 McpToolError::permission_denied(
-                    "Inference not configured — set INFERENCE_URL (or OKAPI_URL) to enable thread summarization",
+                    "Inference not configured — set INFERENCE_URL to enable thread summarization",
                 )
                 .to_json_string(),
             );
@@ -304,16 +316,19 @@ impl CondenserServer {
         let summarization_prompt =
             inference::build_summarization_prompt(&conversation_text, &current_query);
 
+        // Detect API format from the effective URL (may differ from server default).
+        let api_format = inference::detect_format(inference_url);
+
         let chat_request = inference::build_chat_request(
-            self.api_format,
-            &self.inference_model,
+            api_format,
+            effective_model,
             &summarization_prompt,
             THREAD_SUMMARY_SYSTEM_PROMPT,
             THREAD_SUMMARY_NUM_CTX,
             max_tok,
         );
 
-        let url = match self.api_format {
+        let url = match api_format {
             ApiFormat::Ollama => {
                 format!("{}/api/chat", inference_url.trim_end_matches('/'))
             }
@@ -330,13 +345,13 @@ impl CondenserServer {
         };
 
         // Extract and validate the summary content
-        let summary = match inference::extract_summary(self.api_format, &resp_body) {
+        let summary = match inference::extract_summary(api_format, &resp_body) {
             Ok(s) => s,
             Err(e) => return span.error(McpErrorKind::Internal, e.to_json_string()),
         };
 
         let result =
-            inference::build_summary_output(summary, msg_count, self.inference_model.clone(), url);
+            inference::build_summary_output(summary, msg_count, effective_model.to_string(), url);
 
         // ThreadSummaryOutput contains only strings and integers — never NaN/Inf.
         span.ok_json(
@@ -365,23 +380,14 @@ async fn main() -> anyhow::Result<()> {
                 None => None,
             };
 
-            // Inference endpoint: INFERENCE_URL preferred, OKAPI_URL for backward compat
-            let inference_url = ctx
-                .credentials
-                .get("INFERENCE_URL")
-                .cloned()
-                .or_else(|| ctx.credentials.get("OKAPI_URL").cloned());
+            // Inference endpoint configuration
+            let inference_url = ctx.credentials.get("INFERENCE_URL").cloned();
             let inference_model = ctx
                 .credentials
                 .get("INFERENCE_MODEL")
-                .or_else(|| ctx.credentials.get("OKAPI_MODEL"))
                 .cloned()
                 .unwrap_or_else(|| "qwen3:8b".to_string());
-            let inference_api_key = ctx
-                .credentials
-                .get("INFERENCE_API_KEY")
-                .or_else(|| ctx.credentials.get("OKAPI_API_KEY"))
-                .cloned();
+            let inference_api_key = ctx.credentials.get("INFERENCE_API_KEY").cloned();
             let inference_timeout_secs = ctx
                 .credentials
                 .get("INFERENCE_TIMEOUT_SECS")
@@ -395,6 +401,7 @@ async fn main() -> anyhow::Result<()> {
                 inference_model,
                 inference_api_key,
                 inference_timeout_secs,
+                ctx.capability_tier,
             )
         },
         credential_requirements(),
@@ -415,22 +422,19 @@ fn credential_requirements() -> Vec<hkask_mcp::CredentialRequirement> {
         ),
         opt(
             "INFERENCE_URL",
-            "Inference engine URL for thread summarization. OKAPI_URL also accepted.",
+            "Inference engine URL for thread summarization (Ollama, Fireworks, DeepInfra, or OpenAI-compatible)",
         ),
         opt(
             "INFERENCE_MODEL",
-            "Model for summarization (default: qwen3:8b). OKAPI_MODEL also accepted.",
+            "Model for summarization (default: qwen3:8b)",
         ),
         opt(
             "INFERENCE_API_KEY",
-            "API key if authentication is enabled. OKAPI_API_KEY also accepted.",
+            "API key if the inference endpoint requires authentication",
         ),
         opt(
             "INFERENCE_TIMEOUT_SECS",
             "Timeout for inference requests in seconds (default: 30)",
         ),
-        opt("OKAPI_URL", "[Legacy] Alias for INFERENCE_URL."),
-        opt("OKAPI_MODEL", "[Legacy] Alias for INFERENCE_MODEL."),
-        opt("OKAPI_API_KEY", "[Legacy] Alias for INFERENCE_API_KEY."),
     ]
 }

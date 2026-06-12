@@ -206,6 +206,13 @@ pub struct ThreadSummaryRequest {
     pub current_query: String,
     /// Maximum tokens for the summary output (default 500).
     pub max_tokens: Option<u32>,
+    /// Override the server's default inference model.
+    /// When provided, this model is used instead of the server-configured default.
+    /// Useful for IDE installations where the active session model should match.
+    pub model: Option<String>,
+    /// Override the server's default inference URL.
+    /// When provided, requests are sent to this URL instead of the server-configured default.
+    pub inference_url: Option<String>,
 }
 
 /// Output of a thread summarization.

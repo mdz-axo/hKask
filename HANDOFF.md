@@ -25,7 +25,7 @@ Two sessions were completed on 2026-06-11:
 1. **Wrong endpoint fixed:** `/api/generate` → `/v1/chat/completions`
 2. **Missing `stream: false` fixed:** Added `Some(false)` to all three non-streaming `build_request` call sites
 3. **`think: bool = false` added to `ChatRequest`:** qwen3 models spend all tokens on internal reasoning without this field
-4. **`InferenceConfig` (120s timeout default) added** (`crates/hkask-templates/src/okapi_config.rs`): 120-second timeout
+4. **`InferenceConfig` (120s timeout default) added** (`crates/hkask-templates/src/inference_config.rs`): 120-second timeout
 5. **`InferenceService::resolve_port()` updated** (`crates/hkask-services/src/inference.rs`): uses `for_inference()`
 6. **Three pinning tests added** to `inference_port.rs`
 
@@ -170,7 +170,7 @@ cargo check -p hkask-templates -p hkask-services -p hkask-memory
 cargo test -p hkask-templates && cargo test -p hkask-services && cargo test -p hkask-memory
 cargo clippy -p hkask-templates -p hkask-services -p hkask-memory -- -D warnings
 
-# Unload stuck qwen3 if Okapi queue is blocked
+# Unload stuck qwen3 if Ollama queue is blocked
 curl -s -X POST http://127.0.0.1:11435/api/generate \
   -H "Content-Type: application/json" \
   -d '{"model":"qwen3:4b","keep_alive":0}'

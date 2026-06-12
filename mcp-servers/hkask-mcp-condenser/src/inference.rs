@@ -10,7 +10,7 @@ use crate::types::ThreadSummaryOutput;
 /// Inference API format — detected from the INFERENCE_URL.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiFormat {
-    /// Ollama / Okapi format: POST /api/chat with `think`, `options.num_ctx`, `options.num_predict`
+    /// Ollama format: POST /api/chat with `think`, `options.num_ctx`, `options.num_predict`
     Ollama,
     /// OpenAI-compatible format (OpenRouter, LiteLLM, etc.): POST /v1/chat/completions
     OpenAi,

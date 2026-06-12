@@ -1611,6 +1611,7 @@ dependencies = [
 name = "hkask-services"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "dirs",

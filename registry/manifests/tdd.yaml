@@ -48,7 +48,7 @@ inputs:
   - name: domain_anchor
     type: string
     description: >
-      Domain anchor for spec resolution. Valid values: okapi, hkask.
+      Domain anchor for spec resolution. Valid values: inference, hkask.
       Defaults to hkask if not specified.
     required: false
   - name: code_context
@@ -401,7 +401,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

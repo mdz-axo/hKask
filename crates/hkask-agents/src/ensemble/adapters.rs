@@ -1,4 +1,4 @@
-//! Okapi Infrastructure Adapters
+//! Inference Infrastructure Adapters
 //
 //! Adapter that wraps `InferencePort` (from hkask-types) to implement the
 //! ensemble-specific `InferenceClient` trait. This replaces the former

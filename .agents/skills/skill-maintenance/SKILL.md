@@ -11,7 +11,7 @@ hKask skills live in TWO layers. Audit both. A skill with only one layer is inco
 | Layer | Artifact | Audience |
 |-------|----------|----------|
 | **Zed Agent** | `.agents/skills/<name>/SKILL.md` | Zed coding agent |
-| **Registry** | `registry/templates/<name>/manifest.yaml` + `*.j2` | Runtime (Okapi, cascade) |
+| **Registry** | `registry/templates/<name>/manifest.yaml` + `*.j2` | Runtime (Inference Router, cascade) |
 
 ## Skill Lifecycle
 

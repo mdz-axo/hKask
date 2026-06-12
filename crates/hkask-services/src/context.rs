@@ -147,6 +147,9 @@ pub struct AgentService {
     /// User store for replicant identity and authentication.
     user_store: Arc<std::sync::Mutex<UserStore>>,
 
+    /// Daemon handler — bridges Unix socket queries to PodManager and UserStore.
+    daemon_handler: Arc<crate::daemon_handler::ServiceDaemonHandler>,
+
     /// Configuration used to build this context.
     config: ServiceConfig,
 }
@@ -296,6 +299,11 @@ impl AgentService {
     /// TODO: Move to ApiState.
     pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>> {
         &self.user_store
+    }
+
+    /// Access daemon handler for MCP binary communication.
+    pub fn daemon_handler(&self) -> &Arc<crate::daemon_handler::ServiceDaemonHandler> {
+        &self.daemon_handler
     }
 
     /// Build per-agent memory infrastructure from an agent-scoped Database.
@@ -649,6 +657,30 @@ impl AgentService {
             None,
         ));
 
+        // ── 8b. Daemon handler + listener ──────────────────────────────────
+        let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
+            Arc::clone(&pod_manager),
+            Arc::clone(&user_store),
+        ));
+        let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
+        daemon_listener.bind().await.map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
+                "Failed to bind daemon socket: {}",
+                e
+            )))
+        })?;
+        // Spawn daemon serve loop in background (fire-and-forget)
+        let serve_handler = Arc::clone(&daemon_handler);
+        tokio::spawn(async move {
+            if let Err(e) = daemon_listener.serve(serve_handler).await {
+                tracing::error!(
+                    target: "hkask.daemon",
+                    error = %e,
+                    "Daemon listener serve loop exited with error"
+                );
+            }
+        });
+
         // ── 9. Registry ─────────────────────────────────────────────────────
         let registry = Arc::new(tokio::sync::Mutex::new(
             SqliteRegistry::new_with_conn(primary_conn.clone()).map_err(ServiceError::Template)?,
@@ -715,6 +747,7 @@ impl AgentService {
             acp_runtime,
             agent_registry_store,
             user_store,
+            daemon_handler,
             config,
         })
     }

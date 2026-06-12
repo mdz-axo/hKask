@@ -23,11 +23,13 @@ assertions:
           - temperature
           - top_p
           - top_k
-      - crate: hkask-templates
-        module: okapi_config
+      - crate: hkask-inference
+        module: config
         methods:
-          - OkapiConfig
-          - base_url
+          - InferenceConfig
+          - ollama_base_url
+          - fireworks_base_url
+          - deepinfra_base_url
       - crate: hkask-api
         module: lib
         methods:
@@ -61,12 +63,13 @@ assertions:
       structurally cannot meet this criterion.
     method: structural_audit
     targets:
-      - crate: hkask-templates
-        module: okapi_config
+      - crate: hkask-inference
+        module: config
         methods:
-          - OkapiConfig
-          - base_url
-          - local_dev
+          - InferenceConfig
+          - ollama_base_url
+          - fireworks_base_url
+          - deepinfra_base_url
       - crate: hkask-api
         module: lib
         methods:

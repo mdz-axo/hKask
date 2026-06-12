@@ -58,6 +58,6 @@ cns:
     - cns.tool.invocation
     - cns.prompt.outcome
 model_tiers:
-  fast_local: ollama/llama3.2
-  balanced: okapi/claude-haiku
-  high_quality: okapi/claude-sonnet
+  fast_local: OM/llama3.2
+  balanced: FW/claude-haiku
+  high_quality: FW/claude-sonnet

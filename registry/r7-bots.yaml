@@ -84,7 +84,7 @@ bots:
     name: "R7.6"
     primary_crate: hkask-mcp
     description: >
-      Holds the tools. Fifteen MCP servers. Okapi-backed inference.
+      Holds the tools. Fifteen MCP servers. Multi-provider inference (Ollama, Fireworks, DeepInfra).
       Storage. Memory. Embedding. Condenser. Ensemble. Web.
       Dispatches. Does not accumulate. Passes the work through.
     gas_budget: 12000

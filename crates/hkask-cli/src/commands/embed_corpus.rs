@@ -12,8 +12,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: EmbedCorpusAction) {
             config,
             db,
             passphrase,
-            okapi_url,
-        } => run_embed(rt, config, db, passphrase, okapi_url),
+            ollama_url,
+        } => run_embed(rt, config, db, passphrase, ollama_url),
     }
 }
 
@@ -22,7 +22,7 @@ fn run_embed(
     config_path: PathBuf,
     db_path: PathBuf,
     passphrase: String,
-    okapi_url: Option<String>,
+    ollama_url: Option<String>,
 ) {
     let progress: hkask_services::ProgressFn = Arc::new(|p: &EmbedProgress| {
         eprint!("\r\x1b[K{}", p.format_full());
@@ -32,7 +32,7 @@ fn run_embed(
         &config_path,
         &db_path.to_string_lossy(),
         &passphrase,
-        okapi_url.as_deref(),
+        ollama_url.as_deref(),
         None,
         Some(progress),
     ));

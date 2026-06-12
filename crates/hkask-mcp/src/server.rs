@@ -61,6 +61,60 @@ impl CredentialRequirement {
     }
 }
 
+/// Infrastructure capabilities detected at server startup.
+///
+/// Computed from environment and credential resolution results — not configured.
+/// Servers use this to advertise available tools and report their operating mode.
+///
+/// Two operating modes emerge from capability detection:
+/// - **Embedded** (hKask runtime): WebID is non-anonymous, keystore reachable,
+///   persistence available, CNS consumes spans.
+/// - **Standalone** (IDE): WebID is anonymous, keystore may be unavailable,
+///   persistence unavailable, CNS spans go to stderr.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CapabilityTier {
+    /// Running as part of an hKask installation (vs standalone in an IDE).
+    pub embedded: bool,
+    /// OS keychain is reachable for secret resolution.
+    pub keystore_available: bool,
+    /// Persistent storage (database) is configured.
+    pub persistence_available: bool,
+}
+
+impl CapabilityTier {
+    /// Detect capabilities from resolved credentials and environment.
+    pub fn detect(resolved_credentials: &HashMap<String, String>) -> Self {
+        let embedded = resolved_credentials.contains_key("HKASK_WEBID")
+            || resolved_credentials.contains_key("HKASK_AGENT_PERSONA");
+        let persistence_available = resolved_credentials.contains_key("HKASK_DB_PATH");
+        let keystore_available = Self::probe_keystore();
+        Self {
+            embedded,
+            keystore_available,
+            persistence_available,
+        }
+    }
+
+    /// Probe whether the OS keychain is reachable.
+    ///
+    /// Attempts a lightweight keychain read with a sentinel key.
+    /// Returns `true` if the keychain responds (even with "not found"),
+    /// `false` only if the platform keychain itself is broken/unavailable.
+    fn probe_keystore() -> bool {
+        match hkask_keystore::Keychain::default().retrieve_by_key("__hkask_capability_probe__") {
+            Ok(_) => true,
+            Err(hkask_keystore::KeychainError::NotFound(_)) => true,
+            Err(hkask_keystore::KeychainError::Platform(_)) => false,
+        }
+    }
+
+    /// CNS spans are meaningful only in embedded mode (consumed by hKask CNS).
+    /// In standalone mode, spans go to stderr via the tracing subscriber.
+    pub fn cns_available(&self) -> bool {
+        self.embedded
+    }
+}
+
 /// Server construction context. No ambient authority — all deps injected here.
 pub struct ServerContext {
     pub credentials: HashMap<String, String>,
@@ -69,6 +123,9 @@ pub struct ServerContext {
 
     /// Resolved from HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous.
     pub webid: hkask_types::WebID,
+
+    /// Infrastructure capabilities detected at startup.
+    pub capability_tier: CapabilityTier,
 }
 
 impl ServerContext {
@@ -584,10 +641,18 @@ where
     };
 
     tracing::info!(webid = %webid.redacted_display(), "Agent identity resolved");
+    let capability_tier = CapabilityTier::detect(&resolved);
+    tracing::info!(
+        embedded = capability_tier.embedded,
+        keystore = capability_tier.keystore_available,
+        persistence = capability_tier.persistence_available,
+        "Capability tier detected"
+    );
     let ctx = ServerContext {
         credentials: resolved,
         adapters: crate::AdapterContainer::new(),
         webid,
+        capability_tier,
     };
     let server = server_factory(ctx)?;
     tracing::info!(

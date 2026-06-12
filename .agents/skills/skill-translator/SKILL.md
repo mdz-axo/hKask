@@ -139,7 +139,7 @@ When the source references system-specific concepts, substitute for BOTH layers:
 | IDRS / consent gate | OCAP capability delegation | OCAP-gated instructions |
 | REST API calls | `web` MCP server | `web` MCP server |
 | File system operations | `read_file`/`write_file`/`edit_file` tools | Same tools |
-| LLM inference | `inference` MCP server (Okapi) | `inference` MCP server |
+| LLM inference | `inference` MCP server (hkask-inference router) | `inference` MCP server |
 | Database queries | `hkask-storage` | `hkask-storage` |
 | Event bus / pubsub | `hkask-cns` algedonic alerts | CNS alerts |
 | Git operations | `git` MCP server | `git` MCP server |

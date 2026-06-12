@@ -1,6 +1,6 @@
-//! Okapi Port Definitions
+//! Inference Port Definitions
 //
-//! Abstract interfaces for Okapi integration, following hexagonal architecture.
+//! Abstract interfaces for inference integration, following hexagonal architecture.
 //! These traits define the boundaries between application logic and infrastructure.
 //
 //! Token probability types are re-exported from hkask-types (canonical definitions).
@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-/// Generate request for Okapi
+/// Generate request for inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerateRequest {
     pub model: String,
@@ -33,7 +33,7 @@ pub struct GenerateOptions {
     pub max_tokens: Option<i32>,
 }
 
-/// Generate response from Okapi
+/// Generate response from inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerateResponse {
     pub response: String,
@@ -41,7 +41,7 @@ pub struct GenerateResponse {
     pub completion_probabilities: Option<Vec<TokenProbability>>,
 }
 
-/// Port for Okapi inference operations
+/// Port for inference operations
 #[async_trait]
 pub trait InferenceClient: Send + Sync {
     type Error: std::error::Error + Send + Sync;

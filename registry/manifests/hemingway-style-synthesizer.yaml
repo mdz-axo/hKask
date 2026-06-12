@@ -34,9 +34,9 @@ inputs:
     type: string
     description: "Path to hKask semantic database (for exemplar retrieval and centroid validation)"
     required: true
-  - name: okapi_url
+  - name: ollama_url
     type: string
-    description: "Okapi embedding API base URL (default: http://localhost:8080)"
+    description: "Ollama embedding API base URL (default: http://127.0.0.1:11434)"
     required: false
 
 # Process Steps

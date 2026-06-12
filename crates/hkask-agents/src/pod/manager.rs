@@ -2,7 +2,7 @@
 
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
-use hkask_types::{CapabilityChecker, InferencePort, NuEventSink};
+use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -319,6 +319,50 @@ impl PodManager {
 
     pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
         Arc::clone(&self.acp_runtime)
+    }
+
+    // ── Daemon-oriented accessors ──
+
+    /// Find a pod ID by replicant name (matches persona.agent.name).
+    pub async fn find_pod_by_name(&self, name: &str) -> Option<PodID> {
+        let pods = self.pods.read().await;
+        for (id, pod) in pods.iter() {
+            if pod.persona.agent.name == name {
+                return Some(*id);
+            }
+        }
+        None
+    }
+
+    /// Get the WebID for a pod.
+    pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
+        self.pods.read().await.get(pod_id).map(|p| p.webid)
+    }
+
+    /// Check if a pod is assigned to a specific MCP role.
+    pub async fn is_assigned_to_role(&self, pod_id: &PodID, role: &str) -> bool {
+        self.pods
+            .read()
+            .await
+            .get(pod_id)
+            .map(|p| p.assigned_mcp_roles.iter().any(|r| r == role))
+            .unwrap_or(false)
+    }
+
+    /// Check if a pod holds a specific capability.
+    /// Capabilities are stored as strings like "web_search:execute" or "web_search".
+    pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
+        self.pods
+            .read()
+            .await
+            .get(pod_id)
+            .map(|p| {
+                p.persona
+                    .capabilities
+                    .iter()
+                    .any(|cap| cap == tool || cap.starts_with(&format!("{}:", tool)))
+            })
+            .unwrap_or(false)
     }
 }
 

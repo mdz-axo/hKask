@@ -23,8 +23,9 @@ pub use git_cas::{GitCasAdapter, GixCasAdapter};
 pub use hkask_types::ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
-    CredentialRequirement, ServerContext, api_get, api_put, load_dotenv, resolve_credential,
-    run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error, validate_identifier,
+    CapabilityTier, CredentialRequirement, ServerContext, api_get, api_put, load_dotenv,
+    resolve_credential, run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error,
+    validate_identifier,
 };
 
 /// Run an MCP server with stdio transport.

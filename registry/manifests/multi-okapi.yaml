@@ -1,24 +1,19 @@
-# Multi-Okapi Configuration
-# ℏKask v0.21.2
+# Multi-Provider Inference Configuration
+# ℏKask v0.28.0
 
-instances:
-  - id: okapi-primary
-    endpoint: http://localhost:8080
+providers:
+  - id: ollama-local
+    prefix: OM
+    endpoint: http://127.0.0.1:11434
     capabilities: [inference, embedding]
     priority: 1
-  - id: okapi-secondary
-    endpoint: http://localhost:8081
-    capabilities: [inference]
+  - id: fireworks-cloud
+    prefix: FW
+    endpoint: https://api.fireworks.ai/inference
+    capabilities: [inference, embedding]
     priority: 2
-
-routing:
-  strategy: priority
-  load_balance: false
-
-health_check:
-  enabled: true
-  interval_seconds: 30
-
-failover:
-  enabled: true
-  max_retries: 3
+  - id: deepinfra-cloud
+    prefix: DI
+    endpoint: https://api.deepinfra.com/v1/openai
+    capabilities: [inference, embedding]
+    priority: 3

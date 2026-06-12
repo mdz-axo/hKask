@@ -1,11 +1,12 @@
 //! Model listing routes
 //!
-//! Two endpoints for discovering and switching Okapi LLM models:
+//! Two endpoints for discovering and switching LLM models across providers:
 //!
-//! - `GET /api/models` — List all locally available models from Okapi
+//! - `GET /api/models` — List all available models (Ollama, Fireworks, DeepInfra)
 //! - `GET /api/models/search?q=...` — Fuzzy search models by name
 //!
-//! Model names returned here can be passed as the `model` field in
+//! Model names use a 2-letter provider prefix (OM/, FW/, DI/).
+//! Returned names can be passed as the `model` field in
 //! `POST /api/chat` requests to select which LLM the Curator or agent uses.
 
 use axum::{Json, extract::State};
@@ -23,10 +24,10 @@ pub fn models_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(search_models))
 }
 
-/// A model available through Okapi.
+/// A model available through the inference router.
 ///
-/// Includes metadata from Okapi's `/api/tags` endpoint: model family,
-/// parameter count, quantization level, and disk size.
+/// Includes metadata from the provider's model listing endpoint:
+/// model family, parameter count, quantization level, and disk size.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ModelEntry {
     /// Model identifier (e.g., "qwen3:8b", "llama3.1:70b")
@@ -41,7 +42,7 @@ pub struct ModelEntry {
     pub size_gb: Option<f64>,
 }
 
-/// Response containing available Okapi models.
+/// Response containing available models.
 ///
 /// Returned by `GET /api/models` and `GET /api/models/search`.
 /// Model names from this response can be used as the `model` field
@@ -65,18 +66,18 @@ pub struct ModelSearchQuery {
     pub q: String,
 }
 
-/// List all available models from Okapi.
+/// List all available models from all configured providers.
 ///
-/// Queries Okapi's `/api/tags` endpoint and returns metadata for each
-/// locally loaded model. Returns an empty list if Okapi is unreachable
-/// (graceful degradation).
+/// Queries Ollama, Fireworks, and DeepInfra and returns metadata for each
+/// available model with provider prefix applied. Returns an empty list if
+/// no providers are reachable (graceful degradation).
 #[utoipa::path(
     get,
     path = "/api/models",
     tag = "models",
     responses(
         (status = 200, description = "List of available models", body = ModelListResponse),
-        (status = 503, description = "Okapi unreachable (returns empty list)"),
+        (status = 503, description = "No providers reachable (returns empty list)"),
     ),
 )]
 pub(crate) async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
@@ -104,9 +105,9 @@ pub(crate) async fn list_models(State(state): State<ApiState>) -> Json<ModelList
 
 /// Search available models by name (fuzzy matching).
 ///
-/// Performs case-insensitive substring matching against Okapi model names.
-/// Use this endpoint to discover valid model identifiers before passing
-/// them to `POST /api/chat` via the `model` field.
+/// Performs case-insensitive substring matching against model names
+/// across all providers. Use this endpoint to discover valid model
+/// identifiers before passing them to `POST /api/chat` via the `model` field.
 #[utoipa::path(
     get,
     path = "/api/models/search",

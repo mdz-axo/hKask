@@ -83,18 +83,19 @@ assertions:
   - id: p4d
     name: inference_settings_exposed
     claim: >
-      Connected inference providers expose settings through OkapiConfig
+      Connected inference providers expose settings through InferenceConfig
       and LLMParameters. No settings are hidden from the user. The
       inference configuration surface is the same for all access paths
       (API, CLI, MCP).
     method: structural_audit
     targets:
-      - crate: hkask-templates
-        module: okapi_config
+      - crate: hkask-inference
+        module: config
         methods:
-          - OkapiConfig
-          - base_url
-          - local_dev
+          - InferenceConfig
+          - ollama_base_url
+          - fireworks_base_url
+          - deepinfra_base_url
       - crate: hkask-types
         module: ports
         methods:

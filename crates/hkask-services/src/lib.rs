@@ -9,6 +9,7 @@ pub mod config;
 pub mod consolidation;
 pub mod context;
 pub mod curator;
+pub mod daemon_handler;
 pub mod embed;
 pub mod ensemble;
 pub mod error;

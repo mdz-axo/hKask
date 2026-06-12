@@ -28,7 +28,7 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     println!();
     let inference = ctx.inference_port();
     if inference.is_none() {
-        println!("Note: Inference Loop not registered (requires Okapi connection)");
+        println!("Note: Inference Loop not registered (requires inference connection)");
     }
     println!();
 

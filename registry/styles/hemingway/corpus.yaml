@@ -22,7 +22,7 @@ style_synthesizer: composition/hemingway-style-synthesizer
 embedding:
   model: "Qwen/Qwen3-Embedding-0.6B"
   dim: 1024
-  okapi_endpoint: "/api/embed/sentences"
+  embedding_provider: "OM"
   batch_size: 64
 
 # ── Corpus Sources ─────────────────────────────────────────────────────────────
