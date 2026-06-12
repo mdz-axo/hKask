@@ -47,7 +47,7 @@ pub struct DetectFormatRequest {
 pub struct OcrRequest {
     /// Path to the document file to OCR.
     pub path: String,
-    /// Vision model to use for OCR (must be available in Okapi catalog).
+    /// Vision model to use for OCR (must be available in the inference catalog).
     /// If not set, uses HKASK_OCR_MODEL from environment.
     #[serde(default)]
     pub model: Option<String>,
@@ -98,7 +98,7 @@ impl MarkitdownServer {
         self.ocr_model
             .clone()
             .ok_or_else(|| {
-                "No OCR model configured. Set HKASK_OCR_MODEL env var to a vision-capable model from the Okapi catalog, or pass the 'model' parameter. Use inference_models to discover available models.".to_string()
+                "No OCR model configured. Set HKASK_OCR_MODEL env var to a vision-capable model, or pass the 'model' parameter. Use inference_models to discover available models.".to_string()
             })
     }
 

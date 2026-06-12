@@ -101,7 +101,7 @@ status: VERIFIED
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
-- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.hhh.gate.*`, `cns.hhh.persona.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`
+- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`
 - **This is the authoritative CNS span registry.** See `hkask-types::event::CANONICAL_NAMESPACES` for the code-level source of truth.
 - Algedonic Alert: Variety deficit > threshold/2 (50 default) → escalate to Curator; deficit > threshold (100 default) → escalate to human
 
@@ -187,7 +187,7 @@ Default is deny. Nothing passes without an explicit yes. Consent is scoped (to s
 
 #### P3 — Generative Space
 
-Within boundaries, hKask is maximally generative. All probabilistic/generative settings are exposed to users through three equivalent surfaces: CLI (`kask settings`), API (`GET/PUT /api/settings`), and interactive REPL (`/repl`). Settings include temperature, top_p, top_k, min_p, typical_p, max_tokens, seed, tool_loop_limit, context_turns, gas_heuristic, gas_cap, and auto_condense. Settings persist to `~/.config/hkask/settings.json` and are shared across all surfaces. No settings are hidden or admin-gated. No privileged engineer access — if an internal engineer can adjust a parameter, the user can too. Constraints are user-curated (the HHH pipeline is a tool the user wields, not a restriction imposed on them). The user's first-person perspective takes precedence over the LLM's aggregate defaults — non-normativity is a feature, not a bug.
+Within boundaries, hKask is maximally generative. All probabilistic/generative settings are exposed to users through three equivalent surfaces: CLI (`kask settings`), API (`GET/PUT /api/settings`), and interactive REPL (`/repl`). Settings include temperature, top_p, top_k, min_p, typical_p, max_tokens, seed, tool_loop_limit, context_turns, gas_heuristic, gas_cap, and auto_condense. Settings persist to `~/.config/hkask/settings.json` and are shared across all surfaces. No settings are hidden or admin-gated. No privileged engineer access — if an internal engineer can adjust a parameter, the user can too. Constraints are user-curated. The user's first-person perspective takes precedence over the LLM's aggregate defaults — non-normativity is a feature, not a bug.
 
 **Enforces:** Full settings exposure across CLI/API/REPL, no privileged access, user curation, non-normativity, open-source commitment.
 

@@ -161,7 +161,7 @@ PS-07 ("Sourced Ideas") requires every `##` section to have at least one `[^...]
 | 9 | `agatha-eliot-moe-plan.md`, `semantic-condensation-analysis.md` |
 | 10 | `REQUIREMENTS.md`, `TRACEABILITY_MATRIX.md` |
 | 11 | `CI-CD-GUIDE.md` |
-| 12 | `hhh-alignment-research.md`, `test-program.md` |
+| 12 | `test-program.md` |
 | 13 | `DEPLOYMENT.md` |
 | 23 | `REPL-specification.md` |
 

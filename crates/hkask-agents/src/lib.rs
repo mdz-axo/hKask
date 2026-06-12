@@ -21,7 +21,6 @@ pub mod curator_agent; // Loop 5
 pub mod ensemble; // Multi-agent chat coordination
 pub mod error;
 
-pub mod hhh_gate; // HHH alignment gate (Helpful, Harmless, Honest)
 pub mod inference_loop; // Loop 1 (domain logic; governance applied externally via GovernedTool in hkask-cns)
 pub mod loop_system;
 pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
@@ -38,7 +37,6 @@ pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 
 pub use error::{CoreError, GitError, MemoryError};
-pub use hhh_gate::{HhhConfig, HhhMode};
 pub use hkask_storage::{
     EscalationBatch, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,
     EscalationStatus,

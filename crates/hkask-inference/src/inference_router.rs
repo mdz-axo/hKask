@@ -157,8 +157,7 @@ impl InferenceRouter {
             .collect()
     }
 
-    /// Vision inference — dispatch to the appropriate backend with base64 images.
-    /// Currently only Ollama supports multimodal; other providers fall back to text-only.
+    /// Vision/multimodal inference — dispatch to the appropriate backend with base64 images.
     pub async fn generate_vision(
         &self,
         prompt: &str,
@@ -185,9 +184,22 @@ impl InferenceRouter {
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
             }
-            ProviderId::Fireworks | ProviderId::DeepInfra => {
-                // Cloud providers: fall back to text-only (images embedded in prompt if needed)
-                self.generate_with_model(&prompt, &params, Some(&model_name))
+            ProviderId::Fireworks => {
+                self.fireworks
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("Fireworks backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
+                    .await
+            }
+            ProviderId::DeepInfra => {
+                self.deepinfra
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("DeepInfra backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
                     .await
             }
         }

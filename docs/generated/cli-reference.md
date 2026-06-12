@@ -88,7 +88,6 @@ Slash commands (inside chat):
 - `/metacognition` (`/meta`) — Run a metacognition cycle
 
 **Alignment**
-- `/hhh [on|off|status|model]` — Toggle HHH alignment (Helpful, Harmless, Honest)
 - `/consolidate [LIMIT] [--floor F] [--max N]` (`/cons`) — Episodic→semantic consolidation
 
 **Onboarding**

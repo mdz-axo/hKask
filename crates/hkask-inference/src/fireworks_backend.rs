@@ -87,6 +87,61 @@ impl FireworksBackend {
         Ok(result)
     }
 
+    /// Vision/multimodal inference with base64-encoded images.
+    pub async fn generate_vision(
+        &self,
+        model: &str,
+        prompt: &str,
+        images: &[String],
+        params: &LLMParameters,
+    ) -> Result<InferenceResult, InferenceError> {
+        validate_prompt(prompt)?;
+        if images.is_empty() {
+            return Err(InferenceError::Generation("No images provided".into()));
+        }
+        let request = build_chat_request(
+            model,
+            prompt,
+            Some(images.to_vec()),
+            params,
+            Some(false),
+            Some(5),
+        );
+
+        let response = self
+            .client
+            .post(format!("{}/v1/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(InferenceError::Connection(format!(
+                "Fireworks vision status {}: {}",
+                status, error_text
+            )));
+        }
+
+        let chat_response = response
+            .json()
+            .await
+            .map_err(|e| InferenceError::Json(format!("Fireworks JSON parse: {}", e)))?;
+
+        let result = chat_response_to_result(chat_response)?;
+        info!(
+            target: "hkask.inference",
+            provider = "FW",
+            model = %result.model,
+            tokens = result.usage.total_tokens,
+            "Fireworks vision inference completed"
+        );
+        Ok(result)
+    }
+
     /// Stream a chat completion from Fireworks via SSE.
     pub fn generate_stream(
         &self,

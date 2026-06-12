@@ -1,22 +1,20 @@
 //! Per-turn processing for the REPL.
 //!
 //! Handles both ensemble and single-agent inference turns,
-//! including gas governance, tool-augmented followup, HHH gate evaluation,
+//! including gas governance, tool-augmented followup,
 //! CNS updates, and persona filtering.
 //!
 //! The per-turn pipeline delegates to `ChatService::execute_turn()` for
-//! manifest cascade, history suffix, HHH reframe, inference, and persona
+//! manifest cascade, history suffix, inference, and persona
 //! filtering. The CLI layer handles gas governance, streaming display,
-//! tool execution (via GovernedTool), HHH gate evaluation, and CNS updates.
+//! tool execution (via GovernedTool), and CNS updates.
 
-use hkask_agents::HhhMode;
 use hkask_services::{ChatService, TurnRequest};
 
 use super::ReplState;
 use super::cns_display;
 use super::energy;
 use super::handlers::to_llm_params;
-use super::hhh_loop;
 use super::tool_augmented;
 
 /// Handle an ensemble (multi-agent) turn.
@@ -88,7 +86,7 @@ pub(super) fn ensemble_turn(
 /// Returns `false` if the turn should be skipped (energy budget exhausted).
 ///
 /// The turn follows an agentic tool-use loop:
-/// 1. Delegate manifest cascade, history suffix, HHH reframe, inference,
+/// 1. Delegate manifest cascade, history suffix, inference,
 ///    and persona filtering to `ChatService::execute_turn()`.
 /// 2. Execute any tool calls returned by the model via GovernedTool.
 /// 3. Feed tool results back as input for the next iteration.
@@ -143,7 +141,6 @@ pub(super) fn single_agent_turn(
             episodic_storage: state.episodic_storage.clone(),
             semantic_storage: state.semantic_storage.clone(),
             agent_webid: state.agent_webid,
-            hhh_mode: state.hhh_mode.clone(),
             persona_constraints: state.persona_constraints.clone(),
             tool_section: state.tool_prompt_section.clone(),
             llm_params: to_llm_params(&settings),
@@ -223,23 +220,7 @@ pub(super) fn single_agent_turn(
 
         // If no tool calls, this is the final response.
         if !processed.had_tool_calls {
-            // HHH gate evaluation (only on final response).
-            if state.hhh_mode == HhhMode::Active {
-                if let Some(ref gate_port) = state.gate_inference_port {
-                    let mut hhh_text = processed.text;
-                    hhh_loop::evaluate_hhh(input, &mut hhh_text, gate_port, state, rt);
-                    // Display the post-HHH result.
-                    if iteration == 1 {
-                        println!("{}: {}", state.current_agent, hhh_text);
-                    }
-                    println!();
-                } else {
-                    println!(
-                        "  \x1b[33m\u{26a0} HHH mode active but gate model unavailable\x1b[0m"
-                    );
-                }
-            } else if iteration == 1 {
-                // No tool calls, no HHH — display the final response.
+            if iteration == 1 {
                 println!("{}: {}", state.current_agent, processed.text);
             }
             break;

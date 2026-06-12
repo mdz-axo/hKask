@@ -3,14 +3,11 @@
 //!
 //! Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
 //! curation, governed tool, pod manager) and adds CLI-specific concerns
-//! on top (inference, per-agent memory, HHH gate, onboarding).
+//! on top (inference, per-agent memory, onboarding).
 
 use std::sync::Arc;
 
-use hkask_agents::HhhConfig;
-use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
-use hkask_agents::hhh_gate;
 use hkask_cns::{CompositeEnergyEstimator, EnergyBudget, EnergyCost, GovernedTool};
 use hkask_mcp::RawMcpToolPort;
 use hkask_services::{AgentService, InferenceContext, InferenceService};
@@ -31,7 +28,7 @@ use super::tool_augmented;
 /// Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
 /// curation loop, pod manager, registry, MCP runtime) and adds CLI-specific
 /// concerns on top (inference, per-agent memory, GovernedTool for tool
-/// discovery, HHH gate, onboarding state).
+/// discovery, onboarding state).
 pub(super) fn init_repl_state(
     registry: &mut hkask_templates::SqliteRegistry,
     _runtime: &hkask_mcp::runtime::McpRuntime,
@@ -91,22 +88,6 @@ pub(super) fn init_repl_state(
             .with_model(initial_model_str),
     );
 
-    // Created eagerly to avoid cold-start latency when /hhh on is first called.
-    let gate_inference_port: Option<Arc<dyn InferencePort>> = {
-        let gate_ctx =
-            InferenceContext::from_parts(None, hhh_gate::HHH_DEFAULT_GATE_MODEL, inference_config);
-        match InferenceService::resolve_port(&gate_ctx, hhh_gate::HHH_DEFAULT_GATE_MODEL) {
-            Ok(port) => Some(port),
-            Err(e) => {
-                tracing::warn!(
-                    target: "cns.hhh.gate",
-                    error = %e,
-                    "Gate model initialization failed — HHH mode unavailable until /hhh model is used"
-                );
-                None
-            }
-        }
-    };
 
     // Build a ServiceConfig from onboarding outcome for AgentService::build().
     let service_config = match &onboarding_outcome.resolved_secrets {
@@ -255,9 +236,6 @@ pub(super) fn init_repl_state(
         active_session: None,
         resolved_secrets: onboarding_outcome.resolved_secrets,
         governed_tool,
-        hhh_mode: HhhMode::Inactive,
-        hhh_config: HhhConfig::default(),
-        gate_inference_port,
         consolidation_service,
         persona_constraints: None,
         tool_prompt_section: String::new(), // populated below

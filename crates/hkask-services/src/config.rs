@@ -84,9 +84,6 @@ pub struct ServiceConfig {
     /// Default inference model name.
     pub default_model: String,
 
-    /// HHH gate model name (for Helpful/Harmless/Honest alignment).
-    pub gate_model: String,
-
     /// Agent name (from onboarding or config).
     pub agent_name: String,
 
@@ -154,7 +151,6 @@ impl ServiceConfig {
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
             default_model: DEFAULT_MODEL.to_string(),
-            gate_model: hkask_agents::hhh_gate::HHH_DEFAULT_GATE_MODEL.to_string(),
             agent_name: DEFAULT_AGENT_NAME.to_string(),
             template_cache_path,
             memory_db_path,
@@ -194,7 +190,6 @@ impl ServiceConfig {
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
             default_model: DEFAULT_MODEL.to_string(),
-            gate_model: hkask_agents::hhh_gate::HHH_DEFAULT_GATE_MODEL.to_string(),
             agent_name,
             template_cache_path,
             memory_db_path,
@@ -218,7 +213,6 @@ impl ServiceConfig {
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,
             default_model: DEFAULT_MODEL.to_string(),
-            gate_model: hkask_agents::hhh_gate::HHH_DEFAULT_GATE_MODEL.to_string(),
             agent_name: TEST_AGENT_NAME.to_string(),
             template_cache_path: DEFAULT_TEMPLATE_CACHE_PATH.to_string(),
             memory_db_path: None,

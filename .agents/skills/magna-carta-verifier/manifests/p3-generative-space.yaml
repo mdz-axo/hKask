@@ -3,8 +3,7 @@ version: "0.1.0"
 description: >
   Generative space means settings exposure, not absence of constraints.
   All probabilistic settings are equally exposed to all users. No
-  privileged engineer access. Open-source commitment. HHH and persona
-  filters are user-selectable tools, not hardcoded mandates. User
+  privileged engineer access. Open-source commitment. User
   preference overrides take precedence over LLM defaults.
 
 assertions:
@@ -76,33 +75,6 @@ assertions:
       Structural audit verifies that inference configuration is exposed
       and configurable. Closed-source providers fail on architectural
       review, not code audit — the manifest records the criterion.
-
-  - id: p3d
-    name: user_curated_hhh
-    claim: >
-      HHH alignment and persona filters are user-selectable tools, not
-      hardcoded mandates. HhhMode has Active/Inactive variants. The
-      user can toggle HHH. PersonaConstraints are loaded from agent
-      configuration, not system-wide constants.
-    method: structural_audit
-    targets:
-      - crate: hkask-agents
-        module: hhh_gate
-        methods:
-          - HhhMode
-          - HhhConfig
-          - hhh_evaluate
-          - apply_persona_filter
-      - crate: hkask-agents
-        module: curator::persona_filter
-        methods:
-          - check_persona_constraints
-          - strip_forbidden_patterns
-      - crate: hkask-types
-        module: agent_def
-        methods:
-          - PersonaConstraints
-          - forbidden
 
   - id: p3e
     name: user_preference_precedence

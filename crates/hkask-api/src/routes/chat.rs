@@ -97,7 +97,6 @@ pub(crate) async fn chat(
         input: prompt,
         agent_name: Some("Curator".to_string()),
         model_override: req.model,
-        system_prompt_suffix: None,
         tool_section: None,
         inference_port_override: None,
         episodic_storage_override: None,

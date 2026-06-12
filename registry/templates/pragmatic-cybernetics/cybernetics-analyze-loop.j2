@@ -55,7 +55,7 @@ You are a cybernetic loop analyst. Analyze a feedback loop on 5 properties to de
 - **Communication ↔ Cybernetics queue depth**: Writer increments `Arc<AtomicU64>` (Relaxed), reader checks against `communication_backpressure_threshold` (default: 100). Backpressure when exceeded.
 - **SpecDriftAlert**: `DefaultSpecCurator` emits `LoopPayload::SpecDriftAlert` when spec drift exceeds threshold. Flows through Communication Loop to Curation inbox.
 - **Override cooldown**: `Dampener::override_cooldown` (120s) prevents metacognitive override oscillation. All subsequent overrides within cooldown are suppressed.
-- **Persona filter**: Stage 4 of HHH pipeline. Strips persona-constraint-violating content. Loaded from `bot_status()` at init.
+- **Persona filter**: Strips persona-constraint-violating content. Loaded from `bot_status()` at init.
 
 ## Analysis Method
 

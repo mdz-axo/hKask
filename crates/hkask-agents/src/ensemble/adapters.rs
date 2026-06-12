@@ -2,7 +2,7 @@
 //
 //! Adapter that wraps `InferencePort` (from hkask-types) to implement the
 //! ensemble-specific `InferenceClient` trait. This replaces the former
-//! `OkapiClient` which duplicated HTTP logic already in `OkapiInference`.
+//! direct HTTP client which duplicated logic already in the inference crate.
 //
 //! Circuit-breaker decorated adapter wraps `InferencePortAdapter` with
 //! a `CircuitBreakerPort` membrane for fail-fast inference protection.
@@ -17,7 +17,7 @@ use std::sync::Arc;
 ///
 /// This is the recommended way to obtain an `InferenceClient` for ensemble
 /// improv sessions. Use `InferencePortAdapter::new(port)` with any
-/// `InferencePort` implementation (e.g. `OkapiInference` from hkask-templates).
+/// `InferencePort` implementation (e.g. `InferenceRouter` from hkask-inference).
 #[derive(Clone)]
 pub struct InferencePortAdapter {
     port: Arc<dyn InferencePort>,

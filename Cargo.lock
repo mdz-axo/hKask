@@ -1480,6 +1480,7 @@ version = "0.27.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "hkask-inference",
  "hkask-mcp",
  "hkask-templates",
  "hkask-types",

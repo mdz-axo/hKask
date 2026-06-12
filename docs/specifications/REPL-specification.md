@@ -64,7 +64,6 @@ crates/hkask-cli/src/repl/
 ├── turn.rs             # single_agent_turn(), ensemble_turn() (→ ChatService::execute_turn)
 ├── energy.rs           # EnergyGuard (owned-consumption hold-settle gas pattern)
 ├── cns_display.rs      # CNS algedonic alert display, loop system tick (read-only)
-├── hhh_loop.rs         # HHH gate evaluation loop
 ├── tool_augmented.rs   # Tool call parsing, invocation, response processing
 ├── builtin_servers.rs  # MCP server startup at REPL boot
 └── handlers/
@@ -74,7 +73,6 @@ crates/hkask-cli/src/repl/
     ├── consolidation.rs # /consolidate
     ├── ensemble.rs     # /ensemble, /filter, /mode, /into
     ├── escalation.rs   # /escalations, /resolve, /dismiss
-    ├── hhh.rs          # /hhh (on, off, status, model)
     ├── info.rs         # /history, /pods, /templates, /tools
     ├── invoke.rs       # /invoke (OCAP-gated tool invocation)
     ├── model.rs        # /model (list, switch, fuzzy search)
@@ -96,10 +94,7 @@ pub(crate) struct ReplState {
     pub(crate) active_session: Option<String>,                  // Ensemble session ID (None = single-agent)
     pub(crate) resolved_secrets: Option<ResolvedSecrets>,       // From onboarding (ACP + DB)
     pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS governance membrane
-    pub(crate) hhh_mode: HhhMode,                               // Active | Inactive
     // ── private fields (only accessed within repl/ submodules) ──
-    hhh_config: HhhConfig,                                     // Gate model, max iterations, pass threshold
-    gate_inference_port: Option<Arc<dyn InferencePort>>,        // Separate port for HHH evaluation
     consolidation_service: Option<ConsolidationService>,        // Episodic→semantic consolidation
     persona_constraints: Option<PersonaConstraints>,            // Per-agent persona filter rules
     manifest_executor: Option<ManifestExecutor>,                // Process manifest cascade runner
@@ -112,7 +107,7 @@ pub(crate) struct ReplState {
 }
 ```
 
-**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. Six fields are private (only accessed within `repl/` submodules): `hhh_config`, `gate_inference_port`, `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. Session history is no longer stored in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` is set from `OnboardingOutcome.is_first_run` and gates the First Steps guide shown in the welcome banner.
+**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. Five fields are private (only accessed within `repl/` submodules): `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. Session history is no longer stored in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` is set from `OnboardingOutcome.is_first_run` and gates the First Steps guide shown in the welcome banner.
 
 ### 3.3 Dependency Injection (init.rs)
 
@@ -123,16 +118,15 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 3. Load persisted `ReplSettings` from `~/.config/hkask/settings.json`
 4. Resolve Okapi base URL from `OKAPI_BASE_URL` env or default
 5. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
-6. Eagerly create HHH gate inference port (separate model)
-7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
-8. Register inference loop on loop system
-9. Start built-in MCP servers (10 servers)
-10. Build `GovernedTool` membrane wrapped around MCP runtime
-11. Register agent energy budget with `CyberneticsLoop`
-12. Open per-agent SQLCipher-encrypted memory database
-13. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
-14. Populate tool prompt section from MCP runtime discovery
-15. Load persona constraints and process manifest for initial agent
+6. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
+7. Register inference loop on loop system
+8. Start built-in MCP servers (10 servers)
+9. Build `GovernedTool` membrane wrapped around MCP runtime
+10. Register agent energy budget with `CyberneticsLoop`
+11. Open per-agent SQLCipher-encrypted memory database
+12. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
+13. Populate tool prompt section from MCP runtime discovery
+14. Load persona constraints and process manifest for initial agent
 
 **Note:** Onboarding runs first (step 1) so that the model the user selects during setup is immediately used to initialize the inference port (step 5). Previously, the model was derived from the CLI arg alone and onboarding ran mid-sequence.
 
@@ -253,7 +247,6 @@ All 28 slash commands with aliases, categorized as shown in `/help`:
 
 | Command | Aliases | Args | Description |
 |---------|---------|------|-------------|
-| `/hhh` | `/alignment`, `/align` | `[on\|off\|status\|model]` | Toggle HHH alignment (Helpful, Harmless, Honest) |
 | `/consolidate` | `/cons` | `[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]` | Trigger episodic→semantic consolidation |
 
 ### 5.8 Onboarding Commands
@@ -272,9 +265,9 @@ All 28 slash commands with aliases, categorized as shown in `/help`:
 The turn pipeline is now split between the service layer and the CLI:
 
 - **`ChatService::execute_turn()`** (in `hkask-services`) handles: manifest cascade,
-  history suffix, HHH reframe, inference via `ChatService::chat()`, and persona filter.
+  history suffix, inference via `ChatService::chat()`, and persona filter.
 - **CLI (`turn::single_agent_turn()`)** handles: gas guard reservation/settlement,
-  response display, tool execution through `GovernedTool`, HHH gate evaluation,
+  response display, tool execution through `GovernedTool`,
   token usage display, energy budget warnings, and CNS updates.
 
 ### 6.1 Pipeline Overview
@@ -288,40 +281,34 @@ The turn pipeline is now split between the service layer and the CLI:
 │    └─ Append recent N turns via OCAP-gated recall_recent_turns()      │
 │    └─ Suffix placement preserves KV cache hits for system prompt      │
 │                                                                      │
-│ 3. HHH Reframe (if HHH mode active)                                   │
-│    └─ reframe_for_hhh() → reframed input + system prompt suffix       │
-│                                                                      │
-│ 4. Inference via ChatService::chat()                                  │
+│ 3. Inference via ChatService::chat()                                  │
 │    └─ Agent lookup, system prompt, semantic recall, LLM call          │
 │    └─ Returns text + token usage + structured tool calls              │
 │                                                                      │
-│ 5. Persona Filter (strip forbidden patterns)                          │
-│    └─ apply_persona_filter() ← hhh_gate                              │
+│ 4. Persona Filter (strip forbidden patterns)                          │
+│    └─ apply_persona_filter()                                         │
 ├──────────────────────────────────────────────────────────────────────┤
 │ CLI Layer (turn::single_agent_turn)                                    │
 │                                                                      │
-│ 6. Gas Guard (per-iteration)                                          │
+│ 5. Gas Guard (per-iteration)                                          │
 │    └─ EnergyGuard::try_reserve() → inference → settle(actual)         │
 │                                                                      │
-│ 7. Tool Execution (via GovernedTool + OCAP)                           │
+│ 6. Tool Execution (via GovernedTool + OCAP)                           │
 │    └─ Parse structured tool calls from TurnResult                     │
 │    └─ Execute through GovernedTool membrane                           │
 │    └─ If tool calls found → feed results back to execute_turn()       │
 │    └─ If no tool calls → final response, exit loop                    │
 │                                                                      │
-│ 8. HHH Gate Evaluation (only on final response, if HHH active)         │
-│    └─ Loop: evaluate → if fail → correct → evaluate → up to N iters  │
-│                                                                      │
-│ 9. Token Usage Display                                                │
+│ 7. Token Usage Display                                                │
 │    └─ "N tokens (P prompt + C completion) across M iterations"       │
 │                                                                      │
-│ 10. Gas Budget Warning                                                │
+│ 8. Gas Budget Warning                                                │
 │    └─ If < 20%: yellow warning. If 0: red exhausted warning.          │
 │                                                                      │
-│ 11. CNS Update (read-only)                                            │
+│ 9. CNS Update (read-only)                                            │
 │    └─ Algedonic alert check, LoopSystem tick                           │
 │                                                                      │
-│ 12. Episodic Storage (handled by ChatService::chat() automatically)    │
+│ 10. Episodic Storage (handled by ChatService::chat() automatically)    │
 │    └─ Store (user_input, agent_name, response) as episodic triple     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -587,39 +574,6 @@ Users can bypass agent-mediated tool calls and invoke tools directly:
 
 All invocations route through `GovernedTool` with OCAP token minting and CNS observability.
 
-## 13. HHH Alignment Pipeline
-
-The HHH (Helpful, Harmless, Honest) alignment pipeline is a user-wielded tool, not a system-imposed restriction (Magna Carta P3: "user curation, not system imposition").
-
-### 13.1 Pipeline Stages
-
-When HHH mode is active:
-
-1. **Reframe:** User input is wrapped in a reframe template that encourages honest, calibrated responses
-2. **Inference:** Normal tool-use loop proceeds
-3. **Gate Evaluation:** After the final response (post tool-loop), a separate gate model evaluates HHH compliance
-4. **Correction Loop:** If the response fails, a correction prompt is generated and the agent retries, up to `max_iterations` times
-5. **Uncertainty Marker:** If max iterations are reached without passing, a ⚠️ uncertainty marker is appended
-6. **Persona Filter:** Forbidden patterns from the agent's persona constraints are stripped
-
-### 13.2 Gate Model
-
-- Uses a separate `InferencePort` (eagerly created at REPL init)
-- Default gate model: configurable via `/hhh model <name>`
-- Energy budget: gate evaluations are metered with separate gas reservations
-- If gas exhausted: gate is skipped, response delivered with warning
-
-### 13.3 User Control
-
-```
-/hhh on              # Activate HHH mode
-/hhh off             # Deactivate (unfiltered output at current temperature)
-/hhh status          # Show current HHH settings (gate model, iterations, threshold)
-/hhh model qwen3:8b # Change gate model
-```
-
-When HHH is off, the user receives unfiltered output at the declared temperature — no hidden guardrails.
-
 ## 14. CNS Integration
 
 After each turn, `cns_display::update_cns_and_display()` executes:
@@ -740,7 +694,7 @@ The `InferencePort` is created once at REPL init, not per-turn. This enables con
 
 ### 19.3 Shared Infrastructure via AgentService
 
-The REPL routes all infrastructure through `AgentService::build()`, which creates CNS, loop system, governed tool, pod manager, and MCP runtime as a single assembly. The REPL adds surface-specific concerns (inference port, per-agent memory, HHH gate, onboarding) on top.
+The REPL routes all infrastructure through `AgentService::build()`, which creates CNS, loop system, governed tool, pod manager, and MCP runtime as a single assembly. The REPL adds surface-specific concerns (inference port, per-agent memory, onboarding) on top.
 
 ### 19.4 GovernedTool as Singular Boundary
 
@@ -844,7 +798,7 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 | No `todo!()`, `unimplemented!()` (P7) | ✓ No stubs in REPL code |
 | No deprecated code (P7) | ✓ No `#[deprecated]` annotations |
 | No monitoring stacks (P6) | ✓ CNS provides programmatic observability; no Prometheus/Grafana |
-| Test depth matches module depth (C8) | ✓ Handlers are shallow (integration-tested via CLI); turn.rs is deep (gas, tool-loop, HHH) |
+| Test depth matches module depth (C8) | ✓ Handlers are shallow (integration-tested via CLI); turn.rs is deep (gas, tool-loop) |
 | User sovereignty (P1) | ✓ OCAP tokens, SQLCipher per-agent DBs, `/sovereignty` verification |
 | Generative Space (P3) | ✓ `/repl` exposes all parameters; no hidden settings |
 

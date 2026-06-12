@@ -75,7 +75,6 @@ docs/
 │   ├── test-program.md                    # Test program spec
 │   ├── REPL-specification.md              # REPL specification
 │   ├── MDS-agent-service.md                # AgentService specification
-│   └── hhh-alignment-research.md          # HHH alignment research
 ├── plans/
 │   ├── TODO.md                            # Open work
 │   ├── bundler-completion.md              # Bundler completion plan

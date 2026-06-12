@@ -14,13 +14,10 @@ pub(crate) mod display;
 mod energy;
 pub(crate) mod handlers;
 mod helper;
-mod hhh_loop;
 mod init;
 mod tool_augmented;
 mod turn;
 
-use hkask_agents::HhhConfig;
-use hkask_agents::HhhMode;
 use hkask_agents::InferenceLoop;
 use hkask_agents::ports::EpisodicStoragePort;
 use hkask_agents::ports::SemanticStoragePort;
@@ -71,13 +68,6 @@ pub(crate) struct ReplState {
     /// invocations. All tool calls route through this membrane, which enforces
     /// OCAP authority, energy budgets, and CNS observability.
     pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
-    /// HHH alignment mode — whether the Helpful/Harmless/Honest gate is active.
-    pub(crate) hhh_mode: HhhMode,
-    /// HHH configuration — gate model, max iterations, pass threshold.
-    hhh_config: HhhConfig,
-    /// Gate inference port — a separate InferencePort for the HHH evaluation model.
-    /// Created eagerly at REPL init. None if the gate model failed to initialize.
-    gate_inference_port: Option<Arc<dyn InferencePort>>,
     /// ConsolidationService for /consolidate command — built from the same per-agent
     /// memory DB as `episodic_storage` and `semantic_storage`. None if memory
     /// infrastructure is unavailable.

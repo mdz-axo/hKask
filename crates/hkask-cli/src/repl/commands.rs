@@ -153,12 +153,6 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Show session history",
     },
     SlashCommand {
-        primary: "hhh",
-        aliases: &["alignment", "align"],
-        args: "[on|off|status|model]",
-        about: "Toggle HHH alignment mode (Helpful, Harmless, Honest)",
-    },
-    SlashCommand {
         primary: "bundle",
         aliases: &["b"],
         args: "[SKILL1 SKILL2 ...] | list | off | skills",
@@ -279,7 +273,6 @@ pub(super) fn handle_slash_command(
         "ask" => handlers::handle_ask(arg1, arg2, rt, state),
         "invoke" | "inv" => handlers::handle_invoke(arg1, arg2, state, rt),
         "model" | "m" => handlers::handle_model(arg1, rt, state),
-        "hhh" | "alignment" | "align" => handlers::handle_hhh(arg1, state),
         "consolidate" | "cons" => {
             let cons_arg = if arg2.is_empty() {
                 arg1.to_string()

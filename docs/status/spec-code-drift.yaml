@@ -16,14 +16,6 @@ Method: Set-difference of named entities from `docs/architecture/*.md` and `docs
 
 ## Drift Items
 
-- id: P2-06-D1
-  spec_reference: "PRINCIPLES.md §1.4 — 5 hierarchical CNS spans: cns.hhh.gate, cns.hhh.persona, cns.cybernetics.backpressure, cns.memory.encode, cns.memory.budget"
-  code_reality: "CANONICAL_NAMESPACES in hkask-types/src/event.rs contains 15 flat namespaces; 5 hierarchical spans listed in PRINCIPLES.md are NOT registered"
-  drift_classification: spec_ahead
-  ddmvss_category: observability
-  priority: P2
-  notes: "PRINCIPLES.md §1.4 is the authoritative source. Code registration is pending, not a spec error."
-
 - id: P2-06-D2
   spec_reference: "domain-and-capability.md §4.1 — Caveat struct with caveat_id and data fields"
   code_reality: "Caveat exists in hkask-types/src/capability/mod.rs:320 as pub(crate) struct Caveat — crate-private, not public API"
@@ -140,7 +132,7 @@ Method: Set-difference of named entities from `docs/architecture/*.md` and `docs
 
 | Classification | Count | Items |
 |---|---|---|
-| spec_ahead | 5 | P2-06-D1, D4, D5, D6, D9 |
+| spec_ahead | 4 | P2-06-D4, D5, D6, D9 |
 | code_ahead | 2 | DA-4-code_ahead, DA-5-code_ahead |
 | divergent | 5 | P2-06-D2, D3, D7, D8, DRIFT-004 |
 | absent | 0 | (none — all references resolve to at least a named entity) |

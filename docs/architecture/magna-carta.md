@@ -166,7 +166,7 @@ Generativity requires that resource providers expose their weights and settings 
 
 ### User Curation, Not System Imposition
 
-Constraints are user-curated, not system-imposed. The HHH pipeline (Helpful, Harmless, Honest) and persona filters are tools the user wields, not restrictions imposed on them. The user selects and adjusts these tools. Disabling HHH mode is possible and produces unfiltered output at the declared temperature.
+Constraints are user-curated, not system-imposed. The user selects and adjusts these tools.
 
 ### Non-Normativity
 
@@ -334,7 +334,6 @@ assertions:
 | p3a | Generative Space | Inference and tooling expose all probabilistic/generative settings to users | Structural |
 | p3b | Generative Space | Internal engineers and users have equal access to generative settings | Absence check |
 | p3c | Generative Space | Generative resources are open-source with exposed weights and settings | Structural + behavioral |
-| p3d | Generative Space | Constraints are user-curated, not system-imposed (HHH is user-selectable) | Structural + behavioral |
 | p3e | Generative Space | User preference overrides take precedence over LLM aggregate defaults | Absence check |
 | p4a | Clear Boundaries | Every access path goes through `require_capability` + `require_sovereignty` | Structural + behavioral |
 | p4b | Clear Boundaries | Capability tokens are unforgeable and attenuating — no bypass exists | Structural |

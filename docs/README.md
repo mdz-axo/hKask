@@ -135,10 +135,6 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 | Document | MDS | Description |
 |----------|--------|-------------|
-| [`hhh-alignment-research.md`](specifications/hhh-alignment-research.md) | domain, composition, lifecycle, curation | HHH alignment mode for inference governance |
-
-> The `hhh-open-design-questions.md` companion document has been retired. Recoverable from git history.
-
 ---
 
 ## Verification

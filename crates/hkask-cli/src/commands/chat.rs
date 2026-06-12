@@ -92,7 +92,6 @@ pub async fn chat_with_agent(
     episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
-    system_prompt_suffix: Option<&str>,
     tool_section: Option<&str>,
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
@@ -106,7 +105,6 @@ pub async fn chat_with_agent(
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
-        system_prompt_suffix: system_prompt_suffix.map(|s| s.to_string()),
         tool_section: tool_section.map(|s| s.to_string()),
         inference_port_override: inference_port,
         episodic_storage_override: episodic_storage,
@@ -138,7 +136,6 @@ pub async fn chat_with_agent_with_params(
     episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
-    system_prompt_suffix: Option<&str>,
     tool_section: Option<&str>,
     params: &LLMParameters,
 ) -> ChatResponse {
@@ -153,7 +150,6 @@ pub async fn chat_with_agent_with_params(
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
-        system_prompt_suffix: system_prompt_suffix.map(|s| s.to_string()),
         tool_section: tool_section.map(|s| s.to_string()),
         inference_port_override: inference_port,
         episodic_storage_override: episodic_storage,
@@ -192,7 +188,6 @@ pub async fn chat_with_agent_streaming(
     episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
-    system_prompt_suffix: Option<&str>,
     tool_section: Option<&str>,
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
@@ -206,7 +201,6 @@ pub async fn chat_with_agent_streaming(
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
-        system_prompt_suffix: system_prompt_suffix.map(|s| s.to_string()),
         tool_section: tool_section.map(|s| s.to_string()),
         inference_port_override: inference_port,
         episodic_storage_override: episodic_storage,
@@ -323,7 +317,6 @@ pub async fn chat_with_agent_streaming_with_params(
     episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
-    system_prompt_suffix: Option<&str>,
     tool_section: Option<&str>,
     params: &LLMParameters,
 ) -> ChatResponse {
@@ -338,7 +331,6 @@ pub async fn chat_with_agent_streaming_with_params(
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
-        system_prompt_suffix: system_prompt_suffix.map(|s| s.to_string()),
         tool_section: tool_section.map(|s| s.to_string()),
         inference_port_override: inference_port,
         episodic_storage_override: episodic_storage,
@@ -461,7 +453,6 @@ pub fn run_chat(
             model.as_deref(),
             None,
             onboarding_outcome.resolved_secrets.as_ref(),
-            None,
             None,
             None,
             None,

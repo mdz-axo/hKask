@@ -8,8 +8,7 @@
 
 use std::sync::Arc;
 
-use hkask_agents::HhhMode;
-use hkask_agents::hhh_gate;
+use hkask_agents::curator::persona_filter;
 use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
@@ -286,8 +285,6 @@ pub struct ChatRequest {
     pub agent_name: Option<String>,
     /// Model override (defaults to agent-kind-specific model)
     pub model_override: Option<String>,
-    /// HHH alignment suffix appended to the system prompt (when HHH mode is active)
-    pub system_prompt_suffix: Option<String>,
     /// Pre-formatted tool-call section of the system prompt from MCP discovery
     pub tool_section: Option<String>,
     /// Override inference port — when provided, takes precedence over AgentService's shared port.
@@ -365,11 +362,6 @@ impl ChatService {
             && !section.is_empty()
         {
             system_prompt.push_str(section);
-        }
-
-        // Append HHH alignment suffix when active
-        if let Some(ref suffix) = req.system_prompt_suffix {
-            system_prompt.push_str(suffix);
         }
 
         // Determine agent kind and default model
@@ -714,29 +706,27 @@ impl ChatService {
     }
 
     /// Apply persona constraints to filter forbidden patterns from a response.
-    ///
-    /// This is a pure transformation — wraps `hhh_gate::apply_persona_filter`
-    /// so callers don't need a direct dependency on the hhh_gate module.
     pub fn apply_persona_filter(
         response: &str,
         constraints: Option<&PersonaConstraints>,
     ) -> String {
-        hhh_gate::apply_persona_filter(response, constraints)
-    }
-
-    /// Reframe the user input for HHH mode evaluation.
-    ///
-    /// Returns (reframed_input, system_prompt_suffix) — both transformations
-    /// wrap the input in alignment directives that the inference model interprets
-    /// as behavioral constraints.
-    pub fn reframe_for_hhh(input: &str) -> (String, String) {
-        let reframed = hhh_gate::hhh_reframe(input);
-        let suffix = hhh_gate::hhh_augment_system_prompt("");
-        (reframed, suffix)
+        let Some(constraints) = constraints else {
+            return response.to_string();
+        };
+        let (cleaned, violations) = persona_filter::strip_forbidden_patterns(response, constraints);
+        if !violations.is_empty() {
+            tracing::warn!(
+                target: "cns.persona",
+                violation_count = violations.len(),
+                violations = ?violations.iter().map(|(p, _)| p).collect::<Vec<_>>(),
+                "Persona constraint violations stripped from output"
+            );
+        }
+        cleaned
     }
 
     /// Execute a full single-agent turn — manifest cascade, history suffix,
-    /// HHH reframe, inference via `ChatService::chat()`, and persona filter.
+    /// inference via `ChatService::chat()`, and persona filter.
     ///
     /// Returns the final response text, token usage, and iteration count.
     /// The caller is responsible for gas governance (reserving/settling energy),
@@ -795,20 +785,11 @@ impl ChatService {
             input_with_context
         };
 
-        // 4. HHH reframe when alignment mode is active.
-        let (final_input, hhh_suffix) = if req.hhh_mode == HhhMode::Active {
-            let (reframed, suffix) = Self::reframe_for_hhh(&effective_input);
-            (reframed, Some(suffix))
-        } else {
-            (effective_input, None)
-        };
-
-        // 5. Execute inference via ChatService::chat().
+        // 4. Execute inference via ChatService::chat().
         let chat_req = ChatRequest {
-            input: final_input,
+            input: effective_input,
             agent_name: Some(req.agent_name.clone()),
             model_override: Some(req.model.clone()),
-            system_prompt_suffix: hhh_suffix,
             tool_section: if req.tool_section.is_empty() {
                 None
             } else {
@@ -822,7 +803,7 @@ impl ChatService {
         };
         let chat_response = Self::chat(ctx, chat_req).await?;
 
-        // 6. Persona filter.
+        // 5. Persona filter.
         let filtered =
             Self::apply_persona_filter(&chat_response.text, req.persona_constraints.as_ref());
 
@@ -856,8 +837,6 @@ pub struct TurnRequest {
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
     /// Agent WebID for memory operations
     pub agent_webid: WebID,
-    /// HHH alignment mode
-    pub hhh_mode: HhhMode,
     /// Persona constraints for output filtering
     pub persona_constraints: Option<PersonaConstraints>,
     /// Pre-formatted tool section of the system prompt
