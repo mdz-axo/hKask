@@ -263,6 +263,18 @@ impl std::fmt::Display for McpToolError {
 
 impl std::error::Error for McpToolError {}
 
+/// Convenience: produce an internal error response for a named failed operation.
+///
+/// Combines `context` ("what failed") and `e` into a standard `{"error": "Failed to ...: ..."}` JSON
+/// body, eliminating the repeated `span.internal_error(json!({...}))` pattern across servers.
+pub fn tool_internal_error(
+    span: ToolSpanGuard,
+    context: &str,
+    e: impl std::fmt::Display,
+) -> String {
+    span.internal_error(serde_json::json!({"error": format!("Failed to {context}: {e}")}))
+}
+
 // Input validation — Shared sanitization for MCP tool parameters
 
 /// Validate a string identifier.

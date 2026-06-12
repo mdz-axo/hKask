@@ -18,12 +18,9 @@ impl Default for RawFetchProvider {
 
 impl RawFetchProvider {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
-            .timeout(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS))
-            .build()
-            .expect("Failed to build HTTP client");
-        Self { client }
+        Self {
+            client: super::provider_http_client(),
+        }
     }
 }
 

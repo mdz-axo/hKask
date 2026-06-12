@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use async_trait::async_trait;
 
 use super::{ProviderSearchOutput, WebError, WebSearchProvider};
@@ -12,12 +10,10 @@ pub struct BraveProvider {
 
 impl BraveProvider {
     pub fn new(api_key: String) -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
-            .timeout(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS))
-            .build()
-            .expect("Failed to build HTTP client");
-        Self { client, api_key }
+        Self {
+            client: super::provider_http_client(),
+            api_key,
+        }
     }
 }
 

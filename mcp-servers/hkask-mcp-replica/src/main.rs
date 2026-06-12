@@ -39,7 +39,7 @@ struct ReplicaServer {
 }
 
 fn internal_error(span: ToolSpanGuard, context: &str, e: impl std::fmt::Display) -> String {
-    span.internal_error(json!({"error": format!("Failed to {context}: {e}")}))
+    hkask_mcp::tool_internal_error(span, context, e)
 }
 
 // ── Request/Response types ──────────────────────────────────────────────────

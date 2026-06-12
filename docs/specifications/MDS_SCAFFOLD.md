@@ -150,6 +150,8 @@ Per [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §10.
 
 The `hkask-mcp-spec` server provides 5 MDS tools (`spec/goal/capture`, `spec/goal/decompose`, `spec/require/writing-quality`, `spec/graph/query`, `spec/graph/coherence`) per MDS that can in principle be used to capture and curate the specification corpus itself. Three curation tools (evaluate, reconcile, cultivate) and bind were deleted per MDS — curation is external to the spec server. This self-application is a future opportunity, not blocked by any circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. For v0.27.0, the spec tools are validated against the existing corpus; meta-curation (using spec tools on spec documents) is deferred to a future cycle.
 
+[^mds-verification]: hKask Team. (2026). *MDS — Minimal Domain Specification.* `docs/architecture/MDS.md` — The 5-category, 5-tool framework whose verification commands are documented here.
+
 ---
 
 ## References

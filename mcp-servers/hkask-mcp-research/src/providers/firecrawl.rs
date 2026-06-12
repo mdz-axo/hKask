@@ -14,11 +14,10 @@ pub struct FirecrawlProvider {
 
 impl FirecrawlProvider {
     pub fn new(api_key: Option<String>) -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
-            .build()
-            .expect("Failed to build HTTP client");
-        Self { client, api_key }
+        Self {
+            client: super::provider_http_client(),
+            api_key,
+        }
     }
 
     fn auth_header(&self) -> Result<String, WebError> {

@@ -22,6 +22,18 @@ pub use raw_fetch::{RawFetchProvider, truncate_str};
 pub use serapi::SerapiProvider;
 pub use tavily::TavilyProvider;
 
+/// Build the shared HTTP client used by all research providers.
+///
+/// Applies a consistent user-agent and request timeout, eliminating the repeated
+/// `reqwest::Client::builder()...build().expect(...)` boilerplate across 7 providers.
+pub(super) fn provider_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
+        .timeout(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS))
+        .build()
+        .expect("reqwest client builder is infallible with these settings")
+}
+
 #[derive(Default)]
 pub struct ProviderSearchOutput {
     pub results: Vec<SearchResult>,

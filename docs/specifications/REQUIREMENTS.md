@@ -94,6 +94,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge; markdown/YAML/Rust have distinct, intentional lifecycles
 
+[^evans-ddd]: Evans, Eric. *Domain-Driven Design: Tackling Complexity in the Heart of Software.* Addison-Wesley, 2003. — Bounded contexts and ubiquitous language that ground domain requirements.
+
 ---
 
 ## 3. Capability Requirements
@@ -141,6 +143,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge — implemented
 
+[^ocap]: Miller, M. (2006). *Robust Composition: Towards a National Research Agenda for Object Capability Security.* HP Labs. — Object capability model that grounds capability requirements.
+
 ---
 
 ## 4. Interface Requirements
@@ -169,6 +173,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Implementation:** `hkask-api::openapi::ApiDoc`, `utoipa_axum::OpenApiRouter`
 - **Status:** Implemented
 - **Curation:** Merge
+
+[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture.* https://alistair.cockburn.us/hexagonal-architecture/ — Ports and adapters pattern that grounds the MCP ≡ CLI ≡ API equivalence requirement.
 
 ---
 
@@ -214,6 +220,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge
 
+[^fowler-registry]: Fowler, M. (2002). *Patterns of Enterprise Application Architecture.* Addison-Wesley. — Registry pattern that grounds the unified template registry requirement.
+
 ---
 
 ## 6. Trust & Security Requirements
@@ -256,6 +264,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge
 
+[^stride]: Howard, M. & Lipner, S. (2006). *The STRIDE Threat Model.* Microsoft. — Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege — the threat categories that ground trust requirements.
+
 ---
 
 ## 7. Observability Requirements
@@ -283,6 +293,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Implementation:** `hkask-cns::algedonic::AlgedonicManager`, `hkask-types::cns::AlgedonicAlert`
 - **Status:** Implemented
 - **Curation:** Merge
+
+[^ashby]: Ashby, W.R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. — Variety engineering and algedonic regulation that ground observability requirements.
 
 ---
 
@@ -314,6 +326,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge
 
+[^snodgrass]: Snodgrass, R. T. (1999). *Developing Time-Oriented Database Applications in SQL.* Morgan Kaufmann. — Bitemporal data model that grounds persistence requirements.
+
 ---
 
 ## 9. Lifecycle Requirements
@@ -340,6 +354,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Implementation:** Architecture invariant, enforced by policy
 - **Status:** Implemented
 - **Curation:** Merge
+
+[^principles-p7]: hKask Team. (2026). *Architecture Principles — P7.* `docs/architecture/PRINCIPLES.md` §2.7 — Prefer deletion over deprecation. Forward-only evolution.
 
 ---
 
@@ -400,6 +416,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge — promoted from deferred REQ-CAP-D03
 
+[^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification.* `docs/architecture/MDS.md` — The 5-category curation model that grounds curation requirements.
+
 ---
 
 ## 11. Deferred Requirements
@@ -409,6 +427,8 @@ Curation: Merge | Revise | Defer | Discard
 | REQ-IFC-D01 | Remote LLM fallback | Local-first invariant | ADR pending |
 | REQ-COM-D01 | Federation transport | Complexity exceeds budget | ADR pending |
 | REQ-PER-D01 | Qdrant vector search | sqlite-vec sufficient for MVP | ADR pending |
+
+[^principles-p5]: hKask Team. (2026). *Architecture Principles — P5.* `docs/architecture/PRINCIPLES.md` §2.5 — No feature flag without activator. Deferred requirements are explicitly not implemented.
 
 ---
 
