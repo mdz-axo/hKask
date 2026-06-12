@@ -6,7 +6,9 @@
 
 ## Context
 
-The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeService::compose`) is designed for literary authors whose works are available as plaintext from Project Gutenberg. Extending the pipeline to academic authors (researchers, scientists, philosophers) requires resolving four architectural questions before implementation can begin.
+The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeService::compose`) is designed for literary authors whose works are available as plaintext from Project Gutenberg. Extending the pipeline to academic authors (researchers, scientists, philosophers) requires resolving four architectural questions before implementation can begin. [^gutenberg]
+
+[^gutenberg]: Project Gutenberg. "Free eBooks." https://www.gutenberg.org/ — primary source for public-domain literary plaintext.
 
 ## Decisions
 
@@ -23,7 +25,9 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 | YouTube transcript | `hkask-mcp-research` → `youtube_transcript` | `.cache/{slug}.txt` |
 | Plaintext (Gutenberg, blog) | Direct HTTP GET (existing) | `.cache/{slug}.txt` |
 
-**Rationale:** The embed pipeline is a batch processor, not a content acquisition system. Separating acquisition from embedding keeps `embed.rs` simple and lets the Curator orchestrate multi-source acquisition as a pre-processing step.
+**Rationale:** The embed pipeline is a batch processor, not a content acquisition system. Separating acquisition from embedding keeps `embed.rs` simple and lets the Curator orchestrate multi-source acquisition as a pre-processing step. This follows the Strangler Fig pattern: the existing cache-first logic is the "fig" — new acquisition paths are added alongside it without modifying the core pipeline. [^strangler]
+
+[^strangler]: Fowler, Martin. "Strangler Fig Application." martinfowler.com, 2004. https://martinfowler.com/bliki/StranglerFigApplication.html — incremental migration by introducing new paths alongside existing ones.
 
 ### 2. Entity Model for Academic Corpora
 
@@ -35,7 +39,9 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 - **Method signals:** Route to academic-specific signals in `crates/hkask-memory/src/salience.rs` — citation density, formalism ratio (math/code vs. prose), hedging density, technical term density
 - **Entity reference prefix:** `academic:{author}:{slug}:{index}` instead of `style:{author}:{slug}:{index}`
 
-**Rationale:** Literary and academic prose have fundamentally different structural properties. A single entity model would produce meaningless signals for one domain or the other. The `corpus_type` discriminator keeps both domains clean without duplicating the pipeline.
+**Rationale:** Literary and academic prose have fundamentally different structural properties. A single entity model would produce meaningless signals for one domain or the other. The `corpus_type` discriminator keeps both domains clean without duplicating the pipeline. This follows the deep-module discipline: the module's interface (a single `corpus_type` field) hides substantial complexity (different entity categories, different signal extraction paths). [^deep-module]
+
+[^deep-module]: Ousterhout, John. *A Philosophy of Software Design.* Yaknyam Press, 2018. Chapter 4: "Modules Should Be Deep" — deep modules have simple interfaces that hide complex implementations.
 
 ### 3. Work Enumeration for Academic Authors
 
@@ -49,7 +55,9 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 4. Curator presents enumerated corpus to user for confirmation
 5. Confirmed works are written to a `CorpusConfig` YAML for the embed pipeline
 
-**Rationale:** Work enumeration is a discovery task, not a batch processing task. It requires search, extraction, and user confirmation — all capabilities the Curator already has through existing MCP tools. Adding a dedicated MCP tool would duplicate the Curator's orchestration logic.
+**Rationale:** Work enumeration is a discovery task, not a batch processing task. It requires search, extraction, and user confirmation — all capabilities the Curator already has through existing MCP tools. Adding a dedicated MCP tool would duplicate the Curator's orchestration logic. The MCP specification explicitly supports tool composition: servers expose tools, clients (the Curator) compose them into workflows. [^mcp-spec]
+
+[^mcp-spec]: Anthropic. "Model Context Protocol Specification." 2024. https://modelcontextprotocol.io/ — MCP tools are designed for client-side composition, not server-side orchestration.
 
 ### 4. Disambiguation Confirmation Boundary
 
@@ -63,7 +71,9 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 3. User confirms: "1"
 4. Agent proceeds with the confirmed identity
 
-**Rationale:** MCP tools are stateless by design (request → response). Disambiguation is inherently stateful (present → confirm → proceed). The Curator already manages conversation state; adding disambiguation state to MCP tools would violate the stateless contract.
+**Rationale:** MCP tools are stateless by design (request → response). Disambiguation is inherently stateful (present → confirm → proceed). The Curator already manages conversation state; adding disambiguation state to MCP tools would violate the stateless contract. [^mcp-stateless]
+
+[^mcp-stateless]: Anthropic. "Model Context Protocol Specification — Core Architecture." 2024. https://modelcontextprotocol.io/docs/concepts/architecture — MCP servers are stateless; stateful interactions belong to the host (Curator).
 
 ## Consequences
 
@@ -72,12 +82,16 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 - **Negative:** `corpus_type` discriminator adds branching to `embed.rs` and `salience.rs` — increases implementation complexity
 - **Negative:** Pre-processing step adds a manual/Curator-driven phase before embedding — not fully automated
 
+[^principles]: hKask PRINCIPLES.md §2.1 — Constraint Forces. Prohibitions (P1) are inviolable; Guidelines (P3) admit tradeoffs. The `corpus_type` branching is a P3 tradeoff (complexity for domain coverage), not a P1 violation.
+
 ## Implementation Order
 
 1. `corpus_type` field + academic entity model + academic method signals (code changes to `embed.rs` and `salience.rs`)
 2. Pre-processing documentation + Curator workflow for non-Gutenberg acquisition
 3. Work enumeration Curator workflow (uses existing MCP tools, no new code)
 4. Disambiguation confirmation boundary (Curator conversation pattern, no new code)
+
+[^strangler-migration]: The implementation order follows the Strangler Fig migration pattern: start with the core abstraction (`corpus_type`), then add new paths (pre-processing, enumeration) alongside the existing literary pipeline, and finally add the stateful boundary (disambiguation) at the outermost layer.
 
 ## References
 

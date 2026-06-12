@@ -12,9 +12,9 @@
 //! `discover_tools`, `invoke`, `get_tool_info`) plus HTTP response mapping.
 //! No CLI MCP commands share this logic (CLI `commands/mcp.rs` uses a separate
 //! `create_mcp_dispatcher_with_servers` path). An McpService would just be
-//! `self.coordination().1.discover_tools()` — a pure pass-through.
+//! `self.mcp_runtime().discover_tools()` — a pure pass-through.
 //!
-//! Decision: Guideline — keep direct `service_context.coordination().1`/`governance().1`
+//! Decision: Guideline — keep direct `service_context.mcp_runtime()`/`mcp_dispatcher()`
 //! access. Revisit if MCP orchestration logic (e.g., server health monitoring,
 //! tool result caching) grows beyond simple discovery/invocation.
 

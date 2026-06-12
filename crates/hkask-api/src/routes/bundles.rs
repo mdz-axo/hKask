@@ -220,7 +220,9 @@ pub(crate) async fn compose_bundle(
         message: format!("Bundle composition failed: {}", e),
     })?;
 
-    let manifest_json = serde_json::to_value(&result.manifest).unwrap_or(serde_json::Value::Null);
+    let manifest_json = serde_json::to_value(&result.manifest).map_err(|e| ApiError::Internal {
+        message: format!("Failed to serialize bundle manifest: {}", e),
+    })?;
 
     Ok(Json(ComposeBundleResponse {
         manifest: Some(manifest_json),

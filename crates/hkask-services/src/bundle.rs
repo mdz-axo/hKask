@@ -64,7 +64,7 @@ impl BundleService {
     pub async fn compose(
         ctx: &AgentService,
         skill_ids: &[String],
-        _name: Option<&str>,
+        name: Option<&str>,
         visibility: Visibility,
         inference_port: Arc<dyn InferencePort>,
         editor: &str,
@@ -128,6 +128,12 @@ impl BundleService {
 
         let skill_list = skill_descriptions.join("\n");
 
+        // When the caller supplies a name, instruct the LLM to use it verbatim.
+        let name_line = match name {
+            Some(n) => format!("- name: use exactly this name: {}\n", n),
+            None => "- name: a descriptive name\n".to_string(),
+        };
+
         // Render the bundler-compose prompt from skill metadata.
         let prompt = format!(
             "You are a skill composition orchestrator. Your job is to compose a bundle from the following skills.\n\
@@ -135,11 +141,11 @@ impl BundleService {
              For each skill, classify its polarity (Generative, Evaluative, Regulative, Procedural).\n\
              Detect conflicts between skills and declare resolutions.\n\
              Identify complementarities that enhance the bundle.\n\
-             Determine the cascade order with phase separation (Pre → Core → Post).\n\
+             Determine the cascade order with phase separation (Pre -> Core -> Post).\n\
              Never place divergent (Generative) and convergent (Evaluative) skills in the same phase.\n\
              Produce a valid BundleManifest JSON with:\n\
              - id: a unique kebab-case identifier\n\
-             - name: a descriptive name\n\
+             {}\n\
              - description: what this bundle does\n\
              - version: semantic version (start at 1.0.0)\n\
              - editor: {}\n\
@@ -149,11 +155,12 @@ impl BundleService {
              - complementarities: array of {{skills, complementarity_type, detail}}\n\
              - steps: array of {{ordinal, action, description, phase, gas_cap, timeout_seconds}}\n\
              - Cascade depth must not exceed 7.\n\
-             - Each skill must have ≤ 10 lexicon terms.\n\
+             - Each skill must have <= 10 lexicon terms.\n\
              - Bundle must have at least one productive (Procedural) skill.\n\
              - Declare a convergence criterion.\n\
              Respond with ONLY the JSON object, no markdown fences, no commentary.",
             skill_list,
+            name_line,
             editor,
             visibility.as_str()
         );

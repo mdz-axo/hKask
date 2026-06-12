@@ -546,7 +546,7 @@ impl ReplicaServer {
             "retrieval_parameters": {
                 "k_min": "Minimum exemplar passages (default: 3)",
                 "k_max": "Maximum exemplar passages (default: 7)",
-                "distance_threshold": "Maximum cosine distance for exemplar inclusion (default: 0.30)",
+                "distance_threshold": "Maximum cosine distance for exemplar inclusion (default: 0.50)",
                 "salience_min": "Only passages with salience >= this value are considered (default: 0.0)",
                 "salience_top_k": "Limit to top K most salient matching passages"
             },

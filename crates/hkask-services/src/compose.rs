@@ -31,7 +31,7 @@ use crate::inference::InferenceContext;
 ///   retrieval:
 ///     k_min: 3
 ///     k_max: 7
-///     distance_threshold: 0.30
+///     distance_threshold: 0.50
 /// validation:
 ///   centroid_distance_max: 0.35
 /// ```
@@ -101,7 +101,7 @@ fn default_k_max() -> usize {
     7
 }
 fn default_distance_threshold() -> f64 {
-    0.30
+    0.50
 }
 
 #[derive(Debug, Deserialize)]
@@ -203,7 +203,6 @@ impl ComposeService {
         let prefix = format!("style:{}", &request.cognition.author);
         let retrieval = &request.cognition.embedding.retrieval;
         let mut matched: Vec<(f64, String, f64)> = Vec::new(); // (distance, entity_ref, salience)
-        let results_count = results.len();
 
         for r in &results {
             if !r.embedding.entity_ref.starts_with(&prefix)
@@ -234,7 +233,7 @@ impl ComposeService {
         debug!(
             "Filtered: {} of {} results passed prefix/distance/salience gates (threshold={})",
             matched.len(),
-            results_count,
+            results.len(),
             retrieval.distance_threshold
         );
 

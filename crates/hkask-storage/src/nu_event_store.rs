@@ -294,6 +294,14 @@ fn span_to_columns(span: &Span) -> (&str, &str) {
     (span.namespace.short_name(), span.path.as_str())
 }
 
+impl NuEventSink for NuEventStore {
+    fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
+        self.insert(event).map_err(|e| match e {
+            NuEventError::Infra(infra) => infra,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};
@@ -366,13 +374,5 @@ mod tests {
 
         assert_eq!(local_path, "depleted");
         let _ = Span::new(namespace, local_path);
-    }
-}
-
-impl NuEventSink for NuEventStore {
-    fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
-        self.insert(event).map_err(|e| match e {
-            NuEventError::Infra(infra) => infra,
-        })
     }
 }

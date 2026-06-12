@@ -111,9 +111,6 @@ pub struct AgentService {
     /// Channel for emitting CurationInput (GoalTransition, alerts, spec drift).
     curation_inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
 
-    /// Git CAS port for snapshot loop (shared across surfaces).
-    git_cas_port: Arc<dyn GitCASPort>,
-
     /// Pod manager for agent lifecycle.
     pod_manager: Arc<PodManager>,
 
@@ -723,7 +720,6 @@ impl AgentService {
             consent_manager,
             goal_repo,
             curation_inbox_tx: Some(curation_inbox_tx.clone()),
-            git_cas_port,
             pod_manager,
             capability_checker,
             system_webid,

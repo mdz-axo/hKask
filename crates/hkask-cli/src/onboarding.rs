@@ -503,6 +503,28 @@ fn prompt_passphrase_with_confirm() -> Result<String, std::io::Error> {
     }
 }
 
+/// Prompt for a numeric choice within a range
+fn prompt_choice(
+    prompt: &str,
+    range: std::ops::RangeInclusive<usize>,
+) -> Result<usize, std::io::Error> {
+    loop {
+        let input = prompt_line(prompt)?;
+        if input.trim().is_empty() {
+            // Default to first option on empty input
+            return Ok(*range.start());
+        }
+        match input.parse::<usize>() {
+            Ok(n) if range.contains(&n) => return Ok(n),
+            _ => println!(
+                "  Please enter a number between {} and {}.",
+                range.start(),
+                range.end()
+            ),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::passphrase_strength;
@@ -534,27 +556,5 @@ mod tests {
         assert_eq!(passphrase_strength("Abcdefgh1!xyz123").0, "strong");
         // 16 chars: upper + lower + digit (3 classes) → also strong
         assert_eq!(passphrase_strength("Abcdefgh1zzz1234").0, "strong");
-    }
-}
-
-/// Prompt for a numeric choice within a range
-fn prompt_choice(
-    prompt: &str,
-    range: std::ops::RangeInclusive<usize>,
-) -> Result<usize, std::io::Error> {
-    loop {
-        let input = prompt_line(prompt)?;
-        if input.trim().is_empty() {
-            // Default to first option on empty input
-            return Ok(*range.start());
-        }
-        match input.parse::<usize>() {
-            Ok(n) if range.contains(&n) => return Ok(n),
-            _ => println!(
-                "  Please enter a number between {} and {}.",
-                range.start(),
-                range.end()
-            ),
-        }
     }
 }

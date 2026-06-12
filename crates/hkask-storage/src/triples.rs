@@ -371,6 +371,40 @@ impl TripleStore {
     }
 }
 
+/// Triple -> TripleEntry: lossy (flattens access control for CAS storage).
+impl From<&Triple> for TripleEntry {
+    fn from(t: &Triple) -> Self {
+        Self {
+            id: t.id.to_string(),
+            entity: t.entity.clone(),
+            attribute: t.attribute.clone(),
+            value: t.value.clone(),
+            valid_from: t.temporal.valid_from.to_rfc3339(),
+            valid_to: t.temporal.valid_to.map(|dt| dt.to_rfc3339()),
+            confidence: t.confidence.value(),
+            perspective: t
+                .access
+                .perspective
+                .map(|wid| wid.to_string())
+                .unwrap_or_default(),
+            visibility: t.access.visibility.as_str().to_string(),
+        }
+    }
+}
+
+struct TripleRow {
+    id: TripleID,
+    entity: String,
+    attribute: String,
+    value: String,
+    valid_from: String,
+    valid_to: Option<String>,
+    confidence: Confidence,
+    perspective: Option<WebID>,
+    visibility: Visibility,
+    owner_webid: WebID,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -461,38 +495,4 @@ mod tests {
         let result = store.get_by_id(&missing).unwrap();
         assert!(result.is_none());
     }
-}
-
-/// Triple → TripleEntry: lossy (flattens access control for CAS storage).
-impl From<&Triple> for TripleEntry {
-    fn from(t: &Triple) -> Self {
-        Self {
-            id: t.id.to_string(),
-            entity: t.entity.clone(),
-            attribute: t.attribute.clone(),
-            value: t.value.clone(),
-            valid_from: t.temporal.valid_from.to_rfc3339(),
-            valid_to: t.temporal.valid_to.map(|dt| dt.to_rfc3339()),
-            confidence: t.confidence.value(),
-            perspective: t
-                .access
-                .perspective
-                .map(|wid| wid.to_string())
-                .unwrap_or_default(),
-            visibility: t.access.visibility.as_str().to_string(),
-        }
-    }
-}
-
-struct TripleRow {
-    id: TripleID,
-    entity: String,
-    attribute: String,
-    value: String,
-    valid_from: String,
-    valid_to: Option<String>,
-    confidence: Confidence,
-    perspective: Option<WebID>,
-    visibility: Visibility,
-    owner_webid: WebID,
 }

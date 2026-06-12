@@ -118,6 +118,15 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 - Docs updated: AGENTS.md, cli-reference.md, REPL-specification.md, test-inventory.md
 - Pre-existing build errors in `hkask-cli` and `hkask-services` tests confirmed resolved (prior session)
 
+## Session (2026-06-11)
+
+- Handoff continuation: verified build (246 tests, 0 failures), fixed 3 unicode escape errors in `hkask-services/src/bundle.rs` (Rust 2024 `\u{XXXX}` format)
+- HIGH #1: Transient AgentService accessor errors — confirmed resolved (no old accessor names in codebase, build clean)
+- HIGH #2: Architecture master sovereignty claim — updated AgentService section to current named-accessor pattern, noted sovereignty distribution across `hkask-types`/`hkask-agents`/`hkask-services`
+- LOW #3: Architecture master allosteric/RBarThreshold update — confirmed already resolved (no references in arch master; remaining occurrences are historical docs, GML templates, or deletion-acknowledging code comments)
+- LOW #4: Citation compliance audit (PS-07) — completed; 23 files with footnote citation gaps identified and catalogued
+- PROJECT_STATUS.md updated: What Remains pruned, citation audit table added
+
 ## Session (2026-06-10)
 
 - Documentation refresh: 71 broken internal links found and fixed (71→0)
@@ -133,10 +142,30 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 
 | Priority | Task |
 |----------|------|
-| HIGH | Fix architecture master sovereignty claim (SovereigntyService row) |
 | MEDIUM | AgentService adapters refactoring (incomplete, reverted) |
-| LOW | Architecture master update (allosteric references, RBarThreshold, v0.27.2 state) |
-| LOW | Citation compliance audit (P1-06, deferred) |
+| LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
+| NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
+
+### Citation Audit (2026-06-11)
+
+PS-07 ("Sourced Ideas") requires every `##` section to have at least one `[^...]` footnote citation. Audit found 23 files with gaps:
+
+| Gap | Files |
+|-----|-------|
+| 3 | `TESTING_STANDARDS.md` |
+| 4 | `ADR-024`, `ADR-026`, `MDS.md` |
+| 5 | `ADR-031`, `ADR-032`, `ADR-033`, `ADR-034` |
+| 6 | `AGENTSERVICE-IMPLEMENTATION.md`, `MDS_SCAFFOLD.md` |
+| 7 | `hKask-architecture-master.md`, `ADR_TEMPLATE.md`, `MDS-agent-service.md` |
+| 8 | `refactoring-plan-services-2026-06-09.md` |
+| 9 | `agatha-eliot-moe-plan.md`, `semantic-condensation-analysis.md` |
+| 10 | `REQUIREMENTS.md`, `TRACEABILITY_MATRIX.md` |
+| 11 | `CI-CD-GUIDE.md` |
+| 12 | `hhh-alignment-research.md`, `test-program.md` |
+| 13 | `DEPLOYMENT.md` |
+| 23 | `REPL-specification.md` |
+
+Fixing these requires domain knowledge to assign appropriate external citations per section — not mechanically resolvable.
 
 ---
 

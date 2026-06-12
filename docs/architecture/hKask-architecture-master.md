@@ -113,17 +113,49 @@ All three surfaces read/write the same `~/.config/hkask/settings.json` file. No 
 
 ### AgentService Architecture (v0.27.0)
 
-`AgentService` is the canonical service layer owning all shared infrastructure. Fields are **private** and exposed through **8 group methods** — 7 return tuples of references, 1 returns a dedicated service wrapper:
+`AgentService` is the canonical service layer owning all shared infrastructure. All 26 fields are **private** and exposed through **individual named accessor methods** (replacing the earlier grouped-tuple pattern):
 
 ```rust
-agent_service.memory()       // (&Arc<EpisodicStoragePort>, &Arc<SemanticStoragePort>)
-agent_service.cns()          // (&Arc<RwLock<CnsRuntime>>, &Arc<RwLock<CyberneticsLoop>>, &Arc<LoopSystem>, &Arc<dyn NuEventSink>)
-agent_service.governance()   // (&Arc<CapabilityChecker>, &Arc<McpDispatcher>, &Arc<EscalationQueue>)
-agent_service.storage()      // (7 store references: registry, goals, specs, sessions, users, agent_registry, git_cas)
-agent_service.coordination() // (&Option<Arc<InferencePort>>, &Arc<McpRuntime>, &Arc<PodManager>, &Arc<RwLock<SessionManager>>)
-agent_service.identity()     // (&WebID, &Arc<AcpRuntime>)
-agent_service.sovereignty()  // SovereigntyService (wraps ConsentManager — P1/P2 affirmative consent)
-agent_service.config()       // &ServiceConfig
+// ── Configuration ──
+agent_service.config()              // &ServiceConfig
+
+// ── Memory ──
+agent_service.memory()              // (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>)
+
+// ── Storage ──
+agent_service.registry()            // &Arc<tokio::sync::Mutex<SqliteRegistry>>
+agent_service.goal_repo()           // &Arc<SqliteGoalRepository>
+
+// ── CNS (Cybernetic Nervous System) ──
+agent_service.cns_runtime()         // &Arc<RwLock<CnsRuntime>>
+agent_service.cybernetics_loop()    // &Arc<RwLock<CyberneticsLoop>>
+agent_service.loop_system()         // &Arc<LoopSystem>
+agent_service.event_sink()          // &Arc<dyn NuEventSink>
+
+// ── Governance ──
+agent_service.capability_checker()  // &Arc<CapabilityChecker>
+agent_service.mcp_dispatcher()      // &Arc<McpDispatcher>
+agent_service.escalation_queue()    // &Arc<EscalationQueue>
+
+// ── Coordination ──
+agent_service.inference_port()      // Option<Arc<dyn InferencePort>>
+agent_service.mcp_runtime()         // &Arc<McpRuntime>
+agent_service.pod_manager()         // &Arc<PodManager>
+
+// ── Identity ──
+agent_service.identity()            // (&WebID, &Arc<AcpRuntime>)
+
+// ── Sovereignty (distributed: types→hkask-types, manager→hkask-agents, service→hkask-services) ──
+agent_service.sovereignty()         // SovereigntyService (wraps ConsentManager — P1/P2 affirmative consent)
+
+// ── Additional stores (some TODO-marked for ApiState migration) ──
+agent_service.curation_inbox_tx()           // &Option<UnboundedSender<CurationInput>>
+agent_service.sovereignty_boundary_store()  // &SovereigntyBoundaryStore
+agent_service.standing_session_store()      // &Arc<StandingSessionStore>
+agent_service.spec_store()                  // &SqliteSpecStore
+agent_service.session_manager()             // &Arc<RwLock<SessionManager>>
+agent_service.agent_registry_store()        // &AgentRegistryStore
+agent_service.user_store()                  // &Arc<Mutex<UserStore>>
 ```
 
 See [`../specifications/MDS-agent-service.md`](../specifications/MDS-agent-service.md) for full specification.
@@ -165,13 +197,13 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | OCAP gates | Surface | `GovernedTool` membrane, capability checks before service call |
 | HTTP status mapping | `hkask-api` | `ServiceError → StatusCode` |
 | CLI formatting | `hkask-cli` | Table output, color, progress indicators |
-| Field encapsulation | `hkask-services` | All 26 fields private, accessed via 8 group methods |
+| Field encapsulation | `hkask-services` | All 26 fields private, accessed via individual named methods |
 
 ### Depth Test Results (Post-Essentialist v0.27.0)
 
 | Module | Public API | Call Sites (CLI+API) | Status |
 |--------|-----------|---------------------|--------|
-| `AgentService` | 9 methods (8 groups + build) | 2 surfaces | ✅ Pass — encapsulated |
+| `AgentService` | 25 methods (23 public + build + build_per_agent_memory) | 2 surfaces | ✅ Pass — encapsulated |
 | `ChatService` | 4 functions | 8+ | ✅ Pass — CNS instrumented (P9) |
 | `InferenceService` | 3 functions | 11+ | ✅ Pass |
 | `EmbedService` | 2 functions + 9 types | 2+ | ✅ Deep — 200 lines behind 2 calls |
@@ -188,7 +220,7 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 | Module | Purpose |
 |--------|--------|
 | `CnsService` (cns.rs) | CNS health, alerts, variety queries wrapping shared `CnsRuntime` — 3 async methods + 3 unit tests |
-| `SovereigntyService` (sovereignty.rs) | Consent grant/revoke/check wrapping `ConsentManager` — 4 methods + 1 unit test, resolves P1 Prohibition
+| `SovereigntyService` (sovereignty.rs) | Consent grant/revoke/check wrapping `ConsentManager` from `hkask-agents`, using `DataCategory` from `hkask-types` — 4 methods + 2 unit tests, resolves P1 Prohibition |
 
 ### Skipped Domains
 

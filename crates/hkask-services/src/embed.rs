@@ -668,22 +668,7 @@ impl EmbedService {
     }
 }
 
-// ── Triple storage helper ──────────────────────────────────────────────────
-
-fn store_passage_text(
-    semantic: &SemanticMemory,
-    passage: &TaggedPassage,
-    owner: WebID,
-) -> Result<(), ServiceError> {
-    let triple = Triple::new(&passage.entity_ref, "text", json!(passage.text), owner)
-        .with_visibility(Visibility::Public);
-    semantic.store(triple).map_err(|e| {
-        ServiceError::Embed(format!(
-            "Failed to store text triple ({}): {e}",
-            passage.entity_ref
-        ))
-    })
-}
+// ── Triple storage helpers ──────────────────────────────────────────────────
 
 fn store_passage_triples(
     semantic: &SemanticMemory,
