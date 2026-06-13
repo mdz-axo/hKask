@@ -120,7 +120,6 @@ steps:
       db_path: "${input.db_path}"
       persona: "gentle-lovelace"
       document_content: "${input.document_content}"
-      document_type: "${input.document_type}"
       compare_mode: "${input.compare_mode}"
     gas_cap: 4096
     timeout_seconds: 30

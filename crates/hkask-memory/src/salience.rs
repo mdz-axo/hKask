@@ -878,6 +878,7 @@ mod tests {
                 adjective_density_max: Some(5.0),
                 ..Default::default()
             },
+            threshold: None,
         };
         let hemingway_signals =
             compute_method_signals("He drank the wine. It was good. He walked out.");

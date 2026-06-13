@@ -425,6 +425,7 @@ impl SpecServer {
         Parameters(WritingQualityRequest {
             spec_id,
             notes: _,
+            replica_persona,
             capability_token,
         }): Parameters<WritingQualityRequest>,
     ) -> String {
@@ -450,6 +451,7 @@ impl SpecServer {
             &WritingQualityResponse {
                 dimensions_passing: quality.passes(),
                 meets_publication_standard: quality.meets_publication_standard(),
+                replica_persona: replica_persona.clone(),
             },
         )
     }

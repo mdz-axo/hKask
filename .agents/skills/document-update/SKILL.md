@@ -109,8 +109,20 @@ Statement→Evidence→Diagram→Implications. Add missing citations per §2.4
 external source or code-path verification). Split sentences exceeding 35 words
 (§2.2). Replace passive voice with active (§2.2).
 
+For embedding-based dimension scoring, invoke
+`spec/require/writing-quality` with `replica_persona: "gentle-lovelace"`.
+This enables the 5th quality dimension — continuous embedding-space comparison
+against the Gentle Lovelace corpus. Run a separate `replica_compare` call with
+`persona: "gentle-lovelace"`, `document_content: <spec text>`,
+`document_type: "specification"`, and `compare_mode: "per-dimension"` to get
+per-dimension cosine distances against the Gentle, Schriver, Hopper, and
+Lovelace centroids. The per-document-type context-sensitive weights from the
+Gentle Lovelace corpus config adjust the composite score for the document's
+type (specification, ADR, guide, reference, plan, status).
+
 **Output:** `docs/status/writing_quality_report.yaml` with per-document scores
-and revision actions taken. All specification documents at ≥3/4.
+and revision actions taken. All specification documents at ≥3/4 heuristic AND
+composite cosine distance ≤0.4 from the Gentle Lovelace composite centroid.
 
 **Infrastructure:** The `hkask-mcp-replica` server's `replica_compose` tool can
 generate revision prose in the project's formal-technical voice (third person,

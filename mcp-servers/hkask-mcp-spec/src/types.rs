@@ -72,6 +72,11 @@ pub struct DependencyEdge {
 pub struct WritingQualityResponse {
     pub dimensions_passing: usize,
     pub meets_publication_standard: bool,
+    /// Replica persona for embedding-based validation (if requested).
+    /// When set, use `replica_compare` with this persona and the spec's
+    /// content as `document_content` for embedding-based dimension scores.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub replica_persona: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,12 +136,21 @@ pub struct GoalDecomposeRequest {
 /// Request to assess a spec's writing quality via the 4-perspective test.
 /// Per MDS §3: `spec/require/writing-quality` — server assesses, caller does not
 /// provide scores. Optional `notes` for assessor context.
+/// Optional `replica_persona` enables embedding-based validation via the replica
+/// server (e.g., "gentle-lovelace") as a supplement to heuristic assessment.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct WritingQualityRequest {
     /// The spec ID to assess.
     pub spec_id: String,
     /// Optional assessor notes providing context for the assessment.
     pub notes: Option<String>,
+    /// Optional replica persona for embedding-based validation
+    /// (e.g., "gentle-lovelace"). When set, the response includes a
+    /// `replica_persona` field indicating that a separate
+    /// `replica_compare` call with `persona` and `document_content`
+    /// can provide embedding-based dimension scores.
+    #[serde(default)]
+    pub replica_persona: Option<String>,
     /// OCAP capability token for authorization.
     pub capability_token: Option<String>,
 }

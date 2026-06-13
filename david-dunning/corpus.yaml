@@ -1,0 +1,213 @@
+author: david-dunning
+embedding:
+  model: DI/Qwen/Qwen3-Embedding-0.6B
+  dim: 1024
+  batch_size: 64
+works:
+- title: David Dunning - Wikipedia
+  slug: david-dunning-wikipedia
+  url: https://en.wikipedia.org/wiki/David_Dunning
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning
+  slug: david-dunning
+  url: https://scholar.google.com/citations?user=d5TrVQMAAAAJ&hl=en
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: 'David Dunning: Overcoming Overconfidence | OpenMind Magazine'
+  slug: david-dunning-overcoming-overconfidence-openmind-magazine
+  url: https://www.openmindmag.org/articles/david-dunning-on-expertise
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning | U-M LSA Department of Psychology
+  slug: david-dunning-u-m-lsa-department-of-psychology
+  url: https://lsa.umich.edu/psych/people/faculty/ddunning.html
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning (@daviddunning6) / X
+  slug: david-dunning-daviddunning6-x
+  url: https://x.com/daviddunning6?lang=en
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: Dunning–Kruger effect - Wikipedia
+  slug: dunning-kruger-effect-wikipedia
+  url: https://en.wikipedia.org/wiki/Dunning%E2%80%93Kruger_effect
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: Dunning-Kruger Effect | Psychology Today
+  slug: dunning-kruger-effect-psychology-today
+  url: https://www.psychologytoday.com/us/basics/dunning-kruger-effect
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning | Center for Advanced Study in the Behavioral Sciences
+  slug: david-dunning-center-for-advanced-study-in-the-behavioral-sciences
+  url: https://casbs.stanford.edu/people/david-dunning
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David A. Dunning | American Academy of Arts and Sciences
+  slug: david-a-dunning-american-academy-of-arts-and-sciences
+  url: https://www.amacad.org/person/david-dunning
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: Stories by David Dunning | Scientific American
+  slug: stories-by-david-dunning-scientific-american
+  url: https://www.scientificamerican.com/author/david-dunning
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning Presentation and Conversation - YouTube
+  slug: david-dunning-presentation-and-conversation-youtube
+  url: https://www.youtube.com/watch?v=0aLIerbUMsE
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: 'David Dunning: Books - Amazon.com'
+  slug: david-dunning-books-amazon-com
+  url: https://www.amazon.com/Books-David-Dunning/s?rh=n%3A283155%2Cp_27%3ADavid%2BDunning
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: 'ReThinking: Explaining the Dunning-Kruger effect and overcoming ...'
+  slug: rethinking-explaining-the-dunning-kruger-effect-and-overcoming
+  url: https://podcasts.apple.com/us/podcast/rethinking-explaining-the-dunning-kruger-effect/id1346314086?i=1000661578914
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: Instagram
+  slug: instagram
+  url: https://www.instagram.com/reel/DNYNRnWI9MT?hl=en
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David E. Dunning
+  slug: david-e-dunning
+  url: https://www.davidedunning.com
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning at University of Michigan | Rate My Professors
+  slug: david-dunning-at-university-of-michigan-rate-my-professors
+  url: https://www.ratemyprofessors.com/professor/2525842
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: Dunning-Kruger - Mini Philosophy - Facebook
+  slug: dunning-kruger-mini-philosophy-facebook
+  url: https://www.facebook.com/philosophyminis/videos/dunning-kruger-confident-incompetence/1464117234769403
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning
+  slug: david-dunning
+  url: https://dunning.socialpsychology.org
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning | American psychologist | Britannica
+  slug: david-dunning-american-psychologist-britannica
+  url: https://www.britannica.com/biography/David-Dunning
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+- title: David Dunning | National Education Policy Center
+  slug: david-dunning-national-education-policy-center
+  url: https://nepc.colorado.edu/author/dunning-david
+  local_path: null
+  format: web
+  document_type: null
+  dimensions: []
+  section_types: []
+  mds_categories: []
+foundational_rules: []
+chunking:
+  min_words: 50
+  max_words: 200
+  sentence_boundary: '.!? '
+centroid_entity_ref: style:david-dunning:centroid
+validation:
+  centroid_distance_max: 0.25
+  exemplar_count_min: 3
+  exemplar_count_max: 7
+budget:
+  per_100_pages: 3750
+entities:
+  characters: []
+  places: []
+  events: []
+  concepts: []
+  co_authors: []
+  venues: []
+  topics: []
+  paradigms: []
+methods: []
+corpus_type: academic
+dimension_centroids: []
+tag_sets: []
+tag_weights: {}
+classifier: ''

@@ -190,9 +190,10 @@ impl DiscoveryService {
 
         match mcp_search(mcp, token, &academic_query, req.max_works, "web").await {
             Ok(results) => {
-                let (academic, other): (Vec<_>, Vec<_>) = results
-                    .into_iter()
-                    .partition(|w| w.source == "semantic_scholar" || w.source == "arxiv");
+                let (academic, other): (Vec<_>, Vec<_>) = results.into_iter().partition(|w| {
+                    let s = w.source.to_lowercase();
+                    s == "semantic_scholar" || s == "arxiv"
+                });
 
                 let acad_count = academic.len();
                 for w in &academic {
@@ -246,7 +247,10 @@ impl DiscoveryService {
                     // Filter out academic results (already captured in Phase 1)
                     let web_results: Vec<DiscoveredWork> = results
                         .into_iter()
-                        .filter(|w| w.source != "semantic_scholar" && w.source != "arxiv")
+                        .filter(|w| {
+                            let s = w.source.to_lowercase();
+                            s != "semantic_scholar" && s != "arxiv"
+                        })
                         .collect();
                     let existing_urls: Vec<&str> = works.iter().map(|w| w.url.as_str()).collect();
                     let new: Vec<DiscoveredWork> = web_results
@@ -912,14 +916,37 @@ async fn mcp_search(
         .await
         .map_err(|e| ServiceError::Embed(format!("MCP web_search failed: {e}")))?;
 
-    let results = result["results"]
+    tracing::debug!(
+        target: "hkask.discover",
+        query = %query,
+        has_results = result.get("results").is_some(),
+        result_keys = ?result.as_object().map(|o| o.keys().collect::<Vec<_>>()),
+        "MCP search response"
+    );
+
+    // The MCP server wraps tool output in {"content": <value>}.
+    // parse_call_result unwraps the MCP transport layer (content[0].text),
+    // but the server's {"content": ...} wrapper remains.
+    let payload = result.get("content").unwrap_or(&result);
+
+    let results = payload["results"]
         .as_array()
         .map(|arr| {
-            arr.iter()
+            // Debug: dump first result to understand source field
+            if let Some(first) = arr.first() {
+                tracing::debug!(
+                    target: "hkask.discover",
+                    first_result = %serde_json::to_string_pretty(first).unwrap_or_default(),
+                    "First MCP search result"
+                );
+            }
+
+            let parsed: Vec<DiscoveredWork> = arr
+                .iter()
                 .filter_map(|item| {
                     let title = item["title"].as_str()?.to_string();
                     let url = item["url"].as_str()?.to_string();
-                    let source = item["source"].as_str().unwrap_or("web").to_string();
+                    let source = item["source"].as_str().unwrap_or("web").to_lowercase();
                     let published = item["published"].as_str().map(|s| s.to_string());
                     let year = published.as_ref().and_then(|d| d[..4].parse::<u16>().ok());
 
@@ -950,7 +977,16 @@ async fn mcp_search(
                         abstract_text,
                     })
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+
+            let sources: Vec<&str> = parsed.iter().map(|w| w.source.as_str()).take(5).collect();
+            tracing::debug!(
+                target: "hkask.discover",
+                total = parsed.len(),
+                first_sources = ?sources,
+                "Parsed MCP search results"
+            );
+            parsed
         })
         .unwrap_or_default();
 

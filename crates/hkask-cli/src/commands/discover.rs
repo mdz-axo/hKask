@@ -64,7 +64,7 @@ pub fn run(
     let to = hkask_types::WebID::new();
     let token = ctx
         .mcp_dispatcher()
-        .issue_capability("tools".to_string(), from, to);
+        .issue_capability("web_search".to_string(), from, to);
 
     // ── Augment detection ──────────────────────────────────────────────
     let author_slug = slugify(&author_name);

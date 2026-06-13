@@ -8,9 +8,10 @@
 //! - replica_registry — list, inspect, and manage built replicas
 //! - replica_explain  — explain centroids and style-space topology
 
+use hkask_inference::EmbeddingRouter;
 use hkask_mcp::run_server;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
-use hkask_services::{EmbedProgress, EmbedService, InferenceContext};
+use hkask_services::{EmbedProgress, EmbedService, InferenceContext, cosine_distance};
 use hkask_storage::{Database, EmbeddingStore};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
@@ -20,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 
 /// Default embedding model (DeepInfra Qwen3-Embedding-0.6B).
 /// Override with `HKASK_EMBEDDING_MODEL` env var.
@@ -143,10 +145,81 @@ struct ComposeResult {
     style_passed: Option<bool>,
 }
 
+fn default_compare_mode() -> String {
+    "per-dimension".to_string()
+}
+
+fn qualitative_label(distance: f64) -> String {
+    if distance < 0.20 {
+        "Excellent".to_string()
+    } else if distance < 0.40 {
+        "Good".to_string()
+    } else if distance < 0.60 {
+        "Fair".to_string()
+    } else {
+        "Needs Work".to_string()
+    }
+}
+
+fn is_centroid_entity(entity_ref: &str) -> bool {
+    // Match composite centroid (style:persona:centroid) and
+    // per-dimension centroids (style:persona:dimension-centroid)
+    if let Some(last) = entity_ref.rsplit(':').next() {
+        last == "centroid" || last.ends_with("-centroid")
+    } else {
+        false
+    }
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 struct CompareRequest {
     db_path: String,
     passphrase: String,
+    /// Scope comparison to a specific persona's centroids (e.g., "gentle-lovelace").
+    /// When set, only centroids under style:{persona}: are considered.
+    #[serde(default)]
+    persona: Option<String>,
+    /// Document content to embed and compare against centroids.
+    /// When set, compares document embedding to persona centroids instead
+    /// of doing pairwise author comparison.
+    #[serde(default)]
+    document_content: Option<String>,
+    /// Comparison mode: "per-dimension" returns scores for each dimension
+    /// centroid + composite; "composite" returns only the weighted composite.
+    #[serde(default = "default_compare_mode")]
+    compare_mode: String,
+}
+
+#[derive(Debug, Serialize)]
+struct DimensionScore {
+    /// Dimension name: "Gentle", "Schriver", "Hopper", "Lovelace".
+    dimension_name: String,
+    /// Entity ref in the embedding store (e.g., "style:gentle-lovelace:gentle-centroid").
+    centroid_ref: String,
+    /// Human-readable description of what this dimension measures.
+    description: String,
+    /// Cosine distance from document to dimension centroid (lower = stronger alignment).
+    cosine_distance: f64,
+    /// Number of passages used to compute this centroid.
+    passage_count: usize,
+    /// Qualitative rating: "Excellent", "Good", "Fair", or "Needs Work".
+    qualitative: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PersonaCompareResult {
+    /// Persona name (e.g., "gentle-lovelace").
+    persona: String,
+    /// Comparison mode used: "per-dimension" or "composite".
+    compare_mode: String,
+    /// Embedding model used for document embedding.
+    embedding_model: String,
+    /// Composite weighted centroid score (always present).
+    composite_score: Option<DimensionScore>,
+    /// Per-dimension scores (only in "per-dimension" mode).
+    dimension_scores: Vec<DimensionScore>,
+    /// Elapsed time for the comparison.
+    elapsed_ms: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -419,16 +492,115 @@ impl ReplicaServer {
         }
     }
 
-    #[tool(description = "Compare all built author replicas.")]
+    #[tool(
+        description = "Compare all built author replicas, or evaluate a document against a persona's centroids."
+    )]
     async fn replica_compare(&self, Parameters(params): Parameters<CompareRequest>) -> String {
         let span = ToolSpanGuard::new("replica_compare", &self.webid);
+        let persona = params.persona.clone();
+        let document_content = params.document_content.clone();
 
-        let run = || -> Result<String, String> {
+        let run = async {
             let db =
                 Database::open(&params.db_path, &params.passphrase).map_err(|e| e.to_string())?;
             let conn = db.conn_arc();
             let store = EmbeddingStore::new(conn);
 
+            // ── Document comparison path ──────────────────────────────
+            if let Some(ref doc_text) = document_content {
+                let started = Instant::now();
+
+                // Embed the document
+                let emb_model = embedding_model();
+                let inf_cfg = inference_config();
+                let embedder = EmbeddingRouter::new(inf_cfg);
+                let vectors = embedder
+                    .embed_sentences(&emb_model, &[doc_text.as_str()])
+                    .await
+                    .map_err(|e| format!("Failed to embed document: {e}"))?;
+                let doc_vec = vectors
+                    .first()
+                    .ok_or_else(|| "Embedding returned empty result".to_string())?;
+
+                // Query centroids for this persona
+                let prefix = format!("style:{}:", persona.as_deref().unwrap_or(""));
+                let all_refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
+
+                // Count non-centroid passages for passage_count on each centroid
+                let total_passages = all_refs.iter().filter(|r| !is_centroid_entity(r)).count();
+
+                let mut dimension_scores: Vec<DimensionScore> = Vec::new();
+                let mut composite_score: Option<DimensionScore> = None;
+
+                for entity_ref in &all_refs {
+                    if !is_centroid_entity(entity_ref) {
+                        continue;
+                    }
+
+                    let emb = store.get(entity_ref).map_err(|e| e.to_string())?;
+                    let dist = cosine_distance(doc_vec, &emb.vector);
+
+                    // Derive dimension name from entity_ref.
+                    // "style:{persona}:{dimension}-centroid" → dimension name
+                    // "style:{persona}:centroid" → composite
+                    let last_segment = entity_ref.rsplit(':').next().unwrap_or(entity_ref);
+
+                    let (dimension_name, is_composite) = if last_segment == "centroid" {
+                        ("composite".to_string(), true)
+                    } else if let Some(dim) = last_segment.strip_suffix("-centroid") {
+                        let mut chars = dim.chars();
+                        let capitalized = match chars.next() {
+                            Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+                            None => dim.to_string(),
+                        };
+                        (capitalized, false)
+                    } else {
+                        continue;
+                    };
+
+                    let dim_lower = dimension_name.to_lowercase();
+                    let dim_passage_count = all_refs
+                        .iter()
+                        .filter(|r| !is_centroid_entity(r) && r.to_lowercase().contains(&dim_lower))
+                        .count();
+
+                    let score = DimensionScore {
+                        centroid_ref: entity_ref.clone(),
+                        cosine_distance: dist,
+                        qualitative: qualitative_label(dist),
+                        passage_count: if is_composite {
+                            total_passages
+                        } else {
+                            dim_passage_count
+                        },
+                        dimension_name: dimension_name.clone(),
+                        description: String::new(),
+                    };
+
+                    if is_composite {
+                        composite_score = Some(score);
+                    } else {
+                        dimension_scores.push(score);
+                    }
+                }
+
+                let result = PersonaCompareResult {
+                    persona: persona.unwrap_or_default(),
+                    compare_mode: params.compare_mode.clone(),
+                    embedding_model: emb_model,
+                    composite_score,
+                    dimension_scores: if params.compare_mode == "composite" {
+                        Vec::new()
+                    } else {
+                        dimension_scores
+                    },
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                };
+
+                return serde_json::to_string(&result).map_err(|e| e.to_string());
+            }
+
+            // ── Pairwise author comparison path (backward compat) ─────
             let centroids = store.query_by_prefix("style:").map_err(|e| e.to_string())?;
 
             let mut author_names: Vec<String> = Vec::new();
@@ -462,7 +634,7 @@ impl ReplicaServer {
                     let ca = format!("style:{}:centroid", author_names[i]);
                     let cb = format!("style:{}:centroid", author_names[j]);
                     if let (Ok(a), Ok(b)) = (store.get(&ca), store.get(&cb)) {
-                        let dist = hkask_services::cosine_distance(&a.vector, &b.vector);
+                        let dist = cosine_distance(&a.vector, &b.vector);
                         distances.push(AuthorDistance {
                             author_a: author_names[i].clone(),
                             author_b: author_names[j].clone(),
@@ -480,7 +652,7 @@ impl ReplicaServer {
             .map_err(|e| e.to_string())
         };
 
-        match run() {
+        match run.await {
             Ok(json) => span.ok_json(serde_json::from_str(&json).unwrap_or(json!({}))),
             Err(e) => internal_error(span, "compare authors", e),
         }
