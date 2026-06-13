@@ -9,10 +9,10 @@
 //! CPU-only algorithms with no LLM dependency. Phase 2 adds LLM-assisted
 //! thread summarization via the centralized hKask inference router.
 //!
-//! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
-//! persist compressed outputs to episodic memory via the `condenser:persist` tool.
-//! Without those credentials, the server operates in memory-only mode (graceful
-//! degradation).
+//! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` environment variables are set,
+//! the condenser can persist compressed outputs to episodic memory via the
+//! `condenser:persist` tool. Without them, the server operates in memory-only
+//! mode (the default — no persistence backend required).
 //!
 //! The `condenser_thread_summary` tool uses the centralized `InferencePort`
 //! (hkask-inference router) for LLM-powered summarization. No standalone
@@ -424,24 +424,37 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-condenser",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let episodic = match ctx.credentials.get("HKASK_DB_PATH") {
-                Some(path) => {
-                    let passphrase =
-                        ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                            anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing")
+            let episodic = {
+                let db_path = ctx
+                    .credentials
+                    .get("HKASK_DB_PATH")
+                    .cloned()
+                    .or_else(|| std::env::var("HKASK_DB_PATH").ok());
+                match db_path {
+                    Some(path) => {
+                        let passphrase = ctx
+                            .credentials
+                            .get("HKASK_DB_PASSPHRASE")
+                            .cloned()
+                            .or_else(|| std::env::var("HKASK_DB_PASSPHRASE").ok())
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing")
+                            })?;
+                        let db = Database::open(&path, &passphrase).map_err(|e| {
+                            anyhow::anyhow!("Failed to open condenser database: {}", e)
                         })?;
-                    let db = Database::open(path, passphrase)
-                        .map_err(|e| anyhow::anyhow!("Failed to open condenser database: {}", e))?;
-                    let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
-                    Some(hkask_memory::EpisodicMemory::new(triple_store))
+                        let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
+                        Some(hkask_memory::EpisodicMemory::new(triple_store))
+                    }
+                    None => None,
                 }
-                None => None,
             };
 
             let default_model = ctx
                 .credentials
                 .get("INFERENCE_MODEL")
                 .cloned()
+                .or_else(|| std::env::var("INFERENCE_MODEL").ok())
                 .unwrap_or_else(|| "qwen3:8b".to_string());
 
             Ok(CondenserServer::new(
@@ -504,19 +517,9 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
 }
 
 fn credential_requirements() -> Vec<hkask_mcp::CredentialRequirement> {
-    let opt = hkask_mcp::CredentialRequirement::optional;
-    vec![
-        opt(
-            "HKASK_DB_PATH",
-            "Path to the SQLite database for episodic persistence",
-        ),
-        opt(
-            "HKASK_DB_PASSPHRASE",
-            "Passphrase for the database (required if HKASK_DB_PATH is set)",
-        ),
-        opt(
-            "INFERENCE_MODEL",
-            "Model for thread summarization (default: qwen3:8b). Supports provider prefixes (OM/, FW/, DI/).",
-        ),
-    ]
+    // HKASK_DB_PATH, HKASK_DB_PASSPHRASE, and INFERENCE_MODEL are handled
+    // directly by the factory closure with sensible defaults (in-memory,
+    // qwen3:8b) and optional env-var overrides. No credentials require
+    // operator-level warnings.
+    Vec::new()
 }

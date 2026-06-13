@@ -21,7 +21,7 @@ use hkask_types::template::LLMParameters;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -142,6 +142,13 @@ pub struct CorpusConfig {
     /// Orthogonal tag sets for multi-axis passage tagging.
     #[serde(default)]
     pub tag_sets: Vec<TagSet>,
+
+    /// Per-document-type tag weight overrides.
+    /// Maps document type (specification, guide, reference, etc.) to
+    /// per-dimension weights. Applied at query time when comparing
+    /// documents of a specific type against the embedding space.
+    #[serde(default)]
+    pub tag_weights: HashMap<String, HashMap<String, f64>>,
 
     /// Classifier config name (references registry/classify/{name}.yaml).
     /// If empty, section_type defaults to "Statement" for all passages.

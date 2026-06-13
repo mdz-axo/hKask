@@ -7,11 +7,14 @@
 
 use hkask_mcp::runtime::McpRuntime;
 
-/// MCP servers to start at REPL boot.
+/// MCP servers available for the REPL.
 ///
 /// Each entry maps `(server_id, binary_name)`. The binary must be on PATH
 /// or specified via the `HKASK_MCP_{ID}_BIN` environment variable.
-const BUILTIN_SERVERS: &[(&str, &str)] = &[
+///
+/// Servers are NOT auto-started at REPL boot — they require explicit user
+/// consent via the `/mcp` command or the post-sign-on prompt (P2: Affirmative Consent).
+pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("memory", "hkask-mcp-memory"),
     ("condenser", "hkask-mcp-condenser"),
     ("spec", "hkask-mcp-spec"),
@@ -48,4 +51,42 @@ pub async fn start_builtin_servers(runtime: &McpRuntime) -> usize {
     }
 
     started
+}
+
+/// Start a single MCP server by its server_id.
+///
+/// Returns `true` if the server started successfully, `false` if it failed
+/// (binary not found, missing credentials, handshake error).
+pub async fn start_single_server(runtime: &McpRuntime, server_id: &str) -> bool {
+    let command = match BUILTIN_SERVERS.iter().find(|(id, _)| *id == server_id) {
+        Some((_, cmd)) => *cmd,
+        None => {
+            tracing::warn!(
+                target: "hkask.repl",
+                server_id = %server_id,
+                "Unknown MCP server ID"
+            );
+            return false;
+        }
+    };
+
+    match runtime.start_server(server_id, command).await {
+        Ok(()) => {
+            tracing::info!(
+                target: "hkask.repl",
+                server_id = %server_id,
+                "MCP server started"
+            );
+            true
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "hkask.repl",
+                server_id = %server_id,
+                error = %e,
+                "Failed to start MCP server"
+            );
+            false
+        }
+    }
 }

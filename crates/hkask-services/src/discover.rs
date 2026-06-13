@@ -520,6 +520,7 @@ pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
         corpus_type: "literary".to_string(),
         dimension_centroids: vec![],
         tag_sets: vec![],
+        tag_weights: Default::default(),
         classifier: String::new(),
     }
 }
@@ -857,6 +858,7 @@ async fn infer_methods(
                         name,
                         description,
                         signal,
+                        threshold: None,
                     })
                 })
                 .collect()

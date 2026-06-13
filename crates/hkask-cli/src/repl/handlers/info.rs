@@ -76,7 +76,10 @@ pub(crate) fn handle_templates(rt: &tokio::runtime::Handle) {
 pub(crate) fn handle_tools(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
     let tools = rt.block_on(state.governed_tool.discover_tools());
     if tools.is_empty() {
-        println!("  No MCP tools available. Start MCP servers to register tools.");
+        println!("  No MCP tools available.");
+        println!(
+            "  Use \x1b[36m/mcp list\x1b[0m to see available servers and \x1b[36m/mcp start <server>\x1b[0m to load one."
+        );
     } else {
         println!("  \x1b[1mMCP Tools ({}):\x1b[0m", tools.len());
         for tool_name in &tools {

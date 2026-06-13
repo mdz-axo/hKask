@@ -489,6 +489,11 @@ pub struct DeclaredMethod {
     pub description: String,
     #[serde(default)]
     pub signal: MethodThresholds,
+    /// Simplified single-threshold mode.
+    /// When set, applies as a minimum across all method signals
+    /// instead of using per-signal thresholds.
+    #[serde(default)]
+    pub threshold: Option<f64>,
 }
 
 /// Thresholds for matching a declared method to a passage's signals.
@@ -775,6 +780,15 @@ pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum BudgetConfig {
+    /// Flat config with explicit total passages and rate.
+    /// Used by gentle-lovelace and similar mashup styles.
+    Flat {
+        /// Budget cap on passages (0 = no cap).
+        #[serde(default)]
+        total_passages: usize,
+        /// Triples per 100 page-equivalents.
+        triple_budget_per_100: usize,
+    },
     /// Budget derived from passage count: `triples_per_100_pages`.
     PerPage {
         #[serde(default = "default_budget_per_100_pages")]
@@ -799,10 +813,24 @@ impl Default for BudgetConfig {
 impl BudgetConfig {
     /// Compute the absolute triple budget from the config and passage count.
     ///
+    /// For `Flat`: budget = (effective_pages / 250) × triple_budget_per_100.
+    /// `total_passages` caps the passage count (0 = no cap, use actual count).
     /// For `PerPage`: budget = (passage_count / 250) × per_100_pages.
     /// The constant 250 assumes ~250 passages ≈ 100 pages.
     pub fn resolve(&self, passage_count: usize) -> usize {
         match self {
+            BudgetConfig::Flat {
+                total_passages,
+                triple_budget_per_100,
+            } => {
+                let effective = if *total_passages > 0 && *total_passages < passage_count {
+                    *total_passages
+                } else {
+                    passage_count
+                };
+                let pages_equivalent = (effective as f32 / 250.0).max(1.0);
+                (pages_equivalent * *triple_budget_per_100 as f32).ceil() as usize
+            }
             BudgetConfig::PerPage { per_100_pages } => {
                 let pages_equivalent = (passage_count as f32 / 250.0).max(1.0);
                 (pages_equivalent * *per_100_pages as f32).ceil() as usize

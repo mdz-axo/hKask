@@ -75,6 +75,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "List MCP tools",
     },
     SlashCommand {
+        primary: "mcp",
+        aliases: &[],
+        args: "list|start <server|all>",
+        about: "Manage MCP server connections (P2: opt-in)",
+    },
+    SlashCommand {
         primary: "ensemble",
         aliases: &["ens"],
         args: "sessions|create|join|send|invite|participants",
@@ -241,6 +247,7 @@ pub(super) fn handle_slash_command(
         "pods" => handlers::handle_pods(rt),
         "templates" | "tpl" => handlers::handle_templates(rt),
         "tools" => handlers::handle_tools(state, rt),
+        "mcp" => handlers::handle_mcp(state, arg1, arg2, rt),
         "escalations" | "esc" => handlers::handle_escalations(rt),
         "resolve" => handlers::handle_resolve(arg1, rt),
         "dismiss" => handlers::handle_dismiss(arg1, rt),

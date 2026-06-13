@@ -48,19 +48,19 @@ embedding:
 # for both human and agent readers. Hopper and Lovelace (10% each) whisper
 # the foundational principles: accessibility and precision.
 dimension_centroids:
-  - name: gentle
+  - name: Gentle
     ref_name: "style:gentle-lovelace:gentle-centroid"
     weight: 0.50
     description: "Agent-correctness — docs ARE code; stale docs are functional defects"
-  - name: schriver
+  - name: Schriver
     ref_name: "style:gentle-lovelace:schriver-centroid"
     weight: 0.30
     description: "Findability — answer findable in 30 seconds by human or agent"
-  - name: hopper
+  - name: Hopper
     ref_name: "style:gentle-lovelace:hopper-centroid"
     weight: 0.10
     description: "Accessibility — comprehensible on first reading, zero prior context"
-  - name: lovelace
+  - name: Lovelace
     ref_name: "style:gentle-lovelace:lovelace-centroid"
     weight: 0.10
     description: "Precision — specification independently verifiable"
@@ -133,6 +133,7 @@ works:
   # ── Hopper: Mark I Manual of Operation (Public Domain) ──────────────────
   - title: "A Manual of Operation for the Automatic Sequence Controlled Calculator"
     slug: hopper-mark1-manual
+    url: "https://archive.org/details/manual-of-operation-automatic-sequence-controlled-calculator"
     local_path: "registry/corpora/technical-documentation-exemplars/hopper-mark1-manual.txt"
     format: text
     type: guide

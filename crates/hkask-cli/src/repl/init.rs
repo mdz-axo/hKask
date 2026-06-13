@@ -151,12 +151,10 @@ pub(super) fn init_repl_state(
     // Register the CLI's inference loop on the shared loop system.
     rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));
 
-    // Start built-in MCP servers on the AgentService's MCP runtime.
+    // P2: Affirmative Consent — MCP servers are NOT auto-started at REPL boot.
+    // Users must explicitly consent via the post-sign-on prompt or the /mcp command.
+    // The MCP runtime is shared below but servers won't be live until opted in.
     let mcp_runtime = ctx.mcp_runtime().clone();
-    let server_count = rt.block_on(super::builtin_servers::start_builtin_servers(&mcp_runtime));
-    if server_count > 0 {
-        tracing::info!(target: "hkask.repl", servers = server_count, "MCP servers started");
-    }
 
     // Create the GovernedTool membrane for CLI tool discovery.
     // This wraps AgentService's MCP runtime with gas governance and CNS observability,
