@@ -11,8 +11,8 @@ use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{
-    ChainId, DepositAddress, DepositReference, PrivacyMode, RJoule, TransactionType, TxHash,
-    WalletBalance, WalletConfig, WalletError, WalletId, WalletTransaction,
+    ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
+    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletId, WalletTransaction,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -551,6 +551,65 @@ impl WalletManager {
         };
         self.store.store_deposit_reference(&dep_ref)?;
         Ok(dep_ref)
+    }
+
+    // ── Encumbrance — rJoule lock/release/consume ────────────────────────────
+
+    /// Encumber rJoules from a wallet for an API key's allocation.
+    ///
+    /// Locks `amount` rJoules against the wallet balance. The locked rJoules
+    /// can only be consumed by the specified API key via `consume()`.
+    /// Unspent rJoules are returned to the wallet on `release_encumbrance()`.
+    pub fn encumber(
+        &self,
+        wallet_id: WalletId,
+        key_id: ApiKeyId,
+        amount: RJoule,
+    ) -> Result<(), WalletError> {
+        self.store.encumber_rjoules(wallet_id, key_id, amount)?;
+        self.emit_span(
+            "cns.wallet.encumbered",
+            "encumbered",
+            Phase::Act,
+            serde_json::json!({
+                "key_id": key_id.to_string(),
+                "wallet_id": wallet_id.to_string(),
+                "amount_rj": amount.as_u64(),
+            }),
+        );
+        Ok(())
+    }
+
+    /// Release an encumbrance, returning unspent rJoules to the wallet.
+    ///
+    /// Idempotent — releasing an already-released or consumed encumbrance
+    /// is a no-op.
+    pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
+        self.store.release_encumbrance(key_id)?;
+        self.emit_span(
+            "cns.wallet.encumbrance_released",
+            "released",
+            Phase::Act,
+            serde_json::json!({
+                "key_id": key_id.to_string(),
+            }),
+        );
+        Ok(())
+    }
+
+    /// Atomically consume rJoules from an API key's encumbrance.
+    ///
+    /// Deducts `gas_rj` from the key's active encumbrance. This is a single
+    /// atomic operation — no separate check+deduct pair. If the encumbrance
+    /// is fully consumed, status transitions to 'consumed'.
+    pub fn consume(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), WalletError> {
+        self.store.consume_encumbrance(key_id, gas_rj)?;
+        Ok(())
+    }
+
+    /// Get the encumbrance for an API key.
+    pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
+        self.store.get_encumbrance(key_id)
     }
 }
 

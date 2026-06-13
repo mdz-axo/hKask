@@ -1,7 +1,7 @@
 //! hKask Inference — multi-provider inference router
 //!
-//! Routes LLM requests to Ollama (local), Fireworks.ai (cloud), or DeepInfra (cloud)
-//! based on a 2-letter provider prefix in the model name.
+//! Routes LLM requests to Ollama (local), Fireworks.ai (cloud), DeepInfra (cloud),
+//! or fal.ai (cloud) based on a 2-letter provider prefix in the model name.
 //!
 //! # Architecture
 //!
@@ -9,7 +9,8 @@
 //! InferenceRouter (implements InferencePort)
 //!   ├── OllamaBackend    — OM/ prefix → localhost:11434
 //!   ├── FireworksBackend — FW/ prefix → api.fireworks.ai
-//!   └── DeepInfraBackend — DI/ prefix → api.deepinfra.com
+//!   ├── DeepInfraBackend — DI/ prefix → api.deepinfra.com
+//!   └── FalBackend       — FA/ prefix → api.fal.ai
 //!
 //! EmbeddingRouter
 //!   ├── OllamaEmbedding    — OM/ prefix → /api/embed
@@ -22,12 +23,14 @@
 //! - `OM/qwen3:8b` → Ollama
 //! - `FW/llama-v3p1-70b-instruct` → Fireworks
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
+//! - `FA/paddleocr` → fal.ai
 //! - No prefix → default provider (configurable, default: Ollama)
 
 pub mod chat_protocol;
 pub mod config;
 pub mod deepinfra_backend;
 pub mod embedding_router;
+pub mod fal_backend;
 pub mod fireworks_backend;
 pub mod inference_router;
 pub mod ollama_backend;
@@ -39,6 +42,7 @@ pub use inference_router::InferenceRouter;
 
 // Model listing types
 pub use deepinfra_backend::DeepInfraModelEntry;
+pub use fal_backend::FalModelEntry;
 pub use fireworks_backend::FireworksModelEntry;
 pub use ollama_backend::OllamaModelEntry;
 
@@ -73,7 +77,7 @@ impl RouterModelEntry {
     ///
     /// Families: llava, bakllava, minicpm-v, gemma3, llama3.2-vision,
     /// cogvlm, moondream, pixtral, florence, paligemma, qwen2-vl,
-    /// internvl, phi-3-vision, lighton
+    /// internvl, phi-3-vision, lighton, paddleocr, nemotron-parse
     pub fn infer_vision_support(model: &str, family: Option<&str>) -> Option<bool> {
         const VISION_FAMILIES: &[&str] = &[
             "llava",
@@ -90,6 +94,8 @@ impl RouterModelEntry {
             "internvl",
             "phi-3-vision",
             "lighton",
+            "paddleocr",
+            "nemotron-parse",
         ];
 
         let model_lower = model.to_lowercase();

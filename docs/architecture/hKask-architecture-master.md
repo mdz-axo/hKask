@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-12
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -277,7 +277,6 @@ docs/architecture/
 ├── PRINCIPLES.md                          # Framework (P3 updated with ReplSettings)
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── magna-carta.md                         # Framework
-├── ADR-022-comprehensive-security-hardening.md  # Decision record
 ├── ADR-024-unified-registry.md            # Decision record
 ├── ADR-025-attenuation-depth-limit.md     # Decision record
 ├── ADR-026-bitemporal-triple-schema.md    # Decision record

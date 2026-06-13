@@ -1,7 +1,7 @@
 ---
 title: "hKask hLexicon — Minimal Composition Vocabulary"
 audience: [architects, developers, agents]
-last_updated: 2026-06-10
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Application"
@@ -646,7 +646,9 @@ Recommend adjustments: {{ regulate(pass_rate) }}
 [^maturana]: Maturana, H. R., & Varela, F. J. (1980). *Autopoiesis and Cognition: The Realization of the Living*. D. Reidel.
 [^iso704]: International Organization for Standardization. (2022). *ISO 704:2022 — Terminology work: Principles and methods*. ISO. https://www.iso.org/standard/79887.html
 [^evans-ddd]: Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley. Ubiquitous language and bounded contexts.
+[^coopersmith]: Coopersmith, J. (2017). *The Lazy Universe: An Introduction to the Principle of Least Action*. Oxford University Press. Least action as the selection mechanism governing physical systems.
+[^grice]: Grice, H. P. (1975). "Logic and Conversation." In *Syntax and Semantics 3: Speech Acts*. Academic Press. Pragmatic implicature — communication seeks the path of least effort.
 
 ---
 
-*hLexicon v1.2 — 142 term-slots defined across 3 domains (34 WordAct + 42 FlowDef + 66 KnowAct), 1 unified composition substrate*
+*hLexicon v1.3 — 155 term-slots defined across 3 domains (37 WordAct + 42 FlowDef + 76 KnowAct), 1 unified composition substrate*

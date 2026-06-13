@@ -1,8 +1,8 @@
 ---
 title: "hKask Deployment Guide"
 audience: [DevOps engineers, system administrators, deployment teams]
-last_updated: 2026-05-24
-version: "1.0.0"
+last_updated: 2026-06-13
+version: "0.27.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [lifecycle]

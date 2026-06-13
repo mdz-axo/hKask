@@ -68,3 +68,8 @@ pub use spec::{
     SpecCaptureRequestDto, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,
 };
 pub use templates::{GrantCapabilityRequest, TemplateResponse};
+pub use wallet::{
+    ApiKeyCreatedResponse, ApiKeyEntry, ApiKeyListResponse, ApiKeyRevokedResponse,
+    CreateKeyRequest, FundKeyRequest, FundKeyResponse, KeyRequestRequest, KeyRequestResponse,
+    RateLimitConfig,
+};

@@ -1,8 +1,8 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-10
-version: "1.4.0"
+last_updated: 2026-06-13
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]

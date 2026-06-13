@@ -196,6 +196,9 @@ fn handle_key_create(
         expiry,
         privacy,
         preferred_chain,
+        vec![],
+        String::new(),
+        None,
     ) {
         Ok(material) => {
             println!("API Key Created");

@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-10
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -107,6 +107,7 @@ for its category cluster.
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
 | [`test-inventory.md`](status/test-inventory.md) | lifecycle, curation | Test inventory from `cargo test --list` |
 | [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | composition, lifecycle | MCP server tool catalog (~82 tools) |
+| [`skill-inventory.md`](status/skill-inventory.md) | composition, status | Dual-layer skill registry — 28 skills cataloged |
 | [`spec-code-drift.yaml`](status/spec-code-drift.yaml) | domain, composition, trust, lifecycle, curation | Spec-code drift tracking (10/14 resolved) |
 | [`curation-decisions.yaml`](status/curation-decisions.yaml) | domain, composition, trust, lifecycle, curation | Curation decisions per drift item |
 | [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | composition, domain | Dead code and simplification opportunities |
@@ -127,6 +128,14 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | [`2026-06-12-wallet-payment-mechanism.md`](plans/2026-06-12-wallet-payment-mechanism.md) | domain, composition, trust, lifecycle | Wallet payment integration plan |
 | [`2026-06-12-wallet-rjoule-payments.md`](plans/2026-06-12-wallet-rjoule-payments.md) | domain, composition, trust, lifecycle | Wallet rJoule multi-chain plan |
 
+
+---
+
+## Guides (`guides/`)
+
+| Document | MDS | Description |
+|----------|--------|-------------|
+| [`kata-user-guide.md`](guides/kata-user-guide.md) | composition, lifecycle | Toyota Kata — research background, technical build, user how-to |
 
 ---
 

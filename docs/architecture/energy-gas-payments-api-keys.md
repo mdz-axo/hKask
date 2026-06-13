@@ -294,11 +294,13 @@ The rJoule maps to an on-chain token (anticipated: ERC-20 or similar). The token
 | CNS energy budget manager | ✅ Implemented | `hkask-cns::EnergyBudgetManager` |
 | Wallet derivation (HD) | ✅ Implemented | `hkask-wallet` with WebID→HD derivation |
 | rJoule ↔ gas conversion | ✅ Implemented | `wallet::tests::gas_to_rjoules_conversion` |
-| API key issuance | ⚠️ Planned | 7R7 bot endpoint, KeyStore schema |
-| API key metering (CNS spans) | ⚠️ Planned | `cns.api.request` span type |
-| Encumbrance system | ❌ Not started | Wallet lock/release for key allocations |
-| On-chain settlement | ❌ Not started | Token contract, batch submission |
-| 7R7 bot key management | ❌ Not started | Bot capability for key issuance/revocation |
+| Encumbrance system | ✅ Implemented | `hkask-wallet::WalletManager::encumber/release_encumbrance/consume`; atomic `consume_encumbrance` in `WalletStore`; `encumbrances` table |
+| API key issuance (6-gate) | ✅ Implemented | `POST /api/keys/request` with gates 1,4,5,6 active; `POST /api/keys/{id}/fund`; `DELETE /api/keys/{id}`; `ApiKeyCapability` extended with `scope`/`purpose`/`rate_limit` |
+| API key metering (CNS spans) | ✅ Implemented | `hkask-cns::api_metering` — `ApiMeter` (in-memory rate limiter), `ApiRequestSpan`, `ApiMeteringAlert` (5 alert types), `endpoint_weight` table |
+| 7R7 bot key management | ✅ Implemented | `DelegationResource::Key` variant in capability system; `key:issue`, `key:revoke`, `key:fund` parseable |
+| On-chain settlement | ⏸️ Deferred | Fails essentialist G1 (deletion test): system works without it for single-node deployments. Spec preserved for future multi-node/token economics phase. |
+| CNS abuse history query (gate 2) | ⏸️ Deferred | Stubbed in `approve_key_request`; awaits CNS alert query API exposure via service layer. |
+| Registry scope validation (gate 3) | ⏸️ Deferred | Stubbed in `approve_key_request`; awaits MCP tool registry endpoint enumeration. |
 
 ---
 

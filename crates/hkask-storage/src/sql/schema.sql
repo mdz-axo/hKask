@@ -24,10 +24,13 @@ CREATE TABLE IF NOT EXISTS wallet_balances (wallet_id TEXT PRIMARY KEY, balance_
 CREATE TABLE IF NOT EXISTS wallet_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), tx_type TEXT NOT NULL, tx_subtype TEXT, chain TEXT, on_chain_tx_hash TEXT, amount_rj INTEGER NOT NULL, balance_after_rj INTEGER NOT NULL, key_id TEXT, tool_name TEXT, gas_units INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_wallet_tx_wallet_id ON wallet_transactions(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_tx_created_at ON wallet_transactions(created_at);
-CREATE TABLE IF NOT EXISTS api_keys (key_id TEXT PRIMARY KEY, wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), public_key BLOB NOT NULL, spending_limit_rj INTEGER NOT NULL, spent_rj INTEGER NOT NULL DEFAULT 0, privacy_mode TEXT NOT NULL DEFAULT 'transparent', preferred_chain TEXT, expires_at TEXT, issued_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS api_keys (key_id TEXT PRIMARY KEY, wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), public_key BLOB NOT NULL, spending_limit_rj INTEGER NOT NULL, spent_rj INTEGER NOT NULL DEFAULT 0, scope TEXT NOT NULL DEFAULT '[]', purpose TEXT NOT NULL DEFAULT '', rate_limit_json TEXT, privacy_mode TEXT NOT NULL DEFAULT 'transparent', preferred_chain TEXT, expires_at TEXT, issued_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_api_keys_wallet_id ON api_keys(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_public_key ON api_keys(public_key);
 CREATE TABLE IF NOT EXISTS deposit_addresses (wallet_id TEXT NOT NULL, chain TEXT NOT NULL, address TEXT NOT NULL, derivation_index INTEGER NOT NULL, privacy_mode TEXT NOT NULL DEFAULT 'transparent', created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (wallet_id, chain, derivation_index));
 CREATE TABLE IF NOT EXISTS deposit_references (reference TEXT PRIMARY KEY, wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), chain TEXT NOT NULL, expires_at TEXT NOT NULL, spent INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_deposit_refs_wallet_id ON deposit_references(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_deposit_refs_expires ON deposit_references(expires_at);
+-- Encumbrance table — rJoule locks for API key allocations
+CREATE TABLE IF NOT EXISTS encumbrances (key_id TEXT PRIMARY KEY REFERENCES api_keys(key_id), wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), amount_rj INTEGER NOT NULL, consumed_rj INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL DEFAULT (datetime('now')), released_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_encumbrances_wallet_id ON encumbrances(wallet_id);

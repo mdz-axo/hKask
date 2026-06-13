@@ -1,6 +1,6 @@
 //! Inference router — multi-provider `InferencePort` implementation.
 //!
-//! Routes requests to Ollama, Fireworks, or DeepInfra based on the
+//! Routes requests to Ollama, Fireworks, DeepInfra, or fal.ai based on the
 //! 2-letter provider prefix in the model name. Unprefixed model names
 //! use the configured default provider.
 
@@ -8,6 +8,7 @@ use crate::RouterModelEntry;
 use crate::chat_protocol::validate_prompt;
 use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
+use crate::fal_backend::FalBackend;
 use crate::fireworks_backend::FireworksBackend;
 use crate::ollama_backend::OllamaBackend;
 use hkask_types::LLMParameters;
@@ -25,6 +26,7 @@ pub struct InferenceRouter {
     ollama: Option<OllamaBackend>,
     fireworks: Option<FireworksBackend>,
     deepinfra: Option<DeepInfraBackend>,
+    fal: Option<FalBackend>,
 }
 
 impl InferenceRouter {
@@ -37,6 +39,7 @@ impl InferenceRouter {
         let ollama = OllamaBackend::new(&config).ok();
         let fireworks = FireworksBackend::new(&config).ok();
         let deepinfra = DeepInfraBackend::new(&config).ok();
+        let fal = FalBackend::new(&config).ok();
 
         if ollama.is_none() {
             warn!(target: "hkask.inference", "Ollama backend unavailable");
@@ -47,12 +50,16 @@ impl InferenceRouter {
         if deepinfra.is_none() {
             warn!(target: "hkask.inference", "DeepInfra backend unavailable (no API key)");
         }
+        if fal.is_none() {
+            warn!(target: "hkask.inference", "fal.ai backend unavailable (no API key)");
+        }
 
         Self {
             config,
             ollama,
             fireworks,
             deepinfra,
+            fal,
         }
     }
 
@@ -68,6 +75,7 @@ impl InferenceRouter {
             ProviderId::Ollama => self.ollama.is_some(),
             ProviderId::Fireworks => self.fireworks.is_some(),
             ProviderId::DeepInfra => self.deepinfra.is_some(),
+            ProviderId::Fal => self.fal.is_some(),
         };
 
         if !available {
@@ -138,6 +146,24 @@ impl InferenceRouter {
                 entries.push(RouterModelEntry {
                     prefixed_name: ProviderId::DeepInfra.prefix_model(&m.id),
                     provider: ProviderId::DeepInfra,
+                    model: m.id.clone(),
+                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
+                    family: None,
+                    parameter_size: None,
+                    quantization_level: None,
+                    size_bytes: None,
+                });
+            }
+        }
+
+        // fal.ai models (static catalog)
+        if let Some(ref backend) = self.fal
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry {
+                    prefixed_name: ProviderId::Fal.prefix_model(&m.id),
+                    provider: ProviderId::Fal,
                     model: m.id.clone(),
                     supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
                     family: None,
@@ -220,6 +246,15 @@ impl InferenceRouter {
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
             }
+            ProviderId::Fal => {
+                self.fal
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("fal.ai backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
+                    .await
+            }
         }
     }
 }
@@ -258,6 +293,13 @@ impl InferencePort for InferenceRouter {
                 }
                 ProviderId::DeepInfra => {
                     self.deepinfra
+                        .as_ref()
+                        .unwrap()
+                        .generate(model, &prompt, &parameters)
+                        .await
+                }
+                ProviderId::Fal => {
+                    self.fal
                         .as_ref()
                         .unwrap()
                         .generate(model, &prompt, &parameters)
@@ -305,6 +347,13 @@ impl InferencePort for InferenceRouter {
                 }
                 ProviderId::DeepInfra => {
                     self.deepinfra
+                        .as_ref()
+                        .unwrap()
+                        .generate(&model, &prompt, &parameters)
+                        .await
+                }
+                ProviderId::Fal => {
+                    self.fal
                         .as_ref()
                         .unwrap()
                         .generate(&model, &prompt, &parameters)
@@ -368,6 +417,12 @@ impl InferencePort for InferenceRouter {
             }
             ProviderId::DeepInfra => {
                 self.deepinfra
+                    .as_ref()
+                    .unwrap()
+                    .generate_stream(&model, &prompt, &parameters)
+            }
+            ProviderId::Fal => {
+                self.fal
                     .as_ref()
                     .unwrap()
                     .generate_stream(&model, &prompt, &parameters)

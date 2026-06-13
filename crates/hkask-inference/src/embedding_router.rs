@@ -65,6 +65,7 @@ impl EmbeddingRouter {
             ProviderId::Ollama => self.ollama_client.is_some(),
             ProviderId::Fireworks => self.fireworks_client.is_some(),
             ProviderId::DeepInfra => self.deepinfra_client.is_some(),
+            ProviderId::Fal => false, // fal.ai does not expose embedding endpoints
         };
 
         if !available {
@@ -119,6 +120,11 @@ impl EmbeddingRouter {
                     &texts,
                 )
                 .await?
+            }
+            ProviderId::Fal => {
+                return Err(EmbeddingGenerationError::Connection(
+                    "fal.ai does not support embeddings".into(),
+                ));
             }
         };
 

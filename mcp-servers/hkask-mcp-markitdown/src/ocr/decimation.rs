@@ -3,9 +3,12 @@
 //! Converts a PDF file into per-page `DynamicImage` buffers for the
 //! OCR pipeline. Uses `pdftoppm` from poppler-utils as a subprocess.
 //! Falls back gracefully if poppler is not installed.
+//!
+//! Applies contrast stretching to each page image to improve edge
+//! detection for complexity scoring and OCR quality on low-contrast scans.
 
 use hkask_types::ocr::PipelineError;
-use image::DynamicImage;
+use image::{DynamicImage, GenericImageView};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -69,9 +72,10 @@ pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, Pip
         if !path.exists() {
             break;
         }
-        let img = image::open(&path).map_err(|e| {
+        let mut img = image::open(&path).map_err(|e| {
             PipelineError::DecimationFailed(format!("Failed to load page {} image: {}", page, e))
         })?;
+        stretch_contrast(&mut img);
         images.push(img);
         page += 1;
     }
@@ -84,6 +88,49 @@ pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, Pip
 
     // temp_dir is dropped here, cleaning up page files
     Ok(images)
+}
+
+/// Stretch contrast of a page image to full 0–255 range.
+///
+/// Improves edge detection for complexity scoring and OCR quality
+/// on low-contrast scans (e.g., faded text, uneven lighting).
+/// Pure function, O(w·h), no new dependencies.
+pub(crate) fn stretch_contrast(img: &mut DynamicImage) {
+    let (w, h) = img.dimensions();
+    if w == 0 || h == 0 {
+        return;
+    }
+
+    let mut gray = img.to_luma8();
+    let pixels = gray.as_raw();
+
+    // Find min/max pixel values
+    let mut min: u8 = 255;
+    let mut max: u8 = 0;
+    for &p in pixels.iter() {
+        if p < min {
+            min = p;
+        }
+        if p > max {
+            max = p;
+        }
+    }
+
+    // Skip if image is already full-range or uniform
+    if max <= min {
+        return;
+    }
+
+    // Rescale to 0–255
+    let range = (max - min) as f32;
+    let stretched: Vec<u8> = pixels
+        .iter()
+        .map(|&p| ((p as f32 - min as f32) / range * 255.0) as u8)
+        .collect();
+
+    *img = DynamicImage::ImageLuma8(
+        image::ImageBuffer::from_raw(w, h, stretched).expect("stretched buffer matches dimensions"),
+    );
 }
 
 /// Format a user-friendly error when pdftoppm is not found.
@@ -183,5 +230,42 @@ mod tests {
 
         let result = pdf_to_images(&pdf_path, 150);
         assert!(result.is_err());
+    }
+
+    // REQ:ocr-decimate-04 — Contrast stretching expands narrow range to full 0–255
+    #[test]
+    fn contrast_stretch_expands_range() {
+        // Create a low-contrast image: pixels only in range 100–150
+        let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(100, 100, |x, y| {
+            image::Luma([100 + ((x + y) % 51) as u8])
+        }));
+
+        stretch_contrast(&mut img);
+
+        // After stretching, should have pixels at 0 and 255
+        let gray = img.as_luma8().unwrap();
+        let pixels = gray.as_raw();
+        let min = pixels.iter().min().copied().unwrap();
+        let max = pixels.iter().max().copied().unwrap();
+        assert_eq!(min, 0, "min should be 0 after stretch, got {}", min);
+        assert_eq!(max, 255, "max should be 255 after stretch, got {}", max);
+    }
+
+    // REQ:ocr-decimate-05 — Contrast stretching is idempotent on full-range images
+    #[test]
+    fn contrast_stretch_idempotent() {
+        // Create a full-range image (already 0–255)
+        let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(100, 100, |x, y| {
+            image::Luma([if (x + y) % 2 == 0 { 0 } else { 255 }])
+        }));
+
+        let gray_before = img.as_luma8().unwrap();
+        let pixels_before = gray_before.as_raw().to_vec();
+
+        stretch_contrast(&mut img);
+
+        // Full-range image should be unchanged
+        let gray_after = img.as_luma8().unwrap();
+        assert_eq!(gray_after.as_raw(), &pixels_before);
     }
 }

@@ -1,7 +1,7 @@
 ---
 title: "ADR-034: Academic Author Pipeline Architecture"
 audience: [architects, developers]
-last_updated: 2026-06-12
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"

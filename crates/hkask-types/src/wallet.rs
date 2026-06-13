@@ -259,11 +259,21 @@ impl fmt::Display for WalletBalance {
 
 // ── ApiKeyCapability — signed OCAP capability token ────────────────────────────
 
+/// Rate limit configuration for an API key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitConfig {
+    /// Maximum requests per minute.
+    pub requests_per_minute: u32,
+    /// Maximum tokens per day.
+    pub tokens_per_day: u64,
+}
+
 /// An API key is an Ed25519-signed capability token, not an opaque bearer string.
 ///
 /// # OCAP alignment (P4) `[OUGHT-DECL]`
 /// The capability carries its own attenuation: `spending_limit_rj`, `expiry`,
-/// `privacy_mode`. The Ed25519 signature proves it was issued by a specific wallet.
+/// `privacy_mode`, `scope`, `rate_limit`. The Ed25519 signature proves it was
+/// issued by a specific wallet.
 ///
 /// # Invariant `[OUGHT-DECL]`
 /// `spent_rj <= spending_limit_rj` at all times. The `WalletBackedBudget` enforces
@@ -275,6 +285,12 @@ pub struct ApiKeyCapability {
     pub public_key: Ed25519PublicKey,
     pub spending_limit_rj: RJoule,
     pub spent_rj: RJoule,
+    /// Allowed endpoint scopes (e.g., ["embed-corpus", "read-specs"]).
+    pub scope: Vec<String>,
+    /// Stated purpose for this key (≥20 chars per 7R7 approval gate 4).
+    pub purpose: String,
+    /// Optional rate limit configuration.
+    pub rate_limit: Option<RateLimitConfig>,
     pub expiry: Option<DateTime<Utc>>,
     pub issued_at: DateTime<Utc>,
     pub privacy_mode: PrivacyMode,
@@ -395,6 +411,73 @@ impl fmt::Display for DepositReference {
     }
 }
 
+// ── Encumbrance — rJoule lock for API key allocations ──────────────────────────
+
+/// Status of an encumbrance (rJoule lock for API key allocation).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EncumbranceStatus {
+    /// rJoules are locked and available for consumption.
+    Active,
+    /// All rJoules have been consumed (consumed_rj == amount_rj).
+    Consumed,
+    /// Encumbrance released — unspent rJ returned to wallet.
+    Released,
+}
+
+impl fmt::Display for EncumbranceStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Active => write!(f, "active"),
+            Self::Consumed => write!(f, "consumed"),
+            Self::Released => write!(f, "released"),
+        }
+    }
+}
+
+impl FromStr for EncumbranceStatus {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "active" => Ok(Self::Active),
+            "consumed" => Ok(Self::Consumed),
+            "released" => Ok(Self::Released),
+            other => Err(format!("unknown encumbrance status: {other}")),
+        }
+    }
+}
+
+/// An encumbrance — rJoules locked from a wallet for an API key's use.
+///
+/// Each API key has at most one active encumbrance. The encumbrance locks
+/// rJoules against the wallet balance; as the key consumes gas, rJoules are
+/// deducted from the encumbrance. Unspent rJoules are returned to the wallet
+/// on release (key expiry or revocation).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Encumbrance {
+    /// The API key this encumbrance funds (also serves as the encumbrance ID).
+    pub key_id: ApiKeyId,
+    pub wallet_id: WalletId,
+    /// Total rJoules locked.
+    pub amount_rj: u64,
+    /// rJoules consumed so far.
+    pub consumed_rj: u64,
+    pub status: EncumbranceStatus,
+    pub created_at: String,
+    pub released_at: Option<String>,
+}
+
+impl Encumbrance {
+    /// rJoules remaining in this encumbrance.
+    pub fn remaining_rj(&self) -> u64 {
+        self.amount_rj.saturating_sub(self.consumed_rj)
+    }
+
+    /// Whether this encumbrance is still active (can be consumed from).
+    pub fn is_active(&self) -> bool {
+        self.status == EncumbranceStatus::Active
+    }
+}
+
 // ── WalletError — typed error domain ───────────────────────────────────────────
 
 /// Wallet-specific error domain.
@@ -441,6 +524,21 @@ pub enum WalletError {
 
     #[error("privacy layer error: {message}")]
     PrivacyError { message: String },
+
+    #[error("API key {key_id} already has an active encumbrance")]
+    EncumbranceAlreadyExists { key_id: ApiKeyId },
+
+    #[error("no active encumbrance found for API key {key_id}")]
+    EncumbranceNotFound { key_id: ApiKeyId },
+
+    #[error(
+        "encumbrance for key {key_id} has insufficient remaining: have {remaining}, need {need}"
+    )]
+    EncumbranceInsufficient {
+        key_id: ApiKeyId,
+        remaining: RJoule,
+        need: RJoule,
+    },
 }
 
 impl From<InfrastructureError> for WalletError {
@@ -527,6 +625,9 @@ mod tests {
             public_key: Ed25519PublicKey([0u8; 32]),
             spending_limit_rj: RJoule::new(5000),
             spent_rj: RJoule::new(1200),
+            scope: vec!["read-specs".to_string()],
+            purpose: "test capability".to_string(),
+            rate_limit: None,
             expiry: None,
             issued_at: Utc::now(),
             privacy_mode: PrivacyMode::Transparent,

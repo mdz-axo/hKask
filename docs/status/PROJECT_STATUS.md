@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-10
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Onboarding overhaul + P8 test gap closure (2026-06-11).
+**Current session:** Registry reorganization, kata system refactor, documentation sweep (2026-06-13).
 
 ---
 
@@ -22,12 +22,12 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass | 2026-06-11 |
-| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-11 |
-| MCP servers (condenser, research, spec, fmp, communication, fal) | ✅ Pass | 2026-06-11 |
-| `hkask-cli` (production) | ✅ Pass | 2026-06-11 |
+| Workspace (`cargo check --workspace`) | ✅ Pass | 2026-06-13 |
+| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-13 |
+| MCP servers (condenser, research, spec, fmp, communication, fal, replica, markitdown, doc-knowledge) | ✅ Pass | 2026-06-13 |
+| `hkask-cli` (production) | ✅ Pass | 2026-06-13 |
 | `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
-| `hkask-services` (production) | ✅ Pass | 2026-06-11 |
+| `hkask-services` (production) | ✅ Pass | 2026-06-13 |
 | `hkask-services` (tests) | ✅ Pass — 29 tests | 2026-06-11 |
 
 ---
@@ -42,7 +42,7 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`-D warnings`) | ✅ Pass (0 warnings) | 2026-06-10 |
+| Workspace (`-D warnings`) | ✅ Pass (1 pre-existing warning: hkask-mcp-markitdown) | 2026-06-13 |
 
 ---
 
@@ -50,9 +50,9 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 
 | Check | Result | Date |
 |-------|--------|------|
-| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-10 |
+| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-13 |
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `acp/mod.rs:171` | 2026-06-10 |
-| Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-10 |
+| Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-13 |
 
 ---
 
@@ -64,9 +64,9 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 | Source files (MCP servers) | 40 |
 | Source files (total) | 292 |
 | Workspace members | 18 |
-| Active docs | 55 |
-| Archived docs | 3 (2026-06-10: ADR-022, condensed-erd, high-temp-templates) |
-| Skills | 14 |
+| Active docs | 72 |
+| Archived docs | 10 (2026-06-13: ADR-022, condensed-erd, high-temp-templates, 7 date-stamped archives) |
+| Skills | 28 (4 kata: starter, improvement, coaching, bundle) |
 | MCP servers | 10 |
 
 ---
@@ -108,7 +108,18 @@ All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
 
 ---
 
-## This Session (2026-06-11)
+## This Session (2026-06-13)
+
+- Registry reorganization: deleted `registry/registries/` (26 misfiled YAMLs moved to correct locations), deleted `registry/corpora/` (moved to `registry/styles/gentle-lovelace/corpus-sources/`), deleted `registry/kata/` (replaced by 4-skill kata architecture)
+- Root cleanup: 6 DB files → `data/`, 2 scripts → `scripts/`, `feedback.md` → `docs/`, `david-dunning/` → `registry/styles/david-dunning/`
+- `DEFAULT_DB_PATH` changed from `"hkask.db"` to `"data/hkask.db"` in `config.rs`
+- Kata system: deep research on Mike Rother's Toyota Kata methodology, full refactor from 1 skill with 3 artificial types → 4 skills (kata-starter, kata-improvement, kata-coaching, kata bundle) with 23 templates split across 4 directories, 5 manifests, 26 bootstrap entries
+- 2 pre-existing bugs fixed: `identity.rs` missing `passphrase_set_at`, `markitdown/tools.rs` broken `CnsObserver` impl
+- Docs created: `docs/guides/kata-user-guide.md` (361 lines), `docs/status/skill-inventory.md` (117 lines)
+- Docs updated: 4 frontmatter dates, `docs/README.md` portal, `hKask-architecture-master.md`, `DIAGRAMS_INDEX.md`, `PROJECT_STATUS.md`, `kata-hlexicon.yaml` rewritten
+- 18 files updated with corrected path references across YAML, Rust, markdown, and shell scripts
+
+## Session (2026-06-11)
 
 - Onboarding overhaul: model selection, passphrase strength UX, First Steps guide, `is_first_run` flag
 - New `kask onboard` CLI subcommand for adding replicants to existing installations

@@ -10,9 +10,10 @@
 use crate::Store;
 use hkask_types::{
     ApiKeyCapability, ApiKeyId, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
-    InfrastructureError, PrivacyMode, RJoule, TransactionType, WalletBalance, WalletError,
-    WalletId, WalletTransaction, now_rfc3339,
+    Encumbrance, EncumbranceStatus, InfrastructureError, PrivacyMode, RJoule, RateLimitConfig,
+    TransactionType, WalletBalance, WalletError, WalletId, WalletTransaction, now_rfc3339,
 };
+use rusqlite::OptionalExtension;
 use std::str::FromStr;
 
 define_store!(WalletStore);
@@ -46,6 +47,9 @@ struct ApiKeyRow {
     public_key: Vec<u8>,
     spending_limit_rj: i64,
     spent_rj: i64,
+    scope: String,
+    purpose: String,
+    rate_limit_json: Option<String>,
     privacy_mode: String,
     preferred_chain: Option<String>,
     expires_at: Option<String>,
@@ -232,14 +236,23 @@ impl WalletStore {
     /// Store a newly issued API key capability.
     pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
+        let scope_json =
+            serde_json::to_string(&capability.scope).unwrap_or_else(|_| "[]".to_string());
+        let rate_limit_json = capability
+            .rate_limit
+            .as_ref()
+            .and_then(|rl| serde_json::to_string(rl).ok());
         conn.execute(
-            "INSERT INTO api_keys (key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT INTO api_keys (key_id, wallet_id, public_key, spending_limit_rj, spent_rj, scope, purpose, rate_limit_json, privacy_mode, preferred_chain, expires_at, issued_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
                 capability.key_id.to_string(),
                 capability.wallet_id.to_string(),
                 capability.public_key.as_bytes(),
                 capability.spending_limit_rj.as_u64() as i64,
                 capability.spent_rj.as_u64() as i64,
+                scope_json,
+                capability.purpose,
+                rate_limit_json,
                 capability.privacy_mode.to_string(),
                 capability.preferred_chain.map(|c| c.to_string()),
                 capability.expiry.map(|e| e.to_rfc3339()),
@@ -253,7 +266,7 @@ impl WalletStore {
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE key_id = ?1",
+            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, scope, purpose, rate_limit_json, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE key_id = ?1",
         )?;
         let rows: Vec<ApiKeyCapability> = collect_rows_strict!(
             stmt,
@@ -265,10 +278,13 @@ impl WalletStore {
                     public_key: row.get(2)?,
                     spending_limit_rj: row.get(3)?,
                     spent_rj: row.get(4)?,
-                    privacy_mode: row.get(5)?,
-                    preferred_chain: row.get(6)?,
-                    expires_at: row.get(7)?,
-                    issued_at: row.get(8)?,
+                    scope: row.get(5)?,
+                    purpose: row.get(6)?,
+                    rate_limit_json: row.get(7)?,
+                    privacy_mode: row.get(8)?,
+                    preferred_chain: row.get(9)?,
+                    expires_at: row.get(10)?,
+                    issued_at: row.get(11)?,
                 })
             },
             |r: ApiKeyRow| -> Result<ApiKeyCapability, WalletError> {
@@ -285,7 +301,7 @@ impl WalletStore {
     ) -> Result<Option<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE public_key = ?1 AND revoked_at IS NULL",
+            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, scope, purpose, rate_limit_json, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE public_key = ?1 AND revoked_at IS NULL",
         )?;
         let rows: Vec<ApiKeyCapability> = collect_rows_strict!(
             stmt,
@@ -297,10 +313,13 @@ impl WalletStore {
                     public_key: row.get(2)?,
                     spending_limit_rj: row.get(3)?,
                     spent_rj: row.get(4)?,
-                    privacy_mode: row.get(5)?,
-                    preferred_chain: row.get(6)?,
-                    expires_at: row.get(7)?,
-                    issued_at: row.get(8)?,
+                    scope: row.get(5)?,
+                    purpose: row.get(6)?,
+                    rate_limit_json: row.get(7)?,
+                    privacy_mode: row.get(8)?,
+                    preferred_chain: row.get(9)?,
+                    expires_at: row.get(10)?,
+                    issued_at: row.get(11)?,
                 })
             },
             |r: ApiKeyRow| -> Result<ApiKeyCapability, WalletError> {
@@ -314,7 +333,7 @@ impl WalletStore {
     pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE wallet_id = ?1 AND revoked_at IS NULL ORDER BY issued_at DESC",
+            "SELECT key_id, wallet_id, public_key, spending_limit_rj, spent_rj, scope, purpose, rate_limit_json, privacy_mode, preferred_chain, expires_at, issued_at, revoked_at FROM api_keys WHERE wallet_id = ?1 AND revoked_at IS NULL ORDER BY issued_at DESC",
         )?;
         let rows: Vec<ApiKeyCapability> = collect_rows_strict!(
             stmt,
@@ -326,10 +345,13 @@ impl WalletStore {
                     public_key: row.get(2)?,
                     spending_limit_rj: row.get(3)?,
                     spent_rj: row.get(4)?,
-                    privacy_mode: row.get(5)?,
-                    preferred_chain: row.get(6)?,
-                    expires_at: row.get(7)?,
-                    issued_at: row.get(8)?,
+                    scope: row.get(5)?,
+                    purpose: row.get(6)?,
+                    rate_limit_json: row.get(7)?,
+                    privacy_mode: row.get(8)?,
+                    preferred_chain: row.get(9)?,
+                    expires_at: row.get(10)?,
+                    issued_at: row.get(11)?,
                 })
             },
             |r: ApiKeyRow| -> Result<ApiKeyCapability, WalletError> {
@@ -485,6 +507,189 @@ impl WalletStore {
         )?;
         Ok(rows as u64)
     }
+
+    // ── Encumbrance methods ──────────────────────────────────────────────────
+
+    /// Lock rJoules from a wallet for an API key's use.
+    ///
+    /// Debits the wallet balance by `amount_rj` and creates an active
+    /// encumbrance row. Returns an error if the key already has an active
+    /// encumbrance or the wallet has insufficient balance.
+    pub fn encumber_rjoules(
+        &self,
+        wallet_id: WalletId,
+        key_id: ApiKeyId,
+        amount_rj: RJoule,
+    ) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+        let amount = amount_rj.as_u64() as i64;
+
+        // Check no existing active encumbrance for this key
+        let existing: Option<String> = conn
+            .query_row(
+                "SELECT status FROM encumbrances WHERE key_id = ?1",
+                rusqlite::params![key_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(status) = existing {
+            if status == "active" {
+                return Err(WalletError::EncumbranceAlreadyExists { key_id });
+            }
+        }
+
+        // Debit wallet
+        let rows = conn.execute(
+            "UPDATE wallet_balances SET balance_rj = balance_rj - ?1, updated_at = ?2 WHERE wallet_id = ?3 AND balance_rj >= ?1",
+            rusqlite::params![amount, now, wallet_id.to_string()],
+        )?;
+        if rows == 0 {
+            let balance = self.get_balance(wallet_id)?;
+            let have = balance.map(|b| b.rjoules).unwrap_or(0);
+            return Err(WalletError::InsufficientBalance {
+                have: RJoule::new(have),
+                need: amount_rj,
+            });
+        }
+
+        // Create encumbrance row
+        conn.execute(
+            "INSERT INTO encumbrances (key_id, wallet_id, amount_rj, consumed_rj, status, created_at) VALUES (?1, ?2, ?3, 0, 'active', ?4)",
+            rusqlite::params![key_id.to_string(), wallet_id.to_string(), amount, now],
+        )?;
+
+        Ok(())
+    }
+
+    /// Release an encumbrance, returning unspent rJoules to the wallet.
+    ///
+    /// Idempotent — releasing an already-released or consumed encumbrance
+    /// is a no-op.
+    pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+
+        // Read current state
+        let row: Option<(String, i64, i64)> = conn
+            .query_row(
+                "SELECT wallet_id, amount_rj, consumed_rj FROM encumbrances WHERE key_id = ?1 AND status = 'active'",
+                rusqlite::params![key_id.to_string()],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)),
+            )
+            .optional()?;
+
+        let (wallet_id_str, amount, consumed) = match row {
+            Some(r) => r,
+            None => return Ok(()), // already released/consumed or doesn't exist
+        };
+
+        // Mark released
+        conn.execute(
+            "UPDATE encumbrances SET status = 'released', released_at = ?1 WHERE key_id = ?2 AND status = 'active'",
+            rusqlite::params![now, key_id.to_string()],
+        )?;
+
+        // Return unspent rJoules to wallet
+        let unspent = amount - consumed;
+        if unspent > 0 {
+            conn.execute(
+                "UPDATE wallet_balances SET balance_rj = balance_rj + ?1, updated_at = ?2 WHERE wallet_id = ?3",
+                rusqlite::params![unspent, now, wallet_id_str],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Atomically consume rJoules from an active encumbrance.
+    ///
+    /// This is a single SQL UPDATE that checks `amount_rj - consumed_rj >= cost`
+    /// and deducts. No separate check+deduct pair — the operation is atomic.
+    /// If the encumbrance is fully consumed, status transitions to 'consumed'.
+    pub fn consume_encumbrance(
+        &self,
+        key_id: ApiKeyId,
+        cost_rj: RJoule,
+    ) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        let cost = cost_rj.as_u64() as i64;
+
+        // Atomic consume: increment consumed_rj only if sufficient remaining
+        let rows = conn.execute(
+            "UPDATE encumbrances SET consumed_rj = consumed_rj + ?1 WHERE key_id = ?2 AND status = 'active' AND (amount_rj - consumed_rj) >= ?1",
+            rusqlite::params![cost, key_id.to_string()],
+        )?;
+
+        if rows == 0 {
+            // Check why it failed
+            let enc = self.get_encumbrance(key_id)?;
+            match enc {
+                Some(e) if !e.is_active() => {
+                    return Err(WalletError::EncumbranceNotFound { key_id });
+                }
+                Some(e) => {
+                    return Err(WalletError::EncumbranceInsufficient {
+                        key_id,
+                        remaining: RJoule::new(e.remaining_rj()),
+                        need: cost_rj,
+                    });
+                }
+                None => {
+                    return Err(WalletError::EncumbranceNotFound { key_id });
+                }
+            }
+        }
+
+        // Check if fully consumed — transition status
+        conn.execute(
+            "UPDATE encumbrances SET status = 'consumed', released_at = ?1 WHERE key_id = ?2 AND status = 'active' AND consumed_rj >= amount_rj",
+            rusqlite::params![now_rfc3339(), key_id.to_string()],
+        )?;
+
+        Ok(())
+    }
+
+    /// Get an encumbrance by key ID.
+    pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
+        let conn = self.lock_conn()?;
+        let row: Option<(String, i64, i64, String, String, Option<String>)> = conn
+            .query_row(
+                "SELECT wallet_id, amount_rj, consumed_rj, status, created_at, released_at FROM encumbrances WHERE key_id = ?1",
+                rusqlite::params![key_id.to_string()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match row {
+            Some((wallet_id_str, amount, consumed, status_str, created_at, released_at)) => {
+                let wallet_id = WalletId::from_str(&wallet_id_str).map_err(|e| {
+                    WalletError::Infra(InfrastructureError::Database(e.to_string()))
+                })?;
+                let status = EncumbranceStatus::from_str(&status_str)
+                    .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?;
+                Ok(Some(Encumbrance {
+                    key_id,
+                    wallet_id,
+                    amount_rj: amount as u64,
+                    consumed_rj: consumed as u64,
+                    status,
+                    created_at,
+                    released_at,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
 }
 
 // ── Row conversion helpers ─────────────────────────────────────────────────────
@@ -607,12 +812,20 @@ fn row_to_api_key_capability(r: ApiKeyRow) -> Result<ApiKeyCapability, WalletErr
             "public_key must be 32 bytes".into(),
         ))
     })?;
+    let scope: Vec<String> = serde_json::from_str(&r.scope).unwrap_or_default();
+    let rate_limit: Option<RateLimitConfig> = r
+        .rate_limit_json
+        .as_deref()
+        .and_then(|j| serde_json::from_str(j).ok());
     Ok(ApiKeyCapability {
         wallet_id: WalletId::from_str(&r.wallet_id)?,
         key_id: ApiKeyId::from_str(&r.key_id)?,
         public_key: Ed25519PublicKey(public_key_bytes),
         spending_limit_rj: RJoule::new(r.spending_limit_rj as u64),
         spent_rj: RJoule::new(r.spent_rj as u64),
+        scope,
+        purpose: r.purpose,
+        rate_limit,
         expiry: r.expires_at.map(|e| {
             chrono::DateTime::parse_from_rfc3339(&e)
                 .map(|dt| dt.with_timezone(&chrono::Utc))
@@ -772,6 +985,9 @@ mod tests {
             public_key: pubkey,
             spending_limit_rj: RJoule::new(5000),
             spent_rj: RJoule::ZERO,
+            scope: vec!["read-specs".to_string()],
+            purpose: "test key".to_string(),
+            rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
             privacy_mode: PrivacyMode::Transparent,
@@ -797,6 +1013,9 @@ mod tests {
             public_key: Ed25519PublicKey([2u8; 32]),
             spending_limit_rj: RJoule::new(5000),
             spent_rj: RJoule::new(1200), // 3800 unspent
+            scope: vec!["embed-corpus".to_string()],
+            purpose: "revocation test".to_string(),
+            rate_limit: None,
             expiry: None,
             issued_at: chrono::Utc::now(),
             privacy_mode: PrivacyMode::Transparent,

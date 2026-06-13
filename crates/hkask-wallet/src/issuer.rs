@@ -16,8 +16,8 @@ use hkask_storage::WalletStore;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 pub use hkask_types::wallet::ApiKeyMaterial;
 use hkask_types::wallet::{
-    ApiKeyCapability, ApiKeyId, ChainId, Ed25519PublicKey, PrivacyMode, RJoule, WalletError,
-    WalletId,
+    ApiKeyCapability, ApiKeyId, ChainId, Ed25519PublicKey, PrivacyMode, RJoule, RateLimitConfig,
+    WalletError, WalletId,
 };
 use rand::Rng;
 use std::sync::Arc;
@@ -77,8 +77,8 @@ impl ApiKeyIssuer {
     /// "Print" a new API key.
     ///
     /// Generates a fresh Ed25519 keypair, creates a signed capability token
-    /// with the specified limits, stores the public key, and returns the
-    /// private key to the user (shown exactly once).
+    /// with the specified limits, scope, and purpose, stores the public key,
+    /// and returns the private key to the user (shown exactly once).
     pub fn create_key(
         &self,
         wallet_id: WalletId,
@@ -86,6 +86,9 @@ impl ApiKeyIssuer {
         expiry_days: Option<u32>,
         privacy_mode: PrivacyMode,
         preferred_chain: Option<ChainId>,
+        scope: Vec<String>,
+        purpose: String,
+        rate_limit: Option<RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, WalletError> {
         // Generate fresh Ed25519 keypair for this API key
         let mut rng = rand::rng();
@@ -105,6 +108,9 @@ impl ApiKeyIssuer {
             public_key,
             spending_limit_rj,
             spent_rj: RJoule::ZERO,
+            scope,
+            purpose,
+            rate_limit,
             expiry,
             issued_at,
             privacy_mode,
@@ -196,6 +202,9 @@ mod tests {
                 None,
                 PrivacyMode::Transparent,
                 None,
+                vec!["read-specs".to_string()],
+                "test key for validation".to_string(),
+                None,
             )
             .unwrap();
 
@@ -220,6 +229,9 @@ mod tests {
                 Some(30),
                 PrivacyMode::Transparent,
                 None,
+                vec!["embed-corpus".to_string()],
+                "monthly embedding job".to_string(),
+                None,
             )
             .unwrap();
 
@@ -242,6 +254,9 @@ mod tests {
                 RJoule::new(5000),
                 None,
                 PrivacyMode::Transparent,
+                None,
+                vec!["read-specs".to_string()],
+                "revocation test key".to_string(),
                 None,
             )
             .unwrap();
@@ -276,6 +291,9 @@ mod tests {
                 None,
                 PrivacyMode::Transparent,
                 None,
+                vec!["read-specs".to_string()],
+                "list test key 1".to_string(),
+                None,
             )
             .unwrap();
         let key2 = issuer
@@ -285,6 +303,9 @@ mod tests {
                 None,
                 PrivacyMode::Shielded,
                 Some(ChainId::Solana),
+                vec!["embed-corpus".to_string()],
+                "list test key 2".to_string(),
+                None,
             )
             .unwrap();
 

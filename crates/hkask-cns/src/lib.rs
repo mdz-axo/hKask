@@ -4,6 +4,7 @@
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
+pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
 pub mod cybernetics_loop; // Loop 6
@@ -20,6 +21,9 @@ pub(crate) mod table_energy_estimator; // Per-server energy cost table
 pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
 pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estimation (Phase 5)
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
+pub use api_metering::{
+    ApiMeter, ApiMeteringAlert, ApiRequestSpan, EndpointWeight, RateLimitStatus, endpoint_weight,
+};
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;
 pub use cybernetics_loop::CyberneticsLoop;

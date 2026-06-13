@@ -1,4 +1,4 @@
-//! Inference configuration — multi-provider routing for Ollama, Fireworks, and DeepInfra.
+//! Inference configuration — multi-provider routing for Ollama, Fireworks, DeepInfra, and fal.ai.
 //!
 //! # Environment Variables
 //!
@@ -7,6 +7,8 @@
 //! - `FW_API_KEY` — Fireworks API key (required for FW provider)
 //! - `DI_BASE_URL` — DeepInfra base URL (default: https://api.deepinfra.com)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
+//! - `FA_BASE_URL` — fal.ai base URL (default: https://api.fal.ai)
+//! - `FA_API_KEY` — fal.ai API key (required for FA provider)
 //!
 //! # Model Naming Convention
 //!
@@ -14,6 +16,7 @@
 //! - `OM/qwen3:8b` → Ollama (local)
 //! - `FW/llama-v3p1-70b-instruct` → Fireworks.ai (cloud)
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra (cloud)
+//! - `FA/paddleocr` → fal.ai (cloud)
 //! - No prefix → default provider (configurable, default: Ollama)
 
 use serde::{Deserialize, Serialize};
@@ -30,6 +33,9 @@ pub enum ProviderId {
     /// DeepInfra (cloud) — prefix `DI/`
     #[serde(rename = "DI")]
     DeepInfra,
+    /// fal.ai (cloud) — prefix `FA/`
+    #[serde(rename = "FA")]
+    Fal,
 }
 
 impl ProviderId {
@@ -54,6 +60,7 @@ impl ProviderId {
             "OM" => Some((ProviderId::Ollama, rest)),
             "FW" => Some((ProviderId::Fireworks, rest)),
             "DI" => Some((ProviderId::DeepInfra, rest)),
+            "FA" => Some((ProviderId::Fal, rest)),
             _ => None,
         }
     }
@@ -69,6 +76,7 @@ impl ProviderId {
             ProviderId::Ollama => "OM",
             ProviderId::Fireworks => "FW",
             ProviderId::DeepInfra => "DI",
+            ProviderId::Fal => "FA",
         }
     }
 }
@@ -101,6 +109,13 @@ pub struct InferenceConfig {
     /// Required for DI provider. If empty, DI is unavailable.
     pub deepinfra_api_key: String,
 
+    /// Base URL for the fal.ai inference API (OpenAI-compatible endpoint).
+    pub fal_base_url: String,
+
+    /// API key for fal.ai authentication.
+    /// Required for FA provider. If empty, FA is unavailable.
+    pub fal_api_key: String,
+
     /// Request timeout in seconds for inference calls.
     /// Default: 120 (accommodates model cold-start).
     pub timeout_secs: u64,
@@ -124,6 +139,8 @@ impl Default for InferenceConfig {
             fireworks_api_key: String::new(),
             deepinfra_base_url: "https://api.deepinfra.com".to_string(),
             deepinfra_api_key: String::new(),
+            fal_base_url: "https://api.fal.ai".to_string(),
+            fal_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: "deepseek-v4-pro".to_string(),
@@ -154,6 +171,13 @@ impl InferenceConfig {
             .or_else(|_| std::env::var("DEEPINFRA_API_KEY"))
             .unwrap_or_default();
 
+        let fal_base_url =
+            std::env::var("FA_BASE_URL").unwrap_or_else(|_| "https://api.fal.ai".to_string());
+
+        let fal_api_key = std::env::var("FA_API_KEY")
+            .or_else(|_| std::env::var("FAL_API_KEY"))
+            .unwrap_or_default();
+
         Self {
             default_provider: ProviderId::Ollama,
             ollama_base_url,
@@ -161,6 +185,8 @@ impl InferenceConfig {
             fireworks_api_key,
             deepinfra_base_url,
             deepinfra_api_key,
+            fal_base_url,
+            fal_api_key,
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
@@ -240,6 +266,20 @@ mod tests {
         assert_eq!(
             ProviderId::DeepInfra.prefix_model("meta-llama/Llama-3.3-70B"),
             "DI/meta-llama/Llama-3.3-70B"
+        );
+        assert_eq!(ProviderId::Fal.prefix_model("paddleocr"), "FA/paddleocr");
+    }
+
+    /// REQ: inf-cfg-007 — FA/ prefix parses correctly
+    #[test]
+    fn parse_fal_prefix() {
+        assert_eq!(
+            ProviderId::parse_from_model("FA/paddleocr"),
+            Some((ProviderId::Fal, "paddleocr"))
+        );
+        assert_eq!(
+            ProviderId::parse_from_model("FA/nemotron-parse"),
+            Some((ProviderId::Fal, "nemotron-parse"))
         );
     }
 }

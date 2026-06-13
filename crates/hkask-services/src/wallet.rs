@@ -131,7 +131,7 @@ impl WalletService {
 
     // ── API Keys ─────────────────────────────────────────────────────────────
 
-    /// Create a new API key with the specified limits.
+    /// Create a new API key with the specified limits, scope, and purpose.
     pub fn create_key(
         &self,
         wallet_id: WalletId,
@@ -139,6 +139,9 @@ impl WalletService {
         expiry_days: Option<u32>,
         privacy_mode: PrivacyMode,
         preferred_chain: Option<ChainId>,
+        scope: Vec<String>,
+        purpose: String,
+        rate_limit: Option<hkask_types::wallet::RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, ServiceError> {
         self.issuer
             .create_key(
@@ -147,6 +150,9 @@ impl WalletService {
                 expiry_days,
                 privacy_mode,
                 preferred_chain,
+                scope,
+                purpose,
+                rate_limit,
             )
             .map_err(|e| ServiceError::Wallet(e.to_string()))
     }
@@ -200,6 +206,44 @@ impl WalletService {
             .register_wallet_budget(agent, budget)
             .await;
         Ok(())
+    }
+
+    // ── Encumbrance ──────────────────────────────────────────────────────────
+
+    /// Encumber rJoules from a wallet for an API key's allocation.
+    pub fn encumber_key(
+        &self,
+        wallet_id: WalletId,
+        key_id: ApiKeyId,
+        amount: RJoule,
+    ) -> Result<(), ServiceError> {
+        self.manager
+            .encumber(wallet_id, key_id, amount)
+            .map_err(|e| ServiceError::Wallet(e.to_string()))
+    }
+
+    /// Release an encumbrance, returning unspent rJoules to the wallet.
+    pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
+        self.manager
+            .release_encumbrance(key_id)
+            .map_err(|e| ServiceError::Wallet(e.to_string()))
+    }
+
+    /// Atomically consume rJoules from an API key's encumbrance.
+    pub fn consume_gas(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), ServiceError> {
+        self.manager
+            .consume(key_id, gas_rj)
+            .map_err(|e| ServiceError::Wallet(e.to_string()))
+    }
+
+    /// Get the encumbrance for an API key.
+    pub fn get_encumbrance(
+        &self,
+        key_id: ApiKeyId,
+    ) -> Result<Option<hkask_types::wallet::Encumbrance>, ServiceError> {
+        self.manager
+            .get_encumbrance(key_id)
+            .map_err(|e| ServiceError::Wallet(e.to_string()))
     }
 }
 
@@ -274,6 +318,9 @@ mod tests {
                 None,
                 PrivacyMode::Transparent,
                 None,
+                vec!["read-specs".to_string()],
+                "test key".to_string(),
+                None,
             )
             .unwrap();
         assert_eq!(material.private_key_hex.len(), 64);
@@ -293,6 +340,9 @@ mod tests {
             None,
             PrivacyMode::Transparent,
             None,
+            vec!["read-specs".to_string()],
+            "list test 1".to_string(),
+            None,
         )
         .unwrap();
         svc.create_key(
@@ -301,6 +351,9 @@ mod tests {
             None,
             PrivacyMode::Shielded,
             Some(ChainId::Solana),
+            vec!["embed-corpus".to_string()],
+            "list test 2".to_string(),
+            None,
         )
         .unwrap();
 
@@ -321,6 +374,9 @@ mod tests {
                 RJoule::new(1000),
                 None,
                 PrivacyMode::Transparent,
+                None,
+                vec!["read-specs".to_string()],
+                "revoke test".to_string(),
                 None,
             )
             .unwrap();

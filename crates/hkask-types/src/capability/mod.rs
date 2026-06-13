@@ -136,6 +136,8 @@ pub enum DelegationResource {
     Tool,
     Template,
     Registry,
+    /// API key lifecycle management (issue, revoke, fund).
+    Key,
 }
 
 impl DelegationResource {
@@ -144,6 +146,7 @@ impl DelegationResource {
             Self::Tool => "tool",
             Self::Template => "template",
             Self::Registry => "registry",
+            Self::Key => "key",
         }
     }
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -151,6 +154,7 @@ impl DelegationResource {
             Some("tool") => Some(Self::Tool),
             Some("template") => Some(Self::Template),
             Some("registry") | Some("memory") => Some(Self::Registry),
+            Some("key") => Some(Self::Key),
             _ => None,
         }
     }

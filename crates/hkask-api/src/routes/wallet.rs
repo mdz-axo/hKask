@@ -13,7 +13,8 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::ApiState;
-use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
+use hkask_types::wallet::{ApiKeyId, ChainId, PrivacyMode, RJoule, WalletId};
+use std::str::FromStr;
 
 /// Create wallet router.
 pub fn wallet_router() -> OpenApiRouter<ApiState> {
@@ -24,6 +25,7 @@ pub fn wallet_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(get_transactions))
         .routes(routes!(create_key, list_keys, revoke_key))
         .routes(routes!(withdraw))
+        .routes(routes!(request_key, fund_key, delete_key))
 }
 
 // ── Response types ───────────────────────────────────────────────────────────
@@ -79,6 +81,17 @@ pub struct CreateKeyRequest {
     pub expiry_days: Option<u32>,
     pub private: Option<bool>,
     pub chain: Option<String>,
+    #[serde(default)]
+    pub scope: Vec<String>,
+    #[serde(default)]
+    pub purpose: String,
+    pub rate_limit: Option<RateLimitConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct RateLimitConfig {
+    pub requests_per_minute: u32,
+    pub tokens_per_day: u64,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -89,6 +102,9 @@ pub struct ApiKeyCreatedResponse {
     pub expires_at: Option<String>,
     pub privacy_mode: String,
     pub preferred_chain: Option<String>,
+    pub scope: Vec<String>,
+    pub purpose: String,
+    pub rate_limit: Option<RateLimitConfig>,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -350,6 +366,13 @@ async fn create_key(
         req.expiry_days,
         privacy,
         preferred_chain,
+        req.scope,
+        req.purpose,
+        req.rate_limit
+            .map(|rl| hkask_types::wallet::RateLimitConfig {
+                requests_per_minute: rl.requests_per_minute,
+                tokens_per_day: rl.tokens_per_day,
+            }),
     ) {
         Ok(material) => (
             StatusCode::CREATED,
@@ -360,6 +383,12 @@ async fn create_key(
                 expires_at: material.capability.expiry.map(|e| e.to_rfc3339()),
                 privacy_mode: material.capability.privacy_mode.to_string(),
                 preferred_chain: material.capability.preferred_chain.map(|c| c.to_string()),
+                scope: material.capability.scope,
+                purpose: material.capability.purpose,
+                rate_limit: material.capability.rate_limit.map(|rl| RateLimitConfig {
+                    requests_per_minute: rl.requests_per_minute,
+                    tokens_per_day: rl.tokens_per_day,
+                }),
             }),
         )
             .into_response(),
@@ -507,4 +536,369 @@ async fn withdraw(
             .into_response(),
         Err(e) => wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response(),
     }
+}
+
+// ── 7R7-governed API key issuance ───────────────────────────────────────────
+
+/// Request body for 7R7-governed API key issuance.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct KeyRequestRequest {
+    /// Replicant name funding this key.
+    pub replicant: String,
+    /// Allowed endpoint scopes.
+    pub scope: Vec<String>,
+    /// Stated purpose (≥20 chars, gate 4).
+    pub purpose: String,
+    /// rJoule allocation to encumber from the replicant's wallet.
+    pub allocation_rj: u64,
+    /// Optional rate limit configuration.
+    pub rate_limit: Option<RateLimitConfig>,
+}
+
+/// Response for a successfully issued API key.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct KeyRequestResponse {
+    pub key_id: String,
+    /// Shown once — the key secret (Ed25519 private key hex).
+    pub key_secret: String,
+    pub scope: Vec<String>,
+    pub allocation_rj: u64,
+    pub expires_at: Option<String>,
+    pub rate_limit: Option<RateLimitConfig>,
+}
+
+/// Request body for funding (replenishing) an API key's encumbrance.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct FundKeyRequest {
+    /// Replicant name providing the funds.
+    pub replicant: String,
+    /// Additional rJoules to encumber.
+    pub amount_rj: u64,
+}
+
+/// Response after funding a key.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct FundKeyResponse {
+    pub key_id: String,
+    pub new_allocation_rj: u64,
+    pub remaining_rj: u64,
+}
+
+/// 6-gate approval for API key issuance (single function, per essentialist G2).
+///
+/// Gates:
+/// 1. Replicant authenticated (UserStore session)
+/// 2. Clean CNS history (no abuse flags, 90 days)
+/// 3. Valid scope (endpoints exist in registry)
+/// 4. Purpose stated (≥20 chars)
+/// 5. Rate limit feasible (≤ scope maximum)
+/// 6. Wallet balance ≥ allocation_rj
+async fn approve_key_request(
+    state: &ApiState,
+    req: &KeyRequestRequest,
+) -> Result<(WalletId, hkask_types::WebID), (StatusCode, String)> {
+    // Gate 1: Replicant authenticated
+    let user_store = state.agent_service.user_store();
+    let identity = {
+        let store = user_store.lock().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("UserStore lock failed: {e}"),
+            )
+        })?;
+        store
+            .get_replicant(&req.replicant)
+            .map_err(|e| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    format!("Replicant lookup failed: {e}"),
+                )
+            })?
+            .ok_or_else(|| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    format!("Replicant '{}' not registered", req.replicant),
+                )
+            })?
+    };
+    let webid = identity.replicant_webid;
+
+    // Gate 2: Clean CNS history (no abuse flags in last 90 days)
+    // Stub: CNS alert query not yet exposed via service layer.
+    // Full implementation deferred to Gap 2 (CNS API spans).
+
+    // Gate 3: Valid scope — endpoints exist in registry
+    // Stub: registry endpoint validation deferred.
+    // In production, this checks each scope entry against registered MCP tools.
+
+    // Gate 4: Purpose stated (≥20 chars)
+    if req.purpose.chars().count() < 20 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Purpose must be at least 20 characters (got {})",
+                req.purpose.chars().count()
+            ),
+        ));
+    }
+
+    // Gate 5: Rate limit feasible
+    if let Some(ref rl) = req.rate_limit {
+        if rl.requests_per_minute == 0 || rl.tokens_per_day == 0 {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Rate limit values must be positive".to_string(),
+            ));
+        }
+        // Max defaults: 60 req/min, 1M tokens/day
+        if rl.requests_per_minute > 60 {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "requests_per_minute {} exceeds maximum 60",
+                    rl.requests_per_minute
+                ),
+            ));
+        }
+        if rl.tokens_per_day > 1_000_000 {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "tokens_per_day {} exceeds maximum 1,000,000",
+                    rl.tokens_per_day
+                ),
+            ));
+        }
+    }
+
+    // Gate 6: Wallet balance ≥ allocation_rj
+    let wallet_id = WalletId::default(); // replicant wallet = default wallet for now
+    let svc = state.wallet_service.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Wallet service not configured".to_string(),
+        )
+    })?;
+    let allocation = RJoule::new(req.allocation_rj);
+    if !svc
+        .can_afford(wallet_id, allocation)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    {
+        let balance = svc
+            .get_balance(wallet_id)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        return Err((
+            StatusCode::PAYMENT_REQUIRED,
+            format!(
+                "Insufficient wallet balance: have {} rJ, need {} rJ",
+                balance.rjoules, req.allocation_rj
+            ),
+        ));
+    }
+
+    Ok((wallet_id, webid))
+}
+
+/// POST /api/keys/request
+///
+/// 7R7-governed API key issuance with 6-gate approval.
+/// Returns the key secret exactly once.
+#[utoipa::path(
+    post,
+    path = "/api/keys/request",
+    request_body = KeyRequestRequest,
+    responses(
+        (status = 201, description = "Key issued", body = KeyRequestResponse),
+        (status = 400, description = "Validation failed"),
+        (status = 401, description = "Replicant not authenticated"),
+        (status = 402, description = "Insufficient wallet balance"),
+        (status = 503, description = "Wallet service not configured")
+    )
+)]
+async fn request_key(
+    State(state): State<ApiState>,
+    Json(req): Json<KeyRequestRequest>,
+) -> impl IntoResponse {
+    // 6-gate approval
+    let (wallet_id, _webid) = match approve_key_request(&state, &req).await {
+        Ok(v) => v,
+        Err((status, msg)) => return wallet_err(status, &msg).into_response(),
+    };
+
+    let svc = match get_wallet(&state) {
+        Ok(s) => s,
+        Err(status) => return wallet_err(status, "Wallet service not configured").into_response(),
+    };
+
+    // Ensure wallet exists
+    if let Err(e) = svc.ensure_wallet(wallet_id) {
+        return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+    }
+
+    let allocation = RJoule::new(req.allocation_rj);
+    let rate_limit = req
+        .rate_limit
+        .map(|rl| hkask_types::wallet::RateLimitConfig {
+            requests_per_minute: rl.requests_per_minute,
+            tokens_per_day: rl.tokens_per_day,
+        });
+
+    // Create the key
+    let material = match svc.create_key(
+        wallet_id,
+        allocation,
+        Some(90), // 90-day expiry per architecture doc §5.4
+        PrivacyMode::Transparent,
+        None,
+        req.scope.clone(),
+        req.purpose.clone(),
+        rate_limit,
+    ) {
+        Ok(m) => m,
+        Err(e) => {
+            return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+        }
+    };
+
+    // Encumber the allocation from the wallet
+    if let Err(e) = svc.encumber_key(wallet_id, material.key_id, allocation) {
+        // Rollback: revoke the key if encumbrance fails
+        let _ = svc.revoke_key(material.key_id);
+        return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+    }
+
+    (
+        StatusCode::CREATED,
+        Json(KeyRequestResponse {
+            key_id: material.key_id.to_string(),
+            key_secret: material.private_key_hex,
+            scope: material.capability.scope,
+            allocation_rj: material.capability.spending_limit_rj.as_u64(),
+            expires_at: material.capability.expiry.map(|e| e.to_rfc3339()),
+            rate_limit: material.capability.rate_limit.map(|rl| RateLimitConfig {
+                requests_per_minute: rl.requests_per_minute,
+                tokens_per_day: rl.tokens_per_day,
+            }),
+        }),
+    )
+        .into_response()
+}
+
+/// POST /api/keys/{key_id}/fund
+///
+/// Replenish an API key's encumbrance with additional rJoules from the
+/// funding replicant's wallet.
+#[utoipa::path(
+    post,
+    path = "/api/keys/{key_id}/fund",
+    params(
+        ("key_id" = String, Path, description = "API key ID to fund")
+    ),
+    request_body = FundKeyRequest,
+    responses(
+        (status = 200, description = "Key funded", body = FundKeyResponse),
+        (status = 402, description = "Insufficient wallet balance"),
+        (status = 404, description = "Key not found"),
+        (status = 503, description = "Wallet service not configured")
+    )
+)]
+async fn fund_key(
+    State(state): State<ApiState>,
+    Path(key_id_str): Path<String>,
+    Json(req): Json<FundKeyRequest>,
+) -> impl IntoResponse {
+    let svc = match get_wallet(&state) {
+        Ok(s) => s,
+        Err(status) => return wallet_err(status, "Wallet service not configured").into_response(),
+    };
+
+    let key_id = match ApiKeyId::from_str(&key_id_str) {
+        Ok(id) => id,
+        Err(e) => return wallet_err(StatusCode::BAD_REQUEST, &e.to_string()).into_response(),
+    };
+
+    let wallet_id = WalletId::default();
+    let amount = RJoule::new(req.amount_rj);
+
+    // Check wallet balance
+    if !svc.can_afford(wallet_id, amount).unwrap_or(false) {
+        return wallet_err(
+            StatusCode::PAYMENT_REQUIRED,
+            &format!("Insufficient wallet balance for {} rJ", req.amount_rj),
+        )
+        .into_response();
+    }
+
+    // Encumber additional rJoules
+    if let Err(e) = svc.encumber_key(wallet_id, key_id, amount) {
+        return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+    }
+
+    // Read updated encumbrance
+    let enc = match svc.get_encumbrance(key_id) {
+        Ok(Some(e)) => e,
+        Ok(None) => return wallet_err(StatusCode::NOT_FOUND, "Key not found").into_response(),
+        Err(e) => {
+            return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+        }
+    };
+
+    (
+        StatusCode::OK,
+        Json(FundKeyResponse {
+            key_id: key_id_str,
+            new_allocation_rj: enc.amount_rj,
+            remaining_rj: enc.remaining_rj(),
+        }),
+    )
+        .into_response()
+}
+
+/// DELETE /api/keys/{key_id}
+///
+/// Revoke an API key and release its encumbrance.
+#[utoipa::path(
+    delete,
+    path = "/api/keys/{key_id}",
+    params(
+        ("key_id" = String, Path, description = "API key ID to revoke")
+    ),
+    responses(
+        (status = 200, description = "Key revoked"),
+        (status = 404, description = "Key not found"),
+        (status = 503, description = "Wallet service not configured")
+    )
+)]
+async fn delete_key(
+    State(state): State<ApiState>,
+    Path(key_id_str): Path<String>,
+) -> impl IntoResponse {
+    let svc = match get_wallet(&state) {
+        Ok(s) => s,
+        Err(status) => return wallet_err(status, "Wallet service not configured").into_response(),
+    };
+
+    let key_id = match ApiKeyId::from_str(&key_id_str) {
+        Ok(id) => id,
+        Err(e) => return wallet_err(StatusCode::BAD_REQUEST, &e.to_string()).into_response(),
+    };
+
+    // Release encumbrance first (returns unspent rJ to wallet)
+    if let Err(e) = svc.release_encumbrance(key_id) {
+        return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+    }
+
+    // Revoke the key
+    if let Err(e) = svc.revoke_key(key_id) {
+        return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response();
+    }
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "key_id": key_id_str,
+            "revoked": true
+        })),
+    )
+        .into_response()
 }

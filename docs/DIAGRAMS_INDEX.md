@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-10
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-07.
+**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-13.
 
 ---
 
@@ -104,7 +104,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Reference | 0 | 0 | 0 |
 | **Total** | **30** | **30** | **5** |
 
-**MDS completeness:** All 5 MDS categories have diagram coverage. 30 diagrams verified against current code (2026-06-10).
+**MDS completeness:** All 5 MDS categories have diagram coverage. 30 diagrams verified against current code (2026-06-13).
 
 ---
 

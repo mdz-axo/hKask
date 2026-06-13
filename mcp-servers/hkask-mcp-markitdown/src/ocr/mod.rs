@@ -9,6 +9,7 @@
 //!                                                                      PipelineOutcome
 //! ```
 
+pub mod calibration;
 pub mod complexity;
 pub mod cross_validation;
 pub mod decimation;
