@@ -28,7 +28,7 @@ The universe is lazy. Across all domains of physics — classical mechanics, opt
 
 This is not a metaphor. It is the governing law that underlies all physical phenomena reducible to mathematical equations. One lazy algorithm — minimize action — generates the entire richness of the physical world. Laziness is not a flaw; it is the selection mechanism that chooses which path reality takes among all possible paths.
 
-**Leibniz's Criterion.** Gottfried Leibniz, central to the development of variational principles, articulated what laziness optimizes for: the best of all possible worlds is the one that is **"simplest in hypotheses and richest in phenomena."**[^leibniz-discourse] Maximum richness of output per unit of rule complexity. This is the ratio hKask's design principles seek to achieve: maximum generative capability (P3) from minimum architectural rules (P5). Laziness, properly understood, is the ratio of output to input — not doing nothing, but doing the most with the least.
+**Leibniz's Criterion.** Gottfried Leibniz, central to the development of variational principles, articulated what laziness optimizes for: the best of all possible worlds is the one that is **"simplest in hypotheses and richest in phenomena."**[^leibniz-discourse] Maximum richness of output per unit of rule complexity. This is the ratio hKask's design principles seek to achieve: maximum generative capability (P3) from minimum architectural rules (P5). Laziness, properly understood, is the ratio of output to input — not doing nothing, but doing the most with the least. Andrew McAfee has shown this ratio operating at civilizational scale: as technology and capitalism advance, we use *fewer* resources to produce *more* prosperity — dematerialization is the economic echo of least action.[^mcafee-more-from-less]
 
 **Three Design Implications.**
 
@@ -516,6 +516,7 @@ grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ docs/ --include="*.
 [^lanczos-variational]: Lanczos, C. (1949). *The Variational Principles of Mechanics*. University of Toronto Press. (4th ed., Dover, 1970).
 [^feynman-hibbs]: Feynman, R. P., & Hibbs, A. R. (1965). *Quantum Mechanics and Path Integrals*. McGraw-Hill.
 [^leibniz-discourse]: Leibniz, G. W. (1686). *Discourse on Metaphysics*, §6. "God has chosen the most perfect world, that is, the one which is at the same time the simplest in hypotheses and richest in phenomena."
+[^mcafee-more-from-less]: McAfee, A. (2019). *More from Less: The Surprising Story of How We Learned to Prosper Using Fewer Resources―and What Happens Next*. Scribner.
 
 [^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>.
 [^peripheral]: Peripheral Project. (2026). *Stewardship Principles*. Documented in `docs/standards/STEWARDSHIP.md`.
