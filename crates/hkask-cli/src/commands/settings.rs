@@ -92,6 +92,10 @@ fn show_all(settings: &ReplSettings) {
     println!("embedding_model:  {}", s.embedding_model);
     println!("classifier_model: {}", s.classifier_model);
     println!("ocr_model:        {}", s.ocr_model);
+    println!("── ocr thresholds ──");
+    println!("ocr_simple_max:   {}", s.ocr_simple_max);
+    println!("ocr_moderate_max: {}", s.ocr_moderate_max);
+    println!("ocr_sample_rate:  {}", s.ocr_sample_rate);
 }
 
 fn show_one(settings: &ReplSettings, key: &str) {
@@ -120,6 +124,9 @@ fn show_one(settings: &ReplSettings, key: &str) {
         "embedding_model" | "emb_model" => println!("{}", s.embedding_model),
         "classifier_model" | "cls_model" => println!("{}", s.classifier_model),
         "ocr_model" => println!("{}", s.ocr_model),
+        "ocr_simple_max" => println!("{}", s.ocr_simple_max),
+        "ocr_moderate_max" => println!("{}", s.ocr_moderate_max),
+        "ocr_sample_rate" => println!("{}", s.ocr_sample_rate),
         _ => eprintln!("Unknown setting: {}", key),
     }
 }
@@ -274,6 +281,39 @@ fn apply_setting(settings: &mut ReplSettings, name: &str, value: &str) -> bool {
         "embedding_model" | "emb_model" => settings.embedding_model = value.to_string(),
         "classifier_model" | "cls_model" => settings.classifier_model = value.to_string(),
         "ocr_model" => settings.ocr_model = value.to_string(),
+        "ocr_simple_max" => match value.parse::<f32>() {
+            Ok(v) if (0.0..=1.0).contains(&v) => settings.ocr_simple_max = v,
+            Ok(_) => {
+                eprintln!("Error: ocr_simple_max must be 0.0–1.0");
+                return false;
+            }
+            _ => {
+                eprintln!("Error: expected float");
+                return false;
+            }
+        },
+        "ocr_moderate_max" => match value.parse::<f32>() {
+            Ok(v) if (0.0..=1.0).contains(&v) => settings.ocr_moderate_max = v,
+            Ok(_) => {
+                eprintln!("Error: ocr_moderate_max must be 0.0–1.0");
+                return false;
+            }
+            _ => {
+                eprintln!("Error: expected float");
+                return false;
+            }
+        },
+        "ocr_sample_rate" => match value.parse::<f32>() {
+            Ok(v) if (0.0..=1.0).contains(&v) => settings.ocr_sample_rate = v,
+            Ok(_) => {
+                eprintln!("Error: ocr_sample_rate must be 0.0–1.0");
+                return false;
+            }
+            _ => {
+                eprintln!("Error: expected float");
+                return false;
+            }
+        },
         _ => {
             eprintln!("Unknown setting: {}", name);
             return false;

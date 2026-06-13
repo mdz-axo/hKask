@@ -3,7 +3,7 @@
 //! Deterministic routing (no randomness) guarantees statistical properties
 //! without non-determinism. SamplingState is a transparent accumulator.
 
-use hkask_types::ocr::{ComplexityScore, ComplexityTier, OcrBackend};
+use hkask_types::ocr::{ComplexityScore, ComplexityTier, OcrBackend, thresholds};
 
 /// Transparent accumulator for deterministic round-robin sampling.
 ///
@@ -77,12 +77,8 @@ pub fn route_page(
             filter_excluded(backends, exclude_backend)
         }
         ComplexityTier::Complex => {
-            let primary = if let Some(model) = llm_model {
-                OcrBackend::LlmOcr(model.to_string())
-            } else {
-                OcrBackend::LightOn
-            };
-            let backends = vec![primary];
+            let model = llm_model.unwrap_or(thresholds::DEFAULT_LLM_OCR_MODEL);
+            let backends = vec![OcrBackend::LlmOcr(model.to_string())];
             filter_excluded(backends, exclude_backend)
         }
         ComplexityTier::Moderate => {
@@ -90,7 +86,8 @@ pub fn route_page(
             let should_sample = state.should_dual_route();
             if should_sample {
                 state.moderate_pages_dual_routed += 1;
-                let backends = vec![OcrBackend::Tesseract, OcrBackend::LightOn];
+                let model = llm_model.unwrap_or(thresholds::DEFAULT_LLM_OCR_MODEL);
+                let backends = vec![OcrBackend::Tesseract, OcrBackend::LlmOcr(model.to_string())];
                 filter_excluded(backends, exclude_backend)
             } else {
                 let backends = vec![OcrBackend::Tesseract];
@@ -125,17 +122,22 @@ mod tests {
         assert_eq!(backends, vec![OcrBackend::Tesseract]);
     }
 
-    // REQ:ocr-routing-02 — Complex routes to LightOn or LlmOcr
+    // REQ:ocr-routing-02 — Complex routes to LlmOcr with default or custom model
     #[test]
-    fn complex_routes_to_lighton_or_llm() {
+    fn complex_routes_to_llm_ocr() {
         let score = ComplexityScore {
             value: 0.20,
             tier: ComplexityTier::Complex,
         };
+        // Default model
         let mut state = SamplingState::new(0.10);
-        let backends = route_page(score, &mut state, None, None);
-        assert_eq!(backends, vec![OcrBackend::LightOn]);
+        let backends = route_page(score.clone(), &mut state, None, None);
+        assert_eq!(
+            backends,
+            vec![OcrBackend::LlmOcr(thresholds::DEFAULT_LLM_OCR_MODEL.into())]
+        );
 
+        // Custom model override
         let mut state = SamplingState::new(0.10);
         let backends = route_page(score.clone(), &mut state, None, Some("minicpm"));
         assert_eq!(backends, vec![OcrBackend::LlmOcr("minicpm".into())]);

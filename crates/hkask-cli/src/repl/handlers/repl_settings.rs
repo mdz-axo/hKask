@@ -54,6 +54,9 @@ pub(crate) fn handle_repl_show(state: &ReplState) {
     println!("  \x1b[36membedding_model\x1b[0m:  {}", s.embedding_model);
     println!("  \x1b[36mclassifier_model\x1b[0m: {}", s.classifier_model);
     println!("  \x1b[36mocr_model\x1b[0m:        {}", s.ocr_model);
+    println!("  \x1b[36mocr_simple_max\x1b[0m:   {}", s.ocr_simple_max);
+    println!("  \x1b[36mocr_moderate_max\x1b[0m: {}", s.ocr_moderate_max);
+    println!("  \x1b[36mocr_sample_rate\x1b[0m:  {}", s.ocr_sample_rate);
     println!();
 }
 
@@ -175,6 +178,34 @@ pub(crate) fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
             }
             _ => println!("  \x1b[31mError:\x1b[0m expected 'on' or 'off'"),
         },
+        "ocr_model" => {
+            state.repl_settings.ocr_model = arg2.to_string();
+            println!("  ocr_model set to {}", arg2);
+        }
+        "ocr_simple_max" => match arg2.parse::<f32>() {
+            Ok(v) if (0.0..=1.0).contains(&v) => {
+                state.repl_settings.ocr_simple_max = v;
+                println!("  ocr_simple_max set to {}", v);
+            }
+            Ok(_) => println!("  \x1b[31mError:\x1b[0m ocr_simple_max must be 0.0–1.0"),
+            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
+        },
+        "ocr_moderate_max" => match arg2.parse::<f32>() {
+            Ok(v) if (0.0..=1.0).contains(&v) => {
+                state.repl_settings.ocr_moderate_max = v;
+                println!("  ocr_moderate_max set to {}", v);
+            }
+            Ok(_) => println!("  \x1b[31mError:\x1b[0m ocr_moderate_max must be 0.0–1.0"),
+            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
+        },
+        "ocr_sample_rate" => match arg2.parse::<f32>() {
+            Ok(v) if (0.0..=1.0).contains(&v) => {
+                state.repl_settings.ocr_sample_rate = v;
+                println!("  ocr_sample_rate set to {}", v);
+            }
+            Ok(_) => println!("  \x1b[31mError:\x1b[0m ocr_sample_rate must be 0.0–1.0"),
+            _ => println!("  \x1b[31mError:\x1b[0m expected float"),
+        },
         "reset" => {
             state.repl_settings = ReplSettings::default();
             println!("  \x1b[32mAll REPL settings reset to defaults\x1b[0m");
@@ -213,6 +244,10 @@ fn is_valid_setting(arg1: &str) -> bool {
             | "gas_heuristic"
             | "gas_cap"
             | "auto_condense"
+            | "ocr_model"
+            | "ocr_simple_max"
+            | "ocr_moderate_max"
+            | "ocr_sample_rate"
     )
 }
 
@@ -275,6 +310,19 @@ pub(crate) struct ReplSettings {
     /// Override: `HKASK_OCR_MODEL` env var.
     #[serde(default = "default_ocr")]
     pub ocr_model: String,
+
+    // ── OCR pipeline thresholds ────────────────────────────
+    /// Edge-density ratio below which a page is considered Simple.
+    /// Range: 0.0–1.0.
+    #[serde(default = "default_ocr_simple_max")]
+    pub ocr_simple_max: f32,
+    /// Edge-density ratio below which a page is considered Moderate.
+    /// Values ≥ this are Complex. Range: 0.0–1.0.
+    #[serde(default = "default_ocr_moderate_max")]
+    pub ocr_moderate_max: f32,
+    /// Dual-routing sampling rate for Moderate-tier pages [0.0, 1.0].
+    #[serde(default = "default_ocr_sample_rate")]
+    pub ocr_sample_rate: f32,
 }
 
 /// Model metadata fetched from Ollama's /api/show endpoint.
@@ -298,6 +346,15 @@ fn default_cls_model() -> String {
 fn default_ocr() -> String {
     "maternion/LightOnOCR-2:1b".to_string()
 }
+fn default_ocr_simple_max() -> f32 {
+    0.05
+}
+fn default_ocr_moderate_max() -> f32 {
+    0.15
+}
+fn default_ocr_sample_rate() -> f32 {
+    0.10
+}
 
 impl Default for ReplSettings {
     fn default() -> Self {
@@ -319,7 +376,19 @@ impl Default for ReplSettings {
             embedding_model: default_emb_model(),
             classifier_model: default_cls_model(),
             ocr_model: default_ocr(),
+            ocr_simple_max: default_ocr_simple_max(),
+            ocr_moderate_max: default_ocr_moderate_max(),
+            ocr_sample_rate: default_ocr_sample_rate(),
         }
+    }
+}
+
+/// Build ThresholdConfig from ReplSettings for OCR pipeline routing.
+pub(crate) fn to_threshold_config(settings: &ReplSettings) -> hkask_types::ocr::ThresholdConfig {
+    hkask_types::ocr::ThresholdConfig {
+        simple_max: settings.ocr_simple_max,
+        moderate_max: settings.ocr_moderate_max,
+        moderate_sample_rate: settings.ocr_sample_rate,
     }
 }
 

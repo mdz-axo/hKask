@@ -97,6 +97,10 @@ impl InferenceRouter {
                     prefixed_name: ProviderId::Ollama.prefix_model(&m.name),
                     provider: ProviderId::Ollama,
                     model: m.name.clone(),
+                    supports_vision: RouterModelEntry::infer_vision_support(
+                        &m.name,
+                        m.details.as_ref().and_then(|d| d.family.as_deref()),
+                    ),
                     family: m.details.as_ref().and_then(|d| d.family.clone()),
                     parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
                     quantization_level: m
@@ -117,6 +121,7 @@ impl InferenceRouter {
                     prefixed_name: ProviderId::Fireworks.prefix_model(&m.id),
                     provider: ProviderId::Fireworks,
                     model: m.id.clone(),
+                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
                     family: None,
                     parameter_size: None,
                     quantization_level: None,
@@ -134,6 +139,7 @@ impl InferenceRouter {
                     prefixed_name: ProviderId::DeepInfra.prefix_model(&m.id),
                     provider: ProviderId::DeepInfra,
                     model: m.id.clone(),
+                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
                     family: None,
                     parameter_size: None,
                     quantization_level: None,
@@ -154,6 +160,18 @@ impl InferenceRouter {
         let lower = query.to_lowercase();
         all.into_iter()
             .filter(|m| m.model.to_lowercase().contains(&lower))
+            .collect()
+    }
+
+    /// List only models that are likely vision-capable.
+    ///
+    /// Convenience filter over `list_models()` using the heuristic
+    /// `supports_vision` flag. Useful for OCR model selection.
+    pub async fn list_vision_models(&self) -> Vec<RouterModelEntry> {
+        self.list_models()
+            .await
+            .into_iter()
+            .filter(|m| m.supports_vision == Some(true))
             .collect()
     }
 

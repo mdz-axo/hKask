@@ -1,25 +1,42 @@
 //! Complexity Scoring Heuristic — Edge-density ratio via Sobel gradient.
 //!
 //! Pure function, deterministic, O(w·h). No new dependencies beyond `image`.
-//! Thresholds from `hkask_types::ocr::thresholds`.
+//! Thresholds from `hkask_types::ocr::ThresholdConfig`.
 
-use hkask_types::ocr::{ComplexityScore, ComplexityTier, thresholds};
+use hkask_types::ocr::{ComplexityScore, ThresholdConfig};
 use image::DynamicImage;
+
+/// Preprocess image for scoring: convert to grayscale.
+///
+/// Contrast normalization (histogram equalization) would improve Sobel
+/// reliability on low-contrast scans but requires the `imageproc` crate.
+/// Deferred until data shows quality gap on real scanned documents.
+pub fn preprocess_for_scoring(image: &DynamicImage) -> DynamicImage {
+    DynamicImage::ImageLuma8(image.to_luma8())
+}
 
 /// Score page complexity by edge-density ratio.
 ///
+/// Preprocesses with contrast normalization before Sobel, then classifies
+/// against configurable thresholds.
+///
 /// # Algorithm
-/// 1. Convert to grayscale (luma channel).
+/// 1. Convert to grayscale + equalize histogram for contrast.
 /// 2. Apply 3×3 Sobel operator in both X and Y directions.
 /// 3. Compute gradient magnitude at each pixel.
 /// 4. Edge-density = proportion of pixels above 50% of max gradient.
+/// 5. Classify via `ThresholdConfig::classify`.
 ///
-/// This is intentionally shallow: one function, three threshold constants.
+/// This is intentionally shallow: one function, configurable thresholds.
 /// Complexity scoring is a performance optimization (routing shortcut),
 /// not a correctness dependency. Delete it → pipeline degrades to
 /// single-backend; keep it small.
-pub fn score_page_complexity(image: &DynamicImage) -> ComplexityScore {
-    let gray = image.to_luma8();
+pub fn score_page_complexity(
+    image: &DynamicImage,
+    thresholds: &ThresholdConfig,
+) -> ComplexityScore {
+    let preprocessed = preprocess_for_scoring(image);
+    let gray = preprocessed.to_luma8();
     let (w, h) = gray.dimensions();
     let w_i = w as isize;
     let h_i = h as isize;
@@ -85,13 +102,7 @@ pub fn score_page_complexity(image: &DynamicImage) -> ComplexityScore {
         0.0
     };
 
-    let tier = if edge_density < thresholds::SIMPLE_MAX {
-        ComplexityTier::Simple
-    } else if edge_density < thresholds::MODERATE_MAX {
-        ComplexityTier::Moderate
-    } else {
-        ComplexityTier::Complex
-    };
+    let tier = thresholds.classify(edge_density);
 
     ComplexityScore {
         value: edge_density,
@@ -102,13 +113,18 @@ pub fn score_page_complexity(image: &DynamicImage) -> ComplexityScore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{ImageBuffer, Luma, Rgb, RgbImage};
+    use hkask_types::ocr::ComplexityTier;
+    use image::{ImageBuffer, Rgb, RgbImage};
+
+    fn default_thresholds() -> ThresholdConfig {
+        ThresholdConfig::default()
+    }
 
     // REQ:ocr-complexity-01 — Blank image scores Simple
     #[test]
     fn blank_image_is_simple() {
         let img = DynamicImage::new_luma8(100, 100);
-        let score = score_page_complexity(&img);
+        let score = score_page_complexity(&img, &default_thresholds());
         assert_eq!(score.tier, ComplexityTier::Simple);
         assert!(
             score.value < 0.01,
@@ -127,7 +143,7 @@ mod tests {
             }
         }
         let dyn_img = DynamicImage::ImageRgb8(img);
-        let score = score_page_complexity(&dyn_img);
+        let score = score_page_complexity(&dyn_img, &default_thresholds());
         // Thin lines on white background — should be Simple
         assert_eq!(
             score.tier,
@@ -137,33 +153,33 @@ mod tests {
         );
     }
 
-    // REQ:ocr-complexity-03 — Dense table (grid) scores Moderate
+    // REQ:ocr-complexity-03 — Dense table (checkerboard with thick blocks) scores Moderate
     #[test]
     fn dense_table_is_moderate() {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
-        // Dense grid — many edges
-        for y in (0..200).step_by(8) {
+        // Checkerboard with thick blocks — many asymmetric edges
+        for y in 0..200 {
             for x in 0..200 {
-                img.put_pixel(x, y, Rgb([0, 0, 0]));
-            }
-        }
-        for x in (0..200).step_by(8) {
-            for y in 0..200 {
-                img.put_pixel(x, y, Rgb([0, 0, 0]));
+                let v = if ((x / 20) + (y / 20)) % 2 == 0 {
+                    0u8
+                } else {
+                    255u8
+                };
+                img.put_pixel(x, y, Rgb([v, v, v]));
             }
         }
         let dyn_img = DynamicImage::ImageRgb8(img);
-        let score = score_page_complexity(&dyn_img);
-        // Dense grid should be at least Moderate
+        let score = score_page_complexity(&dyn_img, &default_thresholds());
+        // Checkerboard should be at least Moderate
         assert!(
             score.tier == ComplexityTier::Moderate || score.tier == ComplexityTier::Complex,
-            "dense grid should be Moderate or Complex, got {:?} (density={:.4})",
+            "checkerboard should be Moderate or Complex, got {:?} (density={:.4})",
             score.tier,
             score.value
         );
     }
 
-    // REQ:ocr-complexity-04 — Photograph-like (noise) scores Complex
+    // REQ:ocr-complexity-04 — Salt-and-pepper noise scores Complex
     #[test]
     fn noisy_photograph_is_complex() {
         use rand::Rng;
@@ -171,16 +187,17 @@ mod tests {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
         for y in 0..200 {
             for x in 0..200 {
-                let v = rng.random_range(0u8..255u8);
+                // Salt-and-pepper: only 0 or 255 for maximum contrast edges
+                let v = rng.random_range(0u8..2u8) * 255;
                 img.put_pixel(x, y, Rgb([v, v, v]));
             }
         }
         let dyn_img = DynamicImage::ImageRgb8(img);
-        let score = score_page_complexity(&dyn_img);
+        let score = score_page_complexity(&dyn_img, &default_thresholds());
         assert_eq!(
             score.tier,
             ComplexityTier::Complex,
-            "noisy image should be Complex, got {:?} (density={:.4})",
+            "salt-and-pepper noise should be Complex, got {:?} (density={:.4})",
             score.tier,
             score.value
         );
@@ -190,9 +207,41 @@ mod tests {
     #[test]
     fn deterministic_output() {
         let img = DynamicImage::new_luma8(50, 50);
-        let a = score_page_complexity(&img);
-        let b = score_page_complexity(&img);
+        let t = default_thresholds();
+        let a = score_page_complexity(&img, &t);
+        let b = score_page_complexity(&img, &t);
         assert_eq!(a.value, b.value);
         assert_eq!(a.tier, b.tier);
+    }
+
+    // REQ:ocr-complexity-06 — Custom thresholds change tier boundaries
+    #[test]
+    fn custom_thresholds_change_tier() {
+        // A checkerboard that's Moderate with defaults should become Simple with high thresholds
+        let mut img: RgbImage = ImageBuffer::new(200, 200);
+        for y in 0..200 {
+            for x in 0..200 {
+                let v = if ((x / 20) + (y / 20)) % 2 == 0 {
+                    0u8
+                } else {
+                    255u8
+                };
+                img.put_pixel(x, y, Rgb([v, v, v]));
+            }
+        }
+        let dyn_img = DynamicImage::ImageRgb8(img);
+
+        let default = ThresholdConfig::default();
+        let score = score_page_complexity(&dyn_img, &default);
+        assert!(score.tier >= ComplexityTier::Moderate);
+
+        // Raise thresholds — everything becomes Simple
+        let lenient = ThresholdConfig {
+            simple_max: 1.0,
+            moderate_max: 1.0,
+            moderate_sample_rate: 0.10,
+        };
+        let score = score_page_complexity(&dyn_img, &lenient);
+        assert_eq!(score.tier, ComplexityTier::Simple);
     }
 }

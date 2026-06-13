@@ -29,6 +29,28 @@ pub struct SettingsResponse {
     pub auto_condense: bool,
     pub context_length: Option<u32>,
     pub supports_thinking: Option<bool>,
+    /// Edge-density ratio below which a page is considered Simple.
+    #[serde(default = "default_ocr_simple_max")]
+    pub ocr_simple_max: f32,
+    /// Edge-density ratio below which a page is considered Moderate.
+    #[serde(default = "default_ocr_moderate_max")]
+    pub ocr_moderate_max: f32,
+    /// Dual-routing sampling rate for Moderate-tier pages [0.0, 1.0].
+    #[serde(default = "default_ocr_sample_rate")]
+    pub ocr_sample_rate: f32,
+}
+
+fn default_ocr() -> String {
+    "maternion/LightOnOCR-2:1b".to_string()
+}
+fn default_ocr_simple_max() -> f32 {
+    0.05
+}
+fn default_ocr_moderate_max() -> f32 {
+    0.15
+}
+fn default_ocr_sample_rate() -> f32 {
+    0.10
 }
 
 impl Default for SettingsResponse {
@@ -48,6 +70,9 @@ impl Default for SettingsResponse {
             auto_condense: true,
             context_length: None,
             supports_thinking: None,
+            ocr_simple_max: default_ocr_simple_max(),
+            ocr_moderate_max: default_ocr_moderate_max(),
+            ocr_sample_rate: default_ocr_sample_rate(),
         }
     }
 }
@@ -86,6 +111,9 @@ pub struct UpdateSettingsRequest {
     pub gas_cap: Option<u64>,
     #[serde(alias = "auto_compact")]
     pub auto_condense: Option<bool>,
+    pub ocr_simple_max: Option<f32>,
+    pub ocr_moderate_max: Option<f32>,
+    pub ocr_sample_rate: Option<f32>,
 }
 
 pub fn settings_router() -> OpenApiRouter<ApiState> {
@@ -157,6 +185,21 @@ async fn update_settings(
     }
     if let Some(v) = req.auto_condense {
         settings.auto_condense = v;
+    }
+    if let Some(v) = req.ocr_simple_max
+        && (0.0..=1.0).contains(&v)
+    {
+        settings.ocr_simple_max = v;
+    }
+    if let Some(v) = req.ocr_moderate_max
+        && (0.0..=1.0).contains(&v)
+    {
+        settings.ocr_moderate_max = v;
+    }
+    if let Some(v) = req.ocr_sample_rate
+        && (0.0..=1.0).contains(&v)
+    {
+        settings.ocr_sample_rate = v;
     }
 
     let _ = save_settings(&settings);

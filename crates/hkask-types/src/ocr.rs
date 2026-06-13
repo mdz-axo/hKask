@@ -51,9 +51,8 @@ pub struct ComplexityScore {
 pub enum OcrBackend {
     /// Classical OCR via Tesseract (fast, best for text-only).
     Tesseract,
-    /// Cloud/local OCR service via LightOn (best for complex layouts).
-    LightOn,
     /// Vision-language model OCR via hkask-inference router.
+    /// The inner `String` is the model name (e.g., `maternion/LightOnOCR-2:1b`).
     LlmOcr(String),
 }
 
@@ -62,7 +61,6 @@ impl OcrBackend {
     pub fn label(&self) -> &str {
         match self {
             OcrBackend::Tesseract => "tesseract",
-            OcrBackend::LightOn => "lighton",
             OcrBackend::LlmOcr(_) => "llm-ocr",
         }
     }
@@ -72,7 +70,6 @@ impl std::fmt::Display for OcrBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OcrBackend::Tesseract => write!(f, "tesseract"),
-            OcrBackend::LightOn => write!(f, "lighton"),
             OcrBackend::LlmOcr(model) => write!(f, "llm-ocr({})", model),
         }
     }
@@ -120,6 +117,10 @@ pub struct CrossValidation {
     pub confidence_a: f32,
     /// Confidence from backend B.
     pub confidence_b: f32,
+    /// Semantic (embedding) similarity [0.0, 1.0] when available.
+    /// Populated by `verify_semantic` if an embedding router is provided.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_similarity: Option<f32>,
 }
 
 // ── Pipeline Errors ───────────────────────────────────────────────────────
@@ -284,8 +285,47 @@ pub struct OcrCrossValidationSpan {
 
 // ── Thresholds Module ─────────────────────────────────────────────────────
 
-/// Named OCR routing thresholds — canonical constants for the complexity
-/// scorer and router. Values are configurable via `hkask-templates` registry.
+/// Configurable OCR complexity thresholds.
+///
+/// Values are loadable from `hkask-templates` registry for self-tuning
+/// (P4: changes require affirmative consent, not autonomous mutation).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ThresholdConfig {
+    /// Edge-density ratio below which a page is considered Simple.
+    pub simple_max: f32,
+    /// Edge-density ratio below which a page is considered Moderate.
+    /// Values ≥ this threshold are Complex.
+    pub moderate_max: f32,
+    /// Dual-routing sampling rate for Moderate-tier pages [0.0, 1.0].
+    pub moderate_sample_rate: f32,
+}
+
+impl Default for ThresholdConfig {
+    fn default() -> Self {
+        Self {
+            simple_max: 0.05,
+            moderate_max: 0.15,
+            moderate_sample_rate: 0.10,
+        }
+    }
+}
+
+impl ThresholdConfig {
+    /// Classify an edge-density value into a complexity tier.
+    pub fn classify(&self, edge_density: f32) -> ComplexityTier {
+        if edge_density < self.simple_max {
+            ComplexityTier::Simple
+        } else if edge_density < self.moderate_max {
+            ComplexityTier::Moderate
+        } else {
+            ComplexityTier::Complex
+        }
+    }
+}
+
+/// Legacy constants module — prefer `ThresholdConfig` for new code.
+/// Retained for backward compatibility with code that hasn't migrated
+/// to configurable thresholds.
 pub mod thresholds {
     /// Edge-density ratio below which a page is considered Simple.
     pub const SIMPLE_MAX: f32 = 0.05;
@@ -294,6 +334,9 @@ pub mod thresholds {
     pub const MODERATE_MAX: f32 = 0.15;
     /// Default dual-routing sampling rate for Moderate-tier pages.
     pub const DEFAULT_MODERATE_SAMPLE_RATE: f32 = 0.10;
+    /// Default vision LLM model for OCR (LightOnOCR-2).
+    /// Override via `HKASK_OCR_MODEL` env var or `llm_model` pipeline parameter.
+    pub const DEFAULT_LLM_OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
 }
 
 #[cfg(test)]
@@ -352,7 +395,7 @@ mod tests {
     #[test]
     fn ocr_backend_labels() {
         assert_eq!(OcrBackend::Tesseract.label(), "tesseract");
-        assert_eq!(OcrBackend::LightOn.label(), "lighton");
+        assert_eq!(OcrBackend::LlmOcr("lighton".into()).label(), "llm-ocr");
         assert_eq!(OcrBackend::LlmOcr("gpt4".into()).label(), "llm-ocr");
     }
 
@@ -361,7 +404,7 @@ mod tests {
     fn pipeline_error_display() {
         let err = PipelineError::OcrFailed {
             page_index: 2,
-            backends_tried: vec![OcrBackend::Tesseract, OcrBackend::LightOn],
+            backends_tried: vec![OcrBackend::Tesseract, OcrBackend::LlmOcr("lighton".into())],
         };
         let display = err.to_string();
         assert!(display.contains("page 2"));
@@ -380,6 +423,7 @@ mod tests {
             backend_b: OcrBackend::LlmOcr("minicpm".into()),
             confidence_a: 0.92,
             confidence_b: 0.89,
+            semantic_similarity: None,
         };
         let json = serde_json::to_string(&cv).unwrap();
         let back: CrossValidation = serde_json::from_str(&json).unwrap();

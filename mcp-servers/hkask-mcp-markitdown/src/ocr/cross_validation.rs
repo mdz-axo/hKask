@@ -28,6 +28,7 @@ pub fn compute_cross_validation(
         backend_b: secondary.backend.clone(),
         confidence_a: primary.confidence,
         confidence_b: secondary.confidence,
+        semantic_similarity: None,
     })
 }
 
@@ -118,7 +119,7 @@ mod tests {
         };
         let secondary = OcrResult {
             page_index: 0,
-            backend: OcrBackend::LightOn,
+            backend: OcrBackend::LlmOcr("minicpm".into()),
             text: "The quick brown fox jumps".into(),
             confidence: 0.89,
             duration_ms: 200,
@@ -150,7 +151,7 @@ mod tests {
         };
         let secondary = OcrResult {
             page_index: 1,
-            backend: OcrBackend::LightOn,
+            backend: OcrBackend::LlmOcr("minicpm".into()),
             text: "page one".into(),
             confidence: 0.9,
             duration_ms: 100,

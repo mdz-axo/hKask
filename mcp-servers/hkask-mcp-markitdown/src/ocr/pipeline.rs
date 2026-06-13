@@ -11,7 +11,9 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 
-use hkask_types::ocr::{CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome};
+use hkask_types::ocr::{
+    CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig,
+};
 use image::DynamicImage;
 
 use crate::ocr::complexity::score_page_complexity;
@@ -44,7 +46,7 @@ pub trait OcrExecutor: Send + Sync {
 /// # Arguments
 /// * `pages` — Decimated page images in document order.
 /// * `executor` — Pluggable OCR executor for each backend.
-/// * `sample_rate` — Dual-routing rate for Moderate pages (0.0–1.0, default 0.10).
+/// * `thresholds` — Complexity scoring thresholds (configurable via registry).
 /// * `llm_model` — Optional model ID for `LlmOcr` backend routing.
 ///
 /// # Returns
@@ -52,19 +54,19 @@ pub trait OcrExecutor: Send + Sync {
 pub async fn run_pipeline(
     pages: &[DynamicImage],
     executor: &(dyn OcrExecutor + '_),
-    sample_rate: f32,
+    thresholds: &ThresholdConfig,
     llm_model: Option<&str>,
 ) -> PipelineOutcome {
     let start = Instant::now();
     let expected_pages = pages.len();
-    let mut state = SamplingState::new(sample_rate);
+    let mut state = SamplingState::new(thresholds.moderate_sample_rate);
     let mut results: Vec<OcrResult> = Vec::with_capacity(expected_pages);
     let mut errors: Vec<PipelineError> = Vec::new();
     let mut cross_validations: Vec<CrossValidation> = Vec::new();
 
     for (page_index, image) in pages.iter().enumerate() {
         // Step 1: Score complexity
-        let score = score_page_complexity(image);
+        let score = score_page_complexity(image, thresholds);
 
         // Step 2: Route to backends
         let backends = route_page(score, &mut state, None, llm_model);
@@ -154,10 +156,10 @@ pub async fn run_pipeline(
     let _duration_ms = start.elapsed().as_millis() as u64;
 
     // Step 5: Assembly — concatenate results with page markers
-    let assembled = assemble_document(&results);
+    let _assembled = assemble_document(&results);
 
     // Step 6: Verification checkpoint
-    let report = verify_output(&assembled, expected_pages, pages, &errors);
+    let report = verify_output(expected_pages, &results, pages, &errors);
 
     PipelineOutcome {
         results,
@@ -239,6 +241,10 @@ mod tests {
         }
     }
 
+    fn default_thresholds() -> ThresholdConfig {
+        ThresholdConfig::default()
+    }
+
     /// Helper: create a blank RGB image for testing.
     fn blank_page() -> DynamicImage {
         let img: RgbImage = image::ImageBuffer::new(100, 100);
@@ -250,8 +256,9 @@ mod tests {
     async fn single_page_pipeline() {
         let pages = vec![blank_page()];
         let executor = TestExecutor::new(vec![Some("Hello world".into())]);
+        let t = default_thresholds();
 
-        let outcome = run_pipeline(&pages, &executor, 0.0, None).await;
+        let outcome = run_pipeline(&pages, &executor, &t, None).await;
 
         assert_eq!(outcome.results.len(), 1);
         assert!(outcome.results[0].text.contains("Hello world"));
@@ -268,7 +275,8 @@ mod tests {
             Some("Page three".into()),
         ]);
 
-        let outcome = run_pipeline(&pages, &executor, 0.0, None).await;
+        let t = default_thresholds();
+        let outcome = run_pipeline(&pages, &executor, &t, None).await;
 
         assert_eq!(outcome.results.len(), 3);
         // Results should be in page order
@@ -293,7 +301,8 @@ mod tests {
         // First call succeeds, second fails
         let executor = TestExecutor::new(vec![Some("Good".into()), None]);
 
-        let outcome = run_pipeline(&pages, &executor, 0.0, None).await;
+        let t = default_thresholds();
+        let outcome = run_pipeline(&pages, &executor, &t, None).await;
 
         assert_eq!(outcome.results.len(), 1, "only first page should succeed");
         assert_eq!(outcome.errors.len(), 1, "second page should produce error");
