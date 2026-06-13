@@ -75,7 +75,7 @@ Check both layers per skill. Three validation categories:
 | R8 | energy_cap in range | Each `.j2` `energy_cap` is an integer in [1024, 16384] |
 | R9 | .j2 file exists | Each template entry's `path` resolves to an actual `.j2` file |
 | R10 | [inference] frontmatter valid | Each `.j2` starts with `[inference]` block containing `template_type`, `lexicon_terms`, `contract` |
-| R11 | hLexicon terms exist | `hlexicon_terms` in manifest + `lexicon_terms` in each .j2 reference terms in `registry/registries/hlexicon-workspace.yaml` |
+| R11 | hLexicon terms exist | `hlexicon_terms` in manifest + `lexicon_terms` in each .j2 reference terms in `registry/hlexicon/hlexicon-workspace.yaml` |
 | R12 | Jinja2 body present | Each `.j2` has template body after `---` separator |
 
 **Cross-layer consistency:**
@@ -96,7 +96,7 @@ Scaffold both layers from a user description:
 
 1. **Confirm scope**: Project-local (default) or global
 2. **Choose name**: User confirms. Lowercase-hyphenated, 2–40 chars, verb-noun or noun-noun pattern. No `hkask-`, `cns-`, `mcp-` prefixes.
-3. **Derive hLexicon terms**: From description, pick 3–8 terms from `registry/registries/hlexicon-workspace.yaml`
+3. **Derive hLexicon terms**: From description, pick 3–8 terms from `registry/hlexicon/hlexicon-workspace.yaml`
 4. **Create Zed layer** — `.agents/skills/<name>/SKILL.md`:
    ```
    ---

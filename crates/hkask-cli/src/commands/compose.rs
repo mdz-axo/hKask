@@ -4,7 +4,7 @@
 //! style synthesizer pipeline (DB → SemanticMemory → KNN →
 //! Jinja2 system prompt → inference → centroid validation).
 //!
-//! Cognition: registry/registries/cognition/*-synthesizer.yaml
+//! Cognition: registry/styles/*/...-synthesizer.yaml and registry/styles/*/...-mashup.yaml
 
 use hkask_inference::InferenceConfig;
 use hkask_services::{CognitionConfig, ComposeRequest, ComposeService, InferenceContext};

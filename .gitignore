@@ -36,3 +36,6 @@ registry/styles/**/.cache/*.txt
 # These contain per-agent semantic/episodic memory and should never be committed
 *.db
 *.db.salt
+
+# Runtime data directory — databases, logs, and other generated artifacts
+data/

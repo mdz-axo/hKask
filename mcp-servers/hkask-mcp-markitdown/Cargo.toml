@@ -10,7 +10,6 @@ hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-inference = { path = "../../crates/hkask-inference" }
 hkask-templates = { path = "../../crates/hkask-templates" }
-hkask-services = { path = "../../crates/hkask-services" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true

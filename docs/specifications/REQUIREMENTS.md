@@ -84,12 +84,12 @@ Curation: Merge | Revise | Defer | Discard
 - **Text:** When the hLexicon vocabulary evolves, I want the markdown catalog to be the single source of truth from which the YAML registry is derived, with regeneration kept explicit and human-driven, so the documentation and the data cannot silently drift apart and the derived YAML is never invisibly rewritten.
 - **Criteria:**
   - [x] `docs/architecture/reference/hKask-hLexicon.md` is the canonical source; its term tables define the vocabulary
-  - [x] `registry/registries/hlexicon-workspace.yaml` is a committed, derived artifact with its own data lifecycle (customizable/extensible, unlike compiled Rust)
+  - [x] `registry/hlexicon/hlexicon-workspace.yaml` is a committed, derived artifact with its own data lifecycle (customizable/extensible, unlike compiled Rust)
   - [x] Derivation lives in Rust only \u2014 no new language toolchain: `hkask-templates::lexicon` parses the YAML for validation (markdown\u2192YAML derivation not yet in code; see TODO.md P2-06)
   - [x] Regeneration is explicit and opt-in; the YAML is never auto-overwritten
   - [x] `load_hlexicon_from_yaml()` loads the 86-term vocabulary from the committed YAML for validation
   - [x] Consistency check pending broader test expansion (P0-02)
-- **Implementation:** `hkask-templates::lexicon` (`load_hlexicon_from_yaml`, `load_hlexicon_from_file`, `load_hlexicon_default`), `registry/registries/hlexicon-workspace.yaml`
+- **Implementation:** `hkask-templates::lexicon` (`load_hlexicon_from_yaml`, `load_hlexicon_from_file`, `load_hlexicon_default`), `registry/hlexicon/hlexicon-workspace.yaml`
 - **Tests:** `hkask-templates::lexicon` module tests; `hkask-types::lexicon::tests::bootstrap_domains_match_catalog`
 - **Status:** Implemented
 - **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge; markdown/YAML/Rust have distinct, intentional lifecycles

@@ -126,4 +126,4 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 - `crates/hkask-memory/src/salience.rs` — method signal extraction
 - `crates/hkask-services/src/compose.rs` — `ComposeService::compose`, `CognitionConfig`
 - `registry/styles/hemingway/corpus.yaml` — reference literary corpus config
-- `registry/registries/cognition/hemingway-style-synthesizer.yaml` — reference cognition config
+- `registry/styles/hemingway/hemingway-style-synthesizer.yaml` — reference cognition config

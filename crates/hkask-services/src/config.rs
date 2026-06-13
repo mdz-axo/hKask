@@ -16,7 +16,7 @@ use hkask_inference::InferenceConfig;
 // same defaults instead of duplicating string literals.
 
 /// Default path for the primary database file.
-pub const DEFAULT_DB_PATH: &str = "hkask.db";
+pub const DEFAULT_DB_PATH: &str = "data/hkask.db";
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";

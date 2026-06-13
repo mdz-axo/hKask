@@ -25,7 +25,7 @@ Check BOTH layers for gaps.
 |---------|-------|----------|-------------------|
 | Task pattern has no matching skill description | Zed | Coverage gap | Search `.agents/skills/` descriptions |
 | No WordAct/KnowAct/FlowDef template for a task pattern | Registry | Template coverage gap | Scan `registry/templates/` manifest `type` fields |
-| Template uses hLexicon terms not in workspace registry | Registry | hLexicon gap | Cross-reference `lexicon_terms` in manifests against `registry/registries/hlexicon-workspace.yaml` |
+| Template uses hLexicon terms not in workspace registry | Registry | hLexicon gap | Cross-reference `lexicon_terms` in manifests against `registry/hlexicon/hlexicon-workspace.yaml` |
 | Skill has SKILL.md but no registry templates (or vice versa) | Both | Layer completeness gap | Pair-check: `.agents/skills/<name>/` exists ↔ `registry/templates/<name>/` exists |
 | Too few .j2 templates for cascade to select from | Registry | Cascade gap | Count `.j2` files per skill; flag skills with <2 templates or missing a key template_type |
 | User says "I wish the agent could do X" | Either | Feature gap | Is X within hKask scope? (No visual UI, no external monitoring stacks) |
@@ -97,7 +97,7 @@ Evaluate BOTH layers. A candidate may provide one or both.
 ☐ .j2 frontmatter: contract has structured input and output
 ☐ .j2 frontmatter: energy_cap ∈ [2048, 8192]
 ☐ .j2 frontmatter: visibility ∈ {Private, Public, Shared}
-☐ hlexicon_terms in manifest all exist in registry/registries/hlexicon-workspace.yaml
+☐ hlexicon_terms in manifest all exist in registry/hlexicon/hlexicon-workspace.yaml
 ☐ lexicon_terms in each .j2 frontmatter exist in workspace registry
 ```
 
@@ -268,7 +268,7 @@ thinking_budget = "full"
 
 ### Step 6: Validate hLexicon terms
 
-Cross-reference every `lexicon_terms` and `hlexicon_terms` entry against `registry/registries/hlexicon-workspace.yaml`. If a term is missing, either:
+Cross-reference every `lexicon_terms` and `hlexicon_terms` entry against `registry/hlexicon/hlexicon-workspace.yaml`. If a term is missing, either:
 - Register it in the workspace hLexicon (update markdown source, regenerate YAML)
 - Replace with an existing term that covers the same semantic space
 

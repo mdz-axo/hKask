@@ -15,4 +15,5 @@ pub mod decimation;
 pub mod pipeline;
 pub mod routing;
 pub mod semantic;
+pub mod tesseract;
 pub mod verification;

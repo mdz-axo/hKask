@@ -191,7 +191,7 @@ kask sovereignty status
 | `FW_API_KEY` | Fireworks API key (also `FIREWORKS_API_KEY`) | — | For FW provider |
 | `DI_BASE_URL` | DeepInfra base URL | `https://api.deepinfra.com` | No |
 | `DI_API_KEY` | DeepInfra API key (also `DEEPINFRA_API_KEY`) | — | For DI provider |
-| `HKASK_DATABASE_URL` | SQLite database path | `./hkask.db` | No |
+| `HKASK_DATABASE_URL` | SQLite database path | `./data/hkask.db` | No |
 | `HKASK_LOG_LEVEL` | Logging verbosity | `info` | No |
 | `RUST_LOG` | Rust tracing filter | — | No |
 | `HKASK_SOAP_MODEL` | Model for SOAP inference | `qwen3:8b` | No |

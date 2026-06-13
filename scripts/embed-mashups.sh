@@ -61,10 +61,10 @@ case "${1:-all}" in
         echo "  kask pod mode <replicant> server -r replica"
         echo ""
         echo "Or via CLI compose:"
-        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/hemingway-style-synthesizer.yaml --db $DB --passphrase test-pass"
-        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/woolf-style-synthesizer.yaml --db $DB --passphrase test-pass"
-        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/ulysses-s-twain-mashup.yaml --db $DB --passphrase test-pass"
-        echo "  kask style compose --prompt '...' --cognition registry/registries/cognition/agatha-eliot-mashup.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/styles/hemingway/hemingway-style-synthesizer.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/styles/woolf/woolf-style-synthesizer.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/styles/ulysses-s-twain/ulysses-s-twain-mashup.yaml --db $DB --passphrase test-pass"
+        echo "  kask style compose --prompt '...' --cognition registry/styles/agatha-eliot/agatha-eliot-mashup.yaml --db $DB --passphrase test-pass"
         ;;
     *)
         echo "Usage: bash embed-mashups.sh [twain|wilde|hemingway|woolf|eliot|all]"

@@ -6,22 +6,13 @@
 use hkask_types::ocr::{ComplexityScore, ThresholdConfig};
 use image::DynamicImage;
 
-/// Preprocess image for scoring: convert to grayscale.
-///
-/// Contrast normalization (histogram equalization) would improve Sobel
-/// reliability on low-contrast scans but requires the `imageproc` crate.
-/// Deferred until data shows quality gap on real scanned documents.
-pub fn preprocess_for_scoring(image: &DynamicImage) -> DynamicImage {
-    DynamicImage::ImageLuma8(image.to_luma8())
-}
-
 /// Score page complexity by edge-density ratio.
 ///
-/// Preprocesses with contrast normalization before Sobel, then classifies
+/// Converts to grayscale, applies Sobel edge detection, then classifies
 /// against configurable thresholds.
 ///
 /// # Algorithm
-/// 1. Convert to grayscale + equalize histogram for contrast.
+/// 1. Convert to grayscale.
 /// 2. Apply 3×3 Sobel operator in both X and Y directions.
 /// 3. Compute gradient magnitude at each pixel.
 /// 4. Edge-density = proportion of pixels above 50% of max gradient.
@@ -35,8 +26,7 @@ pub fn score_page_complexity(
     image: &DynamicImage,
     thresholds: &ThresholdConfig,
 ) -> ComplexityScore {
-    let preprocessed = preprocess_for_scoring(image);
-    let gray = preprocessed.to_luma8();
+    let gray = image.to_luma8();
     let (w, h) = gray.dimensions();
     let w_i = w as isize;
     let h_i = h as isize;

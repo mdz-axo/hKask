@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-cd /home/mdz-axolotl/Clones/hKask
+cd "$(dirname "$0")/.."
 export HKASK_DB_PASSPHRASE=test-pass
 target/debug/kask embed-corpus run \
   --config registry/styles/ulysses-s-twain/corpus.yaml \

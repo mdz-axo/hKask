@@ -65,7 +65,7 @@ The three representations have deliberately different lifecycles:
 | Artifact | Lifecycle | Editable by |
 |----------|-----------|-------------|
 | `hKask-hLexicon.md` (this file) | **Canonical** — human-authored | Maintainers (prose + tables) |
-| `registry/registries/hlexicon-workspace.yaml` | **Derived data** — committed; can be customized/extended | Tooling (regen) + subsystem registries |
+| `registry/hlexicon/hlexicon-workspace.yaml` | **Derived data** — committed; can be customized/extended | Tooling (regen) + subsystem registries |
 | `hkask-types::lexicon` types | **Compiled** | Not user-editable |
 
 ```mermaid
@@ -80,7 +80,7 @@ flowchart LR
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LEX-001
 verified_date: 2026-06-07
-verified_against: crates/hkask-templates/src/lexicon.rs (load_hlexicon_from_yaml — active); parse_markdown_catalog, render_workspace_yaml, regenerate_workspace_yaml — implemented (see FocusingAssumption FA-Co1 in MDS.md); registry/registries/hlexicon-workspace.yaml
+verified_against: crates/hkask-templates/src/lexicon.rs (load_hlexicon_from_yaml — active); parse_markdown_catalog, render_workspace_yaml, regenerate_workspace_yaml — implemented (see FocusingAssumption FA-Co1 in MDS.md); registry/hlexicon/hlexicon-workspace.yaml
 status: VERIFIED
 -->
 
@@ -90,7 +90,7 @@ status: VERIFIED
 2. Regenerate the derived YAML explicitly (never automatic — once stubs are implemented):
    `cargo test -p hkask-templates regenerate_workspace_yaml -- --ignored`
    **Currently:** Only `load_hlexicon_from_yaml` is active. The `parse_markdown_catalog` → `render_workspace_yaml` → `regenerate_workspace_yaml` pipeline is a planned stub (FocusingAssumption FA-Co1).
-3. Commit both this file and `registry/registries/hlexicon-workspace.yaml`.
+3. Commit both this file and `registry/hlexicon/hlexicon-workspace.yaml`.
 4. The `hlexicon_yaml_matches_markdown` test (runs under `cargo test --workspace`)
    fails if the YAML and markdown disagree. On failure the maintainer decides:
    the markdown was corrupted → restore from git; or it evolved intentionally →
