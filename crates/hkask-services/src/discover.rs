@@ -13,12 +13,17 @@
 //! 3. Web search via MCP web_search → institutional pages, interviews
 //! 4. YouTube transcript search via SerpAPI (requires API key)
 //! 5. Content download + cache → .cache/{slug}.txt
-//! 6. Generate corpus.yaml
+//! 6. Concept extraction (LLM) → entities from paper titles
+//! 7. Method inference (LLM) → stylometric patterns from cached passages
+//! 8. Generate/augment corpus.yaml
 
-use crate::embed::{CorpusConfig, Work};
+use crate::embed::{CorpusConfig, EntityConfig, Work};
 use crate::error::ServiceError;
+use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
 use hkask_templates::ports::McpPort;
 use hkask_types::DelegationToken;
+use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -59,6 +64,10 @@ pub struct DiscoverRequest {
     /// When true, loads the existing corpus.yaml and merges new works into it.
     #[serde(default)]
     pub augment: bool,
+    /// Whether to run LLM-based concept extraction and method inference.
+    /// Default: true (quality & precision first; set false for cheap/fast runs).
+    #[serde(default = "default_true")]
+    pub include_methods: bool,
 }
 
 fn default_max_works() -> usize {
@@ -90,6 +99,12 @@ pub struct DiscoverResult {
     /// YouTube transcript candidates for curation (only populated when curated=true)
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub youtube_candidates: Vec<DiscoveredWork>,
+    /// Extracted concepts, places, and events (populated when include_methods=true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entities: Option<EntityConfig>,
+    /// Inferred methodological patterns (populated when include_methods=true)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub methods: Vec<DeclaredMethod>,
 }
 
 /// A discovered work with metadata.
@@ -292,8 +307,73 @@ impl DiscoveryService {
             }
         }
 
+        // ── Phase 5a: Concept extraction (LLM) ─────────────────────────
+        let mut entities: Option<EntityConfig> = None;
+        let mut methods: Vec<DeclaredMethod> = Vec::new();
+
+        if req.include_methods && !academic_titles.is_empty() {
+            match extract_concepts(&req.author_name, &academic_titles).await {
+                Ok(extracted) => {
+                    tracing::info!(
+                        target: "hkask.discover",
+                        concepts = extracted.concepts.len(),
+                        places = extracted.places.len(),
+                        events = extracted.events.len(),
+                        "Concepts extracted"
+                    );
+                    entities = Some(extracted);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.discover",
+                        error = %e,
+                        "Concept extraction failed — continuing"
+                    );
+                }
+            }
+        }
+
+        // ── Phase 5b: Method inference (LLM) ────────────────────────────
+        if req.include_methods && cached > 0 {
+            match infer_methods(&req.author_name, &works, &cache_dir).await {
+                Ok(inferred) => {
+                    tracing::info!(
+                        target: "hkask.discover",
+                        methods = inferred.len(),
+                        "Methods inferred"
+                    );
+                    methods = inferred;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.discover",
+                        error = %e,
+                        "Method inference failed — continuing"
+                    );
+                }
+            }
+        }
+
         // ── Phase 5: Generate corpus.yaml ──────────────────────────────────
-        let config_path = generate_corpus_yaml(&author_slug, &works, &output_path)?;
+        // If augmenting, load existing config and merge works (dedup by URL),
+        // preserving entities, methods, foundational_rules, and other metadata.
+        let config_path = if req.augment {
+            augment_corpus_yaml(
+                &author_slug,
+                &works,
+                &output_path,
+                entities.clone(),
+                &methods,
+            )?
+        } else {
+            generate_corpus_yaml_with_metadata(
+                &author_slug,
+                &works,
+                &output_path,
+                entities.clone(),
+                &methods,
+            )?
+        };
 
         tracing::info!(
             target: "hkask.discover",
@@ -313,6 +393,8 @@ impl DiscoveryService {
             sources,
             web_candidates,
             youtube_candidates,
+            entities,
+            methods,
         })
     }
 }
@@ -326,6 +408,17 @@ pub fn generate_corpus_yaml(
     author_slug: &str,
     works: &[DiscoveredWork],
     output_dir: &Path,
+) -> Result<PathBuf, ServiceError> {
+    generate_corpus_yaml_with_metadata(author_slug, works, output_dir, None, &[])
+}
+
+/// Generate a corpus.yaml with extracted entities and inferred methods.
+fn generate_corpus_yaml_with_metadata(
+    author_slug: &str,
+    works: &[DiscoveredWork],
+    output_dir: &Path,
+    entities: Option<EntityConfig>,
+    methods: &[DeclaredMethod],
 ) -> Result<PathBuf, ServiceError> {
     let corpus_works: Vec<Work> = works
         .iter()
@@ -359,13 +452,8 @@ pub fn generate_corpus_yaml(
         budget: hkask_memory::salience::BudgetConfig::PerPage {
             per_100_pages: 3750,
         },
-        entities: crate::embed::EntityConfig {
-            characters: vec![],
-            places: vec![],
-            events: vec![],
-            concepts: vec![],
-        },
-        methods: vec![],
+        entities: entities.unwrap_or_default(),
+        methods: methods.to_vec(),
     };
 
     let config_yaml = serde_yaml::to_string(&config)
@@ -380,6 +468,323 @@ pub fn generate_corpus_yaml(
     })?;
 
     Ok(config_path)
+}
+
+/// Augment an existing corpus.yaml with newly discovered works,
+/// extracted concepts, and inferred methods.
+///
+/// Loads the existing config, merges new works (deduplicated by URL),
+/// merges new concepts (deduplicated by name), merges new methods
+/// (deduplicated by name), and preserves all other existing metadata.
+fn augment_corpus_yaml(
+    author_slug: &str,
+    new_works: &[DiscoveredWork],
+    output_dir: &Path,
+    entities: Option<EntityConfig>,
+    methods: &[DeclaredMethod],
+) -> Result<PathBuf, ServiceError> {
+    let config_path = output_dir.join("corpus.yaml");
+
+    // Load existing config
+    let existing_yaml = std::fs::read_to_string(&config_path).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to read existing corpus.yaml for augmentation: {e}"
+        ))
+    })?;
+    let mut config: CorpusConfig = serde_yaml::from_str(&existing_yaml).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to parse existing corpus.yaml for augmentation: {e}"
+        ))
+    })?;
+
+    // Collect existing URLs for dedup
+    let existing_urls: std::collections::HashSet<&str> =
+        config.works.iter().map(|w| w.url.as_str()).collect();
+
+    // Merge new works (skip duplicates by URL)
+    let added: Vec<Work> = new_works
+        .iter()
+        .filter(|w| !existing_urls.contains(w.url.as_str()))
+        .map(|w| Work {
+            title: w.title.clone(),
+            slug: w.slug.clone(),
+            url: w.url.clone(),
+        })
+        .collect();
+
+    let added_count = added.len();
+    config.works.extend(added);
+
+    // Merge new concepts (dedup by name)
+    if let Some(ref new_entities) = entities {
+        let existing_concept_names: std::collections::HashSet<&str> = config
+            .entities
+            .concepts
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect();
+        let new_concepts: Vec<crate::embed::Entity> = new_entities
+            .concepts
+            .iter()
+            .filter(|e| !existing_concept_names.contains(e.name.as_str()))
+            .cloned()
+            .collect();
+        config.entities.concepts.extend(new_concepts);
+
+        let existing_place_names: std::collections::HashSet<&str> = config
+            .entities
+            .places
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect();
+        let new_places: Vec<crate::embed::Entity> = new_entities
+            .places
+            .iter()
+            .filter(|e| !existing_place_names.contains(e.name.as_str()))
+            .cloned()
+            .collect();
+        config.entities.places.extend(new_places);
+
+        let existing_event_names: std::collections::HashSet<&str> = config
+            .entities
+            .events
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect();
+        let new_events: Vec<crate::embed::Entity> = new_entities
+            .events
+            .iter()
+            .filter(|e| !existing_event_names.contains(e.name.as_str()))
+            .cloned()
+            .collect();
+        config.entities.events.extend(new_events);
+    }
+
+    // Merge new methods (dedup by name)
+    if !methods.is_empty() {
+        let existing_method_names: std::collections::HashSet<&str> =
+            config.methods.iter().map(|m| m.name.as_str()).collect();
+        let new_methods: Vec<DeclaredMethod> = methods
+            .iter()
+            .filter(|m| !existing_method_names.contains(m.name.as_str()))
+            .cloned()
+            .collect();
+        config.methods.extend(new_methods);
+    }
+
+    // Write back
+    let config_yaml = serde_yaml::to_string(&config)
+        .map_err(|e| ServiceError::Embed(format!("Failed to serialize augmented config: {e}")))?;
+    std::fs::write(&config_path, &config_yaml).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to write augmented corpus.yaml to '{}': {e}",
+            config_path.display()
+        ))
+    })?;
+
+    tracing::info!(
+        target: "hkask.discover",
+        slug = %author_slug,
+        existing_works = config.works.len() - added_count,
+        added = added_count,
+        total = config.works.len(),
+        "Corpus augmented"
+    );
+
+    Ok(config_path)
+}
+
+// ── LLM Concept Extraction ───────────────────────────────────────────────────
+
+/// Default template base path relative to project root.
+const TEMPLATE_BASE: &str = "registry/templates/replica";
+
+/// Extract key concepts, places, and events from academic paper titles
+/// using LLM semantic deduplication via the extract-concepts.j2 template.
+async fn extract_concepts(
+    author_name: &str,
+    titles: &[String],
+) -> Result<EntityConfig, ServiceError> {
+    // Build paper list for template (titles only — abstracts not available at this stage)
+    let papers: Vec<serde_json::Value> = titles
+        .iter()
+        .map(|t| {
+            serde_json::json!({
+                "title": t,
+                "abstract": "",
+                "year": "unknown"
+            })
+        })
+        .collect();
+
+    // Render template
+    let template_path = PathBuf::from(TEMPLATE_BASE).join("extract-concepts.j2");
+    let template_src = std::fs::read_to_string(&template_path).map_err(|e| {
+        ServiceError::Embed(format!("Failed to read extract-concepts template: {e}"))
+    })?;
+
+    let mut env = minijinja::Environment::new();
+    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
+    env.add_template_owned("extract-concepts", template_src)
+        .map_err(|e| ServiceError::Embed(format!("Failed to parse template: {e}")))?;
+
+    let tmpl = env
+        .get_template("extract-concepts")
+        .map_err(|e| ServiceError::Embed(format!("Failed to load template: {e}")))?;
+
+    let prompt = tmpl
+        .render(minijinja::context! {
+            author_name,
+            papers,
+            max_concepts => 15,
+        })
+        .map_err(|e| ServiceError::Embed(format!("Failed to render template: {e}")))?;
+
+    // Call inference
+    let inf_cfg = InferenceConfig::from_env();
+    let router = InferenceRouter::new(inf_cfg);
+    let params = hkask_types::template::LLMParameters {
+        temperature: 0.3,
+        max_tokens: 1024,
+        ..Default::default()
+    };
+
+    let result = router
+        .generate(&prompt, &params)
+        .await
+        .map_err(|e| ServiceError::Embed(format!("Concept extraction inference failed: {e}")))?;
+
+    // Parse JSON response
+    let parsed: serde_json::Value = serde_json::from_str(&result.text).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to parse concept extraction response as JSON: {e}"
+        ))
+    })?;
+
+    let concepts = parse_entity_list(&parsed, "concepts");
+    let places = parse_entity_list(&parsed, "places");
+    let events = parse_entity_list(&parsed, "events");
+
+    Ok(EntityConfig {
+        characters: vec![],
+        places,
+        events,
+        concepts,
+    })
+}
+
+/// Infer methodological and stylistic patterns from cached work content
+/// using LLM analysis via the infer-methods.j2 template.
+async fn infer_methods(
+    author_name: &str,
+    works: &[DiscoveredWork],
+    cache_dir: &Path,
+) -> Result<Vec<DeclaredMethod>, ServiceError> {
+    // Sample up to 5 passages from cached content (first ~800 chars of each)
+    let mut sample_passages: Vec<serde_json::Value> = Vec::new();
+    for work in works.iter().take(5) {
+        let cache_path = cache_dir.join(format!("{}.txt", work.slug));
+        if let Ok(content) = std::fs::read_to_string(&cache_path) {
+            let excerpt: String = content.chars().take(800).collect();
+            if excerpt.split_whitespace().count() >= 20 {
+                sample_passages.push(serde_json::json!({
+                    "text": excerpt,
+                    "work_slug": work.slug,
+                }));
+            }
+        }
+    }
+
+    if sample_passages.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Render template
+    let template_path = PathBuf::from(TEMPLATE_BASE).join("infer-methods.j2");
+    let template_src = std::fs::read_to_string(&template_path)
+        .map_err(|e| ServiceError::Embed(format!("Failed to read infer-methods template: {e}")))?;
+
+    let mut env = minijinja::Environment::new();
+    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
+    env.add_template_owned("infer-methods", template_src)
+        .map_err(|e| ServiceError::Embed(format!("Failed to parse template: {e}")))?;
+
+    let tmpl = env
+        .get_template("infer-methods")
+        .map_err(|e| ServiceError::Embed(format!("Failed to load template: {e}")))?;
+
+    let prompt = tmpl
+        .render(minijinja::context! {
+            author_name,
+            author_domain => "academic",
+            sample_passages,
+        })
+        .map_err(|e| ServiceError::Embed(format!("Failed to render template: {e}")))?;
+
+    // Call inference
+    let inf_cfg = InferenceConfig::from_env();
+    let router = InferenceRouter::new(inf_cfg);
+    let params = hkask_types::template::LLMParameters {
+        temperature: 0.3,
+        max_tokens: 1024,
+        ..Default::default()
+    };
+
+    let result = router
+        .generate(&prompt, &params)
+        .await
+        .map_err(|e| ServiceError::Embed(format!("Method inference failed: {e}")))?;
+
+    // Parse JSON response
+    let parsed: serde_json::Value = serde_json::from_str(&result.text).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to parse method inference response as JSON: {e}"
+        ))
+    })?;
+
+    let methods: Vec<DeclaredMethod> = parsed["methods"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let name = m["name"].as_str()?.to_string();
+                    let description = m["description"].as_str().unwrap_or("").to_string();
+                    let signal: MethodThresholds =
+                        serde_json::from_value(m["signal"].clone()).unwrap_or_default();
+                    Some(DeclaredMethod {
+                        name,
+                        description,
+                        signal,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(methods)
+}
+
+/// Parse an entity list from a JSON field (e.g., "concepts", "places", "events").
+fn parse_entity_list(parsed: &serde_json::Value, field: &str) -> Vec<crate::embed::Entity> {
+    parsed[field]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| {
+                    let name = v["name"].as_str()?.to_string();
+                    let appears_in: Vec<String> = v["appears_in"]
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|s| s.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    Some(crate::embed::Entity { name, appears_in })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 // ── MCP web_search helper ───────────────────────────────────────────────────
@@ -720,15 +1125,30 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 
-fn slugify(s: &str) -> String {
-    s.to_lowercase()
+pub fn slugify(s: &str) -> String {
+    let slug = s
+        .to_lowercase()
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .split('-')
         .filter(|p| !p.is_empty())
         .collect::<Vec<_>>()
-        .join("-")
+        .join("-");
+
+    // Fallback to UUID-based slug for all-non-ASCII titles
+    if slug.is_empty() {
+        let uuid_slug = uuid::Uuid::new_v4().to_string();
+        tracing::warn!(
+            target: "hkask.discover",
+            input = %s,
+            fallback = %uuid_slug,
+            "slugify produced empty string — using UUID fallback"
+        );
+        uuid_slug
+    } else {
+        slug
+    }
 }
 
 fn extract_search_terms(author: &str, titles: &[String]) -> String {

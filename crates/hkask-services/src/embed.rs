@@ -129,7 +129,7 @@ pub struct CorpusConfig {
 }
 
 /// Entity declarations for corpus-specific tagging.
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct EntityConfig {
     #[serde(default)]
     pub characters: Vec<Entity>,

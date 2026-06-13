@@ -19,7 +19,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 
 | Crate/MCP Server | Tests | Module |
 |------------------|-------|--------|
-| `hkask-services` | 29 | chat (9), cns (3), pods (3), goal (3), curator (2), 9 others |
+| `hkask-services` | 35 | chat (9), cns (3), pods (3), goal (3), curator (2), 15 others |
 | `hkask-cli` | 25 | settings (12), repl_settings (4), turn/compaction (3), onboarding (3), feedback (3) |
 | `hkask-storage` | 18 | spec_store (6), spec_types (5), store_macros (4 doc-tests), lock_helpers (3 doc-tests) |
 | `hkask-templates` | 12 | contract_validator (5), lexicon (6), okapi_config (1 doc-test) |
@@ -39,7 +39,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
 | `hkask-mcp-fal` | 0 | Shallow module — API proxy (C8) |
 
-**Total: 187 tests across 18 crates** (↑ from 130)
+**Total: 193 tests across 18 crates** (↑ from 130)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |

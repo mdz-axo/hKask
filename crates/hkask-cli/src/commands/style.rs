@@ -27,6 +27,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
             no_web,
             no_curate,
             search_terms,
+            no_methods,
         } => super::discover::run(
             rt,
             author_name,
@@ -38,6 +39,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
             !no_web,
             !no_curate,
             search_terms,
+            !no_methods,
         ),
     }
 }

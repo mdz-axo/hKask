@@ -224,4 +224,22 @@ pub enum Commands {
         #[command(subcommand)]
         action: WalletAction,
     },
+
+    /// List artifacts in a registry (e.g., "styles", "bots", "templates")
+    List {
+        /// Registry name to list (e.g., "styles")
+        registry: String,
+    },
+
+    /// Remove an artifact from a registry (e.g., "styles-hemingway")
+    Rm {
+        /// Registry and artifact name, hyphen-separated (e.g., "styles-hemingway")
+        target: String,
+        /// Database path
+        #[arg(short, long, env = "HKASK_DB_PATH")]
+        db: Option<String>,
+        /// Database passphrase
+        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
+        passphrase: Option<String>,
+    },
 }

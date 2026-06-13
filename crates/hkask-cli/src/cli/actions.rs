@@ -506,6 +506,9 @@ pub enum StyleAction {
         /// Search terms for web + YouTube queries (e.g., "Dunning-Kruger effect metacognition overconfidence")
         #[arg(long)]
         search_terms: Option<String>,
+        /// Skip LLM-based concept extraction and method inference
+        #[arg(long)]
+        no_methods: bool,
     },
 }
 

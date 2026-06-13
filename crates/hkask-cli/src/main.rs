@@ -121,5 +121,13 @@ fn main() {
         }
 
         Commands::Wallet { action } => commands::wallet::run(action),
+
+        Commands::List { registry } => commands::registry::run_list(&rt, registry),
+
+        Commands::Rm {
+            target,
+            db,
+            passphrase,
+        } => commands::registry::run_rm(&rt, target, db, passphrase),
     }
 }

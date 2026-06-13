@@ -1,0 +1,139 @@
+# Software documentation guide — Write the Docs
+
+Software documentation guide — Write the Docs
+
+Berlin 2026 tickets are on sale! Get your ticket.
+
+# Software documentation guide¶
+
+This guide gathers the collective wisdom of the Write the Docs community around best practices for creating software documentation and technical writing. The guide originally started for developers to understand and explain documentation to each other. Since then, the focus and community of Write the Docs has expanded.
+
+This is a living, breathing guide. If you'd like to contribute, take a look at the guidelines for contributing to the guide.
+
+## How to start writing technical documentation¶
+
+How to write software documentation
+
+- Why write software documentation?
+- What to include in software documentation
+- Next steps for software documentation
+- Tools for writing software documentation
+
+Getting started: documentation best practices for developers
+
+- Writing documentation as an open-source developer
+- Justifying documentation as a developer at a company
+
+Building documentation mindshare in a company
+
+- General documentation principles
+- Principles for great content
+- Principles for content sources
+- Principles for publications
+- Principles for the body of publications
+
+- "Anyone can write"
+- Perspective
+- Complex information and user context
+- Dealing with knowledge gaps
+- Documentation as a part of the product
+
+## Resources for creating documentation¶
+
+Accessibility guidelines: for writing and beyond
+
+- Good introductions to accessibility
+- More resources
+- Exhaustive resources for web accessibility
+- Relevant talks from Write the Docs:
+
+Reducing bias in your writing
+
+- Providing inclusive example names
+
+Producing documentation inside a Support team
+
+- Advantages of working as a tech writer and support agent
+- Tips for support agents wanting to start writing technical documentation
+- Tips for tech writers wanting to start in support
+- Tips for tech writers who want to work in their own role within support
+
+## Approaches to creating documentation¶
+
+- Docs as Code at Write the Docs
+- Docs as Code at other conferences, video casts and articles
+
+- What is DocOps, anyway?
+- Who practices DocOps?
+- DocOps resources
+
+## Understanding markup languages¶
+
+- What is Markdown?
+- Why use Markdown?
+- How to use Markdown
+
+- What is reStructuredText?
+- Why use reStructuredText?
+- How to use reStructuredText
+- Resources
+
+- What is XML?
+- Why use XML?
+- How to use XML
+- Resources
+
+- What is AsciiDoc?
+- Why use AsciiDoc?
+- How to use AsciiDoc?
+- Resources
+
+## Documentation tools¶
+
+Choosing tools for documentation
+
+- Questions to ask
+- Considerations and "gotchas"
+
+Tools for documentation writing
+
+- Sphinx
+- Other documentation tools
+- Testing and quality
+
+Search engine optimization (SEO) for documentation
+
+- What is search engine optimization?
+- SEO for documentation
+- SEO resources
+
+## How to write API documentation¶
+
+## Contributing to Write the Docs¶
+
+About Write the Docs
+
+- Vision
+- Interesting approaches to documentation
+- Documentation community
+
+Contributing to the Write the Docs guide
+
+- How to contribute
+- What to contribute
+- Contribution guidelines
+- Editing a single guide via the GitHub UI
+- Updating a guide via a pull request
+- Community
+
+## Write the Docs resources¶
+
+Issues & feature requests: https://github.com/writethedocs/docs/issues
+
+---
+
+## Missing something?
+
+You can always contribute to our guide on GitHub.
+
+© Write the Docs

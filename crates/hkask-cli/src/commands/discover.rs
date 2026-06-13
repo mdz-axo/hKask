@@ -7,7 +7,7 @@
 //! Generates a corpus.yaml ready for `kask style embed-corpus`.
 
 use hkask_services::{
-    DiscoverRequest, DiscoveredWork, DiscoveryService, download_and_cache, generate_corpus_yaml,
+    DiscoverRequest, DiscoveredWork, DiscoveryService, download_and_cache, slugify,
 };
 use hkask_templates::ports::McpPort;
 
@@ -25,6 +25,7 @@ pub fn run(
     include_web: bool,
     curated: bool,
     search_terms: Option<String>,
+    include_methods: bool,
 ) {
     eprintln!("=== Discovering corpus for '{}' ===", author_name);
 
@@ -63,17 +64,46 @@ pub fn run(
         .mcp_dispatcher()
         .issue_capability("tools".to_string(), from, to);
 
+    // ── Augment detection ──────────────────────────────────────────────
+    let author_slug = slugify(&author_name);
+    let output_dir_resolved = output_dir
+        .clone()
+        .unwrap_or_else(|| format!("./{}", author_slug));
+    let corpus_yaml_path = std::path::PathBuf::from(&output_dir_resolved).join("corpus.yaml");
+
+    let augment = if curated && corpus_yaml_path.exists() {
+        eprintln!();
+        eprintln!(
+            "Found existing corpus for '{}' at {}",
+            author_name,
+            corpus_yaml_path.display()
+        );
+        eprintln!(
+            "  [A]ugment — merge new works into existing corpus (preserves entities, methods, rules)"
+        );
+        eprintln!("  [N]ew    — create a fresh corpus (overwrites existing)");
+        eprint!("  > ");
+        std::io::stderr().flush().ok();
+
+        let mut line = String::new();
+        std::io::stdin().lock().read_line(&mut line).ok();
+        matches!(line.trim().to_lowercase().as_str(), "a" | "augment")
+    } else {
+        false
+    };
+
     let req = DiscoverRequest {
         author_name: author_name.clone(),
         max_works,
-        cache_dir,
-        output_dir,
-        serpapi_key,
+        cache_dir: cache_dir.clone(),
+        output_dir: output_dir.clone(),
+        serpapi_key: serpapi_key.clone(),
         include_transcripts,
         include_web,
         curated,
-        web_search_terms: search_terms,
-        augment: false,
+        web_search_terms: search_terms.clone(),
+        augment,
+        include_methods,
     };
 
     let result = rt.block_on(DiscoveryService::discover(&req, mcp.as_ref(), &token));
@@ -145,58 +175,65 @@ pub fn run(
                         .clone()
                         .unwrap_or_else(|| format!("./{}", r.author_slug)),
                 );
-                let existing_config: hkask_services::CorpusConfig = serde_yaml::from_str(
-                    &std::fs::read_to_string(&r.config_path).unwrap_or_default(),
-                )
-                .unwrap_or_else(|_| hkask_services::CorpusConfig {
-                    author: r.author_slug.clone(),
-                    embedding: hkask_services::EmbeddingConfig {
-                        model: String::new(),
-                        dim: 1024,
-                        batch_size: 64,
-                    },
-                    works: vec![],
-                    foundational_rules: vec![],
-                    chunking: hkask_services::ChunkingConfig {
-                        min_words: 50,
-                        max_words: 200,
-                        sentence_boundary: ".!? ".to_string(),
-                    },
-                    centroid_entity_ref: String::new(),
-                    validation: hkask_services::ValidationConfig {
-                        centroid_distance_max: 0.25,
-                        exemplar_count_min: 3,
-                        exemplar_count_max: 7,
-                    },
-                    budget: hkask_memory::salience::BudgetConfig::PerPage {
-                        per_100_pages: 3750,
-                    },
-                    entities: Default::default(),
-                    methods: vec![],
-                });
+                let config_path = output_dir.join("corpus.yaml");
 
-                let mut combined: Vec<DiscoveredWork> = existing_config
-                    .works
+                // Load the config that DiscoveryService already wrote
+                // (which preserves entities/methods/rules when augmenting)
+                let existing_yaml = std::fs::read_to_string(&config_path).unwrap_or_default();
+                let mut config: hkask_services::CorpusConfig = serde_yaml::from_str(&existing_yaml)
+                    .unwrap_or_else(|_| hkask_services::CorpusConfig {
+                        author: r.author_slug.clone(),
+                        embedding: hkask_services::EmbeddingConfig {
+                            model: String::new(),
+                            dim: 1024,
+                            batch_size: 64,
+                        },
+                        works: vec![],
+                        foundational_rules: vec![],
+                        chunking: hkask_services::ChunkingConfig {
+                            min_words: 50,
+                            max_words: 200,
+                            sentence_boundary: ".!? ".to_string(),
+                        },
+                        centroid_entity_ref: String::new(),
+                        validation: hkask_services::ValidationConfig {
+                            centroid_distance_max: 0.25,
+                            exemplar_count_min: 3,
+                            exemplar_count_max: 7,
+                        },
+                        budget: hkask_memory::salience::BudgetConfig::PerPage {
+                            per_100_pages: 3750,
+                        },
+                        entities: Default::default(),
+                        methods: vec![],
+                    });
+
+                // Dedup: only add curated works whose URLs aren't already in the config
+                let existing_urls: std::collections::HashSet<&str> =
+                    config.works.iter().map(|w| w.url.as_str()).collect();
+                let new_works: Vec<hkask_services::Work> = all_works
                     .iter()
-                    .map(|w| DiscoveredWork {
+                    .filter(|w| !existing_urls.contains(w.url.as_str()))
+                    .map(|w| hkask_services::Work {
                         title: w.title.clone(),
                         slug: w.slug.clone(),
                         url: w.url.clone(),
-                        year: None,
-                        source: "academic".to_string(),
-                        work_type: "paper".to_string(),
                     })
                     .collect();
-                combined.extend(all_works);
+                config.works.extend(new_works);
 
-                match generate_corpus_yaml(&r.author_slug, &combined, &output_dir) {
-                    Ok(new_path) => {
-                        r.config_path = new_path.to_string_lossy().to_string();
-                        eprintln!("Updated config: {}", r.config_path);
+                // Serialize and write back, preserving all metadata
+                match serde_yaml::to_string(&config) {
+                    Ok(yaml) => {
+                        if let Err(e) = std::fs::write(&config_path, &yaml) {
+                            eprintln!("Warning: failed to write config: {e}");
+                        } else {
+                            r.config_path = config_path.to_string_lossy().to_string();
+                            eprintln!("Updated config: {}", r.config_path);
+                        }
                     }
                     Err(e) => {
-                        eprintln!("Warning: failed to regenerate config: {e}");
-                        eprintln!("Using original config: {}", r.config_path);
+                        eprintln!("Warning: failed to serialize config: {e}");
                     }
                 }
             }

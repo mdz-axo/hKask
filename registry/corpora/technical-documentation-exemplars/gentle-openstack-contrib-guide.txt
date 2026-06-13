@@ -1,0 +1,83 @@
+# OpenStack Documentation Contributor Guide — Documentation Contributor Guide documentation
+
+# OpenStack Documentation Contributor Guide¶
+
+## Abstract¶
+
+This guide provides detailed instructions on the contribution workflow and conventions to be considered by all documentation contributors. Please follow these guidelines to keep the documentation structure, style, and syntax consistent.
+
+## Contents¶
+
+2017/2018 documentation team vision
+
+- New contributors with English as a second language
+- Working with non-native English speakers
+
+- Installation Guides
+- Deployment guides
+
+Governance tag documentation guidelines
+
+- Source files for developer.openstack.org
+- Standards for API reference in OpenStack
+- Versions and releases for API reference information
+- How to document your OpenStack API service
+
+- Topic structure
+- Topic tags
+- Additional Git workflow
+
+OpenStack user experience and user interface guidelines
+
+- OpenStack personas
+- GUI guidelines
+- UI text guidelines
+
+- Use diagrams sparingly
+- Tools
+- Use recommended file formats
+- General guidelines
+
+- Clone a repository first
+- Building output locally
+- Build jobs
+- Building docs from end-of-life releases
+
+- Adding a .htaccess file to your repo
+- Enable detailed redirects for your project
+- Testing your redirects
+- Optional: Generating .htaccess files from Git
+
+- Scripts overview
+- Template generator details
+- Install OpenStack documentation tools
+- Contribute to OpenStack documentation tools
+
+Publishing a documentation release
+
+- Release tasks overview
+- Release task detail
+- Releasing tools
+
+## Glossary¶
+
+## Search¶
+
+this page last updated: 2026-05-12 18:27:04
+
+Except where otherwise noted, this document is licensed under Creative Commons Attribution 3.0 License. See all OpenStack Legal Documents.
+
+found an error? report a bug
+
+OpenStack Documentation
+
+#### Documentation Contributor Guide
+
+#### Page Contents
+
+OpenStack Documentation Contributor Guide
+
+- Abstract
+- Contents
+- Glossary
+- Search

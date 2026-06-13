@@ -1,0 +1,83 @@
+# Docs Like Code — A modern approach to technical documentation | Let's Treat Docs Like Code
+Author: Anne Gentle
+
+Docs Like Code─A modern approach to technical documentation | Let's Treat Docs Like Code
+
+Menu
+
+📘 Now in its Second Edition
+
+# Ship better docs by treating them like code
+
+Version control, automation, and real team collaboration — the same workflow developers already use, applied to technical documentation. This site and the book behind it show you exactly how.
+
+Get the Book — Print or Ebook What's inside?
+
+Available in print and ebook via Lulu · by Anne Gentle
+
+"This book will be the go-to guide for people looking to get into the Docs like Code world. It has been on my list to write for a while, and I'm glad someone did for me."
+
+— Eric Holscher, Co-founder of Read the Docs & Write the Docs
+
+### Version every change
+
+Use Git to track who changed what and why — for docs, not just code.
+
+### Automate your builds
+
+CI/CD pipelines that publish your docs on every merge, no manual steps.
+
+### Review with pull requests
+
+Writers and developers collaborate in the same workflow they already know.
+
+### Scale with your team
+
+Patterns that work whether you're a solo writer or a distributed doc team.
+
+## Who this is for
+
+Technical Writers Work alongside engineers without losing control of your docs.
+
+Developer Advocates Publish and maintain API docs that stay in sync with the code.
+
+Engineering Teams Adopt a lightweight docs workflow that fits your existing CI/CD setup.
+
+Doc Team Leads Build systems that don't break when headcount or tooling changes.
+
+What's new in the Second Edition? Updated coverage of modern static site generators, expanded CI/CD automation examples, new case studies from teams at Sysdig, platformOS, and Redis, plus a deeper look at REST API documentation and OpenAPI workflows. See full table of contents →
+
+## Try it in your browser — under 10 minutes
+
+No local setup needed. All you need is a GitHub account.
+
+1. Create a free GitHub account at github.com. (Free vs Pro — which plan?)
+2. Create a new repository named`yourusername.github.io`— for example,`annegentle.github.io`.
+3. On the repository's Code tab, click Add file → Create new file.
+4. Name the file`index.md` and add a line of text — this becomes your live web page.
+5. Click Commit new file.
+6. Wait a few seconds, then visit`https://yourusername.github.io`. See annegentle.github.io for a live example. Don't see a page? Go to Settings → Pages in your repo and verify GitHub Pages is enabled. More scenarios at pages.github.com.
+
+That's the core loop: write a file, commit it, and it publishes automatically. The book and guides on this site show you how to take that same idea much further.
+
+📚 Lessons & exercises →📰 Articles & case studies →🛒 Buy the book →
+
+When you want to allow the docs team members to maintain docs within a code repo, while giving the docs team autonomy over their own reviews and merges, you can use a protected branch and a CODEOWNERS file.
+
+Sysdig's journey from unstructured to structured, and finally, to semi-structured authoring and how Sysdig hackathon enabled designing their homegrown docs-like-code solution.
+
+Techdocs is Spotify's homegrown docs like code solution. it allows the user to store documentation to near code thus allowing it to be easily discovered.
+
+Review the results of a mid-2020 survey about learning and teaching team mates and yourself how to work with docs like code, Git, and GitHub for technical documentation.
+
+Learn about one team's journey to keep a long-term relationship with their docs-like-code system, TechDocs, which is open source and available to all.
+
+Welcome to part 4 of our article series, where we take a look under the hood, discuss the technologies we used, how we built our auto-generated API Reference, and how we use GitHub for our docs as code workflow and more.
+
+Learn some pro tips to build Python Sphinx developer docs to both GitHub Pages and your local system.
+
+Welcome to part 3 of our article series where we explore how we collaborate with our community.
+
+Why Redis is joining the revolution of open source docs.
+
+Welcome to part 2 of our article series where we discuss how content production started, and how we created the layouts and navigation for the site.

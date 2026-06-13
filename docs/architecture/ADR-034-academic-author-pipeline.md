@@ -1,17 +1,17 @@
 ---
 title: "ADR-034: Academic Author Pipeline Architecture"
 audience: [architects, developers]
-last_updated: 2026-06-11
+last_updated: 2026-06-12
 version: "0.27.0"
-status: "Draft"
+status: "Active"
 domain: "Cross-cutting"
 mds_categories: [composition, curation]
 ---
 
 # ADR-034 — Academic Author Pipeline Architecture
 
-**Status:** Proposed (design decisions documented, implementation pending)
-**Date:** 2026-06-11
+**Status:** Active (implemented 2026-06-12, see `crates/hkask-services/src/discover.rs`)
+**Date:** 2026-06-11 (proposed), 2026-06-12 (implemented)
 **Version:** hKask v0.27.0
 
 ## Context

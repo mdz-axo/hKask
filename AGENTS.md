@@ -81,6 +81,12 @@ kask pod assign <name> <role>                # Assign MCP role to replicant (e.g
 kask pod mode <name> server -r <role>        # Put replicant in server mode serving a role
 kask pod mode <name> chat                    # Put replicant in chat mode
 kask pod mode <name> exit                    # Exit current mode
+kask style discover "David Dunning"          # Discover academic author corpus
+kask style discover "Author" --no-methods   # Skip LLM concept/method extraction
+kask style discover "Author" --no-curate     # Skip interactive curation
+kask style embed-corpus --config <yaml> --db <path> --passphrase <phrase>  # Build corpus
+kask list styles                             # List all built style corpora
+kask rm styles-hemingway --db <path> --passphrase <phrase>  # Remove a style corpus
 ```
 
 ### Replicant Server Mode (MCP)
