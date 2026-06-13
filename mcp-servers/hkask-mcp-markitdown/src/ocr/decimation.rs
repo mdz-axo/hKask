@@ -6,6 +6,8 @@
 //!
 //! Applies contrast stretching to each page image to improve edge
 //! detection for complexity scoring and OCR quality on low-contrast scans.
+//! Optional fal.ai preprocessing (gated behind FA_API_KEY) can supplement
+//! contrast stretching with AI-based enhancement when available.
 
 use hkask_types::ocr::PipelineError;
 use image::{DynamicImage, GenericImageView};
@@ -88,6 +90,49 @@ pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, Pip
 
     // temp_dir is dropped here, cleaning up page files
     Ok(images)
+}
+
+/// Preprocess a page image via fal.ai vision model for OCR quality improvement.
+///
+/// # Cost-Benefit Analysis
+///
+/// | Approach | Cost | Latency | Capability |
+/// |----------|------|---------|------------|
+/// | `stretch_contrast()` | Free | O(w·h), local | Contrast expansion only |
+/// | fal.ai preprocessing | ~$0.15/1M tokens | Network RTT + inference | Deskew, denoise, enhance |
+///
+/// **Current status:** fal.ai chat completions return text, not enhanced images.
+/// Image-to-image enhancement requires a different fal.ai endpoint (e.g.,
+/// `fal-ai/real-esrgan` or similar). This function is a documented stub —
+/// it falls through to `stretch_contrast()` until the correct endpoint is
+/// identified and cost-benefit is validated with real scanned documents.
+///
+/// # When to Activate
+///
+/// 1. Identify a fal.ai image-to-image model suitable for document cleanup
+/// 2. Benchmark OCR accuracy with/without fal.ai preprocessing on ≥20 real scans
+/// 3. If accuracy improvement ≥5% (measured via cross-validation similarity),
+///    implement the fal.ai call here
+/// 4. Gate behind `FA_API_KEY` presence; fall back to `stretch_contrast()`
+///
+/// # Arguments
+/// * `image` — Page image to preprocess (mutated in-place).
+/// * `_model` — Reserved for future fal.ai model selection.
+/// * `_router` — Reserved for future inference router access.
+#[allow(dead_code)]
+pub(crate) fn preprocess_via_fal(
+    image: &mut DynamicImage,
+    _model: &str,
+    _router: Option<&hkask_inference::InferenceRouter>,
+) {
+    // Stub: falls through to local contrast stretching.
+    // When fal.ai image-to-image endpoint is integrated:
+    //   1. Encode image as base64
+    //   2. Send to fal.ai with prompt: "Clean up this document image for OCR.
+    //      Enhance contrast, deskew, remove noise, sharpen text."
+    //   3. Decode returned image and replace `image` with enhanced version
+    //   4. On failure, fall back to stretch_contrast()
+    stretch_contrast(image);
 }
 
 /// Stretch contrast of a page image to full 0–255 range.

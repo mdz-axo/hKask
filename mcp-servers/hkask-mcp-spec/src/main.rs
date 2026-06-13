@@ -9,13 +9,13 @@ pub mod types;
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
-use hkask_inference::InferenceConfig;
+use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_services::{
     CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
-    InferenceContext, RetrievalSection, ValidationSection,
+    InferenceContext, RetrievalSection, ValidationSection, cosine_distance,
 };
-use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId};
+use hkask_storage::{Database, EmbeddingStore, SpecStore};
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
     TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
@@ -184,24 +184,149 @@ impl SpecServer {
         boundaries
     }
 
-    /// Basic writing quality heuristic: assess spec structure as proxy for the
-    /// 4-perspective test (Hopper/Lovelace/Schriver/Gentle).
-    fn assess_writing_quality(&self, spec: &Spec) -> WritingQualityScore {
+    /// Writing quality assessment for a spec.
+    ///
+    /// When `replica_persona` and DB credentials are provided, performs
+    /// embedding-based comparison against the persona's dimension centroids.
+    /// Otherwise falls back to the structural heuristic.
+    async fn assess_writing_quality(
+        &self,
+        spec: &Spec,
+        replica_persona: Option<&str>,
+        db_path: Option<&str>,
+        db_passphrase: Option<&str>,
+    ) -> (WritingQualityScore, Option<Vec<DimensionScore>>) {
+        // ── Structural heuristic (always computed) ─────────────────
         let has_description = !spec.name.is_empty();
         let has_goals = !spec.goals.is_empty();
         let has_criteria = spec.goals.iter().any(|g| !g.criteria.is_empty());
         let has_verbs = !spec.declared_verbs.is_empty();
 
-        WritingQualityScore {
-            // Hopper: can zero-context reader understand? → spec has goals + criteria
+        let heuristic = WritingQualityScore {
             hopper: has_goals && has_criteria,
-            // Lovelace: can reader write a correct test? → spec has criteria
             lovelace: has_criteria,
-            // Schriver: can reader find answer in 30s? → spec has description + goals
             schriver: has_description && has_goals,
-            // Gentle: would AI agent behave correctly? → spec has declared verbs
             gentle: has_description && has_verbs,
+        };
+
+        // ── Embedding-based comparison (when replica + DB available) ─
+        let dimension_scores = match (replica_persona, db_path, db_passphrase) {
+            (Some(persona), Some(path), Some(passphrase)) => {
+                match self
+                    .compare_against_replica(spec, persona, path, passphrase)
+                    .await
+                {
+                    Ok(scores) => Some(scores),
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "hkask.mcp.spec",
+                            persona = %persona,
+                            error = %e,
+                            "Replica comparison failed, using heuristic only"
+                        );
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+
+        (heuristic, dimension_scores)
+    }
+
+    /// Embed spec content and compute cosine distances against persona centroids.
+    async fn compare_against_replica(
+        &self,
+        spec: &Spec,
+        persona: &str,
+        db_path: &str,
+        db_passphrase: &str,
+    ) -> Result<Vec<DimensionScore>, String> {
+        let db = Database::open(db_path, db_passphrase).map_err(|e| e.to_string())?;
+        let conn = db.conn_arc();
+        let store = EmbeddingStore::new(conn);
+
+        // Build document text from spec content
+        let doc_text = format!(
+            "{}: Goals: {}. Criteria: {}.",
+            spec.name,
+            spec.goals
+                .iter()
+                .map(|g| g.text.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
+            spec.goals
+                .iter()
+                .flat_map(|g| &g.criteria)
+                .map(|c| c.description.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
+        );
+
+        // Embed the document
+        let settings = HkaskSettings::load();
+        let emb_model = settings.embedding_model();
+        let inf_cfg = InferenceConfig::from_env();
+        let embedder = EmbeddingRouter::new(inf_cfg);
+        let vectors = embedder
+            .embed_sentences(&emb_model, &[doc_text.as_str()])
+            .await
+            .map_err(|e| format!("Failed to embed document: {e}"))?;
+        let doc_vec = vectors
+            .first()
+            .ok_or_else(|| "Embedding returned empty result".to_string())?;
+
+        // Query centroids for this persona
+        let prefix = format!("style:{}:", persona);
+        let all_refs = store.query_by_prefix(&prefix).map_err(|e| e.to_string())?;
+
+        let mut dimension_scores: Vec<DimensionScore> = Vec::new();
+
+        for entity_ref in &all_refs {
+            // Only process centroid entities
+            let last_segment = entity_ref.rsplit(':').next().unwrap_or(entity_ref);
+            if !last_segment.ends_with("-centroid") && last_segment != "centroid" {
+                continue;
+            }
+
+            let emb = store.get(entity_ref).map_err(|e| e.to_string())?;
+            let dist = cosine_distance(doc_vec, &emb.vector);
+
+            // Derive dimension name from entity_ref
+            let dimension = if last_segment == "centroid" {
+                "composite".to_string()
+            } else if let Some(dim) = last_segment.strip_suffix("-centroid") {
+                dim.to_string()
+            } else {
+                continue;
+            };
+
+            let dim_passage_count = all_refs
+                .iter()
+                .filter(|r| {
+                    let seg = r.rsplit(':').next().unwrap_or(r);
+                    !seg.ends_with("-centroid")
+                        && seg != "centroid"
+                        && r.to_lowercase().contains(&dimension)
+                })
+                .count();
+
+            dimension_scores.push(DimensionScore {
+                dimension,
+                centroid_ref: entity_ref.clone(),
+                cosine_distance: dist,
+                qualitative: if dist <= 0.2 {
+                    "strong".to_string()
+                } else if dist <= 0.4 {
+                    "aligned".to_string()
+                } else {
+                    "divergent".to_string()
+                },
+                passage_count: dim_passage_count,
+            });
         }
+
+        Ok(dimension_scores)
     }
 
     /// Basic goal decomposition: split description into sentences as sub-goals.
@@ -432,6 +557,8 @@ impl SpecServer {
             spec_id,
             notes: _,
             replica_persona,
+            db_path,
+            db_passphrase,
             capability_token,
         }): Parameters<WritingQualityRequest>,
     ) -> String {
@@ -450,14 +577,32 @@ impl SpecServer {
             Err((kind, msg)) => return span.error(kind, msg),
         };
 
-        let quality = self.assess_writing_quality(&spec);
+        let (quality, dimension_scores) = self
+            .assess_writing_quality(
+                &spec,
+                replica_persona.as_deref(),
+                db_path.as_deref(),
+                db_passphrase.as_deref(),
+            )
+            .await;
+
+        // When embedding scores are available, use them for the pass/fail decision.
+        // A dimension passes if cosine_distance ≤ 0.4.
+        let (dimensions_passing, meets_standard) = match &dimension_scores {
+            Some(scores) if !scores.is_empty() => {
+                let passing = scores.iter().filter(|s| s.cosine_distance <= 0.4).count();
+                (passing, passing >= 3)
+            }
+            _ => (quality.passes(), quality.meets_publication_standard()),
+        };
 
         respond(
             span,
             &WritingQualityResponse {
-                dimensions_passing: quality.passes(),
-                meets_publication_standard: quality.meets_publication_standard(),
+                dimensions_passing,
+                meets_publication_standard: meets_standard,
                 replica_persona: replica_persona.clone(),
+                dimension_scores,
             },
         )
     }

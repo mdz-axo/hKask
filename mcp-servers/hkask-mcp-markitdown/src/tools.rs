@@ -13,6 +13,7 @@ use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
+use hkask_types::ports::CnsObserver;
 use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -79,6 +80,8 @@ pub struct MarkitdownServer {
     ocr_thresholds: ThresholdConfig,
     /// Embedding router for semantic cross-validation (None if unavailable).
     embedding_router: Option<EmbeddingRouter>,
+    /// CNS observer for pipeline events → daemon → NuEventStore → CurationLoop.
+    cns_observer: MarkitdownCnsObserver,
 }
 
 impl MarkitdownServer {
@@ -91,6 +94,7 @@ impl MarkitdownServer {
         ocr_thresholds: ThresholdConfig,
         embedding_router: Option<EmbeddingRouter>,
     ) -> anyhow::Result<Self> {
+        let cns_observer = MarkitdownCnsObserver::new(daemon.clone(), &replicant);
         Ok(Self {
             webid,
             replicant,
@@ -99,12 +103,13 @@ impl MarkitdownServer {
             inference_config,
             ocr_thresholds,
             embedding_router,
+            cns_observer,
         })
     }
 
     /// Persist pipeline outcome to daemon for CNS observability.
     /// Routes through the Curator's NuEvent → NuEventStore → CurationLoop path.
-    fn persist_pipeline_outcome(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+    async fn persist_pipeline_outcome(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
         if let Some(ref daemon) = self.daemon {
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();
@@ -145,6 +150,50 @@ impl MarkitdownServer {
                 }
             });
         }
+
+        // Emit through CNS observer for NuEvent → NuEventStore → CurationLoop path.
+        // Constructs a NuEvent from the pipeline outcome and feeds it to the
+        // CnsObserver, which persists via daemon store_experience.
+        self.emit_pipeline_event(outcome).await;
+    }
+
+    /// Emit a CNS pipeline event through the CnsObserver.
+    ///
+    /// Constructs a `NuEvent` with `cns.pipeline` namespace and the pipeline
+    /// outcome as observation data. The observer persists it to the daemon
+    /// for CNS → CurationLoop consumption.
+    async fn emit_pipeline_event(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+        use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+
+        let observation = serde_json::json!({
+            "total_pages": outcome.results.len(),
+            "error_count": outcome.errors.len(),
+            "verification_passed": outcome.report.passed,
+            "page_count_match": outcome.report.page_count_match,
+            "empty_page_count": outcome.report.empty_pages.len(),
+            "word_count_delta_pct": outcome.report.word_count_delta_pct,
+            "cross_validation_count": outcome.cross_validations.len(),
+            "mean_cross_validation_similarity": if outcome.cross_validations.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!(outcome.cross_validations.iter()
+                    .map(|cv| cv.similarity)
+                    .sum::<f32>() / outcome.cross_validations.len() as f32)
+            },
+        });
+
+        let event = NuEvent::new(
+            self.webid.clone(),
+            Span::new(SpanNamespace::new("cns.pipeline"), "ocr.verification"),
+            Phase::Sense,
+            observation,
+            0,
+        )
+        .with_visibility("private");
+
+        // Fire-and-forget: observer persists asynchronously via daemon.
+        // on_event() internally spawns the daemon call, so this returns immediately.
+        self.cns_observer.on_event(&event).await;
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.
@@ -294,17 +343,17 @@ impl OcrExecutor for MarkitdownServer {
 // ── CnsObserver implementation (tracing-based) ──────────────────────────
 
 /// CNS observer that implements the real `hkask_types::ports::CnsObserver` trait.
-/// Scaffolding for future NuEvent → NuEventStore → CurationLoop integration.
-/// Currently unused — OCR pipeline emits tracing spans directly.
-#[allow(dead_code)]
+/// Routes pipeline events through the daemon to NuEventStore → CurationLoop.
+///
+/// Currently invoked directly by the server after each pipeline run.
+/// Full CNS runtime registration (via daemon-mediated subscribe) is the
+/// future upgrade path when the daemon exposes observer registration.
 struct MarkitdownCnsObserver {
     daemon: Option<hkask_mcp::DaemonClient>,
     replicant: String,
 }
 
-#[allow(dead_code)]
 impl MarkitdownCnsObserver {
-    #[allow(dead_code)]
     fn new(daemon: Option<hkask_mcp::DaemonClient>, replicant: &str) -> Self {
         Self {
             daemon,
@@ -349,10 +398,11 @@ impl hkask_types::ports::CnsObserver for MarkitdownCnsObserver {
         vec![hkask_types::event::SpanNamespace::new("cns.pipeline")]
     }
 
-    async fn on_event(&self, _event: &hkask_types::event::NuEvent) {
-        // OCR pipeline events are emitted via tracing spans (cns.pipeline.ocr target).
-        // Full NuEvent → NuEventStore → CurationLoop integration is deferred
-        // until the pipeline has access to CNS infrastructure.
+    async fn on_event(&self, event: &hkask_types::event::NuEvent) {
+        // Extract pipeline observation data from the NuEvent and persist
+        // via the daemon's store_experience for CNS → Curator flow.
+        let span_name = event.span.namespace.short_name();
+        self.persist_span(span_name, event.observation.clone());
     }
 
     async fn on_depletion(&self, _signal: &hkask_types::ports::DepletionSignal) {
@@ -434,7 +484,7 @@ impl MarkitdownServer {
                 .await;
 
                 // Persist to daemon for CNS → Curator observability
-                self.persist_pipeline_outcome(&outcome);
+                self.persist_pipeline_outcome(&outcome).await;
 
                 let text = outcome
                     .results
@@ -530,7 +580,7 @@ impl MarkitdownServer {
                     .await;
 
                     // Persist to daemon for CNS → Curator observability
-                    self.persist_pipeline_outcome(&outcome);
+                    self.persist_pipeline_outcome(&outcome).await;
 
                     let text = outcome
                         .results

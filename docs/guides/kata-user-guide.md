@@ -18,7 +18,7 @@ Between 2004 and 2009, researcher Mike Rother studied Toyota's management system
 
 Rother observed a repeating pattern of thinking and behavior in Toyota managers that was different from prevailing Western command-and-control routines. He depicted this pattern as a four-step model, which he named the **Improvement Kata** — "kata" being a Japanese term for structured practice routines (from martial arts, where kata are used to train combatants in basic building-block moves).
 
-The research was published in 2009 as the book *Toyota Kata: Managing People for Improvement, Adaptiveness, and Superior Results*.
+The research was published in 2009 as the book *Toyota Kata: Managing People for Improvement, Adaptiveness, and Superior Results*. [^rother-2009]
 
 ### 1.2 Core Concepts
 
@@ -28,7 +28,7 @@ The research was published in 2009 as the book *Toyota Kata: Managing People for
 
 **Starter Kata are training wheels.** Rother explicitly calls them "starter" (not "finishing") kata because learners are expected to graduate beyond them. They are deliberately simplified practice routines for each step of the Improvement Kata and for coaching. Once the pattern becomes automatic — a meta-habit — the learner develops their own way.
 
-**Coaching is essential.** "Without coaching, a change in our brain's wiring is less likely to occur." The coach makes the learner's thinking visible, provides procedural guidance (not solutions), and reinforces the scientific pattern daily. Coaching itself is a skill that takes practice.
+**Coaching is essential.** "Without coaching, a change in our brain's wiring is less likely to occur." [^rother-2017] The coach makes the learner's thinking visible, provides procedural guidance (not solutions), and reinforces the scientific pattern daily. Coaching itself is a skill that takes practice.
 
 ### 1.3 The Two Linked Behaviors
 
@@ -39,7 +39,7 @@ Toyota Kata has **two linked behaviors**, not three:
 | **Improvement Kata (IK)** | The learner | 4-step scientific pattern for achieving challenging goals |
 | **Coaching Kata (CK)** | The coach (manager/supervisor) | 5-question dialogue to teach the IK pattern |
 
-**Starter Kata are NOT a third behavior.** They are the practice routines for learning each step of the IK and CK. They are the "how" of practicing, not a separate "what."
+**Starter Kata are NOT a third behavior.** They are the practice routines for learning each step of the IK and CK. They are the "how" of practicing, not a separate "what." [^rother-medium]
 
 ### 1.4 The Improvement Kata — 4-Step Scientific Pattern
 
@@ -90,11 +90,11 @@ Over time, the learner internalizes the pattern. The Starter Kata routines are g
 
 ### 1.7 Key Principles from the Research
 
-- **20 minutes a day is better than two hours once a week.** If you practice only periodically and the rest of the time it's business as usual, what you're actually practicing is business as usual.
-- **Knowing isn't the same as doing.** Benchmarking is not enough to make change happen.
-- **You can really only work on one bad habit at a time.**
-- **The path to a challenging goal can't be determined in advance.** You navigate with a compass, not a map.
-- **Managers become the coaches by default.** Coaching is not a separate role — it's how managers develop their people.
+- **20 minutes a day is better than two hours once a week.** If you practice only periodically and the rest of the time it's business as usual, what you're actually practicing is business as usual. [^rother-2017]
+- **Knowing isn't the same as doing.** Benchmarking is not enough to make change happen. [^rother-medium]
+- **You can really only work on one bad habit at a time.** [^rother-2017]
+- **The path to a challenging goal can't be determined in advance.** You navigate with a compass, not a map. [^rother-2009]
+- **Managers become the coaches by default.** Coaching is not a separate role — it's how managers develop their people. [^liker-2021]
 
 ---
 
@@ -349,12 +349,13 @@ The bundle's `kata-selector.j2` routes agents based on context:
 
 ## References
 
-- Rother, M. (2009). *Toyota Kata: Managing People for Improvement, Adaptiveness, and Superior Results.* McGraw-Hill.
-- Rother, M. (2017). *The Toyota Kata Practice Guide: Developing Scientific Thinking Skills for Superior Results — in 20 Minutes a Day.* McGraw-Hill.
-- Rother, M. & Aulinger, G. (2017). *Toyota Kata Culture: Building Organizational Capability and Mindset through Kata Coaching.* McGraw-Hill.
-- Lean Enterprise Institute. *Kata — A Resource Guide.* https://www.lean.org/lexicon-terms/kata/
-- Rother, M. *The Toyota Kata Website.* https://public.websites.umich.edu/~jmondisa/TK/Homepage.html
-- Liker, J. (2021). *The Toyota Way, 2nd Edition.* McGraw-Hill.
+[^rother-2009]: Rother, M. (2009). *Toyota Kata: Managing People for Improvement, Adaptiveness, and Superior Results.* McGraw-Hill.
+[^rother-2017]: Rother, M. (2017). *The Toyota Kata Practice Guide: Developing Scientific Thinking Skills for Superior Results — in 20 Minutes a Day.* McGraw-Hill.
+[^rother-culture]: Rother, M. & Aulinger, G. (2017). *Toyota Kata Culture: Building Organizational Capability and Mindset through Kata Coaching.* McGraw-Hill.
+[^lean-kata]: Lean Enterprise Institute. *Kata — A Resource Guide.* https://www.lean.org/lexicon-terms/kata/
+[^rother-website]: Rother, M. *The Toyota Kata Website.* https://public.websites.umich.edu/~jmondisa/TK/Homepage.html
+[^liker-2021]: Liker, J. (2021). *The Toyota Way, 2nd Edition.* McGraw-Hill.
+[^rother-medium]: Rother, M. (2023). "Learning to Think Scientifically." Medium. https://medium.com/@734mike/thinking-scientifically-407fa7e0db27
 
 ---
 

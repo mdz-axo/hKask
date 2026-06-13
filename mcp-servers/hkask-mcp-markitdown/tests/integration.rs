@@ -216,7 +216,6 @@ fn minimal_pdf() -> Vec<u8> {
 
 // REQ:ocr-integration-01 — Pipeline with real LLM OCR
 #[tokio::test]
-#[ignore = "requires Ollama with vision model"]
 async fn test_pipeline_with_llm_ocr() {
     if !ollama_available() {
         eprintln!("SKIP: Ollama not reachable");
@@ -257,7 +256,6 @@ async fn test_pipeline_with_llm_ocr() {
 
 // REQ:ocr-integration-02 — Pipeline with Tesseract
 #[tokio::test]
-#[ignore = "requires tesseract installed"]
 async fn test_pipeline_with_tesseract() {
     if !tesseract_available() {
         eprintln!("SKIP: tesseract not installed");
@@ -287,7 +285,6 @@ async fn test_pipeline_with_tesseract() {
 
 // REQ:ocr-integration-03 — PDF decimation + pipeline
 #[tokio::test]
-#[ignore = "requires Ollama, pdftoppm, vision model"]
 async fn test_pdf_pipeline() {
     if !ollama_available() || !pdftoppm_available() {
         eprintln!("SKIP: Ollama or pdftoppm not available");

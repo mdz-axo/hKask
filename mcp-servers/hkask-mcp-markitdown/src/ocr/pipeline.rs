@@ -13,9 +13,11 @@ use async_trait::async_trait;
 
 use hkask_types::ocr::{
     CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig,
+    VerificationReport,
 };
 use image::DynamicImage;
 
+use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use crate::ocr::complexity::score_page_complexity;
 use crate::ocr::cross_validation::compute_cross_validation;
 use crate::ocr::routing::{SamplingState, route_page};
@@ -233,6 +235,22 @@ pub async fn run_pipeline(
         backends = ?backend_counts,
         "OCR pipeline verification"
     );
+
+    // Self-tuning threshold analysis: check if accumulated cross-validation
+    // data suggests threshold drift. Observation only — never auto-adjusts (P4).
+    // Uses current outcome only; full accumulation across runs is deferred
+    // until NuEventStore integration.
+    if let Some(alert) = analyze_threshold_drift(
+        &[PipelineOutcome {
+            results: vec![],
+            report: VerificationReport::new(true, 0.0, vec![], 0, vec![]),
+            cross_validations: cross_validations.clone(),
+            errors: vec![],
+        }],
+        thresholds,
+    ) {
+        emit_drift_alert(&alert);
+    }
 
     PipelineOutcome {
         results,

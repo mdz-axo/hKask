@@ -112,6 +112,25 @@ Skills follow the src→dist pattern with two zones:
 
 The `SkillLoader` in `hkask-templates` scans both zones, parses YAML front matter, validates zone-vs-visibility consistency, and registers skills into the `SkillRegistryIndex`.
 
+## Verification
+
+```bash
+# Count Zed-layer skills
+ls -d .agents/skills/*/ | wc -l
+
+# Count registry template skills (directories with manifest.yaml)
+for d in registry/templates/*/; do [ -f "$d/manifest.yaml" ] && echo "$d"; done | wc -l
+
+# Count total Jinja2 templates
+find registry/templates -name "*.j2" | wc -l
+
+# Verify bootstrap entries match template files
+grep "source_path.*kata" registry/templates/bootstrap-registry.yaml | while read line; do
+  path=$(echo "$line" | sed 's/.*source_path: //')
+  [ -f "$path" ] || echo "MISSING: $path"
+done
+```
+
 ---
 
 *ℏKask - A Minimal Viable Container for Agents — Skill Inventory — v0.27.0*

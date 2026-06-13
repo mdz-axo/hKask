@@ -117,9 +117,7 @@ pub fn emit_drift_alert(alert: &ThresholdDriftAlert) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::ocr::{
-        CrossValidation, OcrBackend, OcrResult, PipelineOutcome, VerificationReport,
-    };
+    use hkask_types::ocr::{CrossValidation, OcrBackend, PipelineOutcome, VerificationReport};
 
     fn default_thresholds() -> ThresholdConfig {
         ThresholdConfig::default()

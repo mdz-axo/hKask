@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Score for one Writing Quality dimension (Hopper, Lovelace, Schriver, Gentle).
 /// Per MDS §3: `spec/require/writing-quality` — 3 of 4 passing is the publication standard.
+/// These are heuristic booleans; for embedding-based scores see `DimensionScore`.
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, PartialEq)]
 pub struct WritingQualityScore {
     /// Hopper test (Accessibility): Can a zero-context reader accomplish the task?
@@ -19,6 +20,22 @@ pub struct WritingQualityScore {
     pub schriver: bool,
     /// Gentle test (Agent-correctness): Would an AI agent consuming this doc behave correctly?
     pub gentle: bool,
+}
+
+/// Per-dimension embedding-based score from replica comparison.
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+pub struct DimensionScore {
+    /// Dimension name: "gentle", "schriver", "hopper", "lovelace", or "composite".
+    pub dimension: String,
+    /// Centroid entity ref (e.g., "style:gentle-lovelace:gentle-centroid").
+    pub centroid_ref: String,
+    /// Cosine distance from document embedding to dimension centroid.
+    /// Lower = stronger alignment. ≤0.4 is the publication threshold.
+    pub cosine_distance: f64,
+    /// Qualitative label: "strong" (≤0.2), "aligned" (≤0.4), "divergent" (>0.4).
+    pub qualitative: String,
+    /// Number of passages used to compute this centroid.
+    pub passage_count: usize,
 }
 
 impl WritingQualityScore {
@@ -72,11 +89,14 @@ pub struct DependencyEdge {
 pub struct WritingQualityResponse {
     pub dimensions_passing: usize,
     pub meets_publication_standard: bool,
-    /// Replica persona for embedding-based validation (if requested).
-    /// When set, use `replica_compare` with this persona and the spec's
-    /// content as `document_content` for embedding-based dimension scores.
+    /// Replica persona used for embedding-based validation (if requested).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub replica_persona: Option<String>,
+    /// Per-dimension embedding-based scores from replica comparison.
+    /// Only populated when `replica_persona` is set and DB credentials provided.
+    /// Each entry has cosine_distance (lower = stronger alignment, ≤0.4 = passing).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimension_scores: Option<Vec<DimensionScore>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,12 +165,17 @@ pub struct WritingQualityRequest {
     /// Optional assessor notes providing context for the assessment.
     pub notes: Option<String>,
     /// Optional replica persona for embedding-based validation
-    /// (e.g., "gentle-lovelace"). When set, the response includes a
-    /// `replica_persona` field indicating that a separate
-    /// `replica_compare` call with `persona` and `document_content`
-    /// can provide embedding-based dimension scores.
+    /// (e.g., "gentle-lovelace"). When set with db_path and db_passphrase,
+    /// the server embeds the spec content and computes per-dimension cosine
+    /// distances against the persona's centroids. Distances ≤0.4 count as passing.
     #[serde(default)]
     pub replica_persona: Option<String>,
+    /// Database path for embedding-based validation (required with replica_persona).
+    #[serde(default)]
+    pub db_path: Option<String>,
+    /// Database passphrase for embedding-based validation (required with replica_persona).
+    #[serde(default)]
+    pub db_passphrase: Option<String>,
     /// OCAP capability token for authorization.
     pub capability_token: Option<String>,
 }
