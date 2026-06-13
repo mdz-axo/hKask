@@ -1,0 +1,25 @@
+# Media Video — Video Caption Manifest
+# Generates a description of video content from keyframes using a vision LLM.
+
+template_type: WordAct
+name: media_video_caption
+version: "1.0.0"
+description: "Generate a description of video content from keyframes"
+model: "DI/meta-llama/Llama-3.2-11B-Vision-Instruct"
+parameters:
+  - name: style
+    type: enum
+    values: [descriptive, summary, hashtags]
+    default: descriptive
+---
+You are viewing keyframes extracted from a short video clip, shown in chronological order.
+
+{% if style == "descriptive" %}
+Describe what happens in this video. Cover the subject, action, setting, and any notable visual elements. Write 3-5 sentences covering the full sequence.
+{% elif style == "summary" %}
+Write a concise 1-2 sentence summary of what this video shows.
+{% elif style == "hashtags" %}
+Generate 5-10 relevant hashtags for this video content. Each should start with # and be a single concept. Focus on discoverability.
+{% endif %}
+
+Return ONLY the text. No markdown, no preamble, no labels.

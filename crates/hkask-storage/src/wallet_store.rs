@@ -533,10 +533,10 @@ impl WalletStore {
                 |row| row.get::<_, String>(0),
             )
             .optional()?;
-        if let Some(status) = existing {
-            if status == "active" {
-                return Err(WalletError::EncumbranceAlreadyExists { key_id });
-            }
+        if let Some(status) = existing
+            && status == "active"
+        {
+            return Err(WalletError::EncumbranceAlreadyExists { key_id });
         }
 
         // Debit wallet

@@ -153,7 +153,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### fal
 
-**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 9
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 12 (9 generation + 3 gallery)
 
 **Required:** `HKASK_FAL_API_KEY`
 
@@ -168,6 +168,9 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `fal_whisper` | Transcribe audio to text |
 | `fal_caption` | Generate a caption for an image |
 | `fal_generate_3d` | Generate a 3D model |
+| `gallery_init` | Initialize an image gallery (path + mode) |
+| `gallery_scan` | Scan gallery for images (checksums, dimensions) |
+| `gallery_info` | Get gallery status summary |
 
 ---
 

@@ -89,12 +89,15 @@ pub async fn run_pipeline(
     let mut total_estimated_words: usize = 0;
 
     for (page_index, image) in pages.into_iter().enumerate() {
-        // Track pixel-based word estimate incrementally (streaming-compatible)
-        total_estimated_words +=
-            crate::ocr::verification::estimate_word_count(image.width(), image.height());
-
         // Step 1: Score complexity
         let score = score_page_complexity(&image, thresholds);
+
+        // Track word estimate using pixel count × complexity density
+        total_estimated_words += crate::ocr::verification::estimate_word_count(
+            image.width(),
+            image.height(),
+            score.value,
+        );
 
         // Step 2: Route to backends
         let backends = route_page(score, &mut state, None, llm_model);

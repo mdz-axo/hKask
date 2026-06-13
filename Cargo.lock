@@ -2309,17 +2309,26 @@ name = "hkask-mcp-media"
 version = "0.27.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "dotenvy",
+ "hkask-inference",
  "hkask-mcp",
+ "hkask-templates",
  "hkask-types",
+ "image",
  "reqwest",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "sha2 0.10.9",
+ "tempfile",
  "tokio",
  "tracing",
+ "uuid",
+ "walkdir",
 ]
 
 [[package]]
@@ -2449,6 +2458,7 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "hkask-wallet",
+ "image",
  "minijinja",
  "pdf-extract",
  "reqwest",
@@ -4642,6 +4652,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96b02de82ddbe1b636e6170c21be622223aea188ef2e139be0a5b219ec215323"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "same-file"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]
@@ -7547,6 +7566,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "walkdir"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
+dependencies = [
+ "same-file",
+ "winapi-util",
 ]
 
 [[package]]

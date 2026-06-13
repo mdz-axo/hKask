@@ -1,0 +1,39 @@
+# Media Gallery — Face Detection Manifest
+# Detects faces in an image using a vision LLM.
+
+template_type: WordAct
+name: media_detect_faces
+version: "1.0.0"
+description: "Detect and describe faces in an image"
+model: "DI/meta-llama/Llama-3.2-11B-Vision-Instruct"
+parameters:
+  - name: detail_level
+    type: enum
+    values: [basic, detailed]
+    default: detailed
+---
+Analyze this image and detect all visible human faces.
+
+{% if detail_level == "detailed" %}
+For each face, provide:
+1. Estimated age range (e.g., "25-35", "child", "elderly")
+2. Apparent gender presentation
+3. Notable features (glasses, beard, expression, hair color/style)
+4. Position in image (e.g., "left third", "center-right", "foreground")
+5. Approximate face size relative to image (small / medium / large)
+{% else %}
+For each face, provide position and estimated age range.
+{% endif %}
+
+Return ONLY a JSON array. No markdown, no preamble. Each element must have these fields:
+- face_index: number (0-based)
+{% if detail_level == "detailed" %}
+- age_range: string
+- gender_presentation: string
+- features: string
+- position: string
+- size: string
+{% else %}
+- age_range: string
+- position: string
+{% endif %}

@@ -1,0 +1,38 @@
+# Media Gallery — Object Detection Manifest
+# Detects and labels objects in an image using a vision LLM.
+
+template_type: WordAct
+name: media_detect_objects
+version: "1.0.0"
+description: "Detect and label objects in an image"
+model: "DI/meta-llama/Llama-3.2-11B-Vision-Instruct"
+parameters:
+  - name: detail_level
+    type: enum
+    values: [basic, detailed]
+    default: detailed
+  - name: max_objects
+    type: integer
+    default: 20
+---
+Analyze this image and detect all visible objects.
+
+{% if detail_level == "detailed" %}
+For each object, provide:
+1. Object name (be specific — e.g., "golden retriever" not "dog")
+2. Bounding box description (e.g., "upper-left", "center", "lower-right")
+3. Confidence level (high / medium / low)
+4. Brief description of appearance (color, size, condition, distinctive features)
+{% else %}
+List each object with its name and general location in the image.
+{% endif %}
+
+Limit to the {{ max_objects }} most prominent objects.
+
+Return ONLY a JSON array. No markdown, no preamble. Each element must have these fields:
+- name: string
+- location: string
+- confidence: string (one of: "high", "medium", "low")
+{% if detail_level == "detailed" %}
+- description: string
+{% endif %}

@@ -1,0 +1,29 @@
+# Media Gallery — Image Caption Manifest
+# Generates descriptive captions for images using a vision LLM.
+
+template_type: WordAct
+name: media_caption
+version: "1.0.0"
+description: "Generate a caption for an image"
+model: "DI/meta-llama/Llama-3.2-11B-Vision-Instruct"
+parameters:
+  - name: style
+    type: enum
+    values: [descriptive, artistic, technical, alt_text]
+    default: descriptive
+---
+{% if style == "descriptive" %}
+Describe this image in detail. Cover the subject, setting, lighting, colors, composition, mood, and any notable details. Write 2-4 sentences.
+
+{% elif style == "artistic" %}
+Write an artistic, evocative caption for this image. Use poetic language and focus on mood, emotion, and aesthetic quality. Write 2-3 sentences.
+
+{% elif style == "technical" %}
+Provide a technical description of this image. Note the photographic/compositional elements: focal point, depth of field, lighting conditions, color palette, perspective, and any post-processing effects visible. Write 2-4 sentences.
+
+{% elif style == "alt_text" %}
+Write concise alt text for this image suitable for accessibility. Describe only what is visually present — no interpretation. Keep to 1-2 sentences, max 125 characters.
+
+{% endif %}
+
+Return ONLY the caption text. No markdown, no preamble, no labels.

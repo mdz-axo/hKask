@@ -3,7 +3,7 @@
 //! Deterministic routing (no randomness) guarantees statistical properties
 //! without non-determinism. SamplingState is a transparent accumulator.
 
-use hkask_types::ocr::{ComplexityScore, ComplexityTier, OcrBackend, thresholds};
+use hkask_types::ocr::{ComplexityScore, ComplexityTier, DEFAULT_LLM_OCR_MODEL, OcrBackend};
 
 /// Transparent accumulator for deterministic round-robin sampling.
 ///
@@ -77,7 +77,7 @@ pub fn route_page(
             filter_excluded(backends, exclude_backend)
         }
         ComplexityTier::Complex => {
-            let model = llm_model.unwrap_or(thresholds::DEFAULT_LLM_OCR_MODEL);
+            let model = llm_model.unwrap_or(DEFAULT_LLM_OCR_MODEL);
             let backends = vec![OcrBackend::LlmOcr(model.to_string())];
             filter_excluded(backends, exclude_backend)
         }
@@ -86,7 +86,7 @@ pub fn route_page(
             let should_sample = state.should_dual_route();
             if should_sample {
                 state.moderate_pages_dual_routed += 1;
-                let model = llm_model.unwrap_or(thresholds::DEFAULT_LLM_OCR_MODEL);
+                let model = llm_model.unwrap_or(DEFAULT_LLM_OCR_MODEL);
                 let backends = vec![OcrBackend::Tesseract, OcrBackend::LlmOcr(model.to_string())];
                 filter_excluded(backends, exclude_backend)
             } else {
@@ -134,7 +134,7 @@ mod tests {
         let backends = route_page(score.clone(), &mut state, None, None);
         assert_eq!(
             backends,
-            vec![OcrBackend::LlmOcr(thresholds::DEFAULT_LLM_OCR_MODEL.into())]
+            vec![OcrBackend::LlmOcr(DEFAULT_LLM_OCR_MODEL.into())]
         );
 
         // Custom model override

@@ -1,5 +1,15 @@
 //! hKask MCP Media — AI media generation (image, video, audio, 3D via fal.ai and other providers)
+//!
+//! Tool families:
+//! - Gallery: init, scan, info, detect_objects, detect_faces, caption, tag, classify, search, collage, derivative
+//! - Video/GIF: from_image, from_images, to_gif, trim, meme, add_text, caption, concat
+//! - Generation: generate_image, image_to_image, upscale, generate_video, generate_music, whisper, caption, generate_3d
 
+mod gallery;
+mod video;
+
+use gallery::{GalleryMode, GalleryState};
+use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::{McpErrorKind, WebID};
@@ -7,6 +17,8 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const SYNC_BASE: &str = "https://fal.run";
@@ -98,21 +110,55 @@ pub struct Generate3dRequest {
     pub image_url: String,
 }
 
-pub struct FalServer {
+// ── Gallery request types ────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GalleryInitRequest {
+    /// Absolute path to the gallery folder.
+    pub path: String,
+    /// Operating mode: "original" (read-only) or "copy" (editable).
+    #[serde(default = "default_gallery_mode")]
+    pub mode: String,
+}
+
+fn default_gallery_mode() -> String {
+    "original".to_string()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GalleryScanRequest {
+    /// Whether to scan subdirectories recursively.
+    #[serde(default = "default_true")]
+    pub recursive: bool,
+    /// File extensions to include (default: jpg, jpeg, png, webp, gif, bmp, tiff).
+    pub extensions: Option<Vec<String>>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+pub struct MediaServer {
     webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
     replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
     daemon: Option<DaemonClient>,
+    /// fal.ai HTTP client for generation tools
     client: reqwest::Client,
+    /// Inference router for vision LLM tasks (object detection, captioning, etc.)
+    inference: Arc<InferenceRouter>,
+    /// Active gallery state (None until gallery_init is called)
+    gallery_state: Arc<Mutex<Option<GalleryState>>>,
 }
 
-impl FalServer {
+impl MediaServer {
     pub fn new(
         webid: WebID,
         replicant: String,
         daemon: Option<DaemonClient>,
         api_key: String,
+        inference: Arc<InferenceRouter>,
     ) -> Result<Self, anyhow::Error> {
         let client = build_client(&api_key)?;
         Ok(Self {
@@ -120,6 +166,8 @@ impl FalServer {
             replicant,
             daemon,
             client,
+            inference,
+            gallery_state: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -241,7 +289,105 @@ impl FalServer {
 }
 
 #[tool_router(server_handler)]
-impl FalServer {
+impl MediaServer {
+    // ── Gallery tools ────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Initialize or reconfigure an image gallery. Sets the folder path and operating mode (original=read-only, copy=editable)."
+    )]
+    async fn gallery_init(
+        &self,
+        Parameters(GalleryInitRequest { path, mode }): Parameters<GalleryInitRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("gallery_init", &self.webid);
+
+        let gallery_mode = match mode.as_str() {
+            "copy" => GalleryMode::Copy,
+            _ => GalleryMode::Original,
+        };
+
+        let state = GalleryState::new(PathBuf::from(&path), gallery_mode);
+
+        if let Err(e) = state.validate() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            );
+        }
+
+        if let Err(e) = state.ensure_meta_dir() {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            );
+        }
+
+        let summary = state.summary();
+        *self.gallery_state.lock().unwrap() = Some(state);
+
+        span.ok_json(serde_json::json!({
+            "status": "initialized",
+            "gallery": summary,
+        }))
+    }
+
+    #[tool(
+        description = "Scan the gallery directory for new, changed, or removed images. Computes SHA-256 checksums and image dimensions."
+    )]
+    async fn gallery_scan(
+        &self,
+        Parameters(GalleryScanRequest {
+            recursive,
+            extensions,
+        }): Parameters<GalleryScanRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("gallery_scan", &self.webid);
+
+        let mut guard = self.gallery_state.lock().unwrap();
+        let state = match &mut *guard {
+            Some(s) => s,
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(
+                        "No gallery initialized. Use gallery_init first.",
+                    )
+                    .to_json_string(),
+                );
+            }
+        };
+
+        let result = state.scan(recursive, extensions.as_deref());
+        let summary = state.summary();
+
+        span.ok_json(serde_json::json!({
+            "scan": {
+                "added": result.added,
+                "removed": result.removed,
+                "unchanged": result.unchanged,
+                "total": result.total,
+                "errors": result.errors,
+            },
+            "gallery": summary,
+        }))
+    }
+
+    #[tool(description = "Get current gallery status: path, mode, image count, size, tags.")]
+    async fn gallery_info(&self) -> String {
+        let span = ToolSpanGuard::new("gallery_info", &self.webid);
+
+        let guard = self.gallery_state.lock().unwrap();
+        match &*guard {
+            Some(state) => span.ok_json(state.summary()),
+            None => span.ok_json(serde_json::json!({
+                "status": "no_gallery",
+                "message": "No gallery initialized. Use gallery_init to create one."
+            })),
+        }
+    }
+
+    // ── fal.ai generation tools ──────────────────────────────────────────────
+
     #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
     async fn fal_ping(&self) -> String {
         let span = ToolSpanGuard::new("fal_ping", &self.webid);
@@ -434,6 +580,11 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
+    // Build the inference router for vision LLM tasks.
+    // Backends are constructed lazily — only those with configured API keys are available.
+    let inference_config = hkask_inference::InferenceConfig::from_env();
+    let inference = Arc::new(InferenceRouter::new(inference_config));
+
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
@@ -457,7 +608,13 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_FAL_API_KEY")
                 .expect("required credential checked by run_stdio_server")
                 .clone();
-            FalServer::new(ctx.webid, replicant.clone(), daemon_client.clone(), api_key)
+            MediaServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                api_key,
+                inference.clone(),
+            )
         },
         vec![hkask_mcp::CredentialRequirement::required(
             "HKASK_FAL_API_KEY",

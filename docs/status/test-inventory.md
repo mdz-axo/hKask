@@ -38,16 +38,16 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-doc-knowledge` | 0 | Shallow module — pass-through to parsing/chunking (C8) |
 | `hkask-mcp-markitdown` | 55 | ocr pipeline (52: calibration 6, complexity 6, routing 6, cross-validation 6, semantic 4, verification 4, pipeline 4, decimation 5, tesseract 4, llm_ocr 3, tools 4) + integration (3) |
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
-| `hkask-mcp-media` | 0 | Shallow module — API proxy (C8) |
+| `hkask-mcp-media` | 7 | Gallery state (7: init 4, scan 2, info 1) |
 
-**Total: 275 tests across 19 crates** (↑ from 243)
+**Total: 282 tests across 19 crates** (↑ from 275)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |
 | `hkask-mcp-research` | 0 | External server (consolidated web + rss-reader 2026-06-11) |
 | `hkask-mcp-fmp` | 0 | External server |
 | `hkask-mcp-communication` | 0 | External server |
-| `hkask-mcp-media` | 0 | External server |
+| `hkask-mcp-media` | 7 | External server; 7 gallery tests |
 | **Total** | **102** | |
 
 ---

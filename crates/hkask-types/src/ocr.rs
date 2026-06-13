@@ -285,10 +285,17 @@ pub struct OcrCrossValidationSpan {
 
 // ── Thresholds Module ─────────────────────────────────────────────────────
 
+/// Default vision LLM model for OCR.
+/// Primary: olmOCR-2 on DeepInfra (cloud, fast GPUs, 82.4 on OlmOCR-Bench).
+/// Local fallback: LightOnOCR-2:1b on Ollama (83.2 on OlmOCR-Bench, 1B params).
+/// Override via `HKASK_OCR_MODEL` env var or `llm_model` pipeline parameter.
+pub const DEFAULT_LLM_OCR_MODEL: &str = "DI/allenai/olmOCR-2-7B-1025";
+
 /// Configurable OCR complexity thresholds.
 ///
-/// Values are loadable from `hkask-templates` registry for self-tuning
-/// (P4: changes require affirmative consent, not autonomous mutation).
+/// When `tuneable` is `true`, the CNS calibration system may suggest
+/// adjustments based on accumulated cross-validation data (P4: human
+/// approval required before any change takes effect).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ThresholdConfig {
     /// Edge-density ratio below which a page is considered Simple.
@@ -298,6 +305,14 @@ pub struct ThresholdConfig {
     pub moderate_max: f32,
     /// Dual-routing sampling rate for Moderate-tier pages [0.0, 1.0].
     pub moderate_sample_rate: f32,
+    /// Whether CNS may suggest threshold adjustments based on observed accuracy.
+    /// When `false`, thresholds are locked at configured values.
+    #[serde(default = "default_tuneable")]
+    pub tuneable: bool,
+}
+
+fn default_tuneable() -> bool {
+    true
 }
 
 impl Default for ThresholdConfig {
@@ -306,6 +321,7 @@ impl Default for ThresholdConfig {
             simple_max: 0.05,
             moderate_max: 0.15,
             moderate_sample_rate: 0.10,
+            tuneable: true,
         }
     }
 }
@@ -321,16 +337,6 @@ impl ThresholdConfig {
             ComplexityTier::Complex
         }
     }
-}
-
-/// Legacy constants module — prefer `ThresholdConfig` for new code.
-/// Retained for `DEFAULT_LLM_OCR_MODEL` which is referenced by routing.
-pub mod thresholds {
-    /// Default vision LLM model for OCR.
-    /// Primary: olmOCR-2 on DeepInfra (cloud, fast GPUs, 82.4 on OlmOCR-Bench).
-    /// Local fallback: LightOnOCR-2:1b on Ollama (83.2 on OlmOCR-Bench, 1B params).
-    /// Override via `HKASK_OCR_MODEL` env var or `llm_model` pipeline parameter.
-    pub const DEFAULT_LLM_OCR_MODEL: &str = "DI/allenai/olmOCR-2-7B-1025";
 }
 
 #[cfg(test)]

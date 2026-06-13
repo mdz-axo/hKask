@@ -1,7 +1,6 @@
 //! hKask MCP DocProc — Unified document processing MCP server
 //!
-//! Starts an MCP server over stdio exposing 8 tools:
-//! - `docproc_ping` — Liveness + capability check
+//! Starts an MCP server over stdio exposing 7 tools:
 //! - `docproc_detect_format` — Detect document format from path/extension
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
@@ -67,6 +66,10 @@ async fn main() -> anyhow::Result<()> {
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(0.10),
+                tuneable: std::env::var("HKASK_OCR_TUNEABLE")
+                    .ok()
+                    .map(|v| v == "true" || v == "1")
+                    .unwrap_or(true),
             };
 
             // Build embedding router for semantic cross-validation

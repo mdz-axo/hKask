@@ -68,16 +68,18 @@ pub fn verify_output(
     )
 }
 
-/// Crude word-count estimation from aggregate pixel density.
+/// Crude word-count estimation from pixel density and edge complexity.
 ///
 /// Not a precision metric — coarse guardrail only.
-/// Assumes ~2000 pixels per word on average for 300 DPI text.
-/// Used by the pipeline to compute estimated_word_count incrementally.
-pub fn estimate_word_count(width: u32, height: u32) -> usize {
+/// Base: ~2000 pixels per word at 300 DPI. Multiplied by complexity
+/// factor: low edge density (blank pages) → fewer expected words;
+/// high edge density (dense text) → more expected words.
+pub fn estimate_word_count(width: u32, height: u32, edge_density: f32) -> usize {
     let pixels = (width as u64) * (height as u64);
-    // Heuristic: ~2000 pixels per word (roughly 40×50 px per word area)
-    // Minimum 1 to avoid divide-by-zero in delta calculation
-    (pixels / 2000).max(1) as usize
+    let base = (pixels / 2000).max(1) as f32;
+    // Complexity factor: edge_density × 10, clamped to [0.1, 3.0]
+    let factor = (edge_density * 10.0).clamp(0.1, 3.0);
+    (base * factor).max(1.0) as usize
 }
 
 #[cfg(test)]

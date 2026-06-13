@@ -230,6 +230,7 @@ mod tests {
             simple_max: 1.0,
             moderate_max: 1.0,
             moderate_sample_rate: 0.10,
+            tuneable: false,
         };
         let score = score_page_complexity(&dyn_img, &lenient);
         assert_eq!(score.tier, ComplexityTier::Simple);

@@ -1,7 +1,6 @@
 //! MCP tool implementations for docproc server.
 //!
-//! 8 tools:
-//! - `docproc_ping` — Liveness + capability check
+//! 7 tools:
 //! - `docproc_detect_format` — Detect document format from path/extension
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
@@ -12,7 +11,7 @@
 
 use crate::convert;
 use crate::ocr::{decimation, pipeline};
-use crate::server::{default_ocr_max_tokens, DocProcServer, OCR_FALLBACK_WORD_THRESHOLD};
+use crate::server::{DocProcServer, OCR_FALLBACK_WORD_THRESHOLD, default_ocr_max_tokens};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
@@ -23,8 +22,6 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
-
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -154,18 +151,6 @@ enum ExtractOutcome {
 
 #[tool_router(server_handler)]
 impl DocProcServer {
-    #[tool(description = "Liveness check for docproc server. Reports available capabilities.")]
-    async fn docproc_ping(&self) -> String {
-        let span = ToolSpanGuard::new("docproc_ping", &self.webid);
-        span.ok_json(json!({
-            "status": "ok",
-            "server": "hkask-mcp-docproc",
-            "version": SERVER_VERSION,
-            "ocr_available": self.has_ocr(),
-            "semantic_available": self.has_semantic(),
-        }))
-    }
-
     #[tool(
         description = "Extract text from a document. Detects format, extracts text with automatic OCR fallback for scanned/image-based PDFs. For PDF: tries text extraction first, falls back to vision OCR if result is near-empty. For other supported formats (TXT, MD, HTML): extracts plain text. Requires HKASK_OCR_MODEL for OCR fallback."
     )]
@@ -248,16 +233,73 @@ impl DocProcServer {
                     "empty_pages": outcome.report.empty_pages,
                     "error_count": outcome.errors.len(),
                 });
-                self.record_experience(
-                    "docproc_convert",
-                    &path_clone,
-                    "success",
-                    result.clone(),
-                );
+                self.record_experience("docproc_convert", &path_clone, "success", result.clone());
                 return span.ok_json(result);
             }
 
-            // Not an image — fall back to raw bytes OCR
+            // Not an image — try decimation + pipeline for PDFs
+            if format == "pdf" {
+                match decimation::pdf_to_images(std::path::Path::new(&path), 200).await {
+                    Ok(page_images) => {
+                        let model = match self.resolve_ocr_model(None).await {
+                            Ok(m) => m,
+                            Err(guidance) => {
+                                return span.error(
+                                    McpErrorKind::FailedPrecondition,
+                                    McpToolError::failed_precondition(guidance).to_json_string(),
+                                );
+                            }
+                        };
+                        let expected = page_images.len();
+                        let emb = self.embedding_router.as_ref().map(|r| {
+                            (
+                                r,
+                                self.ocr_model
+                                    .as_deref()
+                                    .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
+                            )
+                        });
+                        let outcome = pipeline::run_pipeline(
+                            page_images,
+                            expected,
+                            self,
+                            &self.ocr_thresholds,
+                            Some(&model),
+                            emb,
+                        )
+                        .await;
+                        self.persist_pipeline_outcome(&outcome).await;
+                        let text = outcome
+                            .results
+                            .iter()
+                            .map(|r| r.text.as_str())
+                            .collect::<Vec<_>>()
+                            .join("\n\n");
+                        let result = serde_json::json!({
+                            "format": format, "path": path, "method": "ocr_pipeline",
+                            "model": model, "text": text,
+                            "word_count": text.split_whitespace().count(),
+                            "pages": expected,
+                            "verification_passed": outcome.report.passed,
+                            "page_count_match": outcome.report.page_count_match,
+                            "empty_pages": outcome.report.empty_pages,
+                            "error_count": outcome.errors.len(),
+                        });
+                        self.record_experience(
+                            "docproc_convert",
+                            &path_clone,
+                            "success",
+                            result.clone(),
+                        );
+                        return span.ok_json(result);
+                    }
+                    Err(_) => {
+                        // Decimation failed — fall through to do_ocr
+                    }
+                }
+            }
+
+            // Final fallback: raw bytes OCR
             match self.resolve_ocr_model(None).await {
                 Ok(model) => match self
                     .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
@@ -388,20 +430,18 @@ impl DocProcServer {
                     }));
                 }
             },
-            "markdown" => {
-                match std::str::from_utf8(&file_bytes) {
-                    Ok(content) => {
-                        let text = convert::strip_frontmatter(content);
-                        let word_count = text.split_whitespace().count();
-                        ExtractOutcome::Success { text, word_count }
-                    }
-                    Err(e) => {
-                        return span.internal_error(serde_json::json!({
-                            "error": format!("Failed to decode markdown file '{}': {}", path, e),
-                        }));
-                    }
+            "markdown" => match std::str::from_utf8(&file_bytes) {
+                Ok(content) => {
+                    let text = convert::strip_frontmatter(content);
+                    let word_count = text.split_whitespace().count();
+                    ExtractOutcome::Success { text, word_count }
                 }
-            }
+                Err(e) => {
+                    return span.internal_error(serde_json::json!({
+                        "error": format!("Failed to decode markdown file '{}': {}", path, e),
+                    }));
+                }
+            },
             "html" | "htm" => match std::str::from_utf8(&file_bytes) {
                 Ok(content) => {
                     let text = convert::strip_html(content);
@@ -436,12 +476,7 @@ impl DocProcServer {
                     "text": text,
                     "word_count": word_count,
                 });
-                self.record_experience(
-                    "docproc_convert",
-                    &path_clone,
-                    "success",
-                    result.clone(),
-                );
+                self.record_experience("docproc_convert", &path_clone, "success", result.clone());
                 span.ok_json(result)
             }
             ExtractOutcome::NeedsOcr {
@@ -668,7 +703,9 @@ impl DocProcServer {
         span.ok_json(result)
     }
 
-    #[tool(description = "Parse document into IR with multi-tier chunking (coarse/medium/fine). Supports PDF, markdown, HTML, and plain text.")]
+    #[tool(
+        description = "Parse document into IR with multi-tier chunking (coarse/medium/fine). Supports PDF, markdown, HTML, and plain text."
+    )]
     async fn docproc_parse(
         &self,
         Parameters(ParseRequest {
@@ -765,13 +802,7 @@ impl DocProcServer {
 
         let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| -> Vec<_> {
             let w = tokens_to_words(max_tok.unwrap_or(default));
-            SemanticMemory::chunk_text(
-                &text,
-                &format!("{entity_base}:{tier}"),
-                w / 4,
-                w,
-                boundary,
-            )
+            SemanticMemory::chunk_text(&text, &format!("{entity_base}:{tier}"), w / 4, w, boundary)
         };
 
         let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
@@ -786,12 +817,7 @@ impl DocProcServer {
             "coarse": serialize_passages(coarse), "medium": serialize_passages(medium),
             "fine": serialize_passages(fine),
         });
-        self.record_experience(
-            "docproc_parse",
-            &path_clone,
-            "success",
-            result.clone(),
-        );
+        self.record_experience("docproc_parse", &path_clone, "success", result.clone());
         span.ok_json(result)
     }
 
@@ -899,22 +925,12 @@ impl DocProcServer {
 
         if errors.is_empty() {
             let result = json!({ "stored": stored, "source_document": source_document });
-            self.record_experience(
-                "docproc_store_qa",
-                &source_doc,
-                "success",
-                result.clone(),
-            );
+            self.record_experience("docproc_store_qa", &source_doc, "success", result.clone());
             span.ok_json(result)
         } else {
             let result =
                 json!({ "stored": stored, "errors": errors, "source_document": source_document });
-            self.record_experience(
-                "docproc_store_qa",
-                &source_doc,
-                "partial",
-                result.clone(),
-            );
+            self.record_experience("docproc_store_qa", &source_doc, "partial", result.clone());
             span.internal_error(result)
         }
     }

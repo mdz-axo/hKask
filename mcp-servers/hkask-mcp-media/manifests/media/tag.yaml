@@ -1,0 +1,36 @@
+# Media Gallery — Auto-Tagging Manifest
+# Generates keyword tags for an image using a vision LLM.
+
+template_type: WordAct
+name: media_tag
+version: "1.0.0"
+description: "Auto-generate tags for an image"
+model: "DI/meta-llama/Llama-3.2-11B-Vision-Instruct"
+parameters:
+  - name: max_tags
+    type: integer
+    default: 10
+  - name: taxonomy
+    type: string
+    required: false
+    description: "Custom tag vocabulary (comma-separated categories)"
+---
+Analyze this image and generate descriptive tags/keywords.
+
+Categories to consider:
+- Subjects (people, animals, objects, landmarks)
+- Setting (indoor, outdoor, urban, nature, studio)
+- Lighting (natural, artificial, golden hour, moody, bright)
+- Colors (dominant colors and palette style)
+- Mood/Atmosphere (peaceful, energetic, dramatic, melancholic)
+- Style (portrait, landscape, macro, abstract, documentary)
+- Season/Time (spring, night, sunset, winter)
+- Technical (bokeh, long exposure, aerial, close-up)
+
+{% if taxonomy %}
+Use these preferred categories: {{ taxonomy }}
+{% endif %}
+
+Generate exactly {{ max_tags }} tags. Each tag should be a lowercase, single-concept keyword or short phrase (2-3 words max).
+
+Return ONLY a JSON array of strings. No markdown, no preamble.
