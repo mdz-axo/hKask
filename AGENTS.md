@@ -70,6 +70,11 @@ kask chat -m qwen3:8b                      # Specific model
 kask chat Alice -m llama3.1:70b            # Named agent + model
 echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
 kask onboard                               # Add a new replicant to an existing install
+kask keystore set <KEY> <VALUE>             # Store a key in OS keychain
+kask keystore get <KEY>                      # Retrieve a key (masked display)
+kask keystore delete <KEY>                   # Delete a key from keychain
+kask keystore load --path <file>             # Bulk load keys from .env file into keychain
+kask keystore load --path <file> --shred     # Load keys then securely delete the plaintext file
 kask sovereignty verify                    # Magna Carta compliance
 kask settings show                          # Show all settings
 kask settings show temp                     # Show one setting
@@ -161,6 +166,49 @@ PUT /api/settings            # Merge-updates with UpdateSettingsRequest body
 ### ReplSettings Struct
 
 Defined in `hkask-cli::repl::handlers::repl_settings` — stored as `repl_settings` field on `ReplState`. Serializable via `serde`, loaded from disk at REPL init, mutable during session via `/repl`, and convertible to `hkask_types::LLMParameters` via `to_llm_params()`. Also read by `hkask-services` for shared init paths.
+
+---
+
+## Provider Configuration
+
+hKask uses a multi-provider inference router. API keys resolve through a 2-tier chain:
+1. **OS keychain** (encrypted at rest) — preferred for cloud deployments
+2. **Environment variable** (backward compat, SSH session convenience)
+
+### Quick setup (cloud server)
+
+```bash
+# Copy the template, fill in your keys
+cp providers.env.example providers.env
+
+# Load into OS keychain and securely delete the plaintext file
+kask keystore load --path providers.env --shred
+
+# Run — keys are read from keychain, no env vars needed
+kask chat
+```
+
+### Environment variables
+
+| Variable | Purpose | Default |
+|----------|---------|--------|
+| `DI_API_KEY` | DeepInfra API key | — (required for DI provider) |
+| `FW_API_KEY` | Fireworks API key | — (required for FW provider) |
+| `FA_API_KEY` | fal.ai API key | — (required for FA provider) |
+| `HKASK_DEFAULT_PROVIDER` | Default provider for unprefixed model names | `OM` (Ollama) |
+| `HKASK_DEFAULT_MODEL` | Default generation model | `deepseek-v4-pro` |
+| `HKASK_EMBEDDING_MODEL` | Default embedding model | — |
+
+Accepted `HKASK_DEFAULT_PROVIDER` values: `OM` (Ollama), `FW` (Fireworks), `DI` (DeepInfra), `FA` (fal.ai).
+
+### Provider prefixes
+
+Models use 2-letter prefixes for explicit routing:
+- `OM/qwen3:8b` → Ollama (local)
+- `FW/llama-v3p1-70b-instruct` → Fireworks.ai
+- `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
+- `FA/paddleocr` → fal.ai
+- No prefix → routes to `HKASK_DEFAULT_PROVIDER`
 
 ---
 

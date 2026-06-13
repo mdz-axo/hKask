@@ -158,7 +158,7 @@ impl PodManager {
     }
 
     pub fn new_mock() -> Self {
-        const MOCK_ACP_SECRET: &[u8] = b"hkask-mock-acp-secret-32-bytes!!";
+        const MOCK_ACP_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let capability_checker = Arc::new(CapabilityChecker::new(MOCK_ACP_SECRET));
         Self {

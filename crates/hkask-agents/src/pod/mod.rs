@@ -552,7 +552,7 @@ mod tests {
     fn test_pod() -> AgentPod {
         // SAFETY: test runs in single-threaded context, no other code reads HKASK_MASTER_KEY concurrently
         unsafe {
-            std::env::set_var("HKASK_MASTER_KEY", "0123456789abcdef0123456789abcdef");
+            std::env::set_var("HKASK_MASTER_KEY", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX");
         }
         let persona = test_persona();
         let template_dir = std::path::PathBuf::from("/tmp/hkask-test");

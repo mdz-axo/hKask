@@ -376,10 +376,10 @@ mod tests {
     /// REQ: inf-cfg-010 — resolve_api_key reads from primary env var
     #[test]
     fn resolve_api_key_primary_env() {
-        unsafe { std::env::set_var("HKASK_TEST_KEY_010", "sk-test-primary") };
+        unsafe { std::env::set_var("HKASK_TEST_KEY_010", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_010", &[]),
-            "sk-test-primary"
+            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
         unsafe { std::env::remove_var("HKASK_TEST_KEY_010") };
     }
@@ -387,10 +387,10 @@ mod tests {
     /// REQ: inf-cfg-011 — resolve_api_key falls back to legacy env var names
     #[test]
     fn resolve_api_key_fallback_env() {
-        unsafe { std::env::set_var("HKASK_TEST_LEGACY_011", "sk-test-legacy") };
+        unsafe { std::env::set_var("HKASK_TEST_LEGACY_011", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_011", &["HKASK_TEST_LEGACY_011"]),
-            "sk-test-legacy"
+            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
         unsafe { std::env::remove_var("HKASK_TEST_LEGACY_011") };
     }
@@ -409,11 +409,11 @@ mod tests {
     /// REQ: inf-cfg-013 — resolve_api_key prefers primary over fallback
     #[test]
     fn resolve_api_key_primary_wins_over_fallback() {
-        unsafe { std::env::set_var("HKASK_TEST_KEY_013", "sk-primary") };
-        unsafe { std::env::set_var("HKASK_TEST_LEGACY_013", "sk-legacy") };
+        unsafe { std::env::set_var("HKASK_TEST_KEY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
+        unsafe { std::env::set_var("HKASK_TEST_LEGACY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_013", &["HKASK_TEST_LEGACY_013"]),
-            "sk-primary"
+            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
         unsafe { std::env::remove_var("HKASK_TEST_KEY_013") };
         unsafe { std::env::remove_var("HKASK_TEST_LEGACY_013") };

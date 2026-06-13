@@ -22,7 +22,7 @@ use tokio_util::sync::CancellationToken;
 
 /// All-zeros hex secret used in integration tests (matches HKASK_OCAP_SECRET env).
 const TEST_OCAP_SECRET_HEX: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+    "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
 
 /// Known WebID used for both the server identity and the token delegate.
 const TEST_WEBID_STR: &str = "00000000-0000-0000-0000-000000000001";
