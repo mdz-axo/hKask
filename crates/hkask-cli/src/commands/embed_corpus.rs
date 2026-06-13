@@ -1,12 +1,67 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
 use hkask_services::{EmbedProgress, EmbedService};
+use hkask_storage::user_store::UserStore;
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-pub fn run(rt: &tokio::runtime::Runtime, config: PathBuf, db: PathBuf, passphrase: String) {
+/// Authenticate a replicant and resolve the agent-specific DB path.
+/// Returns (db_path, db_passphrase) after successful login.
+fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, String), String> {
+    let config = hkask_services::ServiceConfig::from_env()
+        .map_err(|e| format!("Failed to resolve config: {e}"))?;
+    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| format!("Failed to open system DB: {e}"))?;
+    let store = Arc::new(Mutex::new(UserStore::new(db.conn_arc())));
+
+    // Authenticate
+    let session = store
+        .lock()
+        .map_err(|e| format!("Lock error: {e}"))?
+        .login(replicant, passphrase)
+        .map_err(|_| format!("Authentication failed for replicant '{}'", replicant))?;
+
+    eprintln!(
+        "Authenticated as {} (session: {})",
+        replicant, session.session_id
+    );
+
+    // Agent-specific DB path: ~/.config/hkask/agents/<replicant>.db
+    let agent_db_path = hkask_services::settings_path()
+        .parent()
+        .unwrap()
+        .join("agents")
+        .join(format!("{}.db", replicant));
+    let _ = std::fs::create_dir_all(agent_db_path.parent().unwrap());
+
+    Ok((
+        agent_db_path.to_string_lossy().to_string(),
+        passphrase.to_string(),
+    ))
+}
+
+pub fn run(
+    rt: &tokio::runtime::Runtime,
+    config: PathBuf,
+    replicant: String,
+    passphrase: String,
+    db: Option<PathBuf>,
+) {
+    let (db_path, db_passphrase) = if let Some(ref manual_db) = db {
+        // Manual DB override — skip auth, use as-is
+        (manual_db.to_string_lossy().to_string(), passphrase)
+    } else {
+        match resolve_replicant_db(&replicant, &passphrase) {
+            Ok((path, phrase)) => (path, phrase),
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    };
+
     let progress: hkask_services::ProgressFn = Arc::new(|p: &EmbedProgress| {
         eprint!("\r\x1b[K{}", p.format_full());
         let _ = std::io::stderr().flush();
@@ -14,12 +69,12 @@ pub fn run(rt: &tokio::runtime::Runtime, config: PathBuf, db: PathBuf, passphras
 
     eprintln!("=== Embedding corpus ===");
     eprintln!("Config: {}", config.display());
-    eprintln!("DB: {}", db.display());
+    eprintln!("DB: {}", db_path);
 
     let result = rt.block_on(EmbedService::embed_corpus(
         &config,
-        &db.to_string_lossy(),
-        &passphrase,
+        &db_path,
+        &db_passphrase,
         None,
         Some(progress),
     ));

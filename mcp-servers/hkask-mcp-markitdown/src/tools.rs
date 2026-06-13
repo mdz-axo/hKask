@@ -212,14 +212,14 @@ impl MarkitdownServer {
 
 // ── OcrExecutor implementation for MarkitdownServer ─────────────────────
 
+use crate::ocr::llm_ocr::LlmOcrExecutor;
+use crate::ocr::tesseract::TesseractExecutor;
+
 #[async_trait::async_trait]
 impl OcrExecutor for MarkitdownServer {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         match backend {
-            OcrBackend::Tesseract => {
-                // Check if tesseract binary is installed
-                tesseract_available() || self.ocr_model.is_some()
-            }
+            OcrBackend::Tesseract => TesseractExecutor::new().is_available(backend),
             OcrBackend::LlmOcr(_) => self.ocr_model.is_some(),
         }
     }
@@ -231,134 +231,70 @@ impl OcrExecutor for MarkitdownServer {
         image: &image::DynamicImage,
         is_fallback: bool,
     ) -> Result<OcrResult, String> {
-        let start = std::time::Instant::now();
-
         match backend {
-            OcrBackend::Tesseract if tesseract_available() => {
-                // Native Tesseract path
-                let text = tesseract_ocr(image, page_index)?;
-                let duration_ms = start.elapsed().as_millis() as u64;
-                let word_count = text.split_whitespace().count();
-                let confidence = if word_count > 0 { 0.80 } else { 0.1 };
-                Ok(OcrResult {
-                    page_index,
-                    backend: backend.clone(),
-                    text,
-                    confidence,
-                    duration_ms,
-                    was_fallback: is_fallback,
-                })
+            OcrBackend::Tesseract => {
+                TesseractExecutor::new()
+                    .execute(page_index, backend, image, is_fallback)
+                    .await
             }
             _ => {
-                // LLM OCR path (Tesseract fallback or explicit LlmOcr)
-                let model = match backend {
-                    OcrBackend::Tesseract => self.ocr_model.clone().ok_or_else(|| {
-                        "No OCR model configured for Tesseract fallback".to_string()
-                    })?,
-                    OcrBackend::LlmOcr(model) => model.clone(),
-                };
-
-                // Encode image to PNG bytes, then base64
-                let mut png_bytes: Vec<u8> = Vec::new();
-                image
-                    .write_to(
-                        &mut std::io::Cursor::new(&mut png_bytes),
-                        image::ImageFormat::Png,
-                    )
-                    .map_err(|e| format!("Failed to encode page {} to PNG: {}", page_index, e))?;
-
-                let b64_data =
-                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes);
-
-                let router = InferenceRouter::new(self.inference_config.clone());
-                let params = LLMParameters {
-                    temperature: 0.1,
-                    max_tokens: 8192,
-                    ..Default::default()
-                };
-
-                let result = router
-                    .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(&model))
+                LlmOcrExecutor::new(self.inference_config.clone())
+                    .execute(page_index, backend, image, is_fallback)
                     .await
-                    .map_err(|e| format!("OCR inference failed for page {}: {}", page_index, e))?;
-
-                let duration_ms = start.elapsed().as_millis() as u64;
-                let word_count = result.text.split_whitespace().count();
-                let confidence = if word_count > 0 { 0.85 } else { 0.1 };
-
-                Ok(OcrResult {
-                    page_index,
-                    backend: backend.clone(),
-                    text: result.text,
-                    confidence,
-                    duration_ms,
-                    was_fallback: is_fallback,
-                })
             }
         }
     }
 }
 
-/// Check if tesseract OCR binary is installed.
-fn tesseract_available() -> bool {
-    std::process::Command::new("tesseract")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
-
-/// Run Tesseract OCR on a single page image.
-///
-/// Writes the image to a temp PNG, invokes `tesseract`, reads the output.
-fn tesseract_ocr(image: &image::DynamicImage, page_index: usize) -> Result<String, String> {
-    let dir = tempfile::tempdir().map_err(|e| format!("tempdir: {}", e))?;
-    let input_path = dir.path().join(format!("page_{}.png", page_index));
-    let output_prefix = dir.path().join(format!("page_{}", page_index));
-
-    // Write image to temp file
-    image
-        .save(&input_path)
-        .map_err(|e| format!("Failed to save page {} image: {}", page_index, e))?;
-
-    // Run tesseract
-    let output = std::process::Command::new("tesseract")
-        .arg(&input_path)
-        .arg(&output_prefix)
-        .arg("-l")
-        .arg("eng")
-        .arg("--psm")
-        .arg("3") // Fully automatic page segmentation
-        .output()
-        .map_err(|e| format!("Failed to run tesseract: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "Tesseract failed for page {}: {}",
-            page_index,
-            stderr.trim()
-        ));
-    }
-
-    // Read output text
-    let txt_path = output_prefix.with_extension("txt");
-    let text = std::fs::read_to_string(&txt_path).map_err(|e| {
-        format!(
-            "Failed to read tesseract output for page {}: {}",
-            page_index, e
-        )
-    })?;
-
-    Ok(text)
-}
-
 // ── CnsObserver implementation (tracing-based) ──────────────────────────
 
-/// CNS observer that emits spans via tracing for homeostatic monitoring.
-struct TracingCnsObserver;
+/// CNS observer that emits spans via tracing and persists to the daemon
+/// experience store for homeostatic monitoring and future threshold tuning.
+struct MarkitdownCnsObserver {
+    daemon: Option<hkask_mcp::DaemonClient>,
+    replicant: String,
+}
 
-impl CnsObserver for TracingCnsObserver {
+impl MarkitdownCnsObserver {
+    fn new(daemon: Option<hkask_mcp::DaemonClient>, replicant: &str) -> Self {
+        Self {
+            daemon,
+            replicant: replicant.to_string(),
+        }
+    }
+
+    fn persist_span(&self, span_type: &str, data: serde_json::Value) {
+        if let Some(ref daemon) = self.daemon {
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let span_name = span_type.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(
+                        &replicant,
+                        "ocr_pipeline",
+                        span_name.as_str(),
+                        &data,
+                        Some(0.85),
+                    )
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.markitdown.cns", span = %span_name, "CNS span persisted");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.markitdown.cns", span = %span_name, response = ?other, "Unexpected daemon response");
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.markitdown.cns", span = %span_name, error = %e, "Failed to persist CNS span");
+                    }
+                }
+            });
+        }
+    }
+}
+
+impl CnsObserver for MarkitdownCnsObserver {
     fn observe_verification(&self, span: hkask_types::ocr::OcrVerificationSpan) {
         tracing::info!(
             target: "hkask.mcp.markitdown.cns",
@@ -368,6 +304,10 @@ impl CnsObserver for TracingCnsObserver {
             passed = span.passed,
             backends = ?span.backend_distribution,
             "OCR pipeline verification"
+        );
+        self.persist_span(
+            "ocr_verification",
+            serde_json::to_value(&span).unwrap_or_default(),
         );
     }
 
@@ -380,6 +320,10 @@ impl CnsObserver for TracingCnsObserver {
             backend_a = %span.backend_a,
             backend_b = %span.backend_b,
             "OCR cross-validation"
+        );
+        self.persist_span(
+            "ocr_cross_validation",
+            serde_json::to_value(&span).unwrap_or_default(),
         );
     }
 }
@@ -434,7 +378,7 @@ impl MarkitdownServer {
                     }
                 };
 
-                let cns_observer = TracingCnsObserver;
+                let cns_observer = MarkitdownCnsObserver::new(self.daemon.clone(), &self.replicant);
                 let emb = self.embedding_router.as_ref().map(|r| {
                     (
                         r,
@@ -529,7 +473,8 @@ impl MarkitdownServer {
                         decimation::pdf_to_images(std::path::Path::new(&path), 200)
                 {
                     let expected = page_images.len();
-                    let cns_observer = TracingCnsObserver;
+                    let cns_observer =
+                        MarkitdownCnsObserver::new(self.daemon.clone(), &self.replicant);
                     let emb = self.embedding_router.as_ref().map(|r| {
                         (
                             r,

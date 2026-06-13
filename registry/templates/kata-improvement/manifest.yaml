@@ -1,0 +1,69 @@
+# Template crate manifest for kata-improvement skill
+# hKask v0.27.0 — 4-step scientific pattern for goal achievement
+
+crate:
+  name: kata-improvement
+  version: "0.27.0"
+  description: >
+    Toyota Kata Improvement Kata — the 4-step scientific pattern for achieving
+    challenging goals through iterative experimentation. Step 1: Direction.
+    Step 2: Current Condition. Step 3: Target Condition. Step 4: Iterate/Experiment.
+    Prerequisite: kata-starter.
+
+templates:
+  - id: kata-improvement/improvement-cycle
+    path: improvement-cycle.j2
+    type: FlowDef
+    lexicon_terms: [sequence, iterate, measure, experiment]
+    description: >
+      4-step Improvement Kata process: Direction → Current Condition →
+      Target Condition → Iterate/Experiment.
+
+  - id: kata-improvement/improvement-step1-direction
+    path: improvement-step1-direction.j2
+    type: WordAct
+    lexicon_terms: [challenge, capability, goal, orient]
+    description: >
+      Step 1: Understand the Direction. What capability needs development?
+      What is the challenge from the level above?
+
+  - id: kata-improvement/improvement-step2-current
+    path: improvement-step2-current.j2
+    type: WordAct
+    lexicon_terms: [observe, measure, assess]
+    description: >
+      Step 2: Grasp the Current Condition. Collect facts and data.
+      Distinguish observation from assumption. Map the knowledge threshold.
+
+  - id: kata-improvement/improvement-step3-target
+    path: improvement-step3-target.j2
+    type: WordAct
+    lexicon_terms: [specify, target, constrain]
+    description: >
+      Step 3: Establish the Next Target Condition. Specific, measurable,
+      1 week to 3 months out, beyond current knowledge threshold.
+
+  - id: kata-improvement/improvement-step4-experiment
+    path: improvement-step4-experiment.j2
+    type: WordAct
+    lexicon_terms: [experiment, predict, obstacle]
+    description: >
+      Step 4: Iterate/Experiment toward Target Condition. Rapid PDCA cycles.
+      One obstacle at a time. Learning through experimentation.
+
+hlexicon_terms:
+  - challenge
+  - capability
+  - goal
+  - orient
+  - observe
+  - measure
+  - assess
+  - specify
+  - target
+  - constrain
+  - experiment
+  - predict
+  - obstacle
+  - sequence
+  - iterate

@@ -14,9 +14,10 @@ pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
         } => super::compose::run(rt, prompt, cognition, db, passphrase, no_validate),
         StyleAction::EmbedCorpus {
             config,
-            db,
+            replicant,
             passphrase,
-        } => super::embed_corpus::run(rt, config, db, passphrase),
+            db,
+        } => super::embed_corpus::run(rt, config, replicant, passphrase, db),
         StyleAction::Discover {
             author_name,
             max_works,

@@ -1414,11 +1414,17 @@ fn ocr_model() -> String {
 /// OCR system prompt — instructs the vision model to extract text faithfully.
 const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Output the text exactly as it appears, preserving the document structure and layout as closely as possible. If the document contains tables, preserve them in a readable format. Do not add commentary or description — only the extracted text.";
 
-/// Attempt OCR on PDF bytes using Ollama with the LightOnOCR vision model.
+/// Attempt OCR on PDF bytes using the inference router.
 ///
 /// Encodes the PDF bytes as base64 and sends them to a vision-capable model
 /// via the inference router. Uses low temperature (0.1) for faithful extraction.
 /// If the model is not available, returns an error with a download link.
+///
+/// TODO(migration): Replace with the multi-backend OCR pipeline from
+/// hkask-mcp-markitdown (pdf_to_images → run_pipeline). This legacy path
+/// sends raw PDF bytes as base64, which relies on the model parsing PDF
+/// binary. The new pipeline properly decimates to per-page images, scores
+/// complexity, routes to Tesseract/Vision LLM, and verifies output.
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
     let ocr_model = std::env::var("HKASK_OCR_MODEL")
         .ok()

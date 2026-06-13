@@ -1,19 +1,20 @@
 -- Human users (contact info for recovery only)
 CREATE TABLE IF NOT EXISTS human_users (
     user_id TEXT PRIMARY KEY,
-    
+
     -- Human's contact info (encrypted)
     email_enc BLOB NOT NULL,
     phone_enc BLOB,
-    
+
     -- Auth credentials
     passphrase_hash TEXT NOT NULL,
     salt TEXT NOT NULL,
     master_salt TEXT NOT NULL,
-    
+
     -- Metadata
     created_at INTEGER NOT NULL,
-    last_active INTEGER
+    last_active INTEGER,
+    passphrase_set_at INTEGER
 );
 
 -- Replicant identities (user logs in AS a replicant)

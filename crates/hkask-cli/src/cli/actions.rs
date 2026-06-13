@@ -474,9 +474,11 @@ pub enum StyleAction {
         #[arg(short, long)]
         config: PathBuf,
         #[arg(short, long)]
-        db: PathBuf,
-        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
+        replicant: String,
+        #[arg(long)]
         passphrase: String,
+        #[arg(short, long)]
+        db: Option<PathBuf>,
     },
     /// Discover an academic author's works and generate a corpus.yaml
     Discover {
