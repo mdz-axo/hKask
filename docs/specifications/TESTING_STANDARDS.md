@@ -219,7 +219,7 @@ Each MDS category has a distinct testing emphasis:
 | **Key invariant** | Coherence threshold gates curation decisions |
 | **Anti-pattern** | Testing Jaccard similarity in isolation without testing the full curation pipeline |
 
-[^ddmvss-strategy]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/MDS.md` — the 5-category, 6-tool framework that defines the test strategy categories.
+[^mds-strategy]: hKask Team. (2026). *MDS — Minimal Domain Specification.* `docs/architecture/MDS.md` — the 5-category, 5-tool framework that defines the test strategy categories.
 
 ---
 
@@ -414,7 +414,7 @@ The following skills are project-local in `hKask/.agents/skills/` and govern tes
 [^karpathy-guidelines]: Karpathy, A. (2025). *Coding Guidelines — Think, simplify, surgical, verify.* Project-local skill: `.agents/skills/coding-guidelines/SKILL.md`
 [^diagnose]: hKask Team. (2026). *Diagnose — Build a feedback loop first.* Project-local skill: `.agents/skills/diagnose/SKILL.md`
 [^principles]: hKask Team. (2026). *Architecture Principles.* `docs/architecture/PRINCIPLES.md`
-[^ddmvss]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/MDS.md`
+[^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification.* `docs/architecture/MDS.md`
 
 ---
 

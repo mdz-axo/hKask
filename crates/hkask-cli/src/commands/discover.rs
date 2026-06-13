@@ -1,13 +1,15 @@
 //! Style corpus discovery command — thin CLI orchestrator
 //!
-//! Searches Semantic Scholar, arXiv, web (SerpAPI), and YouTube transcripts
-//! for an academic author's works. In curated mode (default), presents web
-//! and YouTube results for user confirmation before including them.
+//! Starts the hkask-mcp-research server, then delegates to DiscoveryService
+//! which orchestrates multi-provider search (Semantic Scholar, arXiv, Brave,
+//! Tavily, Exa, Firecrawl, SerpAPI) via MCP dispatch. In curated mode
+//! (default), presents web and YouTube results for user confirmation.
 //! Generates a corpus.yaml ready for `kask style embed-corpus`.
 
 use hkask_services::{
     DiscoverRequest, DiscoveredWork, DiscoveryService, download_and_cache, generate_corpus_yaml,
 };
+use hkask_templates::ports::McpPort;
 
 use std::io::{BufRead, Write};
 
@@ -22,6 +24,7 @@ pub fn run(
     include_transcripts: bool,
     include_web: bool,
     curated: bool,
+    search_terms: Option<String>,
 ) {
     eprintln!("=== Discovering corpus for '{}' ===", author_name);
 
@@ -29,9 +32,36 @@ pub fn run(
         eprintln!("Note: No SerpAPI key set. YouTube transcript search will be skipped.");
         eprintln!("      Set HKASK_SERPAPI_API_KEY or pass --serpapi-key to enable.");
     }
-    if include_web && serpapi_key.is_none() {
-        eprintln!("Note: No SerpAPI key set. Web search will be skipped.");
+
+    // Build service context and start the research MCP server
+    let config = crate::commands::helpers::or_exit(
+        hkask_services::ServiceConfig::from_env(),
+        "Failed to resolve config",
+    );
+    let ctx = crate::commands::helpers::or_exit(
+        rt.block_on(hkask_services::AgentService::build(config)),
+        "Failed to build AgentService",
+    );
+    match rt.block_on(
+        ctx.mcp_runtime()
+            .start_server("research", "hkask-mcp-research"),
+    ) {
+        Ok(()) => {
+            tracing::info!(target: "hkask.cli", "MCP research server started")
+        }
+        Err(e) => {
+            eprintln!("Failed to start MCP research server: {e}");
+            eprintln!("Make sure hkask-mcp-research binary is built and on PATH.");
+            std::process::exit(1);
+        }
     }
+
+    let mcp = ctx.mcp_dispatcher().clone() as std::sync::Arc<dyn McpPort>;
+    let from = hkask_types::WebID::new();
+    let to = hkask_types::WebID::new();
+    let token = ctx
+        .mcp_dispatcher()
+        .issue_capability("tools".to_string(), from, to);
 
     let req = DiscoverRequest {
         author_name: author_name.clone(),
@@ -42,9 +72,14 @@ pub fn run(
         include_transcripts,
         include_web,
         curated,
+        web_search_terms: search_terms,
+        augment: false,
     };
 
-    let result = rt.block_on(DiscoveryService::discover(&req));
+    let result = rt.block_on(DiscoveryService::discover(&req, mcp.as_ref(), &token));
+
+    // Shutdown MCP server
+    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
 
     match result {
         Ok(mut r) => {
@@ -53,17 +88,13 @@ pub fn run(
             eprintln!("Academic works found: {}", r.works_found);
             eprintln!("Sources: {}", r.sources.join(", "));
 
-            // Collect all works that will go into the corpus
             let mut all_works: Vec<DiscoveredWork> = Vec::new();
-            // Academic works are already cached by DiscoveryService
-            // We need to reconstruct the list from the config
-            // (they're in the YAML but not returned separately)
 
             // ── Curation: web candidates ──────────────────────────────
             if !r.web_candidates.is_empty() {
                 eprintln!();
                 eprintln!("─── Web Search Candidates ───");
-                let selected = curate_candidates(&r.web_candidates, "web pages", rt);
+                let selected = curate_candidates(&r.web_candidates);
                 for idx in &selected {
                     let work = &r.web_candidates[*idx];
                     eprintln!("  Downloading: {} ...", work.title);
@@ -86,7 +117,7 @@ pub fn run(
             if !r.youtube_candidates.is_empty() {
                 eprintln!();
                 eprintln!("─── YouTube Transcript Candidates ───");
-                let selected = curate_candidates(&r.youtube_candidates, "YouTube videos", rt);
+                let selected = curate_candidates(&r.youtube_candidates);
                 for idx in &selected {
                     let work = &r.youtube_candidates[*idx];
                     eprintln!("  Fetching transcript: {} ...", work.title);
@@ -114,42 +145,36 @@ pub fn run(
                         .clone()
                         .unwrap_or_else(|| format!("./{}", r.author_slug)),
                 );
-                // Load existing academic works from the generated config
-                // and add curated selections
                 let existing_config: hkask_services::CorpusConfig = serde_yaml::from_str(
                     &std::fs::read_to_string(&r.config_path).unwrap_or_default(),
                 )
-                .unwrap_or_else(|_| {
-                    // Fallback: empty config
-                    hkask_services::CorpusConfig {
-                        author: r.author_slug.clone(),
-                        embedding: hkask_services::EmbeddingConfig {
-                            model: String::new(),
-                            dim: 1024,
-                            batch_size: 64,
-                        },
-                        works: vec![],
-                        foundational_rules: vec![],
-                        chunking: hkask_services::ChunkingConfig {
-                            min_words: 50,
-                            max_words: 200,
-                            sentence_boundary: ".!? ".to_string(),
-                        },
-                        centroid_entity_ref: String::new(),
-                        validation: hkask_services::ValidationConfig {
-                            centroid_distance_max: 0.25,
-                            exemplar_count_min: 3,
-                            exemplar_count_max: 7,
-                        },
-                        budget: hkask_memory::salience::BudgetConfig::PerPage {
-                            per_100_pages: 3750,
-                        },
-                        entities: Default::default(),
-                        methods: vec![],
-                    }
+                .unwrap_or_else(|_| hkask_services::CorpusConfig {
+                    author: r.author_slug.clone(),
+                    embedding: hkask_services::EmbeddingConfig {
+                        model: String::new(),
+                        dim: 1024,
+                        batch_size: 64,
+                    },
+                    works: vec![],
+                    foundational_rules: vec![],
+                    chunking: hkask_services::ChunkingConfig {
+                        min_words: 50,
+                        max_words: 200,
+                        sentence_boundary: ".!? ".to_string(),
+                    },
+                    centroid_entity_ref: String::new(),
+                    validation: hkask_services::ValidationConfig {
+                        centroid_distance_max: 0.25,
+                        exemplar_count_min: 3,
+                        exemplar_count_max: 7,
+                    },
+                    budget: hkask_memory::salience::BudgetConfig::PerPage {
+                        per_100_pages: 3750,
+                    },
+                    entities: Default::default(),
+                    methods: vec![],
                 });
 
-                // Combine academic works from config with curated selections
                 let mut combined: Vec<DiscoveredWork> = existing_config
                     .works
                     .iter()
@@ -193,12 +218,7 @@ pub fn run(
     }
 }
 
-/// Present candidates to the user and return indices of selected items.
-fn curate_candidates(
-    candidates: &[DiscoveredWork],
-    _label: &str,
-    _rt: &tokio::runtime::Runtime,
-) -> Vec<usize> {
+fn curate_candidates(candidates: &[DiscoveredWork]) -> Vec<usize> {
     for (i, work) in candidates.iter().enumerate() {
         eprintln!("  [{i}] {} — {}", work.title, work.url);
     }
@@ -207,9 +227,8 @@ fn curate_candidates(
     eprint!("  > ");
     std::io::stderr().flush().ok();
 
-    let stdin = std::io::stdin();
     let mut line = String::new();
-    stdin.lock().read_line(&mut line).ok();
+    std::io::stdin().lock().read_line(&mut line).ok();
 
     let input = line.trim().to_lowercase();
     match input.as_str() {

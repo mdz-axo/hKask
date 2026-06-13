@@ -675,8 +675,80 @@ Can `replica_compare` be used as a CI gate — rejecting document edits whose st
 2. **Advisory check:** `replica_compare` runs but produces a warning, not a block. Lower friction.
 3. **Defer:** Manual review via `spec/require/writing-quality` is adequate. Style enforcement is aspirational.
 
+### FUT-DOC-6 — Semantic Documentation Embedding Space
+
+**MDS Category:** Domain, Curation
+**Status:** Open
+**Opened:** 2026-06-12
+**Cross-references:** WRITING_EXCELLENCE.md §2.3, hkask-services EmbedService, hkask-storage sqlite-vec, FUT-DOC-5
+
+The current `document-update` skill performs structural analysis (metadata, links, taxonomy alignment) and manual rubric-based quality assessment. It has zero semantic content analysis — no embedding-based similarity search, no structural pattern matching against exemplary technical documentation.
+
+The infrastructure exists across three crates but is wired for author style replication, not documentation quality:
+- `hkask-services::EmbedService` — chunks and embeds Gutenberg prose for author voice replication
+- `hkask-storage` — sqlite-vec vector database for embedding storage
+- `hkask-mcp-replica` — `replica_compose`/`replica_compare` for stylistic analysis
+
+**Proposed capability:** A documentation snippet base — a curated corpus of exemplary technical documents embedded into sqlite-vec, with metadata tagging by document section type per WRITING_EXCELLENCE §2.3 (Statement, Evidence, Diagram, Implications). This would enable:
+
+1. **Semantic similarity search** — for any hKask document section, retrieve the 3 most similar sections from the exemplary base. "This ADR's Trust section reads like a Kubernetes API reference, not an architecture decision record — consider restructuring."
+
+2. **Structural gap detection** — detect missing WRITING_EXCELLENCE §2.3 elements. "This document has Statement and Evidence sections but no Implications. Here are 5 exemplary Implications sections from similar-domain documents in the snippet base."
+
+3. **Style centroid comparison** — `replica_compare` against a "technical-documentation" centroid trained on the exemplary base, complementing the existing Curator author-voice centroid.
+
+4. **Auto-compose suggestions** — `replica_compose` with a documentation-structure persona that understands RFC structure, ADR conventions, and API documentation patterns.
+
+**Exemplary corpus sources (candidates):**
+| Source | Document Type | Why |
+|--------|-------------|-----|
+| IETF RFCs | Specification | Canonical technical specification structure |
+| Kubernetes API docs | API reference | Gold-standard API documentation patterns |
+| Rust stdlib docs | API reference + guide | Mixed reference/guide documentation |
+| Python PEPs | Design document | Enhancement proposal structure |
+| Well-written ADRs | Decision record | ADR conventions (Context → Decision → Consequences) |
+| man pages | Reference | Terse, scannable reference format |
+| Write the Docs guides | Guide | Community-vetted documentation patterns |
+
+**Architecture sketch:**
+```
+docs/                                Exemplary corpus
+  ├── architecture/                   (RFCs, PEPs, ADRs, man pages)
+  ├── specifications/                        │
+  └── ...                                    ▼
+        │                           hkask-mcp-doc-knowledge
+        │                           (parse → chunk by section type)
+        ▼                                    │
+  doc-update skill                           ▼
+  (Task 3: quality gate)            EmbedService.embed_corpus()
+        │                           (chunk → tag → embed → centroid)
+        │                                    │
+        ├── structural checks                ▼
+        │   (metadata, links)         sqlite-vec
+        │                            (doc_snippets table)
+        ├── manual rubric                     │
+        │   (Hopper/Lovelace/                 ▼
+        │    Schriver/Gentle)         replica_compare(section_embedding,
+        │                              exemplary_centroid)
+        └── NEW: semantic checks              │
+            (embedding similarity,            ▼
+             structure detection,      writing_quality_report.yaml
+             centroid distance)        (now includes semantic_score)
+```
+
+**Open design questions:**
+- Should the exemplary corpus be static (curated once) or dynamic (updated as new exemplars are discovered)?
+- What embedding model? The existing `EmbeddingRouter` supports Ollama, Fireworks, DeepInfra — any of these could generate documentation-aware embeddings.
+- Should the semantic score be a separate dimension (5th dimension alongside Hopper/Lovelace/Schriver/Gentle) or folded into the Gentle (agent-correctness) dimension?
+- What's the minimum viable exemplary corpus size? 50 documents? 500? The EmbedService budget gate could help here.
+
+**Options:**
+1. **Implement now:** Build the snippet base with 20-50 exemplary documents, wire into `document-update` Task 3 as a 5th quality dimension. High value, moderate effort.
+2. **Defer to next cycle:** Complete the structural/document automation loop first (FUT-DOC-1 through FUT-DOC-5), then add semantic analysis. Lower risk, but delays the capability.
+3. **Prototype only:** Build the embedding pipeline but don't wire it into the quality gate yet. Prove the concept before committing to it as a gating check.
+
 ---
 
 ## References
 
-[^ddmvss]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set*. `docs/architecture/MDS.md`.
+[^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.

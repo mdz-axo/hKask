@@ -1,0 +1,41 @@
+{# document-update/doc-drift-resolve.j2 — KnowAct: Spec-Code Drift Resolution #}
+{# hKask v0.27.0 — hLexicon terms: resolve, align, implement, update, verify #}
+
+## Goal: Spec-Code Drift Resolution
+
+**Context:** {{ context | default("drift resolution") }}
+**Input:** spec-code-drift.yaml, curation-decisions.yaml
+**MDS Category:** Domain, Composition, Trust
+**OCAP Boundary:** spec:write requires CuratorId authority
+
+### Requirements
+
+1. **Filter.** Process only drift items with `Merge` or `Revise` curation decisions. Skip `Discard` and `Defer` items.
+
+2. **Resolve spec_ahead.** For items where spec describes something code lacks:
+   - Add minimal stub implementation with `FocusingAssumption` annotation
+   - Mark with `// REQ: DRIFT-<id> — existence justified by spec-code alignment, deletion test pending`
+   - Verify stub compiles with `cargo check -p <crate>`
+
+3. **Resolve code_ahead.** For items where code has evolved past spec:
+   - Update spec document to reflect actual method names, types, and implementations
+   - Note the evolution in the spec as a pattern demonstration, not an API contract
+
+4. **Resolve divergent.** For naming/structural mismatches:
+   - Add type alias if spec name differs from code name (e.g., `pub type CapabilityToken = DelegationToken;`)
+   - Update spec if code name is authoritative and spec reference is stale
+
+5. **Graydon Hoare constraint.** Each type exists because it models a domain truth, not because the spec mentioned it. Stubs that exist only for drift alignment carry the deletion test annotation.
+
+### Output
+
+All drift items resolved. `spec-code-drift.yaml` updated with `status: resolved` and `resolved_at` timestamps.
+
+### Verification
+
+```bash
+cargo check -p hkask-types -p hkask-templates -p hkask-storage -p hkask-agents
+cargo test -p hkask-templates
+```
+
+Re-run drift detection: set-difference of named entities from spec documents against `pub` API surfaces. Zero new drift items.

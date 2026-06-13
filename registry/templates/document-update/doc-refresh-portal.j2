@@ -1,0 +1,42 @@
+{# document-update/doc-refresh-portal.j2 — KnowAct: Portal & Index Refresh #}
+{# hKask v0.27.0 — hLexicon terms: refresh, update, index, verify, navigate #}
+
+## Goal: Portal & Index Refresh
+
+**Context:** {{ context | default("portal refresh") }}
+**Input:** Updated corpus from Tasks 1-6
+**MDS Category:** Curation
+**OCAP Boundary:** portal:write requires CuratorId authority
+
+### Requirements
+
+1. **Verify portal entries.** Check every document listed in `docs/README.md` portal tables exists at its stated path. Fix stale paths (e.g., `inference-integration.md` → `okapi-integration.md`).
+
+2. **Add missing entries.** For any active document not listed in the portal, add an entry with correct MDS category tags matching the document's `mds_categories` frontmatter.
+
+3. **Remove archived entries.** Delete portal entries for documents moved to `docs/archive/` or `git rm`'d.
+
+4. **Update MDS tags.** Replace old single-word 9-category tags (`interface`, `capability`, `observability`, `persistence`) with 5-category tags (`composition`, `trust`, `lifecycle`). Match each document's actual `mds_categories` frontmatter.
+
+5. **Fix stale sections.** Update sections that claim "(planned)" when documents exist. Remove empty sections (e.g., "Research").
+
+6. **Update architecture master.** Fix `docs/architecture/hKask-architecture-master.md`:
+   - Remove "Historical" section referencing deleted documents
+   - Fix "6 tools" → "5 tools"
+   - Update stale file references
+
+7. **Update DIAGRAMS_INDEX.md.** Reflect any diagram changes from Tasks 3-5.
+
+8. **Schriver findability.** Verify every document reachable from portal in ≤2 clicks (30-second rule).
+
+### Output
+
+Portal and index documents accurately reflect the active corpus.
+
+### Verification
+
+```bash
+bash docs/ci/check-links.sh
+```
+
+Manual walk: starting from `docs/README.md`, every document in the active tree is reachable.

@@ -1,0 +1,30 @@
+{# document-update/doc-quality-gate.j2 — KnowAct: Writing Quality Gate #}
+{# hKask v0.27.0 — hLexicon terms: assess, evaluate, revise, improve, verify #}
+
+## Goal: Writing Quality Gate
+
+**Context:** {{ context | default("writing quality assessment") }}
+**MDS Category:** Curation
+**OCAP Boundary:** spec:write requires CuratorId authority
+
+### Requirements
+
+1. **Assess.** Invoke `spec/require/writing-quality` on each specification document in `docs/specifications/` and `docs/architecture/`. The server returns `{dimensions_passing, meets_publication_standard}` per WRITING_EXCELLENCE.md §3.
+
+2. **Flag.** Documents scoring below 3/4 dimensions require revision. Record scores in `docs/status/writing_quality_report.yaml`.
+
+3. **Revise.** For each flagged document, apply structural discipline (WRITING_EXCELLENCE.md §2.3):
+   - Every section: Statement → Evidence → Diagram → Implications
+   - Add missing citations (§2.4): architecture docs ≥1 external source per `##` section; specifications ≥1 external source or code-path verification
+   - Split sentences exceeding 35 words (§2.2)
+   - Replace passive voice with active (§2.2)
+
+4. **Style.** Use `replica_compose` (Curator persona) for revision prose. Target `replica_compare` distance <0.3 from Curator centroid.
+
+### Output
+
+`docs/status/writing_quality_report.yaml` with per-document scores and revision actions. All specification documents at ≥3/4.
+
+### Verification
+
+Re-run `spec/require/writing-quality` on each revised document. All return `meets_publication_standard: true`.

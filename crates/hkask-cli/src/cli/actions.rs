@@ -503,6 +503,9 @@ pub enum StyleAction {
         /// Skip curation — auto-include all web + YouTube results
         #[arg(long)]
         no_curate: bool,
+        /// Search terms for web + YouTube queries (e.g., "Dunning-Kruger effect metacognition overconfidence")
+        #[arg(long)]
+        search_terms: Option<String>,
     },
 }
 

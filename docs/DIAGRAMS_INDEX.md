@@ -110,7 +110,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 
 ## References
 
-[^ddmvss]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set*. `docs/architecture/MDS.md`.
+[^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.
 [^doc-standards]: hKask Team. (2026). *Documentation Standards*. `docs/specifications/DOCUMENTATION_STANDARDS.md`.
 
 ---

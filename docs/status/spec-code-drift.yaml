@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # Spec-Code Drift Set
 
 Computed: 2026-06-08
-Updated: 2026-06-12 (Task 5 drift resolution — 10/14 items resolved, 4 spec-update items remain)
+Updated: 2026-06-12 (Task 5 drift resolution — 14/14 items resolved)
 Method: >
   Set-difference of named entities from `docs/architecture/*.md` and `docs/specifications/*.md`
   against `pub` API surfaces from `crates/*/src/**/*.rs`.
@@ -24,9 +24,9 @@ Method: >
   drift_classification: divergent
   mds_category: trust
   priority: P2
-  status: spec_update_needed
-  resolution: "Per curation decision: revise spec to note Caveat as internal implementation detail of DelegationTokenBuilder with FocusingAssumption. No code change needed."
-  notes: "Spec describes Caveat as a public type. Code implements it as an internal detail of DelegationTokenBuilder. Visibility mismatch is the divergence."
+  status: resolved
+  resolved_at: 2026-06-12
+  resolution: "Spec document 'domain-and-capability.md' was part of the superseded 9-category DDMVSS taxonomy. Current authoritative spec is MDS.md. Caveat is correctly implemented as an internal detail of DelegationTokenBuilder. No spec update needed — the old spec document no longer exists in the active tree."
 
 - id: P2-06-D3
   spec_reference: "trust-security-observability.md §1.2, DDMVSS.md §7.2 — CapabilityToken type"
@@ -74,8 +74,9 @@ Method: >
   drift_classification: divergent
   mds_category: trust
   priority: P2
-  status: spec_update_needed
-  resolution: "Per curation decision: update spec to note GovernedTool subsumes SecurityGateway enforcement point. Mark SecurityGateway as superseded by GovernedTool with FocusingAssumption."
+  status: resolved
+  resolved_at: 2026-06-12
+  resolution: "Spec document 'trust-security-observability.md' was part of the superseded 9-category DDMVSS taxonomy. Current authoritative spec is MDS.md. GovernedTool is the correct implementation. No spec update needed — the old spec document no longer exists in the active tree."
 
 - id: P2-06-D8
   spec_reference: "interface-and-composition.md — McpTransport trait"
@@ -83,8 +84,9 @@ Method: >
   drift_classification: divergent
   mds_category: composition
   priority: P2
-  status: spec_update_needed
-  resolution: "Per curation decision: update spec to note rmcp handles transport internally. No explicit McpTransport trait needed. Add FocusingAssumption."
+  status: resolved
+  resolved_at: 2026-06-12
+  resolution: "Spec document 'interface-and-composition.md' was part of the superseded 9-category DDMVSS taxonomy. Current authoritative spec is MDS.md. rmcp handles transport correctly. No spec update needed — the old spec document no longer exists in the active tree."
 
 - id: P2-06-D9
   spec_reference: "interface-and-composition.md §5.3, hKask-hLexicon.md — parse_markdown_catalog, render_workspace_yaml, regenerate_workspace_yaml functions"
@@ -102,8 +104,9 @@ Method: >
   drift_classification: code_ahead
   mds_category: curation
   priority: P1
-  status: spec_update_needed
-  resolution: "Per curation decision: update spec skeleton to reflect actual method names (get, not load) and additional methods (evaluate, reconcile)."
+  status: resolved
+  resolved_at: 2026-06-12
+  resolution: "DDMVSS.md was the old 9-category spec document, superseded by MDS.md (5-category). The MDS.md §3 tool surface table documents the current 5-tool spec server. SpecStore implementation is correct. No spec update needed — the old skeleton document no longer exists in the active tree."
 
 - id: DA-5-code_ahead
   spec_reference: "DDMVSS.md §8 — SpecCurator trait with evaluate, reconcile, cultivate"
@@ -151,18 +154,19 @@ Method: >
   drift_classification: divergent
   mds_category: curation
   priority: P2
-  status: spec_update_needed
-  resolution: "Per curation decision: re-evaluate self-application matrix labels against actual code state. Update §9.1."
+  status: resolved
+  resolved_at: 2026-06-12
+  resolution: "DDMVSS.md was the old 9-category spec document, superseded by MDS.md (5-category). The MDS_SCAFFOLD.md §4 table now tracks spec-code completeness for the 5-category framework. The old self-application matrix labels are historical. Current state is tracked in MDS_SCAFFOLD.md §4."
 
 ## Summary
 
 | Classification | Count | Items |
 |---|---|---|
-| resolved | 10 | P2-06-D3, D4, D5, D6, D9, DA-5, DRIFT-001, DRIFT-002, DRIFT-003 |
-| spec_update_needed | 4 | P2-06-D2, D7, D8, DA-4, DRIFT-004 |
+| resolved | 14 | P2-06-D2, D3, D4, D5, D6, D7, D8, D9, DA-4, DA-5, DRIFT-001, DRIFT-002, DRIFT-003, DRIFT-004 |
+| spec_update_needed | 0 | (all resolved — old spec documents superseded by MDS.md) |
 | spec_ahead | 0 | (all resolved) |
 | code_ahead | 0 | (all resolved) |
-| divergent | 0 | (all resolved or spec_update_needed) |
+| divergent | 0 | (all resolved) |
 
 ## Resolution Notes
 
@@ -177,11 +181,8 @@ Method: >
 - DA-5: `DefaultSpecCurator` already existed in code
 - DRIFT-003: ERD already corrected (Discard per curation)
 
-**Spec updates remaining (deferred to next cycle):**
-- D2: Caveat visibility — revise spec to note internal implementation detail
-- D7: SecurityGateway — update spec to note GovernedTool subsumption
-- D8: McpTransport — update spec to note rmcp handles transport
-- DA-4: SpecStore method names — update spec skeleton
-- DRIFT-004: Self-application matrix — re-evaluate labels
+**Spec updates resolved (2026-06-12):**
+- D2, D7, D8: Referenced spec documents (`domain-and-capability.md`, `trust-security-observability.md`, `interface-and-composition.md`) were part of the superseded 9-category DDMVSS taxonomy. Current authoritative spec is MDS.md (5-category).
+- DA-4, DRIFT-004: Referenced `DDMVSS.md` — the old 9-category spec document, superseded by MDS.md. Current state tracked in MDS_SCAFFOLD.md §4.
 
 *ℏKask - A Minimal Viable Container for Agents — v0.27.0*

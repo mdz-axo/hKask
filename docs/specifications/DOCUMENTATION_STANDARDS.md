@@ -1,8 +1,8 @@
 ---
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
-last_updated: 2026-06-07
-version: "0.7.0"
+last_updated: 2026-06-12
+version: "0.8.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 ## 1. Purpose
 
 This standard governs every markdown document under `docs/`. It
-operationalises the MDS taxonomy[^ddmvss] and enforces the
+operationalises the MDS taxonomy[^mds] and enforces the
 non-negotiable biases of this project:
 
 1. **Mermaid-First Visualization Mandate** — diagrams live inline in
@@ -51,18 +51,20 @@ and writing excellence conventions below. Violations block publication.
 ## 2. Metadata header (mandatory)
 
 Every document directly under `docs/**` (excluding `archive/`) MUST
-begin with the following six-field header, immediately after the `# H1`
-title:
+begin with YAML frontmatter delimited by `---` containing the following
+six fields. The header format shown below uses the 5-category MDS taxonomy
+per [`../architecture/MDS.md`](../architecture/MDS.md) §1:
 
-```markdown
-# Document Title
-
-**Version:** MAJOR.MINOR.PATCH
-**Last-Updated:** YYYY-MM-DD
-**Status:** Active | Draft | Deprecated | Superseded
-**Audience:** Brief role list
-**MDS Categories:** domain | capability | interface | composition | trust | observability | persistence | lifecycle | curation
-**Domain:** Cross-cutting | specific domain
+```yaml
+---
+title: "Document Title"
+audience: [role, list]
+last_updated: YYYY-MM-DD
+version: "MAJOR.MINOR.PATCH"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [domain, composition, trust, lifecycle, curation]
+---
 ```
 
 Conventions:
@@ -73,7 +75,7 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| MDS Categories | One or more of the 9 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §3. See [`../MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) for category → directory mapping. |
+| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
 | Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle
@@ -342,28 +344,26 @@ Before a document is merged:
 
 ## 11. MDS Alignment
 
-All architecture documents MUST map to at least one of the 9 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §3:
+All architecture documents MUST map to at least one of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §1:
 
 1. **Domain** — Bounded context, ν-events, entities, hLexicon terms
-2. **Capability** — Verbs, OCAP tokens, attenuation policy
-3. **Interface** — MCP, CLI, API surfaces, equivalence matrix
-4. **Composition** — Registry, cascade rules, template types
-5. **Trust & Security** — Threat model, OCAP boundaries, keystore
-6. **Observability** — CNS spans, variety counters, algedonic alerts
-7. **Persistence** — Storage schema, memory pipelines, encryption
-8. **Lifecycle** — Bootstrap, evolution, deprecation
-9. **Curation** — Evaluation gradient, coherence metric, curator authority
+2. **Composition** — Registry, cascade rules, template types, MCP/CLI/API surfaces, equivalence matrix
+3. **Trust** — Threat model, OCAP boundaries, keystore, capability tokens, attenuation policy
+4. **Lifecycle** — Bootstrap, evolution, deprecation, CNS spans, variety counters, storage schema, memory pipelines, encryption
+5. **Curation** — Evaluation gradient, coherence metric, curator authority, writing quality
+
+These 5 categories consolidate the previous 9-category DDMVSS taxonomy. The mapping is: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. Documents that used the 9-category taxonomy have been migrated.
 
 ### 11.1 Metadata Extension
 
-Documents spanning multiple categories SHOULD list all applicable categories in the metadata header using the `mds_categories` field:
+Documents spanning multiple categories list all applicable categories in the metadata header using the `mds_categories` field:
 
 ```yaml
 ---
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
-last_updated: 2026-05-25
-version: "0.4.0"
+last_updated: 2026-06-12
+version: "0.8.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -375,44 +375,36 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 The verification checklist (§10) is extended with MDS alignment checks:
 
 - [ ] Document maps to ≥1 MDS category
-- [ ] `mds_categories` field present in metadata (if applicable)
-- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/MDS.md) §3.2)
+- [ ] `mds_categories` field present in metadata
+- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/MDS.md) §2)
 
 ### 11.3 Category-Specific Requirements
 
 | Category | Required Content | Verification |
 |----------|-----------------|--------------|
 | **Domain** | Bounded context, ν-event types, entity definitions | hLexicon terms allocated |
-| **Capability** | Verb inventory, OCAP policy, attenuation rules | Capability grant table present |
-| **Interface** | Surface definitions, equivalence matrix | MCP ≡ CLI ≡ API verified |
-| **Composition** | Registry schema, cascade rules | Template types documented |
-| **Trust & Security** | Threat model, mitigations, keystore config | STRIDE-lite analysis complete |
-| **Observability** | CNS span registry, variety counters | All operations emit spans |
-| **Persistence** | Storage schema, encryption config | Bitemporal semantics documented |
-| **Lifecycle** | Bootstrap sequence, evolution rules | Deprecation policy specified |
-| **Curation** | Decision gradient, coherence metric | Curator authority bounded |
+| **Composition** | Registry schema, cascade rules, template types, surface definitions, equivalence matrix | Template types documented; MCP ≡ CLI ≡ API verified |
+| **Trust** | Threat model, mitigations, keystore config, OCAP policy, attenuation rules | STRIDE-lite analysis complete; capability grant table present |
+| **Lifecycle** | Bootstrap sequence, evolution rules, deprecation policy, CNS span registry, storage schema, encryption config | All operations emit spans; bitemporal semantics documented |
+| **Curation** | Decision gradient, coherence metric, writing quality assessment | Curator authority bounded; ≥3/4 writing dimensions passing |
 
 ### 11.4 Self-Application
 
-This documentation standard itself maps to MDS categories:
+This documentation standard itself maps to the 5 MDS categories:
 
 - **Domain:** Documentation corpus, metadata schema, lifecycle states
-- **Capability:** Publication gates, verification commands, citation requirements
-- **Interface:** Markdown format, Mermaid diagrams, relative links
-- **Composition:** Cross-references, ADR template, diagram registry
-- **Trust & Security:** Sourced-ideas mandate, citation density requirements
-- **Observability:** DIAGRAM_ALIGNMENT metadata, verification checklist
-- **Persistence:** Git history, archive directory, lifecycle states
-- **Lifecycle:** Draft → Active → Deprecated → Superseded → Removed
+- **Composition:** Cross-references, ADR template, diagram registry, markdown format, Mermaid diagrams, relative links
+- **Trust:** Sourced-ideas mandate, citation density requirements, publication gates, verification commands
+- **Lifecycle:** Git history, archive directory, lifecycle states (Draft → Active → Deprecated → Superseded → Removed), DIAGRAM_ALIGNMENT metadata, verification checklist
 - **Curation:** Writing Excellence protocol (Hopper, Lovelace, Schriver, Gentle tests)
 
-**Completeness:** 9/9 categories satisfied. This standard is MDS-complete.
+**Completeness:** 5/5 categories satisfied. This standard is MDS-complete.
 
 ---
 
 ## References
 
-[^ddmvss]: hKask Project. (2026). *MDS — Domain-Driven Minimal Viable System Structure*. <../architecture/MDS.md>. The structural taxonomy that classifies every document by its MDS category.
+[^mds]: hKask Project. (2026). *MDS — Minimal Domain Specification*. <../architecture/MDS.md>. The 5-category structural taxonomy that classifies every document by its MDS category.
 
 [^semver]: Preston-Werner, T. (2013). *Semantic Versioning 2.0.0*. <https://semver.org/>. The MAJOR.MINOR.PATCH convention adapted here for documentation.
 

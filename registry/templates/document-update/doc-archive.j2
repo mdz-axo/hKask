@@ -1,0 +1,38 @@
+{# document-update/doc-archive.j2 — KnowAct: Archive & Consolidation #}
+{# hKask v0.27.0 — hLexicon terms: archive, remove, deprecate, supersede, migrate #}
+
+## Goal: Archive & Consolidation
+
+**Context:** {{ context | default("archive consolidation") }}
+**Input:** corpus_inventory.yaml (documents flagged deprecate, supersede, remove)
+**MDS Category:** Lifecycle
+**OCAP Boundary:** spec:write requires CuratorId authority
+
+### Requirements
+
+1. **Discover inbound references.** Before deleting any document, use `spec/graph/query` with `query: "<document-path>"` to discover all documents that reference it.
+
+2. **Archive deprecated/superseded.** Move to `docs/archive/YYYY-MM-DD-<title-slug>/`. The `docs/archive/` directory is gitignored per DOCUMENTATION_STANDARDS.md §3.
+
+3. **Remove.** For documents flagged `remove`: `git rm` from the active tree. Git history is the archive of record — no archive snapshot needed.
+
+4. **Fix cross-references.** Update all inbound references in remaining active documents:
+   - For superseded: point to the replacement document
+   - For removed: remove the reference entirely
+
+5. **Remove backward-compatibility annotations.** No active-tree document may contain `formerly`, `previously known as`, or backward-compatibility annotations. Git history serves this purpose.
+
+6. **Generate archival note.** Use `condenser_thread_summary` to produce a one-paragraph archival note. Persist via `condenser_persist` as `(document, was_archived, reason)`.
+
+### Output
+
+Clean active tree with zero deprecated/superseded/removed documents. `docs/archive/` populated with date-stamped snapshots. Zero broken cross-references.
+
+### Verification
+
+```bash
+bash docs/ci/check-links.sh
+grep -r "formerly\|previously known as\|backward.compatible" docs/ --include="*.md" | grep -v "DOCUMENTATION_STANDARDS.md"
+```
+
+Expected: check-links.sh passes with zero broken links. Zero matches for backward-compatibility annotations (excluding the rule description in DOCUMENTATION_STANDARDS.md itself).

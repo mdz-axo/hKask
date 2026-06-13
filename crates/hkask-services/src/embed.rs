@@ -955,7 +955,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 /// Encodes the PDF bytes as base64 and sends them to a vision-capable model
 /// via the inference router. Uses low temperature (0.1) for faithful extraction.
 /// If the model is not available, returns an error with a download link.
-async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
+pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
     let ocr_model = std::env::var("HKASK_OCR_MODEL")
         .ok()
         .filter(|s| !s.is_empty())

@@ -45,6 +45,7 @@ for its category cluster.
 | [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P9), 5 anchors, anti-patterns |
 | [`magna-carta.md`](architecture/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
 | [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle, curation | 4-loop architecture — RateLimiting→EnergyBudget, crate↔loop mapping |
+| [`wallet-specification.md`](architecture/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
 
 ### Architecture Decision Records
 
@@ -52,12 +53,14 @@ for its category cluster.
 |-----|--------|----------|--------|
 | [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
 | [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
-| [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema | Active |
+| [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | lifecycle | Bitemporal triple schema | Active |
 | [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
-| [ADR-030](architecture/ADR-030-skill-bundler.md) | curation | Skill Bundler — meta-skill composition | Proposed |
+| [ADR-030](architecture/ADR-030-skill-bundler.md) | composition | Skill Bundler — meta-skill composition | Proposed |
 | [ADR-031](architecture/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
 | [ADR-032](architecture/ADR-032-mcp-gateway-membrane.md) | composition, trust | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) | Draft |
-| [ADR-033](architecture/ADR-033-dampener-override-cooldown.md) | trust, observability | Dampener override cooldown — per-issuer vs global | Draft |
+| [ADR-033](architecture/ADR-033-dampener-override-cooldown.md) | trust, lifecycle | Dampener override cooldown — per-issuer vs global | Draft |
+| [ADR-034](architecture/ADR-034-academic-author-pipeline.md) | composition, curation | Academic author pipeline architecture | Draft |
+| [ADR-035](architecture/ADR-035-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode — AgentMode, daemon transport, dual memory | Active |
 
 ### Reference Artifacts (`architecture/reference/`)
 
@@ -88,7 +91,11 @@ for its category cluster.
 | [`DEPLOYMENT.md`](specifications/DEPLOYMENT.md) | lifecycle | Deployment guide |
 | [`CI-CD-GUIDE.md`](specifications/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation |
 | [`TESTING_STANDARDS.md`](specifications/TESTING_STANDARDS.md) | all | Testing protocol and classification |
-| [`test-program.md`](specifications/test-program.md) | all | Test program specification |
+| [`test-program.md`](specifications/test-program.md) | domain, composition, trust, lifecycle, curation | Test program specification |
+| [`REPL-specification.md`](specifications/REPL-specification.md) | domain, composition, lifecycle, curation | REPL specification — `kask chat` |
+| [`MDS-agent-service.md`](specifications/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |
+| [`salience-specification.md`](specifications/salience-specification.md) | domain, composition | Passage salience algorithm specification |
+| [`crate-audit.md`](specifications/crate-audit.md) | composition, curation | Crate audit bundle manifest |
 
 ---
 

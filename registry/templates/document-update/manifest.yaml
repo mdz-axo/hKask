@@ -1,0 +1,118 @@
+# Template crate manifest for document-update skill
+# hKask v0.27.0
+
+crate:
+  name: document-update
+  version: "0.27.0"
+  description: >
+    Systematic documentation corpus maintenance workflow. Wraps the
+    hkask-mcp-spec server's 5-tool surface into a 7-task document-specific
+    workflow: inventory classification, metadata alignment, writing quality
+    gate, cross-corpus coherence, spec-code drift resolution,
+    archive/consolidation, and portal refresh. Seven KnowAct templates,
+    each doing one thing well per deep-module discipline (Ousterhout).
+
+templates:
+  - id: document-update/doc-inventory
+    path: doc-inventory.j2
+    type: KnowAct
+    lexicon_terms: [inventory, classify, detect, walk, extract, flag]
+    description: >
+      Walk the docs/ corpus, extract YAML frontmatter from every .md file,
+      classify lifecycle state against MDS_SCAFFOLD §3 state machine
+      (Draft → Active → Deprecated → Superseded → Removed), flag stale
+      status, missing/deprecated mds_categories, and references to
+      removed/superseded subsystems. Produce corpus_inventory.yaml.
+
+  - id: document-update/doc-align-metadata
+    path: doc-align-metadata.j2
+    type: KnowAct
+    lexicon_terms: [align, fix, migrate, update, verify]
+    description: >
+      Apply surgical edits to YAML frontmatter on flagged documents:
+      migrate ddmvss_categories to mds_categories (5-category taxonomy),
+      fix stale status values, add missing audience/mds_categories fields,
+      update last_updated to edit date. Metadata-only — do not touch
+      document body content.
+
+  - id: document-update/doc-quality-gate
+    path: doc-quality-gate.j2
+    type: KnowAct
+    lexicon_terms: [assess, evaluate, revise, improve, verify]
+    description: >
+      Invoke spec/require/writing-quality on specification documents.
+      Assess 4 dimensions (Hopper/Lovelace/Schriver/Gentle). Flag
+      documents scoring below 3/4. Apply structural discipline
+      (Statement→Evidence→Diagram→Implications), add missing citations,
+      split long sentences, replace passive voice. Use replica_compose
+      for revision prose in Curator voice.
+
+  - id: document-update/doc-coherence
+    path: doc-coherence.j2
+    type: KnowAct
+    lexicon_terms: [validate, verify, resolve, trace, ground]
+    description: >
+      Invoke spec/graph/coherence on the corpus. Fix category gaps,
+      incomplete specs, and cross-reference violations. Use
+      spec/graph/query to trace reference chains. Persist each fix
+      via condenser_persist as episodic memory triple.
+
+  - id: document-update/doc-drift-resolve
+    path: doc-drift-resolve.j2
+    type: KnowAct
+    lexicon_terms: [resolve, align, implement, update, verify]
+    description: >
+      Resolve spec-code drift items per curation decisions. For
+      spec_ahead: add minimal stubs with FocusingAssumption annotations.
+      For code_ahead: update spec to reflect actual method names/types.
+      For divergent: apply type-alias or spec-update resolution.
+      Follow Graydon Hoare pattern: types model domain truths.
+
+  - id: document-update/doc-archive
+    path: doc-archive.j2
+    type: KnowAct
+    lexicon_terms: [archive, remove, deprecate, supersede, migrate]
+    description: >
+      Move deprecated/superseded documents to docs/archive/YYYY-MM-DD-<label>/.
+      Git rm removed documents. Update all cross-references in active
+      documents. Remove formerly/previously-known-as annotations.
+      Git history is the archive of record.
+
+  - id: document-update/doc-refresh-portal
+    path: doc-refresh-portal.j2
+    type: KnowAct
+    lexicon_terms: [refresh, update, index, verify, navigate]
+    description: >
+      Update docs/README.md portal to reflect current corpus: verify
+      every listed document exists, add missing entries, remove archived
+      entries, update MDS category tags. Update architecture master
+      index. Verify every document reachable from portal in ≤2 clicks.
+
+hlexicon_terms:
+  - inventory
+  - classify
+  - detect
+  - walk
+  - extract
+  - flag
+  - align
+  - fix
+  - migrate
+  - update
+  - verify
+  - assess
+  - evaluate
+  - revise
+  - improve
+  - validate
+  - resolve
+  - trace
+  - ground
+  - implement
+  - archive
+  - remove
+  - deprecate
+  - supersede
+  - refresh
+  - index
+  - navigate

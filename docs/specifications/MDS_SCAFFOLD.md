@@ -157,4 +157,4 @@ The `hkask-mcp-spec` server provides 5 MDS tools (`spec/goal/capture`, `spec/goa
 
 ## References
 
-[^ddmvss]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.
+[^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.
