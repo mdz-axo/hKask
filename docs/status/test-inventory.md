@@ -35,7 +35,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-replica` | 0 | Shallow module — pass-through to compose/embed services (C8) |
 | `hkask-mcp-doc-knowledge` | 0 | Shallow module — pass-through to parsing/chunking (C8) |
 | `hkask-mcp-markitdown` | 0 | Shallow module — pass-through to conversion/OCR (C8) |
-| `hkask-mcp-telnyx` | 0 | Shallow module — API proxy (C8) |
+| `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
 | `hkask-mcp-fal` | 0 | Shallow module — API proxy (C8) |
 
 **Total: 187 tests across 18 crates** (↑ from 130)
@@ -44,7 +44,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |
 | `hkask-mcp-research` | 0 | External server (consolidated web + rss-reader 2026-06-11) |
 | `hkask-mcp-fmp` | 0 | External server |
-| `hkask-mcp-telnyx` | 0 | External server |
+| `hkask-mcp-communication` | 0 | External server |
 | `hkask-mcp-fal` | 0 | External server |
 | **Total** | **102** | |
 

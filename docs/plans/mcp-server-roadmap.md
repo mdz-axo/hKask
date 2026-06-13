@@ -31,7 +31,7 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 
 ## 2. Value-Added Layers for External Service Wrappers
 
-`hkask-mcp-fmp`, `hkask-mcp-telnyx`, and `hkask-mcp-fal` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
+`hkask-mcp-fmp` and `hkask-mcp-fal` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
 
 ### 2.1 `hkask-mcp-fmp` (Financial Modeling Prep) — 11 tools
 
@@ -162,7 +162,7 @@ Document (PDF, DOCX, image)
 | condenser | 0 | "External server; tested via integration" |
 | research | 0 | "External server" (consolidated web + rss-reader) |
 | fmp | 0 | "External server" |
-| telnyx | 0 | "External server" |
+| communication | 0 | "External server" |
 | fal | 0 | "External server" |
 | memory | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
 | doc-knowledge | 0 | Not listed in test inventory |
@@ -178,7 +178,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 | Tier | Servers | Strategy |
 |------|---------|----------|
 | **Tier 1: Internal logic** | condenser, research, doc-knowledge, markitdown | Unit-test algorithms and request builders directly (no rmcp transport needed). These servers have significant internal logic outside API calls. |
-| **Tier 2: Thin wrappers** | fmp, telnyx, fal | Low-value to unit test passthroughs. Value-add layers (Section 2) should carry tests. |
+| **Tier 2: Thin wrappers** | fmp, communication, fal | Low-value to unit test passthroughs. Value-add layers (Section 2) should carry tests. |
 | **Tier 3: Integration** | condenser, research | `rmcp` transport tests once `hkask-test-utils` is extracted. |
 
 ### 5.3 Priority Targets

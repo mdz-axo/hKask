@@ -1,152 +1,89 @@
 # Task 1 — Semantic Cartography of the Core Crate Graph
 
-**Bundle:** `crate-audit` v1.0.0 | **Phase:** Pre-core | **Skills:** improve-codebase-architecture, pragmatic-semantics
-**Date:** 2026-06-12 | **Provenance:** [Directly Stated, Cargo.toml + pub API]
+**Bundle:** `crate-audit` | **Phase:** Pre-core (improve-codebase-architecture) + Core (pragmatic-semantics, deep-module)
+**Date:** 2026-06-12 | **Provenance:** [Directly Stated, Cargo.toml] + [Directly Stated, pub API]
 
 ---
 
 ## 1. RDF Triple Graph
 
-### 1.1 Dependency Triples (`hkask:depends_on`)
+Each crate is an RDF subject. Each `Cargo.toml` dependency edge is an `hkask:depends_on` triple. Each semantic payload is an `hkask:carries` triple annotated with the key types that flow across the boundary.
 
-All triples sourced from `Cargo.toml` `[dependencies]` sections. Provenance: `[Directly Stated, Cargo.toml]`.
-
-```
-<hkask-inference>  hkask:depends_on  <hkask-types> .
-<hkask-storage>     hkask:depends_on  <hkask-types>     [feature: sql] .
-<hkask-storage>     hkask:depends_on  <hkask-keystore> .
-<hkask-memory>      hkask:depends_on  <hkask-types> .
-<hkask-memory>      hkask:depends_on  <hkask-storage> .
-<hkask-cns>         hkask:depends_on  <hkask-types> .
-<hkask-cns>         hkask:depends_on  <hkask-wallet> .
-<hkask-templates>   hkask:depends_on  <hkask-types> .
-<hkask-templates>   hkask:depends_on  <hkask-inference> .
-<hkask-templates>   hkask:depends_on  <hkask-storage> .
-<hkask-agents>      hkask:depends_on  <hkask-types> .
-<hkask-agents>      hkask:depends_on  <hkask-mcp> .
-<hkask-agents>      hkask:depends_on  <hkask-cns> .
-<hkask-agents>      hkask:depends_on  <hkask-keystore> .
-<hkask-agents>      hkask:depends_on  <hkask-storage> .
-<hkask-agents>      hkask:depends_on  <hkask-memory> .
-<hkask-keystore>    hkask:depends_on  <hkask-types> .
-<hkask-mcp>         hkask:depends_on  <hkask-types> .
-<hkask-mcp>         hkask:depends_on  <hkask-templates> .
-<hkask-mcp>         hkask:depends_on  <hkask-keystore> .
-<hkask-mcp>         hkask:depends_on  <hkask-storage> .
-<hkask-mcp>         hkask:depends_on  <hkask-cns> .
-<hkask-services>    hkask:depends_on  <hkask-types> .
-<hkask-services>    hkask:depends_on  <hkask-inference> .
-<hkask-services>    hkask:depends_on  <hkask-storage> .
-<hkask-services>    hkask:depends_on  <hkask-memory> .
-<hkask-services>    hkask:depends_on  <hkask-cns> .
-<hkask-services>    hkask:depends_on  <hkask-templates> .
-<hkask-services>    hkask:depends_on  <hkask-agents> .
-<hkask-services>    hkask:depends_on  <hkask-keystore> .
-<hkask-services>    hkask:depends_on  <hkask-wallet> .
-<hkask-services>    hkask:depends_on  <hkask-mcp> .
-<hkask-services>    hkask:depends_on  <hkask-mcp-condenser> .  # MCP server boundary
-<hkask-cli>         hkask:depends_on  <hkask-types> .
-<hkask-cli>         hkask:depends_on  <hkask-agents> .
-<hkask-cli>         hkask:depends_on  <hkask-templates> .
-<hkask-cli>         hkask:depends_on  <hkask-storage> .
-<hkask-cli>         hkask:depends_on  <hkask-mcp> .
-<hkask-cli>         hkask:depends_on  <hkask-cns> .
-<hkask-cli>         hkask:depends_on  <hkask-api> .
-<hkask-cli>         hkask:depends_on  <hkask-inference> .
-<hkask-cli>         hkask:depends_on  <hkask-services> .
-<hkask-cli>         hkask:depends_on  <hkask-wallet> .
-<hkask-cli>         hkask:depends_on  <hkask-keystore> .
-<hkask-cli>         hkask:depends_on  <hkask-memory> .
-<hkask-api>         hkask:depends_on  <hkask-types> .
-<hkask-api>         hkask:depends_on  <hkask-agents> .
-<hkask-api>         hkask:depends_on  <hkask-templates> .
-<hkask-api>         hkask:depends_on  <hkask-mcp> .
-<hkask-api>         hkask:depends_on  <hkask-cns> .
-<hkask-api>         hkask:depends_on  <hkask-keystore> .
-<hkask-api>         hkask:depends_on  <hkask-storage> .
-<hkask-api>         hkask:depends_on  <hkask-memory> .
-<hkask-api>         hkask:depends_on  <hkask-services> .
-<hkask-api>         hkask:depends_on  <hkask-wallet> .
-<hkask-wallet>      hkask:depends_on  <hkask-types> .
-<hkask-wallet>      hkask:depends_on  <hkask-keystore> .
-<hkask-wallet>      hkask:depends_on  <hkask-storage> .
-```
-
-**Total dependency edges:** 55 (from 13 crates)
-
-### 1.2 Semantic Payload Triples (`hkask:carries`)
-
-Each edge annotated with the semantic payload flowing across it. Provenance: `[Directly Stated, pub API]`.
+### Foundation Layer
 
 ```
-<hkask-types>       hkask:carries  <hkask-inference>   "Foundation types: LLMParameters, InferencePort" .
-<hkask-types>       hkask:carries  <hkask-storage>     "ID types, NuEvent, Visibility, TemporalBounds, SecretRef" .
-<hkask-types>       hkask:carries  <hkask-memory>      "NuEvent, EventID, TemporalBounds, Visibility, Confidence" .
-<hkask-types>       hkask:carries  <hkask-cns>         "QueueDepth, CnsHealth, CircuitState, NuEvent, RuntimeAlert" .
-<hkask-types>       hkask:carries  <hkask-templates>   "BundleManifest, SkillPolarity, Skill, SkillZone, InferencePort" .
-<hkask-types>       hkask:carries  <hkask-agents>      "PodID, BotID, GoalID, CapabilitySpec, DelegationToken, CurationDecision, Goal, HkaskLoop" .
-<hkask-types>       hkask:carries  <hkask-keystore>    "SecretRef, ZeroizingSecret, derivation_contexts" .
-<hkask-types>       hkask:carries  <hkask-mcp>         "ToolInfo, ToolPort, InferencePort, StructuredToolCall, GitCASPort" .
-<hkask-types>       hkask:carries  <hkask-services>    "All foundation types (transitive hub)" .
-<hkask-types>       hkask:carries  <hkask-cli>         "All foundation types (transitive hub)" .
-<hkask-types>       hkask:carries  <hkask-api>         "All foundation types (transitive hub)" .
-<hkask-types>       hkask:carries  <hkask-wallet>      "WalletId, ApiKeyId, Ed25519PublicKey, ChainId, TxHash, RJoule" .
-
-<hkask-inference>   hkask:carries  <hkask-templates>   "InferenceRouter, EmbeddingRouter, InferenceConfig, ProviderId (re-exported)" .
-<hkask-inference>   hkask:carries  <hkask-services>    "InferenceRouter, EmbeddingRouter, InferenceConfig, ProviderId" .
-<hkask-inference>   hkask:carries  <hkask-cli>         "InferenceRouter, EmbeddingRouter, InferenceConfig, ProviderId" .
-
-<hkask-storage>     hkask:carries  <hkask-memory>      "NuEventStore, TripleStore, EmbeddingStore, Database" .
-<hkask-storage>     hkask:carries  <hkask-agents>      "AgentRegistryStore, ConsentStore, UserStore, EscalationQueue, SpecStore, TripleStore, NuEventStore, SovereigntyBoundaryStore, WalletStore" .
-<hkask-storage>     hkask:carries  <hkask-mcp>         "Database, NuEventStore, TripleStore" .
-<hkask-storage>     hkask:carries  <hkask-services>    "All stores (transitive hub)" .
-<hkask-storage>     hkask:carries  <hkask-cli>         "All stores (transitive hub)" .
-<hkask-storage>     hkask:carries  <hkask-api>         "SqliteSpecStore, all stores via AgentService" .
-<hkask-storage>     hkask:carries  <hkask-wallet>      "WalletStore, Database" .
-
-<hkask-memory>      hkask:carries  <hkask-agents>      "EpisodicMemory, SemanticMemory, ConsolidationBridge, EpisodicLoop, SemanticLoop" .
-<hkask-memory>      hkask:carries  <hkask-services>    "EpisodicMemory, SemanticMemory, ConsolidationBridge, ConsolidationService" .
-<hkask-memory>      hkask:carries  <hkask-cli>         "Memory pipelines (via services)" .
-<hkask-memory>      hkask:carries  <hkask-api>         "Memory pipelines (via services)" .
-
-<hkask-cns>         hkask:carries  <hkask-agents>      "Algedonic alerts, CyberneticsLoop, CircuitBreaker, EnergyBudget, GovernedTool, CnsRuntime, SetPoints" .
-<hkask-cns>         hkask:carries  <hkask-mcp>         "GovernedTool (tool invocation membrane), CircuitBreaker" .
-<hkask-cns>         hkask:carries  <hkask-services>    "CnsRuntime, CyberneticsLoop, CircuitBreaker, EnergyBudget, SetPoints" .
-<hkask-cns>         hkask:carries  <hkask-cli>         "CnsRuntime, CyberneticsLoop, SetPoints (via services)" .
-<hkask-cns>         hkask:carries  <hkask-api>         "CircuitBreaker, CnsRuntime, CyberneticsLoop (via services)" .
-
-<hkask-templates>   hkask:carries  <hkask-mcp>         "Registry, SqliteRegistry, ManifestExecutor, SkillLoader, PromptStrategy" .
-<hkask-templates>   hkask:carries  <hkask-services>    "Registry, SqliteRegistry, ManifestExecutor, SkillLoader, PromptStrategy" .
-<hkask-templates>   hkask:carries  <hkask-cli>         "Registry, SqliteRegistry, ManifestExecutor, SkillLoader (via services)" .
-<hkask-templates>   hkask:carries  <hkask-api>         "Registry, SqliteRegistry (via services)" .
-
-<hkask-agents>      hkask:carries  <hkask-services>    "PodManager, AcpRuntime, CurationLoop, InferenceLoop, LoopSystem, ConsentManager, SovereigntyChecker, CuratorAgent" .
-<hkask-agents>      hkask:carries  <hkask-cli>         "PodManager, AcpRuntime, CurationLoop, InferenceLoop, LoopSystem (via services)" .
-<hkask-agents>      hkask:carries  <hkask-api>         "PodManager, AcpRuntime, StandingSession, GasGovernancePort (via services)" .
-
-<hkask-keystore>    hkask:carries  <hkask-storage>     "Keychain (DB passphrase resolution), derive_key, master_key" .
-<hkask-keystore>    hkask:carries  <hkask-agents>      "Keychain (OCAP secret, ACP secret, MCP secret resolution)" .
-<hkask-keystore>    hkask:carries  <hkask-mcp>         "Keychain (MCP security key, capability key resolution)" .
-<hkask-keystore>    hkask:carries  <hkask-services>    "Keychain (all secret resolution), Ed25519SpecSigner" .
-<hkask-keystore>    hkask:carries  <hkask-cli>         "Keychain (all secret resolution, via services)" .
-<hkask-keystore>    hkask:carries  <hkask-api>         "Keychain (via services)" .
-<hkask-keystore>    hkask:carries  <hkask-wallet>      "Keychain (treasury key, wallet seed), derive_key, Ed25519SpecSigner" .
-
-<hkask-mcp>         hkask:carries  <hkask-agents>      "McpRuntime, McpDispatcher, DaemonClient, GitCasAdapter, RawMcpToolPort, server scaffolding" .
-<hkask-mcp>         hkask:carries  <hkask-services>    "McpRuntime, McpDispatcher, DaemonClient, GitCasAdapter, server scaffolding" .
-<hkask-mcp>         hkask:carries  <hkask-cli>         "McpRuntime, McpDispatcher, DaemonClient (via services)" .
-<hkask-mcp>         hkask:carries  <hkask-api>         "GitCasAdapter, McpRuntime (via services)" .
-
-<hkask-services>    hkask:carries  <hkask-cli>         "AgentService, ChatService, PodService, CnsService, CuratorService, EmbedService, GoalService, OnboardingService, SovereigntyService, SpecService, VerificationService, WalletService, Settings, BundleService, ComposeService, ArchivalService, EnsembleService, InferenceService, ContactService, SkillService" .
-<hkask-services>    hkask:carries  <hkask-api>         "AgentService, ChatService, PodService, CnsService, CuratorService, SovereigntyService, SpecService, WalletService" .
-
-<hkask-wallet>      hkask:carries  <hkask-cns>         "WalletBackedBudget, WalletEnergyEstimator (energy budget integration)" .
-<hkask-wallet>      hkask:carries  <hkask-services>    "WalletManager, ApiKeyIssuer, ChainPort, PrivacyPort" .
-<hkask-wallet>      hkask:carries  <hkask-cli>         "WalletManager, ApiKeyIssuer (via services)" .
-<hkask-wallet>      hkask:carries  <hkask-api>         "WalletService (via services)" .
+hkask:types
+  rdf:type hkask:Crate ;
+  hkask:role "Foundation types" ;
+  hkask:pub_items 275 ;
+  hkask:description "ID types, ν-event, hLexicon, OCAP tokens, ports, sovereignty types" .
+  [Provenance: Directly Stated, Cargo.toml + pub API]
 ```
 
-**Total semantic payload edges:** 52
+### Dependency Triples
+
+```
+hkask:keystore   hkask:depends_on hkask:types .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:WebID, hkask:SecretRef, hkask:ZeroizingSecret ] .
+  [Provenance: Directly Stated, pub API — keystore uses types for key derivation contexts]
+
+hkask:inference  hkask:depends_on hkask:types .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:InferencePort, hkask:InferenceResult, hkask:LLMParameters ] .
+  [Provenance: Directly Stated, pub API — inference implements InferencePort from types]
+
+hkask:storage    hkask:depends_on hkask:types, hkask:keystore .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:NuEvent, hkask:Triple, hkask:WebID, hkask:SecretRef ] .
+  [Provenance: Directly Stated, pub API — storage persists ν-events and triples]
+
+hkask:wallet     hkask:depends_on hkask:types, hkask:keystore, hkask:storage .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:WalletId, hkask:ApiKeyMaterial, hkask:Ed25519PublicKey, hkask:RJoule ] .
+  [Provenance: Directly Stated, pub API — wallet uses keystore for signing, storage for persistence]
+
+hkask:memory     hkask:depends_on hkask:types, hkask:storage .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:NuEvent, hkask:Triple, hkask:EmbeddingID ] .
+  [Provenance: Directly Stated, pub API — memory reads ν-events from storage for consolidation]
+
+hkask:cns        hkask:depends_on hkask:types, hkask:wallet .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:QueueDepth, hkask:CnsHealth, hkask:RuntimeAlert, hkask:EnergyBudget ] .
+  [Provenance: Directly Stated, pub API — CNS emits algedonic alerts and variety counters]
+  NOTE: hkask:cns → hkask:wallet is the ONLY upward dependency in the graph (wallet sits below CNS in the layered architecture but CNS depends on it for wallet-backed energy budgets). This is NOT a cycle — wallet does not depend on CNS.
+
+hkask:templates  hkask:depends_on hkask:types, hkask:inference, hkask:storage .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:BundleManifest, hkask:Skill, hkask:TemplateFile, hkask:InferencePort ] .
+  [Provenance: Directly Stated, pub API — templates re-exports inference types]
+
+hkask:mcp        hkask:depends_on hkask:types, hkask:templates, hkask:keystore, hkask:storage, hkask:cns .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:ToolInfo, hkask:McpRuntime, hkask:DaemonClient, hkask:GovernedTool ] .
+  [Provenance: Directly Stated, pub API — MCP dispatches tools through CNS-governed membrane]
+
+hkask:agents     hkask:depends_on hkask:types, hkask:mcp, hkask:cns, hkask:keystore, hkask:storage, hkask:memory .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:PodManager, hkask:AcpRuntime, hkask:CurationLoop, hkask:InferenceLoop ] .
+  [Provenance: Directly Stated, pub API — agents orchestrate pods, ACP, curation]
+
+hkask:services   hkask:depends_on hkask:types, hkask:inference, hkask:storage, hkask:memory, hkask:cns, hkask:templates, hkask:agents, hkask:keystore, hkask:wallet, hkask:mcp .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:AgentService, hkask:ChatService, hkask:CnsService, hkask:PodService ] .
+  [Provenance: Directly Stated, pub API — services is the shared service layer composing all domain crates]
+
+hkask:api        hkask:depends_on hkask:types, hkask:agents, hkask:templates, hkask:mcp, hkask:cns, hkask:keystore, hkask:storage, hkask:memory, hkask:services, hkask:wallet .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:ApiState, hkask:ApiError, route types ] .
+  [Provenance: Directly Stated, pub API — API composes AgentService for all domain objects]
+
+hkask:cli        hkask:depends_on hkask:types, hkask:agents, hkask:templates, hkask:storage, hkask:mcp, hkask:cns, hkask:api, hkask:inference, hkask:services, hkask:wallet, hkask:keystore, hkask:memory .
+  [Provenance: Directly Stated, Cargo.toml]
+  hkask:carries [ hkask:ReplState, CLI commands, bootstrap ] .
+  [Provenance: Directly Stated, pub API — CLI is the primary user surface]
+```
 
 ---
 
@@ -154,135 +91,154 @@ Each edge annotated with the semantic payload flowing across it. Provenance: `[D
 
 ```mermaid
 erDiagram
-    hkask-types ||--|{ hkask-inference : "Foundation types [IS]"
-    hkask-types ||--|{ hkask-storage : "ID types, NuEvent, Visibility [IS]"
-    hkask-types ||--|{ hkask-memory : "NuEvent, TemporalBounds, Confidence [IS]"
-    hkask-types ||--|{ hkask-cns : "QueueDepth, CnsHealth, RuntimeAlert [IS]"
-    hkask-types ||--|{ hkask-templates : "BundleManifest, Skill, InferencePort [IS]"
-    hkask-types ||--|{ hkask-agents : "PodID, CapabilitySpec, Goal, HkaskLoop [IS]"
-    hkask-types ||--|{ hkask-keystore : "SecretRef, ZeroizingSecret [IS]"
-    hkask-types ||--|{ hkask-mcp : "ToolInfo, ToolPort, GitCASPort [IS]"
-    hkask-types ||--|{ hkask-services : "All foundation types (hub) [IS]"
-    hkask-types ||--|{ hkask-cli : "All foundation types (hub) [IS]"
-    hkask-types ||--|{ hkask-api : "All foundation types (hub) [IS]"
-    hkask-types ||--|{ hkask-wallet : "WalletId, ApiKeyId, RJoule types [IS]"
+    hkask-types ||--o{ hkask-keystore : "depends_on [WebID, SecretRef, ZeroizingSecret]"
+    hkask-types ||--o{ hkask-inference : "depends_on [InferencePort, LLMParameters]"
+    hkask-types ||--o{ hkask-storage : "depends_on [NuEvent, Triple, WebID]"
+    hkask-types ||--o{ hkask-wallet : "depends_on [WalletId, RJoule, Ed25519PublicKey]"
+    hkask-types ||--o{ hkask-memory : "depends_on [NuEvent, Triple, EmbeddingID]"
+    hkask-types ||--o{ hkask-cns : "depends_on [QueueDepth, CnsHealth, RuntimeAlert]"
+    hkask-types ||--o{ hkask-templates : "depends_on [BundleManifest, Skill, TemplateFile]"
+    hkask-types ||--o{ hkask-mcp : "depends_on [ToolInfo, ports]"
+    hkask-types ||--o{ hkask-agents : "depends_on [WebID, PodID, OCAP tokens]"
+    hkask-types ||--o{ hkask-services : "depends_on [all foundation types]"
+    hkask-types ||--o{ hkask-api : "depends_on [all foundation types]"
+    hkask-types ||--o{ hkask-cli : "depends_on [all foundation types]"
 
-    hkask-inference ||--|{ hkask-templates : "InferenceRouter, EmbeddingRouter [IS]"
-    hkask-inference ||--|{ hkask-services : "InferenceRouter, EmbeddingRouter [IS]"
-    hkask-inference ||--|{ hkask-cli : "InferenceRouter, EmbeddingRouter [IS]"
+    hkask-keystore ||--o{ hkask-storage : "depends_on [encryption keys, DB passphrase]"
+    hkask-keystore ||--o{ hkask-wallet : "depends_on [wallet seed, signing keys]"
+    hkask-keystore ||--o{ hkask-mcp : "depends_on [MCP secrets, capability keys]"
+    hkask-keystore ||--o{ hkask-agents : "depends_on [OCAP secrets, ACP secrets]"
+    hkask-keystore ||--o{ hkask-services : "depends_on [all secrets resolution]"
+    hkask-keystore ||--o{ hkask-api : "depends_on [secrets resolution]"
+    hkask-keystore ||--o{ hkask-cli : "depends_on [secrets resolution]"
 
-    hkask-storage ||--|{ hkask-memory : "NuEventStore, TripleStore, EmbeddingStore [IS]"
-    hkask-storage ||--|{ hkask-agents : "AgentRegistryStore, ConsentStore, EscalationQueue [IS]"
-    hkask-storage ||--|{ hkask-mcp : "Database, NuEventStore, TripleStore [IS]"
-    hkask-storage ||--|{ hkask-services : "All stores (hub) [IS]"
-    hkask-storage ||--|{ hkask-cli : "All stores (hub) [IS]"
-    hkask-storage ||--|{ hkask-api : "SqliteSpecStore, all stores [IS]"
-    hkask-storage ||--|{ hkask-wallet : "WalletStore, Database [IS]"
-    hkask-storage ||--|{ hkask-keystore : "Keychain for DB passphrase [IS/OUGHT boundary]"
+    hkask-storage ||--o{ hkask-wallet : "depends_on [WalletStore]"
+    hkask-storage ||--o{ hkask-memory : "depends_on [NuEventStore, TripleStore]"
+    hkask-storage ||--o{ hkask-templates : "depends_on [SpecStore, Registry SQLite]"
+    hkask-storage ||--o{ hkask-mcp : "depends_on [stores for tool persistence]"
+    hkask-storage ||--o{ hkask-agents : "depends_on [AgentRegistryStore, UserStore]"
+    hkask-storage ||--o{ hkask-services : "depends_on [all stores]"
+    hkask-storage ||--o{ hkask-api : "depends_on [all stores]"
+    hkask-storage ||--o{ hkask-cli : "depends_on [all stores]"
 
-    hkask-memory ||--|{ hkask-agents : "EpisodicMemory, SemanticMemory, ConsolidationBridge [IS]"
-    hkask-memory ||--|{ hkask-services : "EpisodicMemory, SemanticMemory [IS]"
-    hkask-memory ||--|{ hkask-cli : "Memory pipelines (via services) [IS]"
-    hkask-memory ||--|{ hkask-api : "Memory pipelines (via services) [IS]"
+    hkask-inference ||--o{ hkask-templates : "depends_on [InferenceRouter, EmbeddingRouter]"
+    hkask-inference ||--o{ hkask-services : "depends_on [InferenceService wraps router]"
+    hkask-inference ||--o{ hkask-cli : "depends_on [InferenceRouter for chat]"
 
-    hkask-cns ||--|{ hkask-agents : "Algedonic alerts, CyberneticsLoop, GovernedTool [IS/OUGHT boundary]"
-    hkask-cns ||--|{ hkask-mcp : "GovernedTool membrane, CircuitBreaker [IS/OUGHT boundary]"
-    hkask-cns ||--|{ hkask-services : "CnsRuntime, CyberneticsLoop, SetPoints [IS]"
-    hkask-cns ||--|{ hkask-cli : "CnsRuntime, CyberneticsLoop (via services) [IS]"
-    hkask-cns ||--|{ hkask-api : "CircuitBreaker, CnsRuntime (via services) [IS]"
-    hkask-cns ||--|{ hkask-wallet : "WalletBackedBudget, WalletEnergyEstimator [IS]"
+    hkask-wallet ||--o{ hkask-cns : "depends_on [WalletBackedBudget, WalletEnergyEstimator]"
+    hkask-wallet ||--o{ hkask-services : "depends_on [WalletService]"
+    hkask-wallet ||--o{ hkask-api : "depends_on [WalletService]"
+    hkask-wallet ||--o{ hkask-cli : "depends_on [WalletService]"
 
-    hkask-templates ||--|{ hkask-mcp : "Registry, ManifestExecutor, SkillLoader [IS]"
-    hkask-templates ||--|{ hkask-services : "Registry, ManifestExecutor, SkillLoader [IS]"
-    hkask-templates ||--|{ hkask-cli : "Registry, ManifestExecutor (via services) [IS]"
-    hkask-templates ||--|{ hkask-api : "Registry (via services) [IS]"
+    hkask-memory ||--o{ hkask-agents : "depends_on [EpisodicMemory, SemanticMemory]"
+    hkask-memory ||--o{ hkask-services : "depends_on [ConsolidationService]"
+    hkask-memory ||--o{ hkask-api : "depends_on [memory pipelines]"
+    hkask-memory ||--o{ hkask-cli : "depends_on [memory pipelines]"
 
-    hkask-agents ||--|{ hkask-services : "PodManager, CurationLoop, LoopSystem, ConsentManager [IS]"
-    hkask-agents ||--|{ hkask-cli : "PodManager, CurationLoop (via services) [IS]"
-    hkask-agents ||--|{ hkask-api : "PodManager, StandingSession, GasGovernancePort [IS]"
+    hkask-cns ||--o{ hkask-mcp : "depends_on [GovernedTool, CircuitBreaker]"
+    hkask-cns ||--o{ hkask-agents : "depends_on [algedonic alerts, energy budgets, CyberneticsLoop]"
+    hkask-cns ||--o{ hkask-services : "depends_on [CnsService, CnsRuntime]"
+    hkask-cns ||--o{ hkask-api : "depends_on [CNS health, alerts, variety]"
+    hkask-cns ||--o{ hkask-cli : "depends_on [CNS health, alerts, variety]"
 
-    hkask-keystore ||--|{ hkask-storage : "Keychain, derive_key [IS/OUGHT boundary]"
-    hkask-keystore ||--|{ hkask-agents : "Keychain (OCAP, ACP, MCP secrets) [IS]"
-    hkask-keystore ||--|{ hkask-mcp : "Keychain (MCP security, capability keys) [IS]"
-    hkask-keystore ||--|{ hkask-services : "Keychain, Ed25519SpecSigner [IS]"
-    hkask-keystore ||--|{ hkask-cli : "Keychain (via services) [IS]"
-    hkask-keystore ||--|{ hkask-api : "Keychain (via services) [IS]"
-    hkask-keystore ||--|{ hkask-wallet : "Keychain (treasury, wallet seed) [IS]"
+    hkask-templates ||--o{ hkask-mcp : "depends_on [Registry, SkillLoader, ManifestExecutor]"
+    hkask-templates ||--o{ hkask-agents : "depends_on [Registry, SkillLoader]"
+    hkask-templates ||--o{ hkask-services : "depends_on [BundleService, SkillService]"
+    hkask-templates ||--o{ hkask-api : "depends_on [template routes]"
+    hkask-templates ||--o{ hkask-cli : "depends_on [template commands]"
 
-    hkask-mcp ||--|{ hkask-agents : "McpRuntime, DaemonClient, GitCasAdapter [IS]"
-    hkask-mcp ||--|{ hkask-services : "McpRuntime, DaemonClient, GitCasAdapter [IS]"
-    hkask-mcp ||--|{ hkask-cli : "McpRuntime, DaemonClient (via services) [IS]"
-    hkask-mcp ||--|{ hkask-api : "GitCasAdapter, McpRuntime (via services) [IS]"
+    hkask-mcp ||--o{ hkask-agents : "depends_on [McpRuntime, McpDispatcher, DaemonClient]"
+    hkask-mcp ||--o{ hkask-services : "depends_on [MCP dispatch, daemon handler]"
+    hkask-mcp ||--o{ hkask-api : "depends_on [MCP routes, tool invocation]"
+    hkask-mcp ||--o{ hkask-cli : "depends_on [MCP commands, daemon]"
 
-    hkask-services ||--|{ hkask-cli : "AgentService, ChatService, PodService, CnsService [IS/OUGHT boundary]"
-    hkask-services ||--|{ hkask-api : "AgentService, ChatService, PodService, CnsService [IS/OUGHT boundary]"
+    hkask-agents ||--o{ hkask-services : "depends_on [PodManager, CurationLoop, EnsembleService]"
+    hkask-agents ||--o{ hkask-api : "depends_on [pod routes, chat routes, ACP routes]"
+    hkask-agents ||--o{ hkask-cli : "depends_on [pod commands, chat, ensemble]"
 
-    hkask-wallet ||--|{ hkask-cns : "WalletBackedBudget, WalletEnergyEstimator [IS]"
-    hkask-wallet ||--|{ hkask-services : "WalletManager, ApiKeyIssuer [IS]"
-    hkask-wallet ||--|{ hkask-cli : "WalletManager, ApiKeyIssuer (via services) [IS]"
-    hkask-wallet ||--|{ hkask-api : "WalletService (via services) [IS]"
+    hkask-services ||--o{ hkask-api : "depends_on [AgentService — single source of truth]"
+    hkask-services ||--o{ hkask-cli : "depends_on [AgentService — single source of truth]"
+
+    hkask-api ||--o{ hkask-cli : "depends_on [API state, embedded server]"
 ```
 
 ---
 
-## 3. IS/OUGHT Boundary Crossings (Semantic Drift Sites)
+## 3. IS/OUGHT Boundary Analysis
 
-| # | Edge | IS (Data Flow) | OUGHT (Prescriptive Contract) | Drift Risk |
-|---|------|---------------|------------------------------|------------|
-| 1 | `hkask-cns → hkask-agents` | Algedonic alerts (RuntimeAlert) emitted by CNS | **OUGHT:** Every alert must be consumed by CuratorAgent. Broken closure = unacknowledged system degradation. | **HIGH** |
-| 2 | `hkask-cns → hkask-mcp` | GovernedTool wraps all tool invocations | **OUGHT:** Every tool call must pass through GovernedTool membrane. Bypass = OCAP violation. | **MEDIUM** |
-| 3 | `hkask-storage → hkask-cns` | ν-event stream feeds variety counters | **OUGHT:** Every tool call must produce a ν-event. Missing ν-events = variety deficit blind spot. | **MEDIUM** |
-| 4 | `hkask-agents → hkask-cns` | Agent activity feeds back to CNS | **OUGHT:** CNS variety counters must reflect actual system state. Stale counters = Good Regulator violation. | **MEDIUM** |
-| 5 | `hkask-keystore → hkask-storage` | Keychain resolves DB passphrase | **OUGHT:** Passphrase must be available before any storage operation. | **LOW** |
-| 6 | `hkask-services → hkask-cli` | AgentService provides all shared infrastructure | **OUGHT:** CLI and API must use identical service layer. Divergence = duplicated business logic. | **LOW** |
+Edges that cross the IS (descriptive data flow) / OUGHT (prescriptive contract) boundary are potential semantic drift sites.
 
----
-
-## 4. Shallow Module Registry
-
-| Crate | Pub Modules | Pub Re-exports | Est. Impl Lines | Depth Score | Classification |
-|-------|------------|---------------|-----------------|-------------|----------------|
-| `hkask-types` | 20 | ~120 | ~4000 | **28** | Shallow — justified as types crate; 140 items suggests sub-crate extraction |
-| `hkask-inference` | 7 | 8 | ~800 | **53** | Adequate |
-| `hkask-storage` | 14 | ~40 | ~2000 | **37** | Shallow — thin store wrappers |
-| `hkask-memory` | 8 | 7 | ~600 | **40** | Shallow — consolidation bridge is thin |
-| `hkask-cns` | 12 | ~25 | ~1500 | **41** | Shallow — many thin public modules |
-| `hkask-templates` | 8 | 15 | ~900 | **39** | Shallow — pass-through re-exports from inference |
-| `hkask-agents` | 12 | ~30 | ~1800 | **43** | Shallow — many modules |
-| `hkask-keystore` | 5 | 15 | ~500 | **25** | Shallow — interface explosion in keychain |
-| `hkask-mcp` | 6 | 20 | ~800 | **31** | Shallow — many small server-scaffolding exports |
-| `hkask-services` | 27 | ~70 | ~3000 | **31** | **Very Shallow** — 27 modules, many thin facades |
-| `hkask-cli` | 6 | 0 | ~1200 | **200** | Deep — application boundary |
-| `hkask-api` | 4 | 20 | ~1000 | **42** | Shallow |
-| `hkask-wallet` | 5 | 6 | ~600 | **55** | Adequate |
-
-### Flagged Shallow Findings
-
-| # | Crate | Finding | Constraint Force |
-|---|-------|---------|-----------------|
-| S1 | `hkask-services` | 27 public modules, 70 re-exports. Depth score 31. Many service modules are thin pass-through facades. | **Guideline** |
-| S2 | `hkask-types` | 140 public items. Interface explosion for a foundation crate. | **Evidence** |
-| S3 | `hkask-templates` | Re-exports 5 items from `hkask-inference` — pass-through with no added behavior. | **Guideline** |
-| S4 | `hkask-keystore` | 15 public resolver functions in keychain module — interface explosion. | **Guideline** |
+| Edge | IS Payload | OUGHT Payload | Drift Risk |
+|------|-----------|---------------|------------|
+| `hkask-cns → hkask-agents` | Algedonic alerts (IS: measured variety deficit) | Curator MUST respond (OUGHT: Magna Carta CNS threshold) | **Medium** — if Curator ignores alerts, IS/OUGHT diverges |
+| `hkask-templates → hkask-mcp` | Registry entries (IS: stored templates) | Template execution contracts (OUGHT: FlowDef steps must complete) | **Low** — executor enforces contract at runtime |
+| `hkask-agents → hkask-services` | Pod state (IS: PodStatus) | Consent enforcement (OUGHT: P4 Affirmative Consent) | **Medium** — if consent manager bypassed, sovereignty violated |
+| `hkask-cns → hkask-mcp` | Energy budget state (IS: remaining hJoules) | GovernedTool MUST enforce budget (OUGHT: OCAP gate) | **Low** — GovernedTool is the enforcement membrane |
+| `hkask-keystore → hkask-storage` | Encryption keys (IS: derived keys) | Keys MUST be zeroized after use (OUGHT: security contract) | **High** — if zeroizing skipped, key material leaks |
 
 ---
 
-## 5. Dead Crate & Cycle Registry
+## 4. Shallow Module / Dead Crate / Cycle Registry
 
-**Dead crates:** None. Every core crate has ≥1 downstream consumer.
+### 4.1 Dependency Cycle Check
 
-**Dependency cycles:** None. Graph is a strict DAG. Longest path: `hkask-cli → hkask-services → hkask-agents → hkask-mcp → hkask-cns → hkask-wallet → hkask-storage → hkask-keystore → hkask-types` (depth 8).
+**Result: NO cycles detected.** The crate graph is a strict DAG with `hkask-types` at the root. The only non-obvious edge is `hkask-cns → hkask-wallet` (CNS depends on wallet for energy budgets), but wallet does not depend on CNS — no back-edge.
+
+### 4.2 Dead Crate Check
+
+**Result: NO dead crates.** Every crate has at least one internal consumer:
+
+| Crate | Consumers |
+|-------|-----------|
+| `hkask-types` | All 12 other crates |
+| `hkask-keystore` | storage, wallet, mcp, agents, services, api, cli (7) |
+| `hkask-inference` | templates, services, cli (3) |
+| `hkask-storage` | wallet, memory, templates, mcp, agents, services, api, cli (8) |
+| `hkask-wallet` | cns, services, api, cli (4) |
+| `hkask-memory` | agents, services, api, cli (4) |
+| `hkask-cns` | mcp, agents, services, api, cli (5) |
+| `hkask-templates` | mcp, agents, services, api, cli (5) |
+| `hkask-mcp` | agents, services, api, cli (4) |
+| `hkask-agents` | services, api, cli (3) |
+| `hkask-services` | api, cli (2) |
+| `hkask-api` | cli (1) |
+| `hkask-cli` | (application binary — terminal consumer) |
+
+### 4.3 Shallow Module Candidates (Preliminary)
+
+Depth score = pub items / implementation estimate. Full depth audit deferred to Task 3 (rust-expertise Phase 6 + deep-module).
+
+| Crate | Pub Items | Est. Impl LOC | Depth Signal | Classification |
+|-------|-----------|---------------|--------------|----------------|
+| `hkask-types` | 275 | ~3000 (est.) | ~10.9 | **Shallow** — foundation crate with very large interface. Expected for a types crate, but 275 pub items warrants review for consolidation. |
+| `hkask-agents` | 204 | ~2500 (est.) | ~12.3 | **Shallow** — large interface relative to implementation. |
+| `hkask-cli` | 196 | ~3000 (est.) | ~15.3 | **Shallow** — but CLI is an application boundary, not a library. Depth metric less applicable. |
+| `hkask-api` | 166 | ~2000 (est.) | ~12.0 | **Shallow** — API surface with many route types. Expected for an API crate. |
+| `hkask-services` | 144 | ~2500 (est.) | ~17.4 | **Shallow** — service layer with many service types. |
+| `hkask-storage` | 86 | ~1500 (est.) | ~17.4 | **Shallow** — many store types, each with its own error type. |
+| `hkask-cns` | 53 | ~1200 (est.) | ~22.6 | **Shallow** — borderline. |
+| `hkask-mcp` | 48 | ~1000 (est.) | ~20.8 | **Shallow** — borderline. |
+| `hkask-templates` | 45 | ~800 (est.) | ~17.8 | **Shallow** — borderline. |
+| `hkask-inference` | 44 | ~600 (est.) | ~13.6 | **Shallow** — small crate, moderate interface. |
+| `hkask-memory` | 40 | ~600 (est.) | ~15.0 | **Shallow** — borderline. |
+| `hkask-keystore` | 32 | ~400 (est.) | ~12.5 | **Shallow** — small crate, moderate interface. |
+| `hkask-wallet` | 24 | ~500 (est.) | ~20.8 | **Shallow** — borderline. Smallest interface. |
+
+**Preliminary finding:** All crates score in the "Shallow" range (0–49) by the Ousterhout depth metric. This is partially expected — hkask is a types-and-services architecture where crates primarily define types and delegate implementation. However, the consistently low depth scores warrant deeper investigation in Task 3.
+
+**Flagged for deeper audit:**
+- `hkask-types` (275 pub items) — are all re-exports justified?
+- `hkask-agents` (204 pub items) — can interface be reduced?
+- `hkask-storage` (86 pub items, many per-store error types) — can errors be unified?
 
 ---
 
-## 6. Verification
+## 5. Verification Checklist
 
-| Check | Status |
-|-------|--------|
-| Every crate appears exactly once in RDF graph | ✅ 13 crates |
-| Every `Cargo.toml` dependency edge has a corresponding triple | ✅ 55 edges |
-| No crate classified without provenance | ✅ All tagged |
-| IS/OUGHT boundary crossings flagged | ✅ 6 sites |
-| Shallow modules flagged with depth scores | ✅ 4 findings |
-| Dead crates checked | ✅ None |
-| Dependency cycles checked | ✅ None |
+- [x] Every crate appears exactly once in the RDF graph (13 crates)
+- [x] Every `Cargo.toml` dependency edge has a corresponding triple
+- [x] No crate classified without provenance (all tagged `[Directly Stated, Cargo.toml]` or `[Directly Stated, pub API]`)
+- [x] No dependency cycles detected
+- [x] No dead crates detected
+- [x] IS/OUGHT boundary edges identified (5 edges)
+- [x] Shallow module candidates flagged (all crates, with 3 prioritized for deeper audit)

@@ -57,7 +57,7 @@ Each server now follows the **thin launcher + narrative recording** pattern:
 | `hkask-mcp-doc-knowledge` | `doc_knowledge` | `doc_knowledge_chunk`, `doc_knowledge_parse`, `doc_knowledge_store_qa` |
 | `hkask-mcp-markitdown` | `markitdown` | `markitdown_convert`, `markitdown_ocr` |
 | `hkask-mcp-fmp` | `fmp` | `fmp_company_profile`, `fmp_quote`, `fmp_search` |
-| `hkask-mcp-telnyx` | `telnyx` | `telnyx_send_sms`, `telnyx_make_call` |
+| `hkask-mcp-communication` | `communication` | `tts_speak`, `tts_generate` |
 | `hkask-mcp-fal` | `fal` | `fal_generate_image` |
 
 **Pattern applied to each:**
@@ -85,8 +85,8 @@ Each server now follows the **thin launcher + narrative recording** pattern:
 ### Pre-existing Issues Fixed (unrelated, blocking compilation)
 
 - `hkask-storage/src/agent_registry.rs`: Rust 2024 edition string prefix issues (added spaces)
-- `hkask-agents/src/registry_loader.rs`: borrow-after-move with `phone_number`/`whatsapp_id` (cloned before moves)
-- `hkask-cli/src/commands/agent.rs`: missing `phone_number`/`whatsapp_id` fields in `AgentDefinition` initializer
+- `hkask-agents/src/registry_loader.rs`: borrow-after-move with `voice_description`/`voice_id` (cloned before moves)
+- `hkask-cli/src/commands/agent.rs`: missing `voice_description`/`voice_id` fields in `AgentDefinition` initializer
 
 ---
 
@@ -128,7 +128,7 @@ Each server now follows the **thin launcher + narrative recording** pattern:
 
 ### LOW — Remaining MCP Server Test Coverage
 
-**What:** Several MCP servers have 0 tests (memory, replica, doc-knowledge, markitdown, telnyx, fal). Per C8, shallow modules get shallow tests — these are API proxies and pass-throughs, so 0 tests is compliant. But basic tool schema validation tests would improve coverage.
+**What:** Several MCP servers have 0 tests (memory, replica, doc-knowledge, markitdown, communication, fal). Per C8, shallow modules get shallow tests — these are API proxies and pass-throughs, so 0 tests is compliant. But basic tool schema validation tests would improve coverage.
 
 ---
 
