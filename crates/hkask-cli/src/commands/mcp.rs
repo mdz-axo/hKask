@@ -6,8 +6,7 @@ const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("memory", "hkask-mcp-memory"),
     ("condenser", "hkask-mcp-condenser"),
     ("spec", "hkask-mcp-spec"),
-    ("doc-knowledge", "hkask-mcp-doc-knowledge"),
-    ("markitdown", "hkask-mcp-markitdown"),
+    ("docproc", "hkask-mcp-docproc"),
 ];
 
 fn build_service_context(

@@ -23,8 +23,7 @@ members = [
     "mcp-servers/hkask-mcp-media",
     "mcp-servers/hkask-mcp-spec",
     "mcp-servers/hkask-mcp-memory",
-    "mcp-servers/hkask-mcp-doc-knowledge",
-    "mcp-servers/hkask-mcp-markitdown",
+    "mcp-servers/hkask-mcp-docproc",
     "mcp-servers/hkask-mcp-replica",
 ]
 
@@ -96,6 +95,7 @@ parking_lot = "0.12"
 rand = "0.9"
 base64 = "0.22"
 image = "0.25"
+imageproc = "0.25"
 
 # Keychain / Secrets
 keyring = { version = "3", features = ["linux-native-sync-persistent", "crypto-rust"] }

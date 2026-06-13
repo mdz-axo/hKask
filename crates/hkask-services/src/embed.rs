@@ -395,6 +395,14 @@ impl TaggedPassage {
 // ── Result ─────────────────────────────────────────────────────────────────
 
 /// Result of the embedding pipeline with budget statistics.
+/// Summary of a single dimension centroid computation.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DimensionCentroidResult {
+    pub name: String,
+    pub ref_name: String,
+    pub passage_count: usize,
+}
+
 #[derive(Debug)]
 pub struct EmbedResult {
     pub author: String,
@@ -412,6 +420,8 @@ pub struct EmbedResult {
     pub triples_stored: usize,
     /// Passages that got embeddings only (below budget cutoff).
     pub embedding_only: usize,
+    /// Per-dimension centroid results (empty if single-centroid path).
+    pub dimension_centroids: Vec<DimensionCentroidResult>,
 }
 
 const USER_AGENT: &str = "hkask-mcp-research/0.27.0";
@@ -939,6 +949,7 @@ impl EmbedService {
                 tagged_passages: tagged_count,
                 triples_stored,
                 embedding_only,
+                dimension_centroids: Vec::new(),
             });
         }
 
@@ -1062,6 +1073,24 @@ impl EmbedService {
 
         let multi_passage_count: usize = dim_centroids.iter().map(|(_, _, c)| c).sum();
 
+        // Build dimension centroid results for reporting
+        let dim_results: Vec<DimensionCentroidResult> = dim_centroids
+            .iter()
+            .map(|(name, _vec, count)| {
+                let ref_name = config
+                    .dimension_centroids
+                    .iter()
+                    .find(|dc| &dc.name == name)
+                    .map(|dc| dc.ref_name.clone())
+                    .unwrap_or_default();
+                DimensionCentroidResult {
+                    name: name.clone(),
+                    ref_name,
+                    passage_count: *count,
+                }
+            })
+            .collect();
+
         {
             let mut p = shared.lock().unwrap();
             p.phase = EmbedPhase::Done;
@@ -1080,6 +1109,7 @@ impl EmbedService {
             tagged_passages: tagged_count,
             triples_stored,
             embedding_only,
+            dimension_centroids: dim_results,
         })
     }
 
@@ -1421,7 +1451,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 /// If the model is not available, returns an error with a download link.
 ///
 /// TODO(migration): Replace with the multi-backend OCR pipeline from
-/// hkask-mcp-markitdown (pdf_to_images → run_pipeline). This legacy path
+/// hkask-mcp-docproc (pdf_to_images → run_pipeline). This legacy path
 /// sends raw PDF bytes as base64, which relies on the model parsing PDF
 /// binary. The new pipeline properly decimates to per-page images, scores
 /// complexity, routes to Tesseract/Vision LLM, and verifies output.

@@ -46,20 +46,12 @@ Fallback is not a separate code fork — it reuses the same `route_page` logic w
 
 **Vision support heuristic**: `paddleocr` and `nemotron-parse` added to `infer_vision_support()` allowlist.
 
-### Image Preprocessing (`fal-ai/docres`)
-**Identified model**: `fal-ai/docres` — purpose-built for document cleanup. Endpoint: `https://fal.run/fal-ai/docres` (separate from chat completions). Tasks: `deshadowing`, `appearance`, `deblurring`, `binarization`. Also: `fal-ai/docres/dewarp` for folded documents.
+### Image Preprocessing
+**Default**: Local Otsu binarization — O(w·h), instant, free. Computes optimal threshold via intra-class variance minimization, produces clean B&W output.
 
-**Current status**: `preprocess_via_fal()` is fully implemented as an async function. When `HKASK_FAL_API_KEY`/`FAL_KEY`/`FA_API_KEY` is set, it encodes the page image as a base64 data URI, POSTs to `fal.run/fal-ai/docres` with `binarization` task, downloads the enhanced image, and replaces the original. On any failure (no key, network error, bad response), falls back to local `stretch_contrast()`. Wired into `pdf_to_images()` which is now async.
+**Optional**: `fal-ai/docres` when `HKASK_FAL_API_KEY` is set. Falls back to Otsu on any failure. ~40s queue-based latency makes it unsuitable for high-throughput pipelines; retained for quality-critical use cases.
 
-**Cost**: $0.025/megapixel. At 150 DPI (~2 MP/letter page): ~$0.05/page.
-
-**Concurrency**: fal.ai queue-based, starts at 2 concurrent, scales to 40. Requests never rejected.
-
-**Latency**: ~60s per image (queue-based; first request includes cold start). Subsequent requests benefit from warm runners.
-
-**Activation**: Set `HKASK_FAL_API_KEY`, `FAL_KEY`, or `FA_API_KEY`. No code changes needed.
-
-**Live test** (2026-06-13): 400×100 text-like image → perfect binarization (2 unique values: {0, 255}). Dimensions preserved.
+**Cost**: Otsu: free. fal.ai: $0.025/MP.
 
 ---
 
@@ -115,8 +107,7 @@ Fallback is not a separate code fork — it reuses the same `route_page` logic w
 - **Per-run calibration call in `pipeline.rs`** — moved to server-level accumulation.
 
 ### Retained (Guideline)
-- **`CnsObserver` trait impl** — now live, wired into server flow.
-- **`preprocess_via_fal`** — real async implementation, base64 data URI, binarization task, graceful fallback.
+- **`stretch_contrast`** — retained as documented alternative to Otsu.
 
 ---
 
@@ -130,7 +121,7 @@ Fallback is not a separate code fork — it reuses the same `route_page` logic w
 | Verification depth | 🟢 Solid | Multi-signal: page count, word delta, empty pages, error tally |
 | CNS integration | 🟢 Solid | NuEvent construction + CnsObserver + daemon persistence wired |
 | Self-tuning | 🟢 Solid | Accumulation + drift analysis + P4-gated alert emission |
-| PDF decimation | 🟢 Solid | `pdftoppm` + `preprocess_via_fal` (fal.ai docres when key set, stretch_contrast fallback) |
+| PDF decimation | 🟢 Solid | `pdftoppm` → Otsu binarization (instant). fal.ai docres available as opt-in. |
 | Configurability | 🟢 Solid | All thresholds via CLI/API/REPL (P3: Generative Space) |
 | fal.ai integration | 🟢 Solid | Router pattern complete; image-to-image path researched and documented |
 

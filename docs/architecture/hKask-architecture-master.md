@@ -220,6 +220,106 @@ Concurrent chat+server mode planned for future release (3-6 months).
 
 ---
 
+## Deployment
+
+hKask is designed for two deployment targets: **local workstation** (Ollama) and **cloud server** (remote inference providers). The common deployment target is a headless Ubuntu cloud server accessed via SSH.
+
+### Deployment Architecture
+
+```mermaid
+graph TD
+    subgraph "Cloud Server (Ubuntu, headless)"
+        KASK["kask binary"]
+        KEYCHAIN["OS Keychain<br/>(secret-service / flat file)"]
+        DB["SQLCipher<br/>(~/.config/hkask/)"]
+        SOCK["Daemon Socket<br/>(~/.config/hkask/daemon.sock)"]
+        KASK --> KEYCHAIN
+        KASK --> DB
+        KASK --> SOCK
+    end
+
+    subgraph "External Inference"
+        DI["DeepInfra<br/>(primary)"]
+        FW["Fireworks.ai<br/>(fallback)"]
+        FA["fal.ai<br/>(vision/OCR)"]
+    end
+
+    subgraph "User Access"
+        SSH["SSH Terminal"]
+        IDE["Zed / VSCode<br/>(via MCP)"]
+    end
+
+    KASK -->|"HTTPS + API Key"| DI
+    KASK -->|"HTTPS + API Key"| FW
+    KASK -->|"HTTPS + API Key"| FA
+    SSH -->|"kask chat"| KASK
+    IDE -->|"MCP over SSH tunnel"| SOCK
+```
+
+### Common Deployment: Cloud Server
+
+The intended production deployment is an Ubuntu cloud server without local GPU inference:
+
+1. **No Ollama dependency.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Fireworks, fal.ai). Ollama is optional and disabled by default on cloud deployments.
+2. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files. Loaded once via `kask keystore load --shred`, which securely deletes the source file after explicit user consent.
+3. **Encrypted database at rest.** All persistent state (agent registry, memory, sessions) uses SQLCipher with a passphrase-derived key.
+4. **SSH-first interaction.** The primary interface is `kask chat` over SSH. MCP servers (for IDE integration) connect via SSH-tunneled Unix socket.
+
+### Provider Configuration
+
+API keys resolve through a 2-tier chain at startup:
+
+| Tier | Source | Security | Persistence |
+|------|--------|----------|-------------|
+| 1 | OS Keychain (`secret-service` or `~/.local/share/keyrings/`) | Encrypted at rest by OS | Survives reboot |
+| 2 | Environment variable | Plaintext in process memory only | Session-only |
+
+Provider selection is controlled by `HKASK_DEFAULT_PROVIDER` (stored in keychain or env var):
+
+| Value | Provider | Use Case |
+|-------|----------|----------|
+| `DI` | DeepInfra | Primary cloud provider — wide model catalog, per-token pricing, free tier |
+| `FW` | Fireworks.ai | Fast serverless inference, fallback |
+| `FA` | fal.ai | Specialized vision/OCR/media models |
+| `OM` | Ollama | Local inference only (default, typically disabled on cloud) |
+
+### Setup Flow
+
+```bash
+# One-time setup on cloud server
+cp providers.env.example providers.env   # Fill in DI_API_KEY=sk-...
+kask keystore load --path providers.env --shred  # Loads into keychain, shreds file
+kask chat                                   # First run: onboarding creates replicant
+```
+
+The onboarding flow (`kask chat` first run) prompts for provider configuration if no keys are detected, offering three paths: load from `providers.env`, enter API key directly (masked input), or skip (Ollama-only).
+
+### Security Properties
+
+| Property | Mechanism |
+|----------|-----------|
+| No plaintext secrets on disk | Keys live in OS keychain; source file shredded after load |
+| No secrets in environment | `InferenceConfig` reads from keychain at startup, not `std::env` |
+| Affirmative consent before deletion | `--shred` requires explicit `y` response to warning prompt |
+| Graceful degradation | Missing keys → backend unavailable (logged), not crash |
+| Backward compatible | Existing `export`/`.env` setups continue working (env var tier) |
+
+### Local Development
+
+For local development with Ollama:
+
+```bash
+# Default: Ollama on localhost:11434
+kask chat
+# Or use cloud provider alongside Ollama:
+export DI_API_KEY=sk-...
+kask chat -m DI/meta-llama/Llama-3.3-70B-Instruct
+```
+
+Local and cloud deployments share the same binary, same config, same code path. The only difference is which provider keys are configured.
+
+---
+
 ## Reference Artifacts
 
 Detailed lookup tables and diagrams in `reference/`:

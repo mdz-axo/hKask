@@ -33,8 +33,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 
     // Moderate — compute + local I/O
     table.insert("hkask-mcp-condenser", 10);
-    table.insert("hkask-mcp-doc-knowledge", 15);
-    table.insert("hkask-mcp-markitdown", 15);
+    table.insert("hkask-mcp-docproc", 15);
 
     // External API tools — expensive
     table.insert("hkask-mcp-research", 50);

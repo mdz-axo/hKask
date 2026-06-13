@@ -22,8 +22,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("fmp", "hkask-mcp-fmp"),
     ("communication", "hkask-mcp-communication"),
     ("fal", "hkask-mcp-media"),
-    ("doc-knowledge", "hkask-mcp-doc-knowledge"),
-    ("markitdown", "hkask-mcp-markitdown"),
+    ("docproc", "hkask-mcp-docproc"),
     ("replica", "hkask-mcp-replica"),
 ];
 

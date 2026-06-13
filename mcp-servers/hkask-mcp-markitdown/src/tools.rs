@@ -194,7 +194,7 @@ impl MarkitdownServer {
         });
 
         let event = NuEvent::new(
-            self.webid.clone(),
+            self.webid,
             Span::new(SpanNamespace::new("cns.pipeline"), "ocr.verification"),
             Phase::Sense,
             observation,

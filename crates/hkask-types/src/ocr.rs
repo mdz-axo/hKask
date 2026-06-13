@@ -1,4 +1,4 @@
-//! OCR Pipeline Types — Algebraic types for the hkask-mcp-markitdown pipeline
+//! OCR Pipeline Types — Algebraic types for the hkask-mcp-docproc pipeline
 //!
 //! Every valid pipeline state is representable; every invalid state is
 //! unrepresentable (P3). The sealed type hierarchy forms a closed set:

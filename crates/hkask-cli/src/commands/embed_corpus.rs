@@ -112,6 +112,15 @@ pub fn run(
                 "Centroid computed from {} prose passages (stored: {})",
                 r.passage_count, r.centroid_stored
             );
+            if !r.dimension_centroids.is_empty() {
+                eprintln!("Dimension centroids:");
+                for dc in &r.dimension_centroids {
+                    eprintln!(
+                        "  {} → {} ({} passages)",
+                        dc.name, dc.ref_name, dc.passage_count
+                    );
+                }
+            }
             eprintln!(
                 "Validation config: centroid_distance_max={}, exemplar_count_min={}, exemplar_count_max={}",
                 r.validation.centroid_distance_max,
@@ -121,6 +130,17 @@ pub fn run(
 
             // Record experience via daemon
             let recorder = CliExperienceRecorder::new();
+            let dim_centroids_json: Vec<serde_json::Value> = r
+                .dimension_centroids
+                .iter()
+                .map(|dc| {
+                    serde_json::json!({
+                        "name": dc.name,
+                        "ref_name": dc.ref_name,
+                        "passage_count": dc.passage_count,
+                    })
+                })
+                .collect();
             rt.spawn(async move {
                 recorder
                     .record(
@@ -136,6 +156,7 @@ pub fn run(
                             "budget": r.budget,
                             "centroid_ref": r.centroid_ref,
                             "centroid_stored": r.centroid_stored,
+                            "dimension_centroids": dim_centroids_json,
                         }),
                     )
                     .await;
