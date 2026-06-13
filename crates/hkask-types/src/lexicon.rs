@@ -6,7 +6,7 @@
 //! The canonical vocabulary is authored in
 //! `docs/architecture/reference/hKask-hLexicon.md` (the single source of truth)
 //! and derived into the workspace lexicon registry
-//! `registry/registries/hlexicon-workspace.yaml`. Loading the full vocabulary
+//! `registry/hlexicon/hlexicon-workspace.yaml`. Loading the full vocabulary
 //! from that YAML lives in `hkask-templates` (which owns lexicon validation and
 //! already depends on a YAML parser); this crate provides the plain types and a
 //! minimal [`HLexicon::bootstrap`] fixture.
@@ -220,7 +220,7 @@ impl HLexicon {
     /// This is a minimal startup subset (17 terms), NOT the full vocabulary.
     /// The full canonical vocabulary is authored in
     /// `docs/architecture/reference/hKask-hLexicon.md` and loaded from
-    /// `registry/registries/hlexicon-workspace.yaml` by `hkask-templates`. This
+    /// `registry/hlexicon/hlexicon-workspace.yaml` by `hkask-templates`. This
     /// fixture is retained for lightweight tests and seeds; domain assignments
     /// here MUST match the catalog's domain classification.
     pub fn bootstrap() -> Self {

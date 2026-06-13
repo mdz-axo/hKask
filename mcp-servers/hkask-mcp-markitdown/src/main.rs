@@ -21,8 +21,9 @@
 //!
 //! No Python dependency — this is pure Rust, using the hkask-inference path.
 
-use hkask_inference::InferenceConfig;
+use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_mcp_markitdown::tools::MarkitdownServer;
+use hkask_types::ocr::ThresholdConfig;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -52,12 +53,21 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_OCR_MODEL")
                 .cloned();
             let inference_config = InferenceConfig::from_env();
+
+            // Load OCR thresholds from settings.json, fall back to defaults
+            let ocr_thresholds = load_ocr_thresholds();
+
+            // Build embedding router for semantic cross-validation
+            let embedding_router = EmbeddingRouter::new(inference_config.clone());
+
             MarkitdownServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
                 ocr_model,
                 inference_config,
+                ocr_thresholds,
+                Some(embedding_router),
             )
         },
         vec![
@@ -72,6 +82,44 @@ async fn main() -> anyhow::Result<()> {
         ],
     )
     .await
+}
+
+/// Load OCR thresholds from settings.json.
+/// Falls back to defaults if the file doesn't exist or can't be parsed.
+fn load_ocr_thresholds() -> ThresholdConfig {
+    let path = hkask_services::settings_path();
+    match std::fs::read_to_string(&path) {
+        Ok(json) => {
+            #[derive(serde::Deserialize)]
+            struct SettingsFile {
+                #[serde(default = "default_simple")]
+                ocr_simple_max: f32,
+                #[serde(default = "default_moderate")]
+                ocr_moderate_max: f32,
+                #[serde(default = "default_sample")]
+                ocr_sample_rate: f32,
+            }
+            fn default_simple() -> f32 {
+                0.05
+            }
+            fn default_moderate() -> f32 {
+                0.15
+            }
+            fn default_sample() -> f32 {
+                0.10
+            }
+
+            match serde_json::from_str::<SettingsFile>(&json) {
+                Ok(s) => ThresholdConfig {
+                    simple_max: s.ocr_simple_max,
+                    moderate_max: s.ocr_moderate_max,
+                    moderate_sample_rate: s.ocr_sample_rate,
+                },
+                Err(_) => ThresholdConfig::default(),
+            }
+        }
+        Err(_) => ThresholdConfig::default(),
+    }
 }
 
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {

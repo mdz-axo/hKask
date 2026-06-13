@@ -383,15 +383,6 @@ impl Default for ReplSettings {
     }
 }
 
-/// Build ThresholdConfig from ReplSettings for OCR pipeline routing.
-pub(crate) fn to_threshold_config(settings: &ReplSettings) -> hkask_types::ocr::ThresholdConfig {
-    hkask_types::ocr::ThresholdConfig {
-        simple_max: settings.ocr_simple_max,
-        moderate_max: settings.ocr_moderate_max,
-        moderate_sample_rate: settings.ocr_sample_rate,
-    }
-}
-
 /// Build LLMParameters from ReplSettings for inference calls.
 pub(crate) fn to_llm_params(settings: &ReplSettings) -> LLMParameters {
     LLMParameters {
@@ -461,6 +452,9 @@ mod tests {
             embedding_model: "test-emb".into(),
             classifier_model: "test-cls".into(),
             ocr_model: "test-ocr".into(),
+            ocr_simple_max: 0.05,
+            ocr_moderate_max: 0.15,
+            ocr_sample_rate: 0.10,
         };
         let p = to_llm_params(&s);
         assert!((p.temperature - 0.8).abs() < f32::EPSILON);
@@ -509,6 +503,9 @@ mod tests {
             embedding_model: "roundtrip-emb".into(),
             classifier_model: "roundtrip-cls".into(),
             ocr_model: "roundtrip-ocr".into(),
+            ocr_simple_max: 0.03,
+            ocr_moderate_max: 0.12,
+            ocr_sample_rate: 0.20,
         };
 
         let dir = tempfile::tempdir().expect("temp dir");

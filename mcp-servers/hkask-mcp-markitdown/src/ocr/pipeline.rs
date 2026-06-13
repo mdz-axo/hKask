@@ -20,6 +20,7 @@ use image::DynamicImage;
 use crate::ocr::complexity::score_page_complexity;
 use crate::ocr::cross_validation::compute_cross_validation;
 use crate::ocr::routing::{SamplingState, route_page};
+use crate::ocr::semantic;
 use crate::ocr::verification::verify_output;
 
 /// Trait for executing OCR on a single page image via a specific backend.
@@ -64,34 +65,46 @@ pub trait CnsObserver: Send + Sync {
 
 /// Run the OCR pipeline on a set of page images.
 ///
+/// Accepts an iterator for streaming support — pages are processed one at a time
+/// without buffering all images in memory.
+///
 /// # Arguments
 /// * `pages` — Decimated page images in document order.
+/// * `expected_pages` — Total number of pages (for verification; can't be inferred from iterator).
 /// * `executor` — Pluggable OCR executor for each backend.
 /// * `thresholds` — Complexity scoring thresholds (configurable via registry).
 /// * `llm_model` — Optional model ID for `LlmOcr` backend routing.
 /// * `cns` — Optional CNS observer for span emission.
+/// * `embedding_router` — Optional embedding router for semantic cross-validation.
+/// * `embedding_model` — Embedding model name (used with `embedding_router`).
 ///
 /// # Returns
 /// `PipelineOutcome` — the single sealed output. No partial state escapes.
 pub async fn run_pipeline(
-    pages: &[DynamicImage],
+    pages: impl IntoIterator<Item = DynamicImage>,
+    expected_pages: usize,
     executor: &(dyn OcrExecutor + '_),
     thresholds: &ThresholdConfig,
     llm_model: Option<&str>,
     cns: Option<&(dyn CnsObserver + '_)>,
+    embedding_router: Option<(&hkask_inference::EmbeddingRouter, &str)>,
 ) -> PipelineOutcome {
     let start = Instant::now();
-    let expected_pages = pages.len();
     let mut state = SamplingState::new(thresholds.moderate_sample_rate);
     let mut results: Vec<OcrResult> = Vec::with_capacity(expected_pages);
     let mut errors: Vec<PipelineError> = Vec::new();
     let mut cross_validations: Vec<CrossValidation> = Vec::new();
     let mut backend_counts: std::collections::HashMap<OcrBackend, usize> =
         std::collections::HashMap::new();
+    let mut total_estimated_words: usize = 0;
 
-    for (page_index, image) in pages.iter().enumerate() {
+    for (page_index, image) in pages.into_iter().enumerate() {
+        // Track pixel-based word estimate incrementally (streaming-compatible)
+        total_estimated_words +=
+            crate::ocr::verification::estimate_word_count(image.width(), image.height());
+
         // Step 1: Score complexity
-        let score = score_page_complexity(image, thresholds);
+        let score = score_page_complexity(&image, thresholds);
 
         // Step 2: Route to backends
         let backends = route_page(score, &mut state, None, llm_model);
@@ -118,7 +131,7 @@ pub async fn run_pipeline(
         for (backend_idx, backend) in available.iter().enumerate() {
             backends_tried.push(backend.clone());
 
-            match executor.execute(page_index, backend, image, false).await {
+            match executor.execute(page_index, backend, &image, false).await {
                 Ok(result) => {
                     if backend_idx == 0 {
                         primary_result = Some(result);
@@ -133,7 +146,7 @@ pub async fn run_pipeline(
                     let mut fallback_ok = false;
                     for fb in &fallback_backends {
                         backends_tried.push(fb.clone());
-                        match executor.execute(page_index, fb, image, true).await {
+                        match executor.execute(page_index, fb, &image, true).await {
                             Ok(mut result) => {
                                 result.was_fallback = true;
                                 if backend_idx == 0 {
@@ -172,24 +185,67 @@ pub async fn run_pipeline(
 
         let primary = primary_result.unwrap();
 
+        // Track backend usage for CNS reporting
+        *backend_counts.entry(primary.backend.clone()).or_insert(0) += 1;
+
         // Step 4: Cross-validation if dual-routed
-        if let Some(secondary) = secondary_result {
-            if let Some(cv) = compute_cross_validation(&primary, &secondary) {
-                cross_validations.push(cv);
+        if let Some(ref secondary) = secondary_result {
+            let mut cv = match compute_cross_validation(&primary, secondary) {
+                Some(cv) => cv,
+                None => continue,
+            };
+
+            // Semantic enrichment if embedding router is available
+            if let Some((router, model)) = embedding_router
+                && let Some(sim) =
+                    semantic::enrich_with_semantic(&primary.text, &secondary.text, router, model)
+                        .await
+            {
+                cv.semantic_similarity = Some(sim);
             }
-            // Store both results (primary is the authoritative one)
+
+            cross_validations.push(cv);
         }
 
         results.push(primary);
     }
 
-    let _duration_ms = start.elapsed().as_millis() as u64;
+    let duration_ms = start.elapsed().as_millis() as u64;
 
     // Step 5: Assembly — concatenate results with page markers
     let _assembled = assemble_document(&results);
 
     // Step 6: Verification checkpoint
-    let report = verify_output(expected_pages, &results, pages, &errors);
+    let report = verify_output(expected_pages, &results, total_estimated_words, &errors);
+
+    // Emit CNS spans if observer is configured
+    if let Some(observer) = cns {
+        // Cross-validation spans per dual-routed page
+        for cv in &cross_validations {
+            observer.observe_cross_validation(OcrCrossValidationSpan {
+                page_index: cv.page_index,
+                similarity: cv.similarity,
+                tier: cv.tier,
+                backend_a: cv.backend_a.clone(),
+                backend_b: cv.backend_b.clone(),
+            });
+        }
+
+        // Verification span
+        observer.observe_verification(OcrVerificationSpan {
+            total_pages: expected_pages,
+            error_count: errors.len(),
+            backend_distribution: backend_counts
+                .into_iter()
+                .map(|(backend, page_count)| BackendUsage {
+                    backend,
+                    page_count,
+                })
+                .collect(),
+            duration_ms,
+            passed: report.passed,
+        });
+    }
 
     PipelineOutcome {
         results,
@@ -215,12 +271,6 @@ fn assemble_document(results: &[OcrResult]) -> String {
         ));
     }
     assembled
-}
-
-/// Assembled document wrapper for verification.
-pub struct AssembledDocument {
-    pub text: String,
-    pub page_count: usize,
 }
 
 #[cfg(test)]
@@ -285,10 +335,11 @@ mod tests {
     #[tokio::test]
     async fn single_page_pipeline() {
         let pages = vec![blank_page()];
+        let expected = pages.len();
         let executor = TestExecutor::new(vec![Some("Hello world".into())]);
         let t = default_thresholds();
 
-        let outcome = run_pipeline(&pages, &executor, &t, None).await;
+        let outcome = run_pipeline(pages, expected, &executor, &t, None, None, None).await;
 
         assert_eq!(outcome.results.len(), 1);
         assert!(outcome.results[0].text.contains("Hello world"));
@@ -305,8 +356,10 @@ mod tests {
             Some("Page three".into()),
         ]);
 
+        let expected = pages.len();
+
         let t = default_thresholds();
-        let outcome = run_pipeline(&pages, &executor, &t, None).await;
+        let outcome = run_pipeline(pages, expected, &executor, &t, None, None, None).await;
 
         assert_eq!(outcome.results.len(), 3);
         // Results should be in page order
@@ -331,8 +384,9 @@ mod tests {
         // First call succeeds, second fails
         let executor = TestExecutor::new(vec![Some("Good".into()), None]);
 
+        let expected = pages.len();
         let t = default_thresholds();
-        let outcome = run_pipeline(&pages, &executor, &t, None).await;
+        let outcome = run_pipeline(pages, expected, &executor, &t, None, None, None).await;
 
         assert_eq!(outcome.results.len(), 1, "only first page should succeed");
         assert_eq!(outcome.errors.len(), 1, "second page should produce error");

@@ -9,9 +9,10 @@
 //! that exists in the inference catalog (e.g., a model with vision support).
 //! Use `InferenceRouter::list_models()` to discover available models.
 
-use hkask_inference::{InferenceConfig, InferenceRouter};
+use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
+use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -19,6 +20,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::convert;
+use crate::ocr::decimation;
+use crate::ocr::pipeline::{self, CnsObserver, OcrExecutor};
 
 /// Minimum word count threshold for PDF text extraction results.
 /// Below this, we consider the PDF to be scanned/image-based and fall back to OCR.
@@ -72,6 +75,10 @@ pub struct MarkitdownServer {
     ocr_model: Option<String>,
     /// Inference configuration for the router.
     inference_config: InferenceConfig,
+    /// OCR pipeline thresholds (loaded from settings.json).
+    ocr_thresholds: ThresholdConfig,
+    /// Embedding router for semantic cross-validation (None if unavailable).
+    embedding_router: Option<EmbeddingRouter>,
 }
 
 impl MarkitdownServer {
@@ -81,6 +88,8 @@ impl MarkitdownServer {
         daemon: Option<hkask_mcp::DaemonClient>,
         ocr_model: Option<String>,
         inference_config: InferenceConfig,
+        ocr_thresholds: ThresholdConfig,
+        embedding_router: Option<EmbeddingRouter>,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             webid,
@@ -88,6 +97,8 @@ impl MarkitdownServer {
             daemon,
             ocr_model,
             inference_config,
+            ocr_thresholds,
+            embedding_router,
         })
     }
 
@@ -127,18 +138,42 @@ impl MarkitdownServer {
     }
 
     /// Resolve OCR model: explicit override > HKASK_OCR_MODEL env.
-    /// Returns error guidance if no model is configured.
-    fn resolve_ocr_model(&self, override_model: Option<&str>) -> Result<String, String> {
-        if let Some(model) = override_model
-            && !model.is_empty()
+    /// Validates that the model is likely vision-capable via the inference router.
+    /// Returns error guidance if no model is configured or model lacks vision support.
+    async fn resolve_ocr_model(&self, override_model: Option<&str>) -> Result<String, String> {
+        let model = if let Some(m) = override_model
+            && !m.is_empty()
         {
-            return Ok(model.to_string());
-        }
-        self.ocr_model
-            .clone()
-            .ok_or_else(|| {
+            m.to_string()
+        } else {
+            self.ocr_model.clone().ok_or_else(|| {
                 "No OCR model configured. Set HKASK_OCR_MODEL env var to a vision-capable model, or pass the 'model' parameter. Use inference_models to discover available models.".to_string()
-            })
+            })?
+        };
+
+        // Validate vision support via model listing heuristic
+        let router = InferenceRouter::new(self.inference_config.clone());
+        let vision_models = router.list_vision_models().await;
+        let is_vision = vision_models
+            .iter()
+            .any(|m| m.model == model || m.prefixed_name == model);
+
+        if !is_vision {
+            // Check if the model exists at all
+            let all_models = router.list_models().await;
+            let exists = all_models
+                .iter()
+                .any(|m| m.model == model || m.prefixed_name == model);
+            if exists {
+                return Err(format!(
+                    "Model '{}' exists but may not support vision input. Use a vision-capable model (e.g., llava, minicpm-v, lighton). Run 'kask inference models' to list available models.",
+                    model
+                ));
+            }
+            // Model not found — still allow attempt (may be a model not yet pulled)
+        }
+
+        Ok(model)
     }
 
     /// Perform OCR by sending base64-encoded bytes to a vision model.
@@ -172,6 +207,180 @@ impl MarkitdownServer {
             .map_err(|e| format!("OCR inference failed: {}", e))?;
 
         Ok(result.text)
+    }
+}
+
+// ── OcrExecutor implementation for MarkitdownServer ─────────────────────
+
+#[async_trait::async_trait]
+impl OcrExecutor for MarkitdownServer {
+    fn is_available(&self, backend: &OcrBackend) -> bool {
+        match backend {
+            OcrBackend::Tesseract => {
+                // Check if tesseract binary is installed
+                tesseract_available() || self.ocr_model.is_some()
+            }
+            OcrBackend::LlmOcr(_) => self.ocr_model.is_some(),
+        }
+    }
+
+    async fn execute(
+        &self,
+        page_index: usize,
+        backend: &OcrBackend,
+        image: &image::DynamicImage,
+        is_fallback: bool,
+    ) -> Result<OcrResult, String> {
+        let start = std::time::Instant::now();
+
+        match backend {
+            OcrBackend::Tesseract if tesseract_available() => {
+                // Native Tesseract path
+                let text = tesseract_ocr(image, page_index)?;
+                let duration_ms = start.elapsed().as_millis() as u64;
+                let word_count = text.split_whitespace().count();
+                let confidence = if word_count > 0 { 0.80 } else { 0.1 };
+                Ok(OcrResult {
+                    page_index,
+                    backend: backend.clone(),
+                    text,
+                    confidence,
+                    duration_ms,
+                    was_fallback: is_fallback,
+                })
+            }
+            _ => {
+                // LLM OCR path (Tesseract fallback or explicit LlmOcr)
+                let model = match backend {
+                    OcrBackend::Tesseract => self.ocr_model.clone().ok_or_else(|| {
+                        "No OCR model configured for Tesseract fallback".to_string()
+                    })?,
+                    OcrBackend::LlmOcr(model) => model.clone(),
+                };
+
+                // Encode image to PNG bytes, then base64
+                let mut png_bytes: Vec<u8> = Vec::new();
+                image
+                    .write_to(
+                        &mut std::io::Cursor::new(&mut png_bytes),
+                        image::ImageFormat::Png,
+                    )
+                    .map_err(|e| format!("Failed to encode page {} to PNG: {}", page_index, e))?;
+
+                let b64_data =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes);
+
+                let router = InferenceRouter::new(self.inference_config.clone());
+                let params = LLMParameters {
+                    temperature: 0.1,
+                    max_tokens: 8192,
+                    ..Default::default()
+                };
+
+                let result = router
+                    .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(&model))
+                    .await
+                    .map_err(|e| format!("OCR inference failed for page {}: {}", page_index, e))?;
+
+                let duration_ms = start.elapsed().as_millis() as u64;
+                let word_count = result.text.split_whitespace().count();
+                let confidence = if word_count > 0 { 0.85 } else { 0.1 };
+
+                Ok(OcrResult {
+                    page_index,
+                    backend: backend.clone(),
+                    text: result.text,
+                    confidence,
+                    duration_ms,
+                    was_fallback: is_fallback,
+                })
+            }
+        }
+    }
+}
+
+/// Check if tesseract OCR binary is installed.
+fn tesseract_available() -> bool {
+    std::process::Command::new("tesseract")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Run Tesseract OCR on a single page image.
+///
+/// Writes the image to a temp PNG, invokes `tesseract`, reads the output.
+fn tesseract_ocr(image: &image::DynamicImage, page_index: usize) -> Result<String, String> {
+    let dir = tempfile::tempdir().map_err(|e| format!("tempdir: {}", e))?;
+    let input_path = dir.path().join(format!("page_{}.png", page_index));
+    let output_prefix = dir.path().join(format!("page_{}", page_index));
+
+    // Write image to temp file
+    image
+        .save(&input_path)
+        .map_err(|e| format!("Failed to save page {} image: {}", page_index, e))?;
+
+    // Run tesseract
+    let output = std::process::Command::new("tesseract")
+        .arg(&input_path)
+        .arg(&output_prefix)
+        .arg("-l")
+        .arg("eng")
+        .arg("--psm")
+        .arg("3") // Fully automatic page segmentation
+        .output()
+        .map_err(|e| format!("Failed to run tesseract: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "Tesseract failed for page {}: {}",
+            page_index,
+            stderr.trim()
+        ));
+    }
+
+    // Read output text
+    let txt_path = output_prefix.with_extension("txt");
+    let text = std::fs::read_to_string(&txt_path).map_err(|e| {
+        format!(
+            "Failed to read tesseract output for page {}: {}",
+            page_index, e
+        )
+    })?;
+
+    Ok(text)
+}
+
+// ── CnsObserver implementation (tracing-based) ──────────────────────────
+
+/// CNS observer that emits spans via tracing for homeostatic monitoring.
+struct TracingCnsObserver;
+
+impl CnsObserver for TracingCnsObserver {
+    fn observe_verification(&self, span: hkask_types::ocr::OcrVerificationSpan) {
+        tracing::info!(
+            target: "hkask.mcp.markitdown.cns",
+            total_pages = span.total_pages,
+            error_count = span.error_count,
+            duration_ms = span.duration_ms,
+            passed = span.passed,
+            backends = ?span.backend_distribution,
+            "OCR pipeline verification"
+        );
+    }
+
+    fn observe_cross_validation(&self, span: hkask_types::ocr::OcrCrossValidationSpan) {
+        tracing::info!(
+            target: "hkask.mcp.markitdown.cns",
+            page_index = span.page_index,
+            similarity = span.similarity,
+            tier = ?span.tier,
+            backend_a = %span.backend_a,
+            backend_b = %span.backend_b,
+            "OCR cross-validation"
+        );
     }
 }
 
@@ -210,9 +419,70 @@ impl MarkitdownServer {
             );
         }
 
-        // When force_ocr is set, skip text extraction entirely
+        // When force_ocr is set, skip text extraction entirely.
+        // Try pipeline path for image formats; fall back to raw bytes OCR for PDFs.
         if force_ocr {
-            match self.resolve_ocr_model(None) {
+            // Attempt to decode as image for typed pipeline path
+            if let Ok(image) = image::load_from_memory(&file_bytes) {
+                let model = match self.resolve_ocr_model(None).await {
+                    Ok(m) => m,
+                    Err(guidance) => {
+                        return span.error(
+                            McpErrorKind::FailedPrecondition,
+                            McpToolError::failed_precondition(guidance).to_json_string(),
+                        );
+                    }
+                };
+
+                let cns_observer = TracingCnsObserver;
+                let emb = self.embedding_router.as_ref().map(|r| {
+                    (
+                        r,
+                        self.ocr_model
+                            .as_deref()
+                            .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
+                    )
+                });
+
+                let outcome = pipeline::run_pipeline(
+                    vec![image],
+                    1,
+                    self,
+                    &self.ocr_thresholds,
+                    Some(&model),
+                    Some(&cns_observer),
+                    emb,
+                )
+                .await;
+
+                let text = outcome
+                    .results
+                    .first()
+                    .map(|r| r.text.clone())
+                    .unwrap_or_default();
+                let result = serde_json::json!({
+                    "format": format,
+                    "path": path,
+                    "method": "ocr_pipeline",
+                    "model": model,
+                    "text": text,
+                    "word_count": text.split_whitespace().count(),
+                    "verification_passed": outcome.report.passed,
+                    "page_count_match": outcome.report.page_count_match,
+                    "empty_pages": outcome.report.empty_pages,
+                    "error_count": outcome.errors.len(),
+                });
+                self.record_experience(
+                    "markitdown_convert",
+                    &path_clone,
+                    "success",
+                    result.clone(),
+                );
+                return span.ok_json(result);
+            }
+
+            // Not an image — fall back to raw bytes OCR (PDFs, etc.)
+            match self.resolve_ocr_model(None).await {
                 Ok(model) => match self
                     .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
                     .await
@@ -253,6 +523,66 @@ impl MarkitdownServer {
         // Extract text based on format
         let extract_result = match format {
             "pdf" => {
+                // Try typed pipeline with decimation first (if OCR model is configured)
+                if let Ok(model) = self.resolve_ocr_model(None).await
+                    && let Ok(page_images) =
+                        decimation::pdf_to_images(std::path::Path::new(&path), 200)
+                {
+                    let expected = page_images.len();
+                    let cns_observer = TracingCnsObserver;
+                    let emb = self.embedding_router.as_ref().map(|r| {
+                        (
+                            r,
+                            self.ocr_model
+                                .as_deref()
+                                .unwrap_or("DI/Qwen/Qwen3-Embedding-0.6B"),
+                        )
+                    });
+
+                    let outcome = pipeline::run_pipeline(
+                        page_images,
+                        expected,
+                        self,
+                        &self.ocr_thresholds,
+                        Some(&model),
+                        Some(&cns_observer),
+                        emb,
+                    )
+                    .await;
+
+                    let text = outcome
+                        .results
+                        .iter()
+                        .map(|r| r.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n\n");
+                    let word_count = text.split_whitespace().count();
+
+                    let result = serde_json::json!({
+                        "format": format,
+                        "path": path,
+                        "method": "ocr_pipeline",
+                        "model": model,
+                        "text": text,
+                        "word_count": word_count,
+                        "pages": expected,
+                        "verification_passed": outcome.report.passed,
+                        "page_count_match": outcome.report.page_count_match,
+                        "empty_pages": outcome.report.empty_pages,
+                        "error_count": outcome.errors.len(),
+                        "cross_validations": outcome.cross_validations.len(),
+                    });
+                    self.record_experience(
+                        "markitdown_convert",
+                        &path_clone,
+                        "success",
+                        result.clone(),
+                    );
+                    return span.ok_json(result);
+                }
+                // Decimation failed — fall through to pdf-extract
+                // No OCR model or decimation unavailable — fall through
+
                 // Try pdf-extract first; fall back to OCR if near-empty
                 match pdf_extract::extract_text(&path) {
                     Ok(text) => {
@@ -358,7 +688,7 @@ impl MarkitdownServer {
                 word_count,
             } => {
                 // Fall back to OCR
-                match self.resolve_ocr_model(None) {
+                match self.resolve_ocr_model(None).await {
                     Ok(model) => {
                         match self
                             .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
@@ -494,7 +824,7 @@ impl MarkitdownServer {
         let path_clone = path.clone();
         validate_field!(span, "path", &path, 4096);
 
-        let model = match self.resolve_ocr_model(model.as_deref()) {
+        let model = match self.resolve_ocr_model(model.as_deref()).await {
             Ok(m) => m,
             Err(guidance) => {
                 return span.error(

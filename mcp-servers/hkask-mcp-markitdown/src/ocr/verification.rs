@@ -5,7 +5,6 @@
 //! It earns its existence.
 
 use hkask_types::ocr::{OcrResult, PageVerificationDetail, PipelineError, VerificationReport};
-use image::DynamicImage;
 
 /// Verify assembled output against expected page count and source images.
 ///
@@ -30,8 +29,7 @@ pub fn verify_output(
     let mut page_details: Vec<PageVerificationDetail> = Vec::new();
     let mut total_words: usize = 0;
 
-    for idx in 0..actual_pages {
-        let result = &results[idx];
+    for (idx, result) in results.iter().enumerate().take(actual_pages) {
         let text = &result.text;
         let word_count = text.split_whitespace().count();
         let is_empty = text.trim().is_empty();

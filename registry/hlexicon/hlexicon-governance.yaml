@@ -5,17 +5,17 @@ governance:
   # Registry Hierarchy
   registry_hierarchy:
     workspace:
-      path: registry/registries/hlexicon-workspace.yaml
+      path: registry/hlexicon/hlexicon-workspace.yaml
       scope: all_templates_manifests_ports
       owner: hKask-Administrator
 
     subsystem:
-      path: registry/registries/{subsystem}/hlexicon-{subsystem}.yaml
+      path: registry/hlexicon/{subsystem}-hlexicon.yaml
       scope: subsystem_specific
       examples:
-        - registry/registries/kata/kata-hlexicon.yaml
-        - registry/registries/cognition/cognition-hlexicon.yaml
-        - registry/registries/process/process-hlexicon.yaml
+        - registry/hlexicon/kata-hlexicon.yaml
+        - registry/hlexicon/cognition-hlexicon.yaml
+        - registry/hlexicon/process-hlexicon.yaml
 
     template_inline:
       path: registry/templates/**/{template}.j2
@@ -148,7 +148,7 @@ implementation_types:
 
 # Workspace Registry Structure
 workspace_registry:
-  path: registry/registries/hlexicon-workspace.yaml
+  path: registry/hlexicon/hlexicon-workspace.yaml
   sections:
     - wordact_templates: []
     - flowdef_templates: []

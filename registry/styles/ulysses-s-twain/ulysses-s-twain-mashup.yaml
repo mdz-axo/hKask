@@ -3,7 +3,7 @@
 # License: CC-BY-4.0
 #
 # Cognition config for the Ulysses S. Twain style mashup pipeline.
-# Used by: kask compose --cognition registry/registries/cognition/ulysses-s-twain-mashup.yaml
+# Used by: kask compose --cognition registry/styles/ulysses-s-twain/ulysses-s-twain-mashup.yaml
 #
 # Pipeline: prompt → embed → KNN exemplar retrieval → Jinja2 system prompt → inference → centroid validation
 

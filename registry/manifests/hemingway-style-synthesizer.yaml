@@ -76,7 +76,7 @@ steps:
     description: >
       Select Hemingway style parameters from the cognition config.
       Coordinated clause target, narrative voice, and thematic elements
-      are defined in registry/registries/cognition/hemingway-style-synthesizer.yaml.
+      are defined in registry/styles/hemingway/hemingway-style-synthesizer.yaml.
     renderer: null
     template_ref: null
     model_tier: null

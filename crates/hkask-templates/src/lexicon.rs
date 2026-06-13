@@ -1,7 +1,7 @@
 //! hLexicon YAML loader and validation
 //!
 //! Loads the canonical vocabulary from
-//! `registry/registries/hlexicon-workspace.yaml` and validates
+//! `registry/hlexicon/hlexicon-workspace.yaml` and validates
 //! lexicon_terms against it during template registration.
 
 use hkask_types::{HLexicon, LexiconTerm, TemplateType};
@@ -45,7 +45,7 @@ struct LexiconTermYaml {
 ///
 /// The canonical vocabulary is authored in
 /// `docs/architecture/reference/hKask-hLexicon.md` and derived into
-/// `registry/registries/hlexicon-workspace.yaml`. This function parses
+/// `registry/hlexicon/hlexicon-workspace.yaml`. This function parses
 /// that YAML into an `HLexicon` suitable for validation during registration.
 pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
     let workspace: HlexiconWorkspaceYaml = serde_yaml::from_str(content)
@@ -81,12 +81,12 @@ pub fn load_hlexicon_default() -> Result<HLexicon, String> {
         .map(|p| {
             let tp = Path::new(&p);
             tp.parent()
-                .map(|p| p.join("registries/hlexicon-workspace.yaml"))
+                .map(|p| p.join("hlexicon/hlexicon-workspace.yaml"))
                 .unwrap_or_else(|| {
-                    Path::new("registry/registries/hlexicon-workspace.yaml").to_path_buf()
+                    Path::new("registry/hlexicon/hlexicon-workspace.yaml").to_path_buf()
                 })
         })
-        .unwrap_or_else(|_| Path::new("registry/registries/hlexicon-workspace.yaml").to_path_buf());
+        .unwrap_or_else(|_| Path::new("registry/hlexicon/hlexicon-workspace.yaml").to_path_buf());
     load_hlexicon_from_file(&path)
 }
 
@@ -418,7 +418,7 @@ mod tests {
             load_hlexicon_from_yaml(&generated_yaml).expect("Generated YAML should be valid");
 
         // Read the existing workspace YAML for comparison
-        let yaml_path = Path::new("registry/registries/hlexicon-workspace.yaml");
+        let yaml_path = Path::new("registry/hlexicon/hlexicon-workspace.yaml");
         if yaml_path.exists() {
             let existing_yaml =
                 std::fs::read_to_string(yaml_path).expect("Failed to read hlexicon-workspace.yaml");

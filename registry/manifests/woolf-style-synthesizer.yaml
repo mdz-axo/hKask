@@ -72,7 +72,7 @@ steps:
     description: >
       Select Woolf style parameters from cognition config.
       Hypotactic clause target, free indirect discourse, Woolfian themes
-      are defined in registry/registries/cognition/woolf-style-synthesizer.yaml.
+      are defined in registry/styles/woolf/woolf-style-synthesizer.yaml.
     renderer: null
     template_ref: null
     model_tier: null

@@ -50,7 +50,7 @@ impl SamplingState {
     /// Determine whether the current Moderate page should be dual-routed.
     fn should_dual_route(&mut self) -> bool {
         self.counter += 1;
-        self.counter % self.sample_every_nth == 0
+        self.counter.is_multiple_of(self.sample_every_nth)
     }
 }
 
@@ -131,7 +131,7 @@ mod tests {
         };
         // Default model
         let mut state = SamplingState::new(0.10);
-        let backends = route_page(score.clone(), &mut state, None, None);
+        let backends = route_page(score, &mut state, None, None);
         assert_eq!(
             backends,
             vec![OcrBackend::LlmOcr(thresholds::DEFAULT_LLM_OCR_MODEL.into())]
@@ -139,7 +139,7 @@ mod tests {
 
         // Custom model override
         let mut state = SamplingState::new(0.10);
-        let backends = route_page(score.clone(), &mut state, None, Some("minicpm"));
+        let backends = route_page(score, &mut state, None, Some("minicpm"));
         assert_eq!(backends, vec![OcrBackend::LlmOcr("minicpm".into())]);
     }
 
@@ -156,7 +156,7 @@ mod tests {
         let total = 1000;
         let mut dual_count = 0;
         for _ in 0..total {
-            let backends = route_page(score.clone(), &mut state, None, None);
+            let backends = route_page(score, &mut state, None, None);
             if backends.len() == 2 {
                 dual_count += 1;
             }
@@ -204,7 +204,7 @@ mod tests {
             tier: ComplexityTier::Moderate,
         };
         for _ in 0..100 {
-            let backends = route_page(score.clone(), &mut state, None, None);
+            let backends = route_page(score, &mut state, None, None);
             assert_eq!(backends.len(), 2);
         }
         assert_eq!(state.moderate_pages_dual_routed, 100);
@@ -219,7 +219,7 @@ mod tests {
             tier: ComplexityTier::Moderate,
         };
         for _ in 0..100 {
-            let backends = route_page(score.clone(), &mut state, None, None);
+            let backends = route_page(score, &mut state, None, None);
             assert_eq!(backends.len(), 1);
         }
         assert_eq!(state.moderate_pages_dual_routed, 0);

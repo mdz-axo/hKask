@@ -43,11 +43,11 @@ hlexicon:
 # Reference data supporting cognition templates
 reference_data:
   - id: falstaffian-shapes
-    path: registry/registries/cognition/falstaffian-shapes.yaml
+    path: registry/cognition/falstaffian-shapes.yaml
     description: Semantic graph transformation operators for Falstaffian perspective-taking
 
   - id: falstaffian-variance-analysis
-    path: registry/registries/cognition/falstaffian-variance-analysis.yaml
+    path: registry/cognition/falstaffian-variance-analysis.yaml
     description: Three-pass variance calibration for confidence in shape identification
 
 # Functional Logic Summary

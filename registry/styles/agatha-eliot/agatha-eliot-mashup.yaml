@@ -3,7 +3,7 @@
 # License: CC-BY-4.0
 #
 # Cognition config for the Agatha Eliot style mashup pipeline.
-# Used by: kask compose --cognition registry/registries/cognition/agatha-eliot-mashup.yaml
+# Used by: kask compose --cognition registry/styles/agatha-eliot/agatha-eliot-mashup.yaml
 #
 # Pipeline: prompt → embed → KNN exemplar retrieval → Jinja2 system prompt → inference → centroid validation
 

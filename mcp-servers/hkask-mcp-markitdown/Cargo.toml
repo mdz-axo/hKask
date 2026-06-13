@@ -10,6 +10,7 @@ hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-inference = { path = "../../crates/hkask-inference" }
 hkask-templates = { path = "../../crates/hkask-templates" }
+hkask-services = { path = "../../crates/hkask-services" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true
@@ -23,6 +24,7 @@ chrono.workspace = true
 dotenvy.workspace = true
 pdf-extract = "0.7"
 image.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 reqwest = { workspace = true }

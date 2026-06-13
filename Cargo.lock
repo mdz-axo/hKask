@@ -2297,6 +2297,7 @@ dependencies = [
  "dotenvy",
  "hkask-inference",
  "hkask-mcp",
+ "hkask-services",
  "hkask-templates",
  "hkask-types",
  "image",
@@ -2307,6 +2308,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
 ]

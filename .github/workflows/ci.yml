@@ -208,7 +208,7 @@ jobs:
         run: |
           # Find "*" usage in capability/token context (excl. CapabilityChecker authority,
           # boundary-matching checks, enforcement rejections, and test code)
-          violations=$(grep -rn '"\*"' crates/ --include="*.rs" \
+          violations=$(grep -rnF '"*"' crates/ --include="*.rs" \
             | grep -v "cfg(test)" | grep -v "test_" | grep -v "registry.rs" \
             | grep -v "verification.rs" \
             | grep -v '== "\*"' | grep -v '!= "\*"' \

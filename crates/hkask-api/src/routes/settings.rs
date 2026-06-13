@@ -229,6 +229,9 @@ mod tests {
             gas_heuristic: None,
             gas_cap: None,
             auto_condense: None,
+            ocr_simple_max: None,
+            ocr_moderate_max: None,
+            ocr_sample_rate: None,
         };
 
         // Apply the merge (same logic as the PUT handler)
@@ -262,6 +265,9 @@ mod tests {
             gas_heuristic: None,
             gas_cap: None,
             auto_condense: None,
+            ocr_simple_max: None,
+            ocr_moderate_max: None,
+            ocr_sample_rate: None,
         };
         if let Some(v) = req.temperature
             && (0.0..=2.0).contains(&v)

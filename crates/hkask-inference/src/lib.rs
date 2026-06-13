@@ -99,10 +99,10 @@ impl RouterModelEntry {
             if model_lower.contains(vf) {
                 return Some(true);
             }
-            if let Some(ref fam) = family_lower {
-                if fam.contains(vf) {
-                    return Some(true);
-                }
+            if let Some(ref fam) = family_lower
+                && fam.contains(vf)
+            {
+                return Some(true);
             }
         }
 

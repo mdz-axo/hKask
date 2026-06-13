@@ -324,16 +324,8 @@ impl ThresholdConfig {
 }
 
 /// Legacy constants module — prefer `ThresholdConfig` for new code.
-/// Retained for backward compatibility with code that hasn't migrated
-/// to configurable thresholds.
+/// Retained for `DEFAULT_LLM_OCR_MODEL` which is referenced by routing.
 pub mod thresholds {
-    /// Edge-density ratio below which a page is considered Simple.
-    pub const SIMPLE_MAX: f32 = 0.05;
-    /// Edge-density ratio below which a page is considered Moderate.
-    /// Values ≥ THRESHOLD are Complex.
-    pub const MODERATE_MAX: f32 = 0.15;
-    /// Default dual-routing sampling rate for Moderate-tier pages.
-    pub const DEFAULT_MODERATE_SAMPLE_RATE: f32 = 0.10;
     /// Default vision LLM model for OCR (LightOnOCR-2).
     /// Override via `HKASK_OCR_MODEL` env var or `llm_model` pipeline parameter.
     pub const DEFAULT_LLM_OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
