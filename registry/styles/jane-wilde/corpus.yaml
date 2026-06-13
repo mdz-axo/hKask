@@ -203,4 +203,8 @@ methods:
 # ── Budget ───────────────────────────────────────────────────────────────────
 
 budget:
-  per_100_pages: 3750
+  total_passages: 0
+  triple_budget_per_100: 3750
+
+# ── Classifier ────────────────────────────────────────────────────────────────
+triple_classifier: triple-extractor-literary

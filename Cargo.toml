@@ -95,6 +95,7 @@ chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 rand = "0.9"
 base64 = "0.22"
+image = "0.25"
 
 # Keychain / Secrets
 keyring = { version = "3", features = ["linux-native-sync-persistent", "crypto-rust"] }

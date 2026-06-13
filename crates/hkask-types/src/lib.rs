@@ -23,6 +23,7 @@ pub mod event;
 pub mod goal;
 pub mod id;
 pub mod identity;
+pub mod ocr;
 
 pub mod lexicon;
 pub mod loops;

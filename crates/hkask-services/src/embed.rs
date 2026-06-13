@@ -383,6 +383,7 @@ impl TaggedPassage {
             + self.semantic_triples.relationships.len()
             + if !self.semantic_triples.primary_dimension.is_empty() { 1 } else { 0 }
             + self.semantic_triples.quality_flags.len()
+            + self.semantic_triples.extra.len()
     }
 
     /// Total triple count including text (for reporting only).
@@ -1199,6 +1200,11 @@ fn store_passage_triples(
     }
     for flag in &st.quality_flags {
         store(er, "has_quality_flag", json!(flag))?;
+    }
+
+    // Extra fields from classifier (literary: themes, characters, setting, tone, imagery, etc.)
+    for (key, val) in &st.extra {
+        store(er, key, val.clone())?;
     }
 
     Ok(())

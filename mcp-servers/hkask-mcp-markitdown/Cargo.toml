@@ -21,6 +21,7 @@ base64.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
 pdf-extract = "0.7"
+image.workspace = true
 
 [dev-dependencies]
 reqwest = { workspace = true }

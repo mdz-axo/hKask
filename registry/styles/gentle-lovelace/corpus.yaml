@@ -317,7 +317,7 @@ validation:
 
 budget:
   total_passages: 5000
-  triple_budget_per_100: 3000
+  triple_budget_per_100: 8100
 
 entities:
   characters: []

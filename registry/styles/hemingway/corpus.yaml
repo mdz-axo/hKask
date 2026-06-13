@@ -224,8 +224,12 @@ methods:
       sensory_word_ratio_min: 3.0
 
 # ── Budget ──────────────────────────────────────────────────────────────────────
-# Triple storage budget. Default 3,750 triples per 100 pages.
-# Tighten to favor only the most graph-connected passages.
+# Triple storage budget.
 
 budget:
-  per_100_pages: 3750
+  total_passages: 0
+  triple_budget_per_100: 3750
+
+# ── Classifier ──────────────────────────────────────────────────────────────────
+# Literary triple extractor for themes, characters, setting, tone.
+triple_classifier: triple-extractor-literary

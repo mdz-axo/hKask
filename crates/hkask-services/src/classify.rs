@@ -35,6 +35,10 @@ pub struct TripleExtraction {
     pub primary_dimension: String,
     /// Quality assessment flags for the passage.
     pub quality_flags: Vec<String>,
+    /// Extra fields from classifier output that don't map to the standard fields.
+    /// Each key-value pair is stored as a triple: entity_ref → key → value.
+    /// Literary classifiers use this for themes, characters, setting, tone, imagery, etc.
+    pub extra: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// OpenAI-compatible chat completion response (minimal fields).
@@ -470,5 +474,25 @@ fn parse_triple_extraction(content: &str) -> Result<TripleExtraction, ServiceErr
                     .collect()
             })
             .unwrap_or_default(),
+        extra: {
+            // Capture any fields not in the standard schema
+            let standard = [
+                "topic",
+                "concepts",
+                "entities",
+                "relationships",
+                "primary_dimension",
+                "quality_flags",
+            ];
+            let mut extra = std::collections::HashMap::new();
+            if let Some(obj) = parsed.as_object() {
+                for (key, val) in obj {
+                    if !standard.contains(&key.as_str()) && !val.is_null() {
+                        extra.insert(key.clone(), val.clone());
+                    }
+                }
+            }
+            extra
+        },
     })
 }

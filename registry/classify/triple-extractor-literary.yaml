@@ -1,0 +1,51 @@
+# Triple Extractor — Literary (Gemma 4 classifier for literary works)
+# Used by: kask embed-corpus (triple extraction pass for literary corpora)
+# Model: google/gemma-4-26B-A4B-it (4B active, 26B total, non-reasoning)
+# Provider: DeepInfra (cloud API, OpenAI-compatible)
+#
+# Extracts structured literary-semantic data from each passage:
+#   themes, characters, setting, narrative_technique, tone, imagery
+
+classifier:
+  name: triple-extractor-literary
+  model: google/gemma-4-26B-A4B-it
+  provider: deepinfra
+  concurrency: 150
+  timeout_secs: 30
+
+  system_prompt: >
+    Extract literary features from this passage. Return ONLY valid JSON, no commentary:
+
+    {
+      "themes": ["theme 1", "theme 2"],
+      "characters": ["character name or role present"],
+      "setting": "brief location/time description",
+      "narrative_technique": ["dialogue", "description", "interior_monologue", "action", "exposition"],
+      "tone": ["sparse", "lyrical", "tense", "melancholic", "ironic", "earnest"],
+      "imagery": ["image or sensory detail"]
+    }
+
+    Narrative technique definitions:
+    - dialogue: characters speaking
+    - description: sensory or physical description of scene/person
+    - interior_monologue: character's thoughts or feelings
+    - action: physical movement or event
+    - exposition: narrator explaining or contextualizing
+
+    Tone definitions:
+    - sparse: minimal adjectives, short sentences
+    - lyrical: rhythmic, poetic, flowing
+    - tense: suspenseful, urgent
+    - melancholic: sad, nostalgic, elegiac
+    - ironic: saying one thing meaning another
+    - earnest: sincere, direct, unadorned
+
+    Keep responses concise. If uncertain about a field, leave it empty.
+
+  base_url: https://api.deepinfra.com/v1/openai/chat/completions
+  api_key_env: DEEPINFRA_API_KEY
+
+  temperature: 0.0
+  max_tokens: 300
+
+  fallback_category: Statement
