@@ -609,7 +609,7 @@ where
                 missing_required.push(cred.env_var.clone());
             }
             Err(_) => {
-                tracing::warn!(credential = %cred.env_var, description = %cred.description, "Optional credential not set — server will operate with degraded functionality")
+                tracing::info!(credential = %cred.env_var, description = %cred.description, "Optional credential not set — server will operate without optional feature")
             }
         }
     }

@@ -1,12 +1,15 @@
-//! Section type classifier — DeepInfra + Gemma 4 26B MoE.
+//! Section type classifier — config-driven, multi-provider.
 //!
-//! Classifies passages into: Statement, Evidence, Diagram, Implications.
-//! Uses concurrent requests to DeepInfra's OpenAI-compatible API for
-//! high-throughput batch classification (~95 req/s at 150 concurrent).
+//! Classifier configs live in registry/classify/{name}.yaml.
+//! corpus.yaml references which one to use via the `classifier` field.
+//!
+//! Supports DeepInfra (OpenAI-compatible) with concurrent batch requests.
+//! Graceful degradation: no API key → all passages default to fallback category.
 
 use crate::error::ServiceError;
 use reqwest::Client;
 use serde::Deserialize;
+use std::path::Path;
 use std::time::Duration;
 
 /// Classification result for a single passage.
@@ -32,55 +35,141 @@ struct Message {
     content: String,
 }
 
-/// Classifier configuration.
-pub struct ClassifierConfig {
-    /// DeepInfra API key.
-    pub api_key: String,
-    /// Model name on DeepInfra.
-    pub model: String,
-    /// Maximum concurrent requests.
-    pub concurrency: usize,
-    /// Request timeout.
-    pub timeout: Duration,
+/// Classifier configuration loaded from registry/classify/{name}.yaml.
+#[derive(Debug, Deserialize)]
+pub struct ClassifierYaml {
+    pub classifier: ClassifierDef,
 }
 
-impl Default for ClassifierConfig {
+#[derive(Debug, Deserialize)]
+pub struct ClassifierDef {
+    pub name: String,
+    pub model: String,
+    #[serde(default)]
+    pub provider: String,
+    pub concurrency: usize,
+    #[serde(default = "default_timeout")]
+    pub timeout_secs: u64,
+    pub system_prompt: String,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key_env: String,
+    #[serde(default)]
+    pub temperature: f64,
+    #[serde(default = "default_max_tokens")]
+    pub max_tokens: u32,
+    #[serde(default = "default_fallback")]
+    pub fallback_category: String,
+}
+
+impl Default for ClassifierDef {
     fn default() -> Self {
         Self {
-            api_key: std::env::var("DEEPINFRA_API_KEY")
-                .or_else(|_| std::env::var("DI_API_KEY"))
-                .unwrap_or_default(),
-            model: "google/gemma-4-26B-A4B-it".to_string(),
-            concurrency: 150,
-            timeout: Duration::from_secs(30),
+            name: String::new(),
+            model: String::new(),
+            provider: String::new(),
+            concurrency: 1,
+            timeout_secs: 30,
+            system_prompt: String::new(),
+            base_url: String::new(),
+            api_key_env: String::new(),
+            temperature: 0.0,
+            max_tokens: 15,
+            fallback_category: "Statement".to_string(),
         }
     }
 }
 
-/// Classify a single passage using DeepInfra.
+fn default_timeout() -> u64 {
+    30
+}
+fn default_max_tokens() -> u32 {
+    15
+}
+fn default_fallback() -> String {
+    "Statement".to_string()
+}
+
+/// Load a classifier config from registry/classify/{name}.yaml.
+pub fn load_classifier_config(
+    name: &str,
+    registry_dir: &Path,
+) -> Result<ClassifierDef, ServiceError> {
+    let config_path = registry_dir.join("classify").join(format!("{name}.yaml"));
+    let yaml_str = std::fs::read_to_string(&config_path).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to read classifier config {}: {e}",
+            config_path.display()
+        ))
+    })?;
+    let config: ClassifierYaml = serde_yaml::from_str(&yaml_str).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to parse classifier config {}: {e}",
+            config_path.display()
+        ))
+    })?;
+    Ok(config.classifier)
+}
+
+/// Runtime classifier configuration (derived from YAML + env).
+#[derive(Clone)]
+pub struct ClassifierConfig {
+    pub model: String,
+    pub api_key: String,
+    pub base_url: String,
+    pub system_prompt: String,
+    pub concurrency: usize,
+    pub timeout: Duration,
+    pub temperature: f64,
+    pub max_tokens: u32,
+    pub fallback_category: String,
+}
+
+impl ClassifierConfig {
+    /// Build from a ClassifierDef, resolving API key from environment.
+    pub fn from_def(def: &ClassifierDef) -> Self {
+        let api_key = if def.api_key_env.is_empty() {
+            String::new()
+        } else {
+            std::env::var(&def.api_key_env).unwrap_or_default()
+        };
+        Self {
+            model: def.model.clone(),
+            api_key,
+            base_url: if def.base_url.is_empty() {
+                "https://api.deepinfra.com/v1/openai/chat/completions".to_string()
+            } else {
+                def.base_url.clone()
+            },
+            system_prompt: def.system_prompt.clone(),
+            concurrency: def.concurrency,
+            timeout: Duration::from_secs(def.timeout_secs),
+            temperature: def.temperature,
+            max_tokens: def.max_tokens,
+            fallback_category: def.fallback_category.clone(),
+        }
+    }
+}
+
+/// Classify a single passage.
 async fn classify_one(
     client: &Client,
     config: &ClassifierConfig,
     text: &str,
 ) -> Result<ClassifyResult, ServiceError> {
-    let system_prompt = "Classify. Return ONLY: {\"category\":\"X\"}. \
-        Statement=principle/rule/assertion. \
-        Evidence=example/data/citation (look for: \"for instance\", \"for example\"). \
-        Diagram=structure/layout/mechanical description. \
-        Implications=consequence (\"therefore\", \"thus\", \"hence\").";
-
     let body = serde_json::json!({
         "model": config.model,
         "messages": [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": config.system_prompt},
             {"role": "user", "content": text}
         ],
-        "temperature": 0.0,
-        "max_tokens": 15
+        "temperature": config.temperature,
+        "max_tokens": config.max_tokens
     });
 
     let resp = client
-        .post("https://api.deepinfra.com/v1/openai/chat/completions")
+        .post(&config.base_url)
         .header("Authorization", format!("Bearer {}", config.api_key))
         .json(&body)
         .timeout(config.timeout)
@@ -136,14 +225,15 @@ async fn classify_one(
 /// Failed classifications default to "Statement".
 pub async fn classify_batch(
     texts: &[String],
-    config: &ClassifierConfig,
+    config: ClassifierConfig,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
     if config.api_key.is_empty() {
-        // No API key — return all Statement (skip classification)
+        // No API key — return all fallback category (skip classification)
+        let fallback = &config.fallback_category;
         return Ok(texts
             .iter()
             .map(|_| ClassifyResult {
-                category: "Statement".to_string(),
+                category: fallback.clone(),
             })
             .collect());
     }
@@ -153,29 +243,18 @@ pub async fn classify_batch(
         .build()
         .map_err(|e| ServiceError::Embed(format!("Classifier client build error: {e}")))?;
 
-    let api_key = config.api_key.clone();
-    let model = config.model.clone();
-    let timeout = config.timeout;
-    let concurrency = config.concurrency;
-
-    let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency));
+    let config = std::sync::Arc::new(config.clone()); // share across spawned tasks
+    let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(config.concurrency));
     let mut handles = Vec::with_capacity(texts.len());
 
     for (i, text) in texts.iter().enumerate() {
         let client = client.clone();
-        let api_key = api_key.clone();
-        let model = model.clone();
+        let cfg = config.clone();
         let text = text.clone();
         let permit = semaphore.clone();
 
         handles.push(tokio::spawn(async move {
             let _permit = permit.acquire().await;
-            let cfg = ClassifierConfig {
-                api_key,
-                model,
-                concurrency: 1,
-                timeout,
-            };
             let result = classify_one(&client, &cfg, &text).await;
             (i, result)
         }));
@@ -188,9 +267,9 @@ pub async fn classify_batch(
                 results[i] = Some(result);
             }
             Ok((i, Err(e))) => {
-                tracing::warn!(index = i, error = %e, "Classifier failed for passage, defaulting to Statement");
+                tracing::warn!(index = i, error = %e, "Classifier failed for passage, using fallback");
                 results[i] = Some(ClassifyResult {
-                    category: "Statement".to_string(),
+                    category: config.fallback_category.clone(),
                 });
             }
             Err(e) => {
@@ -203,7 +282,7 @@ pub async fn classify_batch(
         .into_iter()
         .map(|r| {
             r.unwrap_or(ClassifyResult {
-                category: "Statement".to_string(),
+                category: config.fallback_category.clone(),
             })
         })
         .collect())

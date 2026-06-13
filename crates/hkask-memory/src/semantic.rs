@@ -142,6 +142,12 @@ impl SemanticMemory {
         Ok(self.embedding.count()?)
     }
 
+    /// Access the underlying EmbeddingStore for direct operations
+    /// (e.g., centroid computation, KNN search).
+    pub fn embedding_store(&self) -> &EmbeddingStore {
+        &self.embedding
+    }
+
     /// Retrieve all entity_refs matching a prefix.
     ///
     /// Uses SQL LIKE query instead of zero-vector KNN scan.

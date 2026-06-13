@@ -142,6 +142,11 @@ pub struct CorpusConfig {
     /// Orthogonal tag sets for multi-axis passage tagging.
     #[serde(default)]
     pub tag_sets: Vec<TagSet>,
+
+    /// Classifier config name (references registry/classify/{name}.yaml).
+    /// If empty, section_type defaults to "Statement" for all passages.
+    #[serde(default)]
+    pub classifier: String,
 }
 
 fn default_corpus_type() -> String {
@@ -450,7 +455,7 @@ impl EmbedService {
         let db = Database::open(db_path, db_passphrase)?;
         let conn = db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&conn));
-        let embedding_store = EmbeddingStore::with_dim(conn, config.embedding.dim);
+        let embedding_store = EmbeddingStore::with_dim(Arc::clone(&conn), config.embedding.dim);
         let semantic = SemanticMemory::new(triple_store, embedding_store);
 
         // Purge existing embeddings for idempotent re-ingest
@@ -631,7 +636,7 @@ impl EmbedService {
             });
         }
 
-        // ── Classify section types (DeepInfra + Gemma 4) ────────────
+        // ── Classify section types ──────────────────────────────
         {
             let mut p = shared.lock().unwrap();
             p.phase = EmbedPhase::Tagging;
@@ -639,7 +644,24 @@ impl EmbedService {
         }
 
         let passage_count = all_passages.len();
-        let classifier_config = crate::classify::ClassifierConfig::default();
+
+        // Load classifier config if specified in corpus.yaml
+        let classifier_config = if config.classifier.is_empty() {
+            tracing::info!("No classifier configured — all passages default to Statement");
+            crate::classify::ClassifierConfig::from_def(&Default::default())
+        } else {
+            // registry/classify/{name}.yaml is relative to the project root.
+            // config_path is registry/styles/gentle-lovelace/corpus.yaml,
+            // so registry_dir is 3 levels up.
+            let registry_dir = config_path
+                .parent() // styles/gentle-lovelace
+                .and_then(|p| p.parent()) // styles
+                .and_then(|p| p.parent()) // registry
+                .unwrap_or_else(|| Path::new("registry"));
+            let def = crate::classify::load_classifier_config(&config.classifier, registry_dir)?;
+            crate::classify::ClassifierConfig::from_def(&def)
+        };
+
         let texts: Vec<String> = all_passages.iter().map(|p| p.text.clone()).collect();
 
         tracing::info!(
@@ -649,7 +671,7 @@ impl EmbedService {
             "Starting section type classification"
         );
 
-        let classify_results = crate::classify::classify_batch(&texts, &classifier_config).await?;
+        let classify_results = crate::classify::classify_batch(&texts, classifier_config).await?;
 
         for (passage, result) in all_passages.iter_mut().zip(classify_results.iter()) {
             passage.section_type = result.category.clone();
@@ -808,21 +830,165 @@ impl EmbedService {
             "Triples stored"
         );
 
-        // ── Phase 6: Compute centroid ──────────────────────────────────
+        // ── Phase 6: Compute centroid(s) ────────────────────────────
         {
             let mut p = shared.lock().unwrap();
             p.phase = EmbedPhase::Centroid;
         }
-        tracing::info!("Computing style centroid");
-        let rule_prefix = format!("style:{}:rule:", &config.author);
-        let centroid_result = semantic.compute_centroid(
-            &author_prefix,
-            &rule_prefix,
-            &centroid_ref,
-            config.embedding.dim,
-            Some(&centroid_ref),
-            Some(&config.embedding.model),
-        )?;
+
+        if config.dimension_centroids.is_empty() {
+            // ── Legacy single-centroid path ──────────────────────────
+            tracing::info!("Computing style centroid (single)");
+            let rule_prefix = format!("style:{}:rule:", &config.author);
+            let centroid_result = semantic.compute_centroid(
+                &author_prefix,
+                &rule_prefix,
+                &centroid_ref,
+                config.embedding.dim,
+                Some(&centroid_ref),
+                Some(&config.embedding.model),
+            )?;
+
+            {
+                let mut p = shared.lock().unwrap();
+                p.phase = EmbedPhase::Done;
+                p.completed_passages = total_passages;
+            }
+
+            return Ok(EmbedResult {
+                author,
+                purged,
+                total_passages,
+                centroid_ref,
+                passage_count: centroid_result.passage_count,
+                centroid_stored: centroid_result.stored,
+                validation,
+                budget,
+                tagged_passages: tagged_count,
+                triples_stored,
+                embedding_only,
+            });
+        }
+
+        // ── Multi-dimension centroid path ────────────────────────────
+        tracing::info!(
+            dimensions = config.dimension_centroids.len(),
+            "Computing per-dimension centroids"
+        );
+
+        // Create a second embedding store for centroid computation
+        // (the primary one was moved into semantic)
+        let centroid_store = EmbeddingStore::with_dim(Arc::clone(&conn), config.embedding.dim);
+
+        // Build dimension → entity_refs map from all passages (excluding rules)
+        let mut dim_refs: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for passage in &all_passages {
+            if passage.is_rule || passage.dimension.is_empty() {
+                continue;
+            }
+            dim_refs
+                .entry(passage.dimension.clone())
+                .or_default()
+                .push(passage.entity_ref.clone());
+        }
+
+        let mut dim_centroids: Vec<(String, Vec<f32>, usize)> = Vec::new();
+
+        for dc in &config.dimension_centroids {
+            let refs = dim_refs.get(&dc.name);
+            let count = refs.map(|r| r.len()).unwrap_or(0);
+
+            if count == 0 {
+                tracing::warn!(
+                    dimension = %dc.name,
+                    "No passages for dimension — skipping centroid"
+                );
+                continue;
+            }
+
+            let mut centroid = vec![0.0f32; config.embedding.dim];
+            let mut fetched = 0usize;
+
+            for entity_ref in refs.unwrap() {
+                if let Ok(emb) = centroid_store.get(entity_ref) {
+                    for (i, v) in emb.vector.iter().enumerate() {
+                        if i < config.embedding.dim {
+                            centroid[i] += v;
+                        }
+                    }
+                    fetched += 1;
+                }
+            }
+
+            if fetched == 0 {
+                tracing::warn!(
+                    dimension = %dc.name,
+                    "No embeddings fetched for dimension — skipping centroid"
+                );
+                continue;
+            }
+
+            let n = fetched as f32;
+            for v in centroid.iter_mut() {
+                *v /= n;
+            }
+
+            // Store dimension centroid
+            centroid_store
+                .store(&dc.ref_name, &centroid, &config.embedding.model)
+                .map_err(|e| {
+                    ServiceError::Embed(format!("Failed to store dimension centroid: {e}"))
+                })?;
+
+            tracing::info!(
+                dimension = %dc.name,
+                ref_name = %dc.ref_name,
+                passages = fetched,
+                "Dimension centroid stored"
+            );
+
+            dim_centroids.push((dc.name.clone(), centroid, fetched));
+        }
+
+        // ── Compute composite centroid (weighted mean) ───────────────
+        if !dim_centroids.is_empty() {
+            let mut composite = vec![0.0f32; config.embedding.dim];
+            let mut total_weight = 0.0f64;
+
+            for dc in &config.dimension_centroids {
+                if let Some((_name, vec, _count)) =
+                    dim_centroids.iter().find(|(name, _, _)| name == &dc.name)
+                {
+                    for (i, v) in vec.iter().enumerate() {
+                        composite[i] += *v * dc.weight as f32;
+                    }
+                    total_weight += dc.weight;
+                }
+            }
+
+            if total_weight > 0.0 {
+                // Normalize by total weight (handles missing dimensions)
+                for v in composite.iter_mut() {
+                    *v /= total_weight as f32;
+                }
+
+                centroid_store
+                    .store(&centroid_ref, &composite, &config.embedding.model)
+                    .map_err(|e| {
+                        ServiceError::Embed(format!("Failed to store composite centroid: {e}"))
+                    })?;
+
+                tracing::info!(
+                    composite_ref = %centroid_ref,
+                    composite_weight = total_weight,
+                    dimensions = dim_centroids.len(),
+                    "Composite centroid stored"
+                );
+            }
+        }
+
+        let multi_passage_count: usize = dim_centroids.iter().map(|(_, _, c)| c).sum();
 
         {
             let mut p = shared.lock().unwrap();
@@ -835,8 +1001,8 @@ impl EmbedService {
             purged,
             total_passages,
             centroid_ref,
-            passage_count: centroid_result.passage_count,
-            centroid_stored: centroid_result.stored,
+            passage_count: multi_passage_count,
+            centroid_stored: !dim_centroids.is_empty(),
             validation,
             budget,
             tagged_passages: tagged_count,
