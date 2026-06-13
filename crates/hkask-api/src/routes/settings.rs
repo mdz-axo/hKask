@@ -40,9 +40,6 @@ pub struct SettingsResponse {
     pub ocr_sample_rate: f32,
 }
 
-fn default_ocr() -> String {
-    "maternion/LightOnOCR-2:1b".to_string()
-}
 fn default_ocr_simple_max() -> f32 {
     0.05
 }

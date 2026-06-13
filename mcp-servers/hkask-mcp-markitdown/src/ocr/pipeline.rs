@@ -12,7 +12,8 @@ use std::time::Instant;
 use async_trait::async_trait;
 
 use hkask_types::ocr::{
-    CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig,
+    BackendUsage, CrossValidation, OcrBackend, OcrCrossValidationSpan, OcrResult,
+    OcrVerificationSpan, PipelineError, PipelineOutcome, ThresholdConfig,
 };
 use image::DynamicImage;
 
@@ -24,10 +25,19 @@ use crate::ocr::verification::verify_output;
 /// Trait for executing OCR on a single page image via a specific backend.
 ///
 /// Implementors plug in the concrete invocation path for each backend
-/// (Tesseract → local binary, LightOn → HTTP endpoint, LlmOcr → inference router).
-/// Single async method with a clear contract.
+/// (Tesseract → local binary, LlmOcr → inference router).
 #[async_trait]
 pub trait OcrExecutor: Send + Sync {
+    /// Check whether a backend is available for use.
+    ///
+    /// Returns `true` if the backend is installed and ready.
+    /// Implementors should perform a lightweight probe (binary exists,
+    /// service reachable) — not a full execution.
+    /// Default: all backends are considered available.
+    fn is_available(&self, _backend: &OcrBackend) -> bool {
+        true
+    }
+
     /// Execute OCR on a single page image.
     ///
     /// Returns `Ok(OcrResult)` on success, or `Err(String)` with a
@@ -41,6 +51,17 @@ pub trait OcrExecutor: Send + Sync {
     ) -> Result<OcrResult, String>;
 }
 
+/// Observer for CNS span emission during pipeline execution.
+///
+/// Implementors forward spans to the CNS event store or daemon.
+/// `None` means CNS observation is disabled (no spans emitted).
+pub trait CnsObserver: Send + Sync {
+    /// Emit a verification span after pipeline completion.
+    fn observe_verification(&self, span: OcrVerificationSpan);
+    /// Emit a cross-validation span for a dual-routed page.
+    fn observe_cross_validation(&self, span: OcrCrossValidationSpan);
+}
+
 /// Run the OCR pipeline on a set of page images.
 ///
 /// # Arguments
@@ -48,6 +69,7 @@ pub trait OcrExecutor: Send + Sync {
 /// * `executor` — Pluggable OCR executor for each backend.
 /// * `thresholds` — Complexity scoring thresholds (configurable via registry).
 /// * `llm_model` — Optional model ID for `LlmOcr` backend routing.
+/// * `cns` — Optional CNS observer for span emission.
 ///
 /// # Returns
 /// `PipelineOutcome` — the single sealed output. No partial state escapes.
@@ -56,6 +78,7 @@ pub async fn run_pipeline(
     executor: &(dyn OcrExecutor + '_),
     thresholds: &ThresholdConfig,
     llm_model: Option<&str>,
+    cns: Option<&(dyn CnsObserver + '_)>,
 ) -> PipelineOutcome {
     let start = Instant::now();
     let expected_pages = pages.len();
@@ -63,6 +86,8 @@ pub async fn run_pipeline(
     let mut results: Vec<OcrResult> = Vec::with_capacity(expected_pages);
     let mut errors: Vec<PipelineError> = Vec::new();
     let mut cross_validations: Vec<CrossValidation> = Vec::new();
+    let mut backend_counts: std::collections::HashMap<OcrBackend, usize> =
+        std::collections::HashMap::new();
 
     for (page_index, image) in pages.iter().enumerate() {
         // Step 1: Score complexity
@@ -71,8 +96,13 @@ pub async fn run_pipeline(
         // Step 2: Route to backends
         let backends = route_page(score, &mut state, None, llm_model);
 
-        if backends.is_empty() {
-            // No backends available (all excluded)
+        // Filter to available backends
+        let available: Vec<OcrBackend> = backends
+            .into_iter()
+            .filter(|b| executor.is_available(b))
+            .collect();
+
+        if available.is_empty() {
             errors.push(PipelineError::OcrFailed {
                 page_index,
                 backends_tried: vec![],
@@ -85,7 +115,7 @@ pub async fn run_pipeline(
         let mut secondary_result: Option<OcrResult> = None;
         let mut backends_tried: Vec<OcrBackend> = Vec::new();
 
-        for (backend_idx, backend) in backends.iter().enumerate() {
+        for (backend_idx, backend) in available.iter().enumerate() {
             backends_tried.push(backend.clone());
 
             match executor.execute(page_index, backend, image, false).await {

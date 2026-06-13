@@ -19,7 +19,7 @@ use image::DynamicImage;
 pub fn verify_output(
     expected_pages: usize,
     results: &[OcrResult],
-    page_images: &[DynamicImage],
+    estimated_word_count: usize,
     errors: &[PipelineError],
 ) -> VerificationReport {
     let actual_pages = results.len();
@@ -52,10 +52,9 @@ pub fn verify_output(
         });
     }
 
-    // Estimate expected words from aggregate pixel density
-    let estimated_words = estimate_word_count(page_images);
-    let word_count_delta_pct = if estimated_words > 0 {
-        ((total_words as f32 - estimated_words as f32) / estimated_words as f32) * 100.0
+    // Use caller-supplied estimated word count (computed incrementally during pipeline)
+    let word_count_delta_pct = if estimated_word_count > 0 {
+        ((total_words as f32 - estimated_word_count as f32) / estimated_word_count as f32) * 100.0
     } else {
         0.0
     };
@@ -75,21 +74,12 @@ pub fn verify_output(
 ///
 /// Not a precision metric — coarse guardrail only.
 /// Assumes ~2000 pixels per word on average for 300 DPI text.
-fn estimate_word_count(pages: &[DynamicImage]) -> usize {
-    if pages.is_empty() {
-        return 0;
-    }
-    let total_pixels: u64 = pages
-        .iter()
-        .map(|img| {
-            let (w, h) = (img.width() as u64, img.height() as u64);
-            w * h
-        })
-        .sum();
-
+/// Used by the pipeline to compute estimated_word_count incrementally.
+pub fn estimate_word_count(width: u32, height: u32) -> usize {
+    let pixels = (width as u64) * (height as u64);
     // Heuristic: ~2000 pixels per word (roughly 40×50 px per word area)
     // Minimum 1 to avoid divide-by-zero in delta calculation
-    (total_pixels / 2000).max(1) as usize
+    (pixels / 2000).max(1) as usize
 }
 
 #[cfg(test)]
@@ -120,13 +110,8 @@ mod tests {
             },
         ];
 
-        // Two images sized to roughly match word count
-        let pages = vec![
-            DynamicImage::new_luma8(140, 140),
-            DynamicImage::new_luma8(140, 140),
-        ];
-
-        let report = verify_output(2, &results, &pages, &[]);
+        // 2 pages × (140×140 pixels / 2000 ≈ 10 words each) = 20 estimated words
+        let report = verify_output(2, &results, 20, &[]);
         assert!(report.page_count_match, "page count should match");
         assert!(report.empty_pages.is_empty(), "no empty pages");
         assert!(report.passed, "clean document should pass: {:#?}", report);
@@ -151,9 +136,8 @@ mod tests {
             duration_ms: 50,
             was_fallback: false,
         }];
-        let pages = vec![DynamicImage::new_luma8(100, 100)];
-        // 1 result, 2 expected → mismatch
-        let report = verify_output(2, &results, &pages, &[]);
+        // 1 result, 2 expected → mismatch. Estimated words: arbitrary for this test.
+        let report = verify_output(2, &results, 5, &[]);
         assert!(
             !report.page_count_match,
             "page count mismatch should be detected"
@@ -184,11 +168,7 @@ mod tests {
                 was_fallback: true,
             },
         ];
-        let pages = vec![
-            DynamicImage::new_luma8(100, 100),
-            DynamicImage::new_luma8(100, 100),
-        ];
-        let report = verify_output(2, &results, &pages, &[]);
+        let report = verify_output(2, &results, 10, &[]);
         assert!(
             !report.empty_pages.is_empty(),
             "empty page should be flagged"
@@ -221,9 +201,8 @@ mod tests {
             was_fallback: false,
         }];
 
-        // Tiny image → low estimated word count
-        let pages = vec![DynamicImage::new_luma8(10, 10)];
-        let report = verify_output(1, &results, &pages, &[]);
+        // 500 words vs 1 estimated → huge delta
+        let report = verify_output(1, &results, 1, &[]);
         // 500 words actual vs ~0.05 words estimated → huge delta
         assert!(
             report.word_count_delta_pct > 50.0,
