@@ -22,9 +22,9 @@ This session executed a complete documentation corpus sweep (8 tasks per the `do
 - **47 documents classified** in `docs/status/corpus_inventory.yaml`
 - **16 metadata violations fixed** — all documents now use 5-category `mds_categories`, zero `ddmvss_categories` in frontmatter
 - **CI scripts updated** — `check-metadata.sh` checks `mds_categories`, `check-links.sh` excludes transient dirs
-- **8 cross-reference violations fixed** — removed "Historical" section from architecture master, stripped `§7.1-7.2` references from 5 documents, removed 3 "formerly" annotations
+- **8 cross-reference violations fixed** — removed "Historical" section from architecture master, stripped `§7.1-7.2` references from 8 documents (ADR-032, ADR-033, ADR-035, REQUIREMENTS, TRACEABILITY_MATRIX, hLexicon, loop-architecture, test-program, AGENT-POD-CREATION-GUIDE), removed 3 "formerly" annotations, fixed "6 tools"→"5 tools" in 3 locations
 - **14/14 spec-code drift items resolved** — 1 new stub (`CapabilityAwareValidator` in `hkask-templates`), 5 items discovered already-implemented, 5 old-spec references resolved as superseded
-- **Portal refreshed** — `docs/README.md` now lists all 54 active documents, zero broken links (222 checked)
+- **Portal refreshed** — `docs/README.md` now lists all 54 active documents, zero broken links (224 checked)
 - **`document-update` skill composed** — `.agents/skills/document-update/SKILL.md` + `registry/templates/document-update/manifest.yaml` + 7 `.j2` templates
 - **5 FUT-DOC items** added to `docs/OPEN_QUESTIONS.md` under new `## Document Automation` section
 - **Writing quality report** — `docs/status/writing_quality_report.yaml` — 18 documents assessed, 17 at ≥3/4
@@ -41,7 +41,7 @@ This session executed a complete documentation corpus sweep (8 tasks per the `do
 
 ```
 Metadata:  54 documents, 0 violations     ✅
-Links:     222 links, 0 broken            ✅
+Links:     224 links, 0 broken            ✅
 ddmvss:    zero in frontmatter            ✅
 formerly:  zero in active tree            ✅
 Cargo:     hkask-templates compiles       ✅

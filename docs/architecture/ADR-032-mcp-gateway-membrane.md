@@ -16,7 +16,7 @@ mds_categories: [composition, trust]
 
 ## Context
 
-hKask's 10 MCP servers provide tool capabilities to agents. The capability model documented in `MDS.md §7.1-7.2` §5.5 describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 1 of 10 MCP servers currently implements this membrane via `GovernedTool`:
+hKask's 10 MCP servers provide tool capabilities to agents. The capability model documented in [`MDS.md`](MDS.md) describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 1 of 10 MCP servers currently implements this membrane via `GovernedTool`:
 
 | Server | Membrane | Rationale |
 |--------|----------|-----------|
@@ -31,7 +31,7 @@ This creates an architectural gap: the documented capability membrane is selecti
 
 **Constraints:** Headless constraint (§1.6) — no visual UI for capability negotiation; 10-server surface area must remain tractable
 
-[^mds]: hKask Team. (2026). *MDS — Domain-Driven Minimum Viable Specification Set.* `docs/architecture/MDS.md` §7.1-7.2 — Capability membrane model and security architecture.
+[^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification.* `docs/architecture/MDS.md` — Capability membrane model and security architecture.
 
 ## Decision
 
@@ -125,8 +125,8 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 
 ## Related Documents
 
-- [`MDS.md`](MDS.md) §7.1-7.2 §5.5 — Capability membrane model
-- [`MDS.md`](MDS.md) §7.3 §1 — Security model
+- [`MDS.md`](MDS.md) — Capability membrane model
+- [`MDS.md`](MDS.md) — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-004 — MCP gateway membrane question
 
 ## References

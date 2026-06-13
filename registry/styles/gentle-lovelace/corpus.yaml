@@ -124,7 +124,8 @@ works:
   # ── Lovelace: Notes on the Analytical Engine (Public Domain) ────────────
   - title: "Notes on the Analytical Engine"
     slug: lovelace-notes
-    url: "https://www.gutenberg.org/cache/epub/75107/pg75107.txt"
+    url: "https://www.fourmilab.ch/babbage/sketch.html"
+    notes: "Gutenberg ebook #75107 returned 404 (2026-06-12). Using fourmilab.ch mirror."
     type: specification
     dimensions: [Lovelace]
     section_types: [Statement, Evidence, Diagram, Implications]

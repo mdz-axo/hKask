@@ -71,7 +71,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-001
 verified_date: 2026-06-07
-verified_against: crates/hkask-cns/src/energy.rs:55; MDS.md §7.3 §4.6-4.7
+verified_against: crates/hkask-cns/src/energy.rs:55; MDS.md §4.6-4.7
 status: VERIFIED
 -->
 

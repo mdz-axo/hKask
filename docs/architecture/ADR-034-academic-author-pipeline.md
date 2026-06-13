@@ -103,6 +103,22 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 
 [^strangler-migration]: The implementation order follows the Strangler Fig migration pattern: start with the core abstraction (`corpus_type`), then add new paths (pre-processing, enumeration) alongside the existing literary pipeline, and finally add the stateful boundary (disambiguation) at the outermost layer.
 
+## Implementation Notes (2026-06-12)
+
+### Implemented
+- **Content acquisition:** `download_and_cache()` in `crates/hkask-services/src/discover.rs` — PDF extraction with OCR fallback, HTML→text, direct HTTP GET. Cache-first: `.cache/{slug}.txt`.
+- **Work enumeration:** `DiscoveryService::discover()` — orchestrates Semantic Scholar + arXiv (via MCP `web_search`), web search (institutional pages), YouTube transcripts (SerpAPI). RRF fusion across all providers.
+- **CLI command:** `kask style discover "Author"` with flags: `--no-curate`, `--no-methods`, `--no-transcripts`, `--no-web`, `--search-terms`, `--max-works`.
+- **Concept extraction:** LLM-based via `extract-concepts.j2` template — extracts concepts, places, events from paper titles. Gated by `include_methods` flag (default true).
+- **Method inference:** LLM-based via `infer-methods.j2` template — infers stylometric patterns from cached passages. Produces `DeclaredMethod` with `MethodThresholds`.
+- **Corpus augmentation:** `kask style discover` detects existing `corpus.yaml`, prompts `[A]ugment`/`[N]ew`. Merges new works (dedup by URL), concepts (dedup by name), methods (dedup by name).
+- **Registry management:** `kask list styles` and `kask rm styles-<name>` — list/remove built corpora.
+
+### Deferred
+- **`corpus_type` discriminator (Decision 2):** Not implemented. Academic corpora use the same `EntityConfig` (concepts/places/events) and `style:` entity_ref prefix as literary corpora. The `corpus_type` field would add branching complexity without clear benefit at current scale.
+- **Disambiguation (Decision 4):** Not implemented. Pipeline assumes unambiguous author names. Disambiguation remains a future Curator-level feature.
+- **Academic-specific method signals:** Not implemented. The existing `MethodThresholds` (parataxis_ratio, passive_voice_ratio, hedge_density, etc.) are used for both literary and academic corpora. Academic-specific signals (citation density, formalism ratio) deferred.
+
 ## References
 
 - `crates/hkask-services/src/embed.rs` — `EmbedService::embed_corpus`, `CorpusConfig`

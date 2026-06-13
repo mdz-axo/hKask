@@ -116,8 +116,8 @@ cargo test -p hkask-cns
 
 ## Related Documents
 
-- [`MDS.md`](MDS.md) §7.1-7.2 §4.3 — Dampener override model
-- [`MDS.md`](MDS.md) §7.3 §1 — Security model
+- [`MDS.md`](MDS.md) — Dampener override model
+- [`MDS.md`](MDS.md) — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-003, FUT-007 — Override cooldown questions
 
 ## References

@@ -271,7 +271,7 @@ Detailed lookup tables and diagrams in `reference/`:
 ```
 docs/architecture/
 ├── hKask-architecture-master.md           # THIS FILE (index — includes REPL Architecture)
-├── MDS.md                              # Framework (5 categories, 6 tools)
+├── MDS.md                              # Framework (5 categories, 5 tools)
 ├── PRINCIPLES.md                          # Framework (P3 updated with ReplSettings)
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── magna-carta.md                         # Framework
