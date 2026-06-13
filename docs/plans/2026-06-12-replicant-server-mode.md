@@ -68,7 +68,7 @@ Each server now follows the **thin launcher + narrative recording** pattern:
 | `hkask-mcp-markitdown` | `markitdown` | `markitdown_convert`, `markitdown_ocr` |
 | `hkask-mcp-fmp` | `fmp` | `fmp_company_profile`, `fmp_quote`, `fmp_search` |
 | `hkask-mcp-communication` | `communication` | `tts_speak`, `tts_generate` |
-| `hkask-mcp-fal` | `fal` | `fal_generate_image` |
+| `hkask-mcp-media` | `fal` | `fal_generate_image` |
 
 **Pattern applied to each:**
 - `replicant: String` and `daemon: Option<DaemonClient>` fields on server struct

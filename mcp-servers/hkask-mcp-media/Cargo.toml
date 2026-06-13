@@ -1,9 +1,9 @@
 [package]
-name = "hkask-mcp-fal"
+name = "hkask-mcp-media"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Fal.ai media generation MCP server (image, video, audio, 3D)"
+description = "Media generation MCP server (image, video, audio, 3D via fal.ai and other providers)"
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }

@@ -24,7 +24,7 @@ Updated 2026-06-11: `hkask-mcp-web` + `hkask-mcp-rss-reader` → `hkask-mcp-rese
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
 | fmp | `hkask-mcp-fmp` | 11 | L4 (Communication) | `HKASK_FMP_API_KEY` |
 | communication | `hkask-mcp-communication` | 3 | L4 (Communication) | — |
-| fal | `hkask-mcp-fal` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
+| fal | `hkask-mcp-media` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
 | doc-knowledge | `hkask-mcp-doc-knowledge` | 5 | L2 (Episodic) | — |
@@ -153,7 +153,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### fal
 
-**Crate:** `hkask-mcp-fal` · **Loop:** L4 · **Tools:** 9
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 9
 
 **Required:** `HKASK_FAL_API_KEY`
 

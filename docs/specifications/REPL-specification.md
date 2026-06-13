@@ -555,7 +555,7 @@ Started automatically at REPL boot via `builtin_servers::start_builtin_servers()
 | `web` | `hkask-mcp-web` | Web search, scrape, extract |
 | `fmp` | `hkask-mcp-fmp` | Financial Modeling Prep integration |
 | `communication` | `hkask-mcp-communication` | Local TTS/STT (espeak) |
-| `fal` | `hkask-mcp-fal` | FAL.ai image generation |
+| `fal` | `hkask-mcp-media` | FAL.ai image generation |
 | `rss-reader` | `hkask-mcp-rss-reader` | RSS feed reading |
 | `doc-knowledge` | `hkask-mcp-doc-knowledge` | Document parsing and chunking |
 | `markitdown` | `hkask-mcp-markitdown` | Document conversion + OCR |

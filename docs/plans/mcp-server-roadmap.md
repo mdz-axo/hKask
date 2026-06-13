@@ -32,7 +32,7 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 
 ## 2. Value-Added Layers for External Service Wrappers
 
-`hkask-mcp-fmp` and `hkask-mcp-fal` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
+`hkask-mcp-fmp` and `hkask-mcp-media` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
 
 ### 2.1 `hkask-mcp-fmp` (Financial Modeling Prep) — 11 tools
 
@@ -70,7 +70,7 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 |--------|-------|----------|
 | ✅ Partial (TTS complete, STT deferred) | — | Medium |
 
-### 2.3 `hkask-mcp-fal` (AI Media Generation) — 9 tools
+### 2.3 `hkask-mcp-media` (AI Media Generation) — 9 tools
 
 **Current state:** Raw API passthrough for image, video, music, 3D generation.
 

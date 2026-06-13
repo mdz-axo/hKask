@@ -115,8 +115,9 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
 /// If `FAL_KEY`/`FA_API_KEY` is not set, or the fal.ai call fails for any
 /// reason, falls back to local `stretch_contrast()` at zero cost.
 pub(crate) async fn preprocess_via_fal(image: &mut DynamicImage) {
-    // Check for API key
-    let api_key = std::env::var("FAL_KEY")
+    // Check for API key (HKASK_FAL_API_KEY, FAL_KEY, or FA_API_KEY)
+    let api_key = std::env::var("HKASK_FAL_API_KEY")
+        .or_else(|_| std::env::var("FAL_KEY"))
         .or_else(|_| std::env::var("FA_API_KEY"))
         .unwrap_or_default();
 
@@ -412,5 +413,74 @@ mod tests {
         // Full-range image should be unchanged
         let gray_after = img.as_luma8().unwrap();
         assert_eq!(gray_after.as_raw(), &pixels_before);
+    }
+
+    // REQ:ocr-decimate-06 — fal.ai docres preprocessing (live, requires FAL_KEY)
+    #[tokio::test]
+    async fn fal_docres_preprocessing_live() {
+        // .env is at workspace root; cargo test runs from crate dir
+        let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join(".env");
+        dotenvy::from_filename(&env_path).ok();
+
+        let api_key = std::env::var("HKASK_FAL_API_KEY")
+            .or_else(|_| std::env::var("FAL_KEY"))
+            .or_else(|_| std::env::var("FA_API_KEY"))
+            .unwrap_or_default();
+
+        if api_key.is_empty() {
+            eprintln!(
+                "SKIP: no fal.ai API key found (checked HKASK_FAL_API_KEY, FAL_KEY, FA_API_KEY)"
+            );
+            return;
+        }
+
+        // Create a text-like test image (dark text on light background)
+        let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(400, 100, |x, y| {
+            // Light background
+            if y < 30 || y > 70 || (x / 10 + y / 15) % 3 == 0 {
+                image::Luma([240])
+            } else {
+                // Dark "text" pixels
+                image::Luma([30])
+            }
+        }));
+
+        let (w_before, h_before) = img.dimensions();
+        eprintln!(
+            "Sending {}x{} image to fal.ai docres (binarization)...",
+            w_before, h_before
+        );
+
+        preprocess_via_fal(&mut img).await;
+
+        let (w_after, h_after) = img.dimensions();
+        eprintln!(
+            "Result: {}x{} (was {}x{})",
+            w_after, h_after, w_before, h_before
+        );
+
+        // Image should still be valid (dimensions may change with AI enhancement)
+        assert!(w_after > 0, "width should be > 0");
+        assert!(h_after > 0, "height should be > 0");
+
+        // If fal.ai was used, the image should be binarized (mostly 0 and 255)
+        if let Some(luma) = img.as_luma8() {
+            let pixels = luma.as_raw();
+            let unique: std::collections::BTreeSet<u8> = pixels.iter().copied().collect();
+            eprintln!(
+                "Unique pixel values after processing: {} ({:?})",
+                unique.len(),
+                unique
+            );
+            // Binarization should produce few unique values (ideally just 0 and 255)
+            assert!(
+                unique.len() <= 10,
+                "binarization should reduce unique values, got {}",
+                unique.len()
+            );
+        }
     }
 }

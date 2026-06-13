@@ -479,8 +479,15 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     // No cloud provider configured — prompt the user
     println!("  \x1b[1mInference provider\x1b[0m");
     println!();
-    println!("  hKask needs a cloud provider to think. Without one,");
-    println!("  your replicant cannot respond to you.");
+    println!("  hKask requires an inference provider to generate responses.");
+    println!("  Without one, your replicant cannot reply to you.");
+    println!();
+    println!("  An API key is like a password that lets hKask use a cloud");
+    println!("  AI service. You can get a free key at:");
+    println!();
+    println!("    \x1b[36mhttps://deepinfra.com/\x1b[0m  (recommended — free tier, wide catalog)");
+    println!("    \x1b[36mhttps://fireworks.ai/\x1b[0m  (fast serverless inference)");
+    println!("    \x1b[36mhttps://fal.ai/\x1b[0m      (specialized vision/OCR models)");
     println!();
     println!("  You can set this up now, or later with:");
     println!();
@@ -488,7 +495,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     println!();
     println!("  How would you like to configure?");
     println!("    1. Load from providers.env file");
-    println!("    2. Enter API key directly");
+    println!("    2. Enter API key directly (input is hidden)");
     println!("    3. Skip for now (requires Ollama running locally)");
     println!();
 
@@ -552,6 +559,8 @@ async fn setup_provider() -> Result<(), OnboardingError> {
 
             // Store in keychain
             let keychain = hkask_keystore::Keychain::default();
+            let mut stored = 0usize;
+            let mut failed = 0usize;
             for line in content.lines() {
                 let line = line.trim();
                 if line.is_empty() || line.starts_with('#') {
@@ -564,12 +573,23 @@ async fn setup_provider() -> Result<(), OnboardingError> {
                         continue;
                     }
                     // Store all non-empty keys (not just API keys — also HKASK_DEFAULT_PROVIDER, etc.)
-                    if let Err(e) = keychain.store_by_key(key, value) {
-                        eprintln!("  \x1b[31m✗\x1b[0m Failed to store {}: {}", key, e);
+                    match keychain.store_by_key(key, value) {
+                        Ok(()) => stored += 1,
+                        Err(e) => {
+                            eprintln!("  \x1b[31m✗\x1b[0m Failed to store {}: {}", key, e);
+                            failed += 1;
+                        }
                     }
                 }
             }
-            println!("  \x1b[32m✓\x1b[0m Keys stored in OS keychain.");
+            if failed == 0 {
+                println!("  \x1b[32m✓\x1b[0m {} keys stored in OS keychain.", stored);
+            } else {
+                println!(
+                    "  \x1b[33m⚠\x1b[0m  {} keys stored, {} failed (check keychain permissions).",
+                    stored, failed
+                );
+            }
 
             // Shred with consent
             println!();
@@ -591,15 +611,13 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             )?;
 
             if shred_choice == 1 {
-                // Simple overwrite + delete (same logic as keystore command)
-                if let Ok(metadata) = std::fs::metadata(&path) {
-                    let len = metadata.len().min(65536) as usize;
-                    let mut random_bytes = vec![0u8; len];
-                    rand::rng().fill_bytes(&mut random_bytes);
-                    let _ = std::fs::write(&path, &random_bytes);
+                match crate::commands::keystore::secure_delete_file(&path) {
+                    Ok(()) => println!("  \x1b[32m✓\x1b[0m File shredded."),
+                    Err(e) => {
+                        eprintln!("  \x1b[31m✗\x1b[0m Failed to shred: {}", e);
+                        eprintln!("  Keys are safe in keychain. Delete manually when ready.");
+                    }
                 }
-                let _ = std::fs::remove_file(&path);
-                println!("  \x1b[32m✓\x1b[0m File shredded.");
             } else {
                 println!("  File kept on disk — delete it yourself when ready.");
             }
@@ -629,7 +647,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
                 }
             };
 
-            let api_key = prompt_line(&format!("  {} API key:", key_name))?;
+            let api_key = prompt_passphrase(&format!("  {} API key:", key_name))?;
             let api_key = api_key.trim();
             if api_key.is_empty() {
                 println!("  No key entered — skipping provider setup.");

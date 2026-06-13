@@ -67,7 +67,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-fmp` — Financial data (FMP)
 - `hkask-mcp-communication` — Local TTS/STT (espeak)
-- `hkask-mcp-fal` — Media generation (FAL)
+- `hkask-mcp-media` — Media generation (image, video, audio, 3D)
 - `hkask-mcp-replica` — Authorial style embedding and composition
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
 - `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)

@@ -1,4 +1,4 @@
-//! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
+//! hKask MCP Media — AI media generation (image, video, audio, 3D via fal.ai and other providers)
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
@@ -148,13 +148,13 @@ impl FalServer {
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.fal.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "hkask.mcp.media.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.fal.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "hkask.mcp.media.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.fal.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "hkask.mcp.media.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });
@@ -437,7 +437,7 @@ async fn main() -> anyhow::Result<()> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.fal", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "hkask.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -449,7 +449,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     hkask_mcp::run_server(
-        "hkask-mcp-fal",
+        "hkask-mcp-media",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             let api_key = ctx
@@ -477,7 +477,7 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
             webid: Some(ref webid),
             ..
         } => {
-            tracing::info!(target: "hkask.mcp.fal", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+            tracing::info!(target: "hkask.mcp.media", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
         }
         DaemonResponse::AuthResponse {
             authenticated: false,
@@ -495,7 +495,7 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let assignment = client.assignment_query(replicant, "fal").await?;
     match assignment {
         DaemonResponse::AssignmentResponse { assigned: true } => {
-            tracing::info!(target: "hkask.mcp.fal", replicant = %replicant, "Replicant assigned to fal role");
+            tracing::info!(target: "hkask.mcp.media", replicant = %replicant, "Replicant assigned to fal role");
         }
         DaemonResponse::AssignmentResponse { assigned: false } => {
             anyhow::bail!(
@@ -507,6 +507,6 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
         other => anyhow::bail!("Unexpected assignment response: {:?}", other),
     }
 
-    tracing::info!(target: "hkask.mcp.fal", replicant = %replicant, "P4 dual-gate verification complete");
+    tracing::info!(target: "hkask.mcp.media", replicant = %replicant, "P4 dual-gate verification complete");
     Ok(())
 }

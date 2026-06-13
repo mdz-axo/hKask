@@ -20,7 +20,7 @@ members = [
     "mcp-servers/hkask-mcp-research",
     "mcp-servers/hkask-mcp-fmp",
     "mcp-servers/hkask-mcp-communication",
-    "mcp-servers/hkask-mcp-fal",
+    "mcp-servers/hkask-mcp-media",
     "mcp-servers/hkask-mcp-spec",
     "mcp-servers/hkask-mcp-memory",
     "mcp-servers/hkask-mcp-doc-knowledge",

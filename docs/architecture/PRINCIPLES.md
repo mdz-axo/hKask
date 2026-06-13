@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-06-09
+last_updated: 2026-06-13
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -11,10 +11,34 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Architecture Principles
 
-**Purpose:** Twelve principles governing hKask architecture, grounded in the Magna Carta and organized as foundational (P1–P4), operational (P5–P7), regulatory (P8–P9), and agent (P10–P12).
+**Purpose:** Twelve principles governing hKask architecture, grounded in the Principle of Least Action (§0) and the Magna Carta, organized as foundational (P1–P4), operational (P5–P7), regulatory (P8–P9), and agent (P10–P12).
 
 **Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](hKask-architecture-master.md)  
 **Verification:** `cargo check --workspace`
+
+---
+
+## 0. Lazy Grounding: the least action principle
+
+**hKask is grounded in laziness — the universe's, not ours.**
+
+*Don't just do something, stand there.*
+
+The universe is lazy. Across all domains of physics — classical mechanics, optics, electromagnetism, relativity, quantum mechanics, hydrodynamics — physical systems evolve along paths that minimize (or make stationary) a quantity called *action*. This is the **Principle of Least Action.**[^coopersmith-lazy] The universe does not "try hard." It finds the path of least resistance. Water flowing downhill, light refracting through glass, a planet orbiting a star, an electron in a quantum field — all follow this same lazy imperative.
+
+This is not a metaphor. It is the governing law that underlies all physical phenomena reducible to mathematical equations. One lazy algorithm — minimize action — generates the entire richness of the physical world. Laziness is not a flaw; it is the selection mechanism that chooses which path reality takes among all possible paths.
+
+**Leibniz's Criterion.** Gottfried Leibniz, central to the development of variational principles, articulated what laziness optimizes for: the best of all possible worlds is the one that is **"simplest in hypotheses and richest in phenomena."**[^leibniz-discourse] Maximum richness of output per unit of rule complexity. This is the ratio hKask's design principles seek to achieve: maximum generative capability (P3) from minimum architectural rules (P5). Laziness, properly understood, is the ratio of output to input — not doing nothing, but doing the most with the least.
+
+**Three Design Implications.**
+
+1. **The Brachistochrone Is Not a Straight Line.** The curve of fastest descent under gravity is a *cycloid* — it dips below the endpoint before rising. The straight line is slower. The laziest path is not always the most obvious one. Naive simplification (just deleting code) is not always the true least-action path. Sometimes you must go *through* apparent complexity to extract the deeper pattern that ultimately reduces total system action. The `refactor-service-layer` skill exists because extracting a shared service looks like adding structure in the short term, but it's the cycloid — it reduces total system action.
+
+2. **Stationary Action Means Robustness.** The principle is technically "stationary action": small variations around the optimal path don't change the result to first order. The action landscape is *flat* at the optimum. A well-designed system shares this property — it is robust to small perturbations. This is the physical basis for P7 (Evolutionary Architecture): the system can explore nearby design states without catastrophic failure.
+
+3. **Water Follows the Local Gradient.** Water doesn't compute the global optimum; it follows steepest descent at each point. The global path emerges from local decisions. Design should be gradient-following, not master-planned. P7 captures this: *"types emerge from actual usage patterns, not speculative design."* Make the next right move based on actual usage, and the architecture finds its own brachistochrone through design space.
+
+**This grounding is the "why" behind the principles that follow.** The Magna Carta (P1–P4) defines *what* we protect. The operational principles (P5–P7) define *how* we build. The regulatory principles (P8–P9) define *how* we sustain. The agent principles (P10–P12) define *who* acts. This section defines *why* all of them work: because they align with a lazy universe.
 
 ---
 
@@ -76,7 +100,7 @@ status: VERIFIED
 - `hkask-mcp-spec` — MDS spec capture
 - `hkask-mcp-fmp` — FMP integration
 - `hkask-mcp-communication` — Local TTS/STT
-- `hkask-mcp-fal` — FAL integration
+- `hkask-mcp-media` — AI media generation
 - `hkask-mcp-replica` — Authorial style embedding and composition
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
 - `hkask-mcp-markitdown` — Document format conversion and multi-backend OCR pipeline (PDF→image decimation via pdftoppm, complexity-scored routing to Tesseract/Vision LLM, cross-validation, verification). Default model: `DI/allenai/olmOCR-2-7B-1025` (DeepInfra).
@@ -487,6 +511,11 @@ grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ docs/ --include="*.
 [^solid]: Berners-Lee, T. (2016). *SOLID: Social Linked Data*. W3C. <https://solidproject.org/>.
 [^beer-cybernetics]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Algedonic alerts defined in Chapter 12.
 [^jinja2]: Jinja2 Developers. (2026). *Jinja Template Designer Reference*. <https://jinja.palletsprojects.com/>.
+
+[^coopersmith-lazy]: Coopersmith, J. (2017). *The Lazy Universe: An Introduction to the Principle of Least Action*. Oxford University Press.
+[^lanczos-variational]: Lanczos, C. (1949). *The Variational Principles of Mechanics*. University of Toronto Press. (4th ed., Dover, 1970).
+[^feynman-hibbs]: Feynman, R. P., & Hibbs, A. R. (1965). *Quantum Mechanics and Path Integrals*. McGraw-Hill.
+[^leibniz-discourse]: Leibniz, G. W. (1686). *Discourse on Metaphysics*, §6. "God has chosen the most perfect world, that is, the one which is at the same time the simplest in hypotheses and richest in phenomena."
 
 [^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>.
 [^peripheral]: Peripheral Project. (2026). *Stewardship Principles*. Documented in `docs/standards/STEWARDSHIP.md`.

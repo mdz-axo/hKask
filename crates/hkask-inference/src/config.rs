@@ -225,7 +225,7 @@ impl InferenceConfig {
 fn resolve_api_key(primary_env: &str, fallback_envs: &[&str]) -> String {
     // Tier 1: OS keychain
     if let Ok(zeroizing) = hkask_keystore::resolve(&SecretRef::Keychain(primary_env.to_string())) {
-        let key = String::from_utf8_lossy(&*zeroizing).into_owned();
+        let key = String::from_utf8_lossy(&zeroizing).into_owned();
         if !key.is_empty() {
             return key;
         }

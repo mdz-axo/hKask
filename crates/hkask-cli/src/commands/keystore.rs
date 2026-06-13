@@ -204,7 +204,7 @@ pub fn run(action: KeystoreAction) {
 /// large files), syncs to disk, then removes the file. Not cryptographic-grade
 /// (no multi-pass), but sufficient to prevent casual recovery of API keys from
 /// a cloud server's disk.
-fn secure_delete_file(path: &std::path::Path) -> Result<(), String> {
+pub(crate) fn secure_delete_file(path: &std::path::Path) -> Result<(), String> {
     let metadata =
         std::fs::metadata(path).map_err(|e| format!("Cannot read file metadata: {}", e))?;
     let len = metadata.len().min(65536); // Cap at 64 KiB
