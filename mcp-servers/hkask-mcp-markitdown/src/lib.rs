@@ -5,4 +5,5 @@
 //! models through the inference router.
 
 pub mod convert;
+pub mod ocr;
 pub mod tools;

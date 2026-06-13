@@ -9,9 +9,9 @@
 
 use std::time::Instant;
 
-use hkask_types::ocr::{
-    CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, VerificationReport,
-};
+use async_trait::async_trait;
+
+use hkask_types::ocr::{CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome};
 use image::DynamicImage;
 
 use crate::ocr::complexity::score_page_complexity;
@@ -24,18 +24,19 @@ use crate::ocr::verification::verify_output;
 /// Implementors plug in the concrete invocation path for each backend
 /// (Tesseract → local binary, LightOn → HTTP endpoint, LlmOcr → inference router).
 /// Single async method with a clear contract.
+#[async_trait]
 pub trait OcrExecutor: Send + Sync {
     /// Execute OCR on a single page image.
     ///
     /// Returns `Ok(OcrResult)` on success, or `Err(String)` with a
     /// human-readable error message.
-    fn execute(
+    async fn execute(
         &self,
         page_index: usize,
         backend: &OcrBackend,
         image: &DynamicImage,
         is_fallback: bool,
-    ) -> impl std::future::Future<Output = Result<OcrResult, String>> + Send;
+    ) -> Result<OcrResult, String>;
 }
 
 /// Run the OCR pipeline on a set of page images.
@@ -93,7 +94,7 @@ pub async fn run_pipeline(
                         secondary_result = Some(result);
                     }
                 }
-                Err(err_msg) => {
+                Err(_err_msg) => {
                     // Fallback: re-route with this backend excluded
                     let fallback_backends = route_page(score, &mut state, Some(backend), llm_model);
 
@@ -150,7 +151,7 @@ pub async fn run_pipeline(
         results.push(primary);
     }
 
-    let duration_ms = start.elapsed().as_millis() as u64;
+    let _duration_ms = start.elapsed().as_millis() as u64;
 
     // Step 5: Assembly — concatenate results with page markers
     let assembled = assemble_document(&results);
@@ -193,7 +194,6 @@ pub struct AssembledDocument {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::ocr::{ComplexityScore, ComplexityTier};
     use image::RgbImage;
 
     /// Test executor that always returns a fixed result.
@@ -211,6 +211,7 @@ mod tests {
         }
     }
 
+    #[async_trait]
     impl OcrExecutor for TestExecutor {
         async fn execute(
             &self,

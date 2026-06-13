@@ -2291,6 +2291,7 @@ name = "hkask-mcp-markitdown"
 version = "0.27.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "dotenvy",
@@ -2300,6 +2301,7 @@ dependencies = [
  "hkask-types",
  "image",
  "pdf-extract",
+ "rand 0.9.4",
  "reqwest",
  "rmcp",
  "schemars",

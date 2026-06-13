@@ -4,7 +4,7 @@
 //! Thresholds from `hkask_types::ocr::thresholds`.
 
 use hkask_types::ocr::{ComplexityScore, ComplexityTier, thresholds};
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 
 /// Score page complexity by edge-density ratio.
 ///
@@ -29,7 +29,6 @@ pub fn score_page_complexity(image: &DynamicImage) -> ComplexityScore {
     let sobel_y = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
 
     let mut max_grad: f32 = 0.0;
-    let mut grad_sum: f32 = 0.0;
     let pixels = gray.as_raw();
 
     // Compute gradient magnitude at each interior pixel
@@ -51,11 +50,10 @@ pub fn score_page_complexity(image: &DynamicImage) -> ComplexityScore {
             if grad > max_grad {
                 max_grad = grad;
             }
-            grad_sum += grad;
         }
     }
 
-    // Edge-density: proportion of pixels with gradient > 50% of max
+    // Compute edge-density in a second pass
     let threshold = max_grad * 0.5;
     let mut edge_count: usize = 0;
     let mut total_interior: usize = 0;
