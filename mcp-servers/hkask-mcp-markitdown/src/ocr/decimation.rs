@@ -23,10 +23,16 @@ use std::process::Command;
 /// # Returns
 /// Ordered vector of page images, or a `PipelineError` if decimation fails.
 ///
+/// # Preprocessing
+/// Each page image is preprocessed for OCR quality:
+/// - If `FAL_KEY`/`FA_API_KEY` is set: sends to `fal-ai/docres` for
+///   AI-based binarization (deshadow, deblur, clean B&W output).
+/// - Otherwise: applies local `stretch_contrast()` (free, O(w·h)).
+///
 /// # Dependencies
 /// Requires `pdftoppm` from poppler-utils. On failure, returns
 /// `DecimationFailed` with installation guidance.
-pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, PipelineError> {
+pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, PipelineError> {
     if !pdf_path.exists() {
         return Err(PipelineError::DecimationFailed(format!(
             "PDF file not found: {}",
@@ -77,7 +83,7 @@ pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, Pip
         let mut img = image::open(&path).map_err(|e| {
             PipelineError::DecimationFailed(format!("Failed to load page {} image: {}", page, e))
         })?;
-        stretch_contrast(&mut img);
+        preprocess_via_fal(&mut img).await;
         images.push(img);
         page += 1;
     }
@@ -92,57 +98,141 @@ pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, Pip
     Ok(images)
 }
 
-/// Preprocess a page image via fal.ai for OCR quality improvement.
+/// Preprocess a page image via fal.ai `docres` for OCR quality improvement.
 ///
-/// # Cost-Benefit Analysis
+/// Sends the image to `fal-ai/docres` with `binarization` task for clean
+/// black/white output optimized for Tesseract and LLM OCR. Uses base64 data
+/// URIs — no public URL hosting needed.
 ///
-/// | Approach | Cost | Latency | Capability |
-/// |----------|------|---------|------------|
-/// | `stretch_contrast()` | Free | O(w·h), local | Contrast expansion only |
-/// | fal.ai `docres` | ~$0.001/image | ~2-5s network + inference | Deshadow, deblur, binarize, dewarp |
+/// # Cost
+/// $0.025/megapixel. At 150 DPI (~2 MP/letter page): ~$0.05/page.
 ///
-/// # Identified Model: `fal-ai/docres`
+/// # Concurrency
+/// fal.ai queue-based: requests never rejected, just queued. Default limit
+/// 2 concurrent, scales to 40 with credit purchases.
 ///
-/// Purpose-built for document cleanup. Endpoint: `https://fal.run/fal-ai/docres`
-/// (separate from chat completions — uses fal.run, not /v1/chat/completions).
-/// Tasks: `deshadowing`, `appearance`, `deblurring`, `binarization`.
-/// Also available: `fal-ai/docres/dewarp` for folded/warped documents.
-///
-/// # Implementation Plan (when FA_API_KEY is available)
-///
-/// 1. Encode page image as PNG, upload to temporary URL or use data URI
-/// 2. POST to `https://fal.run/fal-ai/docres` with `Authorization: Key $FA_API_KEY`
-///    Body: `{"image_url": "<url>", "task": "binarization"}`
-/// 3. Poll response for `image.url`, download enhanced image
-/// 4. Replace `image` with enhanced version; fall back to `stretch_contrast()` on failure
-/// 5. Benchmark OCR accuracy with/without docres on ≥20 real scanned documents
-/// 6. If accuracy improvement ≥5% (measured via cross-validation similarity), activate
-///
-/// # Activation Criteria
-///
-/// - `FA_API_KEY` must be set
-/// - OCR accuracy improvement ≥5% on real scans (not synthetic test images)
-/// - Cost acceptable: ~$0.001/image at fal.ai pricing
-///
-/// # Arguments
-/// * `image` — Page image to preprocess (mutated in-place).
-/// * `_model` — Reserved: "fal-ai/docres" with optional task suffix.
-/// * `_router` — Reserved for future inference router access (not used — fal.run endpoint).
-#[allow(dead_code)]
-pub(crate) fn preprocess_via_fal(
-    image: &mut DynamicImage,
-    _model: &str,
-    _router: Option<&hkask_inference::InferenceRouter>,
-) {
-    // Stub: falls through to local contrast stretching.
-    // When FA_API_KEY is available and docres is validated:
-    //   1. Encode image as PNG bytes
-    //   2. POST to https://fal.run/fal-ai/docres with Key auth
-    //   3. Request binarization task for clean black/white text output
-    //   4. Download enhanced image from response image.url
-    //   5. Replace `image` with enhanced version
-    //   6. On failure, fall back to stretch_contrast()
-    stretch_contrast(image);
+/// # Fallback
+/// If `FAL_KEY`/`FA_API_KEY` is not set, or the fal.ai call fails for any
+/// reason, falls back to local `stretch_contrast()` at zero cost.
+pub(crate) async fn preprocess_via_fal(image: &mut DynamicImage) {
+    // Check for API key
+    let api_key = std::env::var("FAL_KEY")
+        .or_else(|_| std::env::var("FA_API_KEY"))
+        .unwrap_or_default();
+
+    if api_key.is_empty() {
+        tracing::debug!(target: "cns.pipeline.ocr", "FAL_KEY not set, using stretch_contrast");
+        stretch_contrast(image);
+        return;
+    }
+
+    // Encode image as PNG base64 data URI
+    let mut png_bytes: Vec<u8> = Vec::new();
+    if image
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
+        .is_err()
+    {
+        tracing::warn!(target: "cns.pipeline.ocr", "Failed to encode image for fal.ai, falling back");
+        stretch_contrast(image);
+        return;
+    }
+
+    let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes);
+    let data_uri = format!("data:image/png;base64,{}", b64);
+
+    // Build HTTP client (reuse connection pool across calls)
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(target: "cns.pipeline.ocr", error = %e, "Failed to build HTTP client for fal.ai");
+            stretch_contrast(image);
+            return;
+        }
+    };
+
+    // POST to fal.run/fal-ai/docres with binarization task
+    let request_body = serde_json::json!({
+        "image_url": data_uri,
+        "task": "binarization",
+    });
+
+    let response = match client
+        .post("https://fal.run/fal-ai/docres")
+        .header("Authorization", format!("Key {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(target: "cns.pipeline.ocr", error = %e, "fal.ai docres request failed, falling back");
+            stretch_contrast(image);
+            return;
+        }
+    };
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_default();
+        tracing::warn!(target: "cns.pipeline.ocr", status = %status, error = %error_text, "fal.ai docres returned error, falling back");
+        stretch_contrast(image);
+        return;
+    }
+
+    // Parse response: {"image": {"url": "...", "content_type": "image/png"}}
+    let result: serde_json::Value = match response.json().await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(target: "cns.pipeline.ocr", error = %e, "Failed to parse fal.ai response");
+            stretch_contrast(image);
+            return;
+        }
+    };
+
+    let image_url = match result["image"]["url"].as_str() {
+        Some(url) => url,
+        None => {
+            tracing::warn!(target: "cns.pipeline.ocr", "fal.ai response missing image.url, falling back");
+            stretch_contrast(image);
+            return;
+        }
+    };
+
+    // Download the enhanced image
+    let enhanced_bytes = match client.get(image_url).send().await {
+        Ok(r) => match r.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!(target: "cns.pipeline.ocr", error = %e, "Failed to download enhanced image");
+                stretch_contrast(image);
+                return;
+            }
+        },
+        Err(e) => {
+            tracing::warn!(target: "cns.pipeline.ocr", error = %e, "Failed to fetch enhanced image URL");
+            stretch_contrast(image);
+            return;
+        }
+    };
+
+    // Decode and replace
+    match image::load_from_memory(&enhanced_bytes) {
+        Ok(enhanced) => {
+            tracing::info!(target: "cns.pipeline.ocr", "fal.ai docres binarization applied successfully");
+            *image = enhanced;
+        }
+        Err(e) => {
+            tracing::warn!(target: "cns.pipeline.ocr", error = %e, "Failed to decode enhanced image, keeping original");
+            stretch_contrast(image);
+        }
+    }
 }
 
 /// Stretch contrast of a page image to full 0–255 range.
@@ -241,8 +331,8 @@ mod tests {
     }
 
     // REQ:ocr-decimate-01 — Valid PDF produces images
-    #[test]
-    fn valid_pdf_produces_images() {
+    #[tokio::test]
+    async fn valid_pdf_produces_images() {
         if !pdftoppm_available() {
             eprintln!("SKIP: pdftoppm not installed");
             return;
@@ -252,16 +342,16 @@ mod tests {
         let pdf_path = dir.path().join("test.pdf");
         std::fs::write(&pdf_path, minimal_pdf()).unwrap();
 
-        let images = pdf_to_images(&pdf_path, 150).unwrap();
+        let images = pdf_to_images(&pdf_path, 150).await.unwrap();
         assert_eq!(images.len(), 1, "one-page PDF should produce one image");
         assert!(images[0].width() > 0);
         assert!(images[0].height() > 0);
     }
 
     // REQ:ocr-decimate-02 — Missing file returns error
-    #[test]
-    fn missing_file_returns_error() {
-        let result = pdf_to_images(Path::new("/nonexistent/path.pdf"), 150);
+    #[tokio::test]
+    async fn missing_file_returns_error() {
+        let result = pdf_to_images(Path::new("/nonexistent/path.pdf"), 150).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
@@ -272,8 +362,8 @@ mod tests {
     }
 
     // REQ:ocr-decimate-03 — Corrupt PDF returns error
-    #[test]
-    fn corrupt_pdf_returns_error() {
+    #[tokio::test]
+    async fn corrupt_pdf_returns_error() {
         if !pdftoppm_available() {
             eprintln!("SKIP: pdftoppm not installed");
             return;
@@ -283,7 +373,7 @@ mod tests {
         let pdf_path = dir.path().join("corrupt.pdf");
         std::fs::write(&pdf_path, b"not a pdf file").unwrap();
 
-        let result = pdf_to_images(&pdf_path, 150);
+        let result = pdf_to_images(&pdf_path, 150).await;
         assert!(result.is_err());
     }
 

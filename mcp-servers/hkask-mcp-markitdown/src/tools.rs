@@ -599,7 +599,7 @@ impl MarkitdownServer {
                 // Try typed pipeline with decimation first (if OCR model is configured)
                 if let Ok(model) = self.resolve_ocr_model(None).await
                     && let Ok(page_images) =
-                        decimation::pdf_to_images(std::path::Path::new(&path), 200)
+                        decimation::pdf_to_images(std::path::Path::new(&path), 200).await
                 {
                     let expected = page_images.len();
                     let emb = self.embedding_router.as_ref().map(|r| {
@@ -1026,7 +1026,7 @@ mod tests {
         let t = server.ocr_thresholds;
 
         // Decimate and run full pipeline
-        let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
+        let images = decimation::pdf_to_images(&pdf_path, 150).await.unwrap();
         assert_eq!(images.len(), 1, "one-page PDF should produce one image");
 
         let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None).await;
@@ -1051,7 +1051,7 @@ mod tests {
         let server = make_server();
         let t = server.ocr_thresholds;
 
-        let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
+        let images = decimation::pdf_to_images(&pdf_path, 150).await.unwrap();
         let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 1);
@@ -1077,7 +1077,7 @@ mod tests {
         let server = make_server();
         let t = server.ocr_thresholds;
 
-        let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
+        let images = decimation::pdf_to_images(&pdf_path, 150).await.unwrap();
         assert_eq!(images.len(), 1);
 
         // Pass expected_pages=2 but only 1 page exists
@@ -1117,11 +1117,11 @@ mod tests {
         .unwrap();
 
         let server = make_server();
-        let outcome = decimation::pdf_to_images(&pdf_path, 150);
+        let result = decimation::pdf_to_images(&pdf_path, 150).await;
 
         if pdftoppm_available() {
             // pdftoppm should produce an image for the empty page
-            let images = outcome.unwrap();
+            let images = result.unwrap();
             assert_eq!(images.len(), 1, "empty page should still produce an image");
 
             let outcome =
@@ -1131,7 +1131,7 @@ mod tests {
             // Empty page should flag as empty
             assert!(!outcome.report.empty_pages.is_empty());
         } else {
-            assert!(outcome.is_err());
+            assert!(result.is_err());
         }
     }
 }

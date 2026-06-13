@@ -308,6 +308,10 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         description.trim().to_string()
     };
 
+    // ── Provider setup (before model selection — models need a provider) ──
+    println!();
+    setup_provider().await?;
+
     // Q7: Model selection
     println!();
     println!("  \x1b[1mChoose a model\x1b[0m for your replicant to use.");
@@ -442,6 +446,221 @@ async fn select_model() -> String {
         }
         Err(_) => default_model,
     }
+}
+
+/// Interactive provider setup during first-run onboarding.
+///
+/// Checks if a provider API key is already configured (env var or keychain).
+/// If not, prompts the user to load from a providers.env file, enter a key
+/// directly, or skip (Ollama-only, with a warning).
+async fn setup_provider() -> Result<(), OnboardingError> {
+    let config = hkask_inference::InferenceConfig::from_env();
+
+    // Check if any cloud provider is already configured
+    let has_deepinfra = !config.deepinfra_api_key.is_empty();
+    let has_fireworks = !config.fireworks_api_key.is_empty();
+    let has_fal = !config.fal_api_key.is_empty();
+
+    if has_deepinfra || has_fireworks || has_fal {
+        let provider_name = if has_deepinfra {
+            "DeepInfra"
+        } else if has_fireworks {
+            "Fireworks"
+        } else {
+            "fal.ai"
+        };
+        println!(
+            "  \x1b[32m✓\x1b[0m {} API key found — using {} as default provider.",
+            provider_name, provider_name
+        );
+        return Ok(());
+    }
+
+    // No cloud provider configured — prompt the user
+    println!("  \x1b[1mInference provider\x1b[0m");
+    println!();
+    println!("  hKask needs a cloud provider to think. Without one,");
+    println!("  your replicant cannot respond to you.");
+    println!();
+    println!("  You can set this up now, or later with:");
+    println!();
+    println!("    \x1b[36mkask keystore load --path providers.env --shred\x1b[0m");
+    println!();
+    println!("  How would you like to configure?");
+    println!("    1. Load from providers.env file");
+    println!("    2. Enter API key directly");
+    println!("    3. Skip for now (requires Ollama running locally)");
+    println!();
+
+    let choice = prompt_choice("  Choice (1-3):", 1..=3)?;
+
+    match choice {
+        1 => {
+            // Load from file
+            let path_str = prompt_line("  Path to providers.env:")?;
+            let path_str = path_str.trim();
+            if path_str.is_empty() {
+                println!("  No path entered — skipping provider setup.");
+                println!("  Run `kask keystore load --path providers.env --shred` later.");
+                return Ok(());
+            }
+            let path = std::path::PathBuf::from(path_str);
+            if !path.exists() {
+                println!("  \x1b[31m✗\x1b[0m File not found: {}", path.display());
+                println!("  Create it from the template: cp providers.env.example providers.env");
+                println!("  Then fill in your API keys and run `kask chat` again.");
+                return Err(OnboardingError::Cancelled);
+            }
+
+            // Parse the file to check it has keys
+            let content = std::fs::read_to_string(&path).map_err(|e| {
+                eprintln!("  \x1b[31m✗\x1b[0m Cannot read {}: {}", path.display(), e);
+                OnboardingError::Io(e)
+            })?;
+
+            let mut found_keys: Vec<&str> = Vec::new();
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    if !value.trim().is_empty()
+                        && (key.trim() == "DI_API_KEY"
+                            || key.trim() == "FW_API_KEY"
+                            || key.trim() == "FA_API_KEY")
+                    {
+                        found_keys.push(key.trim());
+                    }
+                }
+            }
+
+            if found_keys.is_empty() {
+                println!(
+                    "  \x1b[31m✗\x1b[0m No API keys found in {}.",
+                    path.display()
+                );
+                println!("  Fill in at least one of DI_API_KEY, FW_API_KEY, or FA_API_KEY.");
+                return Err(OnboardingError::Cancelled);
+            }
+
+            println!(
+                "  Found {} provider key(s): {}",
+                found_keys.len(),
+                found_keys.join(", ")
+            );
+
+            // Store in keychain
+            let keychain = hkask_keystore::Keychain::default();
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    let key = key.trim();
+                    let value = value.trim();
+                    if value.is_empty() {
+                        continue;
+                    }
+                    // Store all non-empty keys (not just API keys — also HKASK_DEFAULT_PROVIDER, etc.)
+                    if let Err(e) = keychain.store_by_key(key, value) {
+                        eprintln!("  \x1b[31m✗\x1b[0m Failed to store {}: {}", key, e);
+                    }
+                }
+            }
+            println!("  \x1b[32m✓\x1b[0m Keys stored in OS keychain.");
+
+            // Shred with consent
+            println!();
+            println!("  ═══════════════════════════════════════════════════════════");
+            println!(
+                "  ⚠️  The file {} will now be permanently deleted.",
+                path.display()
+            );
+            println!("  Make sure you have a backup of your API keys.");
+            println!("  ═══════════════════════════════════════════════════════════");
+            println!();
+
+            let shred_choice = prompt_choice(
+                &format!(
+                    "  Delete {}? [1=yes, I have a backup / 2=no, keep the file]:",
+                    path.display()
+                ),
+                1..=2,
+            )?;
+
+            if shred_choice == 1 {
+                // Simple overwrite + delete (same logic as keystore command)
+                if let Ok(metadata) = std::fs::metadata(&path) {
+                    let len = metadata.len().min(65536) as usize;
+                    let mut random_bytes = vec![0u8; len];
+                    rand::rng().fill_bytes(&mut random_bytes);
+                    let _ = std::fs::write(&path, &random_bytes);
+                }
+                let _ = std::fs::remove_file(&path);
+                println!("  \x1b[32m✓\x1b[0m File shredded.");
+            } else {
+                println!("  File kept on disk — delete it yourself when ready.");
+            }
+        }
+        2 => {
+            // Enter API key directly
+            println!();
+            println!("  Supported providers:");
+            println!("    DI — DeepInfra (recommended, wide model catalog)");
+            println!("    FW — Fireworks.ai (fast serverless inference)");
+            println!("    FA — fal.ai (specialized vision/OCR models)");
+            println!();
+
+            let provider_str = prompt_line("  Provider code (DI/FW/FA):")?;
+            let provider_str = provider_str.trim().to_uppercase();
+
+            let key_name = match provider_str.as_str() {
+                "DI" => "DI_API_KEY",
+                "FW" => "FW_API_KEY",
+                "FA" => "FA_API_KEY",
+                _ => {
+                    println!(
+                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use DI, FW, or FA.",
+                        provider_str
+                    );
+                    return Err(OnboardingError::Cancelled);
+                }
+            };
+
+            let api_key = prompt_line(&format!("  {} API key:", key_name))?;
+            let api_key = api_key.trim();
+            if api_key.is_empty() {
+                println!("  No key entered — skipping provider setup.");
+                return Ok(());
+            }
+
+            let keychain = hkask_keystore::Keychain::default();
+            keychain.store_by_key(key_name, api_key).map_err(|e| {
+                eprintln!("  \x1b[31m✗\x1b[0m Failed to store key: {}", e);
+                OnboardingError::Keychain(e)
+            })?;
+
+            // Also set default provider to match
+            let _ = keychain.store_by_key("HKASK_DEFAULT_PROVIDER", &provider_str);
+
+            println!("  \x1b[32m✓\x1b[0m Key stored in OS keychain.");
+            println!("  Default provider set to {}.", provider_str);
+        }
+        3 => {
+            println!();
+            println!("  \x1b[33m⚠\x1b[0m  Skipping cloud provider setup.");
+            println!("  hKask will use Ollama (local inference).");
+            println!("  Make sure Ollama is running at http://127.0.0.1:11434");
+            println!();
+            println!("  To add a cloud provider later:");
+            println!("    \x1b[36mkask keystore load --path providers.env --shred\x1b[0m");
+        }
+        _ => unreachable!(),
+    }
+
+    Ok(())
 }
 
 /// Print a summary after successful replicant creation (first-run).

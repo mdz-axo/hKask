@@ -30,7 +30,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-condenser` | 27 | algorithms (16), types (11) |
 | `hkask-mcp-fmp` | 20 | analysis (20: management 6, moat/working capital 14) |
 | `hkask-mcp-research` | 23 | strip_html (8), freshness (6), ranking (5), rate_limiter (4) |
-| `hkask-inference` | 14 | config (7), chat_protocol (3), fal_backend (4) |
+| `hkask-inference` | 20 | config (7), chat_protocol (3), fal_backend (4), embedding_router (4), ollama_backend (2) |
 | `hkask-api` | 2 | settings merge, settings validation |
 | `hkask-types` | 17 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
@@ -40,7 +40,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
 | `hkask-mcp-fal` | 0 | Shallow module — API proxy (C8) |
 
-**Total: 269 tests across 19 crates** (↑ from 243)
+**Total: 275 tests across 19 crates** (↑ from 243)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |

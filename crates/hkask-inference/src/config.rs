@@ -256,7 +256,14 @@ fn resolve_api_key(primary_env: &str, fallback_envs: &[&str]) -> String {
 /// variable. Accepted values: OM, FW, DI, FA. Defaults to Ollama.
 fn resolve_default_provider() -> ProviderId {
     let raw = resolve_api_key("HKASK_DEFAULT_PROVIDER", &[]);
-    match raw.as_str() {
+    parse_provider_code(&raw)
+}
+
+/// Parse a provider code string to a ProviderId.
+///
+/// Accepted values: OM, FW, DI, FA. Anything else (including empty) → Ollama.
+fn parse_provider_code(raw: &str) -> ProviderId {
+    match raw {
         "OM" => ProviderId::Ollama,
         "FW" => ProviderId::Fireworks,
         "DI" => ProviderId::DeepInfra,
@@ -344,39 +351,24 @@ mod tests {
         );
     }
 
-    // ── resolve_default_provider ─────────────────────────────────────────
+    // ── parse_provider_code ────────────────────────────────────────────
 
-    /// REQ: inf-cfg-008 — resolve_default_provider parses all four provider codes
+    /// REQ: inf-cfg-008 — parse_provider_code parses all four provider codes
     #[test]
-    fn resolve_default_provider_all_codes() {
-        // These tests set the env var; the keychain tier is tested via integration.
-        std::env::set_var("HKASK_DEFAULT_PROVIDER", "OM");
-        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
-
-        std::env::set_var("HKASK_DEFAULT_PROVIDER", "FW");
-        assert_eq!(resolve_default_provider(), ProviderId::Fireworks);
-
-        std::env::set_var("HKASK_DEFAULT_PROVIDER", "DI");
-        assert_eq!(resolve_default_provider(), ProviderId::DeepInfra);
-
-        std::env::set_var("HKASK_DEFAULT_PROVIDER", "FA");
-        assert_eq!(resolve_default_provider(), ProviderId::Fal);
-
-        // Clean up
-        std::env::remove_var("HKASK_DEFAULT_PROVIDER");
+    fn parse_provider_code_all_codes() {
+        assert_eq!(parse_provider_code("OM"), ProviderId::Ollama);
+        assert_eq!(parse_provider_code("FW"), ProviderId::Fireworks);
+        assert_eq!(parse_provider_code("DI"), ProviderId::DeepInfra);
+        assert_eq!(parse_provider_code("FA"), ProviderId::Fal);
     }
 
-    /// REQ: inf-cfg-009 — unknown provider code defaults to Ollama
+    /// REQ: inf-cfg-009 — unknown or empty provider code defaults to Ollama
     #[test]
-    fn resolve_default_provider_unknown_defaults_to_ollama() {
-        std::env::set_var("HKASK_DEFAULT_PROVIDER", "XX");
-        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
-
-        std::env::set_var("HKASK_DEFAULT_PROVIDER", "");
-        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
-
-        std::env::remove_var("HKASK_DEFAULT_PROVIDER");
-        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
+    fn parse_provider_code_unknown_defaults_to_ollama() {
+        assert_eq!(parse_provider_code("XX"), ProviderId::Ollama);
+        assert_eq!(parse_provider_code(""), ProviderId::Ollama);
+        assert_eq!(parse_provider_code("ollama"), ProviderId::Ollama);
+        assert_eq!(parse_provider_code("om"), ProviderId::Ollama); // case-sensitive
     }
 
     // ── resolve_api_key ──────────────────────────────────────────────────
@@ -384,40 +376,46 @@ mod tests {
     /// REQ: inf-cfg-010 — resolve_api_key reads from primary env var
     #[test]
     fn resolve_api_key_primary_env() {
-        std::env::set_var("TEST_API_KEY", "sk-test-primary");
-        assert_eq!(resolve_api_key("TEST_API_KEY", &[]), "sk-test-primary");
-        std::env::remove_var("TEST_API_KEY");
+        unsafe { std::env::set_var("HKASK_TEST_KEY_010", "sk-test-primary") };
+        assert_eq!(
+            resolve_api_key("HKASK_TEST_KEY_010", &[]),
+            "sk-test-primary"
+        );
+        unsafe { std::env::remove_var("HKASK_TEST_KEY_010") };
     }
 
     /// REQ: inf-cfg-011 — resolve_api_key falls back to legacy env var names
     #[test]
     fn resolve_api_key_fallback_env() {
-        std::env::set_var("TEST_LEGACY_KEY", "sk-test-legacy");
+        unsafe { std::env::set_var("HKASK_TEST_LEGACY_011", "sk-test-legacy") };
         assert_eq!(
-            resolve_api_key("TEST_API_KEY", &["TEST_LEGACY_KEY"]),
+            resolve_api_key("HKASK_TEST_KEY_011", &["HKASK_TEST_LEGACY_011"]),
             "sk-test-legacy"
         );
-        std::env::remove_var("TEST_LEGACY_KEY");
+        unsafe { std::env::remove_var("HKASK_TEST_LEGACY_011") };
     }
 
     /// REQ: inf-cfg-012 — resolve_api_key returns empty when no key found
     #[test]
     fn resolve_api_key_empty_when_missing() {
-        std::env::remove_var("TEST_API_KEY");
-        std::env::remove_var("TEST_LEGACY_KEY");
-        assert_eq!(resolve_api_key("TEST_API_KEY", &["TEST_LEGACY_KEY"]), "");
+        unsafe { std::env::remove_var("HKASK_TEST_KEY_012") };
+        unsafe { std::env::remove_var("HKASK_TEST_LEGACY_012") };
+        assert_eq!(
+            resolve_api_key("HKASK_TEST_KEY_012", &["HKASK_TEST_LEGACY_012"]),
+            ""
+        );
     }
 
     /// REQ: inf-cfg-013 — resolve_api_key prefers primary over fallback
     #[test]
     fn resolve_api_key_primary_wins_over_fallback() {
-        std::env::set_var("TEST_API_KEY", "sk-primary");
-        std::env::set_var("TEST_LEGACY_KEY", "sk-legacy");
+        unsafe { std::env::set_var("HKASK_TEST_KEY_013", "sk-primary") };
+        unsafe { std::env::set_var("HKASK_TEST_LEGACY_013", "sk-legacy") };
         assert_eq!(
-            resolve_api_key("TEST_API_KEY", &["TEST_LEGACY_KEY"]),
+            resolve_api_key("HKASK_TEST_KEY_013", &["HKASK_TEST_LEGACY_013"]),
             "sk-primary"
         );
-        std::env::remove_var("TEST_API_KEY");
-        std::env::remove_var("TEST_LEGACY_KEY");
+        unsafe { std::env::remove_var("HKASK_TEST_KEY_013") };
+        unsafe { std::env::remove_var("HKASK_TEST_LEGACY_013") };
     }
 }

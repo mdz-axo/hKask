@@ -295,7 +295,9 @@ async fn test_pdf_pipeline() {
     let pdf_path = dir.path().join("test.pdf");
     std::fs::write(&pdf_path, minimal_pdf()).unwrap();
 
-    let pages = decimation::pdf_to_images(&pdf_path, 150).expect("decimate");
+    let pages = decimation::pdf_to_images(&pdf_path, 150)
+        .await
+        .expect("decimate");
     eprintln!("Decimated {} pages", pages.len());
 
     let config = InferenceConfig::from_env();

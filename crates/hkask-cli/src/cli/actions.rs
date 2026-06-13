@@ -386,6 +386,11 @@ pub enum KeystoreAction {
         prefix: String,
         #[arg(long)]
         overwrite: bool,
+        /// Securely delete the file after loading keys into the keychain.
+        /// Requires explicit confirmation — the system will warn that the
+        /// file will be permanently destroyed and ask for consent.
+        #[arg(long)]
+        shred: bool,
     },
     List,
     Get {
