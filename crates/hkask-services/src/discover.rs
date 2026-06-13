@@ -940,15 +940,16 @@ async fn mcp_search(
                     let mut source = item["source"].as_str().unwrap_or("web").to_lowercase();
 
                     // If source isn't already academic, check providers list
-                    if source != "arxiv" && source != "semantic_scholar" {
-                        if let Some(providers) = item["providers"].as_array() {
-                            let provider_strs: Vec<&str> =
-                                providers.iter().filter_map(|p| p.as_str()).collect();
-                            if provider_strs.iter().any(|p| *p == "arxiv") {
-                                source = "arxiv".to_string();
-                            } else if provider_strs.iter().any(|p| *p == "semantic_scholar") {
-                                source = "semantic_scholar".to_string();
-                            }
+                    if source != "arxiv"
+                        && source != "semantic_scholar"
+                        && let Some(providers) = item["providers"].as_array()
+                    {
+                        let provider_strs: Vec<&str> =
+                            providers.iter().filter_map(|p| p.as_str()).collect();
+                        if provider_strs.contains(&"arxiv") {
+                            source = "arxiv".to_string();
+                        } else if provider_strs.contains(&"semantic_scholar") {
+                            source = "semantic_scholar".to_string();
                         }
                     }
                     let published = item["published"].as_str().map(|s| s.to_string());

@@ -87,6 +87,11 @@ fn show_all(settings: &ReplSettings) {
             if meta.supports_thinking { "yes" } else { "no" }
         );
     }
+    println!("── model defaults ──");
+    println!("generation_model: {}", s.generation_model);
+    println!("embedding_model:  {}", s.embedding_model);
+    println!("classifier_model: {}", s.classifier_model);
+    println!("ocr_model:        {}", s.ocr_model);
 }
 
 fn show_one(settings: &ReplSettings, key: &str) {
@@ -111,6 +116,10 @@ fn show_one(settings: &ReplSettings, key: &str) {
             Some(ref m) => println!("{}", m.context_length),
             None => println!("(not set)"),
         },
+        "generation_model" | "gen_model" => println!("{}", s.generation_model),
+        "embedding_model" | "emb_model" => println!("{}", s.embedding_model),
+        "classifier_model" | "cls_model" => println!("{}", s.classifier_model),
+        "ocr_model" => println!("{}", s.ocr_model),
         _ => eprintln!("Unknown setting: {}", key),
     }
 }
@@ -261,6 +270,10 @@ fn apply_setting(settings: &mut ReplSettings, name: &str, value: &str) -> bool {
                 return false;
             }
         },
+        "generation_model" | "gen_model" => settings.generation_model = value.to_string(),
+        "embedding_model" | "emb_model" => settings.embedding_model = value.to_string(),
+        "classifier_model" | "cls_model" => settings.classifier_model = value.to_string(),
+        "ocr_model" => settings.ocr_model = value.to_string(),
         _ => {
             eprintln!("Unknown setting: {}", name);
             return false;

@@ -49,6 +49,11 @@ pub(crate) fn handle_repl_show(state: &ReplState) {
     } else {
         println!("  \x1b[36m─ model info ─\x1b[0m  (not fetched yet — switch models to populate)");
     }
+    println!("  \x1b[36m─ model defaults ─\x1b[0m");
+    println!("  \x1b[36mgeneration_model\x1b[0m: {}", s.generation_model);
+    println!("  \x1b[36membedding_model\x1b[0m:  {}", s.embedding_model);
+    println!("  \x1b[36mclassifier_model\x1b[0m: {}", s.classifier_model);
+    println!("  \x1b[36mocr_model\x1b[0m:        {}", s.ocr_model);
     println!();
 }
 
@@ -249,6 +254,27 @@ pub(crate) struct ReplSettings {
     /// Read-only model metadata — populated by /model switch.
     /// None until the first model detail fetch succeeds.
     pub model_meta: Option<ModelMeta>,
+
+    // ── Model defaults (shared across all servers) ──────────────
+    /// Default generation model for prose composition.
+    /// Override: `HKASK_REPLICA_MODEL` env var.
+    #[serde(default = "default_gen_model")]
+    pub generation_model: String,
+
+    /// Default embedding model for vectorization.
+    /// Override: `HKASK_EMBEDDING_MODEL` env var.
+    #[serde(default = "default_emb_model")]
+    pub embedding_model: String,
+
+    /// Default classifier model for section type / triple extraction.
+    /// Override: `HKASK_CLASSIFIER_MODEL` env var.
+    #[serde(default = "default_cls_model")]
+    pub classifier_model: String,
+
+    /// Default OCR model for scanned PDF fallback.
+    /// Override: `HKASK_OCR_MODEL` env var.
+    #[serde(default = "default_ocr")]
+    pub ocr_model: String,
 }
 
 /// Model metadata fetched from Ollama's /api/show endpoint.
@@ -258,6 +284,19 @@ pub(crate) struct ModelMeta {
     pub context_length: u32,
     pub supports_thinking: bool,
     pub capabilities: Vec<String>,
+}
+
+fn default_gen_model() -> String {
+    "deepseek-v4-flash:cloud".to_string()
+}
+fn default_emb_model() -> String {
+    "DI/Qwen/Qwen3-Embedding-0.6B".to_string()
+}
+fn default_cls_model() -> String {
+    "google/gemma-4-26B-A4B-it".to_string()
+}
+fn default_ocr() -> String {
+    "maternion/LightOnOCR-2:1b".to_string()
 }
 
 impl Default for ReplSettings {
@@ -276,6 +315,10 @@ impl Default for ReplSettings {
             gas_cap: 10_000,
             auto_condense: true,
             model_meta: None,
+            generation_model: default_gen_model(),
+            embedding_model: default_emb_model(),
+            classifier_model: default_cls_model(),
+            ocr_model: default_ocr(),
         }
     }
 }
@@ -345,6 +388,10 @@ mod tests {
             gas_cap: 5_000,
             auto_condense: false,
             model_meta: None,
+            generation_model: "test-gen".into(),
+            embedding_model: "test-emb".into(),
+            classifier_model: "test-cls".into(),
+            ocr_model: "test-ocr".into(),
         };
         let p = to_llm_params(&s);
         assert!((p.temperature - 0.8).abs() < f32::EPSILON);
@@ -389,6 +436,10 @@ mod tests {
                 supports_thinking: true,
                 capabilities: vec!["chat".into(), "vision".into()],
             }),
+            generation_model: "roundtrip-gen".into(),
+            embedding_model: "roundtrip-emb".into(),
+            classifier_model: "roundtrip-cls".into(),
+            ocr_model: "roundtrip-ocr".into(),
         };
 
         let dir = tempfile::tempdir().expect("temp dir");

@@ -11,7 +11,9 @@
 use hkask_inference::EmbeddingRouter;
 use hkask_mcp::run_server;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
-use hkask_services::{EmbedProgress, EmbedService, InferenceContext, cosine_distance};
+use hkask_services::{
+    EmbedProgress, EmbedService, HkaskSettings, InferenceContext, cosine_distance,
+};
 use hkask_storage::{Database, EmbeddingStore};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
@@ -24,19 +26,15 @@ use std::sync::Arc;
 use std::time::Instant;
 
 /// Default embedding model (DeepInfra Qwen3-Embedding-0.6B).
-/// Override with `HKASK_EMBEDDING_MODEL` env var.
-const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
-
-/// Default generation model for prose composition.
-/// Override with `HKASK_REPLICA_MODEL` env var.
-const DEFAULT_GENERATION_MODEL: &str = "deepseek-v4-flash:cloud";
-
+/// Override via settings.json or HKASK_EMBEDDING_MODEL env var.
 fn embedding_model() -> String {
-    std::env::var("HKASK_EMBEDDING_MODEL").unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string())
+    HkaskSettings::load().embedding_model()
 }
 
+/// Default generation model for prose composition.
+/// Override via settings.json or HKASK_REPLICA_MODEL env var.
 fn generation_model() -> String {
-    std::env::var("HKASK_REPLICA_MODEL").unwrap_or_else(|_| DEFAULT_GENERATION_MODEL.to_string())
+    HkaskSettings::load().generation_model()
 }
 
 fn inference_config() -> hkask_inference::InferenceConfig {

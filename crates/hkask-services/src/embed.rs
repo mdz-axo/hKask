@@ -690,7 +690,7 @@ impl EmbedService {
             tracing::info!("No classifier configured — all passages default to Statement");
             crate::classify::ClassifierConfig::from_def(&Default::default())
         } else {
-            let def = crate::classify::load_classifier_config(&config.classifier, &registry_dir)?;
+            let def = crate::classify::load_classifier_config(&config.classifier, registry_dir)?;
             crate::classify::ClassifierConfig::from_def(&def)
         };
 
@@ -722,7 +722,7 @@ impl EmbedService {
             let triple_config = {
                 let def = crate::classify::load_classifier_config(
                     &config.triple_classifier,
-                    &registry_dir,
+                    registry_dir,
                 )?;
                 crate::classify::ClassifierConfig::from_def(&def)
             };
@@ -1400,7 +1400,10 @@ pub fn strip_html_tags(html: &str) -> String {
 }
 
 /// Default OCR model for scanned PDF fallback.
-const DEFAULT_OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
+/// Override via settings.json or HKASK_OCR_MODEL env var.
+fn ocr_model() -> String {
+    crate::settings::HkaskSettings::load().ocr_model()
+}
 
 /// OCR system prompt — instructs the vision model to extract text faithfully.
 const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Output the text exactly as it appears, preserving the document structure and layout as closely as possible. If the document contains tables, preserve them in a readable format. Do not add commentary or description — only the extracted text.";
@@ -1414,7 +1417,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
     let ocr_model = std::env::var("HKASK_OCR_MODEL")
         .ok()
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_OCR_MODEL.to_string());
+        .unwrap_or_else(ocr_model);
 
     let b64_data = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
 

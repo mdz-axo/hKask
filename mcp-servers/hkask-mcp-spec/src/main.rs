@@ -11,8 +11,8 @@ use hkask_mcp::validate_field;
 
 use hkask_inference::InferenceConfig;
 use hkask_services::{
-    CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, InferenceContext,
-    RetrievalSection, ValidationSection,
+    CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
+    InferenceContext, RetrievalSection, ValidationSection,
 };
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId};
@@ -681,10 +681,9 @@ impl SpecServer {
         };
 
         let run = async {
-            let gen_model = std::env::var("HKASK_REPLICA_MODEL")
-                .unwrap_or_else(|_| "deepseek-v4-flash:cloud".to_string());
-            let emb_model = std::env::var("HKASK_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+            let settings = HkaskSettings::load();
+            let gen_model = settings.generation_model();
+            let emb_model = settings.embedding_model();
 
             let inf_cfg = InferenceConfig::from_env();
             let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);

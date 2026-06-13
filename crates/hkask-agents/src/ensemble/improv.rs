@@ -382,7 +382,7 @@ async fn sequential_speak<C: InferenceClient>(
 // ── Synthesis ────────────────────────────────────────────────────────────
 
 async fn synthesize<C: InferenceClient>(
-    config: &ImprovSessionConfig,
+    _config: &ImprovSessionConfig,
     inference_client: &Arc<C>,
     user_message: &str,
     responses: &[AgentResponse],
