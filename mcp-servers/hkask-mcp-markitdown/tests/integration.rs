@@ -11,7 +11,7 @@
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp_markitdown::ocr::decimation;
-use hkask_mcp_markitdown::ocr::pipeline::{self, CnsObserver, OcrExecutor};
+use hkask_mcp_markitdown::ocr::pipeline::{self, OcrExecutor};
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use image::DynamicImage;
 
@@ -168,24 +168,6 @@ impl OcrExecutor for RealExecutor {
     }
 }
 
-struct TestCnsObserver;
-
-impl CnsObserver for TestCnsObserver {
-    fn observe_verification(&self, span: hkask_types::ocr::OcrVerificationSpan) {
-        println!(
-            "[CNS] Verification: {} pages, {} errors, {}ms, passed={}",
-            span.total_pages, span.error_count, span.duration_ms, span.passed
-        );
-    }
-
-    fn observe_cross_validation(&self, span: hkask_types::ocr::OcrCrossValidationSpan) {
-        println!(
-            "[CNS] Cross-val p{}: sim={:.3} tier={:?} a={} b={}",
-            span.page_index, span.similarity, span.tier, span.backend_a, span.backend_b
-        );
-    }
-}
-
 // ── Helper ─────────────────────────────────────────────────────────────────
 
 fn text_like_image() -> DynamicImage {
@@ -245,7 +227,6 @@ async fn test_pipeline_with_llm_ocr() {
     let executor = RealExecutor::new(config.clone(), Some("minicpm-v:8b".into()));
     let thresholds = ThresholdConfig::default();
     let embedding_router = EmbeddingRouter::new(config);
-    let cns = TestCnsObserver;
 
     let outcome = pipeline::run_pipeline(
         vec![text_like_image()],
@@ -253,7 +234,6 @@ async fn test_pipeline_with_llm_ocr() {
         &executor,
         &thresholds,
         Some("minicpm-v:8b"),
-        Some(&cns),
         Some((&embedding_router, "DI/Qwen/Qwen3-Embedding-0.6B")),
     )
     .await;
@@ -287,7 +267,6 @@ async fn test_pipeline_with_tesseract() {
     let config = InferenceConfig::from_env();
     let executor = RealExecutor::new(config, None);
     let thresholds = ThresholdConfig::default();
-    let cns = TestCnsObserver;
 
     let outcome = pipeline::run_pipeline(
         vec![text_like_image()],
@@ -295,7 +274,6 @@ async fn test_pipeline_with_tesseract() {
         &executor,
         &thresholds,
         None,
-        Some(&cns),
         None,
     )
     .await;
@@ -326,18 +304,9 @@ async fn test_pdf_pipeline() {
     let config = InferenceConfig::from_env();
     let executor = RealExecutor::new(config, Some("minicpm-v:8b".into()));
     let thresholds = ThresholdConfig::default();
-    let cns = TestCnsObserver;
 
-    let outcome = pipeline::run_pipeline(
-        pages,
-        1,
-        &executor,
-        &thresholds,
-        Some("minicpm-v:8b"),
-        Some(&cns),
-        None,
-    )
-    .await;
+    let outcome =
+        pipeline::run_pipeline(pages, 1, &executor, &thresholds, Some("minicpm-v:8b"), None).await;
 
     eprintln!("PDF result: {:?}", outcome.results.first().map(|r| &r.text));
     assert!(!outcome.results.is_empty());

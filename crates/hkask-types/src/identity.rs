@@ -19,6 +19,7 @@ pub struct HumanUser {
     pub master_salt: String,
     pub created_at: i64,
     pub last_active: Option<i64>,
+    pub passphrase_set_at: Option<i64>,
 }
 
 impl HumanUser {
@@ -38,6 +39,7 @@ impl HumanUser {
             master_salt,
             created_at: chrono::Utc::now().timestamp(),
             last_active: None,
+            passphrase_set_at: None,
         }
     }
 }

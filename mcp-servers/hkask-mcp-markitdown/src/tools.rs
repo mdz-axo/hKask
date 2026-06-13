@@ -21,7 +21,7 @@ use serde::Deserialize;
 
 use crate::convert;
 use crate::ocr::decimation;
-use crate::ocr::pipeline::{self, CnsObserver, OcrExecutor};
+use crate::ocr::pipeline::{self, OcrExecutor};
 
 /// Minimum word count threshold for PDF text extraction results.
 /// Below this, we consider the PDF to be scanned/image-based and fall back to OCR.
@@ -378,7 +378,6 @@ impl MarkitdownServer {
                     }
                 };
 
-                let cns_observer = MarkitdownCnsObserver::new(self.daemon.clone(), &self.replicant);
                 let emb = self.embedding_router.as_ref().map(|r| {
                     (
                         r,
@@ -394,7 +393,6 @@ impl MarkitdownServer {
                     self,
                     &self.ocr_thresholds,
                     Some(&model),
-                    Some(&cns_observer),
                     emb,
                 )
                 .await;
@@ -473,8 +471,6 @@ impl MarkitdownServer {
                         decimation::pdf_to_images(std::path::Path::new(&path), 200)
                 {
                     let expected = page_images.len();
-                    let cns_observer =
-                        MarkitdownCnsObserver::new(self.daemon.clone(), &self.replicant);
                     let emb = self.embedding_router.as_ref().map(|r| {
                         (
                             r,
@@ -490,7 +486,6 @@ impl MarkitdownServer {
                         self,
                         &self.ocr_thresholds,
                         Some(&model),
-                        Some(&cns_observer),
                         emb,
                     )
                     .await;

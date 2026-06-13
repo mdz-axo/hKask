@@ -12,8 +12,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 
 use hkask_types::ocr::{
-    BackendUsage, CrossValidation, OcrBackend, OcrCrossValidationSpan, OcrResult,
-    OcrVerificationSpan, PipelineError, PipelineOutcome, ThresholdConfig,
+    CrossValidation, OcrBackend, OcrResult, PipelineError, PipelineOutcome, ThresholdConfig,
 };
 use image::DynamicImage;
 
@@ -52,21 +51,14 @@ pub trait OcrExecutor: Send + Sync {
     ) -> Result<OcrResult, String>;
 }
 
-/// Observer for CNS span emission during pipeline execution.
-///
-/// Implementors forward spans to the CNS event store or daemon.
-/// `None` means CNS observation is disabled (no spans emitted).
-pub trait CnsObserver: Send + Sync {
-    /// Emit a verification span after pipeline completion.
-    fn observe_verification(&self, span: OcrVerificationSpan);
-    /// Emit a cross-validation span for a dual-routed page.
-    fn observe_cross_validation(&self, span: OcrCrossValidationSpan);
-}
-
 /// Run the OCR pipeline on a set of page images.
 ///
 /// Accepts an iterator for streaming support — pages are processed one at a time
 /// without buffering all images in memory.
+///
+/// CNS observability: emits `tracing::info!` spans under `cns.pipeline` target.
+/// Proper CNS integration (NuEvent → NuEventStore → CurationLoop) is deferred
+/// until the pipeline has access to CNS infrastructure (WebID, NuEventStore).
 ///
 /// # Arguments
 /// * `pages` — Decimated page images in document order.
@@ -74,7 +66,6 @@ pub trait CnsObserver: Send + Sync {
 /// * `executor` — Pluggable OCR executor for each backend.
 /// * `thresholds` — Complexity scoring thresholds (configurable via registry).
 /// * `llm_model` — Optional model ID for `LlmOcr` backend routing.
-/// * `cns` — Optional CNS observer for span emission.
 /// * `embedding_router` — Optional embedding router for semantic cross-validation.
 /// * `embedding_model` — Embedding model name (used with `embedding_router`).
 ///
@@ -86,7 +77,6 @@ pub async fn run_pipeline(
     executor: &(dyn OcrExecutor + '_),
     thresholds: &ThresholdConfig,
     llm_model: Option<&str>,
-    cns: Option<&(dyn CnsObserver + '_)>,
     embedding_router: Option<(&hkask_inference::EmbeddingRouter, &str)>,
 ) -> PipelineOutcome {
     let start = Instant::now();
@@ -218,34 +208,31 @@ pub async fn run_pipeline(
     // Step 6: Verification checkpoint
     let report = verify_output(expected_pages, &results, total_estimated_words, &errors);
 
-    // Emit CNS spans if observer is configured
-    if let Some(observer) = cns {
-        // Cross-validation spans per dual-routed page
-        for cv in &cross_validations {
-            observer.observe_cross_validation(OcrCrossValidationSpan {
-                page_index: cv.page_index,
-                similarity: cv.similarity,
-                tier: cv.tier,
-                backend_a: cv.backend_a.clone(),
-                backend_b: cv.backend_b.clone(),
-            });
-        }
-
-        // Verification span
-        observer.observe_verification(OcrVerificationSpan {
-            total_pages: expected_pages,
-            error_count: errors.len(),
-            backend_distribution: backend_counts
-                .into_iter()
-                .map(|(backend, page_count)| BackendUsage {
-                    backend,
-                    page_count,
-                })
-                .collect(),
-            duration_ms,
-            passed: report.passed,
-        });
+    // CNS observability: emit tracing spans under cns.pipeline target.
+    // Proper CNS integration (NuEvent → NuEventStore → CurationLoop) is
+    // deferred until the pipeline has access to CNS infrastructure.
+    for cv in &cross_validations {
+        tracing::info!(
+            target: "cns.pipeline.ocr",
+            page_index = cv.page_index,
+            similarity = cv.similarity,
+            semantic_similarity = cv.semantic_similarity,
+            tier = ?cv.tier,
+            backend_a = %cv.backend_a,
+            backend_b = %cv.backend_b,
+            "OCR cross-validation"
+        );
     }
+
+    tracing::info!(
+        target: "cns.pipeline.ocr",
+        total_pages = expected_pages,
+        error_count = errors.len(),
+        duration_ms = duration_ms,
+        passed = report.passed,
+        backends = ?backend_counts,
+        "OCR pipeline verification"
+    );
 
     PipelineOutcome {
         results,

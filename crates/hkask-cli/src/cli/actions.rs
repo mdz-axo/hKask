@@ -353,6 +353,12 @@ pub enum ReplicantAction {
         #[arg()]
         replicant_name: String,
     },
+
+    /// Change a replicant's passphrase
+    Passphrase {
+        #[arg()]
+        replicant_name: String,
+    },
     Logout {
         #[arg()]
         session_id: String,

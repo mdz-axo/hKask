@@ -367,5 +367,64 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
             let store = build_store();
             super::helpers::or_exit(logout(&store, &session_id), "Logout failed");
         }
+        ReplicantAction::Passphrase { replicant_name } => {
+            change_passphrase(&replicant_name);
+        }
+    }
+}
+
+/// Interactive passphrase change for a replicant.
+pub fn change_passphrase(replicant_name: &str) {
+    use std::io::{self, Write};
+    let store = build_store();
+
+    // Verify identity exists
+    if store
+        .lock()
+        .unwrap()
+        .get_replicant(replicant_name)
+        .unwrap_or(None)
+        .is_none()
+    {
+        eprintln!("  ✗ Replicant not found: {}", replicant_name);
+        return;
+    }
+
+    print!("Old passphrase: ");
+    io_or_die(io::stdout().flush(), "flush stdout");
+    let mut old_passphrase = String::new();
+    io_or_die(
+        io::stdin().read_line(&mut old_passphrase),
+        "read old passphrase",
+    );
+
+    print!("New passphrase: ");
+    io_or_die(io::stdout().flush(), "flush stdout");
+    let mut new_passphrase = String::new();
+    io_or_die(
+        io::stdin().read_line(&mut new_passphrase),
+        "read new passphrase",
+    );
+
+    print!("Confirm new passphrase: ");
+    io_or_die(io::stdout().flush(), "flush stdout");
+    let mut confirm = String::new();
+    io_or_die(io::stdin().read_line(&mut confirm), "read confirm");
+
+    if new_passphrase.trim() != confirm.trim() {
+        eprintln!("  ✗ Passphrases do not match");
+        return;
+    }
+
+    match store.lock().unwrap().change_passphrase(
+        replicant_name,
+        old_passphrase.trim(),
+        new_passphrase.trim(),
+    ) {
+        Ok(()) => {
+            println!("  ✓ Passphrase changed for {}", replicant_name);
+            println!("  All existing sessions invalidated — login again.");
+        }
+        Err(e) => eprintln!("  ✗ {}", e),
     }
 }

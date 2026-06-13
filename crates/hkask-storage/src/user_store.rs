@@ -31,6 +31,8 @@ pub enum UserStoreError {
     KeyDerivation(String),
     #[error("Password hash error: {0}")]
     PasswordHash(String),
+    #[error("Passphrase expired {0} days ago — must change")]
+    PassphraseExpired(i64),
 }
 
 impl_from_rusqlite!(UserStoreError, Infra);
@@ -69,6 +71,9 @@ impl UserStore {
     pub fn initialize_schema(&self) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute_batch(include_str!("sql/users.sql"))?;
+        // Migration: add passphrase_set_at if not present
+        conn.execute_batch("ALTER TABLE human_users ADD COLUMN passphrase_set_at INTEGER;")
+            .ok(); // ignore error if column already exists
         Ok(())
     }
 
@@ -103,8 +108,8 @@ impl UserStore {
         let tx = conn.transaction()?;
 
         tx.execute(
-            "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, passphrase_set_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 user_id,
                 email_enc,
@@ -112,7 +117,8 @@ impl UserStore {
                 passphrase_hash,
                 salt,
                 master_salt,
-                chrono::Utc::now().timestamp()
+                chrono::Utc::now().timestamp(),
+                chrono::Utc::now().timestamp(),
             ],
         )?;
 
@@ -151,6 +157,21 @@ impl UserStore {
 
         let session = self.create_session(&identity)?;
         self.update_last_login(&identity.replicant_name)?;
+
+        // Check passphrase expiry (60 days)
+        if let Some(days_old) = self
+            .check_passphrase_expiry(replicant_name, 60)
+            .unwrap_or(None)
+        {
+            tracing::warn!(
+                replicant = %replicant_name,
+                days_old,
+                "Passphrase expired — user must change"
+            );
+            // Return the session but flag the expiry
+            return Err(UserStoreError::PassphraseExpired(days_old));
+        }
+
         Ok(session)
     }
 
@@ -161,6 +182,70 @@ impl UserStore {
             params![session_id],
         )?;
         Ok(())
+    }
+
+    /// Change a replicant's passphrase. Requires the old passphrase for verification.
+    pub fn change_passphrase(
+        &self,
+        replicant_name: &str,
+        old_passphrase: &str,
+        new_passphrase: &str,
+    ) -> UserResult<()> {
+        let identity = self
+            .get_replicant(replicant_name)?
+            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+
+        let human = self.get_user(&identity.user_id)?;
+        let verified = Self::verify_passphrase(old_passphrase, &human.passphrase_hash)?;
+        if !verified {
+            return Err(UserStoreError::InvalidCredentials);
+        }
+
+        // Hash new passphrase with existing salt and master_salt
+        let new_hash = Self::hash_passphrase(new_passphrase, &human.salt)?;
+        let now = chrono::Utc::now().timestamp();
+
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "UPDATE human_users SET passphrase_hash = ?1, passphrase_set_at = ?2 WHERE user_id = ?3",
+            params![new_hash, now, identity.user_id],
+        )?;
+
+        // Invalidate all existing sessions for this replicant
+        conn.execute(
+            "DELETE FROM user_sessions WHERE replicant_name = ?1",
+            params![replicant_name],
+        )?;
+
+        Ok(())
+    }
+
+    /// Check if a replicant's passphrase is older than `max_age_days`.
+    /// Returns `Some(days_old)` if expired, `None` if still valid or no timestamp.
+    pub fn check_passphrase_expiry(
+        &self,
+        replicant_name: &str,
+        max_age_days: i64,
+    ) -> UserResult<Option<i64>> {
+        let identity = self
+            .get_replicant(replicant_name)?
+            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+
+        let human = self.get_user(&identity.user_id)?;
+        let set_at = match human.passphrase_set_at {
+            Some(ts) => ts,
+            None => return Ok(None), // no timestamp set, can't check
+        };
+
+        let now = chrono::Utc::now().timestamp();
+        let age_seconds = now - set_at;
+        let age_days = age_seconds / 86400;
+
+        if age_days > max_age_days {
+            Ok(Some(age_days))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
@@ -202,7 +287,7 @@ impl UserStore {
     pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active
+            "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active, passphrase_set_at
              FROM human_users WHERE user_id = ?1",
         )?;
 
@@ -216,6 +301,7 @@ impl UserStore {
                 master_salt: row.get(5)?,
                 created_at: row.get(6)?,
                 last_active: row.get(7)?,
+                passphrase_set_at: row.get(8)?,
             })
         })
         .map_err(|e| match e {

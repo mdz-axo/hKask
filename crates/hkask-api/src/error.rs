@@ -220,6 +220,9 @@ impl From<UserStoreError> for ApiError {
             UserStoreError::PasswordHash(msg) => ApiError::Internal {
                 message: msg.clone(),
             },
+            UserStoreError::PassphraseExpired(days) => ApiError::Unauthorized {
+                reason: format!("Passphrase expired {} days ago — must change", days),
+            },
             UserStoreError::Infra(e) => ApiError::Internal {
                 message: e.to_string(),
             },

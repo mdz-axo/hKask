@@ -446,21 +446,7 @@
   cascade_level: 0
   matroshka_limit: 7
 
-# ── Kata ────────────────────────────────────────────────────────────────
-- id: kata/consent-and-select
-  template_type: KnowAct
-  name: "Kata Consent and Select"
-  lexicon_terms:
-    - consent
-    - select
-    - verify
-    - discriminate
-  description: "Verify consent and select the appropriate Kata pattern"
-  source_path: registry/templates/kata/consent-and-select.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
+# ── Kata Bundle (orchestration) ───────────────────────────────────────
 - id: kata/kata-selector
   template_type: KnowAct
   name: "Kata Selector"
@@ -469,50 +455,22 @@
     - classify
     - match
     - discriminate
-  description: "Select appropriate Kata pattern based on capability domain and learner state"
+  description: "Route agent to appropriate kata based on context"
   source_path: registry/templates/kata/kata-selector.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
 
-- id: kata/improvement-cycle
-  template_type: FlowDef
-  name: "Improvement Kata Cycle"
+- id: kata/consent-and-select
+  template_type: KnowAct
+  name: "Kata Consent and Select"
   lexicon_terms:
-    - sequence
-    - iterate
-    - measure
-    - experiment
-  description: "4-step Improvement Kata: Direction → Current → Target → Experiment"
-  source_path: registry/templates/kata/improvement-cycle.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/coaching-cycle
-  template_type: FlowDef
-  name: "Coaching Kata Cycle"
-  lexicon_terms:
-    - sequence
-    - coach
-    - question
-    - dialogue
-  description: "5-question Coaching Kata dialogue flow to teach scientific thinking"
-  source_path: registry/templates/kata/coaching-cycle.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
-- id: kata/starter-cycle
-  template_type: FlowDef
-  name: "Starter Kata Cycle"
-  lexicon_terms:
-    - practice
-    - routine
-    - habit
-    - sequence
-  description: "Starter Kata practice cycle for building foundational habits"
-  source_path: registry/templates/kata/starter-cycle.j2
+    - consent
+    - select
+    - verify
+    - discriminate
+  description: "Verify consent before executing any kata"
+  source_path: registry/templates/kata/consent-and-select.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
@@ -525,8 +483,22 @@
     - assess
     - evaluate
     - habit
-  description: "Synthesize Kata outcome with habit assessment and automaticity scoring"
+  description: "Synthesize kata outcome with habit assessment"
   source_path: registry/templates/kata/outcome-and-habit.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/habit-intervention
+  template_type: WordAct
+  name: "Kata Habit Intervention"
+  lexicon_terms:
+    - intervene
+    - encourage
+    - remind
+    - habit
+  description: "Generate intervention message when habit is at risk"
+  source_path: registry/templates/kata/habit-intervention.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
@@ -560,20 +532,6 @@
   cascade_level: 0
   matroshka_limit: 7
 
-- id: kata/habit-intervention
-  template_type: WordAct
-  name: "Kata Habit Intervention"
-  lexicon_terms:
-    - intervene
-    - encourage
-    - remind
-    - habit
-  description: "Generate intervention message when habit is at risk"
-  source_path: registry/templates/kata/habit-intervention.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
 - id: kata/kata-switch-check
   template_type: KnowAct
   name: "Kata Switch Check"
@@ -582,8 +540,227 @@
     - compose
     - evaluate
     - consent
-  description: "Check if Kata switching is requested and validate composition rules"
+  description: "Check if kata switching is requested and validate composition rules"
   source_path: registry/templates/kata/kata-switch-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Kata-Starter ───────────────────────────────────────────────────────
+- id: kata-starter/starter-cycle
+  template_type: FlowDef
+  name: "Starter Kata Cycle"
+  lexicon_terms:
+    - practice
+    - routine
+    - habit
+    - sequence
+  description: "Starter Kata practice cycle for building foundational habits"
+  source_path: registry/templates/kata-starter/starter-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-selector
+  template_type: KnowAct
+  name: "Starter Kata Selector"
+  lexicon_terms:
+    - select
+    - practice
+    - habit
+    - routine
+  description: "Select appropriate starter routine based on learner state"
+  source_path: registry/templates/kata-starter/starter-selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-five-questions
+  template_type: FlowDef
+  name: "Starter Five Questions Drill"
+  lexicon_terms:
+    - question
+    - coach
+    - practice
+  description: "Five Questions Drill — practice asking the 5 coaching questions"
+  source_path: registry/templates/kata-starter/starter-five-questions.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-pdca-cycle
+  template_type: FlowDef
+  name: "Starter PDCA Cycle"
+  lexicon_terms:
+    - plan
+    - experiment
+    - check
+    - act
+  description: "PDCA Cycle — Plan-Do-Check-Act experimentation practice"
+  source_path: registry/templates/kata-starter/starter-pdca-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-observation-drill
+  template_type: FlowDef
+  name: "Starter Observation Drill"
+  lexicon_terms:
+    - observe
+    - discriminate
+    - fact
+    - interpret
+  description: "Observation Drill — distinguish facts from interpretations"
+  source_path: registry/templates/kata-starter/starter-observation-drill.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Kata-Improvement ───────────────────────────────────────────────────
+- id: kata-improvement/improvement-cycle
+  template_type: FlowDef
+  name: "Improvement Kata Cycle"
+  lexicon_terms:
+    - sequence
+    - iterate
+    - measure
+    - experiment
+  description: "4-step Improvement Kata: Direction → Current → Target → Iterate"
+  source_path: registry/templates/kata-improvement/improvement-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step1-direction
+  template_type: WordAct
+  name: "Improvement Step 1: Direction"
+  lexicon_terms:
+    - challenge
+    - capability
+    - goal
+    - orient
+  description: "Step 1: Understand the Direction and challenge from above"
+  source_path: registry/templates/kata-improvement/improvement-step1-direction.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step2-current
+  template_type: WordAct
+  name: "Improvement Step 2: Current Condition"
+  lexicon_terms:
+    - observe
+    - measure
+    - assess
+  description: "Step 2: Grasp the Current Condition with facts and data"
+  source_path: registry/templates/kata-improvement/improvement-step2-current.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step3-target
+  template_type: WordAct
+  name: "Improvement Step 3: Target Condition"
+  lexicon_terms:
+    - specify
+    - target
+    - constrain
+  description: "Step 3: Establish the Next Target Condition with metrics and deadline"
+  source_path: registry/templates/kata-improvement/improvement-step3-target.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step4-experiment
+  template_type: WordAct
+  name: "Improvement Step 4: Experiment"
+  lexicon_terms:
+    - experiment
+    - predict
+    - obstacle
+  description: "Step 4: Iterate/Experiment toward Target Condition via PDCA"
+  source_path: registry/templates/kata-improvement/improvement-step4-experiment.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Kata-Coaching ──────────────────────────────────────────────────────
+- id: kata-coaching/coaching-cycle
+  template_type: FlowDef
+  name: "Coaching Kata Cycle"
+  lexicon_terms:
+    - sequence
+    - coach
+    - question
+    - dialogue
+  description: "5-question Coaching Kata dialogue flow to teach scientific thinking"
+  source_path: registry/templates/kata-coaching/coaching-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q1-target
+  template_type: WordAct
+  name: "Coaching Q1: Target Condition"
+  lexicon_terms:
+    - target
+    - condition
+    - goal
+  description: "Question 1: What is the Target Condition?"
+  source_path: registry/templates/kata-coaching/coaching-q1-target.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q2-actual
+  template_type: WordAct
+  name: "Coaching Q2: Actual Condition"
+  lexicon_terms:
+    - observe
+    - measure
+    - assess
+  description: "Question 2: What is the Actual Condition now?"
+  source_path: registry/templates/kata-coaching/coaching-q2-actual.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q3-obstacles
+  template_type: WordAct
+  name: "Coaching Q3: Obstacles"
+  lexicon_terms:
+    - obstacle
+    - focus
+    - prioritize
+  description: "Question 3: What obstacles? Which ONE are you addressing?"
+  source_path: registry/templates/kata-coaching/coaching-q3-obstacles.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q4-experiment
+  template_type: WordAct
+  name: "Coaching Q4: Next Experiment"
+  lexicon_terms:
+    - experiment
+    - predict
+    - expect
+  description: "Question 4: What is your Next Step? What do you expect?"
+  source_path: registry/templates/kata-coaching/coaching-q4-experiment.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q5-learn
+  template_type: WordAct
+  name: "Coaching Q5: Learn"
+  lexicon_terms:
+    - learn
+    - feedback
+    - measure
+    - reflect
+  description: "Question 5: How quickly can we go and see What we Learned?"
+  source_path: registry/templates/kata-coaching/coaching-q5-learn.j2
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
