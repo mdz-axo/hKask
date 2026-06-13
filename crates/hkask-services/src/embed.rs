@@ -19,7 +19,7 @@ use hkask_types::Visibility;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashSet;
 use std::path::Path;
@@ -105,7 +105,7 @@ impl EmbedProgress {
 /// Corpus configuration — defines the author, works, embedding model,
 /// chunking parameters, entity declarations, method declarations,
 /// budget settings, and validation constraints.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CorpusConfig {
     pub author: String,
     pub embedding: EmbeddingConfig,
@@ -129,7 +129,7 @@ pub struct CorpusConfig {
 }
 
 /// Entity declarations for corpus-specific tagging.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct EntityConfig {
     #[serde(default)]
     pub characters: Vec<Entity>,
@@ -142,7 +142,7 @@ pub struct EntityConfig {
 }
 
 /// A declared entity with name and optional per-work scoping.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Entity {
     pub name: String,
     /// Restrict to specific work slugs (empty = all works).
@@ -165,7 +165,7 @@ impl Entity {
 }
 
 /// Embedding model and dimension configuration.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct EmbeddingConfig {
     pub model: String,
     pub dim: usize,
@@ -173,7 +173,7 @@ pub struct EmbeddingConfig {
 }
 
 /// A work (text) to download and embed.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Work {
     pub title: String,
     pub slug: String,
@@ -181,14 +181,14 @@ pub struct Work {
 }
 
 /// A foundational rule to include as a passage.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FoundationalRule {
     pub slug: String,
     pub text: String,
 }
 
 /// Chunking parameters for passage splitting.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ChunkingConfig {
     pub min_words: usize,
     pub max_words: usize,
@@ -196,7 +196,7 @@ pub struct ChunkingConfig {
 }
 
 /// Validation constraints for centroid distance and exemplar counts.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ValidationConfig {
     pub centroid_distance_max: f64,
     pub exemplar_count_min: usize,
@@ -873,7 +873,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
 
 /// Strip HTML tags from text, decoding common entities and preserving
 /// paragraph breaks from existing newlines in the HTML source.
-fn strip_html_tags(html: &str) -> String {
+pub fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
     let mut entity_buf = String::new();

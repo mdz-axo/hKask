@@ -102,6 +102,7 @@ mod tests {
     use hkask_types::wallet::{ApiKeyId, Ed25519PublicKey, PrivacyMode, RJoule, WalletId};
 
     fn set_test_master_key() {
+        // SAFETY: test-only — sets master key env var in isolated test process.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",

@@ -146,6 +146,7 @@ fn get_wallet(state: &ApiState) -> Result<&hkask_services::WalletService, Status
 fn parse_chain(s: Option<&str>) -> ChainId {
     match s {
         Some("hedera") => ChainId::Hedera,
+        Some("hinkal") => ChainId::Hinkal,
         _ => ChainId::Solana,
     }
 }

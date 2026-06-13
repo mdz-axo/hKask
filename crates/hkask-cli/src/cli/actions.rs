@@ -478,6 +478,20 @@ pub enum StyleAction {
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: String,
     },
+    /// Discover an academic author's works and generate a corpus.yaml
+    Discover {
+        /// Author name (e.g., "David Dunning")
+        author_name: String,
+        /// Max works to include
+        #[arg(short, long, default_value = "20")]
+        max_works: usize,
+        /// Output directory for corpus.yaml
+        #[arg(short, long)]
+        output_dir: Option<String>,
+        /// Cache directory for downloaded content
+        #[arg(long, default_value = "./.cache")]
+        cache_dir: String,
+    },
 }
 
 /// Skill bundle management actions

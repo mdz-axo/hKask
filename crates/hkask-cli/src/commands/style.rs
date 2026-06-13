@@ -17,5 +17,11 @@ pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
             db,
             passphrase,
         } => super::embed_corpus::run(rt, config, db, passphrase),
+        StyleAction::Discover {
+            author_name,
+            max_works,
+            output_dir,
+            cache_dir,
+        } => super::discover::run(rt, author_name, max_works, output_dir, cache_dir),
     }
 }

@@ -95,8 +95,11 @@ impl EmbeddingRouter {
         let result = match provider {
             ProviderId::Ollama => self.embed_ollama(&model, &texts).await?,
             ProviderId::Fireworks => {
+                let client = self.fireworks_client.as_ref().ok_or_else(|| {
+                    EmbeddingGenerationError::Connection("Fireworks client not initialized".into())
+                })?;
                 self.embed_openai(
-                    self.fireworks_client.as_ref().unwrap(),
+                    client,
                     &self.config.fireworks_base_url,
                     &self.config.fireworks_api_key,
                     &model,
@@ -105,8 +108,11 @@ impl EmbeddingRouter {
                 .await?
             }
             ProviderId::DeepInfra => {
+                let client = self.deepinfra_client.as_ref().ok_or_else(|| {
+                    EmbeddingGenerationError::Connection("DeepInfra client not initialized".into())
+                })?;
                 self.embed_openai(
-                    self.deepinfra_client.as_ref().unwrap(),
+                    client,
                     &self.config.deepinfra_base_url,
                     &self.config.deepinfra_api_key,
                     &model,
@@ -154,7 +160,9 @@ impl EmbeddingRouter {
         model: &str,
         texts: &[String],
     ) -> Result<Vec<Vec<f32>>, EmbeddingGenerationError> {
-        let client = self.ollama_client.as_ref().unwrap();
+        let client = self.ollama_client.as_ref().ok_or_else(|| {
+            EmbeddingGenerationError::Connection("Ollama client not initialized".into())
+        })?;
         let request = OllamaEmbedRequest {
             model: model.to_string(),
             input: texts.to_vec(),

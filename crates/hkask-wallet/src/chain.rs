@@ -38,9 +38,11 @@ impl DepositEvent {
         block_time: DateTime<Utc>,
     ) -> Result<Self, WalletError> {
         if amount_usdc_micro == 0 {
-            return Err(WalletError::Infra(hkask_types::InfrastructureError::Database(
-                "deposit amount must be greater than zero".into(),
-            )));
+            return Err(WalletError::Infra(
+                hkask_types::InfrastructureError::Database(
+                    "deposit amount must be greater than zero".into(),
+                ),
+            ));
         }
         Ok(DepositEvent {
             tx_hash,

@@ -377,7 +377,7 @@ fn sentence_lengths(text: &str) -> Vec<usize> {
 // ── Declared Method Matching ──────────────────────────────────────────────
 
 /// A declared method with signal thresholds for matching.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct DeclaredMethod {
     pub name: String,
     #[serde(default)]
@@ -390,7 +390,7 @@ pub struct DeclaredMethod {
 ///
 /// Each field is optional — only the fields present constrain the match.
 /// A passage matches if ALL present constraints are satisfied.
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct MethodThresholds {
     #[serde(default)]
     pub parataxis_ratio_min: Option<f32>,
@@ -644,7 +644,7 @@ pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
 // ── Budget ────────────────────────────────────────────────────────────────
 
 /// Triple budget configuration for gating metadata storage.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum BudgetConfig {
     /// Budget derived from passage count: `triples_per_100_pages`.

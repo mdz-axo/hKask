@@ -11,6 +11,7 @@ pub mod contacts;
 pub mod context;
 pub mod curator;
 pub mod daemon_handler;
+pub mod discover;
 pub mod embed;
 pub mod ensemble;
 pub mod error;
@@ -41,6 +42,7 @@ pub use config::ServiceConfig;
 pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
+pub use discover::{DiscoverRequest, DiscoverResult, DiscoveryService};
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,

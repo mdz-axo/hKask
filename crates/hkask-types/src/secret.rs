@@ -114,6 +114,9 @@ pub mod derivation_contexts {
     /// Hedera treasury keypair derivation context.
     pub const TREASURY_HEDERA: &str = "hkask:treasury-hedera";
 
+    /// Hinkal treasury keypair derivation context.
+    pub const TREASURY_HINKAL: &str = "hkask:treasury-hinkal";
+
     /// Wallet seed for HD derivation, deposit references, and API key signing.
     pub const WALLET_SEED: &str = "hkask:wallet-seed";
 }

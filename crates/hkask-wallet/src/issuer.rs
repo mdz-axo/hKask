@@ -170,6 +170,7 @@ mod tests {
     use hkask_storage::database::in_memory_db;
 
     fn make_issuer() -> ApiKeyIssuer {
+        // SAFETY: test-only — sets master key env var in isolated test process.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",

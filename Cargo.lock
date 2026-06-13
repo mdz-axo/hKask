@@ -2265,7 +2265,6 @@ version = "0.27.0"
 dependencies = [
  "async-trait",
  "chrono",
- "hkask-inference",
  "hkask-storage",
  "hkask-types",
  "minijinja",

@@ -75,6 +75,8 @@ pub enum ChainId {
     Solana,
     /// Hedera — HTS USDC, $0.0001/tx fixed, 2s blocks, deterministic finality
     Hedera,
+    /// Hinkal — privacy-preserving shielded transactions across multiple chains
+    Hinkal,
 }
 
 impl fmt::Display for ChainId {
@@ -82,6 +84,7 @@ impl fmt::Display for ChainId {
         match self {
             ChainId::Solana => write!(f, "solana"),
             ChainId::Hedera => write!(f, "hedera"),
+            ChainId::Hinkal => write!(f, "hinkal"),
         }
     }
 }
@@ -93,6 +96,7 @@ impl FromStr for ChainId {
         match s.to_lowercase().as_str() {
             "solana" => Ok(ChainId::Solana),
             "hedera" => Ok(ChainId::Hedera),
+            "hinkal" => Ok(ChainId::Hinkal),
             other => Err(format!("unknown chain: {other}")),
         }
     }

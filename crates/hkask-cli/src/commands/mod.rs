@@ -11,6 +11,7 @@ pub mod compose;
 
 pub mod consolidation;
 pub mod curator;
+pub mod discover;
 pub mod docs;
 pub mod embed_corpus;
 pub mod ensemble;

@@ -312,6 +312,7 @@ pub fn resolve_treasury_key(chain: ChainId) -> Result<Zeroizing<Vec<u8>>, Keycha
     let context = match chain {
         ChainId::Solana => derivation_contexts::TREASURY_SOLANA,
         ChainId::Hedera => derivation_contexts::TREASURY_HEDERA,
+        ChainId::Hinkal => derivation_contexts::TREASURY_HINKAL,
     };
     resolve(&SecretRef::derived(
         derivation_contexts::MASTER_KEY_ENV,

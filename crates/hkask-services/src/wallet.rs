@@ -214,6 +214,7 @@ mod tests {
 
     fn make_service() -> WalletService {
         // Set master key for keystore resolution
+        // SAFETY: test-only — sets master key env var in isolated test process.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",

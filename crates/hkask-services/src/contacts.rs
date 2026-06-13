@@ -26,7 +26,7 @@ impl ContactService {
         };
         store
             .add_contact(&contact)
-            .map_err(|e| ServiceError::AgentRegistryStore(e))
+            .map_err(ServiceError::AgentRegistryStore)
     }
 
     /// Find contacts by name or relationship. Returns all matches.
@@ -37,7 +37,7 @@ impl ContactService {
     ) -> Result<Vec<Contact>, ServiceError> {
         store
             .find_contacts(agent_name, query)
-            .map_err(|e| ServiceError::AgentRegistryStore(e))
+            .map_err(ServiceError::AgentRegistryStore)
     }
 
     /// List all contacts for an agent.
@@ -47,6 +47,6 @@ impl ContactService {
     ) -> Result<Vec<Contact>, ServiceError> {
         store
             .list_contacts(agent_name)
-            .map_err(|e| ServiceError::AgentRegistryStore(e))
+            .map_err(ServiceError::AgentRegistryStore)
     }
 }

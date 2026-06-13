@@ -31,11 +31,3 @@ pub use prompt_strategy::PromptStrategy;
 pub use registry::Registry;
 pub use registry_sqlite::SqliteRegistry;
 pub use skill_loader::{SkillFrontMatter, SkillLoadResult, SkillLoader};
-
-// ── Inference re-exports (from hkask-inference) ─────────────────────────────
-
-pub use hkask_inference::EmbeddingRouter;
-pub use hkask_inference::InferenceConfig;
-pub use hkask_inference::InferenceRouter;
-pub use hkask_inference::ProviderId;
-pub use hkask_inference::RouterModelEntry;
