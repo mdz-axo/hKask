@@ -96,6 +96,7 @@ for its category cluster.
 | [`MDS-agent-service.md`](specifications/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |
 | [`salience-specification.md`](specifications/salience-specification.md) | domain, composition | Passage salience algorithm specification |
 | [`crate-audit.md`](specifications/crate-audit.md) | composition, curation | Crate audit bundle manifest |
+| [`gentle-lovelace-specification.md`](specifications/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace — document excellence replica specification |
 
 ---
 
