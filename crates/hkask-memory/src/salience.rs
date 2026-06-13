@@ -64,6 +64,17 @@ pub struct MethodSignals {
 
     /// Average sentence length (words/sentences).
     pub avg_sentence_length: f32,
+
+    // ── Academic-specific signals ───────────────────────────────────────
+    /// Citation count per 1000 words. Detects patterns like "(Author, Year)"
+    /// and "[1]", "[2,3]" reference markers.
+    pub citation_density: f32,
+    /// Ratio of formal notation (math, code, LaTeX) characters to total
+    /// characters. High in quantitative/CS papers, low in humanities.
+    pub formalism_ratio: f32,
+    /// Domain-specific terminology per 100 words. Detects multi-syllable
+    /// words with Greek/Latin roots, acronyms, and technical compounds.
+    pub technical_term_density: f32,
 }
 
 /// Compute method signals from raw passage text.
@@ -339,6 +350,97 @@ pub fn compute_method_signals(text: &str) -> MethodSignals {
         .count();
     let sensory_word_ratio = per_100(sensory_count);
 
+    // ── Academic signals ────────────────────────────────────────────
+
+    // Citation density: detect "(Author, Year)" and "[N]" patterns
+    let per_1000 = |count: usize| -> f32 { (count as f32 / word_count as f32) * 1000.0 };
+    let citation_pattern_count = {
+        // Count "(...)" parenthetical patterns that look like citations
+        let chars: Vec<char> = text.chars().collect();
+        let mut i = 0;
+        let mut count = 0usize;
+        while i + 2 < chars.len() {
+            if chars[i] == '(' {
+                // Look for "Author, Year" or "Author Year" pattern
+                let slice: String = chars[i + 1..].iter().take_while(|&&c| c != ')').collect();
+                let has_year = slice
+                    .split_whitespace()
+                    .any(|s| s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()));
+                if has_year && slice.len() > 3 {
+                    count += 1;
+                }
+                i += slice.len() + 1;
+            } else if chars[i] == '[' {
+                // Look for "[N]" or "[N,N]" numeric citation pattern
+                let slice: String = chars[i + 1..].iter().take_while(|&&c| c != ']').collect();
+                let is_numeric = slice
+                    .split(',')
+                    .all(|s| s.trim().chars().all(|c| c.is_ascii_digit() || c == '-'));
+                if is_numeric && !slice.is_empty() {
+                    count += 1;
+                }
+                i += slice.len() + 1;
+            } else {
+                i += 1;
+            }
+        }
+        count
+    };
+    let citation_density = per_1000(citation_pattern_count);
+
+    // Formalism ratio: math/LaTeX/notation characters to total
+    let formal_chars = text
+        .chars()
+        .filter(|c| {
+            matches!(
+                c,
+                '$' | '\\'
+                    | '{'
+                    | '}'
+                    | '^'
+                    | '_'
+                    | '∑'
+                    | '∫'
+                    | '∂'
+                    | 'π'
+                    | '∞'
+                    | '≤'
+                    | '≥'
+                    | '±'
+                    | '→'
+                    | '⇒'
+                    | 'α'
+                    | 'β'
+                    | 'γ'
+                    | 'δ'
+                    | 'ε'
+                    | 'θ'
+                    | 'λ'
+                    | 'μ'
+                    | 'σ'
+                    | 'φ'
+                    | 'ω'
+            )
+        })
+        .count();
+    let total_chars = text.chars().count().max(1);
+    let formalism_ratio = formal_chars as f32 / total_chars as f32;
+
+    // Technical term density: multi-syllable words with Latin/Greek roots
+    // Heuristic: words ≥8 chars with common academic suffixes
+    let academic_suffixes = [
+        "tion", "sion", "ology", "ism", "icity", "ization", "ability", "ential", "istical",
+        "ogenous", "opathy", "oscopy", "ometric", "ographic",
+    ];
+    let tech_count = words
+        .iter()
+        .filter(|w| {
+            let lower = w.to_lowercase();
+            lower.len() >= 8 && academic_suffixes.iter().any(|suf| lower.ends_with(suf))
+        })
+        .count();
+    let technical_term_density = per_100(tech_count);
+
     MethodSignals {
         parataxis_ratio: parataxis_ratio.clamp(0.0, 1.0),
         adjective_density,
@@ -353,6 +455,9 @@ pub fn compute_method_signals(text: &str) -> MethodSignals {
         word_count,
         sentence_count,
         avg_sentence_length,
+        citation_density,
+        formalism_ratio: formalism_ratio.clamp(0.0, 1.0),
+        technical_term_density,
     }
 }
 
@@ -418,6 +523,23 @@ pub struct MethodThresholds {
     pub avg_sentence_length_min: Option<f32>,
     #[serde(default)]
     pub avg_sentence_length_max: Option<f32>,
+
+    // ── Academic-specific signals ────────────────────────────────────────
+    /// Citations per 1000 words (academic corpora).
+    #[serde(default)]
+    pub citation_density_min: Option<f32>,
+    #[serde(default)]
+    pub citation_density_max: Option<f32>,
+    /// Ratio of math/code/notation to prose (academic corpora).
+    #[serde(default)]
+    pub formalism_ratio_min: Option<f32>,
+    #[serde(default)]
+    pub formalism_ratio_max: Option<f32>,
+    /// Domain-specific terminology per 100 words (academic corpora).
+    #[serde(default)]
+    pub technical_term_density_min: Option<f32>,
+    #[serde(default)]
+    pub technical_term_density_max: Option<f32>,
 }
 
 impl DeclaredMethod {
@@ -440,6 +562,12 @@ impl DeclaredMethod {
             && check_min(t.sensory_word_ratio_min, signals.sensory_word_ratio)
             && check_min(t.avg_sentence_length_min, signals.avg_sentence_length)
             && check_max(t.avg_sentence_length_max, signals.avg_sentence_length)
+            && check_min(t.citation_density_min, signals.citation_density)
+            && check_max(t.citation_density_max, signals.citation_density)
+            && check_min(t.formalism_ratio_min, signals.formalism_ratio)
+            && check_max(t.formalism_ratio_max, signals.formalism_ratio)
+            && check_min(t.technical_term_density_min, signals.technical_term_density)
+            && check_max(t.technical_term_density_max, signals.technical_term_density)
     }
 }
 

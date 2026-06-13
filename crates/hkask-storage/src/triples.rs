@@ -324,6 +324,18 @@ impl TripleStore {
         Ok(())
     }
 
+    /// Hard-delete all triples whose entity starts with the given prefix.
+    /// Returns the number of rows deleted.
+    pub fn delete_by_entity_prefix(&self, prefix: &str) -> Result<usize, TripleError> {
+        let conn = self.lock_conn()?;
+        let pattern = format!("{}%", prefix);
+        let count = conn.execute(
+            "DELETE FROM triples WHERE entity LIKE ?1",
+            rusqlite::params![pattern],
+        )?;
+        Ok(count)
+    }
+
     /// Row → TripleRow: FromSql for IDs/WebID/Visibility. Timestamps stay String (orphan rule).
     fn row_to_triple_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TripleRow> {
         Ok(TripleRow {

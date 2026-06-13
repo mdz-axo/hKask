@@ -7,7 +7,8 @@
 //! Generates a corpus.yaml ready for `kask style embed-corpus`.
 
 use hkask_services::{
-    DiscoverRequest, DiscoveredWork, DiscoveryService, download_and_cache, slugify,
+    DiscoverRequest, DiscoveredWork, DiscoveryService, default_corpus_config, download_and_cache,
+    slugify,
 };
 use hkask_templates::ports::McpPort;
 
@@ -26,6 +27,7 @@ pub fn run(
     curated: bool,
     search_terms: Option<String>,
     include_methods: bool,
+    bio: Option<String>,
 ) {
     eprintln!("=== Discovering corpus for '{}' ===", author_name);
 
@@ -104,6 +106,7 @@ pub fn run(
         web_search_terms: search_terms.clone(),
         augment,
         include_methods,
+        biographical_details: bio,
     };
 
     let result = rt.block_on(DiscoveryService::discover(&req, mcp.as_ref(), &token));
@@ -181,32 +184,7 @@ pub fn run(
                 // (which preserves entities/methods/rules when augmenting)
                 let existing_yaml = std::fs::read_to_string(&config_path).unwrap_or_default();
                 let mut config: hkask_services::CorpusConfig = serde_yaml::from_str(&existing_yaml)
-                    .unwrap_or_else(|_| hkask_services::CorpusConfig {
-                        author: r.author_slug.clone(),
-                        embedding: hkask_services::EmbeddingConfig {
-                            model: String::new(),
-                            dim: 1024,
-                            batch_size: 64,
-                        },
-                        works: vec![],
-                        foundational_rules: vec![],
-                        chunking: hkask_services::ChunkingConfig {
-                            min_words: 50,
-                            max_words: 200,
-                            sentence_boundary: ".!? ".to_string(),
-                        },
-                        centroid_entity_ref: String::new(),
-                        validation: hkask_services::ValidationConfig {
-                            centroid_distance_max: 0.25,
-                            exemplar_count_min: 3,
-                            exemplar_count_max: 7,
-                        },
-                        budget: hkask_memory::salience::BudgetConfig::PerPage {
-                            per_100_pages: 3750,
-                        },
-                        entities: Default::default(),
-                        methods: vec![],
-                    });
+                    .unwrap_or_else(|_| default_corpus_config(&r.author_slug));
 
                 // Dedup: only add curated works whose URLs aren't already in the config
                 let existing_urls: std::collections::HashSet<&str> =
@@ -218,6 +196,16 @@ pub fn run(
                         title: w.title.clone(),
                         slug: w.slug.clone(),
                         url: w.url.clone(),
+                        local_path: None,
+                        format: match w.work_type.as_str() {
+                            "video_transcript" => "text",
+                            _ => "web",
+                        }
+                        .to_string(),
+                        document_type: None,
+                        dimensions: vec![],
+                        section_types: vec![],
+                        mds_categories: vec![],
                     })
                     .collect();
                 config.works.extend(new_works);

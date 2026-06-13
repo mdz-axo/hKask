@@ -115,9 +115,10 @@ The current style composition pipeline (`EmbedService::embed_corpus` + `ComposeS
 - **Registry management:** `kask list styles` and `kask rm styles-<name>` — list/remove built corpora.
 
 ### Deferred
-- **`corpus_type` discriminator (Decision 2):** Not implemented. Academic corpora use the same `EntityConfig` (concepts/places/events) and `style:` entity_ref prefix as literary corpora. The `corpus_type` field would add branching complexity without clear benefit at current scale.
-- **Disambiguation (Decision 4):** Not implemented. Pipeline assumes unambiguous author names. Disambiguation remains a future Curator-level feature.
-- **Academic-specific method signals:** Not implemented. The existing `MethodThresholds` (parataxis_ratio, passive_voice_ratio, hedge_density, etc.) are used for both literary and academic corpora. Academic-specific signals (citation density, formalism ratio) deferred.
+- **`corpus_type` discriminator (Decision 2):** Implemented 2026-06-13. Added `corpus_type: "literary" | "academic"` field to `CorpusConfig` (default "literary"). Academic entity categories: `co_authors`, `venues`, `topics`, `paradigms` added to `EntityConfig`. Academic method signals: `citation_density`, `formalism_ratio`, `technical_term_density` added to `MethodThresholds`. Discovery pipeline sets `corpus_type: "academic"` on generated configs.
+- **Disambiguation (Decision 4):** Implemented 2026-06-13. Added `--bio` CLI flag and `biographical_details` field to `DiscoverRequest`. Biographical details are appended to the academic search query for disambiguation (e.g., "John Smith professor of psychology at Cornell University"). Full candidate-presentation UI deferred — current implementation uses bio details for query refinement.
+- **Academic-specific method signals:** Thresholds added to `MethodThresholds`. Signal computation (actual counting of citations, formal notation, technical terms) not yet wired in the salience engine.
+- **Model specification:** Templates can specify a model override via `{# model: OM/qwen3:14b #}` directive on line 1. Parsed before rendering, passed to `InferencePort::generate_with_model`. This replaces the manifest `model_tier` approach for template-level model selection.
 
 ## References
 

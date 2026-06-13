@@ -84,9 +84,12 @@ kask pod mode <name> exit                    # Exit current mode
 kask style discover "David Dunning"          # Discover academic author corpus
 kask style discover "Author" --no-methods   # Skip LLM concept/method extraction
 kask style discover "Author" --no-curate     # Skip interactive curation
+kask style discover "J. Smith" --bio "professor of psychology at Cornell"  # Disambiguate
 kask style embed-corpus --config <yaml> --db <path> --passphrase <phrase>  # Build corpus
 kask list styles                             # List all built style corpora
+kask list templates                          # List all registered templates
 kask rm styles-hemingway --db <path> --passphrase <phrase>  # Remove a style corpus
+kask rm templates-my-template                # Check template existence (removal via YAML)
 ```
 
 ### Replicant Server Mode (MCP)

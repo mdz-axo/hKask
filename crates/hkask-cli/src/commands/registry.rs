@@ -5,6 +5,8 @@
 
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_templates::SqliteRegistry;
+use hkask_types::ports::RegistryIndex;
 
 use std::sync::Arc;
 
@@ -12,12 +14,18 @@ use std::sync::Arc;
 ///
 /// Supported registries:
 /// - `styles` — lists all built style corpora (queries `style:*:centroid` in EmbeddingStore)
-pub fn run_list(rt: &tokio::runtime::Runtime, registry: String) {
+/// - `templates` — lists all registered templates
+pub fn run_list(
+    rt: &tokio::runtime::Runtime,
+    template_registry: &SqliteRegistry,
+    registry: String,
+) {
     match registry.as_str() {
         "styles" => list_styles(rt),
+        "templates" => list_templates(template_registry),
         other => {
             eprintln!("Unknown registry: '{other}'");
-            eprintln!("Supported: styles");
+            eprintln!("Supported: styles, templates");
             std::process::exit(1);
         }
     }
@@ -29,6 +37,7 @@ pub fn run_list(rt: &tokio::runtime::Runtime, registry: String) {
 /// Example: `styles-hemingway` removes the Hemingway style corpus.
 pub fn run_rm(
     rt: &tokio::runtime::Runtime,
+    template_registry: &mut SqliteRegistry,
     target: String,
     db_path: Option<String>,
     passphrase: Option<String>,
@@ -51,9 +60,10 @@ pub fn run_rm(
 
     match registry {
         "styles" => remove_style(rt, artifact, db_path, passphrase),
+        "templates" => remove_template(template_registry, artifact),
         other => {
             eprintln!("Unknown registry: '{other}'");
-            eprintln!("Supported: styles");
+            eprintln!("Supported: styles, templates");
             std::process::exit(1);
         }
     }
@@ -124,8 +134,10 @@ fn remove_style(
 
     let conn = db.conn_arc();
     let triple_store = TripleStore::new(Arc::clone(&conn));
-    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
-    let semantic = SemanticMemory::new(triple_store, embedding_store);
+    let semantic = SemanticMemory::new(
+        TripleStore::new(Arc::clone(&conn)),
+        EmbeddingStore::new(Arc::clone(&conn)),
+    );
 
     let prefix = format!("style:{}:", artifact);
 
@@ -135,10 +147,28 @@ fn remove_style(
         "Failed to purge embeddings",
     );
 
-    eprintln!("Purged {} embeddings with prefix '{}'", purged, prefix);
+    // Purge triples
+    let triples_purged = crate::commands::helpers::or_exit(
+        triple_store.delete_by_entity_prefix(&prefix),
+        "Failed to purge triples",
+    );
+
+    // Check if anything actually exists before claiming removal
+    let corpus_dir = std::path::PathBuf::from(format!("./{}", artifact));
+    let yaml_path = corpus_dir.join("corpus.yaml");
+    let has_disk_artifacts = corpus_dir.exists() || yaml_path.exists();
+
+    if purged == 0 && triples_purged == 0 && !has_disk_artifacts {
+        eprintln!("No style corpus '{}' found.", artifact);
+        return;
+    }
+
+    eprintln!(
+        "Purged {} embeddings and {} triples with prefix '{}'",
+        purged, triples_purged, prefix
+    );
 
     // Remove cache directory and corpus YAML from disk
-    let corpus_dir = std::path::PathBuf::from(format!("./{}", artifact));
     if corpus_dir.exists() {
         let cache_dir = std::path::PathBuf::from("./.cache");
         // Remove cached content files for this author
@@ -186,4 +216,47 @@ fn remove_style(
     }
 
     eprintln!("Done. Style corpus '{}' removed.", artifact);
+}
+
+// ── Templates registry ──────────────────────────────────────────────────────
+
+fn list_templates(registry: &SqliteRegistry) {
+    let entries = registry.list(None);
+    if entries.is_empty() {
+        eprintln!("No templates registered.");
+        return;
+    }
+    eprintln!("Templates:");
+    for entry in &entries {
+        eprintln!(
+            "  {} — {} ({})",
+            entry.id,
+            if entry.name.is_empty() {
+                "(unnamed)"
+            } else {
+                &entry.name
+            },
+            entry.template_type.as_str()
+        );
+    }
+    eprintln!("{} template(s) total.", entries.len());
+}
+
+fn remove_template(registry: &mut SqliteRegistry, artifact: &str) {
+    match registry.delete_entry(artifact) {
+        Some(entry) => {
+            eprintln!(
+                "Removed template '{}' ({})",
+                entry.id,
+                if entry.name.is_empty() {
+                    "(unnamed)"
+                } else {
+                    &entry.name
+                }
+            );
+        }
+        None => {
+            eprintln!("No template '{}' found.", artifact);
+        }
+    }
 }

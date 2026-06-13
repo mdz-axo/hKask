@@ -3,6 +3,7 @@
 pub mod archival;
 pub mod bundle;
 pub mod chat;
+pub mod classify;
 pub mod cns;
 pub mod compose;
 pub mod config;
@@ -43,8 +44,8 @@ pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use discover::{
-    DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, download_and_cache,
-    generate_corpus_yaml, slugify,
+    DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
+    download_and_cache, generate_corpus_yaml, slugify,
 };
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,

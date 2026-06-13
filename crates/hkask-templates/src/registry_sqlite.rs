@@ -218,6 +218,25 @@ impl SqliteRegistry {
         Self::row_to_entry(&conn, &row.0, row.1, row.2, row.3, row.4, row.5, row.6)
     }
 
+    /// Delete a template and all associated data (lexicon terms, capabilities, provenance).
+    /// Returns the entry if it existed, None otherwise.
+    pub fn delete_entry(&mut self, id: &str) -> Option<RegistryEntry> {
+        let entry = self.get_entry(id).ok();
+        let conn = self.conn.lock().unwrap();
+        for table in &["lexicon_terms", "template_capabilities", "provenance"] {
+            if let Err(e) = conn.execute(
+                &format!("DELETE FROM {} WHERE template_id = ?1", table),
+                params![id],
+            ) {
+                tracing::error!(target: "hkask.templates", error = %e, id = %id, table = table, "delete_entry: DELETE failed");
+            }
+        }
+        if let Err(e) = conn.execute("DELETE FROM templates WHERE id = ?1", params![id]) {
+            tracing::error!(target: "hkask.templates", error = %e, id = %id, "delete_entry: DELETE templates failed");
+        }
+        entry
+    }
+
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
         let conn = self.conn.lock().unwrap();
         let rows: Vec<TemplateRow> = conn

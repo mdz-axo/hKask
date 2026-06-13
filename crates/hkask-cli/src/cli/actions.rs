@@ -509,6 +509,10 @@ pub enum StyleAction {
         /// Skip LLM-based concept extraction and method inference
         #[arg(long)]
         no_methods: bool,
+        /// Biographical details for author disambiguation
+        /// (e.g., "professor of psychology at Cornell University")
+        #[arg(long)]
+        bio: Option<String>,
     },
 }
 

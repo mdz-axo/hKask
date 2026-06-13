@@ -126,19 +126,61 @@ pub struct CorpusConfig {
     /// Declared methods with signal thresholds (how).
     #[serde(default)]
     pub methods: Vec<DeclaredMethod>,
+
+    /// Corpus type discriminator: "literary" or "academic".
+    /// Determines which entity categories are active and which method
+    /// signals are computed during embedding. Default: "literary".
+    #[serde(default = "default_corpus_type")]
+    pub corpus_type: String,
+
+    /// Per-dimension centroid configuration with weights.
+    /// Keys are dimension names (gentle, schriver, hopper, lovelace).
+    /// Compute one centroid per dimension, then derive composite at query time.
+    #[serde(default)]
+    pub dimension_centroids: Vec<DimensionCentroid>,
+
+    /// Orthogonal tag sets for multi-axis passage tagging.
+    #[serde(default)]
+    pub tag_sets: Vec<TagSet>,
+}
+
+fn default_corpus_type() -> String {
+    "literary".to_string()
 }
 
 /// Entity declarations for corpus-specific tagging.
+///
+/// Shared fields (both literary and academic): places, events, concepts.
+/// Literary-only: characters.
+/// Academic-only: co_authors, venues, topics, paradigms.
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct EntityConfig {
+    /// Literary: named characters in the author's works.
     #[serde(default)]
     pub characters: Vec<Entity>,
+    /// Shared: geographic/institutional places.
     #[serde(default)]
     pub places: Vec<Entity>,
+    /// Shared: named events, studies, experiments.
     #[serde(default)]
     pub events: Vec<Entity>,
+    /// Shared: key ideas, theories, frameworks.
     #[serde(default)]
     pub concepts: Vec<Entity>,
+
+    // ── Academic-specific categories ──────────────────────────────────────
+    /// Academic: co-authors and collaborators.
+    #[serde(default)]
+    pub co_authors: Vec<Entity>,
+    /// Academic: journals, conferences, publishers.
+    #[serde(default)]
+    pub venues: Vec<Entity>,
+    /// Academic: research areas and subfields.
+    #[serde(default)]
+    pub topics: Vec<Entity>,
+    /// Academic: theoretical frameworks, paradigms, schools of thought.
+    #[serde(default)]
+    pub paradigms: Vec<Entity>,
 }
 
 /// A declared entity with name and optional per-work scoping.
@@ -178,6 +220,28 @@ pub struct Work {
     pub title: String,
     pub slug: String,
     pub url: String,
+    /// Local file path for pre-downloaded works (takes precedence over url).
+    #[serde(default)]
+    pub local_path: Option<String>,
+    /// Source format: "text", "pdf", or "web". Determines ingestion path.
+    #[serde(default = "default_format")]
+    pub format: String,
+    /// Document type per MDS_SCAFFOLD.md §2: specification, adr, guide, reference, plan, status, research-paper, book-chapter.
+    #[serde(default, alias = "type")]
+    pub document_type: Option<String>,
+    /// Dimension tags this work contributes to: ["Gentle"], ["Schriver"], ["Hopper"], ["Lovelace"].
+    #[serde(default)]
+    pub dimensions: Vec<String>,
+    /// Section types present in this work: Statement, Evidence, Diagram, Implications.
+    #[serde(default)]
+    pub section_types: Vec<String>,
+    /// MDS categories per MDS.md §1: domain, composition, trust, lifecycle, curation.
+    #[serde(default)]
+    pub mds_categories: Vec<String>,
+}
+
+fn default_format() -> String {
+    "text".to_string()
 }
 
 /// A foundational rule to include as a passage.
@@ -185,6 +249,12 @@ pub struct Work {
 pub struct FoundationalRule {
     pub slug: String,
     pub text: String,
+    /// Dimension tags for this rule.
+    #[serde(default)]
+    pub dimensions: Vec<String>,
+    /// Section type for this rule.
+    #[serde(default)]
+    pub section_type: Option<String>,
 }
 
 /// Chunking parameters for passage splitting.
@@ -201,6 +271,33 @@ pub struct ValidationConfig {
     pub centroid_distance_max: f64,
     pub exemplar_count_min: usize,
     pub exemplar_count_max: usize,
+}
+
+/// Per-dimension centroid configuration.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DimensionCentroid {
+    /// Dimension name: "gentle", "schriver", "hopper", "lovelace".
+    pub name: String,
+    /// Entity ref for storing the centroid vector.
+    pub ref_name: String,
+    /// Weight in the composite centroid (should sum to 1.0 across all dimensions).
+    pub weight: f64,
+    /// Human-readable description of this dimension.
+    #[serde(default)]
+    pub description: String,
+}
+
+/// Orthogonal tag set definition.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TagSet {
+    /// Tag axis name: "section_type", "mds_category", "document_type", "dimension".
+    pub name: String,
+    /// Human-readable description.
+    #[serde(default)]
+    pub description: String,
+    /// Allowed values for this tag axis.
+    #[serde(default)]
+    pub values: Vec<String>,
 }
 
 // ── Tagged Passage ─────────────────────────────────────────────────────────
@@ -224,6 +321,14 @@ struct TaggedPassage {
     signals: MethodSignals,
     /// Salience score (weighted graph degree).
     salience: f32,
+    /// Dimension tag for this passage (from work metadata).
+    dimension: String,
+    /// Document type tag for this passage (from work metadata).
+    document_type: String,
+    /// MDS category tags for this passage (from work metadata).
+    mds_categories: Vec<String>,
+    /// Section type tag for this passage (from classifier or work declaration).
+    section_type: String,
 }
 
 impl TaggedPassage {
@@ -232,6 +337,7 @@ impl TaggedPassage {
     /// of budget, since it's required for exemplar retrieval in compose.
     fn metadata_triple_count(&self) -> usize {
         // 6 structural + entity tags + method tags + 1 salience + 10 signals
+        // + 4 orthogonal tags (dimension, doc_type, mds_categories, section_type)
         6 + self.tags.characters.len()
             + self.tags.places.len()
             + self.tags.events.len()
@@ -239,6 +345,10 @@ impl TaggedPassage {
             + self.tags.methods.len()
             + 1
             + 11 // salience + 10 method signals
+            + 1 // dimension
+            + 1 // document_type
+            + self.mds_categories.len() // one per mds_category
+            + 1 // section_type
     }
 
     /// Total triple count including text (for reporting only).
@@ -382,7 +492,40 @@ impl EmbedService {
             }
 
             let cache_path = cache.join(format!("{}.txt", work.slug));
-            let text = if cache_path.exists() {
+            let text = if let Some(ref local) = work.local_path {
+                let local_path = std::path::Path::new(local);
+                if local_path.exists() {
+                    tracing::info!(work = %work.title, path = %local, "Reading local file");
+                    std::fs::read_to_string(local_path).map_err(|e| {
+                        ServiceError::Embed(format!(
+                            "Failed to read local file {}: {e}",
+                            local_path.display()
+                        ))
+                    })?
+                } else {
+                    tracing::warn!(work = %work.title, path = %local, "Local file not found, falling back to cache/download");
+                    if cache_path.exists() {
+                        tracing::info!(work = %work.title, "Using cached");
+                        std::fs::read_to_string(&cache_path).map_err(|e| {
+                            ServiceError::Embed(format!(
+                                "Failed to read cache {}: {e}",
+                                cache_path.display()
+                            ))
+                        })?
+                    } else {
+                        tracing::info!(work = %work.title, "Downloading");
+                        let text = download_text(&work.url).await?;
+                        if let Err(e) = std::fs::write(&cache_path, &text) {
+                            tracing::warn!(
+                                path = %cache_path.display(),
+                                error = %e,
+                                "Could not cache download"
+                            );
+                        }
+                        text
+                    }
+                }
+            } else if cache_path.exists() {
                 tracing::info!(work = %work.title, "Using cached");
                 std::fs::read_to_string(&cache_path).map_err(|e| {
                     ServiceError::Embed(format!(
@@ -453,6 +596,10 @@ impl EmbedService {
                     tags,
                     signals,
                     salience: 0.0, // computed in batch below
+                    dimension: work.dimensions.first().cloned().unwrap_or_default(),
+                    document_type: work.document_type.clone().unwrap_or_default(),
+                    mds_categories: work.mds_categories.clone(),
+                    section_type: String::new(), // filled by classifier below
                 });
             }
 
@@ -477,8 +624,44 @@ impl EmbedService {
                 tags: EntityTags::default(),
                 signals,
                 salience: 0.0,
+                dimension: rule.dimensions.first().cloned().unwrap_or_default(),
+                document_type: String::new(),
+                mds_categories: Vec::new(),
+                section_type: rule.section_type.clone().unwrap_or_default(),
             });
         }
+
+        // ── Classify section types (DeepInfra + Gemma 4) ────────────
+        {
+            let mut p = shared.lock().unwrap();
+            p.phase = EmbedPhase::Tagging;
+            p.current_work = "classifying section types".into();
+        }
+
+        let passage_count = all_passages.len();
+        let classifier_config = crate::classify::ClassifierConfig::default();
+        let texts: Vec<String> = all_passages.iter().map(|p| p.text.clone()).collect();
+
+        tracing::info!(
+            total_passages = passage_count,
+            model = %classifier_config.model,
+            concurrency = classifier_config.concurrency,
+            "Starting section type classification"
+        );
+
+        let classify_results = crate::classify::classify_batch(&texts, &classifier_config).await?;
+
+        for (passage, result) in all_passages.iter_mut().zip(classify_results.iter()) {
+            passage.section_type = result.category.clone();
+        }
+
+        let classified_counts: std::collections::HashMap<String, usize> = classify_results
+            .iter()
+            .fold(std::collections::HashMap::new(), |mut acc, r| {
+                *acc.entry(r.category.clone()).or_insert(0) += 1;
+                acc
+            });
+        tracing::info!(?classified_counts, "Section type classification complete");
 
         // ── Compute batch salience (graph centrality) ────────────────
         {
@@ -745,6 +928,20 @@ fn store_passage_triples(
 
     // Salience
     store(er, "salience", json!(passage.salience))?;
+
+    // Orthogonal tags (Gentle Lovelace dimensions)
+    if !passage.dimension.is_empty() {
+        store(er, "has_dimension", json!(passage.dimension))?;
+    }
+    if !passage.document_type.is_empty() {
+        store(er, "document_type", json!(passage.document_type))?;
+    }
+    for cat in &passage.mds_categories {
+        store(er, "has_mds_category", json!(cat))?;
+    }
+    if !passage.section_type.is_empty() {
+        store(er, "has_section_type", json!(passage.section_type))?;
+    }
 
     Ok(())
 }

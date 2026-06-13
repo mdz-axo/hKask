@@ -47,41 +47,37 @@ embedding:
 # for both human and agent readers. Hopper and Lovelace (10% each) whisper
 # the foundational principles: accessibility and precision.
 dimension_centroids:
-  gentle:
-    ref: "style:gentle-lovelace:gentle-centroid"
+  - name: gentle
+    ref_name: "style:gentle-lovelace:gentle-centroid"
     weight: 0.50
     description: "Agent-correctness — docs ARE code; stale docs are functional defects"
-  schriver:
-    ref: "style:gentle-lovelace:schriver-centroid"
+  - name: schriver
+    ref_name: "style:gentle-lovelace:schriver-centroid"
     weight: 0.30
     description: "Findability — answer findable in 30 seconds by human or agent"
-  hopper:
-    ref: "style:gentle-lovelace:hopper-centroid"
+  - name: hopper
+    ref_name: "style:gentle-lovelace:hopper-centroid"
     weight: 0.10
     description: "Accessibility — comprehensible on first reading, zero prior context"
-  lovelace:
-    ref: "style:gentle-lovelace:lovelace-centroid"
+  - name: lovelace
+    ref_name: "style:gentle-lovelace:lovelace-centroid"
     weight: 0.10
     description: "Precision — specification independently verifiable"
 
 # ── Orthogonal tag sets ───────────────────────────────────────────────────
 tag_sets:
-  section_type:
+  - name: section_type
     description: "Structural role per WRITING_EXCELLENCE.md §2.3"
     values: [Statement, Evidence, Diagram, Implications]
-    detection: "Section headings and content patterns"
-  mds_category:
+  - name: mds_category
     description: "MDS 5-category taxonomy per MDS.md §1"
     values: [domain, composition, trust, lifecycle, curation]
-    detection: "Document frontmatter mds_categories field"
-  document_type:
+  - name: document_type
     description: "Document classification per MDS_SCAFFOLD.md §2"
     values: [specification, adr, guide, reference, plan, status]
-    detection: "Directory location and document structure"
-  dimension:
+  - name: dimension
     description: "Primary WRITING_EXCELLENCE quality dimension"
     values: [Hopper, Lovelace, Schriver, Gentle]
-    detection: "Explicit annotation in corpus manifest"
 
 # ── Tag weighting by context ──────────────────────────────────────────────
 # Gentle dominates across all document types because docs ARE code.

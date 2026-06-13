@@ -68,6 +68,12 @@ pub struct DiscoverRequest {
     /// Default: true (quality & precision first; set false for cheap/fast runs).
     #[serde(default = "default_true")]
     pub include_methods: bool,
+    /// Optional biographical details for author disambiguation.
+    /// Examples: "professor of psychology at Cornell University",
+    /// "machine learning researcher at Stanford, PhD from MIT".
+    /// Used to refine search queries and disambiguate common names.
+    #[serde(default)]
+    pub biographical_details: Option<String>,
 }
 
 fn default_max_works() -> usize {
@@ -116,6 +122,10 @@ pub struct DiscoveredWork {
     pub year: Option<u16>,
     pub source: String,
     pub work_type: String,
+    /// Abstract or snippet from the search result (when available).
+    /// Used for LLM concept extraction.
+    #[serde(default)]
+    pub abstract_text: Option<String>,
 }
 
 // ── Service ─────────────────────────────────────────────────────────────────
@@ -157,12 +167,28 @@ impl DiscoveryService {
 
         let mut works: Vec<DiscoveredWork> = Vec::new();
         let mut sources: Vec<String> = Vec::new();
-        let mut academic_titles: Vec<String> = Vec::new();
+        let mut academic_works: Vec<DiscoveredWork> = Vec::new();
 
         // ── Phase 1: Academic search via MCP web_search ────────────────────
         // Calls the MCP server's provider pool which includes Semantic Scholar
         // and arXiv alongside other providers. We filter results by provider.
-        match mcp_search(mcp, token, &req.author_name, req.max_works, "web").await {
+        //
+        // If biographical details are provided, they're appended to the search
+        // query for disambiguation (e.g., "John Smith" → "John Smith professor
+        // of psychology at Cornell University").
+        let academic_query = if let Some(ref bio) = req.biographical_details {
+            format!("{} {}", req.author_name, bio)
+        } else {
+            req.author_name.clone()
+        };
+        tracing::info!(
+            target: "hkask.discover",
+            query = %academic_query,
+            has_bio = req.biographical_details.is_some(),
+            "Academic search query"
+        );
+
+        match mcp_search(mcp, token, &academic_query, req.max_works, "web").await {
             Ok(results) => {
                 let (academic, other): (Vec<_>, Vec<_>) = results
                     .into_iter()
@@ -170,7 +196,7 @@ impl DiscoveryService {
 
                 let acad_count = academic.len();
                 for w in &academic {
-                    academic_titles.push(w.title.clone());
+                    academic_works.push(w.clone());
                 }
                 works.extend(academic);
                 sources.push(format!("academic_search ({acad_count} papers)"));
@@ -202,10 +228,10 @@ impl DiscoveryService {
         }
 
         // ── Resolve web search terms ─────────────────────────────────────
-        let search_terms = req
-            .web_search_terms
-            .clone()
-            .unwrap_or_else(|| extract_search_terms(&req.author_name, &academic_titles));
+        let search_terms = req.web_search_terms.clone().unwrap_or_else(|| {
+            let titles: Vec<String> = academic_works.iter().map(|w| w.title.clone()).collect();
+            extract_search_terms(&req.author_name, &titles)
+        });
         tracing::info!(
             target: "hkask.discover",
             terms = %search_terms,
@@ -311,8 +337,8 @@ impl DiscoveryService {
         let mut entities: Option<EntityConfig> = None;
         let mut methods: Vec<DeclaredMethod> = Vec::new();
 
-        if req.include_methods && !academic_titles.is_empty() {
-            match extract_concepts(&req.author_name, &academic_titles).await {
+        if req.include_methods && !academic_works.is_empty() {
+            match extract_concepts(&req.author_name, &academic_works).await {
                 Ok(extracted) => {
                     tracing::info!(
                         target: "hkask.discover",
@@ -366,7 +392,7 @@ impl DiscoveryService {
                 &methods,
             )?
         } else {
-            generate_corpus_yaml_with_metadata(
+            generate_corpus_yaml(
                 &author_slug,
                 &works,
                 &output_path,
@@ -404,16 +430,11 @@ impl DiscoveryService {
 /// Public so the CLI can regenerate the config after curation —
 /// selected web/YouTube candidates are added to the works list
 /// and a fresh corpus.yaml is written.
+///
+/// When `entities` and `methods` are provided (from LLM extraction phases),
+/// they are included in the generated config. Sets `corpus_type: "academic"`
+/// since this is the academic discovery pipeline.
 pub fn generate_corpus_yaml(
-    author_slug: &str,
-    works: &[DiscoveredWork],
-    output_dir: &Path,
-) -> Result<PathBuf, ServiceError> {
-    generate_corpus_yaml_with_metadata(author_slug, works, output_dir, None, &[])
-}
-
-/// Generate a corpus.yaml with extracted entities and inferred methods.
-fn generate_corpus_yaml_with_metadata(
     author_slug: &str,
     works: &[DiscoveredWork],
     output_dir: &Path,
@@ -422,21 +443,63 @@ fn generate_corpus_yaml_with_metadata(
 ) -> Result<PathBuf, ServiceError> {
     let corpus_works: Vec<Work> = works
         .iter()
-        .map(|w| Work {
-            title: w.title.clone(),
-            slug: w.slug.clone(),
-            url: w.url.clone(),
+        .map(|w| {
+            let format = match w.work_type.as_str() {
+                "journal_article" | "preprint" => "pdf",
+                "video_transcript" => "text",
+                _ => "web",
+            };
+            let document_type = match w.work_type.as_str() {
+                "journal_article" | "preprint" => Some("research-paper".to_string()),
+                _ => None,
+            };
+            Work {
+                title: w.title.clone(),
+                slug: w.slug.clone(),
+                url: w.url.clone(),
+                local_path: None,
+                format: format.to_string(),
+                document_type,
+                dimensions: vec![],
+                section_types: vec![],
+                mds_categories: vec![],
+            }
         })
         .collect();
 
-    let config = CorpusConfig {
+    let mut config = default_corpus_config(author_slug);
+    config.works = corpus_works;
+    config.entities = entities.unwrap_or_default();
+    config.methods = methods.to_vec();
+    config.corpus_type = "academic".to_string();
+
+    let config_yaml = serde_yaml::to_string(&config)
+        .map_err(|e| ServiceError::Embed(format!("Failed to serialize corpus config: {e}")))?;
+
+    let config_path = output_dir.join("corpus.yaml");
+    std::fs::write(&config_path, &config_yaml).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to write corpus.yaml to '{}': {e}",
+            config_path.display()
+        ))
+    })?;
+
+    Ok(config_path)
+}
+
+/// Default corpus configuration for a given author slug.
+///
+/// Shared between `generate_corpus_yaml` and the CLI curation section
+/// to prevent default drift. All corpus config defaults live here.
+pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
+    CorpusConfig {
         author: author_slug.to_string(),
         embedding: crate::embed::EmbeddingConfig {
             model: "DI/Qwen/Qwen3-Embedding-0.6B".to_string(),
             dim: 1024,
             batch_size: 64,
         },
-        works: corpus_works,
+        works: vec![],
         foundational_rules: vec![],
         chunking: crate::embed::ChunkingConfig {
             min_words: 50,
@@ -452,22 +515,12 @@ fn generate_corpus_yaml_with_metadata(
         budget: hkask_memory::salience::BudgetConfig::PerPage {
             per_100_pages: 3750,
         },
-        entities: entities.unwrap_or_default(),
-        methods: methods.to_vec(),
-    };
-
-    let config_yaml = serde_yaml::to_string(&config)
-        .map_err(|e| ServiceError::Embed(format!("Failed to serialize corpus config: {e}")))?;
-
-    let config_path = output_dir.join("corpus.yaml");
-    std::fs::write(&config_path, &config_yaml).map_err(|e| {
-        ServiceError::Embed(format!(
-            "Failed to write corpus.yaml to '{}': {e}",
-            config_path.display()
-        ))
-    })?;
-
-    Ok(config_path)
+        entities: Default::default(),
+        methods: vec![],
+        corpus_type: "literary".to_string(),
+        dimension_centroids: vec![],
+        tag_sets: vec![],
+    }
 }
 
 /// Augment an existing corpus.yaml with newly discovered works,
@@ -505,10 +558,27 @@ fn augment_corpus_yaml(
     let added: Vec<Work> = new_works
         .iter()
         .filter(|w| !existing_urls.contains(w.url.as_str()))
-        .map(|w| Work {
-            title: w.title.clone(),
-            slug: w.slug.clone(),
-            url: w.url.clone(),
+        .map(|w| {
+            let format = match w.work_type.as_str() {
+                "journal_article" | "preprint" => "pdf",
+                "video_transcript" => "text",
+                _ => "web",
+            };
+            let document_type = match w.work_type.as_str() {
+                "journal_article" | "preprint" => Some("research-paper".to_string()),
+                _ => None,
+            };
+            Work {
+                title: w.title.clone(),
+                slug: w.slug.clone(),
+                url: w.url.clone(),
+                local_path: None,
+                format: format.to_string(),
+                document_type,
+                dimensions: vec![],
+                section_types: vec![],
+                mds_categories: vec![],
+            }
         })
         .collect();
 
@@ -599,20 +669,41 @@ fn augment_corpus_yaml(
 /// Default template base path relative to project root.
 const TEMPLATE_BASE: &str = "registry/templates/replica";
 
+/// Parse a model override directive from a Jinja2 template's first line.
+/// Format: `{# model: OM/qwen3:14b #}`
+/// Returns the model name (with provider prefix) if found, None otherwise.
+fn parse_template_model(template_src: &str) -> Option<String> {
+    let first_line = template_src.lines().next()?;
+    let trimmed = first_line.trim();
+    if trimmed.starts_with("{# model:") && trimmed.ends_with("#}") {
+        let model = trimmed
+            .strip_prefix("{# model:")?
+            .strip_suffix("#}")?
+            .trim();
+        if model.is_empty() {
+            None
+        } else {
+            Some(model.to_string())
+        }
+    } else {
+        None
+    }
+}
+
 /// Extract key concepts, places, and events from academic paper titles
-/// using LLM semantic deduplication via the extract-concepts.j2 template.
+/// and abstracts using LLM semantic deduplication via the extract-concepts.j2 template.
 async fn extract_concepts(
     author_name: &str,
-    titles: &[String],
+    works: &[DiscoveredWork],
 ) -> Result<EntityConfig, ServiceError> {
-    // Build paper list for template (titles only — abstracts not available at this stage)
-    let papers: Vec<serde_json::Value> = titles
+    // Build paper list for template with titles and abstracts
+    let papers: Vec<serde_json::Value> = works
         .iter()
-        .map(|t| {
+        .map(|w| {
             serde_json::json!({
-                "title": t,
-                "abstract": "",
-                "year": "unknown"
+                "title": w.title,
+                "abstract": w.abstract_text.as_deref().unwrap_or(""),
+                "year": w.year.map(|y| y.to_string()).unwrap_or_else(|| "unknown".to_string()),
             })
         })
         .collect();
@@ -622,6 +713,9 @@ async fn extract_concepts(
     let template_src = std::fs::read_to_string(&template_path).map_err(|e| {
         ServiceError::Embed(format!("Failed to read extract-concepts template: {e}"))
     })?;
+
+    // Parse model override before rendering (comments are stripped during render)
+    let model_override = parse_template_model(&template_src);
 
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
@@ -650,7 +744,7 @@ async fn extract_concepts(
     };
 
     let result = router
-        .generate(&prompt, &params)
+        .generate_with_model(&prompt, &params, model_override.as_deref())
         .await
         .map_err(|e| ServiceError::Embed(format!("Concept extraction inference failed: {e}")))?;
 
@@ -670,6 +764,10 @@ async fn extract_concepts(
         places,
         events,
         concepts,
+        co_authors: vec![],
+        venues: vec![],
+        topics: vec![],
+        paradigms: vec![],
     })
 }
 
@@ -704,6 +802,9 @@ async fn infer_methods(
     let template_src = std::fs::read_to_string(&template_path)
         .map_err(|e| ServiceError::Embed(format!("Failed to read infer-methods template: {e}")))?;
 
+    // Parse model override before rendering (comments are stripped during render)
+    let model_override = parse_template_model(&template_src);
+
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
     env.add_template_owned("infer-methods", template_src)
@@ -731,7 +832,7 @@ async fn infer_methods(
     };
 
     let result = router
-        .generate(&prompt, &params)
+        .generate_with_model(&prompt, &params, model_override.as_deref())
         .await
         .map_err(|e| ServiceError::Embed(format!("Method inference failed: {e}")))?;
 
@@ -829,6 +930,13 @@ async fn mcp_search(
                         _ => "web_page",
                     };
 
+                    // Extract abstract/snippet for LLM concept extraction
+                    let abstract_text = item["abstract"]
+                        .as_str()
+                        .or_else(|| item["snippet"].as_str())
+                        .or_else(|| item["description"].as_str())
+                        .map(|s| s.to_string());
+
                     Some(DiscoveredWork {
                         slug: slugify(&title),
                         title,
@@ -836,6 +944,7 @@ async fn mcp_search(
                         year,
                         source,
                         work_type: work_type.to_string(),
+                        abstract_text,
                     })
                 })
                 .collect::<Vec<_>>()
@@ -1017,6 +1126,7 @@ async fn fetch_youtube_transcript(
         year: None,
         source: "youtube_transcript".to_string(),
         work_type: "transcript".to_string(),
+        abstract_text: Some(String::new()),
     }))
 }
 
