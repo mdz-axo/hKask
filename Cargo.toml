@@ -96,6 +96,7 @@ rand = "0.9"
 base64 = "0.22"
 image = "0.25"
 imageproc = "0.25"
+walkdir = "2"
 
 # Keychain / Secrets
 keyring = { version = "3", features = ["linux-native-sync-persistent", "crypto-rust"] }
