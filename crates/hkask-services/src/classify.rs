@@ -201,7 +201,7 @@ async fn classify_one(
     let category = if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(content) {
         parsed["category"]
             .as_str()
-            .unwrap_or("Statement")
+            .unwrap_or(&config.fallback_category)
             .to_string()
     } else {
         // Fallback: try to extract from raw text
@@ -212,7 +212,7 @@ async fn classify_one(
         } else if content.contains("Implications") {
             "Implications".to_string()
         } else {
-            "Statement".to_string()
+            config.fallback_category.clone()
         }
     };
 
