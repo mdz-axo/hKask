@@ -115,6 +115,7 @@ async fn all_mds_tools_are_listed() {
         "spec_require_writing_quality",
         "spec_graph_query",
         "spec_graph_coherence",
+        "spec_replica_rewrite",
     ];
 
     for name in expected {

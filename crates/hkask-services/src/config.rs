@@ -19,7 +19,6 @@ use hkask_inference::InferenceConfig;
 pub const DEFAULT_DB_PATH: &str = "hkask.db";
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
-const DEFAULT_MODEL: &str = "deepseek-v4-pro";
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";
 const DEFAULT_AGENT_NAME: &str = "curator";
 const TEST_AGENT_NAME: &str = "test-agent";
@@ -116,6 +115,7 @@ impl ServiceConfig {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
         let inference_config = InferenceConfig::from_env();
+        let default_model = inference_config.default_model.clone();
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
@@ -142,12 +142,12 @@ impl ServiceConfig {
             db_passphrase,
             acp_secret,
             mcp_secret: mcp_secret_vec,
+            default_model,
             inference_config,
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
-            default_model: DEFAULT_MODEL.to_string(),
             agent_name: DEFAULT_AGENT_NAME.to_string(),
             template_cache_path,
             memory_db_path,
@@ -181,12 +181,12 @@ impl ServiceConfig {
             db_passphrase,
             acp_secret: acp_secret.into_bytes(),
             mcp_secret: mcp_secret.into_bytes(),
-            inference_config,
+            inference_config: inference_config.clone(),
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
-            default_model: DEFAULT_MODEL.to_string(),
+            default_model: inference_config.default_model.clone(),
             agent_name,
             template_cache_path,
             memory_db_path,
@@ -199,17 +199,18 @@ impl ServiceConfig {
     ///
     /// Uses in-memory databases and synthetic secrets. Never use in production.
     pub fn in_memory() -> Self {
+        let inference_config = InferenceConfig::default();
         Self {
             db_path: ":memory:".to_string(),
             db_passphrase: String::new(),
             acp_secret: vec![0u8; 32],
             mcp_secret: vec![0u8; 32],
-            inference_config: InferenceConfig::default(),
+            inference_config: inference_config.clone(),
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,
-            default_model: DEFAULT_MODEL.to_string(),
+            default_model: inference_config.default_model.clone(),
             agent_name: TEST_AGENT_NAME.to_string(),
             template_cache_path: DEFAULT_TEMPLATE_CACHE_PATH.to_string(),
             memory_db_path: None,

@@ -19,6 +19,8 @@ use hkask_types::Visibility;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 
+use crate::classify::TripleExtraction;
+
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
@@ -154,10 +156,21 @@ pub struct CorpusConfig {
     /// If empty, section_type defaults to "Statement" for all passages.
     #[serde(default)]
     pub classifier: String,
+
+    /// Triple extractor classifier config name (references registry/classify/{name}.yaml).
+    /// Uses Gemma 4 to extract semantic triples (topic, concepts, entities,
+    /// relationships, primary_dimension, quality_flags) from each passage.
+    /// Defaults to "triple-extractor". Set to empty string to disable.
+    #[serde(default = "default_triple_classifier")]
+    pub triple_classifier: String,
 }
 
 fn default_corpus_type() -> String {
     "literary".to_string()
+}
+
+fn default_triple_classifier() -> String {
+    "triple-extractor".to_string()
 }
 
 /// Entity declarations for corpus-specific tagging.
@@ -341,6 +354,8 @@ struct TaggedPassage {
     mds_categories: Vec<String>,
     /// Section type tag for this passage (from classifier or work declaration).
     section_type: String,
+    /// Classifier-extracted semantic triples (topic, concepts, entities, relationships, quality).
+    semantic_triples: TripleExtraction,
 }
 
 impl TaggedPassage {
@@ -350,6 +365,7 @@ impl TaggedPassage {
     fn metadata_triple_count(&self) -> usize {
         // 6 structural + entity tags + method tags + 1 salience + 10 signals
         // + 4 orthogonal tags (dimension, doc_type, mds_categories, section_type)
+        // + semantic triples: 1 topic + concepts + entities + relationships + 1 dimension + quality_flags
         6 + self.tags.characters.len()
             + self.tags.places.len()
             + self.tags.events.len()
@@ -361,6 +377,12 @@ impl TaggedPassage {
             + 1 // document_type
             + self.mds_categories.len() // one per mds_category
             + 1 // section_type
+            + if !self.semantic_triples.topic.is_empty() { 1 } else { 0 }
+            + self.semantic_triples.concepts.len()
+            + self.semantic_triples.entities.len()
+            + self.semantic_triples.relationships.len()
+            + if !self.semantic_triples.primary_dimension.is_empty() { 1 } else { 0 }
+            + self.semantic_triples.quality_flags.len()
     }
 
     /// Total triple count including text (for reporting only).
@@ -612,6 +634,7 @@ impl EmbedService {
                     document_type: work.document_type.clone().unwrap_or_default(),
                     mds_categories: work.mds_categories.clone(),
                     section_type: String::new(), // filled by classifier below
+                    semantic_triples: TripleExtraction::default(), // filled by triple classifier
                 });
             }
 
@@ -640,6 +663,7 @@ impl EmbedService {
                 document_type: String::new(),
                 mds_categories: Vec::new(),
                 section_type: rule.section_type.clone().unwrap_or_default(),
+                semantic_triples: TripleExtraction::default(), // rules get empty extraction
             });
         }
 
@@ -652,20 +676,21 @@ impl EmbedService {
 
         let passage_count = all_passages.len();
 
+        // Compute registry_dir from config_path for classifier resolution.
+        // config_path is registry/styles/gentle-lovelace/corpus.yaml,
+        // so registry_dir is 3 levels up.
+        let registry_dir = config_path
+            .parent() // styles/gentle-lovelace
+            .and_then(|p| p.parent()) // styles
+            .and_then(|p| p.parent()) // registry
+            .unwrap_or_else(|| Path::new("registry"));
+
         // Load classifier config if specified in corpus.yaml
         let classifier_config = if config.classifier.is_empty() {
             tracing::info!("No classifier configured — all passages default to Statement");
             crate::classify::ClassifierConfig::from_def(&Default::default())
         } else {
-            // registry/classify/{name}.yaml is relative to the project root.
-            // config_path is registry/styles/gentle-lovelace/corpus.yaml,
-            // so registry_dir is 3 levels up.
-            let registry_dir = config_path
-                .parent() // styles/gentle-lovelace
-                .and_then(|p| p.parent()) // styles
-                .and_then(|p| p.parent()) // registry
-                .unwrap_or_else(|| Path::new("registry"));
-            let def = crate::classify::load_classifier_config(&config.classifier, registry_dir)?;
+            let def = crate::classify::load_classifier_config(&config.classifier, &registry_dir)?;
             crate::classify::ClassifierConfig::from_def(&def)
         };
 
@@ -691,6 +716,45 @@ impl EmbedService {
                 acc
             });
         tracing::info!(?classified_counts, "Section type classification complete");
+
+        // ── Extract semantic triples (Gemma 4 classifier) ───────────
+        if !config.triple_classifier.is_empty() {
+            let triple_config = {
+                let def = crate::classify::load_classifier_config(
+                    &config.triple_classifier,
+                    &registry_dir,
+                )?;
+                crate::classify::ClassifierConfig::from_def(&def)
+            };
+
+            tracing::info!(
+                total_passages = passage_count,
+                model = %triple_config.model,
+                concurrency = triple_config.concurrency,
+                "Starting semantic triple extraction"
+            );
+
+            let triple_extractions =
+                crate::classify::extract_triples_batch(&texts, &triple_config).await?;
+
+            for (passage, extraction) in all_passages.iter_mut().zip(triple_extractions.iter()) {
+                passage.semantic_triples = extraction.clone();
+            }
+
+            let topics_extracted = triple_extractions
+                .iter()
+                .filter(|e| !e.topic.is_empty())
+                .count();
+            let total_concepts: usize = triple_extractions.iter().map(|e| e.concepts.len()).sum();
+            tracing::info!(
+                topics_extracted,
+                total_concepts,
+                total_passages = passage_count,
+                "Semantic triple extraction complete"
+            );
+        } else {
+            tracing::info!("Triple classifier disabled — skipping semantic extraction");
+        }
 
         // ── Compute batch salience (graph centrality) ────────────────
         {
@@ -1114,6 +1178,27 @@ fn store_passage_triples(
     }
     if !passage.section_type.is_empty() {
         store(er, "has_section_type", json!(passage.section_type))?;
+    }
+
+    // Classifier-extracted semantic triples
+    let st = &passage.semantic_triples;
+    if !st.topic.is_empty() {
+        store(er, "extracted_topic", json!(st.topic))?;
+    }
+    for concept in &st.concepts {
+        store(er, "extracted_concept", json!(concept))?;
+    }
+    for entity in &st.entities {
+        store(er, "extracted_entity", json!(entity))?;
+    }
+    for rel in &st.relationships {
+        store(er, "extracted_relationship", json!(rel))?;
+    }
+    if !st.primary_dimension.is_empty() {
+        store(er, "primary_dimension", json!(st.primary_dimension))?;
+    }
+    for flag in &st.quality_flags {
+        store(er, "has_quality_flag", json!(flag))?;
     }
 
     Ok(())

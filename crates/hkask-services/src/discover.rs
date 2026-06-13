@@ -526,6 +526,7 @@ pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
         tag_sets: vec![],
         tag_weights: Default::default(),
         classifier: String::new(),
+        triple_classifier: String::new(),
     }
 }
 
@@ -932,21 +933,24 @@ async fn mcp_search(
     let results = payload["results"]
         .as_array()
         .map(|arr| {
-            // Debug: dump first result to understand source field
-            if let Some(first) = arr.first() {
-                tracing::debug!(
-                    target: "hkask.discover",
-                    first_result = %serde_json::to_string_pretty(first).unwrap_or_default(),
-                    "First MCP search result"
-                );
-            }
-
-            let parsed: Vec<DiscoveredWork> = arr
-                .iter()
+            arr.iter()
                 .filter_map(|item| {
                     let title = item["title"].as_str()?.to_string();
                     let url = item["url"].as_str()?.to_string();
-                    let source = item["source"].as_str().unwrap_or("web").to_lowercase();
+                    let mut source = item["source"].as_str().unwrap_or("web").to_lowercase();
+
+                    // If source isn't already academic, check providers list
+                    if source != "arxiv" && source != "semantic_scholar" {
+                        if let Some(providers) = item["providers"].as_array() {
+                            let provider_strs: Vec<&str> =
+                                providers.iter().filter_map(|p| p.as_str()).collect();
+                            if provider_strs.iter().any(|p| *p == "arxiv") {
+                                source = "arxiv".to_string();
+                            } else if provider_strs.iter().any(|p| *p == "semantic_scholar") {
+                                source = "semantic_scholar".to_string();
+                            }
+                        }
+                    }
                     let published = item["published"].as_str().map(|s| s.to_string());
                     let year = published.as_ref().and_then(|d| d[..4].parse::<u16>().ok());
 
@@ -977,16 +981,7 @@ async fn mcp_search(
                         abstract_text,
                     })
                 })
-                .collect::<Vec<_>>();
-
-            let sources: Vec<&str> = parsed.iter().map(|w| w.source.as_str()).take(5).collect();
-            tracing::debug!(
-                target: "hkask.discover",
-                total = parsed.len(),
-                first_sources = ?sources,
-                "Parsed MCP search results"
-            );
-            parsed
+                .collect::<Vec<_>>()
         })
         .unwrap_or_default();
 

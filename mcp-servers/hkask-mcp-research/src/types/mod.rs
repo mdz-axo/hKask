@@ -313,6 +313,9 @@ pub struct SearchResultOutput {
     pub source: Option<String>,
     pub published: Option<String>,
     pub content_preview: Option<String>,
+    /// Search providers that returned this result (for source classification).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub providers: Vec<String>,
 }
 
 impl From<&RankedResult> for SearchResultOutput {
@@ -324,6 +327,7 @@ impl From<&RankedResult> for SearchResultOutput {
             source: r.source.clone(),
             published: r.published.clone(),
             content_preview: r.content_preview.clone(),
+            providers: r.providers.clone(),
         }
     }
 }

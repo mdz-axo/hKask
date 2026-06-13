@@ -21,7 +21,9 @@ use std::fmt::Debug;
 /// Generate request for inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerateRequest {
-    pub model: String,
+    /// Model override. When None, uses the inference port's default model.
+    #[serde(default)]
+    pub model: Option<String>,
     pub prompt: String,
     pub options: Option<GenerateOptions>,
 }

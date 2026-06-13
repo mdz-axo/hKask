@@ -167,7 +167,7 @@ impl InferenceRouter {
     ) -> Result<InferenceResult, InferenceError> {
         let model_name = model_override
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "deepseek-v4-pro".to_string());
+            .unwrap_or_else(|| self.config.default_model.clone());
         let (provider, model) = self.resolve(&model_name)?;
         let model = model.to_string();
         let prompt = prompt.to_string();
@@ -214,10 +214,7 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
-        // Use the default model from config — this is the "no model override" path.
-        // The default model name may or may not have a prefix.
-        let default_model = "deepseek-v4-pro"; // TODO: make configurable per-session
-        let (provider, model) = match self.resolve(default_model) {
+        let (provider, model) = match self.resolve(&self.config.default_model) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
@@ -262,7 +259,7 @@ impl InferencePort for InferenceRouter {
     > {
         let model_name = model_override
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "deepseek-v4-pro".to_string());
+            .unwrap_or_else(|| self.config.default_model.clone());
         let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
@@ -327,7 +324,7 @@ impl InferencePort for InferenceRouter {
     > {
         let model_name = model_override
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "deepseek-v4-pro".to_string());
+            .unwrap_or_else(|| self.config.default_model.clone());
         let (provider, model) = match self.resolve(&model_name) {
             Ok(r) => r,
             Err(e) => {

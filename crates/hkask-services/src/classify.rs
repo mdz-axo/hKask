@@ -19,6 +19,24 @@ pub struct ClassifyResult {
     pub category: String,
 }
 
+/// Semantic triple extraction result for a single passage.
+/// Produced by the triple-extractor classifier (Gemma 4).
+#[derive(Debug, Clone, Default)]
+pub struct TripleExtraction {
+    /// One-sentence summary of what the passage is about.
+    pub topic: String,
+    /// Key concepts mentioned in the passage.
+    pub concepts: Vec<String>,
+    /// Named entities, tools, frameworks, or services mentioned.
+    pub entities: Vec<String>,
+    /// Relationships between concepts or entities.
+    pub relationships: Vec<String>,
+    /// Which Gentle Lovelace dimension the passage primarily exemplifies.
+    pub primary_dimension: String,
+    /// Quality assessment flags for the passage.
+    pub quality_flags: Vec<String>,
+}
+
 /// OpenAI-compatible chat completion response (minimal fields).
 #[derive(Debug, Deserialize)]
 struct ChatResponse {
@@ -286,4 +304,171 @@ pub async fn classify_batch(
             })
         })
         .collect())
+}
+
+// ── Triple Extraction ──────────────────────────────────────────────────
+
+/// Extract semantic triples from a batch of passages using the Gemma 4 classifier.
+///
+/// Returns results in the same order as the input texts.
+/// Failed extractions default to empty TripleExtraction.
+/// Graceful degradation: no API key → all empty extractions.
+pub async fn extract_triples_batch(
+    texts: &[String],
+    config: &ClassifierConfig,
+) -> Result<Vec<TripleExtraction>, ServiceError> {
+    if config.api_key.is_empty() {
+        tracing::info!("No API key for triple extraction — returning empty extractions");
+        return Ok(texts.iter().map(|_| TripleExtraction::default()).collect());
+    }
+
+    let client = Client::builder()
+        .timeout(config.timeout)
+        .build()
+        .map_err(|e| ServiceError::Embed(format!("Triple extractor client build error: {e}")))?;
+
+    let config = std::sync::Arc::new(config.clone());
+    let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(config.concurrency));
+    let mut handles = Vec::with_capacity(texts.len());
+
+    for (i, text) in texts.iter().enumerate() {
+        let client = client.clone();
+        let cfg = config.clone();
+        let text = text.clone();
+        let permit = semaphore.clone();
+
+        handles.push(tokio::spawn(async move {
+            let _permit = permit.acquire().await;
+            let result = extract_triples_one(&client, &cfg, &text).await;
+            (i, result)
+        }));
+    }
+
+    let mut results: Vec<Option<TripleExtraction>> = vec![None; texts.len()];
+    for handle in handles {
+        match handle.await {
+            Ok((i, Ok(result))) => {
+                results[i] = Some(result);
+            }
+            Ok((i, Err(e))) => {
+                tracing::warn!(index = i, error = %e, "Triple extraction failed, using empty");
+                results[i] = Some(TripleExtraction::default());
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Triple extraction task panicked");
+            }
+        }
+    }
+
+    Ok(results.into_iter().map(|r| r.unwrap_or_default()).collect())
+}
+
+/// Extract triples from a single passage.
+async fn extract_triples_one(
+    client: &Client,
+    config: &ClassifierConfig,
+    text: &str,
+) -> Result<TripleExtraction, ServiceError> {
+    let body = serde_json::json!({
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": config.system_prompt},
+            {"role": "user", "content": text}
+        ],
+        "temperature": config.temperature,
+        "max_tokens": config.max_tokens
+    });
+
+    let resp = client
+        .post(&config.base_url)
+        .header("Authorization", format!("Bearer {}", config.api_key))
+        .json(&body)
+        .timeout(config.timeout)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Embed(format!("Triple extractor HTTP error: {e}")))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(ServiceError::Embed(format!(
+            "Triple extractor error {status}: {}",
+            body.chars().take(200).collect::<String>()
+        )));
+    }
+
+    let chat: ChatResponse = resp
+        .json()
+        .await
+        .map_err(|e| ServiceError::Embed(format!("Triple extractor JSON parse error: {e}")))?;
+
+    let content = chat
+        .choices
+        .first()
+        .map(|c| c.message.content.as_str())
+        .unwrap_or("");
+
+    // Parse the structured JSON from the response
+    parse_triple_extraction(content)
+}
+
+/// Parse a TripleExtraction from classifier JSON response.
+fn parse_triple_extraction(content: &str) -> Result<TripleExtraction, ServiceError> {
+    // Try to extract JSON from the response (may be wrapped in markdown code blocks)
+    let json_str = if let Some(start) = content.find("{") {
+        if let Some(end) = content.rfind("}") {
+            &content[start..=end]
+        } else {
+            content
+        }
+    } else {
+        content
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Triple extraction JSON parse error: {e}. Content: {}",
+            &json_str[..json_str.len().min(200)]
+        ))
+    })?;
+
+    Ok(TripleExtraction {
+        topic: parsed["topic"].as_str().unwrap_or("").to_string(),
+        concepts: parsed["concepts"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        entities: parsed["entities"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        relationships: parsed["relationships"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        primary_dimension: parsed["primary_dimension"]
+            .as_str()
+            .unwrap_or("")
+            .to_string(),
+        quality_flags: parsed["quality_flags"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default(),
+    })
 }

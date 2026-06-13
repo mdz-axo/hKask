@@ -405,7 +405,7 @@ const ONBOARDING_MODELS: &[&str] = &[
 
 /// Let the user select a model from the curated cloud frontier list.
 async fn select_model() -> String {
-    let default_model = "deepseek-v4-pro".to_string();
+    let default_model = hkask_inference::InferenceConfig::from_env().default_model;
 
     println!("  \x1b[1mAvailable models\x1b[0m (via DeepInfra):");
     for (i, name) in ONBOARDING_MODELS.iter().enumerate() {

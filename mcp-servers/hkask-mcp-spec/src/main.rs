@@ -1,14 +1,19 @@
-//! hKask MCP Spec — Specification authoring, validation, and graph analysis (5 tools per MDS §3)
+//! hKask MCP Spec — Specification authoring, validation, graph analysis, and replica rewriting (6 tools per MDS §3)
 //!
 //! Curation (Accept/Revise/Reject) is external to the spec server — performed by
 //! the Curator agent or human. The spec server handles capture, decompose,
-//! writing-quality, graph query, and graph coherence.
+//! writing-quality, graph query, graph coherence, and replica rewrite.
 
 pub mod types;
 
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
+use hkask_inference::InferenceConfig;
+use hkask_services::{
+    CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, InferenceContext,
+    RetrievalSection, ValidationSection,
+};
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId};
 use hkask_types::{
@@ -19,6 +24,7 @@ use hkask_types::{
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use std::sync::Arc;
+use std::time::Instant;
 use types::*;
 
 // ── Server ───────────────────────────────────────────────────
@@ -613,6 +619,125 @@ impl SpecServer {
                 suggestions,
             },
         )
+    }
+
+    /// Rewrite a passage or document using the Gentle Lovelace replica persona.
+    /// Retrieves exemplar passages from the target dimension's centroid and
+    /// generates improved prose optimized for that dimension of excellence.
+    #[tool(
+        description = "Rewrite a passage or document using the Gentle Lovelace replica. Optimizes prose for a target quality dimension (Gentle/Schriver/Hopper/Lovelace) using exemplar retrieval and centroid-guided generation."
+    )]
+    async fn spec_replica_rewrite(
+        &self,
+        Parameters(ReplicaRewriteRequest {
+            passage,
+            dimension,
+            document_type: _,
+            db_path,
+            db_passphrase,
+            capability_token,
+        }): Parameters<ReplicaRewriteRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("spec_replica_rewrite", &self.webid);
+        let started = Instant::now();
+
+        check_cap!(
+            self,
+            span,
+            capability_token,
+            "rewrite",
+            DelegationAction::Read
+        );
+
+        // Build dimension-specific rewrite prompt
+        let dimension_guidance = match dimension.to_lowercase().as_str() {
+            "gentle" => {
+                "Rewrite this text to maximize agent-correctness. Docs ARE code — ensure every statement is actionable and unambiguous. Remove any stale references or outdated information."
+            }
+            "schriver" => {
+                "Rewrite this text for maximum findability. Use scannable headings, descriptive hyperlinks, and front-load key concepts. A reader must find their answer within 30 seconds."
+            }
+            "hopper" => {
+                "Rewrite this text for maximum accessibility. Make it comprehensible on first reading with zero prior context. Use plain language, active voice, and short sentences."
+            }
+            "lovelace" => {
+                "Rewrite this text for maximum precision. Make every specification independently verifiable — a reader must be able to write a test from this text alone."
+            }
+            _ => {
+                "Rewrite this text for all four dimensions of documentation excellence: agent-correctness (Gentle), findability (Schriver), accessibility (Hopper), and precision (Lovelace)."
+            }
+        };
+
+        let prompt = format!("{dimension_guidance}\n\n=== TEXT TO REWRITE ===\n\n{passage}");
+
+        // Target the appropriate centroid
+        let centroid_ref = if dimension.to_lowercase() == "composite" {
+            "style:gentle-lovelace:centroid".to_string()
+        } else {
+            format!(
+                "style:gentle-lovelace:{}-centroid",
+                dimension.to_lowercase()
+            )
+        };
+
+        let run = async {
+            let gen_model = std::env::var("HKASK_REPLICA_MODEL")
+                .unwrap_or_else(|_| "deepseek-v4-flash:cloud".to_string());
+            let emb_model = std::env::var("HKASK_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+
+            let inf_cfg = InferenceConfig::from_env();
+            let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
+
+            let config = CognitionConfig {
+                author: "gentle-lovelace".to_string(),
+                jinja2_template: None,
+                embedding: EmbeddingSection {
+                    model: emb_model.clone(),
+                    dim: 1024,
+                    centroid_entity_ref: centroid_ref,
+                    retrieval: RetrievalSection::default(),
+                },
+                validation: ValidationSection {
+                    centroid_distance_max: 0.40,
+                },
+            };
+
+            let request = ComposeRequest {
+                prompt,
+                db_path: std::path::PathBuf::from(&db_path),
+                db_passphrase: db_passphrase.clone(),
+                cognition: config,
+                inference_ctx,
+                no_validate: false,
+            };
+
+            ComposeService::compose(request)
+                .await
+                .map_err(|e| e.to_string())
+        };
+
+        match run.await {
+            Ok(result) => {
+                let output = serde_json::to_value(&ReplicaRewriteResponse {
+                    rewritten: result.generated_prose,
+                    dimension: dimension.clone(),
+                    exemplar_count: result.exemplar_count,
+                    centroid_distance: result.validation.as_ref().map(|v| v.distance),
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                })
+                .unwrap_or(serde_json::json!({"error": "serialization failed"}));
+
+                self.record_experience(
+                    "spec_replica_rewrite",
+                    &dimension,
+                    "success",
+                    output.clone(),
+                );
+                span.ok_json(output)
+            }
+            Err(e) => span.internal_error(serde_json::json!({"error": e})),
+        }
     }
 }
 

@@ -76,7 +76,7 @@ impl Default for ImprovSessionConfig {
             participation_threshold: 0.75,
             max_speakers_per_turn: 3,
             context_window: 5,
-            relevance_model: "qwen3:8b".to_string(),
+            relevance_model: "DI/google/gemma-4-26B-A4B-it".to_string(),
             relevance_max_tokens: 100,
             synthesis: SynthesisMode::Optional,
             confidence_config: None,
@@ -212,7 +212,7 @@ async fn relevance_check<C: InferenceClient>(
         );
         let response = inference_client
             .generate(&GenerateRequest {
-                model: config.relevance_model.clone(),
+                model: Some(config.relevance_model.clone()),
                 prompt,
                 options: Some(GenerateOptions {
                     n_probs: None,
@@ -336,7 +336,7 @@ async fn sequential_speak<C: InferenceClient>(
             speaker.name
         );
         let request = GenerateRequest {
-            model: config.relevance_model.clone(),
+            model: None, // use system default model for agent responses
             prompt: prompt.clone(),
             options: Some(GenerateOptions {
                 n_probs: Some(5),
@@ -393,7 +393,7 @@ async fn synthesize<C: InferenceClient>(
         acc
     });
     let request = GenerateRequest {
-        model: config.relevance_model.clone(),
+        model: None, // use system default for synthesis
         prompt: format!(
             "The user asked: {user_message}\n\nMultiple agents responded:\n{summary}\n\
              Provide a brief synthesis that highlights key insights and any disagreements:"

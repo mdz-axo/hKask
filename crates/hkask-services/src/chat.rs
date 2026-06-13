@@ -370,8 +370,8 @@ impl ChatService {
             system_prompt.push_str(section);
         }
 
-        // Determine agent kind and default model
-        let agent_kind = match agent {
+        // Determine agent kind (used for capability routing, not model selection)
+        let _agent_kind = match agent {
             Some(registered) => registered.definition.agent_kind,
             None => {
                 return Err(ServiceError::AgentNotFound(
@@ -379,14 +379,12 @@ impl ChatService {
                 ));
             }
         };
-        let default_model = match agent_kind {
-            hkask_types::AgentKind::Bot => "deepseek-v4-flash",
-            hkask_types::AgentKind::Replicant => "deepseek-v4-pro",
-        };
+        // Model flows from request override → config default.
+        // Agent kind no longer hardcodes model selection — use session/replicant settings.
         let model = req
             .model_override
             .as_deref()
-            .unwrap_or(default_model)
+            .unwrap_or(&ctx.config().default_model)
             .to_string();
 
         // Resolve inference port — prefer override, then shared port from AgentService

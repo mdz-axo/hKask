@@ -1,0 +1,46 @@
+# Triple Extractor — Gemma 4 classifier for semantic triple generation
+# Used by: kask embed-corpus (triple extraction pass, after section_type)
+# Model: google/gemma-4-26B-A4B-it (4B active, 26B total, non-reasoning)
+# Provider: DeepInfra (cloud API, OpenAI-compatible)
+#
+# Extracts structured semantic data from each passage:
+#   topic, concepts, entities, relationships, primary_dimension, quality_flags
+# These become metadata triples in the embedding store, enabling semantic
+# queries beyond string-matching.
+
+classifier:
+  name: triple-extractor
+  model: google/gemma-4-26B-A4B-it
+  provider: deepinfra
+  concurrency: 150
+  timeout_secs: 30
+
+  system_prompt: >
+    Extract structured information from this technical documentation passage.
+    Return ONLY valid JSON, no commentary:
+
+    {
+      "topic": "One sentence summary of this passage",
+      "concepts": ["key concept 1", "key concept 2"],
+      "entities": ["named entity mentioned", "tool/framework/service name"],
+      "relationships": ["how concepts or entities relate"],
+      "primary_dimension": "Gentle|Schriver|Hopper|Lovelace",
+      "quality_flags": ["flag1", "flag2"]
+    }
+
+    Primary dimension meanings:
+    - Gentle: agent-correctness, actionable, unambiguous
+    - Schriver: findability, scannable, well-structured
+    - Hopper: accessibility, comprehensible, plain language
+    - Lovelace: precision, verifiable, rigorous
+
+    Quality flags: clear, actionable, verbose, vague, well_structured,
+    needs_example, precise, accessible, authoritative, outdated.
+
+  base_url: https://api.deepinfra.com/v1/openai/chat/completions
+  api_key_env: DEEPINFRA_API_KEY
+
+  temperature: 0.0
+  max_tokens: 300
+
+  fallback_category: Statement

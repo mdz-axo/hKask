@@ -108,6 +108,11 @@ pub struct InferenceConfig {
     /// Max idle connections per host for the HTTP client pool.
     /// Default: 5.
     pub pool_max_idle: usize,
+
+    /// Default model name used when no model is specified at inference time.
+    /// Supports provider prefixes (OM/, FW/, DI/) or unprefixed names.
+    /// Default: "deepseek-v4-pro". Override with `HKASK_DEFAULT_MODEL` env var.
+    pub default_model: String,
 }
 
 impl Default for InferenceConfig {
@@ -121,6 +126,7 @@ impl Default for InferenceConfig {
             deepinfra_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
+            default_model: "deepseek-v4-pro".to_string(),
         }
     }
 }
@@ -157,6 +163,8 @@ impl InferenceConfig {
             deepinfra_api_key,
             timeout_secs: 120,
             pool_max_idle: 5,
+            default_model: std::env::var("HKASK_DEFAULT_MODEL")
+                .unwrap_or_else(|_| "deepseek-v4-pro".to_string()),
         }
     }
 

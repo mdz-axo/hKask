@@ -24,10 +24,10 @@ use crate::commands;
 /// port, but standalone commands (`kask bundle compose`) create one on demand.
 fn resolve_composition_port() -> Arc<dyn InferencePort> {
     let inference_config = hkask_inference::InferenceConfig::from_env();
-    let ctx =
-        hkask_services::InferenceContext::from_parts(None, "deepseek-v4-pro", inference_config);
+    let default_model = inference_config.default_model.clone();
+    let ctx = hkask_services::InferenceContext::from_parts(None, &default_model, inference_config);
     commands::helpers::or_exit(
-        hkask_services::InferenceService::resolve_port(&ctx, "deepseek-v4-pro"),
+        hkask_services::InferenceService::resolve_port(&ctx, &default_model),
         "Failed to initialize inference port for bundle composition",
     )
 }

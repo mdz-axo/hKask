@@ -310,8 +310,16 @@ impl ProviderPool {
             let key = result.url.to_lowercase();
             match url_map.get_mut(&key) {
                 Some(entry) => {
-                    entry.providers.push(provider);
+                    entry.providers.push(provider.clone());
                     entry.ranks.push(rank);
+                    // Always prefer academic sources over web/search-engine sources
+                    let is_academic = matches!(
+                        result.source.as_deref(),
+                        Some("arXiv") | Some("arxiv") | Some("semantic_scholar")
+                    );
+                    if is_academic && result.source.is_some() {
+                        entry.source = result.source.clone();
+                    }
                 }
                 None => {
                     url_map.insert(

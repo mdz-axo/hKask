@@ -56,7 +56,7 @@ impl InferenceClient for InferencePortAdapter {
 
         let result = self
             .port
-            .generate_with_model(&request.prompt, &params, Some(&request.model))
+            .generate_with_model(&request.prompt, &params, request.model.as_deref())
             .await?;
 
         Ok(GenerateResponse {
@@ -130,7 +130,7 @@ impl InferenceClient for CircuitBreakerInferenceAdapter {
     async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
         if !self.breaker.allow_request() {
             return Err(InferenceError::CircuitOpen(format!(
-                "Circuit is {:?}, rejecting generate request for model {}",
+                "Circuit is {:?}, rejecting generate request for model {:?}",
                 self.breaker.state(),
                 request.model,
             )));

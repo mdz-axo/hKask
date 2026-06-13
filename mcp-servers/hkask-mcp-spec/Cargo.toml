@@ -8,6 +8,8 @@ description = "Specification authoring, curation, and validation MCP server"
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-services = { path = "../../crates/hkask-services" }
+hkask-inference = { path = "../../crates/hkask-inference" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true

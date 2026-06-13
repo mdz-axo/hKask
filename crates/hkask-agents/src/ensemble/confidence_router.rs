@@ -24,7 +24,7 @@ impl Default for ConfidenceConfig {
     fn default() -> Self {
         Self {
             threshold: 0.75,
-            escalate_to_model: "qwen3:70b".to_string(),
+            escalate_to_model: String::new(),
             n_probs: 5,
         }
     }
@@ -44,8 +44,8 @@ impl ConfidenceConfig {
             escalate_to_model: frontmatter
                 .get("escalate_to_model")
                 .and_then(|v| v.as_str())
-                .unwrap_or("qwen3:70b")
-                .to_string(),
+                .map(|s| s.to_string())
+                .unwrap_or_default(),
             n_probs: frontmatter
                 .get("n_probs")
                 .and_then(|v| v.as_i64())
@@ -66,8 +66,13 @@ pub async fn check_and_escalate<C: InferenceClient>(
     original_prompt: &str,
 ) -> Option<AgentResponse> {
     if response.confidence < config.threshold {
+        let escalate_model = if config.escalate_to_model.is_empty() {
+            None
+        } else {
+            Some(config.escalate_to_model.clone())
+        };
         let request = GenerateRequest {
-            model: config.escalate_to_model.clone(),
+            model: escalate_model,
             prompt: original_prompt.to_string(),
             options: Some(GenerateOptions {
                 n_probs: Some(config.n_probs),

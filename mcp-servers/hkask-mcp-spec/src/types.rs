@@ -1,6 +1,6 @@
 //! Request/response types for the Spec MCP server — MDS §3 tool surface.
 //!
-//! Five tools: capture, decompose, writing-quality, graph/query, graph/coherence.
+//! Six tools: capture, decompose, writing-quality, graph/query, graph/coherence, replica/rewrite.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -171,4 +171,49 @@ pub struct GraphCoherenceRequest {
     pub collection_id: Option<String>,
     /// OCAP capability token for authorization.
     pub capability_token: Option<String>,
+}
+
+// ── Replica Rewrite types ──────────────────────────────────────
+
+/// Request to rewrite a passage or document using the Gentle Lovelace
+/// replica persona. The replica retrieves exemplar passages from the
+/// target dimension's centroid and generates improved prose.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ReplicaRewriteRequest {
+    /// The passage or document text to rewrite.
+    pub passage: String,
+    /// Which Gentle Lovelace dimension to optimize for:
+    /// "composite", "Gentle", "Schriver", "Hopper", or "Lovelace".
+    #[serde(default = "default_dimension")]
+    pub dimension: String,
+    /// Optional document type for context-sensitive weighting
+    /// (specification, guide, reference, adr, plan, status).
+    #[serde(default)]
+    pub document_type: Option<String>,
+    /// Path to the per-agent semantic database (where the Gentle Lovelace
+    /// embeddings and centroids are stored).
+    pub db_path: String,
+    /// Passphrase for opening the database.
+    pub db_passphrase: String,
+    /// OCAP capability token for authorization.
+    pub capability_token: Option<String>,
+}
+
+fn default_dimension() -> String {
+    "composite".to_string()
+}
+
+/// Result of a replica-style rewrite.
+#[derive(Debug, Serialize)]
+pub struct ReplicaRewriteResponse {
+    /// The rewritten passage or document text.
+    pub rewritten: String,
+    /// The dimension that was optimized for.
+    pub dimension: String,
+    /// Number of exemplar passages used in the rewrite.
+    pub exemplar_count: usize,
+    /// Cosine distance from rewritten prose to target centroid (if validated).
+    pub centroid_distance: Option<f64>,
+    /// Elapsed rewrite time in milliseconds.
+    pub elapsed_ms: u64,
 }
