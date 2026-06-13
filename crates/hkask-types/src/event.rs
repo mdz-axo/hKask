@@ -122,6 +122,10 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.wallet.privacy.shield",
     "cns.wallet.privacy.unshield",
     "cns.wallet.privacy_error",
+    // Lazy Universe spans — least-action monitoring (P5 grounding, TASK 4.2)
+    "cns.condenser.compression_ratio",
+    "cns.evolution.energy_delta",
+    "cns.architecture.module_depth",
 ];
 
 impl SpanNamespace {

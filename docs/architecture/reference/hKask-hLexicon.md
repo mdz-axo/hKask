@@ -14,10 +14,10 @@ mds_categories: [domain]
 
 | Section | Description |
 |---------|-------------|
-| [Executive Summary](#executive-summary) | Overview of the 147-term minimal composition vocabulary |
+| [Executive Summary](#executive-summary) | Overview of the 155-term minimal composition vocabulary |
 | [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-37-terms) | Speech act theory terms for LLM interactions (37 terms) |
 | [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-42-terms) | Workflow pattern terms for skill composition (42 terms) |
-| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-68-terms) | Enactive cognition terms for metacognition (68 terms) |
+| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-76-terms) | Enactive cognition terms for metacognition (76 terms) |
 | [Cross-Domain Composition Patterns](#cross-domain-composition-patterns) | How terms from different domains compose together |
 | [hLexicon Grammar](#hlexicon-grammar) | Formal grammar for term usage and validation |
 | [Academic Grounding References](#academic-grounding-references) | Academic sources for each domain |
@@ -28,14 +28,14 @@ mds_categories: [domain]
 
 ## Executive Summary
 
-**hLexicon** is the minimal composition vocabulary (147 term-slots across 3 domains) for composing templates in the hKask system.
+**hLexicon** is the minimal composition vocabulary (155 term-slots across 3 domains) for composing templates in the hKask system.
 
 1. **WordAct** — Language for prompting/LLM interactions (speech act theory)[^austin]
 2. **FlowDef** — Language for process/skill composition (workflow patterns)[^van-der-aalst]
 3. **KnowAct** — Language for cognition and metacognition (enactive cognition)[^varela]
 
 **Design Principles:**
-- **Minimal:** 147 term-slots across 3 domains (37 WordAct + 42 FlowDef + 68 KnowAct)
+- **Minimal:** 155 term-slots across 3 domains (37 WordAct + 42 FlowDef + 76 KnowAct)
 - **Composable:** Terms combine to express complex patterns
 - **Academic Grounding:** Based on established theory (Austin, Searle, van der Aalst, Varela)
 - **LLM-Optimized:** Terms selected for LLM comprehension and consistent interpretation
@@ -286,7 +286,7 @@ Speech acts distinguish between:
 
 ---
 
-## Domain 3: KnowAct — Cognition Language (68 terms)
+## Domain 3: KnowAct — Cognition Language (76 terms)
 
 **Theoretical Basis:** Enactive Cognition (Varela, Thompson),[^varela] Second-Order Cybernetics (von Foerster),[^von-foerster] Autopoiesis (Maturana)[^maturana]
 
@@ -411,6 +411,21 @@ Speech acts distinguish between:
 | `verify` | Confirm compliance with defined criteria | "verify: Check diff against surgical-changes rule" |
 | `audit` | Systematic examination for violations and compliance | "audit: Scan manifest for invalid template_type" |
 | `apply` | Enforce constraints and guardrails on implementation | "apply: Generate constrained implementation directives" |
+
+### 3.12 Least Action & Pragmatic Cognition (8 terms) — Physical grounding and communication efficiency
+
+**Theoretical Basis:** Least Action Principle (Hamilton, Coopersmith),[^coopersmith] Pragmatics (Grice, Sperber & Wilson)[^grice]
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `minimize` | Reduce to the lowest possible state or value | "minimize: Compress to stationary action representation" |
+| `equilibrium` | State of balance where opposing forces or tendencies cancel | "equilibrium: System at homeostatic set-point" |
+| `homeostasis` | Self-regulating stability maintained through feedback mechanisms | "homeostasis: CNS maintains variety within threshold" |
+| `converge` | Approach a common point, state, or value through iterative refinement | "converge: Evolutionary architecture settles toward deep modules" |
+| `stationary_action` | Path where small variations produce no first-order change in the action integral | "stationary_action: Module at optimal depth — deletion increases energy" |
+| `variational_principle` | Principle that physical systems evolve along paths extremizing an integral quantity | "variational_principle: δS = 0 selects which path reality takes" |
+| `gradient_descent` | Iterative optimization following the direction of steepest decrease | "gradient_descent: System evolves toward lower-action configurations" |
+| `energy_landscape` | Configuration space representation where energy or cost is encoded as elevation | "energy_landscape: Map module depth as elevation in architecture space" |
 
 ---
 
@@ -537,7 +552,7 @@ Terminology validation follows ISO principles for vocabulary management.[^iso704
 
 ---
 
-## hLexicon Term Index (147 terms)
+## hLexicon Term Index (155 terms)
 
 ### WordAct (37)
 `query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`, `extract`, `gap`, `reproduce`, `substitute`, `validate`, `write`, `replicate`, `embed_corpus`, `mashup`
@@ -545,10 +560,10 @@ Terminology validation follows ISO principles for vocabulary management.[^iso704
 ### FlowDef (42)
 `sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`, `defer`, `deprecate`, `enforce`, `install`, `list`, `prune`, `retire`, `search`
 
-### KnowAct (68)
-`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`, `amplify`, `analyze`, `attenuate`, `compress`, `instrument`, `isolate`, `observe`, `predict`, `resolve`, `score`, `synthesize`, `trace`, `compare`, `blend`, `deepen`, `design`, `explore`, `fix`, `map`, `plan`, `rank`, `translate`, `compact`, `distill`, `summarize`, `catalog`, `reference`, `redact`, `suggest`, `prioritize`, `recommend`, `compose`, `structure`, `document`, `handoff`, `assess`, `simplify`, `verify`, `audit`, `apply`
+### KnowAct (76)
+`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`, `amplify`, `analyze`, `attenuate`, `compress`, `instrument`, `isolate`, `observe`, `predict`, `resolve`, `score`, `synthesize`, `trace`, `compare`, `blend`, `deepen`, `design`, `explore`, `fix`, `map`, `plan`, `rank`, `translate`, `compact`, `distill`, `summarize`, `catalog`, `reference`, `redact`, `suggest`, `prioritize`, `recommend`, `compose`, `structure`, `document`, `handoff`, `assess`, `simplify`, `verify`, `audit`, `apply`, `minimize`, `equilibrium`, `homeostasis`, `converge`, `stationary_action`, `variational_principle`, `gradient_descent`, `energy_landscape`
 
-**Total: 147 term-slots** (37 WordAct + 42 FlowDef + 68 KnowAct; `transform` and `compose` appear in both WordAct/FlowDef and KnowAct, so 145 globally-unique strings).
+**Total: 155 term-slots** (37 WordAct + 42 FlowDef + 76 KnowAct; `transform` and `compose` appear in both WordAct/FlowDef and KnowAct, so 153 globally-unique strings).
 
 ---
 

@@ -285,3 +285,22 @@ hlexicon:
       definition: "Follow a causal or provenance chain"
     - term: translate
       definition: "Convert from one representation or format to another"
+    # Lazy Universe terms — least-action grounding (TASK 1.2)
+    - term: minimize
+      definition: "Reduce to the lowest possible state or value"
+    - term: equilibrium
+      definition: "State of balance where opposing forces or tendencies cancel"
+    - term: homeostasis
+      definition: "Self-regulating stability maintained through feedback mechanisms"
+    - term: converge
+      definition: "Approach a common point, state, or value through iterative refinement"
+    - term: stationary_action
+      definition: "Path where small variations produce no first-order change in the action integral"
+      academic_citation: "Hamilton's principle — δS = 0"
+    - term: variational_principle
+      definition: "Principle that physical systems evolve along paths extremizing an integral quantity"
+      academic_citation: "Coopersmith, The Lazy Universe (2017)"
+    - term: gradient_descent
+      definition: "Iterative optimization following the direction of steepest decrease"
+    - term: energy_landscape
+      definition: "Configuration space representation where energy or cost is encoded as elevation"

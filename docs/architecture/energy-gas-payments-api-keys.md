@@ -1,0 +1,312 @@
+---
+title: "Energy, Gas, Payments & API Key System"
+audience: [architects, developers, agents]
+last_updated: 2026-06-13
+version: "0.27.0"
+status: "Active"
+domain: "Trust"
+mds_categories: [domain, trust, lifecycle, curation]
+---
+
+# Energy, Gas, Payments & API Key System
+
+**Purpose:** Defines the economic layer of hKask — how energy is measured, consumed, funded, and settled across all interaction surfaces.
+
+**Related:** [`P12-replicant-host-mandate.md`](P12-replicant-host-mandate.md), [`PRINCIPLES.md`](PRINCIPLES.md), [`loop-architecture.md`](loop-architecture.md)
+
+---
+
+## 1. Units and Concepts
+
+| Term | Definition | Unit |
+|------|-----------|------|
+| **rJoule (rJ)** | The base energy unit of hKask. One rJoule represents the computational cost of one token of inference at the default model. | rJ |
+| **Gas** | The consumption metric for operations. Gas is denominated in rJoules. `gas_heuristic` estimates per-turn cost; `gas_cap` sets session limit. | rJ |
+| **Wallet** | A replicant's energy account. HD wallet derived from WebID via `hkask-wallet`. Holds rJoule balance. | rJ balance |
+| **Encumbrance** | rJoules reserved for a specific API key's use. Not transferred — locked against the wallet balance, deducted as the key consumes gas. | rJ locked |
+| **Allocation** | The rJoule budget assigned to an API key at issuance. Drawn from the funding replicant's wallet. | rJ |
+| **Settlement** | Periodic on-chain confirmation of gas consumption. Batched every N blocks by 7R7 bots. | on-chain tx |
+
+---
+
+## 2. Energy Flow
+
+```
+                    ┌──────────────────────────────────────┐
+                    │          Replicant Wallet             │
+                    │  (HD wallet from WebID, hkask-wallet) │
+                    │  Balance: 1,000,000 rJ                │
+                    └──────────┬───────────────────────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+          ▼                    ▼                    ▼
+   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+   │  API Key k1  │   │  API Key k2  │   │  CLI Session │
+   │  alloc: 50K  │   │  alloc: 200K │   │  gas_cap: 10K│
+   │  scope:      │   │  scope:      │   │  per-turn:   │
+   │  embed-corp  │   │  read-specs  │   │  500 rJ      │
+   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
+          │                  │                  │
+          ▼                  ▼                  ▼
+   ┌──────────────────────────────────────────────────────┐
+   │                    CNS Metering                       │
+   │  cns.api.request spans track per-key consumption     │
+   │  cns.session spans track per-replicant consumption   │
+   │  EnergyBudgetManager enforces caps                   │
+   └──────────────────────────────────────────────────────┘
+          │
+          ▼
+   ┌──────────────────────────────────────────────────────┐
+   │              7R7 Bot Settlement                       │
+   │  Aggregates consumption → produces batch → submits   │
+   │  on-chain tx every N blocks                          │
+   └──────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Gas Model
+
+### 3.1 Consumption Formula
+
+```
+gas_consumed = endpoint_weight × (prompt_tokens × token_cost + response_tokens × token_cost)
+             + payload_size_surcharge
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `token_cost` | 1 rJ | Base cost per token at default model |
+| `endpoint_weight` | 1.0–5.0 | Heavier endpoints (embed-corpus, compose) cost more |
+| `payload_size_surcharge` | 0.1 rJ/KB | Additional cost for large request bodies |
+
+### 3.2 Session Budgets (CLI / REPL)
+
+Per the `/repl` settings:
+
+| Setting | Default | Range |
+|---------|---------|-------|
+| `gas_heuristic` | 500 rJ | Per-turn reservation |
+| `gas_cap` | 10,000 rJ | Total session budget |
+
+When `gas_cap` is exhausted, the session ends. The replicant can increase `gas_cap` via `/repl gas_cap <value>` if their wallet holds sufficient balance.
+
+### 3.3 API Key Budgets
+
+Each API key receives an allocation from the funding replicant's wallet at issuance. The allocation is **encumbered** (locked, not transferred). As the key consumes gas, rJoules are deducted from the encumbrance.
+
+```
+key_allocation_remaining = initial_allocation - gas_consumed_by_key
+```
+
+When `key_allocation_remaining ≤ 0`, requests return `402 Payment Required`. The funding replicant can replenish via `POST /api/keys/{key_id}/fund`.
+
+---
+
+## 4. Wallet System
+
+### 4.1 Wallet Derivation
+
+```
+WebID → HKDF-SHA256 → HD wallet seed → BIP-32 derivation → replicant wallet
+```
+
+Each replicant's wallet is deterministically derived from their WebID via `hkask-keystore` and `hkask-wallet`. No separate wallet creation step — the wallet exists the moment the replicant is registered.
+
+### 4.2 Balance Operations
+
+| Operation | Endpoint / Command | Auth |
+|-----------|-------------------|------|
+| Check balance | `kask wallet balance` | Replicant session |
+| Transfer rJ | `POST /api/wallet/transfer` | Capability token |
+| Fund API key | `POST /api/keys/{key_id}/fund` | Replicant session |
+| Release encumbrance | Automatic on key expiry/revocation | 7R7 bot |
+
+### 4.3 rJoule Acquisition
+
+rJoules enter the system through:
+
+- **Initial allocation:** Each new replicant receives a genesis allocation (e.g., 1,000,000 rJ) at registration
+- **Earning:** Bots earn rJoules by performing system services (consolidation, CNS monitoring, key management)
+- **Transfer:** Replicants can transfer rJoules between wallets
+- **Purchase (anticipated):** On-chain token purchase via integrated DEX
+
+---
+
+## 5. API Key Lifecycle
+
+### 5.1 Issuance
+
+```
+POST /api/keys/request
+{
+  "replicant": "Jacques rZuck",
+  "scope": ["embed-corpus", "read-specs"],
+  "purpose": "Automated nightly documentation quality scoring",
+  "allocation_rj": 50000,
+  "rate_limit": {"requests_per_minute": 10, "tokens_per_day": 100000}
+}
+
+→ 7R7 bot verifies:
+  1. Replicant authenticated (UserStore session)
+  2. Clean CNS history (no abuse flags, 90 days)
+  3. Valid scope (endpoints exist in registry)
+  4. Purpose stated (≥20 chars)
+  5. Rate limit feasible (≤ scope maximum)
+  6. Wallet balance ≥ allocation_rj
+
+→ Returns:
+{
+  "key_id": "k_7r7_abc123",
+  "key_secret": "hk_...",       // shown once
+  "scope": ["embed-corpus", "read-specs"],
+  "allocation_rj": 50000,
+  "expires_at": "2026-09-11T00:00:00Z",
+  "rate_limit": {"requests_per_minute": 10, "tokens_per_day": 100000}
+}
+```
+
+### 5.2 Usage
+
+```
+GET /api/specs/{id}
+Authorization: Bearer hk_...
+
+→ CNS opens cns.api.request span
+→ Validates key_id, checks scope, checks rate limit
+→ Deducts gas from key allocation
+→ Returns response
+```
+
+### 5.3 Replenishment
+
+```
+POST /api/keys/k_7r7_abc123/fund
+{
+  "replicant": "Jacques rZuck",
+  "amount_rj": 25000
+}
+
+→ 7R7 bot verifies wallet balance
+→ Increases encumbrance by amount_rj
+→ Returns updated allocation
+```
+
+### 5.4 Expiry & Release
+
+At 90 days:
+- Key expires automatically
+- 7R7 bot sends renewal notice to funding replicant
+- If not renewed within 7 days: key revoked, unspent rJ released to wallet
+- If renewed: new 90-day period, allocation carries forward
+
+### 5.5 Revocation
+
+Triggers:
+- 3 consecutive CNS abuse alerts for the key
+- Key used from >5 distinct IPs within 1 hour
+- Key used for endpoints outside declared scope
+- Manual: `kask api revoke-key k_7r7_abc123` (Curator authority)
+
+On revocation: unspent rJ released to wallet, key_id added to deny list.
+
+---
+
+## 6. CNS Metering
+
+### 6.1 Span Hierarchy
+
+```
+cns.api.request
+  ├─ key_id
+  ├─ endpoint
+  ├─ scope_matched: true/false
+  ├─ gas_consumed
+  ├─ allocation_remaining
+  └─ rate_limit_status: ok/exceeded
+
+cns.session
+  ├─ replicant
+  ├─ gas_consumed_this_turn
+  ├─ gas_remaining_this_session
+  └─ wallet_balance
+```
+
+### 6.2 Rate Limit Enforcement
+
+| Limit Type | Scope | Default |
+|-----------|-------|---------|
+| `requests_per_minute` | Per key | 60 |
+| `tokens_per_day` | Per key | 1,000,000 |
+| `concurrent_requests` | Per key | 5 |
+| `unique_endpoints_per_hour` | Per key (variety) | 10 |
+
+### 6.3 Alerts
+
+| Alert | Trigger | Action |
+|-------|---------|--------|
+| `cns.api.rate_limit_exceeded` | Key exceeds rate limit | 429 response, bot notified |
+| `cns.api.allocation_low` | Key allocation < 20% | Funder notified |
+| `cns.api.allocation_exhausted` | Key allocation ≤ 0 | 402 response, bot notified |
+| `cns.api.anomaly_abuse` | 3 abuse patterns detected | Bot investigates, may revoke |
+| `cns.api.scope_violation` | Key used outside scope | 403 response, bot notified |
+
+---
+
+## 7. Settlement (Anticipated)
+
+### 7.1 Batch Settlement
+
+```
+7R7 bot aggregates per-key consumption over N blocks
+  → produces settlement batch:
+    [
+      {key_id: k1, rJ_consumed: 1,250, wallet: w_A},
+      {key_id: k2, rJ_consumed: 8,400, wallet: w_B},
+    ]
+  → submits on-chain transaction
+  → chain confirms → encumbrances released, balances updated
+```
+
+### 7.2 Settlement Authority
+
+Only 7R7 bots hold settlement authority. No human, Curator, or daemon can submit settlement transactions. This prevents:
+- Double-spend (only the bot that issued the key can settle it)
+- Balance manipulation (bots verify against CNS logs)
+- Replay attacks (each settlement batch is nonce-protected)
+
+### 7.3 On-Chain Token
+
+The rJoule maps to an on-chain token (anticipated: ERC-20 or similar). The token contract:
+- Mints rJ at genesis allocation
+- Burns rJ on settlement (consumed energy is destroyed, not transferred)
+- Transfers rJ between wallets (replicant-to-replicant)
+- Locks rJ for encumbrance (key allocations)
+
+---
+
+## 8. Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Gas heuristic / cap | ✅ Implemented | `ReplSettings.gas_heuristic`, `gas_cap` |
+| CNS energy budget manager | ✅ Implemented | `hkask-cns::EnergyBudgetManager` |
+| Wallet derivation (HD) | ✅ Implemented | `hkask-wallet` with WebID→HD derivation |
+| rJoule ↔ gas conversion | ✅ Implemented | `wallet::tests::gas_to_rjoules_conversion` |
+| API key issuance | ⚠️ Planned | 7R7 bot endpoint, KeyStore schema |
+| API key metering (CNS spans) | ⚠️ Planned | `cns.api.request` span type |
+| Encumbrance system | ❌ Not started | Wallet lock/release for key allocations |
+| On-chain settlement | ❌ Not started | Token contract, batch submission |
+| 7R7 bot key management | ❌ Not started | Bot capability for key issuance/revocation |
+
+---
+
+## 9. References
+
+- P12-replicant-host-mandate.md §API — Bot Host — key request flow, approval criteria, metering
+- PRINCIPLES.md §1.4 — CNS spans and variety counters
+- loop-architecture.md — EnergyBudget subsumption of RateLimiting
+- AGENTS.md — `/repl` settings for gas_heuristic, gas_cap
+- hkask-wallet — HD wallet derivation and balance operations
+- hkask-cns — EnergyBudgetManager and span hierarchy

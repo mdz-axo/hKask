@@ -72,6 +72,77 @@ impl fmt::Display for EnergyCost {
     }
 }
 
+// ── Lazy Universe: EnergyDelta (TASK 4.1) ──────────────────────────────────
+
+/// A measurement of system energy change between two states.
+///
+/// # Invariant (type-level encoding per Graydon Hoare's type-driven design)
+///
+/// A negative delta means the system moved toward lower energy
+/// (lazy universe compliance — the system found a lower-action path).
+/// A positive delta means the system moved away from minimal representation
+/// and triggers algedonic alert after `ALERT_THRESHOLD` consecutive positives.
+///
+/// # Epistemic grounding (P8)
+/// - **crt:certainty** = Declarative (direct measurement of energy change)
+/// - **crt:force** = Evidence (IS statement, measured from CNS span)
+/// - **mode** = IS
+///
+/// # CNS span: `cns.evolution.energy_delta`
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct EnergyDelta(pub f64);
+
+impl EnergyDelta {
+    /// Zero energy change — system at stationary point.
+    pub const ZERO: EnergyDelta = EnergyDelta(0.0);
+
+    /// Create an energy delta from a raw `f64`.
+    pub fn from_raw(value: f64) -> Self {
+        EnergyDelta(value)
+    }
+
+    /// Return the raw `f64` value.
+    pub fn as_raw(self) -> f64 {
+        self.0
+    }
+
+    /// Returns true if the system moved toward lower energy (lazy universe satisfied).
+    /// Zero delta (stationary point) is also considered descending — the system
+    /// has found its minimal-action configuration.
+    pub fn is_descending(&self) -> bool {
+        self.0 <= 0.0
+    }
+
+    /// Returns true if the system moved toward higher energy (anti-lazy — alert candidate).
+    pub fn is_ascending(&self) -> bool {
+        self.0 > 0.0
+    }
+
+    /// The algedonic threshold: how many consecutive positive deltas before alert.
+    /// After ALERT_THRESHOLD consecutive ascending deltas, the CNS emits:
+    /// "System moving away from minimal representation — anti-lazy drift detected."
+    pub const ALERT_THRESHOLD: usize = 5;
+}
+
+impl fmt::Display for EnergyDelta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let direction = if self.is_descending() { "↓" } else { "↑" };
+        write!(f, "{direction}{:.4}", self.0.abs())
+    }
+}
+
+impl From<f64> for EnergyDelta {
+    fn from(value: f64) -> Self {
+        EnergyDelta(value)
+    }
+}
+
+impl From<EnergyDelta> for f64 {
+    fn from(delta: EnergyDelta) -> Self {
+        delta.0
+    }
+}
+
 /// Default energy budget alert threshold — alert when 80% of gas is consumed.
 pub const DEFAULT_ENERGY_ALERT_THRESHOLD: f64 = 0.8;
 

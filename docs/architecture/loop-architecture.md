@@ -32,6 +32,8 @@ Every rate limit is an energy constraint over a time window. This is not an anal
 
 Energy tracking subsumes rate limiting by modeling **depletion**, **replenishment**, and **allocation** without the artificial discretization of fixed windows. A rate bucket says "N operations per T seconds." An energy budget says "this operation costs E energy, the account holds B balance, replenishment restores R per cycle, and the opportunity cost of spending E here is recorded."[^beer-vsm]
 
+**Deeper reason: least action.** Energy tracking is not merely a richer resource model — it is the computational expression of the least action principle (see [`lazy-universe-research.md`](lazy-universe-research.md)). Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. The budget cap is the maximum action the system allows per session. The replenishment rate is the cybernetic analog of a system settling back toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. Backpressure is the governing dynamic asserting itself: when the system approaches its action budget, it resists further expenditure. Rate limiting was a lossy projection of action tracking — energy tracking is the direct measurement.
+
 ### 1.2 Root Cause
 
 Rate limiting was introduced as a **local approximation of energy accounting** before a unified energy model existed. It solved the immediate problem — preventing resource exhaustion — by discretizing continuous energy flow into countable tokens over fixed windows. This was correct as a stopgap but introduced two costs:
@@ -40,6 +42,8 @@ Rate limiting was introduced as a **local approximation of energy accounting** b
 2. **Redundant projection:** With `EnergyBudget.try_consume()` now gating all operations under a unified energy cap, the rate limiter is a lossy projection of information that the energy model already holds in richer form.
 
 The single root cause: **rate limiting was a local approximation of energy accounting that became redundant when the unified energy model arrived.**[^ashby-law]
+
+**Deeper root cause:** Rate limiting was a local approximation of *action tracking*. The system needed to track and manage action in computational space — how far each operation moves the system in configuration space, and whether the cumulative action exceeds what the system can sustain. Rate limiting approximated this with token buckets over fixed windows. Energy tracking measures it directly with gas costs, budget caps, and replenishment rates. The unified energy model didn't just replace rate limiting — it implemented the least action principle as infrastructure.
 
 ### 1.3 Shared Concepts
 
@@ -106,17 +110,17 @@ hKask decomposes into four loops:
 
 **Domain Loops** — value-producing:
 
-| Loop | Owns | Transforms |
-|------|------|------------|
-| **Inference Loop** | LLM call budget, token flow, energy budgets (hJoules) | Prompts → Completions |
-| **Memory Loop** | Episodic + Semantic memory, embedding indices, SQLCipher storage, consolidation bridge | Experiences → Episodic records → Semantic facts |
+| Loop | Owns | Transforms | Least Action Role |
+|------|------|------------|-------------------|
+| **Inference Loop** | LLM call budget, token flow, energy budgets (hJoules) | Prompts → Completions | Action tracking per inference operation — each token has an action cost |
+| **Memory Loop** | Episodic + Semantic memory, embedding indices, SQLCipher storage, consolidation bridge | Experiences → Episodic records → Semantic facts | Pragmatic compression over time — consolidation discards redundant episodes, preserves semantic essence |
 
 **Meta Loops** — governing:
 
-| Loop | Owns | Regulates |
-|------|------|------------|
-| **Curation Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent |
-| **Cybernetics Loop** | Observability, governance, energy accounting (hJoules), homeostatic regulation | Health, stability, resource equilibrium of the entire system |
+| Loop | Owns | Regulates | Least Action Role |
+|------|------|-----------|-------------------|
+| **Curation Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent | Selection mechanism — chooses which paths the system pursues (the "which path" of δS = 0) |
+| **Cybernetics Loop** | Observability, governance, energy accounting (hJoules), homeostatic regulation | Health, stability, resource equilibrium of the entire system | Action tracking and boundary enforcement — measures action consumption, asserts backpressure at budget limits, senses anti-lazy drift via `EnergyDelta` |
 
 **Communication** is demoted from a loop to transport infrastructure — `tokio::mpsc` channels handle inter-loop messaging. Communication does not own resources, does not regulate, and does not transform. It is a dumb pipe.
 
@@ -187,6 +191,9 @@ The existing `cns.*` span namespaces are not removed — they are **absorbed** i
 | `cns.sovereignty.*` | Sovereignty enforcement — signal to Curation Loop |
 | `cns.goal.*` | Goal lifecycle — signal to Curation Loop |
 | `cns.spec.*` | Specification operations — signal to Curation Loop |
+| `cns.condenser.compression_ratio` | Pragmatic compression efficiency — bytes_out / bytes_in per cycle. Ratio < 1.0 for 3+ cycles → Warning (anti-compressing) |
+| `cns.evolution.energy_delta` | Action gradient — energy(S_t) - energy(S_{t+1}). Positive for 5+ cycles → Critical (anti-lazy drift) |
+| `cns.architecture.module_depth` | Architectural action — public_fn_count / total_fn_count. Ratio > 0.5 → Warning (shallow module) |
 
 The Cybernetics Loop **owns** all `cns.*` spans. Other loops emit `NuEvent`s into these spans, but the Cybernetics Loop is the sole consumer and regulator of the observability they produce.
 
@@ -437,7 +444,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Compute-seconds:** 1 energy unit = 1 second of compute. Uniform across operations but requires profiling to calibrate.
 - **C. Dimensionless cost scalar:** Each `EnergySpanType` defines its own cost function. Most flexible but requires per-operation calibration and makes cross-loop comparison harder.
 
-**Status:** Resolved. The unit is **gas** — a dimensionless cost unit serving the same function as Ethereum gas: preventing infinite loops by making resource exhaustion explicit. Each MCP server/tool has a configured gas cost in a `GasEstimator` table. Inference tools use token-based estimation; other tools use flat costs from the table. Energy budgets replenish periodically (analogous to gas refunds). The thermodynamic anchoring vision is deferred to a future version; the MVP uses a practical gas table that maps each operation to a cost.
+**Status: Resolved — gas IS action.** The unit is **gas** — a dimensionless cost unit serving the same function as Ethereum gas: preventing infinite loops by making resource exhaustion explicit. But the deeper semantics are now anchored: gas is the computational measure of *action* — the "distance" the system moves in configuration space per operation. Each MCP server/tool has a configured gas cost in a `GasEstimator` table. Inference tools use token-based estimation (tokens are the natural action unit for LLM computation); other tools use flat costs from the table (calibrated to reflect relative action cost). Energy budgets replenish periodically — replenishment is the cybernetic analog of a system returning toward its stationary action path. The `EnergyDelta` type (see [`lazy-universe-research.md`](lazy-universe-research.md)) measures whether the system is moving toward or away from stationary action. The thermodynamic anchoring is not deferred — it is here, through the least action principle. Gas is action.
 
 ### 5.4 Persistence of Loop State
 
@@ -482,6 +489,8 @@ Gas units are dimensionless — they represent computational cost on a shared
 scale, analogous to Ethereum gas. Every MCP tool invocation costs gas, and
 when an agent's budget is exhausted, the operation is rejected by Cybernetics.
 
+**Least action interpretation:** Each tier's cost reflects the *action distance* the system moves in configuration space. Internal operations (memory, spec) move the system a short distance — low action cost. External API calls move the system across network boundaries — higher action cost. GPU compute (fal) moves the system through substantial computational configuration space — highest action cost. Inference scales with tokens because each token is a step in the LLM's trajectory through its output space.
+
 **Cost tiers:**
 
 | Tier | Servers | Cost | Rationale |
@@ -511,6 +520,7 @@ routes inference calls to `InferenceGasEstimator` and all other calls to
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Wiley. "Only variety can absorb variety."
 [^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University. OCAP discipline for capability membranes.
 [^wiener-cybernetics]: Wiener, N. (1948). *Cybernetics: Or Control and Communication in the Animal and the Machine*. MIT Press. Feedback loops as the fundamental unit of regulation.
+[^coopersmith-least-action]: Coopersmith, J. (2017). *The Lazy Universe: An Introduction to the Principle of Least Action*. Oxford University Press. Least action as the selection mechanism governing physical systems — the deeper reason energy tracking subsumes rate limiting.
 
 ---
 

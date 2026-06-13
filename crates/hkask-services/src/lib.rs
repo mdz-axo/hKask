@@ -12,10 +12,12 @@ pub mod contacts;
 pub mod context;
 pub mod curator;
 pub mod daemon_handler;
+pub mod deletion_test;
 pub mod discover;
 pub mod embed;
 pub mod ensemble;
 pub mod error;
+pub mod experience;
 pub mod goal;
 pub mod inference;
 pub mod onboarding;
@@ -43,6 +45,7 @@ pub use config::ServiceConfig;
 pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
+pub use deletion_test::DeletionTest;
 pub use discover::{
     DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
     download_and_cache, generate_corpus_yaml, slugify,
@@ -53,6 +56,7 @@ pub use embed::{
 };
 pub use ensemble::{CyberneticsLoopGasAdapter, EnsembleService};
 pub use error::ServiceError;
+pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use onboarding::{

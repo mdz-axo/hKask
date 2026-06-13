@@ -115,7 +115,7 @@ impl OcrExecutor for LlmOcrExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{ImageBuffer, Rgb, RgbImage};
+    use image::{ImageBuffer, RgbImage};
 
     /// Create a simple test image.
     fn test_image() -> DynamicImage {

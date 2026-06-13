@@ -326,7 +326,7 @@ mod tests {
         let executor = TestExecutor::new(vec![Some("Hello world".into())]);
         let t = default_thresholds();
 
-        let outcome = run_pipeline(pages, expected, &executor, &t, None, None, None).await;
+        let outcome = run_pipeline(pages, expected, &executor, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 1);
         assert!(outcome.results[0].text.contains("Hello world"));
@@ -346,7 +346,7 @@ mod tests {
         let expected = pages.len();
 
         let t = default_thresholds();
-        let outcome = run_pipeline(pages, expected, &executor, &t, None, None, None).await;
+        let outcome = run_pipeline(pages, expected, &executor, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 3);
         // Results should be in page order
@@ -373,7 +373,7 @@ mod tests {
 
         let expected = pages.len();
         let t = default_thresholds();
-        let outcome = run_pipeline(pages, expected, &executor, &t, None, None, None).await;
+        let outcome = run_pipeline(pages, expected, &executor, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 1, "only first page should succeed");
         assert_eq!(outcome.errors.len(), 1, "second page should produce error");

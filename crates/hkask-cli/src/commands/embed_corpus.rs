@@ -1,6 +1,6 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
-use hkask_services::{EmbedProgress, EmbedService};
+use hkask_services::{CliExperienceRecorder, EmbedProgress, EmbedService};
 use hkask_storage::user_store::UserStore;
 
 use std::io::Write;
@@ -118,6 +118,28 @@ pub fn run(
                 r.validation.exemplar_count_min,
                 r.validation.exemplar_count_max,
             );
+
+            // Record experience via daemon
+            let recorder = CliExperienceRecorder::new();
+            rt.spawn(async move {
+                recorder
+                    .record(
+                        &replicant,
+                        "embed_corpus",
+                        &r.author,
+                        "success",
+                        serde_json::json!({
+                            "author": r.author,
+                            "total_passages": r.total_passages,
+                            "tagged_passages": r.tagged_passages,
+                            "triples_stored": r.triples_stored,
+                            "budget": r.budget,
+                            "centroid_ref": r.centroid_ref,
+                            "centroid_stored": r.centroid_stored,
+                        }),
+                    )
+                    .await;
+            });
         }
         Err(e) => {
             eprintln!("Embedding failed: {e}");

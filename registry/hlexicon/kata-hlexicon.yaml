@@ -1,10 +1,11 @@
 # Kata System hLexicon Registry
-# ℏKask v0.21.4 — Functional logic categorization
+# hKask v0.27.0 — Four-skill Toyota Kata architecture
 
 hlexicon:
-  # WordAct templates (action-word: generate messages, commands)
+  # ── Kata Bundle (orchestration) ──────────────────────────────────────
+  # WordAct templates
   wordact_templates:
-    - id: habit-intervention
+    - id: kata-habit-intervention
       path: registry/templates/kata/habit-intervention.j2
       description: Generate intervention messages for habit support
       functional_role: action-word
@@ -22,31 +23,14 @@ hlexicon:
       functional_role: action-word
       produces: memory_triple
 
-  # FlowDef templates (process: multi-step flows, sequences)
+  # FlowDef templates
   flowdef_templates:
-    - id: improvement-cycle
-      path: registry/templates/kata/improvement-cycle.j2
-      description: 4-step Improvement Kata process
-      functional_role: flow-definition
-      steps: [direction, current, target, experiment]
-
-    - id: coaching-cycle
-      path: registry/templates/kata/coaching-cycle.j2
-      description: 5-question Coaching Kata dialogue flow
-      functional_role: flow-definition
-      steps: [target, actual, obstacles, experiment, learn]
-
-    - id: starter-cycle
-      path: registry/templates/kata/starter-cycle.j2
-      description: Practice routine selection and execution flow
-      functional_role: flow-definition
-      steps: [select_routine, practice, record]
-
     - id: kata-pattern-manifest
       path: registry/manifests/kata-pattern.yaml
-      description: Unified Kata execution flow (5 core + 3 conditional steps)
+      description: Kata system orchestrator — routes to starter/improvement/coaching
       functional_role: flow-definition
-      steps: [consent-select, kata-cycle, outcome-habit, memory-record, cns-emit, ...]
+      steps:
+        [consent-select, route-kata, outcome-habit, memory-record, cns-emit]
 
     - id: kata-iteration-manifest
       path: registry/manifests/kata-iteration.yaml
@@ -54,15 +38,21 @@ hlexicon:
       functional_role: flow-definition
       steps: [re-execute, compare, record-best, emit-span]
 
-  # KnowAct templates (knowledge-action: judgments, assessments, decisions)
+  # KnowAct templates
   knowact_templates:
-    - id: consent-and-select
+    - id: kata-consent-and-select
       path: registry/templates/kata/consent-and-select.j2
-      description: Verify consent and select Kata pattern
+      description: Verify consent and route to appropriate kata skill
       functional_role: knowledge-action
-      produces: consent_decision, kata_selection
+      produces: consent_decision, kata_route
 
-    - id: outcome-and-habit
+    - id: kata-selector
+      path: registry/templates/kata/kata-selector.j2
+      description: Route agent to kata-starter, kata-improvement, or kata-coaching
+      functional_role: knowledge-action
+      produces: kata_selection
+
+    - id: kata-outcome-and-habit
       path: registry/templates/kata/outcome-and-habit.j2
       description: Synthesize outcome and assess habit formation
       functional_role: knowledge-action
@@ -70,17 +60,17 @@ hlexicon:
 
     - id: kata-switch-check
       path: registry/templates/kata/kata-switch-check.j2
-      description: Check if Kata composition switching is needed
+      description: Check if kata composition switching is needed
       functional_role: knowledge-action
       produces: switch_decision
 
-    - id: iteration-comparison
+    - id: kata-iteration-comparison
       path: registry/templates/kata/iteration-comparison.j2
       description: Compare iterations for variance and confidence
       functional_role: knowledge-action
       produces: variance_score, confidence, best_iteration
 
-    - id: iteration-check
+    - id: kata-iteration-check
       path: registry/templates/kata/iteration-check.j2
       description: Determine if iteration is needed
       functional_role: knowledge-action
@@ -104,39 +94,157 @@ hlexicon:
       functional_role: knowledge-action
       produces: revocation_decision
 
+  # ── Kata-Starter ─────────────────────────────────────────────────────
+  starter_templates:
+    flowdef:
+      - id: starter-cycle
+        path: registry/templates/kata-starter/starter-cycle.j2
+        description: Starter Kata practice cycle — orchestrates routine selection and execution
+        functional_role: flow-definition
+        steps: [select_routine, practice, record]
+
+      - id: starter-five-questions
+        path: registry/templates/kata-starter/starter-five-questions.j2
+        description: Five Questions Drill — practice asking the 5 coaching questions
+        functional_role: flow-definition
+        steps: [q1_target, q2_actual, q3_obstacles, q4_experiment, q5_learn]
+
+      - id: starter-pdca-cycle
+        path: registry/templates/kata-starter/starter-pdca-cycle.j2
+        description: PDCA Cycle — Plan-Do-Check-Act experimentation practice
+        functional_role: flow-definition
+        steps: [plan, do, check, act]
+
+      - id: starter-observation-drill
+        path: registry/templates/kata-starter/starter-observation-drill.j2
+        description: Observation Drill — distinguish facts from interpretations
+        functional_role: flow-definition
+        steps: [observe, classify, discriminate, reflect]
+
+    knowact:
+      - id: starter-selector
+        path: registry/templates/kata-starter/starter-selector.j2
+        description: Select appropriate starter routine based on learner state
+        functional_role: knowledge-action
+        produces: routine_selection
+
+  # ── Kata-Improvement ─────────────────────────────────────────────────
+  improvement_templates:
+    flowdef:
+      - id: improvement-cycle
+        path: registry/templates/kata-improvement/improvement-cycle.j2
+        description: 4-step Improvement Kata process
+        functional_role: flow-definition
+        steps: [direction, current, target, experiment]
+
+    wordact:
+      - id: improvement-step1-direction
+        path: registry/templates/kata-improvement/improvement-step1-direction.j2
+        description: Step 1 — Understand the Direction and challenge
+        functional_role: action-word
+        produces: challenge_statement
+
+      - id: improvement-step2-current
+        path: registry/templates/kata-improvement/improvement-step2-current.j2
+        description: Step 2 — Grasp the Current Condition with facts and data
+        functional_role: action-word
+        produces: current_condition
+
+      - id: improvement-step3-target
+        path: registry/templates/kata-improvement/improvement-step3-target.j2
+        description: Step 3 — Establish the Next Target Condition
+        functional_role: action-word
+        produces: target_condition
+
+      - id: improvement-step4-experiment
+        path: registry/templates/kata-improvement/improvement-step4-experiment.j2
+        description: Step 4 — Iterate/Experiment toward Target Condition
+        functional_role: action-word
+        produces: experiment_plan
+
+  # ── Kata-Coaching ────────────────────────────────────────────────────
+  coaching_templates:
+    flowdef:
+      - id: coaching-cycle
+        path: registry/templates/kata-coaching/coaching-cycle.j2
+        description: 5-question Coaching Kata dialogue flow
+        functional_role: flow-definition
+        steps: [target, actual, obstacles, experiment, learn]
+
+    wordact:
+      - id: coaching-q1-target
+        path: registry/templates/kata-coaching/coaching-q1-target.j2
+        description: Question 1 — What is the Target Condition?
+        functional_role: action-word
+        produces: target_question
+
+      - id: coaching-q2-actual
+        path: registry/templates/kata-coaching/coaching-q2-actual.j2
+        description: Question 2 — What is the Actual Condition now?
+        functional_role: action-word
+        produces: actual_question
+
+      - id: coaching-q3-obstacles
+        path: registry/templates/kata-coaching/coaching-q3-obstacles.j2
+        description: Question 3 — What obstacles? Which ONE now?
+        functional_role: action-word
+        produces: obstacles_question
+
+      - id: coaching-q4-experiment
+        path: registry/templates/kata-coaching/coaching-q4-experiment.j2
+        description: Question 4 — Next step? What do you expect?
+        functional_role: action-word
+        produces: experiment_question
+
+      - id: coaching-q5-learn
+        path: registry/templates/kata-coaching/coaching-q5-learn.j2
+        description: Question 5 — How quickly can we go and see?
+        functional_role: action-word
+        produces: learn_question
+
 # Functional Logic Summary
 functional_summary:
-  wordact_count: 5  # Action-word hybrids (generate messages, emit spans, record triples)
-  flowdef_count: 5  # Flow definitions (multi-step processes)
-  knowact_count: 7  # Knowledge-action hybrids (judgments, assessments, decisions)
-  total: 17
+  bundle:
+    wordact_count: 3 # habit-intervention + 2 port emissions
+    flowdef_count: 2 # kata-pattern, kata-iteration manifests
+    knowact_count: 9 # consent-select, selector, outcome-habit, switch-check, iteration-*, 3 port auth
+  starter:
+    flowdef_count: 4 # starter-cycle, five-questions, pdca-cycle, observation-drill
+    knowact_count: 1 # starter-selector
+  improvement:
+    flowdef_count: 1 # improvement-cycle
+    wordact_count: 4 # step1-direction, step2-current, step3-target, step4-experiment
+  coaching:
+    flowdef_count: 1 # coaching-cycle
+    wordact_count: 5 # q1-target, q2-actual, q3-obstacles, q4-experiment, q5-learn
+  total: 30
 
 # Implementation vs Functional Logic Mapping
 implementation_mapping:
   jinja2_templates:
-    total: 9
-    as_wordact: 1  # habit-intervention.j2
-    as_flowdef: 3  # improvement, coaching, starter cycles
-    as_knowact: 5  # consent-select, outcome-habit, switch-check, iteration-*, *
+    total: 23
+    bundle: 7 # consent-and-select, kata-selector, outcome-and-habit, habit-intervention, iteration-check, iteration-comparison, kata-switch-check
+    starter: 5 # starter-cycle, starter-selector, starter-five-questions, starter-pdca-cycle, starter-observation-drill
+    improvement: 5 # improvement-cycle, step1-direction, step2-current, step3-target, step4-experiment
+    coaching: 6 # coaching-cycle, q1-target, q2-actual, q3-obstacles, q4-experiment, q5-learn
 
   yaml_manifests:
-    total: 2
-    as_wordact: 0
-    as_flowdef: 2  # kata-pattern, kata-iteration
-    as_knowact: 0
+    total: 5
+    bundle: 2 # kata-pattern, kata-iteration
+    starter: 1 # starter-kata
+    improvement: 1 # improvement-kata
+    coaching: 1 # coaching-kata
 
   yaml_ports:
-    total: 1
-    as_wordact: 3  # cns:emit, memory:record, ensemble:report
-    as_flowdef: 0
-    as_knowact: 3  # kata:execute, kata:switch, kata:revoke-consent
+    total: 1 # kata-ports (serves all four skills)
 
 # Separation Verification
 separation_verified: true
 notes: |
+  - Four independently usable skills: kata-starter, kata-improvement, kata-coaching, kata (bundle)
+  - Each skill has its own template directory, manifest.yaml, and SKILL.md
+  - The bundle orchestrates routing between the three sub-skills
+  - Adoption path: starter → improvement → coaching → full bundle
   - Implementation (Jinja2/YAML) is independent of functional logic (WordAct/FlowDef/KnowAct)
-  - Same implementation can serve different functional roles
   - FlowDefs orchestrate; KnowActs judge; WordActs act
-  - Manifests are FlowDefs (step orchestration)
-  - Port specs are mixed (KnowAct for authorization, WordAct for emission)
-  - Templates are mixed based on their functional role
+  - Ports serve all four skills (hexagonal architecture)

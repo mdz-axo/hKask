@@ -102,6 +102,51 @@ impl MarkitdownServer {
         })
     }
 
+    /// Persist pipeline outcome to daemon for CNS observability.
+    /// Routes through the Curator's NuEvent → NuEventStore → CurationLoop path.
+    fn persist_pipeline_outcome(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+        if let Some(ref daemon) = self.daemon {
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let data = serde_json::json!({
+                "total_pages": outcome.results.len(),
+                "error_count": outcome.errors.len(),
+                "verification_passed": outcome.report.passed,
+                "page_count_match": outcome.report.page_count_match,
+                "empty_pages": outcome.report.empty_pages,
+                "word_count_delta_pct": outcome.report.word_count_delta_pct,
+                "cross_validations": outcome.cross_validations.len(),
+                "backend_distribution": outcome.results.iter()
+                    .fold(std::collections::HashMap::new(), |mut acc, r| {
+                        *acc.entry(r.backend.label().to_string()).or_insert(0) += 1;
+                        acc
+                    }),
+            });
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(
+                        &replicant,
+                        "ocr_pipeline",
+                        "verification",
+                        &data,
+                        Some(0.85),
+                    )
+                    .await
+                {
+                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "hkask.mcp.markitdown.cns", "Pipeline outcome persisted to daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "hkask.mcp.markitdown.cns", response = ?other, "Unexpected daemon response");
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.markitdown.cns", error = %e, "Failed to persist pipeline outcome");
+                    }
+                }
+            });
+        }
+    }
+
     /// Record a tool call as a narrative experience in the agent's memory.
     fn record_experience(
         &self,
@@ -248,14 +293,18 @@ impl OcrExecutor for MarkitdownServer {
 
 // ── CnsObserver implementation (tracing-based) ──────────────────────────
 
-/// CNS observer that emits spans via tracing and persists to the daemon
-/// experience store for homeostatic monitoring and future threshold tuning.
+/// CNS observer that implements the real `hkask_types::ports::CnsObserver` trait.
+/// Scaffolding for future NuEvent → NuEventStore → CurationLoop integration.
+/// Currently unused — OCR pipeline emits tracing spans directly.
+#[allow(dead_code)]
 struct MarkitdownCnsObserver {
     daemon: Option<hkask_mcp::DaemonClient>,
     replicant: String,
 }
 
+#[allow(dead_code)]
 impl MarkitdownCnsObserver {
+    #[allow(dead_code)]
     fn new(daemon: Option<hkask_mcp::DaemonClient>, replicant: &str) -> Self {
         Self {
             daemon,
@@ -294,37 +343,24 @@ impl MarkitdownCnsObserver {
     }
 }
 
-impl CnsObserver for MarkitdownCnsObserver {
-    fn observe_verification(&self, span: hkask_types::ocr::OcrVerificationSpan) {
-        tracing::info!(
-            target: "hkask.mcp.markitdown.cns",
-            total_pages = span.total_pages,
-            error_count = span.error_count,
-            duration_ms = span.duration_ms,
-            passed = span.passed,
-            backends = ?span.backend_distribution,
-            "OCR pipeline verification"
-        );
-        self.persist_span(
-            "ocr_verification",
-            serde_json::to_value(&span).unwrap_or_default(),
-        );
+#[async_trait::async_trait]
+impl hkask_types::ports::CnsObserver for MarkitdownCnsObserver {
+    fn interest_mask(&self) -> Vec<hkask_types::event::SpanNamespace> {
+        vec![hkask_types::event::SpanNamespace::new("cns.pipeline")]
     }
 
-    fn observe_cross_validation(&self, span: hkask_types::ocr::OcrCrossValidationSpan) {
-        tracing::info!(
-            target: "hkask.mcp.markitdown.cns",
-            page_index = span.page_index,
-            similarity = span.similarity,
-            tier = ?span.tier,
-            backend_a = %span.backend_a,
-            backend_b = %span.backend_b,
-            "OCR cross-validation"
-        );
-        self.persist_span(
-            "ocr_cross_validation",
-            serde_json::to_value(&span).unwrap_or_default(),
-        );
+    async fn on_event(&self, _event: &hkask_types::event::NuEvent) {
+        // OCR pipeline events are emitted via tracing spans (cns.pipeline.ocr target).
+        // Full NuEvent → NuEventStore → CurationLoop integration is deferred
+        // until the pipeline has access to CNS infrastructure.
+    }
+
+    async fn on_depletion(&self, _signal: &hkask_types::ports::DepletionSignal) {
+        tracing::warn!(target: "hkask.mcp.markitdown.cns", "CNS depletion signal received");
+    }
+
+    async fn on_backpressure(&self, _signal: &hkask_types::ports::BackpressureSignal) {
+        tracing::warn!(target: "hkask.mcp.markitdown.cns", "CNS backpressure signal received");
     }
 }
 
@@ -396,6 +432,9 @@ impl MarkitdownServer {
                     emb,
                 )
                 .await;
+
+                // Persist to daemon for CNS → Curator observability
+                self.persist_pipeline_outcome(&outcome);
 
                 let text = outcome
                     .results
@@ -489,6 +528,9 @@ impl MarkitdownServer {
                         emb,
                     )
                     .await;
+
+                    // Persist to daemon for CNS → Curator observability
+                    self.persist_pipeline_outcome(&outcome);
 
                     let text = outcome
                         .results
@@ -818,7 +860,6 @@ mod tests {
     use super::*;
     use crate::ocr::decimation;
     use crate::ocr::pipeline;
-    use std::io::Write;
 
     /// Minimal valid PDF with one page containing "Hello World".
     fn minimal_pdf() -> Vec<u8> {
@@ -896,7 +937,7 @@ mod tests {
         let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
         assert_eq!(images.len(), 1, "one-page PDF should produce one image");
 
-        let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None, None).await;
+        let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 1);
         assert!(!outcome.results[0].text.is_empty());
@@ -919,7 +960,7 @@ mod tests {
         let t = server.ocr_thresholds;
 
         let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
-        let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None, None).await;
+        let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None).await;
 
         assert_eq!(outcome.results.len(), 1);
         // Tesseract should be used for Simple pages
@@ -950,7 +991,7 @@ mod tests {
         // Pass expected_pages=2 but only 1 page exists
         let outcome = pipeline::run_pipeline(
             images, 2, // mismatch!
-            &server, &t, None, None, None,
+            &server, &t, None, None,
         )
         .await;
 
@@ -991,16 +1032,9 @@ mod tests {
             let images = outcome.unwrap();
             assert_eq!(images.len(), 1, "empty page should still produce an image");
 
-            let outcome = pipeline::run_pipeline(
-                images,
-                1,
-                &server,
-                &server.ocr_thresholds,
-                None,
-                None,
-                None,
-            )
-            .await;
+            let outcome =
+                pipeline::run_pipeline(images, 1, &server, &server.ocr_thresholds, None, None)
+                    .await;
 
             // Empty page should flag as empty
             assert!(!outcome.report.empty_pages.is_empty());

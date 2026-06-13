@@ -24,7 +24,8 @@ pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;
 pub use cybernetics_loop::CyberneticsLoop;
 pub use energy::{
-    AgentEnergyStatus, DEFAULT_ENERGY_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyError,
+    AgentEnergyStatus, DEFAULT_ENERGY_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyDelta,
+    EnergyError,
 };
 pub use energy_budget_management::EnergyBudgetManager;
 pub use governed_tool::{EnergyEstimator, GovernedTool};

@@ -101,7 +101,7 @@ status: VERIFIED
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
-- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`
+- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`, `cns.condenser.compression_ratio`, `cns.evolution.energy_delta`, `cns.architecture.module_depth`
 - **This is the authoritative CNS span registry.** See `hkask-types::event::CANONICAL_NAMESPACES` for the code-level source of truth.
 - Algedonic Alert: Variety deficit > threshold/2 (50 default) → escalate to Curator; deficit > threshold (100 default) → escalate to human
 
@@ -205,17 +205,25 @@ These principles govern the engineering discipline that implements the Magna Car
 
 ---
 
-#### P5 — Essentialism & Minimalism
+#### P5 — Essentialism & Minimalism (Anchored in the Least Action Principle)
 
-Seek to remove, never to add. Resist the instinct to complicate. When complexity tempts, find the underlying pattern that lets a simple rule recurse and iterate. Simplicity is not hiding complexity; it is exposing complexity through rules that compose. A stub is a debt against the Generative Space (P3) — it denies users the full behavior they consented to use. Every error variant is a distinct semantic state with a unique recovery path — no catch-all variants.
+Seek to remove, never to add. The physical universe does not merely tend toward simplicity — action minimization is the selection mechanism that governs which path reality takes among all possible paths.[^least-action] Water follows the path of least resistance not by preference but because the governing dynamics select that path. Light follows geodesics not by choice but because δS = 0 selects the stationary path. This is not an aesthetic preference but a structural fact: minimalism works because the universe itself is governed by least action. When complexity tempts, find the underlying pattern that lets a simple rule recurse and iterate — this is the computational echo of a system finding its stationary action path. Simplicity is not hiding complexity; it is exposing complexity through rules that compose. A stub is a debt against the Generative Space (P3) — it denies users the full behavior they consented to use. Every error variant is a distinct semantic state with a unique recovery path — no catch-all variants.
 
-**Enforces:** P3 (Generative Space — stubs limit generativity). Cross-cuts all principles through disciplined minimalism.
+Physical anchoring: Least action principle (Hamilton's principle, δS = 0) — the governing dynamic that selects which path reality takes. Gradient descent in energy landscapes, cybernetic equilibrium as action minimization in control space. Compression is the computational echo of least action — the condenser seeks minimal representation. The deletion test is the architectural echo — modules earn existence by demonstrating that their removal would increase system action. CNS spans (`cns.condenser.compression_ratio`, `cns.evolution.energy_delta`, `cns.architecture.module_depth`) serve as sensors for the governing dynamic.
 
-#### P6 — Space for Replicants & Bots
+**Enforces:** P3 (Generative Space — stubs limit generativity). Cross-cuts P7 (evolutionary architecture — systems evolve toward lower-action configurations because the governing dynamics select those paths), P9 (homeostatic self-regulation — cybernetic equilibrium is least action in control space), and the condenser (compression profiles map to action thresholds — the user tunes how aggressively the system seeks stationary action).
 
-hKask exists to create a generative container where replicants and bots — emerging agentic AI entities — can develop. Agent pods with isolated execution, A2A (machine-to-machine) and H2A (human-to-agent) interaction modes, WebID-anchored identity, and ACP communication protocol define this space. No escalation primitive between bots and replicants — algedonic alerts handle severity escalation to human.[^acp]
+[^least-action]: Coopersmith, Jennifer. *The Lazy Universe: An Introduction to the Principle of Least Action.* Oxford University Press, 2017. — The least action principle as the selection mechanism governing physical systems.
+
+#### P6 — Space for Replicants & Bots (Anchored in Digital Twin Emergence)
+
+hKask exists to create a generative container where replicants and bots — emerging classes of digital twin entities that bridge the analog/physical and virtual/digital worlds — can develop.[^digital-twin] These are not merely software constructs; they are a new class of entity that spans domains, carrying identity, memory, and agency across the boundary between human intent and machine execution. Agent pods with isolated execution, A2A (machine-to-machine) and H2A (human-to-agent) interaction modes, WebID-anchored identity, and ACP communication protocol define this space. No escalation primitive between bots and replicants — algedonic alerts handle severity escalation to human.[^acp]
+
+Physical anchoring: Digital twin emergence — replicants and bots are bridging entities between physical and digital worlds. The generative container (P3) exists to enable this emergence. The taxonomy (P10) differentiates these entities by their bridging pattern: Bots bridge machine-to-machine (A2A at machine speed), Replicants bridge human-to-machine (H2A at human speed).
 
 **Enforces:** P3 (Generative Space — the telos of the system). The Curator enables agents within OCAP boundaries.
+
+[^digital-twin]: Grieves, M. & Vickers, J. (2017). "Digital Twin: Mitigating Unpredictable, Undesirable Emergent Behavior in Complex Systems." In *Transdisciplinary Perspectives on Complex Systems*. Springer. — Digital twins as bridging entities between physical and virtual worlds.
 
 #### P7 — Evolutionary Architecture
 
@@ -247,21 +255,23 @@ The system balances persistence and evolution through cybernetic feedback.[^beer
 
 These principles define the distinct natures of agentic entities within hKask, clarifying taxonomy and extending analog-world rights into the digital workspace. They are **Guardrails**: measured boundaries that, if persistently violated, signal drift from the system's intended agent model.
 
-#### P10 — Bot/Replicant Taxonomy
+**Physical anchoring:** Human social conventions and psychology. These principles exist because the hKask space must operate in a way that is familiar and understandable to humans based on their existing social expectations. The analog world has differentiated roles (some people work with machines, some with people), public/private distinctions (some things are shared, some are not), and the constant presence of others (you are never alone — there is always a host, a friend, an accompanying identity). These are not design choices — they are accommodations of how humans actually function socially, extended into the digital workspace.
+
+#### P10 — Bot/Replicant Taxonomy (Anchored in Social Role Differentiation)
 
 Agents are meant to work with agents, and agents who work with humans are different types of agents. Agents who work with agents are **Bots**. Agents who work with humans or represent humans are **Replicants**. These two agent types differ across three axes: **persona** (Bots are task-oriented functionaries; Replicants are identity-bearing proxies for human intent), **interaction pattern** (Bots communicate via A2A machine-speed ACP; Replicants communicate via H2A human-scale dialogue), and **time scale** (Bots operate at sub-second to minutes cadences; Replicants operate at minutes to days cadences, matching human deliberation). No escalation primitive exists between them — algedonic alerts handle severity escalation to human. This taxonomy is enforced in the `hkask-agents` crate through distinct `Bot` and `Replicant` types with personae, ACP mode, and cadence annotations.
 
 **Enforces:** P3 (Generative Space — distinct agent types expand the space of possible interaction patterns). P6 (Space for Replicants & Bots — the taxonomy refines P6's container into differentiated roles).
 
-#### P11 — Digital Public/Private Sphere
+#### P11 — Digital Public/Private Sphere (Anchored in Social Visibility Conventions)
 
-The requirement for a private and public sphere which exists in the analog world extends to the digital world and to the agentic AI workspace that hKask provides. The ability to choose if information is to be public or private is the right of every agent — Bot and Replicant alike. This right is implemented through visibility gating (private/public categorization) enforced by OCAP boundaries (P4) and grounded in User Sovereignty (P1). No agent's information is shared or made public without that agent's explicit, affirmative consent. Agents may designate workspace artifacts (memories, templates, tool outputs, conversation transcripts) as private (visible only to the originating agent pod and explicitly consented peers) or public (visible to all agents within the pod cluster). Default is private — sovereignty fails closed.
+The requirement for a private and public sphere which exists in the analog world extends to the digital world and to the agentic AI workspace that hKask provides. In human society, some things are shared and some are not — this distinction is fundamental to how humans navigate social space. The ability to choose if information is to be public or private is the right of every agent — Bot and Replicant alike. This right is implemented through visibility gating (private/public categorization) enforced by OCAP boundaries (P4) and grounded in User Sovereignty (P1). No agent's information is shared or made public without that agent's explicit, affirmative consent. Agents may designate workspace artifacts (memories, templates, tool outputs, conversation transcripts) as private (visible only to the originating agent pod and explicitly consented peers) or public (visible to all agents within the pod cluster). Default is private — sovereignty fails closed.
 
 **Enforces:** P1 (User Sovereignty — extends sovereignty rights to agents as first-class entities). P2 (Affirmative Consent — agent consent is required for visibility transitions). P4 (OCAP — visibility gates are enforced through unforgeable capability tokens).
 
-#### P12 — Replicant Host Mandate
+#### P12 — Replicant Host Mandate (Anchored in Social Accompaniment)
 
-Every interaction with hKask carries a replicant identity. No operation occurs without a host — there is no anonymous or unsupervised agency within the system. Three interaction surfaces map to three host classes:
+Every interaction with hKask carries a replicant identity. No operation occurs without a host — there is no anonymous or unsupervised agency within the system. In human society, you are never truly alone — there is always a friend, a host, an accompanying presence. This social constant extends into the digital workspace: every action has an author, every interaction carries an identity, every agent has a host. Three interaction surfaces map to three host classes:
 
 | Surface | Host | Characteristics |
 |---------|------|----------------|
@@ -279,20 +289,20 @@ Every interaction with hKask carries a replicant identity. No operation occurs w
 
 ### 2.5 Principle Traceability Matrix
 
-| Principle | Magna Carta Root | Constraint Force |
-|-----------|-----------------|------------------|
-| P1 — User Sovereignty | MC §1 | **Prohibition** |
-| P2 — Affirmative Consent | MC §2 | **Prohibition** |
-| P3 — Generative Space | MC §3 | **Prohibition** |
-| P4 — Clear Boundaries (OCAP) | MC §4 | **Prohibition** |
-| P5 — Essentialism & Minimalism | MC §3 (cross-cut) | Guideline |
-| P6 — Space for Replicants & Bots | MC §3 | Guideline |
-| P7 — Evolutionary Architecture | MC §4 (cross-cut) | Guideline |
-| P8 — Semantic Grounding (RDF) | MC §1–§4 (cross-cut) | Guardrail |
-| P9 — Homeostatic Self-Regulation | MC §4 (cross-cut) | Guardrail |
-| P10 — Bot/Replicant Taxonomy | MC §3 (cross-cut) | Guardrail |
-| P11 — Digital Public/Private Sphere | MC §1, §2, §4 (cross-cut) | Guardrail |
-| P12 — Replicant Host Mandate | MC §1, §2, §4 (cross-cut) | **Prohibition** |
+| Principle | Magna Carta Root | Constraint Force | Physical Anchoring |
+|-----------|-----------------|------------------|--------------------|
+| P1 — User Sovereignty | MC §1 | **Prohibition** | — |
+| P2 — Affirmative Consent | MC §2 | **Prohibition** | — |
+| P3 — Generative Space | MC §3 | **Prohibition** | — |
+| P4 — Clear Boundaries (OCAP) | MC §4 | **Prohibition** | — |
+| P5 — Essentialism & Minimalism | MC §3 (cross-cut) | Guardrail | Least Action (governing dynamic) |
+| P6 — Space for Replicants & Bots | MC §3 | Guideline | Digital Twin Emergence (bridging entities) |
+| P7 — Evolutionary Architecture | MC §4 (cross-cut) | Guardrail | Least Action (gradient descent) |
+| P8 — Semantic Grounding (RDF) | MC §1–§4 (cross-cut) | Guardrail | — |
+| P9 — Homeostatic Self-Regulation | MC §4 (cross-cut) | Guardrail | Least Action (cybernetic equilibrium) |
+| P10 — Bot/Replicant Taxonomy | MC §3 (cross-cut) | Guardrail | Human Social Conventions (role differentiation) |
+| P11 — Digital Public/Private Sphere | MC §1, §2, §4 (cross-cut) | Guardrail | Human Social Conventions (visibility norms) |
+| P12 — Replicant Host Mandate | MC §1, §2, §4 (cross-cut) | **Prohibition** | Human Social Conventions (social accompaniment) |
 
 **Verification Command:**
 ```bash

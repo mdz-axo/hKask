@@ -43,7 +43,7 @@ kask style embed-corpus --config corpus.yaml
   → semantic triples: (corpus:hemingway, was_embedded_by, jacques-rzuck)
 ```
 
-**Current state:** `embed-corpus` and other CLI commands do not yet auto-resolve the logged-in replicant. DB and passphrase are passed manually via `--db` and `--passphrase`. This is a known gap — see Implementation Status below.
+**Current state:** `embed-corpus` and other CLI commands require explicit `--replicant` and `--passphrase` parameters. The replicant identity is never inferred from the passphrase alone — explicit identification is mandatory per P12.
 
 ### Daemon / System — Curator Host
 
@@ -70,6 +70,140 @@ Programmatic interactions via HTTP API are managed by 7R7 bots:
 - Capability tokens bound to the bot's WebID (OCAP P4)
 - Bot pods provide isolation boundaries
 - `HKASK_REPLICANT` env var identifies the serving replicant
+
+**API key system (pending):** API consumers authenticate via scoped API keys rather than replicant passphrases. Each key is:
+
+- **Issued by** a 7R7 bot with key-issuance capability
+- **Scoped** to specific endpoints and actions (read specs, embed corpora, query centroids)
+- **Rate-limited** per key with CNS variety monitoring
+- **Rotatable** — keys expire after 90 days, renewal requires bot attestation
+- **Revocable** — bots monitor usage patterns and revoke anomalous keys
+
+Key lifecycle:
+
+```
+7R7 bot issues key → API consumer uses key → CNS monitors usage
+  │                                              │
+  │   anomaly detected ←─────────────────────────┘
+  │       │
+  │       └─→ bot revokes key, alerts Curator
+  │
+  └─→ 90-day expiry → bot sends renewal notice → consumer rotates
+```
+
+The 7R7 bots are the **sole key issuers** — no human, no Curator, no daemon can issue API keys. This separation ensures programmatic access is always bot-governed, never human-credentialed.
+
+### Key Request Flow
+
+```
+Requester                    7R7 Bot                      CNS
+   │                            │                           │
+   │  POST /api/keys/request    │                           │
+   │  {replicant, scope,        │                           │
+   │   purpose, webhook}        │                           │
+   │─────────────────────────→  │                           │
+   │                            │  verify replicant         │
+   │                            │  identity via UserStore   │
+   │                            │                           │
+   │                            │  check scope validity     │
+   │                            │  against endpoint registry│
+   │                            │                           │
+   │                            │  query CNS for requester  │
+   │                            │  abuse history ──────────→│
+   │                            │                           │
+   │                            │  ←── clean history / flags│
+   │                            │                           │
+   │                            │  allocate energy budget   │
+   │                            │  for key scope            │
+   │                            │                           │
+   │                            │  generate HKDF key        │
+   │                            │  store in KeyStore        │
+   │                            │                           │
+   │  ←── {key_id, key_secret,  │                           │
+   │        scope, expires_at,  │                           │
+   │        rate_limit}         │                           │
+   │                            │                           │
+   │  record episodic memory:   │                           │
+   │  "key issued to {replicant}│                           │
+   │   for {scope}"             │                           │
+```
+
+### Approval Criteria
+
+The 7R7 bot approves a key request when ALL of the following hold:
+
+| Criterion | Check | Failure Response |
+|-----------|-------|-----------------|
+| **Valid replicant** | Requester exists in UserStore with active session | 401 — "Authenticate first" |
+| **Clean history** | CNS shows no abuse flags for this replicant in past 90 days | 403 — "Request denied: abuse history" |
+| **Valid scope** | Requested endpoints exist in the API endpoint registry | 400 — "Unknown scope: {endpoint}" |
+| **Purpose statement** | Non-empty, ≥20 characters, not a repeat of prior denied requests | 400 — "Provide a meaningful purpose" |
+| **Rate limit feasible** | Requested rate limit ≤ system maximum for that scope | 400 — "Rate limit exceeds scope maximum" |
+| **Funder has balance** | The funding replicant's wallet holds sufficient rJoules for the requested key allocation | 402 — "Insufficient funds: need {required} rJ, have {available} rJ" |
+
+The bot does NOT evaluate whether the purpose is "good" — only that it is stated. Purpose evaluation is the Curator's domain via algedonic review.
+
+### Key Funding Model
+
+API keys are **replicant-funded**, not system-subsidized. Every key draws from a specific replicant's wallet:
+
+```
+Replicant wallet (rJoules)
+  │
+  ├─→ allocates N rJ to key "k1" (scope: embed-corpus)
+  ├─→ allocates M rJ to key "k2" (scope: read-specs)
+  │
+  └─→ remaining balance stays in wallet
+
+Key "k1" uses API → gas consumed → rJ deducted from allocation
+  │
+  ├─→ allocation > 0? YES → process request
+  │                     NO  → 402 "Key allocation exhausted — funder must replenish"
+  │
+  └─→ CNS tracks: rJ_consumed, rJ_remaining, depletion_eta
+```
+
+**At issuance:** The requesting replicant specifies how many rJoules to allocate to the key. The 7R7 bot verifies the wallet holds sufficient balance, locks the allocation, and issues the key. The rJoules are not transferred — they are **encumbered** (reserved for the key's use) and deducted as the key consumes gas.
+
+**Replenishment:** The funding replicant can top up a key's allocation at any time via `POST /api/keys/{key_id}/fund`. The bot verifies wallet balance and increases the encumbrance.
+
+**Release:** When a key expires or is revoked, unspent rJoules are released back to the funding replicant's wallet.
+
+**Crypto wallet integration (anticipated):** The rJoule system maps to an on-chain token via `hkask-wallet`. Replicant wallets are HD wallets derived from the replicant's WebID. Gas consumption is settled on-chain periodically (every N blocks) rather than per-request. The 7R7 bots hold the settlement authority — they aggregate key usage, produce a settlement batch, and submit it to the wallet for on-chain confirmation.
+
+### Key Metering
+
+Every API call authenticated by a key is metered through CNS spans:
+
+```
+API call with key → cns.api.request span opens
+  │
+  ├─→ key_id attached to span
+  ├─→ scope matched against requested endpoint
+  ├─→ rate limit checked: requests_per_minute, tokens_per_day
+  ├─→ energy cost computed: gas = f(endpoint_weight, payload_size, response_tokens)
+  │
+  ├─→ within limits? YES → process request
+  │                     NO  → 429 + cns.api.rate_limit_exceeded alert
+  │
+  └─→ span closes → metrics aggregated:
+       • key_id → requests_today, tokens_today, gas_consumed
+       • key_id → error_rate, latency_p95
+       • key_id → unique_endpoints_touched (variety counter)
+```
+
+**Energy budget per key:** Each key draws from a replicant-funded rJoule allocation (not a system budget). The CNS energy budget manager tracks consumption against the allocation. When a key exhausts its allocation, requests return 402 until the funding replicant replenishes. The funding replicant receives a CNS alert when allocation drops below 20%.
+
+**Anomaly detection:** The CNS algedonic loop monitors per-key metrics:
+- Sudden spike in error rate → possible abuse → bot investigates
+- Variety explosion (touching many new endpoints rapidly) → possible scan → bot rate-limits
+- Consistent near-limit usage → legitimate heavy user → bot offers scope upgrade
+
+**Key revocation triggers:**
+- 3 consecutive CNS abuse alerts for the same key
+- Key used from >5 distinct IPs within 1 hour
+- Key used for endpoints outside its declared scope
+- Manual revocation via `kask api revoke-key <key_id>` (requires Curator authority)
 
 ---
 
@@ -116,9 +250,9 @@ Every action has an author. Every triple has an owner. Every CNS span has a pers
 | Curator persona constant | ✅ Implemented | `CURATOR_PERSONA` in `embed.rs`, `WebID::from_persona()` |
 | Daemon → Curator flow | ✅ Implemented | Daemon operations use Curator WebID |
 | MCP servers → replicant auth | ✅ Implemented | `HKASK_REPLICANT` env var + daemon auth query |
-| CLI → auto-resolve replicant | ❌ Gap | `embed-corpus`, `compose`, `settings` pass DB manually |
-| CLI → experience recording | ❌ Gap | `embed_corpus` stores triples but does not call `store_experience` |
-| API → bot auth | ⚠️ Partial | Capability tokens supported; 7R7 bot integration pending |
+| CLI → explicit replicant auth | ✅ Implemented | `--replicant` + `--passphrase` required; DB resolved from UserStore |
+| CLI → experience recording | ✅ Implemented | `CliExperienceRecorder` bridges CLI commands to daemon dual-encoding |
+| API → bot auth | ⚠️ Planned | Scoped API keys issued by 7R7 bots; CNS-monitored; 90-day rotation. See §API — Bot Host. |
 
 ---
 
