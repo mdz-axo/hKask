@@ -711,16 +711,20 @@ impl ReplicaServer {
                     "examples": ["jane-wilde (Austen × Wilde)", "ulysses-s-twain (Grant × Twain)", "agatha-eliot (Christie × Eliot)"]
                 },
                 "academic_author": {
-                    "status": "Planned",
-                    "description": "Dynamic corpus discovery via research MCP tools. Given a name (e.g., 'David Dunning'), disambiguate identity, enumerate works across academic and open sources, download and cache content, generate a corpus.yaml, then proceed through the standard embedding pipeline.",
+                    "status": "Implemented",
+                    "description": "Dynamic corpus discovery via CLI command. Given a name (e.g., 'David Dunning'), searches Semantic Scholar, arXiv, web (SerpAPI), and YouTube transcripts, caches content, and generates a corpus.yaml ready for replica_build. Curated by default — web and YouTube results presented for user confirmation.",
+                    "cli_command": "kask style discover \"David Dunning\" [--serpapi-key KEY] [--no-curate] [--no-transcripts] [--no-web]",
                     "pipeline": [
-                        "1. Name disambiguation — search academic/open sources, present candidates to Curator for confirmation",
-                        "2. Work enumeration — arXiv, Semantic Scholar, institutional pages, conference proceedings, transcripts, open web",
-                        "3. Content acquisition — web_extract each work into .cache/{slug}.txt",
-                        "4. Corpus config generation — produce corpus.yaml with discovered works",
-                        "5. Replica build — standard chunk/tag/embed/triple/centroid pipeline"
+                        "1. Semantic Scholar — free academic paper search with abstracts and open-access PDF links",
+                        "2. arXiv — free preprint search with PDF links",
+                        "3. Web search (SerpAPI Google) — institutional pages, interviews, faculty profiles",
+                        "4. YouTube transcript search (SerpAPI) — talks, lectures, interviews with full transcripts",
+                        "5. Interactive curation — user selects which web/YouTube results to include",
+                        "6. Content download + cache — PDF→text, HTML→text, stored in .cache/{slug}.txt",
+                        "7. Corpus YAML generation — ready for kask style embed-corpus"
                     ],
-                    "reuses": "hkask-mcp-research tools (web_search, web_extract, web_find_similar, web_browse) — no duplicated infrastructure"
+                    "build_command": "kask style embed-corpus --config <author>/corpus.yaml --db <path>",
+                    "implementation": "DiscoveryService in hkask-services (CLI → service, same pattern as EmbedService). MCP tools (replica_discover, replica_cache_work) available for server-mode use. Manifest (replica-discovery.yaml) serves as specification."
                 },
                 "human_exemplar_principle": "All exemplar types model a named human individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work — the corpus IS the evidence of their voice, style, and intellectual framework."
             }

@@ -25,7 +25,7 @@ magna-carta.md  ←  Foundation (4 inviolable principles)
        ↓
 PRINCIPLES.md  ←  9 principles (P1-P9), constraint forces
        ↓
-   MDS.md      ←  Minimal Domain Specification (5 categories, 6 tools)
+   MDS.md      ←  Minimal Domain Specification (5 categories, 5 tools)
        ↓
 loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 ```
@@ -36,18 +36,8 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 |----------|---------|
 | [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
 | [`PRINCIPLES.md`](PRINCIPLES.md) | 9 architecture principles (P1-P9), 5 anchors, anti-patterns |
-| [`MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 6 tools, completeness predicate |
+| [`MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
 | [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
-
-### Historical
-
-| Document | Status |
-|----------|--------|
-| `MDS.md` | Deleted — superseded by MDS.md (9→5 categories, 9→6 tools) |
-| `MDS.md §7.1-7.2` | Deleted — covered by MDS.md §7 |
-| `MDS.md §7.2` | Deleted — covered by MDS.md §7 |
-| `MDS.md §7.4` | Deleted — covered by MDS.md §7.4 |
-| `MDS.md §7.3` | Deleted — covered by MDS.md §7.3 + PRINCIPLES.md §2.1 |
 
 ---
 
@@ -240,7 +230,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/inference-integration.md`](reference/inference-integration.md) | Inference Router API contract (Ollama, Fireworks, DeepInfra) |
+| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (Ollama, Fireworks, DeepInfra) |
 
 
 ---
@@ -302,7 +292,7 @@ docs/architecture/
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
     ├── hKask-Curator-persona.md           # Persona spec
-    └── inference-integration.md               # Inference Router API contract
+    └── okapi-integration.md               # Inference Router API contract
 ```
 
 **Total:** 21 active architecture documents (4 framework + 1 index + 10 ADRs + 6 reference artifacts).

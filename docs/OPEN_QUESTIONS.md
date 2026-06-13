@@ -48,7 +48,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-tools-inventory.md` (formerly `mcp-server-audit.md`, archived 2026-06-07). Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
+**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-tools-inventory.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
 **Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface. Note: The term "arsenal" is not part of the hKask vocabulary — the project has 11 core crates and 21 MCP servers, all in a single workspace.
 
@@ -598,6 +598,82 @@ The `hkask-mcp-spec` server can be used to capture and curate the specification 
 **Resolved:** 2026-06-08
 
 Resolved by adding a `calibration` section to the `coherence_metric` block in MDS §5.9 Curation Spec Template. The calibration procedure is now documented: collect ≥10 SpecCurationRecord coherence scores, compute the 25th percentile (nearest-rank), use that as the empirical threshold. Code implementation: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)` in `crates/hkask-agents/src/curator_agent/spec_curator.rs`. This closes the spec-document gap — the spec now states the calibration method, not just the threshold value.
+
+---
+
+## Document Automation (2026-06-12)
+
+Open questions from the documentation corpus sweep and `document-update` skill composition.
+
+### FUT-DOC-1 — Continuous Self-Application
+
+**MDS Category:** Lifecycle, Curation
+**Status:** Open
+**Opened:** 2026-06-12
+**Cross-references:** MDS_SCAFFOLD.md §6.1, FUT-DOC-4
+
+Should the spec server run `spec/graph/coherence` on the document corpus on every merge to main, or only on explicit `kask sovereignty verify` invocation? The MDS_SCAFFOLD §6.1 notes this is "not blocked by circularity" but deferred.
+
+**Options:**
+1. **CI gate:** Run `spec/graph/coherence` as a CI check on every merge to main. Failing coherence blocks the merge.
+2. **Manual invocation:** Run only on `kask sovereignty verify`. Lower overhead, but drift accumulates between invocations.
+3. **Scheduled:** Run on a cron schedule (daily/weekly). Compromise between automation and overhead.
+
+### FUT-DOC-2 — Coherence Threshold Calibration
+
+**MDS Category:** Curation
+**Status:** Open
+**Opened:** 2026-06-12
+**Cross-references:** TQ-2, FUT-013, DA-5
+
+The current threshold of 0.7 (Jaccard similarity) is inherited from MDS §7.5. Is 0.7 the correct threshold for a document corpus (as opposed to a code API surface)?
+
+**Options:**
+1. **Keep 0.7:** Inherit from MDS code threshold. Consistent but may be wrong for documents.
+2. **Calibrate empirically:** Collect coherence scores from ≥10 corpus sweeps, compute 25th percentile per DA-5 resolution.
+3. **Lower to 0.5:** Documents have more natural variance than code APIs. A lower threshold may be more appropriate.
+
+### FUT-DOC-3 — Automated Drift Detection
+
+**MDS Category:** Composition, Curation
+**Status:** Open
+**Opened:** 2026-06-12
+**Cross-references:** spec-code-drift.yaml, MDS.md §3
+
+The current drift detection method (set-difference of named entities) is manual. Can `spec/graph/query` be extended with a `spec/graph/diff` tool that computes the symmetric difference between spec entities and code `pub` surfaces automatically? This would close the MDS self-application loop.
+
+**Options:**
+1. **Add `spec/graph/diff` tool:** New MCP tool that parses spec documents for named entities, extracts `pub` API surfaces via `cargo doc --output-format=json`, computes symmetric difference.
+2. **CI script:** Bash script that does the same without a new MCP tool. Lower integration cost.
+3. **Defer:** Manual drift detection is adequate for current corpus size (47 documents).
+
+### FUT-DOC-4 — Skill Enforcement vs. Guidance
+
+**MDS Category:** Trust, Curation
+**Status:** Open
+**Opened:** 2026-06-12
+**Cross-references:** TQ-3, magna-carta.md P4
+
+Should the `document-update` skill be enforced (agent MUST load it before any document edit) or advisory (agent MAY load it)? Resolution depends on the Magna Carta P4 (Clear Boundaries) constraint force classification.
+
+**Options:**
+1. **Enforced (Prohibition):** Agent MUST load `document-update` before any `docs/` edit. Violation blocks the edit. Strongest guarantee but reduces agent autonomy.
+2. **Guardrail:** Agent SHOULD load `document-update`; edits without it produce a warning. Balanced.
+3. **Guideline:** Agent MAY load `document-update`. The skill is available but not required. Preserves agent autonomy.
+
+### FUT-DOC-5 — Replica Style Enforcement
+
+**MDS Category:** Curation
+**Status:** Open
+**Opened:** 2026-06-12
+**Cross-references:** WRITING_EXCELLENCE.md §3, hkask-mcp-replica
+
+Can `replica_compare` be used as a CI gate — rejecting document edits whose stylistic distance from the Curator centroid exceeds 0.3? This would operationalize the Writing Excellence Mandate as an automated check rather than a manual review.
+
+**Options:**
+1. **CI gate:** `replica_compare` runs on every document edit; distance >0.3 blocks merge. Full automation.
+2. **Advisory check:** `replica_compare` runs but produces a warning, not a block. Lower friction.
+3. **Defer:** Manual review via `spec/require/writing-quality` is adequate. Style enforcement is aspirational.
 
 ---
 

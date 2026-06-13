@@ -13,6 +13,7 @@ use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
     AuthContext, Confidence, DelegationAction, DelegationToken, LLMParameters, PersonaConstraints,
@@ -478,8 +479,20 @@ impl ChatService {
             seed: None,
         });
 
-        // REQ: P9 (Homeostatic) — CNS span before inference
-        tracing::debug!(target: "cns.chat.request", agent = %prepared.agent_name, model = %prepared.model, prompt_len = prepared.prompt.len());
+        // REQ: P9 (Homeostatic) — CNS span before inference (NuEvent, not just tracing)
+        let request_span = Span::new(SpanNamespace::new("cns.chat"), "request");
+        let request_event = NuEvent::new(
+            prepared.agent_webid,
+            request_span,
+            Phase::Act,
+            serde_json::json!({
+                "agent": &prepared.agent_name,
+                "model": &prepared.model,
+                "prompt_len": prepared.prompt.len(),
+            }),
+            0,
+        );
+        let _ = ctx.event_sink().persist(&request_event);
 
         let result = prepared
             .inference_port
@@ -488,9 +501,38 @@ impl ChatService {
             .map_err(ServiceError::InferencePort)?;
 
         // REQ: P9 (Homeostatic) — CNS span after inference
-        tracing::debug!(target: "cns.chat.response", agent = %prepared.agent_name, model = %prepared.model, tokens = result.usage.total_tokens, finish_reason = %result.finish_reason);
+        let response_span = Span::new(SpanNamespace::new("cns.chat"), "response");
+        let response_event = NuEvent::new(
+            prepared.agent_webid,
+            response_span,
+            Phase::Act,
+            serde_json::json!({
+                "agent": &prepared.agent_name,
+                "model": &prepared.model,
+                "tokens": result.usage.total_tokens,
+                "finish_reason": &result.finish_reason,
+            }),
+            0,
+        )
+        .with_parent(request_event.id);
+        let _ = ctx.event_sink().persist(&response_event);
 
-        // Store the exchange as episodic triple
+        // Store the exchange as episodic triple (with CNS observability)
+        let memory_span = Span::new(SpanNamespace::new("cns.memory.encode"), "episodic_stored");
+        let memory_event = NuEvent::new(
+            prepared.agent_webid,
+            memory_span,
+            Phase::Act,
+            serde_json::json!({
+                "agent": &prepared.agent_name,
+                "operation": "store_episodic",
+                "input_len": req.input.len(),
+                "response_len": result.text.len(),
+            }),
+            0,
+        );
+        let _ = ctx.event_sink().persist(&memory_event);
+
         Self::store_episodic(
             &prepared.episodic_port,
             &req.input,

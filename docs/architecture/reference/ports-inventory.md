@@ -1,11 +1,11 @@
 ---
 title: Hexagonal Port Inventory
 version: "0.27.0"
-status: accurate
+status: "Active"
 last_updated: 2026-06-10
 audience: [architects, developers]
 domain: "Application"
-mds_categories: [interface]
+mds_categories: [composition]
 ---
 
 # Hexagonal Port Inventory — hKask v0.23.0

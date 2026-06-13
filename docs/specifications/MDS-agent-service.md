@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 # MDS — AgentService Specification
 
-**Purpose:** Specification for the condensed service layer architecture. `AgentService` (formerly `ServiceContext`) is the canonical service layer that owns all shared infrastructure.
+**Purpose:** Specification for the condensed service layer architecture. `AgentService` is the canonical service layer that owns all shared infrastructure.
 
 **Supersedes:** `hKask-architecture-master.md` §Service Layer (v0.27.0)
 

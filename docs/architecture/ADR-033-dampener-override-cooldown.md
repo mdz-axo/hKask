@@ -12,7 +12,7 @@ mds_categories: [trust, lifecycle]
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`MDS.md`](MDS.md) §7.1-7.2 §4.3, OPEN_QUESTIONS.md FUT-003, FUT-007
+**Related:** [`MDS.md`](MDS.md), OPEN_QUESTIONS.md FUT-003, FUT-007
 
 ## Context
 

@@ -164,13 +164,6 @@ impl DiscoveryService {
             }
         }
 
-        if works.is_empty() {
-            return Err(ServiceError::Embed(format!(
-                "No works found for '{}' across Semantic Scholar and arXiv",
-                req.author_name
-            )));
-        }
-
         // ── Phase 3: Web search for institutional pages ───────────────────
         let mut web_candidates: Vec<DiscoveredWork> = Vec::new();
         if req.include_web
@@ -232,6 +225,14 @@ impl DiscoveryService {
             }
         }
 
+        // Check after ALL sources have been tried
+        if works.is_empty() && web_candidates.is_empty() && youtube_candidates.is_empty() {
+            return Err(ServiceError::Embed(format!(
+                "No works found for '{}' across any source",
+                req.author_name
+            )));
+        }
+
         // ── Phase 5: Extract and cache content ────────────────────────────
         let mut cached = 0usize;
         for work in &works {
@@ -255,58 +256,8 @@ impl DiscoveryService {
             }
         }
 
-        // ── Phase 4: Generate corpus.yaml ──────────────────────────────────
-        let corpus_works: Vec<Work> = works
-            .iter()
-            .map(|w| Work {
-                title: w.title.clone(),
-                slug: w.slug.clone(),
-                url: w.url.clone(),
-            })
-            .collect();
-
-        let config = CorpusConfig {
-            author: author_slug.clone(),
-            embedding: crate::embed::EmbeddingConfig {
-                model: "DI/Qwen/Qwen3-Embedding-0.6B".to_string(),
-                dim: 1024,
-                batch_size: 64,
-            },
-            works: corpus_works,
-            foundational_rules: vec![],
-            chunking: crate::embed::ChunkingConfig {
-                min_words: 50,
-                max_words: 200,
-                sentence_boundary: ".!? ".to_string(),
-            },
-            centroid_entity_ref: format!("style:{}:centroid", author_slug),
-            validation: crate::embed::ValidationConfig {
-                centroid_distance_max: 0.25,
-                exemplar_count_min: 3,
-                exemplar_count_max: 7,
-            },
-            budget: hkask_memory::salience::BudgetConfig::PerPage {
-                per_100_pages: 3750,
-            },
-            entities: crate::embed::EntityConfig {
-                characters: vec![],
-                places: vec![],
-                events: vec![],
-                concepts: vec![],
-            },
-            methods: vec![],
-        };
-
-        let config_yaml = serde_yaml::to_string(&config)
-            .map_err(|e| ServiceError::Embed(format!("Failed to serialize corpus config: {e}")))?;
-
-        let config_path = output_path.join("corpus.yaml");
-        std::fs::write(&config_path, &config_yaml).map_err(|e| {
-            ServiceError::Embed(format!(
-                "Failed to write corpus.yaml to '{}': {e}",
-                config_path.display()
-            ))
-        })?;
+        // ── Phase 6: Generate corpus.yaml ──────────────────────────────────
+        let config_path = generate_corpus_yaml(&author_slug, &works, &output_path)?;
 
         tracing::info!(
             target: "hkask.discover",
@@ -328,6 +279,71 @@ impl DiscoveryService {
             youtube_candidates,
         })
     }
+}
+
+/// Generate a corpus.yaml from a list of discovered works.
+///
+/// Public so the CLI can regenerate the config after curation —
+/// selected web/YouTube candidates are added to the works list
+/// and a fresh corpus.yaml is written.
+pub fn generate_corpus_yaml(
+    author_slug: &str,
+    works: &[DiscoveredWork],
+    output_dir: &Path,
+) -> Result<PathBuf, ServiceError> {
+    let corpus_works: Vec<Work> = works
+        .iter()
+        .map(|w| Work {
+            title: w.title.clone(),
+            slug: w.slug.clone(),
+            url: w.url.clone(),
+        })
+        .collect();
+
+    let config = CorpusConfig {
+        author: author_slug.to_string(),
+        embedding: crate::embed::EmbeddingConfig {
+            model: "DI/Qwen/Qwen3-Embedding-0.6B".to_string(),
+            dim: 1024,
+            batch_size: 64,
+        },
+        works: corpus_works,
+        foundational_rules: vec![],
+        chunking: crate::embed::ChunkingConfig {
+            min_words: 50,
+            max_words: 200,
+            sentence_boundary: ".!? ".to_string(),
+        },
+        centroid_entity_ref: format!("style:{author_slug}:centroid"),
+        validation: crate::embed::ValidationConfig {
+            centroid_distance_max: 0.25,
+            exemplar_count_min: 3,
+            exemplar_count_max: 7,
+        },
+        budget: hkask_memory::salience::BudgetConfig::PerPage {
+            per_100_pages: 3750,
+        },
+        entities: crate::embed::EntityConfig {
+            characters: vec![],
+            places: vec![],
+            events: vec![],
+            concepts: vec![],
+        },
+        methods: vec![],
+    };
+
+    let config_yaml = serde_yaml::to_string(&config)
+        .map_err(|e| ServiceError::Embed(format!("Failed to serialize corpus config: {e}")))?;
+
+    let config_path = output_dir.join("corpus.yaml");
+    std::fs::write(&config_path, &config_yaml).map_err(|e| {
+        ServiceError::Embed(format!(
+            "Failed to write corpus.yaml to '{}': {e}",
+            config_path.display()
+        ))
+    })?;
+
+    Ok(config_path)
 }
 
 // ── API search helpers ──────────────────────────────────────────────────────
@@ -708,7 +724,14 @@ async fn fetch_youtube_transcript(
         .await
         .map_err(|e| ServiceError::Embed(format!("SerpAPI transcript request failed: {e}")))?;
 
+    let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(ServiceError::Embed(format!(
+            "SerpAPI transcript error {status} for video '{video_id}'"
+        )));
+    }
+
     let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
 
     // Transcript segments: each has "snippet"

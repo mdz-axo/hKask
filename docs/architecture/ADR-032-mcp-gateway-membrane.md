@@ -12,7 +12,7 @@ mds_categories: [composition, trust]
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`MDS.md`](MDS.md) §7.1-7.2 §5.5, OPEN_QUESTIONS.md FUT-004
+**Related:** [`MDS.md`](MDS.md), OPEN_QUESTIONS.md FUT-004
 
 ## Context
 

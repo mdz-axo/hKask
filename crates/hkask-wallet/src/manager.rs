@@ -611,6 +611,8 @@ mod tests {
     }
 
     fn make_manager() -> WalletManager {
+        // SAFETY: test-only env var set in single-threaded test context;
+        // SAFETY: no other threads read HKASK_MASTER_KEY concurrently.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",

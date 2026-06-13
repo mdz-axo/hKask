@@ -1,3 +1,13 @@
+---
+title: "Handoff — Replicant Server Mode Architecture"
+audience: [architects, developers]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Technology"
+mds_categories: [composition, trust, lifecycle]
+---
+
 # Handoff — Replicant Server Mode Architecture
 
 **Session date:** 2026-06-12

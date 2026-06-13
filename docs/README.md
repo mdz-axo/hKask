@@ -41,7 +41,7 @@ for its category cluster.
 
 | Document | MDS Categories | Description |
 |----------|-------------------|-------------|
-| [`MDS.md`](architecture/MDS.md) | domain, composition, trust, lifecycle, curation | Minimal Domain Specification — 5 categories, 6 tools, completeness predicate |
+| [`MDS.md`](architecture/MDS.md) | domain, composition, trust, lifecycle, curation | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
 | [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P9), 5 anchors, anti-patterns |
 | [`magna-carta.md`](architecture/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
 | [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle, curation | 4-loop architecture — RateLimiting→EnergyBudget, crate↔loop mapping |
@@ -66,7 +66,7 @@ for its category cluster.
 
 | [`hKask-hLexicon.md`](architecture/reference/hKask-hLexicon.md) | domain | Minimal composition vocabulary |
 | [`ports-inventory.md`](architecture/reference/ports-inventory.md) | interface | Hexagonal port inventory |
-| [`inference-integration.md`](architecture/reference/inference-integration.md) | domain | Inference Router API contract |
+| [`okapi-integration.md`](architecture/reference/okapi-integration.md) | domain | Inference Router API contract |
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | interface | API and CLI documentation generation |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | composition | hLexicon functional role headers |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | domain | Canonical human-facing replicant |
@@ -96,7 +96,13 @@ for its category cluster.
 
 | Document | MDS | Description |
 |----------|--------|-------------|
-| *(planned)* | all | *Status files are planned but not yet populated. Work items tracked in [`plans/TODO.md`](plans/TODO.md).* |
+| [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
+| [`test-inventory.md`](status/test-inventory.md) | lifecycle, curation | Test inventory from `cargo test --list` |
+| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | composition, lifecycle | MCP server tool catalog (~82 tools) |
+| [`spec-code-drift.yaml`](status/spec-code-drift.yaml) | domain, composition, trust, lifecycle, curation | Spec-code drift tracking (10/14 resolved) |
+| [`curation-decisions.yaml`](status/curation-decisions.yaml) | domain, composition, trust, lifecycle, curation | Curation decisions per drift item |
+| [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | composition, domain | Dead code and simplification opportunities |
+| [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification |
 
 ---
 
@@ -106,7 +112,12 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 | Document | MDS | Description |
 |----------|--------|-------------|
-| [`TODO.md`](plans/TODO.md) | all | Open work items only |
+| [`TODO.md`](plans/TODO.md) | domain, composition, trust, lifecycle, curation | Open work items |
+| [`bundler-completion.md`](plans/bundler-completion.md) | domain, composition, lifecycle | Bundler completion — remaining tasks |
+| [`mcp-server-roadmap.md`](plans/mcp-server-roadmap.md) | domain, composition, trust, lifecycle, curation | MCP server consolidation roadmap |
+| [`2026-06-12-replicant-server-mode.md`](plans/2026-06-12-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode handoff |
+| [`2026-06-12-wallet-payment-mechanism.md`](plans/2026-06-12-wallet-payment-mechanism.md) | domain, composition, trust, lifecycle | Wallet payment integration plan |
+| [`2026-06-12-wallet-rjoule-payments.md`](plans/2026-06-12-wallet-rjoule-payments.md) | domain, composition, trust, lifecycle | Wallet rJoule multi-chain plan |
 
 
 ---
@@ -129,12 +140,6 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 | [`generated/cli-reference.md`](generated/cli-reference.md) | interface | Auto-generated CLI reference |
 
----
-
-## Research (`specifications/`)
-
-| Document | MDS | Description |
-|----------|--------|-------------|
 ---
 
 ## Verification

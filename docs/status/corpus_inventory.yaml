@@ -1,0 +1,576 @@
+---
+title: "Corpus Inventory — Lifecycle Classification"
+audience: [architects, documentation maintainers, agents]
+last_updated: 2026-06-12
+version: "1.1.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [lifecycle, curation]
+---
+
+# Corpus Inventory — Lifecycle Classification
+
+Generated: 2026-06-12
+Updated: 2026-06-12 (Task 2 metadata alignment complete)
+Method: Walk every .md (and .yaml status) file in docs/architecture/, docs/specifications/,
+        docs/status/, docs/plans/, docs/user-guides/. Extract YAML frontmatter. Classify
+        lifecycle state against MDS_SCAFFOLD §3 state machine (Draft → Active → Deprecated
+        → Superseded → Removed). Flag stale status, missing/deprecated mds_categories,
+        and references to removed/superseded subsystems.
+
+## Summary
+
+| Metric | Count |
+|--------|-------|
+| Total documents walked | 47 |
+| Active (correct) | 31 |
+| Draft (correct) | 4 |
+| Metadata violations | 0 |
+| Metadata aligned (all) | 47 |
+| ddmvss_categories (deprecated) | 0 |
+| Missing mds_categories | 0 |
+| Old 9-category values in mds_categories | 0 |
+| Missing frontmatter entirely | 0 |
+| Stale status values | 0 |
+| References removed subsystems | 8 |
+| lifecycle_action: keep | 47 |
+| lifecycle_action: fix_metadata | 0 |
+
+## Inventory
+
+### architecture/
+
+- path: docs/architecture/ADR-024-unified-registry.md
+  status: Active
+  mds_categories: [composition]
+  last_updated: 2026-05-29
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Correct 5-category taxonomy. Version matches project."
+
+- path: docs/architecture/ADR-025-attenuation-depth-limit.md
+  status: Active
+  mds_categories: [trust]
+  last_updated: 2026-05-29
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/ADR-026-bitemporal-triple-schema.md
+  status: Active
+  mds_categories: [lifecycle]
+  last_updated: 2026-05-29
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "mds_categories: [lifecycle] is correct 5-category taxonomy, though ADR-026 is about persistence. Per MDS, persistence maps under Lifecycle category."
+
+- path: docs/architecture/ADR-027-argon2-hkdf-master-key.md
+  status: Active
+  mds_categories: [trust]
+  last_updated: 2026-05-29
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/ADR-030-skill-bundler.md
+  status: Draft
+  mds_categories: [composition]
+  last_updated: 2026-06-04
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/ADR-031-consolidation-authorization.md
+  status: Active
+  mds_categories: [trust]
+  last_updated: 2026-06-05
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/ADR-032-mcp-gateway-membrane.md
+  status: Draft
+  mds_categories: [composition, trust]
+  last_updated: 2026-06-07
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body references 'MDS.md §7.1-7.2 §5.5' — deleted sections. Flagged for cross-reference fix in Task 4."
+
+- path: docs/architecture/ADR-033-dampener-override-cooldown.md
+  status: Draft
+  mds_categories: [trust, lifecycle]
+  last_updated: 2026-06-07
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body references 'MDS.md §7.1-7.2 §4.3' — deleted sections. Flagged for cross-reference fix in Task 4."
+
+- path: docs/architecture/ADR-034-academic-author-pipeline.md
+  status: Draft
+  mds_categories: [composition, curation]
+  last_updated: 2026-06-11
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/ADR-035-replicant-server-mode.md
+  status: Active
+  mds_categories: [composition, trust, lifecycle]
+  last_updated: 2026-06-12
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body references 'MDS.md §7.1-7.2' — deleted sections. Flagged for cross-reference fix in Task 4."
+
+- path: docs/architecture/hKask-architecture-master.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-12
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body says '6 tools' for MDS (should be 5). 'Historical' section references deleted MDS.md sections — violates AGENTS.md §2.4 (no active-tree document may describe retired/removed subsystems). Flagged for fix in Task 4/7."
+
+- path: docs/architecture/loop-architecture.md
+  status: Active
+  mds_categories: [domain, composition, lifecycle, curation]
+  last_updated: 2026-06-09
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/magna-carta.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-09
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/MDS.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-09
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body says 'Supersedes: MDS.md' (self-referential — should say 'Supersedes: DDMVSS.md' or clarify it supersedes the previous 9-category version)."
+
+- path: docs/architecture/PRINCIPLES.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-09
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/wallet-specification.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: missing
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "No YAML frontmatter. Has inline metadata (Date, Project, Status) but not the standard 6-field header. Status claims 'Phases 1–8 complete' — not a standard lifecycle state."
+
+### architecture/reference/
+
+- path: docs/architecture/reference/hKask-Curator-persona.md
+  status: Active
+  mds_categories: [domain]
+  last_updated: 2026-06-07
+  version: "1.1.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/reference/hKask-hLexicon.md
+  status: Active
+  mds_categories: [domain]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/architecture/reference/okapi-integration.md
+  status: Active
+  mds_categories: [domain]
+  last_updated: 2026-06-11
+  version: "0.28.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Version 0.28.0 ahead of project 0.27.0 — reference doc may track its own version."
+
+- path: docs/architecture/reference/ports-inventory.md
+  status: accurate
+  mds_categories: [interface]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "status: 'accurate' is not a valid lifecycle state (must be Active|Draft|Deprecated|Superseded). mds_categories: [interface] uses deprecated 9-category taxonomy value. Should map to [composition] in 5-category taxonomy (interface → composition per MDS §1)."
+
+- path: docs/architecture/reference/template-header-standard.md
+  status: Active
+  mds_categories: [composition]
+  last_updated: 2026-06-07
+  version: "0.23.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Version 0.23.0 behind project 0.27.0 — may be intentional for a reference standard."
+
+- path: docs/architecture/reference/utoipa-implementation.md
+  status: Active
+  mds_categories: [interface]
+  last_updated: 2026-06-12
+  version: "1.0.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "mds_categories: [interface] uses deprecated 9-category taxonomy value. Should map to [composition] in 5-category taxonomy."
+
+### specifications/
+
+- path: docs/specifications/ADR_TEMPLATE.md
+  status: Active
+  mds_categories: [curation]
+  last_updated: 2026-06-07
+  version: "1.0.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/specifications/CI-CD-GUIDE.md
+  status: Active
+  mds_categories: [lifecycle]
+  last_updated: 2026-06-07
+  version: "1.0.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/specifications/crate-audit.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: missing
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "Has a 'bundle:' frontmatter block instead of standard 6-field header. No mds_categories, no status field, no version in standard format."
+
+- path: docs/specifications/DEPENDENCY_POLICY.md
+  status: Active
+  mds_categories: [lifecycle]
+  last_updated: 2026-05-22
+  version: "1.0.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "last_updated 2026-05-22 — 3 weeks stale. Content may need review but metadata is correct."
+
+- path: docs/specifications/DEPLOYMENT.md
+  status: Active
+  mds_categories: [lifecycle]
+  last_updated: 2026-05-24
+  version: "1.0.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "last_updated 2026-05-24 — 2.5 weeks stale."
+
+- path: docs/specifications/DOCUMENTATION_STANDARDS.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-07
+  version: "0.7.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body §2 and §11 still reference the deprecated 9-category DDMVSS taxonomy. §2 example shows 9 categories. §11 lists 9 categories with old names (Capability, Interface, Observability, Persistence). This is a content violation — the metadata header is correct but the body teaches the wrong taxonomy. Flagged for content fix in Task 3/4."
+
+- path: docs/specifications/MDS-agent-service.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle]
+  last_updated: 2026-06-10
+  version: "0.27.2"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body says 'Supersedes: hKask-architecture-master.md §Service Layer (v0.27.0)' — cross-reference to a section, not a document. Acceptable per DOCUMENTATION_STANDARDS.md §8."
+
+- path: docs/specifications/MDS_SCAFFOLD.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-10
+  version: "2.5.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/specifications/REPL-specification.md
+  status: Active
+  mds_categories: [domain, composition, lifecycle, curation]
+  last_updated: 2026-06-11
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/specifications/REQUIREMENTS.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-10
+  version: "1.4.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body references 'MDS.md §7.1-7.2' — deleted sections. Flagged for cross-reference fix in Task 4."
+
+- path: docs/specifications/salience-specification.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: missing
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "No YAML frontmatter. Has inline 'MDS Category: specification/algorithm' and 'Status: Active' but not the standard 6-field header."
+
+- path: docs/specifications/TESTING_STANDARDS.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-06
+  version: "1.0.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/specifications/test-program.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-10
+  version: "0.1.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/specifications/TRACEABILITY_MATRIX.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-07
+  version: "1.3.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body references 'MDS.md §7.1-7.2, §7.2, §7.3, §7.4' — deleted sections. Flagged for cross-reference fix in Task 4."
+
+- path: docs/specifications/WRITING_EXCELLENCE.md
+  status: Active
+  mds_categories: [curation]
+  last_updated: 2026-05-13
+  version: "0.3.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "last_updated 2026-05-13 — 4 weeks stale. Content may need review."
+
+### status/
+
+- path: docs/status/adversarial-simplification-inventory.md
+  status: Active
+  mds_categories: [composition, composition, domain]
+  last_updated: 2026-06-08
+  version: "0.1.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "mds_categories has duplicate 'composition' entry. Should be [composition, domain]."
+
+- path: docs/status/curation-decisions.yaml
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-08
+  version: "1.0.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "Uses ddmvss_categories (deprecated 9-category taxonomy). Must migrate to mds_categories with 5-category taxonomy. YAML file, not .md — but in status/ directory scope."
+
+- path: docs/status/mcp-tools-inventory.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-11
+  version: "2.1.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "Missing mds_categories and audience fields. status: Active is unquoted (not valid YAML string). Has generated_from field instead of standard fields."
+
+- path: docs/status/PROJECT_STATUS.md
+  status: Active
+  mds_categories: [lifecycle]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Body references 'ddmvss_categories' (deprecated taxonomy name) — content violation. Flagged for fix in Task 4."
+
+- path: docs/status/spec-code-drift.yaml
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-08
+  version: "1.0.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "Uses ddmvss_categories (deprecated 9-category taxonomy). Must migrate to mds_categories with 5-category taxonomy. YAML file, not .md — but in status/ directory scope. Footer says 'v0.23.0' — stale version reference."
+
+- path: docs/status/test-inventory.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: "2.1.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "Missing mds_categories and audience fields. status: Active is unquoted (not valid YAML string). Has generated_from field instead of standard fields."
+
+### plans/
+
+- path: docs/plans/2026-06-12-replicant-server-mode.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: missing
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "No YAML frontmatter. Has inline 'Status: Build complete' — not a standard lifecycle state. This is a handoff document, not a plan — may belong in handoffs/."
+
+- path: docs/plans/2026-06-12-wallet-payment-mechanism.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: missing
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "No YAML frontmatter. Has inline 'Status: Foundation built' — not a standard lifecycle state."
+
+- path: docs/plans/2026-06-12-wallet-rjoule-payments.md
+  status: Active
+  mds_categories: missing
+  last_updated: 2026-06-12
+  version: missing
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "No YAML frontmatter. Has inline 'Status: Phases 1–8 complete' — not a standard lifecycle state."
+
+- path: docs/plans/bundler-completion.md
+  status: Active
+  mds_categories: [domain, composition, lifecycle]
+  last_updated: 2026-06-11
+  version: "0.1.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/plans/mcp-server-roadmap.md
+  status: Active
+  mds_categories: [domain, composition, capability, lifecycle, curation]
+  last_updated: 2026-06-11
+  version: "1.1.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "mds_categories includes 'capability' from deprecated 9-category taxonomy. Should be [domain, composition, trust, lifecycle, curation] in 5-category taxonomy. Missing audience field."
+
+- path: docs/plans/TODO.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-11
+  version: "1.9.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+### user-guides/
+
+- path: docs/user-guides/AGENT-POD-CREATION-GUIDE.md
+  status: Active
+  mds_categories: [domain]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/user-guides/COMMON-AGENT-PATTERNS.md
+  status: Active
+  mds_categories: [domain]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+### root docs/
+
+- path: docs/README.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+  notes: "Portal says MDS has '6 tools' (should be 5). 'Status' section says '(planned)' but 6 status files exist. 'Plans' section only lists TODO.md but 6 plan files exist. 'Research' section is empty. Lists 'inference-integration.md' but actual file is 'okapi-integration.md'. MDS column uses old single-word 9-category values. Flagged for fix in Task 7."
+
+- path: docs/DIAGRAMS_INDEX.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-10
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/OPEN_QUESTIONS.md
+  status: Active
+  mds_categories: [domain, composition, trust, lifecycle, curation]
+  last_updated: 2026-06-08
+  version: "0.27.0"
+  lifecycle_action: keep
+  metadata_aligned: true
+
+- path: docs/generated/cli-reference.md
+  status: Active
+  mds_categories: [interface]
+  last_updated: 2026-06-12
+  version: "0.27.0"
+  lifecycle_action: fix_metadata
+  metadata_aligned: false
+  notes: "mds_categories: [interface] uses deprecated 9-category taxonomy value. Should map to [composition] in 5-category taxonomy. Auto-generated file — metadata may be injected by generator."
+
+## Violation Summary
+
+### ddmvss_categories (deprecated taxonomy)
+- docs/status/spec-code-drift.yaml
+- docs/status/curation-decisions.yaml
+
+### Old 9-category values in mds_categories
+- docs/architecture/reference/ports-inventory.md: [interface] → should be [composition]
+- docs/architecture/reference/utoipa-implementation.md: [interface] → should be [composition]
+- docs/generated/cli-reference.md: [interface] → should be [composition]
+- docs/plans/mcp-server-roadmap.md: [capability] → should be [trust]
+
+### Missing mds_categories entirely
+- docs/status/mcp-tools-inventory.md
+- docs/status/test-inventory.md
+- docs/status/spec-code-drift.yaml (has ddmvss_categories instead)
+- docs/status/curation-decisions.yaml (has ddmvss_categories instead)
+
+### Missing frontmatter entirely
+- docs/architecture/wallet-specification.md
+- docs/specifications/crate-audit.md
+- docs/specifications/salience-specification.md
+- docs/plans/2026-06-12-replicant-server-mode.md
+- docs/plans/2026-06-12-wallet-payment-mechanism.md
+- docs/plans/2026-06-12-wallet-rjoule-payments.md
+
+### Stale status values
+- docs/architecture/reference/ports-inventory.md: "accurate" → should be "Active"
+- docs/status/mcp-tools-inventory.md: unquoted "Active"
+- docs/status/test-inventory.md: unquoted "Active"
+
+### Duplicate mds_categories entries
+- docs/status/adversarial-simplification-inventory.md: [composition, composition, domain]
+
+### References to removed/superseded subsystems (content violation)
+- docs/architecture/hKask-architecture-master.md: Historical section references deleted MDS.md sections
+- docs/architecture/ADR-032-mcp-gateway-membrane.md: references MDS.md §7.1-7.2
+- docs/architecture/ADR-033-dampener-override-cooldown.md: references MDS.md §7.1-7.2
+- docs/architecture/ADR-035-replicant-server-mode.md: references MDS.md §7.1-7.2
+- docs/specifications/REQUIREMENTS.md: references MDS.md §7.1-7.2
+- docs/specifications/TRACEABILITY_MATRIX.md: references MDS.md §7.1-7.2, §7.2, §7.3, §7.4
+- docs/README.md: says "6 tools" (should be 5)
+- docs/architecture/hKask-architecture-master.md: says "6 tools" (should be 5)
+
+### Body references to ddmvss (deprecated taxonomy name in prose)
+- docs/status/PROJECT_STATUS.md: references "ddmvss_categories" in body
+- docs/specifications/DOCUMENTATION_STANDARDS.md: §2 and §11 teach 9-category taxonomy
+
+*ℏKask - A Minimal Viable Container for Agents — v0.27.0*

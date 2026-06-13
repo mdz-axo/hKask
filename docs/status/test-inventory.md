@@ -1,10 +1,11 @@
 ---
 title: "Test Inventory"
+audience: [architects, developers, agents]
 version: "2.1.0"
 last_updated: 2026-06-12
-status: Active
+status: "Active"
 domain: "Cross-cutting"
-generated_from: "cargo test --workspace -- --list"
+mds_categories: [lifecycle, curation]
 ---
 
 # Test Inventory

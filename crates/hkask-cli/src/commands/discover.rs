@@ -5,10 +5,13 @@
 //! and YouTube results for user confirmation before including them.
 //! Generates a corpus.yaml ready for `kask style embed-corpus`.
 
-use hkask_services::{DiscoverRequest, DiscoveredWork, DiscoveryService, download_and_cache};
+use hkask_services::{
+    DiscoverRequest, DiscoveredWork, DiscoveryService, download_and_cache, generate_corpus_yaml,
+};
 
 use std::io::{BufRead, Write};
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     rt: &tokio::runtime::Runtime,
     author_name: String,
@@ -50,12 +53,17 @@ pub fn run(
             eprintln!("Academic works found: {}", r.works_found);
             eprintln!("Sources: {}", r.sources.join(", "));
 
+            // Collect all works that will go into the corpus
+            let mut all_works: Vec<DiscoveredWork> = Vec::new();
+            // Academic works are already cached by DiscoveryService
+            // We need to reconstruct the list from the config
+            // (they're in the YAML but not returned separately)
+
             // ── Curation: web candidates ──────────────────────────────
             if !r.web_candidates.is_empty() {
                 eprintln!();
                 eprintln!("─── Web Search Candidates ───");
                 let selected = curate_candidates(&r.web_candidates, "web pages", rt);
-                // Download and cache selected web candidates
                 for idx in &selected {
                     let work = &r.web_candidates[*idx];
                     eprintln!("  Downloading: {} ...", work.title);
@@ -64,6 +72,7 @@ pub fn run(
                     match rt.block_on(download_and_cache(&work.url, &cache_path)) {
                         Ok(()) => {
                             r.works_cached += 1;
+                            all_works.push(work.clone());
                             eprintln!("    Cached: {}", cache_path.display());
                         }
                         Err(e) => {
@@ -78,7 +87,6 @@ pub fn run(
                 eprintln!();
                 eprintln!("─── YouTube Transcript Candidates ───");
                 let selected = curate_candidates(&r.youtube_candidates, "YouTube videos", rt);
-                // Download and cache selected YouTube transcripts
                 for idx in &selected {
                     let work = &r.youtube_candidates[*idx];
                     eprintln!("  Fetching transcript: {} ...", work.title);
@@ -87,11 +95,83 @@ pub fn run(
                     match rt.block_on(download_and_cache(&work.url, &cache_path)) {
                         Ok(()) => {
                             r.works_cached += 1;
+                            all_works.push(work.clone());
                             eprintln!("    Cached: {}", cache_path.display());
                         }
                         Err(e) => {
                             eprintln!("    Failed: {e}");
                         }
+                    }
+                }
+            }
+
+            // ── Regenerate corpus.yaml with curated selections ────────
+            if !all_works.is_empty() {
+                eprintln!();
+                eprintln!("Regenerating corpus.yaml with curated selections...");
+                let output_dir = std::path::PathBuf::from(
+                    req.output_dir
+                        .clone()
+                        .unwrap_or_else(|| format!("./{}", r.author_slug)),
+                );
+                // Load existing academic works from the generated config
+                // and add curated selections
+                let existing_config: hkask_services::CorpusConfig = serde_yaml::from_str(
+                    &std::fs::read_to_string(&r.config_path).unwrap_or_default(),
+                )
+                .unwrap_or_else(|_| {
+                    // Fallback: empty config
+                    hkask_services::CorpusConfig {
+                        author: r.author_slug.clone(),
+                        embedding: hkask_services::EmbeddingConfig {
+                            model: String::new(),
+                            dim: 1024,
+                            batch_size: 64,
+                        },
+                        works: vec![],
+                        foundational_rules: vec![],
+                        chunking: hkask_services::ChunkingConfig {
+                            min_words: 50,
+                            max_words: 200,
+                            sentence_boundary: ".!? ".to_string(),
+                        },
+                        centroid_entity_ref: String::new(),
+                        validation: hkask_services::ValidationConfig {
+                            centroid_distance_max: 0.25,
+                            exemplar_count_min: 3,
+                            exemplar_count_max: 7,
+                        },
+                        budget: hkask_memory::salience::BudgetConfig::PerPage {
+                            per_100_pages: 3750,
+                        },
+                        entities: Default::default(),
+                        methods: vec![],
+                    }
+                });
+
+                // Combine academic works from config with curated selections
+                let mut combined: Vec<DiscoveredWork> = existing_config
+                    .works
+                    .iter()
+                    .map(|w| DiscoveredWork {
+                        title: w.title.clone(),
+                        slug: w.slug.clone(),
+                        url: w.url.clone(),
+                        year: None,
+                        source: "academic".to_string(),
+                        work_type: "paper".to_string(),
+                    })
+                    .collect();
+                combined.extend(all_works);
+
+                match generate_corpus_yaml(&r.author_slug, &combined, &output_dir) {
+                    Ok(new_path) => {
+                        r.config_path = new_path.to_string_lossy().to_string();
+                        eprintln!("Updated config: {}", r.config_path);
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: failed to regenerate config: {e}");
+                        eprintln!("Using original config: {}", r.config_path);
                     }
                 }
             }

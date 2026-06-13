@@ -5,7 +5,7 @@ last_updated: 2026-06-12
 version: "1.0.0"
 status: "Active"
 domain: "Application"
-mds_categories: [interface]
+mds_categories: [composition]
 ---
 
 

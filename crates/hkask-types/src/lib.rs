@@ -55,7 +55,8 @@ pub use capability::{
     DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
     TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
     capabilities_match, capability_from_server_id, require_read_access, require_write_access,
-    verify_delegation_token, verify_delegation_token_now,
+    token_err_insufficient_access, token_err_tool_access_denied, verify_delegation_token,
+    verify_delegation_token_now,
 };
 pub use cns::CircuitState;
 pub use curation::CurationDecision;

@@ -1,3 +1,13 @@
+---
+title: "Crate Audit Bundle Manifest"
+audience: [architects, developers, agents]
+last_updated: 2026-06-12
+version: "1.0.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, curation]
+---
+
 bundle:
   name: crate-audit
   version: 1.0.0

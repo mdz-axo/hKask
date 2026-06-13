@@ -88,7 +88,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Template Manifest Validation Flow (ContractValidator) | Composition | `hkask-templates` | P2 |
 | MVSDD Cycle (Specify → Grant → Compose → Curate → Reflect) | Curation | `hkask-templates`, `hkask-agents` | P2 |
 
-> **Note (2026-06-09):** `hkask-mcp-memory` consolidates episodic and semantic memory operations (formerly separate MCP servers). Its interaction patterns with the memory subsystem are not yet diagrammed and should be considered candidates for v1.1+ coverage.
+> **Note (2026-06-09):** `hkask-mcp-memory` consolidates episodic and semantic memory operations. Its interaction patterns with the memory subsystem are not yet diagrammed and should be considered candidates for v1.1+ coverage.
 
 ---
 

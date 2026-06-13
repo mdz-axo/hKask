@@ -44,6 +44,7 @@ pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use discover::{
     DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, download_and_cache,
+    generate_corpus_yaml,
 };
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,

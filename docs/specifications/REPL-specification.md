@@ -712,7 +712,7 @@ The following features are drawn from Zed's REPL implementation (`crates/repl/`)
 
 ### 20.1 Code Execution via Jupyter Kernel Protocol
 
-**Status:** Planned (see `docs/plans/repl-code-execution-enhancement.md`)
+**Status:** Planned
 
 Jupyter kernel integration enables agents to write code, execute it, inspect results, and self-correct — closing the agentic loop. The Jupyter wire protocol over ZMQ sockets provides structured output (typed messages for stdout, stderr, errors, display data, input requests) rather than fragile PTY/ANSI parsing.
 
@@ -809,7 +809,6 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 - [`PRINCIPLES.md`](../architecture/PRINCIPLES.md) — Architecture principles (P1–P11)
 - [`magna-carta.md`](../architecture/magna-carta.md) — User sovereignty charter
 - [`hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture index
-- [`../plans/repl-code-execution-enhancement.md`](../plans/repl-code-execution-enhancement.md) — Future code execution plan
 - [Zed REPL crate](https://github.com/zed-industries/zed/tree/main/crates/repl) — Reference implementation for code execution patterns
 - [Jupyter Messaging Protocol](https://jupyter-client.readthedocs.io/en/stable/messaging.html) — Wire protocol specification
 - [`Cargo.toml`](../../crates/hkask-cli/Cargo.toml) — Dependencies and feature flags

@@ -1,10 +1,11 @@
 ---
 title: "MCP Tools Inventory"
+audience: [architects, developers, agents]
 version: "2.1.0"
-last_updated: 2026-06-11
-status: Active
+last_updated: 2026-06-12
+status: "Active"
 domain: "Cross-cutting"
-generated_from: "grep '#\\[tool' across mcp-servers/*/src/; rss-reader merged into research 2026-06-11"
+mds_categories: [composition, lifecycle]
 ---
 
 # MCP Tools Inventory

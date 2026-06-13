@@ -22,7 +22,7 @@ REQUIRED_HEADERS=(
     "version:"
     "status:"
     "domain:"
-    "ddmvss_categories:"
+    "mds_categories:"
 )
 
 echo "=== hKask Documentation Metadata Checker ==="
@@ -55,17 +55,23 @@ while IFS= read -r -d '' file; do
         ERRORS=$((ERRORS + 1))
     fi
 
-    # Check for DDMVSS_SCAFFOLD reference consistency
-    if grep -q "ddmvss_categories:" "$file"; then
-        cats=$(grep "^ddmvss_categories:" "$file" | head -1)
-        valid_cats=("domain" "capability" "interface" "composition" "trust" "observability" "persistence" "lifecycle" "curation")
+    # Check for mds_categories reference consistency (5-category MDS taxonomy)
+    if grep -q "mds_categories:" "$file"; then
+        cats=$(grep "^mds_categories:" "$file" | head -1)
+        valid_cats=("domain" "composition" "trust" "lifecycle" "curation")
         for cat in "${valid_cats[@]}"; do
             # Each file must map to at least one valid category
             :
         done
     fi
 
-done < <(find "$DOCS_DIR" -name "*.md" -not -path "*/archive/*" -print0)
+    # Flag deprecated ddmvss_categories usage
+    if grep -q "ddmvss_categories:" "$file"; then
+        echo -e "${RED}[VIOLATION]${NC} $rel_file → uses deprecated ddmvss_categories (migrate to mds_categories)"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+done < <(find "$DOCS_DIR" -name "*.md" -not -path "*/archive/*" -not -path "*/audit/*" -not -path "*/handoffs/*" -print0)
 
 echo ""
 echo "=== Results ==="

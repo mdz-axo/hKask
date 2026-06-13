@@ -1,10 +1,11 @@
 ---
 title: "MCP Server Roadmap — Consolidation, Deepening, and RAG Pipeline"
 version: "1.1.0"
-last_updated: 2026-06-11
+audience: [architects, developers]
+last_updated: 2026-06-12
 status: "Active"
 domain: "Cross-cutting"
-mds_categories: [domain, composition, capability, lifecycle, curation]
+mds_categories: [domain, composition, trust, lifecycle, curation]
 ---
 
 # MCP Server Roadmap

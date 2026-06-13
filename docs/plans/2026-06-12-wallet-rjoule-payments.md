@@ -1,3 +1,13 @@
+---
+title: "Plan — Wallet, rJoule Payments & Multi-Chain Architecture"
+audience: [architects, developers]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Draft"
+domain: "Application"
+mds_categories: [domain, composition, trust, lifecycle]
+---
+
 # Plan — Wallet, rJoule Payments & Multi-Chain Architecture
 
 **Session date:** 2026-06-12

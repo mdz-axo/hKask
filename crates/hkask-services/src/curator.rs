@@ -11,6 +11,8 @@ use std::sync::Arc;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_storage::EscalationEntry;
 use hkask_types::CuratorHandle;
+use hkask_types::WebID;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
 use crate::AgentService;
 use crate::error::ServiceError;
@@ -68,6 +70,20 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
+        // CNS observability: record Curator resolution decision
+        let span = Span::new(SpanNamespace::new("cns.curation"), "escalation_resolved");
+        let event = NuEvent::new(
+            WebID::new(),
+            span,
+            Phase::Act,
+            serde_json::json!({
+                "escalation_id": id,
+                "resolved_by": resolved_by,
+            }),
+            0,
+        );
+        let _ = ctx.event_sink().persist(&event);
+
         ctx.escalation_queue()
             .resolve(id, resolved_by)
             .map_err(|e| match e {
@@ -84,6 +100,20 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
+        // CNS observability: record Curator dismissal decision
+        let span = Span::new(SpanNamespace::new("cns.curation"), "escalation_dismissed");
+        let event = NuEvent::new(
+            WebID::new(),
+            span,
+            Phase::Act,
+            serde_json::json!({
+                "escalation_id": id,
+                "dismissed_by": dismissed_by,
+            }),
+            0,
+        );
+        let _ = ctx.event_sink().persist(&event);
+
         ctx.escalation_queue()
             .dismiss(id, dismissed_by)
             .map_err(|e| match e {

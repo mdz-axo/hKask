@@ -1,3 +1,13 @@
+---
+title: "hKask Wallet Crate — Architectural Specification"
+audience: [architects, developers]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Application"
+mds_categories: [domain, composition, trust, lifecycle]
+---
+
 # hKask Wallet Crate — Architectural Specification
 
 **Date:** 2026-06-12

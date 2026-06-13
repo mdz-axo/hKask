@@ -100,6 +100,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.goal",
     "cns.spec",
     "cns.test",
+    "cns.chat",
     // Hierarchical spans — registered from PRINCIPLES.md §1.4 (P2-06-D1)
     "cns.cybernetics.backpressure",
     "cns.cybernetics.cadence",

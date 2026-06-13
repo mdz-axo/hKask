@@ -12,7 +12,7 @@ mds_categories: [composition, trust, lifecycle]
 
 **Date:** 2026-06-12
 **Status:** Active
-**Related:** [`MDS.md`](MDS.md) §7.1-7.2, [`ADR-032`](ADR-032-mcp-gateway-membrane.md), [`magna-carta.md`](magna-carta.md)
+**Related:** [`MDS.md`](MDS.md), [`ADR-032`](ADR-032-mcp-gateway-membrane.md), [`magna-carta.md`](magna-carta.md)
 
 ## Context
 
