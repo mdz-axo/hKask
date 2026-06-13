@@ -491,6 +491,18 @@ pub enum StyleAction {
         /// Cache directory for downloaded content
         #[arg(long, default_value = "./.cache")]
         cache_dir: String,
+        /// SerpAPI key for web + YouTube transcript search
+        #[arg(long, env = "HKASK_SERPAPI_API_KEY")]
+        serpapi_key: Option<String>,
+        /// Skip YouTube transcript search
+        #[arg(long)]
+        no_transcripts: bool,
+        /// Skip web search
+        #[arg(long)]
+        no_web: bool,
+        /// Skip curation — auto-include all web + YouTube results
+        #[arg(long)]
+        no_curate: bool,
     },
 }
 

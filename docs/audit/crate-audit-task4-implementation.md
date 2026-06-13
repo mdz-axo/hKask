@@ -40,7 +40,7 @@
 
 | ID | Finding | Constraint Force | Deferral Reason |
 |----|---------|-----------------|-----------------|
-| **R1** | CNS closure break during idle (algedonic alerts with no consumer) | Guardrail | Architectural change required: algedonic channel needs persistent consumer or alert persistence. Not a simple code fix. Requires design decision on alert retention policy during idle. |
+| **R1** | CNS closure break during idle (algedonic alerts with no consumer) | Guardrail | **RESOLVED by design decision:** The algedonic system must always be connected to the Curator replicant/agent. The `tokio::sync::broadcast` channel in `hkask-cns/src/algedonic.rs` requires a persistent consumer. Implementation: ensure CuratorAgent's algedonic receiver is spawned as a background task that survives across chat sessions, rather than being tied to session lifecycle. The Curator is the designated consumer of all algedonic signals — this is an architectural invariant, not a session-scoped concern. |
 | **T1a-e** | Error stringification in `From` impls | Guideline | Fix requires changing `InfrastructureError` variants from `String` to typed errors in `hkask-types` — cascading change across all crates. Beyond surgical scope. |
 | **T2a-d** | `Box<dyn Error>` in library APIs | Guideline | Fix requires changing error enum variants — API-breaking change. Requires coordinated update across all consumers. Defer to next major version. |
 | **D4** | 15 public resolver functions in keystore | Guideline | Large change surface. Resolver functions serve distinct secret types (DB passphrase, OCAP, ACP, MCP, wallet, treasury). Consolidation requires design of unified resolver interface. |

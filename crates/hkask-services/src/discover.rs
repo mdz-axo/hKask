@@ -37,6 +37,18 @@ pub struct DiscoverRequest {
     pub cache_dir: String,
     /// Directory to write the generated corpus.yaml
     pub output_dir: Option<String>,
+    /// SerpAPI key for YouTube transcript + web search (skips these sources if absent)
+    #[serde(default)]
+    pub serpapi_key: Option<String>,
+    /// Whether to search for YouTube transcripts
+    #[serde(default = "default_true")]
+    pub include_transcripts: bool,
+    /// Whether to search the web for institutional pages and interviews
+    #[serde(default = "default_true")]
+    pub include_web: bool,
+    /// Curated mode: present web + YouTube results for user confirmation before including
+    #[serde(default = "default_true")]
+    pub curated: bool,
 }
 
 fn default_max_works() -> usize {
@@ -45,13 +57,16 @@ fn default_max_works() -> usize {
 fn default_cache_dir() -> String {
     "./.cache".to_string()
 }
+fn default_true() -> bool {
+    true
+}
 
 /// Result of a discovery run.
 #[derive(Debug, Clone, Serialize)]
 pub struct DiscoverResult {
     /// Author slug (e.g., "david-dunning")
     pub author_slug: String,
-    /// Number of works discovered
+    /// Number of academic works discovered (Semantic Scholar + arXiv)
     pub works_found: usize,
     /// Number of works successfully cached
     pub works_cached: usize,
@@ -59,18 +74,23 @@ pub struct DiscoverResult {
     pub config_path: String,
     /// Sources used
     pub sources: Vec<String>,
+    /// Web search candidates for curation (only populated when curated=true)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub web_candidates: Vec<DiscoveredWork>,
+    /// YouTube transcript candidates for curation (only populated when curated=true)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub youtube_candidates: Vec<DiscoveredWork>,
 }
 
 /// A discovered work with metadata.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct DiscoveredWork {
-    title: String,
-    slug: String,
-    url: String,
-    year: Option<u16>,
-    source: String,
-    work_type: String,
+#[derive(Debug, Clone, Serialize)]
+pub struct DiscoveredWork {
+    pub title: String,
+    pub slug: String,
+    pub url: String,
+    pub year: Option<u16>,
+    pub source: String,
+    pub work_type: String,
 }
 
 // ── Service ─────────────────────────────────────────────────────────────────
@@ -151,7 +171,68 @@ impl DiscoveryService {
             )));
         }
 
-        // ── Phase 3: Extract and cache content ────────────────────────────
+        // ── Phase 3: Web search for institutional pages ───────────────────
+        let mut web_candidates: Vec<DiscoveredWork> = Vec::new();
+        if req.include_web
+            && let Some(ref key) = req.serpapi_key
+        {
+            match search_web_serpapi(&req.author_name, key, 5).await {
+                Ok(pages) => {
+                    let existing_urls: Vec<&str> = works.iter().map(|w| w.url.as_str()).collect();
+                    let new: Vec<DiscoveredWork> = pages
+                        .into_iter()
+                        .filter(|w| !existing_urls.contains(&w.url.as_str()))
+                        .collect();
+                    let added = new.len();
+                    if req.curated {
+                        web_candidates = new;
+                        sources.push(format!(
+                            "web_search ({added} candidates — awaiting curation)"
+                        ));
+                    } else {
+                        works.extend(new);
+                        sources.push(format!("web_search ({added} pages)"));
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.discover",
+                        error = %e,
+                        "Web search failed — continuing"
+                    );
+                }
+            }
+        }
+
+        // ── Phase 4: YouTube transcript discovery ─────────────────────────
+        let mut youtube_candidates: Vec<DiscoveredWork> = Vec::new();
+        if req.include_transcripts
+            && let Some(ref key) = req.serpapi_key
+        {
+            match search_youtube_transcripts(&req.author_name, key, 5).await {
+                Ok(transcripts) => {
+                    let count = transcripts.len();
+                    if req.curated {
+                        youtube_candidates = transcripts;
+                        sources.push(format!(
+                            "youtube_transcripts ({count} candidates — awaiting curation)"
+                        ));
+                    } else {
+                        works.extend(transcripts);
+                        sources.push(format!("youtube_transcripts ({count} videos)"));
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.discover",
+                        error = %e,
+                        "YouTube transcript search failed — continuing"
+                    );
+                }
+            }
+        }
+
+        // ── Phase 5: Extract and cache content ────────────────────────────
         let mut cached = 0usize;
         for work in &works {
             let cache_path = cache_dir.join(format!("{}.txt", work.slug));
@@ -243,6 +324,8 @@ impl DiscoveryService {
             works_cached: cached,
             config_path: config_path.to_string_lossy().to_string(),
             sources,
+            web_candidates,
+            youtube_candidates,
         })
     }
 }
@@ -434,10 +517,234 @@ fn decode_xml_entities(s: &str) -> String {
         .replace("&apos;", "'")
 }
 
+// ── Web search (SerpAPI Google) ─────────────────────────────────────────────
+
+const SERPAPI_BASE: &str = "https://serpapi.com/search";
+
+/// Search the web via SerpAPI's Google engine for pages about the author.
+async fn search_web_serpapi(
+    author: &str,
+    api_key: &str,
+    limit: usize,
+) -> Result<Vec<DiscoveredWork>, ServiceError> {
+    let client = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| ServiceError::Embed(format!("HTTP client build failed: {e}")))?;
+
+    let query = format!("{author} faculty page institutional profile interview");
+    let params: Vec<(&str, String)> = vec![
+        ("q", query),
+        ("api_key", api_key.to_string()),
+        ("engine", "google".to_string()),
+        ("num", limit.to_string()),
+    ];
+
+    let resp = client
+        .get(SERPAPI_BASE)
+        .query(&params)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Embed(format!("SerpAPI web search failed: {e}")))?;
+
+    let body = resp.text().await.unwrap_or_default();
+    let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
+
+    let results = parsed["organic_results"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| {
+                    let title = item["title"].as_str()?.to_string();
+                    let url = item["link"].as_str()?.to_string();
+                    let slug = slugify(&title);
+                    if title.is_empty() || url.is_empty() {
+                        return None;
+                    }
+                    Some(DiscoveredWork {
+                        title,
+                        slug,
+                        url,
+                        year: None,
+                        source: "web".to_string(),
+                        work_type: "web_page".to_string(),
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Ok(results)
+}
+
+// ── YouTube transcript search (SerpAPI) ─────────────────────────────────────
+
+/// Search YouTube for videos about the author and fetch their transcripts.
+async fn search_youtube_transcripts(
+    author: &str,
+    api_key: &str,
+    limit: usize,
+) -> Result<Vec<DiscoveredWork>, ServiceError> {
+    let client = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| ServiceError::Embed(format!("HTTP client build failed: {e}")))?;
+
+    // Step 1: Search YouTube for videos
+    let search_query = format!("{author} interview talk lecture");
+    let params: Vec<(&str, String)> = vec![
+        ("q", search_query),
+        ("api_key", api_key.to_string()),
+        ("engine", "youtube".to_string()),
+        ("num", limit.to_string()),
+    ];
+
+    let resp = client
+        .get(SERPAPI_BASE)
+        .query(&params)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Embed(format!("SerpAPI YouTube search failed: {e}")))?;
+
+    let body = resp.text().await.unwrap_or_default();
+    let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
+
+    // Extract video results
+    let video_results = parsed["video_results"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|video| {
+                    let title = video["title"].as_str()?.to_string();
+                    let link = video["link"].as_str()?.to_string();
+                    // Extract video ID from YouTube URL
+                    let video_id = extract_youtube_id(&link)?;
+                    Some((title, video_id))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if video_results.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Step 2: Fetch transcript for each video
+    let mut transcripts: Vec<DiscoveredWork> = Vec::new();
+    for (title, video_id) in video_results {
+        match fetch_youtube_transcript(&client, api_key, &video_id, &title).await {
+            Ok(Some(work)) => transcripts.push(work),
+            Ok(None) => {
+                tracing::info!(
+                    target: "hkask.discover",
+                    video_id = %video_id,
+                    title = %title,
+                    "No transcript available for video — skipping"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "hkask.discover",
+                    video_id = %video_id,
+                    error = %e,
+                    "Failed to fetch transcript — skipping"
+                );
+            }
+        }
+    }
+
+    Ok(transcripts)
+}
+
+/// Extract a YouTube video ID from a URL.
+fn extract_youtube_id(url: &str) -> Option<String> {
+    // youtube.com/watch?v=VIDEO_ID
+    if let Some(pos) = url.find("v=") {
+        let after = &url[pos + 2..];
+        let id: String = after.chars().take(11).collect();
+        if id.len() == 11
+            && id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            return Some(id);
+        }
+    }
+    // youtu.be/VIDEO_ID
+    if let Some(pos) = url.find("youtu.be/") {
+        let after = &url[pos + 9..];
+        let id: String = after.chars().take(11).collect();
+        if id.len() == 11
+            && id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            return Some(id);
+        }
+    }
+    None
+}
+
+/// Fetch a YouTube transcript via SerpAPI's youtube_video_transcript engine.
+/// Returns None if no transcript is available for the video.
+async fn fetch_youtube_transcript(
+    client: &reqwest::Client,
+    api_key: &str,
+    video_id: &str,
+    title: &str,
+) -> Result<Option<DiscoveredWork>, ServiceError> {
+    let params: Vec<(&str, String)> = vec![
+        ("v", video_id.to_string()),
+        ("api_key", api_key.to_string()),
+        ("engine", "youtube_video_transcript".to_string()),
+    ];
+
+    let resp = client
+        .get(SERPAPI_BASE)
+        .query(&params)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Embed(format!("SerpAPI transcript request failed: {e}")))?;
+
+    let body = resp.text().await.unwrap_or_default();
+    let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
+
+    // Transcript segments: each has "snippet"
+    let transcript_text = parsed["transcript"]
+        .as_array()
+        .map(|segments| {
+            segments
+                .iter()
+                .filter_map(|seg| seg["snippet"].as_str())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .unwrap_or_default();
+
+    if transcript_text.is_empty() {
+        return Ok(None);
+    }
+
+    let video_url = format!("https://www.youtube.com/watch?v={video_id}");
+    let video_title = parsed["title"].as_str().unwrap_or(title).to_string();
+    let slug = slugify(&video_title);
+
+    Ok(Some(DiscoveredWork {
+        title: video_title,
+        slug,
+        url: video_url,
+        year: None,
+        source: "youtube_transcript".to_string(),
+        work_type: "transcript".to_string(),
+    }))
+}
+
 // ── Download + cache ────────────────────────────────────────────────────────
 
 /// Download content from a URL and cache it to disk.
-async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
+pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
     let resp = reqwest::Client::builder()
         .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(120))

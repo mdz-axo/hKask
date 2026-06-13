@@ -716,8 +716,8 @@
         "tags": [
           "models"
         ],
-        "summary": "List all available models from Okapi.",
-        "description": "Queries Okapi's `/api/tags` endpoint and returns metadata for each\nlocally loaded model. Returns an empty list if Okapi is unreachable\n(graceful degradation).",
+        "summary": "List all available models from all configured providers.",
+        "description": "Queries Ollama, Fireworks, and DeepInfra and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
         "operationId": "list_models",
         "responses": {
           "200": {
@@ -731,7 +731,7 @@
             }
           },
           "503": {
-            "description": "Okapi unreachable (returns empty list)"
+            "description": "No providers reachable (returns empty list)"
           }
         }
       }
@@ -742,7 +742,7 @@
           "models"
         ],
         "summary": "Search available models by name (fuzzy matching).",
-        "description": "Performs case-insensitive substring matching against Okapi model names.\nUse this endpoint to discover valid model identifiers before passing\nthem to `POST /api/chat` via the `model` field.",
+        "description": "Performs case-insensitive substring matching against model names\nacross all providers. Use this endpoint to discover valid model\nidentifiers before passing them to `POST /api/chat` via the `model` field.",
         "operationId": "search_models",
         "parameters": [
           {
@@ -1660,6 +1660,264 @@
           }
         }
       }
+    },
+    "/api/wallet/balance": {
+      "get": {
+        "summary": "Get current wallet balance.",
+        "operationId": "get_balance",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletBalanceResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/deposit-address": {
+      "get": {
+        "summary": "Get a deposit address for receiving USDC.",
+        "operationId": "get_deposit_address",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "private",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepositAddressResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/deposit-reference": {
+      "post": {
+        "summary": "Generate a one-time deposit reference for shielded deposits.",
+        "operationId": "create_deposit_reference",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepositReferenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepositReferenceResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/keys": {
+      "get": {
+        "summary": "List active API keys.",
+        "operationId": "list_keys",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyListResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new API key.",
+        "operationId": "create_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreatedResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/keys/{key_id}": {
+      "delete": {
+        "summary": "Revoke an API key.",
+        "operationId": "revoke_key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyRevokedResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/transactions": {
+      "get": {
+        "summary": "Get paginated transaction history.",
+        "operationId": "get_transactions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionListResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/withdraw": {
+      "post": {
+        "summary": "Withdraw rJoules as USDC to an external address.",
+        "operationId": "withdraw",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawalResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1727,6 +1985,115 @@
             "items": {
               "$ref": "#/components/schemas/AcpAgentResponse"
             }
+          }
+        }
+      },
+      "ApiKeyCreatedResponse": {
+        "type": "object",
+        "required": [
+          "key_id",
+          "private_key_hex",
+          "spending_limit_rj",
+          "privacy_mode"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "preferred_chain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "privacy_mode": {
+            "type": "string"
+          },
+          "private_key_hex": {
+            "type": "string"
+          },
+          "spending_limit_rj": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ApiKeyEntry": {
+        "type": "object",
+        "required": [
+          "key_id",
+          "spent_rj",
+          "limit_rj",
+          "status",
+          "privacy_mode"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "limit_rj": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "preferred_chain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "privacy_mode": {
+            "type": "string"
+          },
+          "spent_rj": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiKeyListResponse": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyEntry"
+            }
+          }
+        }
+      },
+      "ApiKeyRevokedResponse": {
+        "type": "object",
+        "required": [
+          "key_id",
+          "revoked"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
           }
         }
       },
@@ -2055,26 +2422,23 @@
         "type": "object",
         "description": "Compose bundle response",
         "required": [
+          "warnings",
           "message"
         ],
         "properties": {
-          "existing_match": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BundleSummary",
-                "description": "Whether an existing bundle was found matching these skills"
-              }
-            ]
-          },
           "manifest": {
-            "description": "The composed bundle manifest (if composition was performed)"
+            "description": "The composed bundle manifest (as JSON)"
           },
           "message": {
             "type": "string",
             "description": "Message about what happened"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Warnings from composition"
           }
         }
       },
@@ -2171,6 +2535,39 @@
           }
         }
       },
+      "CreateKeyRequest": {
+        "type": "object",
+        "required": [
+          "limit_rj"
+        ],
+        "properties": {
+          "chain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiry_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "limit_rj": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "private": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
       "CreatePodRequest": {
         "type": "object",
         "required": [
@@ -2211,6 +2608,55 @@
         ],
         "properties": {
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "DepositAddressResponse": {
+        "type": "object",
+        "required": [
+          "address",
+          "chain",
+          "privacy"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "chain": {
+            "type": "string"
+          },
+          "privacy": {
+            "type": "string"
+          }
+        }
+      },
+      "DepositReferenceRequest": {
+        "type": "object",
+        "required": [
+          "chain"
+        ],
+        "properties": {
+          "chain": {
+            "type": "string"
+          }
+        }
+      },
+      "DepositReferenceResponse": {
+        "type": "object",
+        "required": [
+          "reference",
+          "chain",
+          "expires_at"
+        ],
+        "properties": {
+          "chain": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "reference": {
             "type": "string"
           }
         }
@@ -2598,7 +3044,7 @@
       },
       "ModelEntry": {
         "type": "object",
-        "description": "A model available through Okapi.\n\nIncludes metadata from Okapi's `/api/tags` endpoint: model family,\nparameter count, quantization level, and disk size.",
+        "description": "A model available through the inference router.\n\nIncludes metadata from the provider's model listing endpoint:\nmodel family, parameter count, quantization level, and disk size.",
         "required": [
           "name"
         ],
@@ -2640,7 +3086,7 @@
       },
       "ModelListResponse": {
         "type": "object",
-        "description": "Response containing available Okapi models.\n\nReturned by `GET /api/models` and `GET /api/models/search`.\nModel names from this response can be used as the `model` field\nin `POST /api/chat` requests.",
+        "description": "Response containing available models.\n\nReturned by `GET /api/models` and `GET /api/models/search`.\nModel names from this response can be used as the `model` field\nin `POST /api/chat` requests.",
         "required": [
           "models",
           "count"
@@ -3196,6 +3642,42 @@
           }
         }
       },
+      "TransactionListResponse": {
+        "type": "object",
+        "required": [
+          "transactions"
+        ],
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionResponse"
+            }
+          }
+        }
+      },
+      "TransactionResponse": {
+        "type": "object",
+        "required": [
+          "rjoules_delta",
+          "balance_after",
+          "timestamp"
+        ],
+        "properties": {
+          "balance_after": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "rjoules_delta": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      },
       "VarietyCounterResponse": {
         "type": "object",
         "description": "CNS variety counter response",
@@ -3218,6 +3700,88 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        }
+      },
+      "WalletBalanceResponse": {
+        "type": "object",
+        "required": [
+          "wallet_id",
+          "rjoules",
+          "usdc_equivalent",
+          "gas_equivalent"
+        ],
+        "properties": {
+          "gas_equivalent": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "rjoules": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "usdc_equivalent": {
+            "type": "number",
+            "format": "double"
+          },
+          "wallet_id": {
+            "type": "string"
+          }
+        }
+      },
+      "WithdrawRequest": {
+        "type": "object",
+        "required": [
+          "amount_rj",
+          "to_address"
+        ],
+        "properties": {
+          "amount_rj": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "chain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "private": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "to_address": {
+            "type": "string"
+          }
+        }
+      },
+      "WithdrawalResponse": {
+        "type": "object",
+        "required": [
+          "tx_hash",
+          "amount_rj",
+          "chain",
+          "privacy"
+        ],
+        "properties": {
+          "amount_rj": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "chain": {
+            "type": "string"
+          },
+          "privacy": {
+            "type": "string"
+          },
+          "tx_hash": {
+            "type": "string"
           }
         }
       }
@@ -3246,7 +3810,7 @@
     },
     {
       "name": "models",
-      "description": "Okapi model catalog"
+      "description": "Multi-provider model catalog (Ollama, Fireworks, DeepInfra)"
     },
     {
       "name": "curator",

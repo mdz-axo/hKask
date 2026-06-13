@@ -37,10 +37,6 @@ pub use curator::curation_loop::CurationLoop;
 pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 
 pub use error::{CoreError, MemoryError};
-pub use hkask_storage::{
-    EscalationBatch, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,
-    EscalationStatus,
-};
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
 pub use pod::{AgentMode, AgentPersona, PodID, PodManager, PodStatus};

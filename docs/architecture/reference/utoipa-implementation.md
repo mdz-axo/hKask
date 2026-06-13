@@ -1,7 +1,7 @@
 ---
 title: "utoipa Implementation — API and CLI Documentation"
 audience: [API developers, CLI operators, integration engineers]
-last_updated: 2026-05-20
+last_updated: 2026-06-12
 version: "1.0.0"
 status: "Active"
 domain: "Application"
@@ -21,8 +21,8 @@ utoipa provides automatic OpenAPI specification generation for the hKask HTTP AP
 
 | Crate | Lines Added | Total Lines | Purpose |
 |-------|-------------|-------------|---------|
-| `hkask-api` | ~150 | 481 | OpenAPI schemas and path annotations |
-| `hkask-cli` | ~200 | 1,112 | Documentation generation commands |
+| `hkask-api` | ~640 | 5,755 | OpenAPI schemas and path annotations |
+| `hkask-cli` | ~200 | 11,454 | Documentation generation commands |
 | **Total core crates** | — | 22,251 | —
 
 ### 2.2 Dependencies
@@ -51,14 +51,29 @@ pub struct TemplateResponse {
 }
 ```
 
-**Component schemas:**
-- `TemplateResponse` — Template registry entry
-- `GrantCapabilityRequest` — Bot capability grant request body
-- `CnsHealthResponse` — CNS health status with deficit counters
-- `CnsVarietyResponse` — CNS variety counters with entropy
-- `ToolResponse` — MCP tool definition
-- `ErrorResponse` — Standard error response format
-- `ChatRequest` / `ChatResponse` — Curator chat endpoints
+**Component schemas by domain:**
+
+| Domain | Schemas |
+|--------|---------|
+| templates | `TemplateResponse` |
+| bots | `GrantCapabilityRequest` |
+| pods | `CreatePodRequest`, `CreatePodResponse`, `PodStatusResponse`, `ListPodsResponse` |
+| mcp | `McpInvokeRequest`, `McpInvokeResponse` |
+| cns | `CnsHealthResponse`, `CnsVarietyResponse`, `CnsSubscribeParams` |
+| chat | `ChatRequest`, `ChatResponse` |
+| models | `ModelEntry`, `ModelListResponse`, `ModelSearchQuery` |
+| curator | `ListEscalationsResponse`, `EscalationEntryResponse`, `EscalationStatsResponse`, `ResolveEscalationRequest`, `ResolveEscalationResponse`, `DismissEscalationRequest`, `DismissEscalationResponse`, `MetacognitionStatusResponse` |
+| ensemble | `StandingStartRequest`, `StandingStartResponse`, `StandingStatusResponse`, `CreateChatRequest`, `EnsembleResponse`, `ImprovTurnRequest`, `ImprovTurnResponse` |
+| acp | `AcpRegisterRequest`, `AcpRegisterResponse`, `AgentListResponse` |
+| bundles | `BundleSummary`, `BundleListResponse`, `ComposeBundleRequest`, `ComposeBundleResponse`, `ApplyBundleResponse`, `EvolveBundleResponse`, `DeactivateBundleResponse` |
+| specs | `SpecListResponse`, `SpecDetailResponse`, `SpecCaptureRequestDto`, `SpecCoherenceResponse`, `SpecWritingQualityResponse` |
+| episodic | `StoreEpisodeRequest`, `StoreEpisodeResponse`, `QueryEpisodesResponse`, `EpisodicUsageResponse` |
+| sovereignty | `SovereigntyStatusResponse`, `SovereigntyConsentResponse`, `AccessCheckResponse` |
+| consolidation | `ConsolidateRequest`, `ConsolidateResponse` |
+| git | `ArchiveRequest`, `ArchiveResponse`, `ResolveShaResponse` |
+| goals | `CreateGoalRequest`, `SetGoalStateRequest`, `GoalResponse`, `GoalListResponse` |
+| settings | `SettingsResponse`, `UpdateSettingsRequest` |
+| wallet | `WalletBalanceResponse`, `DepositAddressResponse`, `DepositAddressQuery`, `DepositReferenceRequest`, `DepositReferenceResponse`, `TransactionQuery`, `TransactionResponse`, `TransactionListResponse`, `CreateKeyRequest`, `ApiKeyCreatedResponse`, `ApiKeyEntry`, `ApiKeyListResponse`, `ApiKeyRevokedResponse`, `WithdrawRequest`, `WithdrawalResponse` |
 
 ### 2.4 API Endpoints
 
@@ -79,19 +94,89 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
 }
 ```
 
+**Endpoints with OpenAPI annotations:**
+
 | Method | Path | Tag | Status Codes |
 |--------|------|-----|--------------|
 | GET | `/api/templates` | templates | 200, 500 |
 | GET | `/api/templates/{id}` | templates | 200, 404, 500 |
-| POST | `/api/templates` | templates | 201, 400, 500 |
 | GET | `/api/bots/{id}/capabilities` | bots | 200, 500 |
 | POST | `/api/bots/{id}/grant` | bots | 200, 400, 500 |
 | GET | `/api/mcp/servers` | mcp | 200, 500 |
 | GET | `/api/mcp/tools` | mcp | 200, 500 |
-| GET | `/api/cns/health` | cns | 200, 500 |
-| GET | `/api/cns/alerts` | cns | 200, 500 |
-| GET | `/api/cns/variety` | cns | 200, 500 |
 | POST | `/api/mcp/invoke` | mcp | 200, 400, 401, 404, 500 |
+| GET | `/api/cns/health` | cns | 200, 500 |
+| GET | `/api/cns/variety` | cns | 200, 500 |
+| GET | `/api/cns/subscribe` | cns | 200, 400 |
+| POST | `/api/chat` | chat | 200, 400, 500 |
+| POST | `/api/chat/stream` | chat | 200, 400, 401, 500 |
+| GET | `/api/models` | models | 200, 503 |
+| GET | `/api/models/search` | models | 200 |
+| POST | `/api/ensemble/chat` | ensemble | 201, 500 |
+| POST | `/api/ensemble/chat/{session}/improv` | ensemble | 200, 404, 500 |
+| POST | `/api/v1/ensemble/standing-start` | ensemble | 201, 401, 500 |
+| GET | `/api/v1/ensemble/standing-status` | ensemble | 200, 401, 404 |
+| GET | `/api/v1/acp/agents` | acp | 200, 401, 500 |
+| DELETE | `/api/v1/acp/agents/{agent_id}` | acp | 200, 400, 401, 500 |
+| GET | `/api/v1/bundles` | bundles | 200 |
+| POST | `/api/v1/bundles/compose` | bundles | 200, 400 |
+| GET | `/api/v1/bundles/{id}` | bundles | 200, 404 |
+| POST | `/api/v1/bundles/{id}/apply` | bundles | 200, 404 |
+| POST | `/api/v1/bundles/{id}/evolve` | bundles | 200, 404 |
+| DELETE | `/api/v1/bundles/{id}/deactivate` | bundles | 200 |
+| GET | `/api/specs` | specs | 200 |
+| POST | `/api/specs/capture` | specs | 200 |
+| GET | `/api/specs/{spec_id}` | specs | 200, 404 |
+| GET | `/api/specs/coherence` | specs | 200 |
+| GET | `/api/specs/{spec_id}/writing-quality` | specs | 200 |
+| GET | `/api/v1/curator/escalations` | curator | 200, 401, 500 |
+| POST | `/api/v1/curator/escalations/{id}/resolve` | curator | 200, 401, 404, 500 |
+| POST | `/api/v1/curator/escalations/{id}/dismiss` | curator | 200, 401, 404, 500 |
+| GET | `/api/v1/curator/metacognition` | curator | 200, 401, 500 |
+| POST | `/api/episodic/store` | episodic | 200, 400, 401, 500 |
+| GET | `/api/episodic/query` | episodic | 200, 400, 401, 500 |
+| GET | `/api/episodic/usage` | episodic | 200, 401, 500 |
+| GET | `/api/sovereignty/status` | sovereignty | 200, 401, 500 |
+| POST | `/api/sovereignty/consent/grant` | sovereignty | 200, 400, 401, 500 |
+| POST | `/api/sovereignty/consent/revoke` | sovereignty | 200, 401, 404, 500 |
+| GET | `/api/sovereignty/access/check` | sovereignty | 200, 400, 401, 500 |
+| POST | `/api/consolidate` | consolidation | 200, 401, 429, 500 |
+| POST | `/api/v1/git/archive` | git | 200, 400, 401, 500 |
+| GET | `/api/v1/git/resolve/{sha}` | git | 200, 401, 500 |
+| POST | `/api/goals` | goals | 200, 400, 401, 403 |
+| GET | `/api/goals` | goals | 200, 400, 401, 403 |
+| POST | `/api/goals/{id}/state` | goals | 200, 400, 401, 403, 404 |
+| GET | `/api/wallet/balance` | wallet | 200, 503 |
+| GET | `/api/wallet/deposit-address` | wallet | 200, 503 |
+| POST | `/api/wallet/deposit-reference` | wallet | 200, 503 |
+| GET | `/api/wallet/transactions` | wallet | 200, 503 |
+| POST | `/api/wallet/keys` | wallet | 201, 503 |
+| GET | `/api/wallet/keys` | wallet | 200, 503 |
+| DELETE | `/api/wallet/keys/{key_id}` | wallet | 200, 503 |
+| POST | `/api/wallet/withdraw` | wallet | 200, 503 |
+
+**Endpoints registered via `.route()` (not in OpenAPI spec):**
+
+These endpoints use direct `.route()` registration without `#[utoipa::path]` annotations. They are functional at runtime but do not appear in the generated OpenAPI specification.
+
+| Method | Path | Tag |
+|--------|------|-----|
+| POST | `/api/templates` | templates |
+| GET | `/api/templates/search/{term}` | templates |
+| GET | `/api/pods` | pods |
+| POST | `/api/pods` | pods |
+| POST | `/api/pods/{id}/activate` | pods |
+| POST | `/api/pods/{id}/deactivate` | pods |
+| GET | `/api/pods/{id}/status` | pods |
+| GET | `/api/cns/alerts` | cns |
+| GET | `/api/ensemble/chat/{session}` | ensemble |
+| GET | `/api/ensemble/chat/{session}/list` | ensemble |
+| POST | `/api/ensemble/chat/{session}/register` | ensemble |
+| POST | `/api/ensemble/chat/{session}/send` | ensemble |
+| POST | `/api/ensemble/deliberation` | ensemble |
+| POST | `/api/v1/acp/register` | acp |
+| GET | `/api/settings` | settings |
+| PUT | `/api/settings` | settings |
 
 MCP tools are discovered dynamically at runtime — the OpenAPI spec does not enumerate individual tools. New servers (e.g., `hkask-mcp-replica` with 6 style replication tools) appear automatically in `GET /api/mcp/tools` when started.
 

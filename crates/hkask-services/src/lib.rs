@@ -42,7 +42,9 @@ pub use config::ServiceConfig;
 pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
-pub use discover::{DiscoverRequest, DiscoverResult, DiscoveryService};
+pub use discover::{
+    DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, download_and_cache,
+};
 pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,

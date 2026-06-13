@@ -22,6 +22,20 @@ pub fn run(rt: &tokio::runtime::Runtime, action: StyleAction) {
             max_works,
             output_dir,
             cache_dir,
-        } => super::discover::run(rt, author_name, max_works, output_dir, cache_dir),
+            serpapi_key,
+            no_transcripts,
+            no_web,
+            no_curate,
+        } => super::discover::run(
+            rt,
+            author_name,
+            max_works,
+            output_dir,
+            cache_dir,
+            serpapi_key,
+            !no_transcripts,
+            !no_web,
+            !no_curate,
+        ),
     }
 }

@@ -1,7 +1,7 @@
 ---
 title: "hKask CLI Reference (auto-generated)"
 audience: [CLI operators, developers, agents]
-last_updated: 2026-06-11
+last_updated: 2026-06-12
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -47,68 +47,22 @@ Options:
 - `-f`, `--input <INPUT>` — Input file (non-interactive mode)
 
 Slash commands (inside chat):
-
-**Session**
 - `/help` — Show categorized help, `/help <cmd>` for details
-- `/quit` (`/q`, `/exit`) — End the session
-- `/clear` (`/cls`) — Clear the screen
-- `/history` (`/hist`) — Show session turn history
-
-**Agent**
-- `/agent [NAME]` (`/a`) — Show current agent or switch to NAME
-- `/agents` (`/ls`) — List registered agents
-- `/pods` — List agent pods
-
-**Model**
-- `/model` (`/m`) — Show current model
+- `/status` — System status (CNS, agent, model, pods)
+- `/agent [NAME]` — Show or switch agent
+- `/agents` — List registered agents
+- `/model` — Show current model
 - `/model list` — List all available models
 - `/model <name>` — Switch to a specific model (e.g., `/model qwen3:8b`)
-- `/model <query>` — Fuzzy search models (e.g., `/model qwen`)
-
-**Ensemble**
-- `/into [SESSION]` (`/i`) — Enter an ensemble session, or leave (no arg)
-- `/ensemble sessions|create|join|send|invite|participants` (`/ens`) — Ensemble operations
-- `/filter [0.0-1.0]` (`/thresh`) — Set/show participation threshold
-- `/mode [freeform|curator_led|round_robin]` — Set/show orchestration mode
-- `/ask <AGENT> <MESSAGE>` — Force a specific agent to respond
-
-**System**
-- `/status` (`/st`) — System status (CNS, agent, model, gas, loops)
-- `/tools` — List MCP tools (name + description)
-- `/templates` (`/tpl`) — List registered templates
-- `/sovereignty` (`/sov`) — Show sovereignty status
-- `/invoke <server>/<tool> [args]` (`/inv`) — Invoke an MCP tool directly
-- `/bundle [SKILLS]|list|off|skills` (`/b`) — Compose or manage skill bundles
-- `/repl [SETTING] [VALUE]` — Show or set inference settings (temp, top_p, seed, …)
-
-**Governance**
-- `/escalations` (`/esc`) — List pending escalations
-- `/resolve <ID>` — Resolve an escalation
-- `/dismiss <ID>` — Dismiss an escalation
-- `/metacognition` (`/meta`) — Run a metacognition cycle
-
-**Alignment**
-- `/consolidate [LIMIT] [--floor F] [--max N]` (`/cons`) — Episodic→semantic consolidation
-
-**Onboarding**
-- `/start` (`/tour`, `/onboarding`) — Take a guided tour of hKask's capabilities
-- `/feedback` — Submit usability feedback (appended to local `feedback.md`)
-
-### `kask onboard` — Add a new replicant
-
-```bash
-kask onboard
-```
-
-Interactively creates an additional replicant in an existing hKask installation.
-Requires that `kask chat` has been run at least once (secrets must be in OS keychain).
-
-Prompts for:
-1. Replicant name
-2. Purpose / charter description
-3. Model selection (fetched from Okapi; falls back gracefully if unreachable)
-
-On success, prints the replicant summary and the `kask chat <name>` command to start a session.
+- `/model <query>` — Fuzzy search models (e.g., `/model qwen` lists all Qwen models)
+- `/pods` — List agent pods
+- `/templates` — List registered templates
+- `/ensemble` — Multi-agent ensemble (sessions, create, join, send)
+- `/escalations` — List pending escalations
+- `/metacognition` — Run metacognition cycle
+- `/sovereignty` — Show sovereignty status
+- `/history` — Show session turn history
+- `/quit` — End session
 
 ### `kask template` — Template management
 

@@ -48,50 +48,35 @@ pub use agent_def::{
 pub use audit::{AuditEntry, AuditOutcome};
 pub use bundle::{
     BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, BundleSkill,
-    CascadePhase, ComplementarityType, ConflictResolution, ConflictType, GasConfig, SkillPolarity,
-    ValidationResult,
+    CascadePhase, ComplementarityType, ConflictResolution, ConflictType, SkillPolarity,
 };
-pub use capability::tokens::ConsolidationToken;
 pub use capability::{
     AuthContext, CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource,
     DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
     TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
     capabilities_match, capability_from_server_id, require_read_access, require_write_access,
-    token_err_insufficient_access, token_err_tool_access_denied, verify_delegation_token,
-    verify_delegation_token_now,
+    verify_delegation_token, verify_delegation_token_now,
 };
-pub use cns::{CircuitState, CnsHealth, QueueDepth};
-pub use curation::{CurationDecision, OCAPBoundary, OcapCapability, OcapTokenKind};
-pub use error::{
-    CapabilityDenied, DimensionMismatch, GitError, HkaskError, InfrastructureError, McpErrorKind,
-    NotFound,
-};
+pub use cns::CircuitState;
+pub use curation::CurationDecision;
+pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
-pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
+pub use goal::Goal;
 pub use id::{
     ApiKeyId, BotID, EmbeddingID, EventID, GoalID, Id, IdKind, PodID, TemplateID, TripleID, UserID,
     WalletId, WebID,
 };
-pub use identity::{
-    HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserSession,
-};
-pub use lexicon::{HLexicon, LexiconTerm, MdsCategory, TemplateType};
-pub use loops::{
-    ActionType, CurationInput, CuratorDirective, CuratorHandle, Deviation, DeviationDirection,
-    ExperienceClassification, GoalTransitionEvent, HkaskLoop, LoopAction, LoopId, RuntimeAlert,
-    Signal, SignalMetric, SpecEvent, ToolConsumptionEvent,
-};
-pub use ports::git_cas::{
-    CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, MockGitCas, RepoId,
-    RepoSnapshotPolicy, RetentionPolicy, RetentionTier, SnapshotMetadata, SnapshotTrigger,
-    TreeEntry, TreeEntryKind, TripleEntry, VerificationReport,
-};
+
+pub use identity::{HumanUser, RegistrationRequest, ReplicantIdentity, UserSession};
+
+pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
+pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
+
 pub use ports::{
-    BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
-    ConsolidationRequest, DepletionSignal, EmbeddingGenerationError, InferenceError, InferencePort,
-    InferenceResult, InferenceStreamChunk, InferenceUsage, MessageRecord, RegistryEntry,
-    RegistryError, RegistryIndex, SessionRecord, SessionStoreError, Skill, SkillRegistryIndex,
-    SkillZone, StructuredToolCall, TokenProb, TokenProbability, ToolInfo, ToolPort, ToolPortError,
+    BundleRegistryIndex, CircuitBreakerPort, EmbeddingGenerationError, InferenceError,
+    InferencePort, InferenceResult, InferenceStreamChunk, InferenceUsage, RegistryEntry,
+    RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone, StructuredToolCall,
+    ToolInfo, ToolPort, ToolPortError,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, ZeroizingSecret, derivation_contexts};
@@ -102,6 +87,6 @@ pub use time::now_rfc3339;
 pub use visibility::{AccessControl, Confidence, TemporalBounds, Visibility};
 pub use wallet::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
-    PrivacyMode, RJoule, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
+    PrivacyMode, RJoule, TransactionType, WalletBalance, WalletConfig, WalletError,
     WalletTransaction,
 };

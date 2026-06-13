@@ -508,38 +508,56 @@ impl HkaskLoop for CyberneticsLoop {
             let target_id = action.target;
 
             // Send CurationInput::Alert on direct alerts channel.
+            // Fallback: persist to NuEventStore when channel is down (Curator inactive).
+            // Per design decision: the algedonic system must always be connected
+            // to the Curator replicant/agent — persistence is the bridge when the
+            // live channel has no receiver.
             if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
-                if let Some(ref alerts_tx) = self.alerts_tx {
-                    let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
-                    let alert = RuntimeAlert {
-                        current: deficit,
-                        threshold,
-                        deficit,
-                        timestamp: chrono::Utc::now(),
-                    };
-                    if let Err(e) = alerts_tx.send(CurationInput::Alert(alert)) {
-                        tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send CurationInput::Alert");
-                    }
-                } else {
-                    tracing::warn!(target: "cns.cybernetics", "Algedonic escalation computed but alerts channel not connected — feedback loop closure broken. Wire with_alerts_channel().");
-                }
-            }
+                let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
+                let alert = RuntimeAlert {
+                    current: deficit,
+                    threshold,
+                    deficit,
+                    timestamp: chrono::Utc::now(),
+                };
 
-            if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
-                if let Some(ref sink) = self.event_sink {
-                    let (deficit, threshold) = extract_deficit_threshold(&action.parameters);
-                    let event = NuEvent::new(
-                        WebID::new(),
-                        Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
-                        Phase::Act,
-                        serde_json::json!({"deficit": deficit, "threshold": threshold}),
-                        0,
-                    );
-                    if let Err(e) = sink.persist(&event) {
-                        tracing::warn!(target: "cns.algedonic", error = %e, "Failed to persist algedonic alert to NuEventStore");
+                // Primary path: live channel to Curator's inbox
+                let sent_live = if let Some(ref alerts_tx) = self.alerts_tx {
+                    match alerts_tx.send(CurationInput::Alert(alert.clone())) {
+                        Ok(()) => true,
+                        Err(e) => {
+                            tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send CurationInput::Alert via live channel — falling back to persistence");
+                            false
+                        }
                     }
                 } else {
-                    tracing::warn!(target: "cns.algedonic", "Algedonic alert not persisted — event_sink not connected. Alert history lost on restart. Wire with_event_sink().");
+                    tracing::warn!(target: "cns.cybernetics", "Alerts channel not connected — falling back to persistence. Wire with_alerts_channel() for live delivery.");
+                    false
+                };
+
+                // Fallback: persist full alert to NuEventStore for Curator retrieval on next activation
+                if !sent_live {
+                    if let Some(ref sink) = self.event_sink {
+                        let event = NuEvent::new(
+                            WebID::new(),
+                            Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
+                            Phase::Act,
+                            serde_json::json!({
+                                "deficit": deficit,
+                                "threshold": threshold,
+                                "current": deficit,
+                                "timestamp": alert.timestamp.to_rfc3339(),
+                            }),
+                            0,
+                        );
+                        if let Err(e) = sink.persist(&event) {
+                            tracing::error!(target: "cns.algedonic", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
+                        } else {
+                            tracing::info!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "Algedonic alert persisted to NuEventStore (Curator inbox unavailable)");
+                        }
+                    } else {
+                        tracing::error!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
+                    }
                 }
             }
         }
