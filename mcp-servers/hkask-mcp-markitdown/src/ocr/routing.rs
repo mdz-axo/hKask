@@ -129,9 +129,9 @@ mod tests {
             value: 0.20,
             tier: ComplexityTier::Complex,
         };
-        // Default model
+        // Default model (olmOCR-2 on DeepInfra)
         let mut state = SamplingState::new(0.10);
-        let backends = route_page(score, &mut state, None, None);
+        let backends = route_page(score.clone(), &mut state, None, None);
         assert_eq!(
             backends,
             vec![OcrBackend::LlmOcr(thresholds::DEFAULT_LLM_OCR_MODEL.into())]

@@ -123,7 +123,7 @@ works:
     slug: lovelace-notes
     url: "https://www.fourmilab.ch/babbage/sketch.html"
     notes: "Gutenberg ebook #75107 returned 404 (2026-06-12). Using fourmilab.ch mirror."
-    local_path: "registry/corpora/technical-documentation-exemplars/lovelace-notes.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/lovelace-notes.txt"
     format: text
     type: specification
     dimensions: [Lovelace]
@@ -134,7 +134,7 @@ works:
   - title: "A Manual of Operation for the Automatic Sequence Controlled Calculator"
     slug: hopper-mark1-manual
     url: "https://archive.org/details/manual-of-operation-automatic-sequence-controlled-calculator"
-    local_path: "registry/corpora/technical-documentation-exemplars/hopper-mark1-manual.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/hopper-mark1-manual.txt"
     format: text
     type: guide
     dimensions: [Hopper]
@@ -145,7 +145,7 @@ works:
   - title: "Plain Language for Expert or Lay Audiences — Protocol-Aided Revision"
     slug: schriver-protocol-revision
     url: "https://www.karenschriverassociates.com/wp-content/uploads/2020/03/12-Schriver-Plain-language-for-experts-or-lay-audiences-Designing-w-Protocol-aided-Revision.pdf"
-    local_path: "registry/corpora/technical-documentation-exemplars/schriver-protocol-revision.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/schriver-protocol-revision.txt"
     format: text
     type: research-paper
     dimensions: [Schriver]
@@ -155,7 +155,7 @@ works:
   - title: "Document Design from 1980 to 1990: Challenges that Remain"
     slug: schriver-document-design-1990
     url: "https://files.eric.ed.gov/fulltext/ED320143.pdf"
-    local_path: "registry/corpora/technical-documentation-exemplars/schriver-document-design-1990.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/schriver-document-design-1990.txt"
     format: text
     type: research-paper
     dimensions: [Schriver]
@@ -165,7 +165,7 @@ works:
   - title: "What Do Technical Communicators Need to Know about Information Design?"
     slug: schriver-info-design-2013
     url: "https://redish.net/wp-content/uploads/Schriver_2013_TechCom_Need_to_Know_InfoDesign.pdf"
-    local_path: "registry/corpora/technical-documentation-exemplars/schriver-info-design-2013.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/schriver-info-design-2013.txt"
     format: text
     type: book-chapter
     dimensions: [Schriver]
@@ -176,7 +176,7 @@ works:
   - title: "OpenStack Documentation Contributor Guide"
     slug: gentle-openstack-contrib-guide
     url: "https://docs.openstack.org/doc-contrib-guide/"
-    local_path: "registry/corpora/technical-documentation-exemplars/gentle-openstack-contrib-guide.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/gentle-openstack-contrib-guide.txt"
     format: web
     type: guide
     dimensions: [Gentle]
@@ -186,7 +186,7 @@ works:
   - title: "OpenStack API Documentation Guidelines"
     slug: gentle-openstack-api-guidelines
     url: "https://docs.openstack.org/doc-contrib-guide/api-guides.html"
-    local_path: "registry/corpora/technical-documentation-exemplars/gentle-openstack-api-guidelines.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/gentle-openstack-api-guidelines.txt"
     format: web
     type: reference
     dimensions: [Gentle]
@@ -196,7 +196,7 @@ works:
   - title: "OpenStack General Writing Guidelines"
     slug: gentle-openstack-writing-style
     url: "https://docs.openstack.org/doc-contrib-guide/writing-style/general-writing-guidelines.html"
-    local_path: "registry/corpora/technical-documentation-exemplars/gentle-openstack-writing-style.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/gentle-openstack-writing-style.txt"
     format: web
     type: reference
     dimensions: [Gentle]
@@ -207,7 +207,7 @@ works:
   - title: "Docs Like Code — Let's Treat Docs Like Code"
     slug: gentle-docs-like-code
     url: "https://www.docslikecode.com/"
-    local_path: "registry/corpora/technical-documentation-exemplars/gentle-docs-like-code.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/gentle-docs-like-code.txt"
     format: web
     type: guide
     dimensions: [Gentle]
@@ -218,7 +218,7 @@ works:
   - title: "Microsoft Writing Style Guide — Welcome"
     slug: microsoft-style-guide-welcome
     url: "https://learn.microsoft.com/en-us/style-guide/welcome/"
-    local_path: "registry/corpora/technical-documentation-exemplars/microsoft-style-guide-welcome.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/microsoft-style-guide-welcome.txt"
     format: web
     type: reference
     dimensions: [Gentle]
@@ -230,7 +230,7 @@ works:
   - title: "Write the Docs — Software Documentation Guide"
     slug: writethedocs-guide
     url: "https://www.writethedocs.org/guide/"
-    local_path: "registry/corpora/technical-documentation-exemplars/writethedocs-guide.txt"
+    local_path: "registry/styles/gentle-lovelace/corpus-sources/writethedocs-guide.txt"
     format: web
     type: guide
     dimensions: [Schriver]

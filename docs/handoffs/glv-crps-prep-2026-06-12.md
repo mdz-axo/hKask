@@ -34,7 +34,7 @@ Executed a complete documentation corpus sweep per the `document-update` skill a
 - **Corpus manifest:** `registry/styles/gentle-lovelace/corpus.yaml` — 339 lines, 11 works, 7 foundational rules, 4 orthogonal tag sets
 - **Formal spec:** `docs/specifications/gentle-lovelace-specification.md` — 343 lines, 5 Mermaid diagrams, 18 citations
 - **Weighting:** Gentle 0.50 / Schriver 0.30 / Hopper 0.10 / Lovelace 0.10 — per-document-type context sensitivity
-- **Exemplar excerpts:** `registry/corpora/technical-documentation-exemplars/` — manifest + 3 annotated excerpts + 3 Schriver PDFs
+- **Exemplar excerpts:** `registry/styles/gentle-lovelace/corpus-sources/` — manifest + 3 annotated excerpts + 3 Schriver PDFs
 
 ### Verification
 
@@ -73,7 +73,7 @@ Tests:     13 passed, 0 failed            ✅
 **Key paths:**
 ```
 registry/styles/gentle-lovelace/corpus.yaml          ← manifest (all URLs/paths)
-registry/corpora/technical-documentation-exemplars/  ← downloaded files here
+registry/styles/gentle-lovelace/corpus-sources/  ← downloaded files here
 /home/mdz-axolotl/Clones/Library/MarkI_operMan_1946.pdf ← Hopper PDF
 ```
 
@@ -124,7 +124,7 @@ bash docs/ci/check-links.sh
 bash docs/ci/check-metadata.sh
 
 # Download Lovelace
-curl -o registry/corpora/technical-documentation-exemplars/lovelace-notes.txt \
+curl -o registry/styles/gentle-lovelace/corpus-sources/lovelace-notes.txt \
   "https://www.gutenberg.org/cache/epub/75107/pg75107.txt"
 ```
 
