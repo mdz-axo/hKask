@@ -35,7 +35,7 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | Crate | Purpose |
 |-------|---------|
 | `hkask-types` | ID types, ν-event, hLexicon |
-| `hkask-inference` | Inference router (Ollama, Fireworks, DeepInfra) |
+| `hkask-inference` | Inference router (Ollama, Fireworks, DeepInfra, fal.ai) |
 | `hkask-storage` | SQLite + SQLCipher + sqlite-vec |
 | `hkask-memory` | Semantic/episodic pipelines |
 | `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
@@ -52,8 +52,8 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-mcp-replica` | Authorial style embedding and composition |
 
 **10 MCP servers:** memory, condenser, research, spec, fmp, communication, fal, replica, doc-knowledge, markitdown
-**Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
-**External:** Ollama, Fireworks.ai, DeepInfra, ACP (acp-runtime), MCP (rmcp)
+**Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra, fal.ai), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
+**External:** Ollama, Fireworks.ai, DeepInfra, fal.ai, ACP (acp-runtime), MCP (rmcp)
 
 ---
 

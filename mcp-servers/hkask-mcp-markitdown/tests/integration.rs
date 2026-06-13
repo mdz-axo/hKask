@@ -223,7 +223,7 @@ async fn test_pipeline_with_llm_ocr() {
     }
 
     let config = InferenceConfig::from_env();
-    let executor = RealExecutor::new(config.clone(), Some("minicpm-v:8b".into()));
+    let executor = RealExecutor::new(config.clone(), Some("maternion/LightOnOCR-2:1b".into()));
     let thresholds = ThresholdConfig::default();
     let embedding_router = EmbeddingRouter::new(config);
 
@@ -232,7 +232,7 @@ async fn test_pipeline_with_llm_ocr() {
         1,
         &executor,
         &thresholds,
-        Some("minicpm-v:8b"),
+        Some("maternion/LightOnOCR-2:1b"),
         Some((&embedding_router, "DI/Qwen/Qwen3-Embedding-0.6B")),
     )
     .await;
@@ -299,11 +299,18 @@ async fn test_pdf_pipeline() {
     eprintln!("Decimated {} pages", pages.len());
 
     let config = InferenceConfig::from_env();
-    let executor = RealExecutor::new(config, Some("minicpm-v:8b".into()));
+    let executor = RealExecutor::new(config, Some("maternion/LightOnOCR-2:1b".into()));
     let thresholds = ThresholdConfig::default();
 
-    let outcome =
-        pipeline::run_pipeline(pages, 1, &executor, &thresholds, Some("minicpm-v:8b"), None).await;
+    let outcome = pipeline::run_pipeline(
+        pages,
+        1,
+        &executor,
+        &thresholds,
+        Some("maternion/LightOnOCR-2:1b"),
+        None,
+    )
+    .await;
 
     eprintln!("PDF result: {:?}", outcome.results.first().map(|r| &r.text));
     assert!(!outcome.results.is_empty());

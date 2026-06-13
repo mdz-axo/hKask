@@ -9,6 +9,8 @@
 //! that exists in the inference catalog (e.g., a model with vision support).
 //! Use `InferenceRouter::list_models()` to discover available models.
 
+use std::sync::Mutex;
+
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
@@ -82,6 +84,9 @@ pub struct MarkitdownServer {
     embedding_router: Option<EmbeddingRouter>,
     /// CNS observer for pipeline events → daemon → NuEventStore → CurationLoop.
     cns_observer: MarkitdownCnsObserver,
+    /// Accumulated cross-validations across pipeline runs for threshold self-tuning.
+    /// Cleared after a drift alert is emitted to avoid redundant suggestions.
+    cv_accumulator: Mutex<Vec<hkask_types::ocr::CrossValidation>>,
 }
 
 impl MarkitdownServer {
@@ -104,6 +109,7 @@ impl MarkitdownServer {
             ocr_thresholds,
             embedding_router,
             cns_observer,
+            cv_accumulator: Mutex::new(Vec::new()),
         })
     }
 
@@ -155,6 +161,11 @@ impl MarkitdownServer {
         // Constructs a NuEvent from the pipeline outcome and feeds it to the
         // CnsObserver, which persists via daemon store_experience.
         self.emit_pipeline_event(outcome).await;
+
+        // Accumulate cross-validations for threshold self-tuning.
+        // When enough Moderate dual-routed pages show high agreement,
+        // emit a CNS alert suggesting threshold adjustment (P4: human approval required).
+        self.accumulate_and_check_drift(outcome);
     }
 
     /// Emit a CNS pipeline event through the CnsObserver.
@@ -194,6 +205,37 @@ impl MarkitdownServer {
         // Fire-and-forget: observer persists asynchronously via daemon.
         // on_event() internally spawns the daemon call, so this returns immediately.
         self.cns_observer.on_event(&event).await;
+    }
+
+    /// Accumulate cross-validations from a pipeline outcome and check for threshold drift.
+    ///
+    /// Appends this run's cross-validations to the accumulator. When ≥100 Moderate-tier
+    /// dual-routed pages show >95% mean similarity, emits a CNS alert via
+    /// `calibration::emit_drift_alert`. Clears the accumulator after emitting to
+    /// avoid redundant suggestions.
+    ///
+    /// Observation only — never auto-adjusts thresholds (P4).
+    fn accumulate_and_check_drift(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
+        use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
+
+        let mut acc = self.cv_accumulator.lock().unwrap();
+
+        // Append this run's cross-validations
+        acc.extend(outcome.cross_validations.clone());
+
+        // Wrap accumulated CVs into a minimal PipelineOutcome for analysis
+        let synthetic_outcome = hkask_types::ocr::PipelineOutcome {
+            results: vec![],
+            report: hkask_types::ocr::VerificationReport::new(true, 0.0, vec![], 0, vec![]),
+            cross_validations: acc.clone(),
+            errors: vec![],
+        };
+
+        if let Some(alert) = analyze_threshold_drift(&[synthetic_outcome], &self.ocr_thresholds) {
+            emit_drift_alert(&alert);
+            // Clear accumulator to avoid re-triggering on every subsequent run
+            acc.clear();
+        }
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.

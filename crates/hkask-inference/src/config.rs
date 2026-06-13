@@ -9,6 +9,16 @@
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
 //! - `FA_BASE_URL` — fal.ai base URL (default: https://api.fal.ai)
 //! - `FA_API_KEY` — fal.ai API key (required for FA provider)
+//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (OM, FW, DI, FA; default: OM)
+//!
+//! # API Key Resolution
+//!
+//! Provider API keys resolve through a 2-tier chain:
+//! 1. OS keychain (encrypted at rest) — preferred for cloud deployments
+//! 2. Environment variable (backward compat, SSH session convenience)
+//!
+//! Use `kask keystore load --path providers.env --shred` to load keys into the
+//! keychain and securely delete the plaintext file.
 //!
 //! # Model Naming Convention
 //!
@@ -20,6 +30,8 @@
 //! - No prefix → default provider (configurable, default: Ollama)
 
 use serde::{Deserialize, Serialize};
+
+use hkask_types::SecretRef;
 
 /// Two-letter provider identifier for inference routing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -89,7 +101,9 @@ impl ProviderId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceConfig {
     /// Default provider for model names without a prefix.
-    /// Default: Ollama (local-first).
+    /// Default: Ollama (local-first). Override with `HKASK_DEFAULT_PROVIDER` env var
+    /// or store in OS keychain under key `HKASK_DEFAULT_PROVIDER`.
+    /// Accepted values: OM, FW, DI, FA.
     pub default_provider: ProviderId,
 
     /// Base URL for the Ollama inference server.
@@ -149,10 +163,11 @@ impl Default for InferenceConfig {
 }
 
 impl InferenceConfig {
-    /// Resolve from environment variables.
+    /// Resolve from environment variables and OS keychain.
     ///
-    /// Reads `OM_BASE_URL`, `FW_BASE_URL`, `FW_API_KEY`, `DI_BASE_URL`, `DI_API_KEY`.
-    /// Also accepts `FIREWORKS_API_KEY` and `DEEPINFRA_API_KEY` as fallback names.
+    /// API keys resolve keychain-first, then fall back to environment variables.
+    /// Also accepts `FIREWORKS_API_KEY`, `DEEPINFRA_API_KEY`, and `FAL_API_KEY`
+    /// as legacy environment variable names.
     pub fn from_env() -> Self {
         let ollama_base_url =
             std::env::var("OM_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
@@ -160,26 +175,22 @@ impl InferenceConfig {
         let fireworks_base_url = std::env::var("FW_BASE_URL")
             .unwrap_or_else(|_| "https://api.fireworks.ai/inference".to_string());
 
-        let fireworks_api_key = std::env::var("FW_API_KEY")
-            .or_else(|_| std::env::var("FIREWORKS_API_KEY"))
-            .unwrap_or_default();
+        let fireworks_api_key = resolve_api_key("FW_API_KEY", &["FIREWORKS_API_KEY"]);
 
         let deepinfra_base_url = std::env::var("DI_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepinfra.com".to_string());
 
-        let deepinfra_api_key = std::env::var("DI_API_KEY")
-            .or_else(|_| std::env::var("DEEPINFRA_API_KEY"))
-            .unwrap_or_default();
+        let deepinfra_api_key = resolve_api_key("DI_API_KEY", &["DEEPINFRA_API_KEY"]);
 
         let fal_base_url =
             std::env::var("FA_BASE_URL").unwrap_or_else(|_| "https://api.fal.ai".to_string());
 
-        let fal_api_key = std::env::var("FA_API_KEY")
-            .or_else(|_| std::env::var("FAL_API_KEY"))
-            .unwrap_or_default();
+        let fal_api_key = resolve_api_key("FA_API_KEY", &["FAL_API_KEY"]);
+
+        let default_provider = resolve_default_provider();
 
         Self {
-            default_provider: ProviderId::Ollama,
+            default_provider,
             ollama_base_url,
             fireworks_base_url,
             fireworks_api_key,
@@ -201,6 +212,56 @@ impl InferenceConfig {
             .pool_max_idle_per_host(self.pool_max_idle)
             .build()
             .map_err(|e| format!("Failed to build HTTP client: {}", e))
+    }
+}
+
+// ── Private resolution helpers ──────────────────────────────────────────────
+
+/// Resolve a provider API key through the 2-tier chain: keychain → env var.
+///
+/// Tier 1: OS keychain (encrypted at rest, preferred for cloud deployments).
+/// Tier 2: Environment variable (primary name, then fallback names).
+/// Returns empty string if no key is found — the backend will be unavailable.
+fn resolve_api_key(primary_env: &str, fallback_envs: &[&str]) -> String {
+    // Tier 1: OS keychain
+    if let Ok(zeroizing) = hkask_keystore::resolve(&SecretRef::Keychain(primary_env.to_string())) {
+        let key = String::from_utf8_lossy(&*zeroizing).into_owned();
+        if !key.is_empty() {
+            return key;
+        }
+    }
+
+    // Tier 2: Environment variable (primary name)
+    if let Ok(key) = std::env::var(primary_env)
+        && !key.is_empty()
+    {
+        return key;
+    }
+
+    // Tier 2 (fallback): Legacy environment variable names
+    for fallback in fallback_envs {
+        if let Ok(key) = std::env::var(fallback)
+            && !key.is_empty()
+        {
+            return key;
+        }
+    }
+
+    String::new()
+}
+
+/// Resolve the default provider from env var or keychain.
+///
+/// Reads `HKASK_DEFAULT_PROVIDER` from OS keychain first, then environment
+/// variable. Accepted values: OM, FW, DI, FA. Defaults to Ollama.
+fn resolve_default_provider() -> ProviderId {
+    let raw = resolve_api_key("HKASK_DEFAULT_PROVIDER", &[]);
+    match raw.as_str() {
+        "OM" => ProviderId::Ollama,
+        "FW" => ProviderId::Fireworks,
+        "DI" => ProviderId::DeepInfra,
+        "FA" => ProviderId::Fal,
+        _ => ProviderId::Ollama,
     }
 }
 
@@ -281,5 +342,82 @@ mod tests {
             ProviderId::parse_from_model("FA/nemotron-parse"),
             Some((ProviderId::Fal, "nemotron-parse"))
         );
+    }
+
+    // ── resolve_default_provider ─────────────────────────────────────────
+
+    /// REQ: inf-cfg-008 — resolve_default_provider parses all four provider codes
+    #[test]
+    fn resolve_default_provider_all_codes() {
+        // These tests set the env var; the keychain tier is tested via integration.
+        std::env::set_var("HKASK_DEFAULT_PROVIDER", "OM");
+        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
+
+        std::env::set_var("HKASK_DEFAULT_PROVIDER", "FW");
+        assert_eq!(resolve_default_provider(), ProviderId::Fireworks);
+
+        std::env::set_var("HKASK_DEFAULT_PROVIDER", "DI");
+        assert_eq!(resolve_default_provider(), ProviderId::DeepInfra);
+
+        std::env::set_var("HKASK_DEFAULT_PROVIDER", "FA");
+        assert_eq!(resolve_default_provider(), ProviderId::Fal);
+
+        // Clean up
+        std::env::remove_var("HKASK_DEFAULT_PROVIDER");
+    }
+
+    /// REQ: inf-cfg-009 — unknown provider code defaults to Ollama
+    #[test]
+    fn resolve_default_provider_unknown_defaults_to_ollama() {
+        std::env::set_var("HKASK_DEFAULT_PROVIDER", "XX");
+        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
+
+        std::env::set_var("HKASK_DEFAULT_PROVIDER", "");
+        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
+
+        std::env::remove_var("HKASK_DEFAULT_PROVIDER");
+        assert_eq!(resolve_default_provider(), ProviderId::Ollama);
+    }
+
+    // ── resolve_api_key ──────────────────────────────────────────────────
+
+    /// REQ: inf-cfg-010 — resolve_api_key reads from primary env var
+    #[test]
+    fn resolve_api_key_primary_env() {
+        std::env::set_var("TEST_API_KEY", "sk-test-primary");
+        assert_eq!(resolve_api_key("TEST_API_KEY", &[]), "sk-test-primary");
+        std::env::remove_var("TEST_API_KEY");
+    }
+
+    /// REQ: inf-cfg-011 — resolve_api_key falls back to legacy env var names
+    #[test]
+    fn resolve_api_key_fallback_env() {
+        std::env::set_var("TEST_LEGACY_KEY", "sk-test-legacy");
+        assert_eq!(
+            resolve_api_key("TEST_API_KEY", &["TEST_LEGACY_KEY"]),
+            "sk-test-legacy"
+        );
+        std::env::remove_var("TEST_LEGACY_KEY");
+    }
+
+    /// REQ: inf-cfg-012 — resolve_api_key returns empty when no key found
+    #[test]
+    fn resolve_api_key_empty_when_missing() {
+        std::env::remove_var("TEST_API_KEY");
+        std::env::remove_var("TEST_LEGACY_KEY");
+        assert_eq!(resolve_api_key("TEST_API_KEY", &["TEST_LEGACY_KEY"]), "");
+    }
+
+    /// REQ: inf-cfg-013 — resolve_api_key prefers primary over fallback
+    #[test]
+    fn resolve_api_key_primary_wins_over_fallback() {
+        std::env::set_var("TEST_API_KEY", "sk-primary");
+        std::env::set_var("TEST_LEGACY_KEY", "sk-legacy");
+        assert_eq!(
+            resolve_api_key("TEST_API_KEY", &["TEST_LEGACY_KEY"]),
+            "sk-primary"
+        );
+        std::env::remove_var("TEST_API_KEY");
+        std::env::remove_var("TEST_LEGACY_KEY");
     }
 }

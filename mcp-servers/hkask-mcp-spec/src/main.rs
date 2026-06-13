@@ -588,13 +588,39 @@ impl SpecServer {
 
         // When embedding scores are available, use them for the pass/fail decision.
         // A dimension passes if cosine_distance ≤ 0.4.
-        let (dimensions_passing, meets_standard) = match &dimension_scores {
-            Some(scores) if !scores.is_empty() => {
-                let passing = scores.iter().filter(|s| s.cosine_distance <= 0.4).count();
-                (passing, passing >= 3)
-            }
-            _ => (quality.passes(), quality.meets_publication_standard()),
-        };
+        let (dimensions_passing, meets_standard, weakest_dimension, rewrite_prompt) =
+            match &dimension_scores {
+                Some(scores) if !scores.is_empty() => {
+                    let passing = scores.iter().filter(|s| s.cosine_distance <= 0.4).count();
+                    // Find the weakest dimension (highest cosine distance, excluding composite)
+                    let weakest = scores
+                        .iter()
+                        .filter(|s| s.dimension != "composite")
+                        .max_by(|a, b| a.cosine_distance.total_cmp(&b.cosine_distance));
+                    let weakest_dim = weakest.map(|s| s.dimension.clone());
+                    let rewrite = weakest.and_then(|s| {
+                        if s.cosine_distance > 0.4 {
+                            Some(format!(
+                                "Rewrite this specification to improve its {} dimension (current cosine distance: {:.2}, threshold: 0.40).\n\n=== SPECIFICATION TO REWRITE ===\n\nName: {}\nGoals: {}\nCriteria: {}",
+                                s.dimension,
+                                s.cosine_distance,
+                                spec.name,
+                                spec.goals.iter().map(|g| g.text.as_str()).collect::<Vec<_>>().join("; "),
+                                spec.goals.iter().flat_map(|g| &g.criteria).map(|c| c.description.as_str()).collect::<Vec<_>>().join("; "),
+                            ))
+                        } else {
+                            None
+                        }
+                    });
+                    (passing, passing >= 3, weakest_dim, rewrite)
+                }
+                _ => (
+                    quality.passes(),
+                    quality.meets_publication_standard(),
+                    None,
+                    None,
+                ),
+            };
 
         respond(
             span,
@@ -603,6 +629,8 @@ impl SpecServer {
                 meets_publication_standard: meets_standard,
                 replica_persona: replica_persona.clone(),
                 dimension_scores,
+                weakest_dimension,
+                rewrite_prompt,
             },
         )
     }

@@ -92,33 +92,42 @@ pub fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage>, Pip
     Ok(images)
 }
 
-/// Preprocess a page image via fal.ai vision model for OCR quality improvement.
+/// Preprocess a page image via fal.ai for OCR quality improvement.
 ///
 /// # Cost-Benefit Analysis
 ///
 /// | Approach | Cost | Latency | Capability |
 /// |----------|------|---------|------------|
 /// | `stretch_contrast()` | Free | O(w·h), local | Contrast expansion only |
-/// | fal.ai preprocessing | ~$0.15/1M tokens | Network RTT + inference | Deskew, denoise, enhance |
+/// | fal.ai `docres` | ~$0.001/image | ~2-5s network + inference | Deshadow, deblur, binarize, dewarp |
 ///
-/// **Current status:** fal.ai chat completions return text, not enhanced images.
-/// Image-to-image enhancement requires a different fal.ai endpoint (e.g.,
-/// `fal-ai/real-esrgan` or similar). This function is a documented stub —
-/// it falls through to `stretch_contrast()` until the correct endpoint is
-/// identified and cost-benefit is validated with real scanned documents.
+/// # Identified Model: `fal-ai/docres`
 ///
-/// # When to Activate
+/// Purpose-built for document cleanup. Endpoint: `https://fal.run/fal-ai/docres`
+/// (separate from chat completions — uses fal.run, not /v1/chat/completions).
+/// Tasks: `deshadowing`, `appearance`, `deblurring`, `binarization`.
+/// Also available: `fal-ai/docres/dewarp` for folded/warped documents.
 ///
-/// 1. Identify a fal.ai image-to-image model suitable for document cleanup
-/// 2. Benchmark OCR accuracy with/without fal.ai preprocessing on ≥20 real scans
-/// 3. If accuracy improvement ≥5% (measured via cross-validation similarity),
-///    implement the fal.ai call here
-/// 4. Gate behind `FA_API_KEY` presence; fall back to `stretch_contrast()`
+/// # Implementation Plan (when FA_API_KEY is available)
+///
+/// 1. Encode page image as PNG, upload to temporary URL or use data URI
+/// 2. POST to `https://fal.run/fal-ai/docres` with `Authorization: Key $FA_API_KEY`
+///    Body: `{"image_url": "<url>", "task": "binarization"}`
+/// 3. Poll response for `image.url`, download enhanced image
+/// 4. Replace `image` with enhanced version; fall back to `stretch_contrast()` on failure
+/// 5. Benchmark OCR accuracy with/without docres on ≥20 real scanned documents
+/// 6. If accuracy improvement ≥5% (measured via cross-validation similarity), activate
+///
+/// # Activation Criteria
+///
+/// - `FA_API_KEY` must be set
+/// - OCR accuracy improvement ≥5% on real scans (not synthetic test images)
+/// - Cost acceptable: ~$0.001/image at fal.ai pricing
 ///
 /// # Arguments
 /// * `image` — Page image to preprocess (mutated in-place).
-/// * `_model` — Reserved for future fal.ai model selection.
-/// * `_router` — Reserved for future inference router access.
+/// * `_model` — Reserved: "fal-ai/docres" with optional task suffix.
+/// * `_router` — Reserved for future inference router access (not used — fal.run endpoint).
 #[allow(dead_code)]
 pub(crate) fn preprocess_via_fal(
     image: &mut DynamicImage,
@@ -126,12 +135,13 @@ pub(crate) fn preprocess_via_fal(
     _router: Option<&hkask_inference::InferenceRouter>,
 ) {
     // Stub: falls through to local contrast stretching.
-    // When fal.ai image-to-image endpoint is integrated:
-    //   1. Encode image as base64
-    //   2. Send to fal.ai with prompt: "Clean up this document image for OCR.
-    //      Enhance contrast, deskew, remove noise, sharpen text."
-    //   3. Decode returned image and replace `image` with enhanced version
-    //   4. On failure, fall back to stretch_contrast()
+    // When FA_API_KEY is available and docres is validated:
+    //   1. Encode image as PNG bytes
+    //   2. POST to https://fal.run/fal-ai/docres with Key auth
+    //   3. Request binarization task for clean black/white text output
+    //   4. Download enhanced image from response image.url
+    //   5. Replace `image` with enhanced version
+    //   6. On failure, fall back to stretch_contrast()
     stretch_contrast(image);
 }
 
@@ -146,7 +156,7 @@ pub(crate) fn stretch_contrast(img: &mut DynamicImage) {
         return;
     }
 
-    let mut gray = img.to_luma8();
+    let gray = img.to_luma8();
     let pixels = gray.as_raw();
 
     // Find min/max pixel values

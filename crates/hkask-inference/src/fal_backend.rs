@@ -18,6 +18,7 @@ use std::sync::Arc;
 use tracing::info;
 
 /// fal.ai backend for chat completions and vision inference.
+#[derive(Debug)]
 pub struct FalBackend {
     base_url: String,
     api_key: String,
@@ -223,6 +224,12 @@ impl FalBackend {
                 id: "nemotron-parse".into(),
                 description: Some("Nemotron Parse — document parsing and OCR".into()),
             },
+            FalModelEntry {
+                id: "docres".into(),
+                description: Some(
+                    "DocRes — document enhancement: deshadow, deblur, binarize, dewarp".into(),
+                ),
+            },
         ])
     }
 }
@@ -235,4 +242,75 @@ pub struct FalModelEntry {
     pub id: String,
     #[serde(default)]
     pub description: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// REQ: inf-fal-01 — Construction fails without API key
+    #[test]
+    fn construction_fails_without_api_key() {
+        let config = InferenceConfig::default();
+        assert!(config.fal_api_key.is_empty());
+        let result = FalBackend::new(&config);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("FA_API_KEY"),
+            "error should mention FA_API_KEY, got: {}",
+            err
+        );
+    }
+
+    /// REQ: inf-fal-02 — Construction succeeds with API key
+    #[test]
+    fn construction_succeeds_with_api_key() {
+        let mut config = InferenceConfig::default();
+        config.fal_api_key = "test-key-123".into();
+        let result = FalBackend::new(&config);
+        assert!(
+            result.is_ok(),
+            "should succeed with API key: {:?}",
+            result.err()
+        );
+    }
+
+    /// REQ: inf-fal-03 — Static catalog returns known vision models
+    #[tokio::test]
+    async fn static_catalog_returns_vision_models() {
+        let mut config = InferenceConfig::default();
+        config.fal_api_key = "test-key".into();
+        let backend = FalBackend::new(&config).unwrap();
+        let models = backend.list_models().await.unwrap();
+        assert!(!models.is_empty(), "catalog should not be empty");
+        let ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
+        assert!(
+            ids.contains(&"paddleocr"),
+            "catalog should include paddleocr"
+        );
+        assert!(
+            ids.contains(&"nemotron-parse"),
+            "catalog should include nemotron-parse"
+        );
+        assert!(ids.contains(&"docres"), "catalog should include docres");
+    }
+
+    /// REQ: inf-fal-04 — Vision support heuristic recognizes fal.ai models
+    #[test]
+    fn vision_support_heuristic_recognizes_fal_models() {
+        use crate::RouterModelEntry;
+        assert_eq!(
+            RouterModelEntry::infer_vision_support("paddleocr", None),
+            Some(true)
+        );
+        assert_eq!(
+            RouterModelEntry::infer_vision_support("nemotron-parse", None),
+            Some(true)
+        );
+        assert_eq!(
+            RouterModelEntry::infer_vision_support("FA/paddleocr", None),
+            Some(true)
+        );
+    }
 }

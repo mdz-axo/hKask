@@ -97,6 +97,14 @@ pub struct WritingQualityResponse {
     /// Each entry has cosine_distance (lower = stronger alignment, ≤0.4 = passing).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dimension_scores: Option<Vec<DimensionScore>>,
+    /// The dimension with the highest cosine distance (weakest alignment).
+    /// When set, this is the recommended target for `spec_replica_rewrite`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weakest_dimension: Option<String>,
+    /// Pre-built rewrite prompt for the weakest dimension.
+    /// Can be passed directly to `spec_replica_rewrite` as the `passage` parameter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rewrite_prompt: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

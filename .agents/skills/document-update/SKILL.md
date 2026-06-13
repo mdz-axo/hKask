@@ -110,25 +110,31 @@ external source or code-path verification). Split sentences exceeding 35 words
 (§2.2). Replace passive voice with active (§2.2).
 
 For embedding-based dimension scoring, invoke
-`spec/require/writing-quality` with `replica_persona: "gentle-lovelace"`.
-This enables the 5th quality dimension — continuous embedding-space comparison
-against the Gentle Lovelace corpus. Run a separate `replica_compare` call with
-`persona: "gentle-lovelace"`, `document_content: <spec text>`,
-`document_type: "specification"`, and `compare_mode: "per-dimension"` to get
-per-dimension cosine distances against the Gentle, Schriver, Hopper, and
-Lovelace centroids. The per-document-type context-sensitive weights from the
-Gentle Lovelace corpus config adjust the composite score for the document's
-type (specification, ADR, guide, reference, plan, status).
+`spec/require/writing-quality` with `replica_persona: "gentle-lovelace"`,
+`db_path`, and `db_passphrase`. The server now performs the embedding
+comparison internally — it embeds the spec content, queries the Gentle
+Lovelace dimension centroids, and returns per-dimension cosine distances
+with qualitative labels ("strong" ≤0.2, "aligned" ≤0.4, "divergent" >0.4).
+
+The response includes `weakest_dimension` (the dimension with the highest
+cosine distance) and a pre-built `rewrite_prompt` that can be passed
+directly to `spec_replica_rewrite`.
+
+**Rewrite flow:** When `rewrite_prompt` is present, invoke
+`spec_replica_rewrite` with `dimension: <weakest_dimension>` and
+`passage: <rewrite_prompt>`. The tool retrieves exemplar passages from
+the target dimension's centroid and generates improved prose. Re-run
+`spec/require/writing-quality` to verify the cosine distance improved.
 
 **Output:** `docs/status/writing_quality_report.yaml` with per-document scores
 and revision actions taken. All specification documents at ≥3/4 heuristic AND
 composite cosine distance ≤0.4 from the Gentle Lovelace composite centroid.
 
-**Infrastructure:** The `hkask-mcp-replica` server's `replica_compose` tool can
-generate revision prose in the project's formal-technical voice (third person,
-present tense, definite assertions) when fed the Curator persona as the
-exemplar. Use `replica_compare` to measure stylistic distance between revised
-and canonical documents — target distance <0.3 from the Curator centroid.
+**Infrastructure:** `spec/require/writing-quality` (hkask-mcp-spec) handles
+both heuristic assessment and embedding-based comparison in a single call.
+`spec_replica_rewrite` (hkask-mcp-spec) handles dimension-targeted rewriting.
+No separate `replica_compare` call is needed — the spec server owns the full
+writing-quality pipeline.
 
 **Verification:** Re-run `spec/require/writing-quality` on each revised
 document; all return `meets_publication_standard: true`.
