@@ -7,6 +7,7 @@ pub mod cns;
 pub mod compose;
 pub mod config;
 pub mod consolidation;
+pub mod contacts;
 pub mod context;
 pub mod curator;
 pub mod daemon_handler;
@@ -17,11 +18,11 @@ pub mod goal;
 pub mod inference;
 pub mod onboarding;
 pub mod pods;
+pub mod scheduler;
 pub mod settings;
 pub mod skill;
 pub mod sovereignty;
 pub mod spec;
-pub mod telnyx_setup;
 pub mod verification;
 pub mod wallet;
 
@@ -37,6 +38,7 @@ pub use compose::{
 };
 pub use config::DEFAULT_DB_PATH;
 pub use config::ServiceConfig;
+pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use embed::{
@@ -51,6 +53,7 @@ pub use onboarding::{
     OnboardingService, RegistryHandle, ReplicantContactConfig, ResolvedSecrets, SignInOutcome,
 };
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
+pub use scheduler::SchedulerService;
 pub use settings::settings_path;
 pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
@@ -60,10 +63,6 @@ pub use sovereignty::SovereigntyService;
 pub use spec::{
     CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
     SpecService, WritingQualityResult,
-};
-pub use telnyx_setup::{
-    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms, tts_generate,
-    verify_api_key,
 };
 pub use verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,

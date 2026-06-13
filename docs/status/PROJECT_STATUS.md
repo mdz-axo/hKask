@@ -24,7 +24,7 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 |--------|--------|------|
 | Workspace (`cargo check --workspace`) | ✅ Pass | 2026-06-11 |
 | Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-11 |
-| MCP servers (condenser, research, spec, fmp, telnyx, fal) | ✅ Pass | 2026-06-11 |
+| MCP servers (condenser, research, spec, fmp, communication, fal) | ✅ Pass | 2026-06-11 |
 | `hkask-cli` (production) | ✅ Pass | 2026-06-11 |
 | `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
 | `hkask-services` (production) | ✅ Pass | 2026-06-11 |

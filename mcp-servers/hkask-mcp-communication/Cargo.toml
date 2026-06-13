@@ -1,21 +1,17 @@
 [package]
-name = "hkask-mcp-telnyx"
+name = "hkask-mcp-communication"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Telnyx unified communications MCP server (SMS, voice, WhatsApp, Voice AI)"
+description = "hKask MCP Communication — local TTS/STT"
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
-reqwest.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true
 anyhow.workspace = true
-tracing.workspace = true
-chrono.workspace = true
 uuid.workspace = true
-dotenvy.workspace = true

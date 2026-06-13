@@ -50,26 +50,24 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 |--------|-------|----------|
 | ⬜ Open | — | Medium |
 
-### 2.2 `hkask-mcp-telnyx` (Telecom) — 8 tools
+### 2.2 `hkask-mcp-communication` (Local TTS/STT) — 3 tools
 
-**Current state:** Raw API passthrough for SMS, calls, WhatsApp, number management, plus one composed value-add tool.
+**Current state:** Local system TTS via espeak. No external API dependencies.
 
 **Completed (2026-06-12):**
-- ✅ `telnyx_notify_user` — composed tool: routes message via SMS/WhatsApp/call to the human user using the replicant's own number as sender. Multi-channel routing implemented.
-- ✅ `UserProfile` — human identity (name, phone, email) stored in registry, used for naming protocol and default contact.
-- ✅ Naming protocol — replicant display name auto-composed as `{chosen} r{human_last_name}`.
-- ✅ Onboarding Telnyx setup — `setup_telnyx_for_replicant()` provisions phone number, messaging profile, and sends welcome SMS during `kask chat` and `kask onboard`.
-- ✅ `telnyx_setup` service module — direct API helpers (verify, search, order, profile, welcome SMS) for CLI onboarding use.
+- ✅ `tts_speak` — speak text aloud via system TTS
+- ✅ `tts_generate` — generate WAV audio file via system TTS
+- ✅ `tts_list_voices` — catalog of 8 espeak voices
+- ✅ Telnyx/phone fully deleted — no telecom dependency
 
-**Remaining value-add targets:**
-- Conversation state machines: track SMS/WhatsApp thread state
-- Scheduled messaging: queue messages for future delivery
-- Contact management: general contact store (currently only human user is a contact)
-- Voice workflow: `telnyx_list_voices` → `telnyx_make_call` with TTS selection as a composed action
+**Remaining targets:**
+- STT (speech-to-text) — microphone → text via local engine (Whisper, etc.)
+- Voice design in onboarding — collect voice description + pick from espeak catalog
+- Verbal mode prompt templates — concision/brevity for spoken responses
 
 | Status | Owner | Priority |
 |--------|-------|----------|
-| ✅ Partial (multi-channel routing + notify_user complete) | — | Medium |
+| ✅ Partial (TTS complete, STT deferred) | — | Medium |
 
 ### 2.3 `hkask-mcp-fal` (AI Media Generation) — 9 tools
 
@@ -221,7 +219,7 @@ Per the test program (`docs/specifications/test-program.md`), MCP server tests r
 | 2 | Define RAG pipeline architecture | §3 | High | Design-only | None | ⬜ Open |
 | 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete | ⬜ Open |
 | 4 | FMP value-add layer (Tier 1: moat, management, working capital, expectations gap) | §2.1 | Medium | High | None | ✅ Complete (2026-06-11) — 4 MAIA-framework tools, 20 tests, 1 new module (analysis.rs) |
-| 5 | Telnyx value-add layer | §2.2 | Medium | High | None | ✅ Partial (2026-06-12) — `telnyx_notify_user` (multi-channel routing), `UserProfile`, naming protocol, onboarding Telnyx setup, `telnyx_setup` service module. Remaining: conversation state, scheduled messaging, general contact store, voice workflow. |
+| 5 | Communication server (local TTS) | §2.2 | Medium | High | None | ✅ Partial (2026-06-12) — `tts_speak`, `tts_generate`, `tts_list_voices` via espeak. Telnyx fully deleted. Remaining: STT, voice design in onboarding, verbal mode templates. |
 | 6 | Fal value-add layer | §2.3 | Medium | High | None | ⬜ Open |
 | 7 | Tier 1 unit tests (condenser, research) | §5.3 | Medium | Medium | None | ✅ Complete (2026-06-11) — 50 tests: 27 condenser, 23 research |
 | 8 | Verify condenser_thread_summary registration | §4.1 | Low | Small | None | ✅ Complete (2026-06-11) — already `#[tool]` at main.rs:238, 7 tools total |

@@ -10,11 +10,7 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
-use hkask_services::{
-    OnboardingService, ReplicantContactConfig, ResolvedSecrets, ServiceConfig,
-    get_messaging_profile, order_number, search_available_numbers, send_welcome_sms, tts_generate,
-    verify_api_key,
-};
+use hkask_services::{OnboardingService, ResolvedSecrets, ServiceConfig};
 use hkask_types::{RegisteredAgent, UserProfile};
 use thiserror::Error;
 
@@ -176,57 +172,14 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         &name,
         &description,
         user_profile.as_ref(),
-        ReplicantContactConfig::default(),
+        None,
+        None,
     )
     .await
     .map_err(|e| {
         eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
         e
     })?;
-
-    // ── Telnyx: phone + WhatsApp setup (optional) ──
-    if let Some(ref profile) = user_profile
-        && !profile.phone.is_empty()
-    {
-        println!();
-        println!(
-            "  \x1b[1mPhone & WhatsApp\x1b[0m — {} can reach you via SMS, WhatsApp, and calls.",
-            display_name
-        );
-        let enable = prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
-        if enable.trim().to_lowercase() == "y" {
-            match setup_telnyx_for_replicant(&display_name, &profile.phone).await {
-                Ok((phone, whatsapp, voice_description, voice_id)) => {
-                    let mut agent = match handle.store.get(&display_name) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            eprintln!("  \x1b[31m✗\x1b[0m Failed to read back replicant: {e}");
-                            return Err(OnboardingError::Database(format!(
-                                "Failed to read back replicant: {e}"
-                            )));
-                        }
-                    };
-                    agent.definition.phone_number = Some(phone);
-                    agent.definition.whatsapp_id = Some(whatsapp);
-                    agent.definition.voice_description = voice_description;
-                    agent.definition.voice_id = voice_id;
-                    if let Err(e) = handle.store.insert(&agent) {
-                        eprintln!("  \x1b[31m✗\x1b[0m Failed to update replicant: {e}");
-                        return Err(OnboardingError::Database(format!(
-                            "Failed to update replicant: {e}"
-                        )));
-                    }
-                }
-                Err(e) => {
-                    eprintln!("  \x1b[33m⚠\x1b[0m  Telnyx setup skipped: {e}");
-                    eprintln!(
-                        "  You can set up phone/WhatsApp later via `kask pod assign {} telnyx`.",
-                        display_name
-                    );
-                }
-            }
-        }
-    }
 
     // Summary
     println!();
@@ -310,21 +263,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         return Err(OnboardingError::Cancelled);
     }
 
-    // Q3: Human phone
-    println!();
-    println!("  Your phone number lets your replicant reach you via call, SMS, or WhatsApp.");
-    let human_phone = prompt_line("  Your phone number (e.g., +15551234567):")?;
-    let human_phone = human_phone.trim().to_string();
-    if human_phone.is_empty() {
-        println!("  Skipping phone — you can add it later via settings.");
-    }
-    let human_phone = if human_phone.is_empty() {
-        String::new()
-    } else {
-        human_phone
-    };
-
-    // Q4: Human email
+    // Q3: Human email
     println!();
     let human_email = prompt_line("  Your email address:")?;
     let human_email = human_email.trim().to_string();
@@ -332,7 +271,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     let user_profile = UserProfile {
         first_name: human_first.clone(),
         last_name: human_last.clone(),
-        phone: human_phone.clone(),
         email: human_email,
     };
 
@@ -432,7 +370,8 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         &name,
         &description,
         Some(&user_profile),
-        ReplicantContactConfig::default(),
+        None,
+        None,
     )
     .await
     .inspect_err(|e| {
@@ -440,41 +379,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         eprintln!("  Run `kask chat` to retry onboarding.");
         cleanup(&config);
     })?;
-
-    // ── Telnyx: phone + WhatsApp setup (optional) ──
-
-    if !user_profile.phone.is_empty() {
-        println!();
-        println!(
-            "  \x1b[1mPhone & WhatsApp\x1b[0m — {} can reach you via SMS, WhatsApp, and calls.",
-            display_name
-        );
-        let enable = prompt_line("  Set this up now? (requires a funded Telnyx account) [y/N]:")?;
-        if enable.trim().to_lowercase() == "y" {
-            match setup_telnyx_for_replicant(&display_name, &user_profile.phone).await {
-                Ok((phone, whatsapp, voice_description, voice_id)) => {
-                    // Update the replicant's definition with the new phone number
-                    let mut agent = handle.store.get(&display_name).map_err(|e| {
-                        OnboardingError::Database(format!("Failed to read back replicant: {e}"))
-                    })?;
-                    agent.definition.phone_number = Some(phone);
-                    agent.definition.whatsapp_id = Some(whatsapp);
-                    agent.definition.voice_description = voice_description;
-                    agent.definition.voice_id = voice_id;
-                    handle.store.insert(&agent).map_err(|e| {
-                        OnboardingError::Database(format!("Failed to update replicant: {e}"))
-                    })?;
-                }
-                Err(e) => {
-                    eprintln!("  \x1b[33m⚠\x1b[0m  Telnyx setup skipped: {e}");
-                    eprintln!(
-                        "  You can set up phone/WhatsApp later via `kask pod assign {} telnyx`.",
-                        display_name
-                    );
-                }
-            }
-        }
-    }
 
     // Post-creation summary
     print_creation_summary(&display_name, &description, &selected_model);
@@ -485,298 +389,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         selected_model: Some(selected_model),
         is_first_run: true,
     })
-}
-
-/// Provision a phone number, design the replicant's voice, and send a welcome SMS.
-///
-/// Returns (phone_number, whatsapp_id, voice_description, voice_id) on success.
-async fn setup_telnyx_for_replicant(
-    replicant_name: &str,
-    user_phone: &str,
-) -> Result<(String, String, Option<String>, Option<String>), OnboardingError> {
-    // Check for API key
-    let api_key = match std::env::var("HKASK_TELNYX_API_KEY") {
-        Ok(k) if !k.is_empty() => k,
-        _ => {
-            return Err(OnboardingError::Database(
-                "HKASK_TELNYX_API_KEY not set. Add it to your environment (see env.example) and try again.".to_string(),
-            ));
-        }
-    };
-
-    // Verify the key works
-    println!("  Verifying Telnyx API key...");
-    if !verify_api_key(&api_key)
-        .await
-        .map_err(|e| OnboardingError::Database(format!("Telnyx API error: {e}")))?
-    {
-        return Err(OnboardingError::Database(
-            "Telnyx API key rejected. Check your key at telnyx.com and ensure your account is funded.".to_string(),
-        ));
-    }
-    println!("  \x1b[32m✓\x1b[0m API key valid");
-
-    // ── Number selection ──
-    let user_area_code = user_phone
-        .strip_prefix('+')
-        .and_then(|s| s.get(..3))
-        .or_else(|| user_phone.get(..3));
-
-    // (a1) Same area code as user?
-    let area_code: Option<String> = if let Some(ref uac) = user_area_code {
-        println!();
-        println!(
-            "  Your area code is \x1b[36m{}\x1b[0m. Should {} use the same area code?",
-            uac, replicant_name
-        );
-        let same = prompt_line("  Same area code? [Y/n]:")?;
-        if same.trim().to_lowercase() != "n" {
-            Some(uac.to_string())
-        } else {
-            // (a2) Different area code
-            let custom = prompt_line("  What area code (3 digits)?:")?;
-            let custom = custom.trim().to_string();
-            if custom.is_empty() {
-                println!("  Using your area code ({}).", uac);
-                Some(uac.to_string())
-            } else {
-                Some(custom)
-            }
-        }
-    } else {
-        None
-    };
-
-    // (b) Preferred digit sequence?
-    println!();
-    let preferred =
-        prompt_line("  Any preferred digits in the number? (e.g., '1234', or Enter to skip):")?;
-    let preferred = preferred.trim().to_string();
-    let contains_filter = if preferred.is_empty() {
-        None
-    } else {
-        Some(preferred.as_str())
-    };
-
-    // Search with filters
-    println!("  Searching available numbers...");
-    let numbers = search_available_numbers(&api_key, area_code.as_deref(), contains_filter)
-        .await
-        .map_err(|e| OnboardingError::Database(format!("Number search failed: {e}")))?;
-
-    let chosen_number = if numbers.is_empty() {
-        // Retry without the contains filter
-        if contains_filter.is_some() {
-            println!("  No numbers with that pattern — searching without it...");
-            let fallback = search_available_numbers(&api_key, area_code.as_deref(), None)
-                .await
-                .map_err(|e| OnboardingError::Database(format!("Number search failed: {e}")))?;
-            if fallback.is_empty() {
-                return Err(OnboardingError::Database(
-                    "No available phone numbers found. Try a different area code or check your Telnyx account."
-                        .to_string(),
-                ));
-            }
-            pick_number(&fallback, replicant_name)?
-        } else {
-            return Err(OnboardingError::Database(
-                "No available phone numbers found. Try a different area code or check your Telnyx account."
-                    .to_string(),
-            ));
-        }
-    } else {
-        pick_number(&numbers, replicant_name)?
-    };
-
-    // Get or create a messaging profile
-    println!("  Setting up messaging profile...");
-    let profile_id = get_messaging_profile(&api_key)
-        .await
-        .map_err(|e| OnboardingError::Database(format!("Messaging profile error: {e}")))?;
-    println!("  \x1b[32m✓\x1b[0m Messaging profile ready");
-
-    // Order the number
-    println!("  Ordering phone number...");
-    let ordered = order_number(&api_key, &chosen_number, &profile_id)
-        .await
-        .map_err(|e| OnboardingError::Database(format!("Number order failed: {e}")))?;
-    println!(
-        "  \x1b[32m✓\x1b[0m Number ordered: \x1b[36m{}\x1b[0m",
-        ordered
-    );
-
-    // ── Voice design ──
-    println!();
-    println!(
-        "  \x1b[1mVoice Design\x1b[0m — how should {} sound?",
-        replicant_name
-    );
-
-    // Q: Clone the human's voice or describe a custom voice?
-    let clone_voice = prompt_line(&format!(
-        "  Should {}'s voice be a clone of your voice? [y/N]:",
-        replicant_name
-    ))?;
-
-    let (voice_description, voice_id) = if clone_voice.trim().to_lowercase() == "y" {
-        println!("  \x1b[2mVoice cloning requires audio samples — coming soon.\x1b[0m");
-        println!("  For now, describe the voice you want in words.");
-        design_custom_voice(replicant_name)?
-    } else {
-        design_custom_voice(replicant_name)?
-    };
-
-    // Send welcome SMS
-    println!("  Sending welcome message to your phone...");
-    send_welcome_sms(&api_key, &ordered, user_phone, replicant_name)
-        .await
-        .map_err(|e| OnboardingError::Database(format!("Welcome SMS failed: {e}")))?;
-    println!(
-        "  \x1b[32m✓\x1b[0m Welcome SMS sent to \x1b[36m{}\x1b[0m",
-        user_phone
-    );
-    println!();
-    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
-    println!(
-        "  \x1b[1;32m  ✓  {} is now reachable!\x1b[0m",
-        replicant_name
-    );
-    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
-    println!();
-    println!("  \x1b[1mNumber:\x1b[0m     \x1b[36m{}\x1b[0m", ordered);
-    println!("  \x1b[1mSMS:\x1b[0m        \x1b[32mReady\x1b[0m");
-    println!("  \x1b[1mWhatsApp:\x1b[0m   \x1b[32mReady\x1b[0m");
-    println!(
-        "  \x1b[1mContact:\x1b[0m    Check your phone — {} just texted you!",
-        replicant_name
-    );
-    println!();
-
-    Ok((ordered.clone(), ordered, voice_description, voice_id))
-}
-
-/// Show a numbered list of available phone numbers and let the user pick one.
-fn pick_number(numbers: &[String], replicant_name: &str) -> Result<String, OnboardingError> {
-    println!("  \x1b[1mAvailable numbers for {}\x1b[0m:", replicant_name);
-    for (i, n) in numbers.iter().enumerate() {
-        println!("    {}. \x1b[36m{}\x1b[0m", i + 1, n);
-    }
-    let choice = prompt_choice(
-        &format!("  Pick a number (1-{}):", numbers.len()),
-        1..=numbers.len(),
-    )?;
-    let chosen = numbers[choice - 1].clone();
-    println!("  \x1b[32m✓\x1b[0m Selected: \x1b[36m{}\x1b[0m", chosen);
-    Ok(chosen)
-}
-
-/// Telnyx static TTS voice catalog — shown as reference during voice design.
-const TELNYX_VOICES: &[(&str, &str, &str)] = &[
-    ("female", "Female", "en-US"),
-    ("male", "Male", "en-US"),
-    ("Alice", "Alice", "en-US"),
-    ("Bob", "Bob", "en-US"),
-    ("Eva", "Eva", "en-US"),
-    ("Adam", "Adam", "en-GB"),
-    ("Bridget", "Bridget", "en-GB"),
-    ("Chloe", "Chloe", "fr-FR"),
-    ("Denise", "Denise", "de-DE"),
-    ("Ellen", "Ellen", "es-ES"),
-];
-
-/// Collect a voice description and optionally pick from the static catalog.
-fn design_custom_voice(
-    replicant_name: &str,
-) -> Result<(Option<String>, Option<String>), OnboardingError> {
-    println!(
-        "  Describe {}'s voice (e.g., 'warm female, British accent, professional but friendly'):",
-        replicant_name
-    );
-    let desc = prompt_line("  Voice description:")?;
-    let desc = desc.trim().to_string();
-    let voice_description = if desc.is_empty() { None } else { Some(desc) };
-
-    // Show static voice catalog as fallback/reference
-    println!();
-    println!("  \x1b[1mStatic voice catalog\x1b[0m (Telnyx TTS — pick one as fallback):");
-    for (i, (id, name, lang)) in TELNYX_VOICES.iter().enumerate() {
-        println!("    {}. \x1b[36m{}\x1b[0m — {} ({})", i + 1, name, id, lang);
-    }
-    println!(
-        "    {}. Skip — use description only",
-        TELNYX_VOICES.len() + 1
-    );
-
-    let choice = prompt_choice(
-        &format!(
-            "  Pick a voice (1-{}, or Enter to skip):",
-            TELNYX_VOICES.len() + 1
-        ),
-        1..=(TELNYX_VOICES.len() + 1),
-    );
-
-    let voice_id = match choice {
-        Ok(n) if n <= TELNYX_VOICES.len() => Some(TELNYX_VOICES[n - 1].0.to_string()),
-        _ => None,
-    };
-
-    if let Some(ref vid) = voice_id {
-        println!("  \x1b[32m✓\x1b[0m Voice selected: \x1b[36m{}\x1b[0m", vid);
-
-        // Offer sample playback
-        println!();
-        let hear = prompt_line("  Hear a sample of this voice? [y/N]:")?;
-        if hear.trim().to_lowercase() == "y" {
-            let api_key = match std::env::var("HKASK_TELNYX_API_KEY") {
-                Ok(k) if !k.is_empty() => k,
-                _ => {
-                    println!("  \x1b[33m⚠\x1b[0m  No API key — skipping sample.");
-                    return Ok((voice_description, voice_id));
-                }
-            };
-            let sample_text = format!(
-                "Hello, I am {}, your hKask replicant. This is what I sound like.",
-                replicant_name
-            );
-            println!("  Generating voice sample...");
-            match tts_generate(&api_key, &sample_text, vid).await {
-                Ok(path) => {
-                    println!("  \x1b[32m✓\x1b[0m Sample ready. Playing...");
-                    play_audio(&path);
-                }
-                Err(e) => {
-                    println!("  \x1b[33m⚠\x1b[0m  TTS unavailable: {e}", e);
-                    println!("  The voice will be used for phone calls — you'll hear it then.");
-                }
-            }
-        }
-    }
-
-    Ok((voice_description, voice_id))
-}
-
-/// Play an audio file using the system's audio player.
-/// Tries ffplay first, falls back to aplay, then paplay.
-fn play_audio(path: &str) {
-    let players = ["ffplay", "aplay", "paplay"];
-    for player in &players {
-        let args = if *player == "ffplay" {
-            vec!["-nodisp", "-autoexit", path]
-        } else {
-            vec![path]
-        };
-        if std::process::Command::new(player)
-            .args(&args)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .and_then(|mut c| c.wait())
-            .is_ok()
-        {
-            return;
-        }
-    }
-    println!("  \x1b[2m(Audio player not found — install ffmpeg for sample playback)\x1b[0m");
 }
 
 /// Curated list of cloud near-frontier models for replicant cognition.

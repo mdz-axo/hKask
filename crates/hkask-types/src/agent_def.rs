@@ -150,18 +150,11 @@ pub struct AgentDefinition {
     pub depends_on: Vec<String>,
     #[serde(default)]
     pub process_manifest: Option<String>,
-    /// Replicant's own phone number (E.164 format, e.g., "+15551234567").
-    /// Set during onboarding when user opts into phone/WhatsApp capabilities.
-    #[serde(default)]
-    pub phone_number: Option<String>,
-    /// Replicant's WhatsApp Business ID (linked to phone_number).
-    #[serde(default)]
-    pub whatsapp_id: Option<String>,
-    /// Voice description for Telnyx experimental voice design.
-    /// Natural language description of the desired voice (e.g., "warm female, British accent, professional").
+    /// Voice description for the replicant's TTS voice.
+    /// Natural language description (e.g., "warm female, British accent, professional").
     #[serde(default)]
     pub voice_description: Option<String>,
-    /// Selected voice ID from the Telnyx TTS catalog (e.g., "female", "Alice", "Adam").
+    /// Selected voice ID from the local TTS catalog (e.g., "en-us", "en-uk").
     #[serde(default)]
     pub voice_id: Option<String>,
 }
@@ -245,8 +238,6 @@ pub struct RegisteredAgent {
 pub struct UserProfile {
     pub first_name: String,
     pub last_name: String,
-    /// Phone number in E.164 format (e.g., "+15551234567")
-    pub phone: String,
     /// Email address — forward-looking, no email MCP server yet
     pub email: String,
 }
@@ -258,4 +249,44 @@ impl UserProfile {
     pub fn replicant_display_name(&self, chosen_first_name: &str) -> String {
         format!("{} r{}", chosen_first_name, self.last_name)
     }
+}
+
+/// A contact in an agent's personal contact registry.
+/// Each agent owns its own contacts, stored in the registry DB.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Contact {
+    /// Which replicant owns this contact
+    pub agent_name: String,
+    /// Display name for the contact
+    pub contact_name: String,
+    /// Relationship to the human user (e.g., "lawyer", "partner", "client")
+    #[serde(default)]
+    pub relationship: Option<String>,
+    /// Free-text notes
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+/// A scheduled task owned by an agent. The curation loop checks for due
+/// tasks each cycle and fires the associated action.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScheduledTask {
+    /// Which replicant owns this task
+    pub agent_name: String,
+    /// Cron-like trigger expression (e.g., "daily 7am", "0 9 * * mon-fri")
+    pub trigger: String,
+    /// Action to perform (e.g., "notify_user", "run_research")
+    pub action: String,
+    /// JSON parameters for the action
+    #[serde(default)]
+    pub params: Option<String>,
+    /// Next scheduled run time (ISO 8601)
+    pub next_run: String,
+    /// Whether this task is active
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
 }

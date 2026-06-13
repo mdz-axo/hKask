@@ -36,6 +36,17 @@ pub struct GoalResponse {
     pub visibility: String,
 }
 
+impl From<hkask_services::GoalResponse> for GoalResponse {
+    fn from(g: hkask_services::GoalResponse) -> Self {
+        Self {
+            id: g.id,
+            text: g.text,
+            state: g.state,
+            visibility: g.visibility,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalListResponse {
     pub goals: Vec<GoalResponse>,
@@ -64,12 +75,7 @@ pub(crate) async fn create_goal(
     };
     let goal = hkask_services::GoalService::create_goal(&state.agent_service, svc_req)
         .map_err(ApiError::from)?;
-    Ok(Json(GoalResponse {
-        id: goal.id,
-        text: goal.text,
-        state: goal.state,
-        visibility: goal.visibility,
-    }))
+    Ok(Json(goal.into()))
 }
 
 /// List all goals for the authenticated agent, optionally filtered by state.
@@ -93,15 +99,7 @@ pub(crate) async fn list_goals(
         hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)
             .map_err(ApiError::from)?;
     Ok(Json(GoalListResponse {
-        goals: goals
-            .into_iter()
-            .map(|g| GoalResponse {
-                id: g.id,
-                text: g.text,
-                state: g.state,
-                visibility: g.visibility,
-            })
-            .collect(),
+        goals: goals.into_iter().map(|g| g.into()).collect(),
     }))
 }
 
@@ -126,10 +124,5 @@ pub(crate) async fn set_goal_state(
 ) -> Result<Json<GoalResponse>, ApiError> {
     let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)
         .map_err(ApiError::from)?;
-    Ok(Json(GoalResponse {
-        id: goal.id,
-        text: goal.text,
-        state: goal.state,
-        visibility: goal.visibility,
-    }))
+    Ok(Json(goal.into()))
 }

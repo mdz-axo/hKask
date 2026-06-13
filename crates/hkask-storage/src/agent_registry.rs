@@ -1,6 +1,9 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 use crate::Store;
-use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent, UserProfile};
+use hkask_types::{
+    AgentDefinition, AgentKind, Contact, InfrastructureError, RegisteredAgent, ScheduledTask,
+    UserProfile,
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -36,7 +39,25 @@ impl AgentRegistryStore {
             CREATE TABLE IF NOT EXISTS user_profile (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 profile_json TEXT NOT NULL
-            );",
+            );
+            CREATE TABLE IF NOT EXISTS contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_name TEXT NOT NULL,
+                contact_name TEXT NOT NULL,
+                relationship TEXT,
+                notes TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_contacts_agent ON contacts(agent_name);
+            CREATE TABLE IF NOT EXISTS scheduled_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_name TEXT NOT NULL,
+                trigger_expr TEXT NOT NULL,
+                action TEXT NOT NULL,
+                params TEXT,
+                next_run TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX IF NOT EXISTS idx_scheduled_agent ON scheduled_tasks(agent_name);",
         )?;
         Ok(())
     }
@@ -204,6 +225,149 @@ impl AgentRegistryStore {
             Err(e) => Err(AgentRegistryError::from(e)),
         }
     }
+
+    /// Add a contact to an agent's contact registry.
+    pub fn add_contact(&self, contact: &Contact) -> Result<(), AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "INSERT INTO contacts (agent_name, contact_name, relationship, notes)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![
+                contact.agent_name,
+                contact.contact_name,
+                contact.relationship,
+                contact.notes,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Find contacts for an agent by name or relationship.
+    /// Returns all matching contacts.
+    pub fn find_contacts(
+        &self,
+        agent_name: &str,
+        query: &str,
+    ) -> Result<Vec<Contact>, AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT agent_name, contact_name, relationship, notes
+             FROM contacts WHERE agent_name = ?1 AND (contact_name LIKE ?2 OR relationship LIKE ?2)",
+        )?;
+        let pattern = format!("%{query}%");
+        let rows = stmt.query_map(rusqlite::params![agent_name, pattern], |row| {
+            Ok(Contact {
+                agent_name: row.get(0)?,
+                contact_name: row.get(1)?,
+                relationship: row.get(2)?,
+                notes: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(AgentRegistryError::from)
+    }
+
+    /// List all contacts for an agent.
+    pub fn list_contacts(&self, agent_name: &str) -> Result<Vec<Contact>, AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT agent_name, contact_name, relationship, notes
+             FROM contacts WHERE agent_name = ?1 ORDER BY contact_name ",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![agent_name], |row| {
+            Ok(Contact {
+                agent_name: row.get(0)?,
+                contact_name: row.get(1)?,
+                relationship: row.get(2)?,
+                notes: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(AgentRegistryError::from)
+    }
+
+    /// Add a scheduled task for an agent.
+    pub fn add_scheduled_task(&self, task: &ScheduledTask) -> Result<(), AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "INSERT INTO scheduled_tasks (agent_name, trigger_expr, action, params, next_run, enabled)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![
+                task.agent_name,
+                task.trigger,
+                task.action,
+                task.params,
+                task.next_run,
+                task.enabled as i32,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// List all enabled scheduled tasks whose next_run is due (<= now).
+    pub fn list_due_tasks(&self, now: &str) -> Result<Vec<ScheduledTask>, AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT agent_name, trigger_expr, action, params, next_run, enabled
+             FROM scheduled_tasks WHERE enabled = 1 AND next_run <= ?1 ORDER BY next_run ",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![now], |row| {
+            Ok(ScheduledTask {
+                agent_name: row.get(0)?,
+                trigger: row.get(1)?,
+                action: row.get(2)?,
+                params: row.get(3)?,
+                next_run: row.get(4)?,
+                enabled: row.get::<_, i32>(5)? != 0,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(AgentRegistryError::from)
+    }
+
+    /// List all scheduled tasks for an agent.
+    pub fn list_scheduled_tasks(
+        &self,
+        agent_name: &str,
+    ) -> Result<Vec<ScheduledTask>, AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT agent_name, trigger_expr, action, params, next_run, enabled
+             FROM scheduled_tasks WHERE agent_name = ?1 ORDER BY next_run ",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![agent_name], |row| {
+            Ok(ScheduledTask {
+                agent_name: row.get(0)?,
+                trigger: row.get(1)?,
+                action: row.get(2)?,
+                params: row.get(3)?,
+                next_run: row.get(4)?,
+                enabled: row.get::<_, i32>(5)? != 0,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(AgentRegistryError::from)
+    }
+
+    /// Update the next_run time for a scheduled task (after it fires).
+    pub fn update_next_run(
+        &self,
+        agent_name: &str,
+        trigger: &str,
+        new_next_run: &str,
+    ) -> Result<(), AgentRegistryError> {
+        let conn = self.lock_conn()?;
+        let updated = conn.execute(
+            "UPDATE scheduled_tasks SET next_run = ?1 WHERE agent_name = ?2 AND trigger_expr = ?3",
+            rusqlite::params![new_next_run, agent_name, trigger],
+        )?;
+        if updated == 0 {
+            return Err(AgentRegistryError::NotFound(format!(
+                "Task {agent_name}/{trigger}"
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -222,18 +386,11 @@ mod tests {
     }
 
     // REQ: agent-registry-notfound-001 — get on missing name returns NotFound
-    //
-    // Before fix, any rusqlite error was mapped to NotFound. Now only
-    // QueryReturnedNoRows maps to NotFound; other errors map to Infra.
     #[test]
     fn get_missing_agent_returns_not_found() {
         let store = make_store();
         let result = store.get("no-such-agent ");
-        assert!(
-            matches!(result, Err(AgentRegistryError::NotFound(_))),
-            "expected NotFound, got {:?}",
-            result
-        );
+        assert!(matches!(result, Err(AgentRegistryError::NotFound(_))));
     }
 
     // REQ: agent-registry-notfound-002 — remove on missing name returns NotFound
@@ -241,10 +398,6 @@ mod tests {
     fn remove_missing_agent_returns_not_found() {
         let store = make_store();
         let result = store.remove("no-such-agent ");
-        assert!(
-            matches!(result, Err(AgentRegistryError::NotFound(_))),
-            "expected NotFound, got {:?}",
-            result
-        );
+        assert!(matches!(result, Err(AgentRegistryError::NotFound(_))));
     }
 }

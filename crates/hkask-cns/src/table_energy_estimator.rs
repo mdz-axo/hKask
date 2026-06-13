@@ -9,7 +9,7 @@
 //! | Local I/O | spec | 5 | No network |
 //! | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + I/O |
 //! | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-//! | External | web, fmp, telnyx, rss-reader | 20-50 | Network I/O |
+//! | External | web, fmp, rss-reader | 20-50 | Network I/O |
 //! | Heavy | fal | 100 | GPU compute |
 //! | Inference | (routed via InferenceEnergyEstimator) | 0 | Token-based estimator |
 //
@@ -39,7 +39,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     // External API tools — expensive
     table.insert("hkask-mcp-research", 50);
     table.insert("hkask-mcp-fmp", 40);
-    table.insert("hkask-mcp-telnyx", 50);
+    table.insert("hkask-mcp-communication", 50);
     table.insert("hkask-mcp-fal", 100);
 
     table.insert("hkask-mcp-replica", 30);
@@ -68,7 +68,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 /// | Local I/O | spec | 5 | Local I/O, no network |
 /// | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + local I/O |
 /// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-/// | External API | web, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
+/// | External API | web, fmp, rss-reader | 20-50 | Network I/O, rate-limited |
 /// | Heavy external | fal | 100 | GPU compute, expensive |
 /// | Inference | (routed via InferenceEnergyEstimator) | 0 (table) | Handled by `InferenceEnergyEstimator` |
 ///

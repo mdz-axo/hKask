@@ -19,7 +19,7 @@ members = [
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",
     "mcp-servers/hkask-mcp-fmp",
-    "mcp-servers/hkask-mcp-telnyx",
+    "mcp-servers/hkask-mcp-communication",
     "mcp-servers/hkask-mcp-fal",
     "mcp-servers/hkask-mcp-spec",
     "mcp-servers/hkask-mcp-memory",

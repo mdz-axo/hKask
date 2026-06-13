@@ -217,28 +217,7 @@ impl Goal {
         Ok(())
     }
 
-    pub fn activate(&mut self) {
-        // Pending → Active is always legal per can_transition_to
-        let _ = self.transition(GoalState::Active);
-    }
-
-    pub fn complete(&mut self) {
-        let _ = self.transition(GoalState::Completed);
-    }
-
-    pub fn block(&mut self) {
-        let _ = self.transition(GoalState::Blocked);
-    }
-
-    pub fn abandon(&mut self) {
-        let _ = self.transition(GoalState::Abandoned);
-    }
-
-    pub fn is_terminal(&self) -> bool {
-        self.state.is_terminal()
-    }
-
     pub fn can_have_subgoals(&self) -> bool {
-        !self.is_terminal() && self.depth < SYSTEM_MAX_RECURSION
+        !self.state.is_terminal() && self.depth < SYSTEM_MAX_RECURSION
     }
 }

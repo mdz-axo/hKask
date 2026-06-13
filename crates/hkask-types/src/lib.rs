@@ -41,8 +41,8 @@ pub mod wallet;
 pub mod sql_impls;
 
 pub use agent_def::{
-    AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility,
-    Right, UserProfile,
+    AgentDefinition, AgentKind, Charter, Contact, PersonaConstraints, RegisteredAgent,
+    Responsibility, Right, ScheduledTask, UserProfile,
 };
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use audit::{AuditEntry, AuditOutcome};

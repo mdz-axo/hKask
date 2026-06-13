@@ -33,10 +33,6 @@ struct YamlAgentHeader {
     #[serde(rename = "type")]
     agent_type: String,
     #[serde(default)]
-    phone_number: Option<String>,
-    #[serde(default)]
-    whatsapp_id: Option<String>,
-    #[serde(default)]
     voice_description: Option<String>,
     #[serde(default)]
     voice_id: Option<String>,
@@ -194,8 +190,6 @@ impl RawYamlAgent {
         })?;
 
         // Extract header fields before moving out of self (borrow checker)
-        let _phone_number = header.phone_number.clone();
-        let _whatsapp_id = header.whatsapp_id.clone();
         let _voice_description = header.voice_description.clone();
         let _voice_id = header.voice_id.clone();
         let header_name = header.name.clone();
@@ -220,8 +214,6 @@ impl RawYamlAgent {
             }),
             depends_on: self.depends_on,
             process_manifest: self.process_manifest,
-            phone_number: _phone_number,
-            whatsapp_id: _whatsapp_id,
             voice_description: _voice_description,
             voice_id: _voice_id,
         })

@@ -1985,6 +1985,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-communication"
+version = "0.27.0"
+dependencies = [
+ "anyhow",
+ "hkask-mcp",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-mcp-condenser"
 version = "0.27.0"
 dependencies = [
@@ -2170,25 +2185,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-telnyx"
-version = "0.27.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dotenvy",
- "hkask-mcp",
- "hkask-types",
- "reqwest",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]

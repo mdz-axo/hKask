@@ -18,7 +18,7 @@ const API_SERVERS: &[(&str, &str)] = &[
     ("spec", "hkask-mcp-spec"),
     ("research", "hkask-mcp-research"),
     ("fmp", "hkask-mcp-fmp"),
-    ("telnyx", "hkask-mcp-telnyx"),
+    ("communication", "hkask-mcp-communication"),
     ("fal", "hkask-mcp-fal"),
     ("doc-knowledge", "hkask-mcp-doc-knowledge"),
     ("markitdown", "hkask-mcp-markitdown"),

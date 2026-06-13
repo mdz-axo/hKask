@@ -75,7 +75,7 @@ status: VERIFIED
 - `hkask-mcp-research` — Web search, extraction, browsing, RSS feed research
 - `hkask-mcp-spec` — MDS spec capture
 - `hkask-mcp-fmp` — FMP integration
-- `hkask-mcp-telnyx` — Telnyx integration
+- `hkask-mcp-communication` — Local TTS/STT
 - `hkask-mcp-fal` — FAL integration
 - `hkask-mcp-replica` — Authorial style embedding and composition
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)

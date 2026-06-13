@@ -258,7 +258,7 @@ impl BootstrapSequence {
             "hkask-mcp-spec",
             "hkask-mcp-research",
             "hkask-mcp-fmp",
-            "hkask-mcp-telnyx",
+            "hkask-mcp-communication",
             "hkask-mcp-fal",
             "hkask-mcp-condenser",
             "hkask-mcp-replica",
