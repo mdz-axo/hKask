@@ -1,0 +1,234 @@
+# Template crate manifest for kata skill
+# hKask v0.27.0 — Toyota Kata scientific capability development
+
+crate:
+  name: kata
+  version: "0.27.0"
+  description: >
+    Toyota Kata-based scientific capability development system.
+    Three patterns: Improvement Kata (4-step scientific method),
+    Coaching Kata (5-question dialogue), and Starter Kata (practice routines).
+    Integrates CNS variety monitoring, carbon accounting, OCAP consent
+    enforcement, and iteration with variance assessment.
+
+templates:
+  # ── Selectors ──────────────────────────────────────────────────────────
+  - id: kata/consent-and-select
+    path: consent-and-select.j2
+    type: KnowAct
+    lexicon_terms: [consent, select, verify, discriminate]
+    description: >
+      Verify consent and select the appropriate Kata pattern
+      (improvement, coaching, or starter) based on context.
+
+  - id: kata/kata-selector
+    path: kata-selector.j2
+    type: KnowAct
+    lexicon_terms: [select, classify, match, discriminate]
+    description: >
+      Select the appropriate Kata pattern based on capability domain,
+      learner state, and automaticity scores.
+
+  # ── Improvement Kata ──────────────────────────────────────────────────
+  - id: kata/improvement-cycle
+    path: improvement-cycle.j2
+    type: FlowDef
+    lexicon_terms: [sequence, iterate, measure, experiment]
+    description: >
+      4-step Improvement Kata process: Direction → Current Condition →
+      Target Condition → Experiment.
+
+  - id: kata/improvement-step1-direction
+    path: improvement-step1-direction.j2
+    type: WordAct
+    lexicon_terms: [challenge, capability, goal, orient]
+    description: >
+      Step 1: Understand the direction. What capability needs development?
+
+  - id: kata/improvement-step2-current
+    path: improvement-step2-current.j2
+    type: WordAct
+    lexicon_terms: [observe, measure, assess]
+    description: >
+      Step 2: Grasp the current condition with specific metrics.
+
+  - id: kata/improvement-step3-target
+    path: improvement-step3-target.j2
+    type: WordAct
+    lexicon_terms: [specify, target, constrain]
+    description: >
+      Step 3: Establish a specific, measurable target condition with a deadline.
+
+  - id: kata/improvement-step4-experiment
+    path: improvement-step4-experiment.j2
+    type: WordAct
+    lexicon_terms: [experiment, predict, obstacle]
+    description: >
+      Step 4: Design the next experiment toward the target condition.
+
+  # ── Coaching Kata ─────────────────────────────────────────────────────
+  - id: kata/coaching-cycle
+    path: coaching-cycle.j2
+    type: FlowDef
+    lexicon_terms: [sequence, coach, question, dialogue]
+    description: >
+      5-question Coaching Kata dialogue flow to teach scientific thinking.
+
+  - id: kata/coaching-q1-target
+    path: coaching-q1-target.j2
+    type: WordAct
+    lexicon_terms: [target, condition, goal]
+    description: >
+      Question 1: What is your target condition?
+
+  - id: kata/coaching-q2-actual
+    path: coaching-q2-actual.j2
+    type: WordAct
+    lexicon_terms: [observe, measure, assess]
+    description: >
+      Question 2: What is the actual condition now?
+
+  - id: kata/coaching-q3-obstacles
+    path: coaching-q3-obstacles.j2
+    type: WordAct
+    lexicon_terms: [obstacle, focus, prioritize]
+    description: >
+      Question 3: What obstacles do you see? Which one are you addressing now?
+
+  - id: kata/coaching-q4-experiment
+    path: coaching-q4-experiment.j2
+    type: WordAct
+    lexicon_terms: [experiment, predict, expect]
+    description: >
+      Question 4: What is your next step? What do you expect?
+
+  - id: kata/coaching-q5-learn
+    path: coaching-q5-learn.j2
+    type: WordAct
+    lexicon_terms: [learn, feedback, measure, reflect]
+    description: >
+      Question 5: How quickly can we go and see what we learned?
+
+  # ── Starter Kata ──────────────────────────────────────────────────────
+  - id: kata/starter-cycle
+    path: starter-cycle.j2
+    type: FlowDef
+    lexicon_terms: [practice, routine, habit, sequence]
+    description: >
+      Starter Kata practice cycle for building foundational habits.
+
+  - id: kata/starter-selector
+    path: starter-selector.j2
+    type: KnowAct
+    lexicon_terms: [select, practice, habit, routine]
+    description: >
+      Select the appropriate starter routine based on learner needs.
+
+  - id: kata/starter-five-questions
+    path: starter-five-questions.j2
+    type: FlowDef
+    lexicon_terms: [question, coach, practice]
+    description: >
+      Five Questions Drill: Practice asking the 5 Coaching Kata questions.
+
+  - id: kata/starter-pdca-cycle
+    path: starter-pdca-cycle.j2
+    type: FlowDef
+    lexicon_terms: [plan, experiment, check, act]
+    description: >
+      PDCA Cycle: Plan-Do-Check-Act experimentation loop.
+
+  - id: kata/starter-observation-drill
+    path: starter-observation-drill.j2
+    type: FlowDef
+    lexicon_terms: [observe, discriminate, fact, interpret]
+    description: >
+      Observation Drill: Distinguish facts from interpretations.
+
+  # ── Outcome & Habit ───────────────────────────────────────────────────
+  - id: kata/outcome-and-habit
+    path: outcome-and-habit.j2
+    type: KnowAct
+    lexicon_terms: [synthesize, assess, evaluate, habit]
+    description: >
+      Synthesize Kata outcome with habit assessment (automaticity score,
+      streak days, intervention needs).
+
+  - id: kata/habit-intervention
+    path: habit-intervention.j2
+    type: WordAct
+    lexicon_terms: [intervene, encourage, remind, habit]
+    description: >
+      Generate intervention message when habit is at risk (3+ days without practice).
+
+  # ── Iteration ─────────────────────────────────────────────────────────
+  - id: kata/iteration-check
+    path: iteration-check.j2
+    type: KnowAct
+    lexicon_terms: [detect, evaluate, variance, confidence]
+    description: >
+      Check if iteration is needed based on variance or low confidence.
+
+  - id: kata/iteration-comparison
+    path: iteration-comparison.j2
+    type: KnowAct
+    lexicon_terms: [compare, evaluate, variance, confidence, select]
+    description: >
+      Compare all iterations for variance assessment and confidence building.
+
+  # ── Composition ───────────────────────────────────────────────────────
+  - id: kata/kata-switch-check
+    path: kata-switch-check.j2
+    type: KnowAct
+    lexicon_terms: [switch, compose, evaluate, consent]
+    description: >
+      Check if Kata switching is requested and validate composition rules.
+
+hlexicon_terms:
+  - challenge
+  - capability
+  - goal
+  - observe
+  - measure
+  - assess
+  - specify
+  - target
+  - constrain
+  - experiment
+  - predict
+  - obstacle
+  - coach
+  - question
+  - dialogue
+  - learn
+  - feedback
+  - reflect
+  - practice
+  - routine
+  - habit
+  - select
+  - classify
+  - match
+  - discriminate
+  - sequence
+  - iterate
+  - synthesize
+  - evaluate
+  - variance
+  - confidence
+  - compare
+  - switch
+  - compose
+  - consent
+  - verify
+  - intervene
+  - encourage
+  - remind
+  - plan
+  - check
+  - act
+  - focus
+  - prioritize
+  - orient
+  - fact
+  - interpret

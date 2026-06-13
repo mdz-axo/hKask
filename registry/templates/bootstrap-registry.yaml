@@ -445,3 +445,145 @@
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
+
+# ── Kata ────────────────────────────────────────────────────────────────
+- id: kata/consent-and-select
+  template_type: KnowAct
+  name: "Kata Consent and Select"
+  lexicon_terms:
+    - consent
+    - select
+    - verify
+    - discriminate
+  description: "Verify consent and select the appropriate Kata pattern"
+  source_path: registry/templates/kata/consent-and-select.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/kata-selector
+  template_type: KnowAct
+  name: "Kata Selector"
+  lexicon_terms:
+    - select
+    - classify
+    - match
+    - discriminate
+  description: "Select appropriate Kata pattern based on capability domain and learner state"
+  source_path: registry/templates/kata/kata-selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/improvement-cycle
+  template_type: FlowDef
+  name: "Improvement Kata Cycle"
+  lexicon_terms:
+    - sequence
+    - iterate
+    - measure
+    - experiment
+  description: "4-step Improvement Kata: Direction → Current → Target → Experiment"
+  source_path: registry/templates/kata/improvement-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/coaching-cycle
+  template_type: FlowDef
+  name: "Coaching Kata Cycle"
+  lexicon_terms:
+    - sequence
+    - coach
+    - question
+    - dialogue
+  description: "5-question Coaching Kata dialogue flow to teach scientific thinking"
+  source_path: registry/templates/kata/coaching-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/starter-cycle
+  template_type: FlowDef
+  name: "Starter Kata Cycle"
+  lexicon_terms:
+    - practice
+    - routine
+    - habit
+    - sequence
+  description: "Starter Kata practice cycle for building foundational habits"
+  source_path: registry/templates/kata/starter-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/outcome-and-habit
+  template_type: KnowAct
+  name: "Kata Outcome and Habit"
+  lexicon_terms:
+    - synthesize
+    - assess
+    - evaluate
+    - habit
+  description: "Synthesize Kata outcome with habit assessment and automaticity scoring"
+  source_path: registry/templates/kata/outcome-and-habit.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/iteration-check
+  template_type: KnowAct
+  name: "Kata Iteration Check"
+  lexicon_terms:
+    - detect
+    - evaluate
+    - variance
+    - confidence
+  description: "Check if iteration is needed based on variance or low confidence"
+  source_path: registry/templates/kata/iteration-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/iteration-comparison
+  template_type: KnowAct
+  name: "Kata Iteration Comparison"
+  lexicon_terms:
+    - compare
+    - evaluate
+    - variance
+    - confidence
+    - select
+  description: "Compare iterations for variance assessment and confidence building"
+  source_path: registry/templates/kata/iteration-comparison.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/habit-intervention
+  template_type: WordAct
+  name: "Kata Habit Intervention"
+  lexicon_terms:
+    - intervene
+    - encourage
+    - remind
+    - habit
+  description: "Generate intervention message when habit is at risk"
+  source_path: registry/templates/kata/habit-intervention.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata/kata-switch-check
+  template_type: KnowAct
+  name: "Kata Switch Check"
+  lexicon_terms:
+    - switch
+    - compose
+    - evaluate
+    - consent
+  description: "Check if Kata switching is requested and validate composition rules"
+  source_path: registry/templates/kata/kata-switch-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7

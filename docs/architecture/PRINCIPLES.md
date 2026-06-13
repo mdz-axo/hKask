@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Architecture Principles
 
-**Purpose:** Eleven principles governing hKask architecture, grounded in the Magna Carta and organized as foundational (P1–P4), operational (P5–P7), regulatory (P8–P9), and agent (P10–P11).
+**Purpose:** Twelve principles governing hKask architecture, grounded in the Magna Carta and organized as foundational (P1–P4), operational (P5–P7), regulatory (P8–P9), and agent (P10–P12).
 
 **Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](hKask-architecture-master.md)  
 **Verification:** `cargo check --workspace`
@@ -79,7 +79,7 @@ status: VERIFIED
 - `hkask-mcp-fal` — FAL integration
 - `hkask-mcp-replica` — Authorial style embedding and composition
 - `hkask-mcp-doc-knowledge` — Document parsing and chunking (HTML/text extraction, multi-tier chunking)
-- `hkask-mcp-markitdown` — Document format conversion and OCR (PDF/MD/HTML/TXT + vision OCR fallback)
+- `hkask-mcp-markitdown` — Document format conversion and multi-backend OCR pipeline (PDF→image decimation via pdftoppm, complexity-scored routing to Tesseract/Vision LLM, cross-validation, verification). Default model: `DI/allenai/olmOCR-2-7B-1025` (DeepInfra).
 - `hkask-mcp-memory` — Semantic + episodic memory (merged: episodic → semantic consolidation)
 
 **Constraint:** All MCP servers are `hkask-*` crates — no external MCP dependencies.
@@ -259,6 +259,22 @@ The requirement for a private and public sphere which exists in the analog world
 
 **Enforces:** P1 (User Sovereignty — extends sovereignty rights to agents as first-class entities). P2 (Affirmative Consent — agent consent is required for visibility transitions). P4 (OCAP — visibility gates are enforced through unforgeable capability tokens).
 
+#### P12 — Replicant Host Mandate
+
+Every interaction with hKask carries a replicant identity. No operation occurs without a host — there is no anonymous or unsupervised agency within the system. Three interaction surfaces map to three host classes:
+
+| Surface | Host | Characteristics |
+|---------|------|----------------|
+| **CLI / REPL** | Human replicant | CLI commands are issued by a human user authenticated as their replicant. The replicant's identity, DB, and keychain provide sovereignty boundaries. Every command (embed-corpus, compose, settings) records episodic and semantic memories in the replicant's memory stores. |
+| **Daemon / System** | Curator replicant | System-level operations (scheduling, consolidation, CNS monitoring, lifecycle transitions) are hosted by the Curator — the master system agent. The Curator observes and participates in all system-wide events. `curator_webid` identifies the Curator in all triple stores. |
+| **API** | Bot-managed | Programmatic interactions via the HTTP API are managed by 7R7 bots operating within capability-bounded pods. Each bot carries its own replicant identity with OCAP-gated access. |
+
+**Memory flow:** Every surface-level interaction produces experience records (`store_experience`) that flow into the dual-encoding memory pipeline. The host replicant's identity is the `owner` field on every stored triple. CNS spans (`cns.tool.*`) are annotated with the hosting replicant's WebID. The Curator observes these records through the algedonic loop and consolidation bridge.
+
+**Default prohibition:** Without an authenticated replicant, CLI commands emit an error requesting login. API requests without a capability token are rejected. Daemon operations default to the Curator — there is no root, no admin, no `sudo`. Every action has an author.
+
+**Enforces:** P1 (User Sovereignty — every action traces to a sovereign entity). P2 (Affirmative Consent — the host replicant's consent is implicit in their authenticated action). P4 (OCAP — capability tokens are bound to the host replicant's WebID). P10 (Bot/Replicant Taxonomy — host class maps to agent type).
+
 ---
 
 ### 2.5 Principle Traceability Matrix
@@ -276,6 +292,7 @@ The requirement for a private and public sphere which exists in the analog world
 | P9 — Homeostatic Self-Regulation | MC §4 (cross-cut) | Guardrail |
 | P10 — Bot/Replicant Taxonomy | MC §3 (cross-cut) | Guardrail |
 | P11 — Digital Public/Private Sphere | MC §1, §2, §4 (cross-cut) | Guardrail |
+| P12 — Replicant Host Mandate | MC §1, §2, §4 (cross-cut) | **Prohibition** |
 
 **Verification Command:**
 ```bash

@@ -118,14 +118,6 @@ validation:
   exemplar_count_min: 3
   exemplar_count_max: 7
 
-# ── Budget ──────────────────────────────────────────────────────────────────────
-budget:
-  total_passages: 0
-  triple_budget_per_100: 3750
-
-# ── Classifier ──────────────────────────────────────────────────────────────────
-triple_classifier: triple-extractor-literary
-
 # ── Entity Declarations (5W1H Metadata Layer) ────────────────────────────────────
 
 entities:
@@ -207,4 +199,8 @@ methods:
 # ── Budget ──────────────────────────────────────────────────────────────────────
 
 budget:
-  per_100_pages: 3750
+  total_passages: 0
+  triple_budget_per_100: 3750
+
+# ── Classifier ──────────────────────────────────────────────────────────────────
+triple_classifier: triple-extractor-literary

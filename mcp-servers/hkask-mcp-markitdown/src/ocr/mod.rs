@@ -12,6 +12,7 @@
 pub mod complexity;
 pub mod cross_validation;
 pub mod decimation;
+pub mod llm_ocr;
 pub mod pipeline;
 pub mod routing;
 pub mod semantic;

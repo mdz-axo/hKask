@@ -1,8 +1,8 @@
 ---
 title: "Test Inventory"
 audience: [architects, developers, agents]
-version: "2.1.0"
-last_updated: 2026-06-12
+version: "2.2.0"
+last_updated: 2026-06-13
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]
@@ -31,15 +31,15 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-fmp` | 20 | analysis (20: management 6, moat/working capital 14) |
 | `hkask-mcp-research` | 23 | strip_html (8), freshness (6), ranking (5), rate_limiter (4) |
 | `hkask-api` | 2 | settings merge, settings validation |
-| `hkask-types` | 0 | Shallow module — types only (C8) |
+| `hkask-types` | 6 | ocr (6: outcome, verification, tier, labels, error, cross-validation) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
 | `hkask-mcp-replica` | 0 | Shallow module — pass-through to compose/embed services (C8) |
 | `hkask-mcp-doc-knowledge` | 0 | Shallow module — pass-through to parsing/chunking (C8) |
-| `hkask-mcp-markitdown` | 0 | Shallow module — pass-through to conversion/OCR (C8) |
+| `hkask-mcp-markitdown` | 44 | ocr pipeline (44: complexity 6, routing 6, cross-validation 6, semantic 4, verification 4, pipeline 4, decimation 3, tesseract 4, llm_ocr 3, integration 4) |
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
 | `hkask-mcp-fal` | 0 | Shallow module — API proxy (C8) |
 
-**Total: 193 tests across 18 crates** (↑ from 130)
+**Total: 243 tests across 18 crates** (↑ from 193)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |

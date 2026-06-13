@@ -872,3 +872,200 @@ enum ExtractOutcome {
         word_count: usize,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ocr::decimation;
+    use crate::ocr::pipeline;
+    use std::io::Write;
+
+    /// Minimal valid PDF with one page containing "Hello World".
+    fn minimal_pdf() -> Vec<u8> {
+        b"%PDF-1.4\n\
+          1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n\
+          2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n\
+          3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj\n\
+          4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n\
+          5 0 obj<</Length 44>>stream\n\
+          BT /F1 24 Tf 100 700 Td (Hello World) Tj ET\n\
+          endstream\n\
+          endobj\n\
+          xref\n\
+          0 6\n\
+          0000000000 65535 f \n\
+          0000000009 00000 n \n\
+          0000000058 00000 n \n\
+          0000000115 00000 n \n\
+          0000000277 00000 n \n\
+          0000000349 00000 n \n\
+          trailer<</Size 6/Root 1 0 R>>\n\
+          startxref\n\
+          441\n\
+          %%EOF\n"
+            .to_vec()
+    }
+
+    /// Check if pdftoppm is available.
+    fn pdftoppm_available() -> bool {
+        std::process::Command::new("pdftoppm")
+            .arg("-v")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    /// Check if tesseract is available.
+    fn tesseract_available() -> bool {
+        std::process::Command::new("tesseract")
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    fn make_server() -> MarkitdownServer {
+        MarkitdownServer::new(
+            WebID::new(),
+            "test-replicant".into(),
+            None,
+            None,
+            InferenceConfig::from_env(),
+            ThresholdConfig::default(),
+            None,
+        )
+        .expect("failed to create test server")
+    }
+
+    // REQ:ocr-integration-01 — Pipeline runs successfully with a real PDF
+    #[tokio::test]
+    async fn pipeline_with_real_pdf() {
+        if !pdftoppm_available() {
+            eprintln!("SKIP: pdftoppm not installed");
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("test.pdf");
+        std::fs::write(&pdf_path, minimal_pdf()).unwrap();
+
+        let server = make_server();
+        let t = server.ocr_thresholds;
+
+        // Decimate and run full pipeline
+        let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
+        assert_eq!(images.len(), 1, "one-page PDF should produce one image");
+
+        let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None, None).await;
+
+        assert_eq!(outcome.results.len(), 1);
+        assert!(!outcome.results[0].text.is_empty());
+        assert!(outcome.report.page_count_match);
+    }
+
+    // REQ:ocr-integration-02 — Pipeline with tesseract backend
+    #[tokio::test]
+    async fn pipeline_with_tesseract_available() {
+        if !pdftoppm_available() || !tesseract_available() {
+            eprintln!("SKIP: pdftoppm or tesseract not installed");
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("test.pdf");
+        std::fs::write(&pdf_path, minimal_pdf()).unwrap();
+
+        let server = make_server();
+        let t = server.ocr_thresholds;
+
+        let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
+        let outcome = pipeline::run_pipeline(images, 1, &server, &t, None, None, None).await;
+
+        assert_eq!(outcome.results.len(), 1);
+        // Tesseract should be used for Simple pages
+        let result = &outcome.results[0];
+        assert_eq!(result.backend, OcrBackend::Tesseract);
+        assert!(!result.text.is_empty(), "tesseract should extract text");
+        assert!(result.text.to_lowercase().contains("hello"));
+    }
+
+    // REQ:ocr-integration-03 — Verification catches missing pages
+    #[tokio::test]
+    async fn verification_catches_missing_pages() {
+        if !pdftoppm_available() {
+            eprintln!("SKIP: pdftoppm not installed");
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("test.pdf");
+        std::fs::write(&pdf_path, minimal_pdf()).unwrap();
+
+        let server = make_server();
+        let t = server.ocr_thresholds;
+
+        let images = decimation::pdf_to_images(&pdf_path, 150).unwrap();
+        assert_eq!(images.len(), 1);
+
+        // Pass expected_pages=2 but only 1 page exists
+        let outcome = pipeline::run_pipeline(
+            images, 2, // mismatch!
+            &server, &t, None, None, None,
+        )
+        .await;
+
+        assert!(!outcome.report.page_count_match);
+        assert!(!outcome.report.passed);
+    }
+
+    // REQ:ocr-integration-04 — Empty PDF returns empty result
+    #[tokio::test]
+    async fn empty_pdf_is_handled() {
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("empty.pdf");
+        // Write a minimal empty-page PDF
+        std::fs::write(
+            &pdf_path,
+            b"%PDF-1.4\n\
+              1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n\
+              2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n\
+              3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\n\
+              xref\n\
+              0 4\n\
+              0000000000 65535 f \n\
+              0000000009 00000 n \n\
+              0000000058 00000 n \n\
+              0000000115 00000 n \n\
+              trailer<</Size 4/Root 1 0 R>>\n\
+              startxref\n\
+              167\n\
+              %%EOF\n",
+        )
+        .unwrap();
+
+        let server = make_server();
+        let outcome = decimation::pdf_to_images(&pdf_path, 150);
+
+        if pdftoppm_available() {
+            // pdftoppm should produce an image for the empty page
+            let images = outcome.unwrap();
+            assert_eq!(images.len(), 1, "empty page should still produce an image");
+
+            let outcome = pipeline::run_pipeline(
+                images,
+                1,
+                &server,
+                &server.ocr_thresholds,
+                None,
+                None,
+                None,
+            )
+            .await;
+
+            // Empty page should flag as empty
+            assert!(!outcome.report.empty_pages.is_empty());
+        } else {
+            assert!(outcome.is_err());
+        }
+    }
+}

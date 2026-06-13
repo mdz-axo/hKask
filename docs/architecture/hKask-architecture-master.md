@@ -33,11 +33,12 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 ### Canonical Specifications
 
 | Document | Purpose |
-|----------|---------|
+|----------|--------|
 | [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
-| [`PRINCIPLES.md`](PRINCIPLES.md) | 9 architecture principles (P1-P9), 5 anchors, anti-patterns |
+| [`PRINCIPLES.md`](PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
 | [`MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
 | [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
+| [`P12-replicant-host-mandate.md`](P12-replicant-host-mandate.md) | Replicant Host Mandate — every interaction has an author, no unsupervised agency |
 
 ---
 
