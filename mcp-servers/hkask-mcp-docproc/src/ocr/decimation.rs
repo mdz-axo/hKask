@@ -25,9 +25,9 @@ use std::process::Command;
 ///
 /// # Preprocessing
 /// Each page image is preprocessed for OCR quality:
-/// - If `FAL_KEY`/`FA_API_KEY` is set: sends to `fal-ai/docres` for
-///   AI-based binarization (deshadow, deblur, clean B&W output).
-/// - Otherwise: applies local `stretch_contrast()` (free, O(w·h)).
+/// - Default: local Otsu binarization (O(w·h), instant, free).
+/// - Optional: fal.ai `docres` when `HKASK_FAL_API_KEY` is set
+///   (falls back to Otsu on any failure).
 ///
 /// # Dependencies
 /// Requires `pdftoppm` from poppler-utils. On failure, returns
