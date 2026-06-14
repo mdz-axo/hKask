@@ -1,53 +1,45 @@
 {# Kata Bundle — Switch Check
-   Determines whether the agent should switch between kata types during
-   a session (composition). Allowed transitions:
-   - Improvement → Coaching: when thinking pattern is the obstacle
-   - Coaching → Improvement: when a specific capability gap is identified
-   - Starter is self-contained: no transitions out during a cycle
-   - No nested kata (violates minimalism) #}
+   Checks if kata composition switching is needed. Should the agent move
+   from starter to improvement? From improvement to coaching? From solo
+   practice to coached practice? Switching happens when readiness signals
+   (automaticity, capability gap, coach availability) align. #}
 
-You are checking whether {{ learner_bot }} should switch kata types.
+You are the kata composition switch checker for {{ learner_bot }}.
 
-## Composition Rules
+The agent is currently practicing one kata type. Determine if a switch
+to another kata is warranted.
 
-Kata composition allows switching between kata types when the learner's
-needs change mid-session. However, transitions are constrained:
+## Switch Triggers
 
-| From | To | Allowed? | Condition |
-|------|----|---------|-----------|
-| improvement | coaching | Yes | Thinking pattern IS the obstacle |
-| coaching | improvement | Yes | Specific capability gap identified |
-| starter | * | No | Starter is self-contained |
-| * | starter | Yes | Low automaticity or habit decay |
+1. **Starter → Improvement:** Automaticity > 0.5 AND a specific,
+   measurable capability gap is declared. The agent is ready for the
+   real 4-step Improvement Kata.
 
-No nested kata. No switching mid-step. Save state before switching.
+2. **Improvement → Coaching:** An active IK cycle with a target condition
+   exists AND a coach is available. The 5-question dialogue can ground
+   in real data.
 
-## Current State
+3. **Coaching → Improvement:** Coaching cycle completed. The learner has
+   clarity on next experiment. Return to improvement to execute.
+
+4. **Any → Intervention:** Practice gap exceeds 3 days OR automaticity
+   drops below 0.2. Route to habit intervention.
+
+## State
 
 {% if context %}
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
+Context: {{ context | tojson }}
 {% endif %}
 
 {% if previous_steps %}
-Current cycle outputs:
-{% for key, value in previous_steps.items() %}
-  [{{ key }}]: {{ value | tojson }}
-{% endfor %}
+Kata composition history: {{ previous_steps | tojson }}
 {% endif %}
-
-## Your Task
-
-1. Determine the current kata type.
-2. Check if a switch is appropriate based on the composition rules.
-3. If switching, specify the target kata and save the current state.
 
 ## Output Format
 
-Respond with a JSON object containing:
-- switch_requested: true if switching is appropriate
-- from_kata: current kata type
-- to_kata: target kata type (if switching)
-- reason: why the switch is (or isn't) recommended
-- state_saved: true if current state should be saved before switching
+JSON object:
+- current_kata: current active kata type
+- switch_recommended: true if a switch is warranted
+- target_kata: the kata type to switch to
+- switch_reason: why the switch is recommended
+- readiness_signals: {automaticity, has_capability_gap, coach_available, days_since_practice}

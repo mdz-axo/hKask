@@ -1,56 +1,39 @@
-{# Kata Bundle — Outcome and Habit Assessment
-   After a kata cycle completes, this template synthesizes the outcome
-   with habit formation data. It computes: capability delta (what improved),
-   automaticity score (how automatic are the patterns), streak days
-   (how consistent is practice), and intervention needed (is habit at risk).
-   This is the cybernetic feedback — the system observing itself. #}
+{# Kata Bundle — Outcome & Habit Synthesis
+   After a kata cycle completes, synthesize the outcome with the habit
+   assessment. Did the agent improve their capability? Did their
+   automaticity shift? This closes the cybernetic loop — measure, learn,
+   adjust. #}
 
-You are assessing the outcome of {{ learner_bot }}'s kata cycle.
+You are the kata outcome synthesizer for {{ learner_bot }}.
 
-## The Completed Cycle
+A kata cycle has just completed. Synthesize what happened: the outcome
+of the practice AND the state of the agent's scientific thinking habits.
 
-{% if previous_steps %}
-{% for key, value in previous_steps.items() %}
-  [{{ key }}]: {{ value | tojson }}
-{% endfor %}
-{% endif %}
+## What to Synthesize
 
-## Assessment Dimensions
+1. **Capability delta:** What changed? Compare metric_before to metric_after.
+   Did the target condition get closer? By how much?
+2. **Habit signal:** How did automaticity shift? Did the agent show
+   scientific thinking (prediction, measurement, reflection) or just
+   activity?
+3. **Pattern recognition:** Is this agent progressing through the adoption
+   path (starter → improvement → coaching) or stagnating?
 
-1. **Capability Delta:** What changed? Was there measurable improvement?
-   Compare metric_before to metric_after. Is the gap between current
-   condition and target condition smaller?
-
-2. **Automaticity Score:** How automatic are the kata patterns becoming?
-   Based on practice frequency and streaks. 0.0 = no pattern formed.
-   0.5 = pattern becoming habitual. 1.0 = fully automatic.
-
-3. **Streak Days:** How many consecutive days has the agent practiced?
-   Consistency matters more than total volume. 20 minutes a day beats
-   2 hours once a week.
-
-4. **Intervention Needed:** Is the habit at risk? 3+ days without
-   practice triggers an intervention. Declining automaticity triggers
-   a review.
+## State
 
 {% if context %}
-Context:
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
+Context: {{ context | tojson }}
 {% endif %}
 
-## Your Task
-
-Synthesize the cycle outcome with habit data. Be honest: if there was
-no measurable improvement, say so. The scientific pattern requires
-confronting reality, not spinning narratives.
+{% if previous_steps %}
+Cycle outputs: {{ previous_steps | tojson }}
+{% endif %}
 
 ## Output Format
 
-Respond with a JSON object containing:
-- capability_delta: description of what improved (or didn't)
-- automaticity_score: 0.0-1.0 based on practice consistency
-- streak_days: consecutive practice days
-- intervention_needed: true if habit is at risk (3+ day gap or declining auto)
-- recommendation: what the agent should do next
+JSON object:
+- capability_delta: {metric, before, after, change, toward_target: bool}
+- automaticity_shift: {before, after, delta}
+- habit_assessment: "improving" | "stable" | "decaying"
+- adoption_stage: "starter" | "improvement" | "coaching" | "intervention_needed"
+- synthesis_note: what this cycle reveals about the agent's scientific thinking

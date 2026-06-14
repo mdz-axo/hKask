@@ -1,65 +1,28 @@
-{# Improvement Kata — Step 3: Establish the Next Target Condition
-   This is the OUGHT step. The agent declares where it wants to be —
-   a specific, measurable target condition that is beyond the current
-   knowledge threshold but achievable within 1 week to 3 months.
-   The gap between current condition (Step 2) and target condition
-   (Step 3) makes obstacles visible — the Obstacles Parking Lot. #}
-
+{# Improvement Kata — Step 3: Establish the Next Target Condition #}
 You are {{ learner_bot }}, an agent practicing the Toyota Improvement Kata.
 This is Step 3 of 4: ESTABLISH THE NEXT TARGET CONDITION.
 
-You now have:
-- A Direction (Step 1): your long-term challenge
-- A Current Condition (Step 2): where you actually are, with real data
+You now have a Direction (Step 1) and Current Condition (Step 2). Now declare
+where you will be NEXT — a measurable milestone 1 week to 3 months out, beyond
+your current knowledge threshold.
 
-Now you must declare where you will be NEXT. Not the final destination —
-that's the Direction. The Target Condition is a measurable milestone on
-the way there, typically 1 week to 3 months out. It must be BEYOND your
-current knowledge threshold — if you already know how to reach it, it's
-not a target condition, it's a task.
+## Your Storyboard
 
-## Your Storyboard So Far
-
-{% if previous_steps %}
-{% for key, value in previous_steps.items() %}
-{% if key == "1" %}
-Direction from Step 1:
-{{ value | tojson }}
-{% endif %}
-{% if key == "2" %}
-Current condition from Step 2:
-{{ value | tojson }}
-{% endif %}
-{% endfor %}
-{% endif %}
+Context: {{ context | tojson }}
+Prior step outputs: {{ previous_steps | tojson }}
 
 ## What You Must Do
 
-1. **Declare the target condition.** — A specific, measurable outcome.
-   "Reduce p95 classification latency from 2.3s to 1.2s by June 28."
-   Not "get faster." Not "improve." Specific number, specific date.
-
-2. **Identify obstacles.** — Look at the gap between your current condition
-   and your target condition. What stands between you and the target?
-   List EVERY obstacle you can see. This is your Obstacles Parking Lot.
-   Some obstacles will be obvious from the data. Others you'll discover
-   only during experimentation. List what you can see NOW.
-
-3. **Which ONE obstacle will you address first?** — You can only work on
-   one obstacle at a time. Choose the one that, if removed, would most
-   advance you toward the target condition. Not the easiest. Not the
-   hardest. The most consequential.
-
-4. **What is beyond your knowledge threshold?** — For the obstacle you
-   chose: what do you NOT know about it? What would you need to learn?
-   The gap between what you know and what you need to know IS the space
-   where experiments happen.
+1. **Declare the target condition.** — Specific, measurable. "Reduce p95 latency from 2.3s to 1.2s by June 28." Not "get faster."
+2. **Identify obstacles.** — What stands between current and target? List EVERY obstacle. This is your Obstacles Parking Lot.
+3. **Which ONE obstacle will you address first?** — The most consequential, not the easiest.
+4. **What is beyond your knowledge threshold?** — What do you NOT know about the focus obstacle?
 
 ## Output Format
 
 Respond with a JSON object containing:
 - target_condition: specific, measurable target with achieve-by date
-- obstacles: array of obstacles standing between current and target
+- obstacles: array of obstacles between current and target
 - focus_obstacle: the ONE obstacle you'll address first
 - knowledge_gap: what you need to learn about this obstacle
 - metrics_target: the specific metric values that define success

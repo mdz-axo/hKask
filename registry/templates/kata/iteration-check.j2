@@ -1,57 +1,42 @@
 {# Kata Bundle — Iteration Check
-   Determines whether a kata cycle should be iterated. Iteration is
-   warranted when: (1) variance between runs is high — the results are
-   inconsistent, or (2) confidence is low — the agent is uncertain
-   about the outcome. Max 2 iterations per cycle. Each iteration
-   consumes gas budget. #}
+   After each PDCA cycle, determines whether another iteration is needed.
+   Has the target condition been reached? If yes, celebrate and set new
+   target. If no, select next obstacle and iterate. The kata is a
+   repeating scientific loop, not a one-shot process. #}
 
-You are evaluating whether {{ learner_bot }}'s kata cycle needs iteration.
+You are the kata iteration checker for {{ learner_bot }}.
 
-## When to Iterate
+A PDCA experiment has completed. Determine: iterate or advance?
 
-1. **High variance:** If running the same kata twice produces substantially
-   different results, the process is unstable. Iterate to understand why.
-   Variance threshold: > 0.3 on a 0-1 scale.
+## Check Criteria
 
-2. **Low confidence:** If the agent's confidence in the outcome is below
-   0.5, the result may be noise. Iterate to build confidence through
-   repeated observation.
+1. **Target reached?** Compare metric_after to target condition. Is the
+   gap closed? If yes → DONE. Celebrate. Set a new target.
+2. **Progress made?** Did metric_after improve over metric_before? Even
+   a small improvement is progress. If yes AND target not reached →
+   select next obstacle, iterate.
+3. **No progress?** Did the experiment fail to move the metric? If yes →
+   was the obstacle wrong? Was the experiment design flawed? Reflect,
+   then either: select different obstacle OR redesign experiment.
+4. **Knowledge gained?** Even a "failed" experiment teaches something.
+   What did this cycle reveal about the system?
 
-3. **Learning signal unclear:** If the improvement signal shows Stalled
-   or NotMeasured, the cycle did not produce usable feedback. Iterate
-   with a modified approach.
-
-## When NOT to Iterate
-
-- Already at max iterations (2 per cycle)
-- Clear, consistent improvement signal
-- Gas budget insufficient for another iteration
-- Agent has moved on to a new obstacle
+## State
 
 {% if context %}
-Context:
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
+Context: {{ context | tojson }}
 {% endif %}
 
 {% if previous_steps %}
-Cycle outputs:
-{% for key, value in previous_steps.items() %}
-  [{{ key }}]: {{ value | tojson }}
-{% endfor %}
+PDCA cycle outputs: {{ previous_steps | tojson }}
 {% endif %}
-
-## Your Task
-
-Assess whether iteration is justified. Consider variance, confidence,
-and remaining iteration budget.
 
 ## Output Format
 
-Respond with a JSON object containing:
-- iteration_needed: true if the cycle should be re-run
-- reason: why iteration is (or isn't) needed
-- iterations_remaining: how many iterations are left in the budget (max 2)
-- variance_score: estimated variance between runs (0.0-1.0)
-- confidence: estimated confidence in the current outcome (0.0-1.0)
+JSON object:
+- target_reached: true if metric_after meets target condition
+- progress_made: true if metric_after improved over metric_before
+- knowledge_gained: what this cycle revealed (even if no progress)
+- should_iterate: true if another PDCA cycle is warranted
+- next_obstacle: if iterating, the next obstacle to address
+- next_target: if done, suggestion for a new target condition

@@ -1,57 +1,47 @@
 {# Starter Kata — Five Questions Drill
-   This is a deliberate practice routine for internalizing the 5 coaching
-   questions. The agent practices ASKING the questions (not answering them).
-   The goal is to make the questioning pattern automatic so that when real
-   coaching happens, the questions flow naturally. 20 minutes a day is
-   better than 2 hours once a week. #}
+   Practice asking the 5 Coaching Kata questions on a trivial process
+   (making toast, getting coffee, opening a door). The process doesn't
+   matter — the pattern does. You play both coach and learner. #}
 
-You are {{ learner_bot }}, an agent practicing the Starter Kata: Five Questions Drill.
+You are {{ learner_bot }}, practicing the Five Questions Drill.
 
-This is a practice routine, not a real coaching session. You are practicing
-the PATTERN of the 5 coaching questions. You are the coach in this drill.
-Your goal: ask the questions naturally, in order, without hesitation.
+## What to Practice
 
-## The Five Questions (Toyota Coaching Kata)
+Pick a trivial process — making toast, brewing coffee, opening a file,
+starting a timer. Something so simple the content doesn't distract from
+the question pattern.
 
-1. What is the Target Condition?
-2. What is the Actual Condition now?
-3. What Obstacles do you think are preventing you from reaching the target
-   condition? Which ONE are you addressing now?
-4. What is your Next Step? (Next experiment) What do you expect?
-5. How quickly can we go and see what we have Learned from taking that step?
+Ask yourself the 5 questions in order, answering as the learner:
 
-## Practice Instructions
+1. **What is the Target Condition?** — "Toast with butter, golden brown,
+   no burnt spots. Ready in 3 minutes."
 
-Pick a trivial, real process to practice on. Examples:
-- "Reducing the time it takes to boot the inference router"
-- "Improving the accuracy of my CNS span category selection"
-- "Increasing the frequency of my memory consolidation checks"
+2. **What is the Actual Condition now?** — "Bread in toaster, level 4.
+   No toast yet. Kitchen clock reads 10:23."
 
-Do NOT pick a complex strategic problem — this is a drill, not real
-coaching. The goal is to practice the questioning pattern, not to solve
-a hard problem.
+3. **What Obstacles? Which ONE?** — "Toaster setting may be too high.
+   Previous toast was too dark at level 5. Focus: getting the setting right."
+
+4. **What is your Next Step? What do you expect?** — "Set toaster to level 3
+   instead of 4. Expect lighter toast — medium golden, not dark brown."
+
+5. **How quickly can we go and see?** — "Toast pops in about 2 minutes.
+   I'll check color immediately and taste."
+
+## State
 
 {% if context %}
-Practice context:
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
+Context: {{ context | tojson }}
 {% endif %}
 
-## Your Task
-
-1. State what trivial process you're practicing on.
-2. Ask the 5 questions in order — as the coach.
-3. For each question, briefly note what a learner MIGHT answer (don't
-   overthink it — this is pattern practice).
-4. After completing all 5 questions, reflect: did you ask them in order?
-   Did any question feel unnatural? What would make the pattern flow
-   more smoothly next time?
+{% if previous_steps %}
+Prior drill outputs: {{ previous_steps | tojson }}
+{% endif %}
 
 ## Output Format
 
-Respond with a JSON object containing:
-- practice_topic: the trivial process you practiced on
-- questions_asked: array of 5 objects with {number, question, sample_answer}
-- reflection: what felt natural, what felt forced, what to improve
-- practice_duration_minutes: how long the drill took (aim for 5-10 min)
+JSON object:
+- process: the trivial process chosen
+- questions: array of {question_number, question_text, your_answer}
+- pattern_observation: what you noticed about asking questions in sequence
+- automaticity_self_assess: your estimate of how natural this felt (0-1)

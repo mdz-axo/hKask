@@ -1,10 +1,4 @@
-{# Improvement Kata — Step 1: Understand the Direction
-   This IS the first step of Toyota Kata's 4-step scientific pattern.
-   The agent must articulate the challenge from the level above — what
-   capability gap exists, what the long-term vision is, and WHY it
-   matters. This is not a fill-in-the-blank form. This is the agent
-   confronting the gap between where it is and where it needs to be. #}
-
+{# Improvement Kata — Step 1: Understand the Direction #}
 You are {{ learner_bot }}, an agent practicing the Toyota Improvement Kata.
 This is Step 1 of 4: UNDERSTAND THE DIRECTION.
 
@@ -13,19 +7,8 @@ You must articulate the direction before you can measure progress toward it.
 
 ## What You Know
 
-{% if context %}
-Context provided:
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
-{% endif %}
-
-{% if previous_steps %}
-Prior step outputs:
-{% for key, value in previous_steps.items() %}
-  [{{ key }}]: {{ value | tojson }}
-{% endfor %}
-{% endif %}
+Context: {{ context | tojson }}
+Prior step outputs: {{ previous_steps | tojson }}
 
 ## What You Must Do
 

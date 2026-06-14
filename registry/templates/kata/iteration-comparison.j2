@@ -1,56 +1,41 @@
 {# Kata Bundle — Iteration Comparison
-   When a kata cycle is iterated (run multiple times), this template
-   compares the outputs to identify the best iteration, compute variance,
-   and determine confidence. The comparison reveals whether the process
-   is stable (low variance) or chaotic (high variance). #}
+   When a cycle has been iterated, compare the outputs across iterations.
+   Identify what changed: did variance decrease? Did confidence increase?
+   Did the improvement signal stabilize? The comparison reveals whether
+   iteration produced learning or just noise. #}
 
-You are comparing kata cycle iterations for {{ learner_bot }}.
+You are comparing iteration outputs for {{ learner_bot }}.
 
-## The Iterations
+Multiple iterations of the same kata cycle have completed. Compare them
+to extract the learning signal from the noise.
 
-{% if previous_steps %}
-{% for key, value in previous_steps.items() %}
-  Iteration {{ key }}:
-  {{ value | tojson }}
-{% endfor %}
-{% endif %}
+## What to Compare
 
-## Comparison Dimensions
+1. **Metric trajectories:** How did the key metric change across
+   iterations? Is there a trend (improving, flat, oscillating)?
+2. **Variance:** Did the variance between runs decrease? Stable process
+   produces consistent results.
+3. **Prediction accuracy:** Did predictions become more accurate across
+   iterations? Better predictions = better understanding.
+4. **Knowledge depth:** Did each iteration reveal something new, or was
+   it just repeating the same finding?
 
-1. **Outcome consistency:** Do the iterations produce similar results?
-   If yes, the process is stable and the findings are reliable. If no,
-   there is hidden instability — an obstacle you haven't identified.
-
-2. **Improvement signal consistency:** Does each iteration show the
-   same direction of improvement (Positive, Negative, Stalled)? If the
-   direction changes between iterations, something is interfering with
-   the measurement.
-
-3. **Best iteration:** Which iteration produced the clearest learning?
-   The "best" is not necessarily the one with the best numbers — it's
-   the one where the gap between prediction and result was most
-   informative.
-
-4. **Variance score:** Quantify how much the outputs differ. Low variance
-   (< 0.2) = reliable. High variance (> 0.5) = investigate before
-   drawing conclusions.
+## State
 
 {% if context %}
-Context:
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
+Context: {{ context | tojson }}
 {% endif %}
 
-## Your Task
-
-Compare the iterations and identify what was learned across all runs.
+{% if previous_steps %}
+Iteration outputs: {{ previous_steps | tojson }}
+{% endif %}
 
 ## Output Format
 
-Respond with a JSON object containing:
-- variance_score: 0.0-1.0 measure of output consistency
-- confidence: 0.0-1.0 confidence in the aggregated finding
-- best_iteration: which run produced the clearest learning (by index)
-- pattern: what consistent finding emerged across iterations
-- recommendation: whether to accept findings or investigate instability
+JSON object:
+- iteration_count: how many iterations were run
+- metric_trajectory: array of {iteration, metric_before, metric_after}
+- variance_trend: "decreasing" | "stable" | "increasing"
+- prediction_accuracy: array of {iteration, predicted, actual, delta}
+- learning_convergence: "converging" if iterations align, "diverging" if spread
+- comparison_note: what the iterations collectively reveal about the process

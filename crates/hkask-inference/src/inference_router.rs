@@ -28,6 +28,7 @@ pub struct InferenceRouter {
     fireworks: Option<FireworksBackend>,
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
+    #[allow(dead_code)]
     embedding: Option<EmbeddingRouter>,
 }
 

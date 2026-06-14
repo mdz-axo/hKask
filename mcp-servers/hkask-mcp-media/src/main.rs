@@ -892,6 +892,21 @@ fn measure_text(font: &ab_glyph::FontVec, scale: ab_glyph::PxScale, text: &str) 
     (total_width.ceil() as u32, height)
 }
 
+/// Cosine similarity between two vectors.
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.len() != b.len() || a.is_empty() {
+        return 0.0;
+    }
+    let dot: f32 = a.iter().zip(b).map(|(x, y)| x * y).sum();
+    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm_a == 0.0 || norm_b == 0.0 {
+        0.0
+    } else {
+        dot / (norm_a * norm_b)
+    }
+}
+
 #[tool_router(server_handler)]
 impl MediaServer {
     // ── Gallery tools ────────────────────────────────────────────────────────
@@ -1212,6 +1227,197 @@ impl MediaServer {
             "query": query,
             "results": results,
             "total_matches": results.len(),
+        }))
+    }
+
+    #[tool(
+        description = "Find gallery images similar to a text description or to another image. Uses AI caption embeddings for semantic similarity (requires gallery_analyze to have been run first). Different from gallery_search which matches tags — this matches visual descriptions."
+    )]
+    async fn gallery_find_similar(
+        &self,
+        Parameters(GalleryFindSimilarRequest {
+            text,
+            image_index,
+            limit,
+            min_similarity,
+        }): Parameters<GalleryFindSimilarRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("gallery_find_similar", &self.webid);
+
+        // Validate mutually exclusive inputs
+        if text.is_none() && image_index.is_none() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "Provide either 'text' or 'image_index' (not both).",
+                )
+                .to_json_string(),
+            );
+        }
+
+        // Determine the query embedding
+        let query_embedding: Vec<f32> = if let Some(ref query_text) = text {
+            match self.inference.embed_text(query_text, None).await {
+                Ok(v) => v,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Unavailable,
+                        McpToolError::unavailable(format!(
+                            "Embedding model unavailable: {}. Install nomic-embed-text via Ollama or configure a cloud provider.",
+                            e
+                        ))
+                        .to_json_string(),
+                    );
+                }
+            }
+        } else if let Some(idx) = image_index {
+            // Get the image's caption and embed it
+            let image_id = match self.resolve_image_id(idx) {
+                Ok(id) => id,
+                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            };
+            let tags = match self.gallery_store.get_tags(&image_id) {
+                Ok(t) => t,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to query tags: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            };
+            let captions: Vec<&str> = tags
+                .iter()
+                .filter(|t| t.tag_type == "caption")
+                .map(|t| t.value.as_str())
+                .collect();
+            if captions.is_empty() {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(
+                        "Image has no caption. Run gallery_analyze first to generate scene descriptions.",
+                    )
+                    .to_json_string(),
+                );
+            }
+            let caption_text = captions.join(" ");
+            match self.inference.embed_text(&caption_text, None).await {
+                Ok(v) => v,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Unavailable,
+                        McpToolError::unavailable(format!("Embedding model unavailable: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            }
+        } else {
+            unreachable!();
+        };
+
+        // Collect captions for all images in the gallery
+        let gallery_id = {
+            let guard = self.gallery_state.lock().unwrap();
+            let state = match &*guard {
+                Some(s) => s,
+                None => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument("No gallery organized.").to_json_string(),
+                    );
+                }
+            };
+            match &state.gallery_id {
+                Some(id) => id.clone(),
+                None => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
+                    );
+                }
+            }
+        };
+
+        let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+            Ok(t) => t,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to query tags: {}", e)).to_json_string(),
+                );
+            }
+        };
+
+        // Group captions by image path and embed them
+        let mut candidates: Vec<(String, String)> = Vec::new(); // (relative_path, caption)
+        let mut current_path = String::new();
+        let mut current_captions: Vec<String> = Vec::new();
+        for (tag, path) in &all_tags {
+            if tag.tag_type != "caption" {
+                continue;
+            }
+            if path != &current_path {
+                if !current_captions.is_empty() {
+                    candidates.push((
+                        std::mem::take(&mut current_path),
+                        current_captions.join(" "),
+                    ));
+                    current_captions.clear();
+                }
+                current_path = path.clone();
+            }
+            current_captions.push(tag.value.clone());
+        }
+        if !current_captions.is_empty() {
+            candidates.push((current_path, current_captions.join(" ")));
+        }
+
+        if candidates.is_empty() {
+            return span.ok_json(serde_json::json!({
+                "query": text.unwrap_or_else(|| format!("image_index={}", image_index.unwrap())),
+                "results": [],
+                "message": "No captions found. Run gallery_analyze first.",
+            }));
+        }
+
+        // Embed candidate captions individually and compute similarity
+        let candidate_texts: Vec<&str> = candidates.iter().map(|(_, c)| c.as_str()).collect();
+        let mut candidate_embeddings = Vec::new();
+        for ct in &candidate_texts {
+            match self.inference.embed_text(ct, None).await {
+                Ok(v) => candidate_embeddings.push(v),
+                Err(_) => candidate_embeddings.push(vec![]),
+            }
+        }
+
+        // Compute cosine similarity and rank
+        let mut scored: Vec<(String, f32)> = candidates
+            .iter()
+            .zip(candidate_embeddings.iter())
+            .filter_map(|((path, _), emb)| {
+                if emb.is_empty() {
+                    return None;
+                }
+                let sim = cosine_similarity(&query_embedding, emb);
+                if sim >= min_similarity {
+                    Some((path.clone(), sim))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(limit);
+
+        let results: Vec<serde_json::Value> = scored
+            .into_iter()
+            .map(|(path, score)| serde_json::json!({"image": path, "similarity": score}))
+            .collect();
+
+        span.ok_json(serde_json::json!({
+            "query": text.unwrap_or_else(|| format!("image_index={}", image_index.unwrap())),
+            "results": results,
         }))
     }
 

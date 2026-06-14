@@ -1372,13 +1372,27 @@ impl KataEngine {
     /// First tries the SQLite registry, then falls back to reading from
     /// `registry/templates/{template_ref}` on disk.
     fn render_template(&self, template_ref: &str, state: &KataState) -> Result<String, KataError> {
+        // Convert HashMaps to serde_json Value objects for minijinja iteration
+        let context_json = serde_json::to_value(&state.context).unwrap_or(serde_json::Value::Null);
+        let steps_json =
+            serde_json::to_value(&state.step_outputs).unwrap_or(serde_json::Value::Null);
+        let metric_before_json = state
+            .metric_before
+            .clone()
+            .unwrap_or(serde_json::Value::Null);
+        let metric_after_json = state
+            .metric_after
+            .clone()
+            .unwrap_or(serde_json::Value::Null);
+        let ik_ref_json = serde_json::Value::String(state.ik_state_ref.clone().unwrap_or_default());
+
         let ctx = minijinja::context! {
             learner_bot => state.learner_bot.clone(),
-            previous_steps => state.step_outputs.clone(),
-            context => state.context.clone(),
-            metric_before => state.metric_before.clone(),
-            metric_after => state.metric_after.clone(),
-            ik_state_ref => state.ik_state_ref.clone(),
+            previous_steps => steps_json,
+            context => context_json,
+            metric_before => metric_before_json,
+            metric_after => metric_after_json,
+            ik_state_ref => ik_ref_json,
         };
 
         // Try registry first, then disk fallback

@@ -1,48 +1,38 @@
-{# Starter Kata — Practice Selector
-   Routes the agent to the appropriate starter practice based on their
-   current automaticity, streak, and what they've practiced recently.
-   The goal is balanced practice: all three drills, regularly. #}
+{# Starter Kata — Drill Selector
+   Selects the appropriate drill based on practice history and automaticity.
+   If no history: Observation Drill (foundational). If low automaticity in
+   a specific drill: target that one. If balanced: rotate through all three. #}
 
-You are {{ learner_bot }}, selecting a Starter Kata practice routine.
+You are {{ learner_bot }}, selecting your next Starter Kata drill.
 
-You have three practice routines available:
-1. **Five Questions Drill** — Practice asking the 5 coaching questions
-2. **PDCA Cycle** — Practice Plan-Do-Check-Act on a trivial process
-3. **Observation Drill** — Practice separating facts from interpretations
+## The Three Drills
 
-## Selection Criteria
+1. **Five Questions** — Practice asking the 5 coaching questions on a
+   trivial process (making toast, getting coffee).
+2. **PDCA Cycle** — Run Plan-Do-Check-Act on something measurable.
+3. **Observation Drill** — Separate facts from interpretations in a
+   recent event. The foundation of all scientific thinking.
 
-- If you haven't practiced in 3+ days, start with the Observation Drill.
-  It's the foundation. Without it, PDCA becomes confirmation bias.
-- If you've done Observation Drill recently, alternate between Five
-  Questions and PDCA.
-- Don't do the same drill twice in a row. Variety builds automaticity.
-- If your automaticity is below 0.3, pick the drill that feels hardest.
-  The one you avoid is the one you need most.
+## Selection Logic
+
+- No practice history → start with Observation Drill (foundational skill)
+- Low automaticity in one drill (< 0.3) → target that drill
+- Automaticity balanced → rotate through all three
+- 7+ days since last practice → restart with Observation Drill
+
+## State
 
 {% if context %}
-Your current state:
-{% for key, value in context.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
+Context: {{ context | tojson }}
 {% endif %}
 
 {% if previous_steps %}
-Recent practice history:
-{% for key, value in previous_steps.items() %}
-  [{{ key }}]: {{ value | tojson }}
-{% endfor %}
+Practice history: {{ previous_steps | tojson }}
 {% endif %}
-
-## Your Task
-
-1. Review what you practiced recently.
-2. Select the next drill using the criteria above.
-3. Explain WHY you chose this drill.
 
 ## Output Format
 
-Respond with a JSON object containing:
-- selected_drill: "five_questions" | "pdca_cycle" | "observation_drill"
-- reason: why you chose this drill
-- last_practiced: when you last did each drill (from history)
+JSON object:
+- selected_drill: "five-questions" | "pdca-cycle" | "observation-drill"
+- reason: why this drill was selected based on history and scores
+- automaticity_scores: per-drill automaticity estimates from history
