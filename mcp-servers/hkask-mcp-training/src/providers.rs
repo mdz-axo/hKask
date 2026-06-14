@@ -8,6 +8,7 @@
 //! Provider selection is driven by `training.provider` in settings.json, routed
 //! through `hkask-services` shared config init.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -57,7 +58,7 @@ pub struct TrainingJob {
     pub provider: TrainingProviderId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TrainingParams {
     /// Number of training epochs.
     pub num_epochs: u32,
@@ -249,7 +250,7 @@ impl TrainingProvider for AxolotlProvider {
             .cli_path
             .as_deref()
             .unwrap_or(std::path::Path::new("axolotl"));
-        let status = tokio::process::Command::new(cli)
+        let _status = tokio::process::Command::new(cli)
             .arg("train")
             .arg(&config_path)
             .stdout(std::process::Stdio::null())

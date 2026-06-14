@@ -24,16 +24,14 @@
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_mcp_training::adapters::{
-    AdapterStore, InMemoryAdapterStore, LoRAAdapter, SqliteAdapterStore,
-};
-use hkask_mcp_training::dataset::{ChatConversation, ChatMessage, DatasetPipeline};
+use hkask_mcp_training::adapters::{AdapterStore, InMemoryAdapterStore};
+use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
     ProviderConfig, TrainingJob, TrainingJobStatus, TrainingParams, TrainingProvider,
     TrainingProviderId, create_provider,
 };
 use hkask_memory::SemanticMemory;
-use hkask_storage::{DatabaseConnection, Triple};
+use hkask_storage::Triple;
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -41,6 +39,7 @@ use serde::Deserialize;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 // ── Request structs ──────────────────────────────────────────────────────
 
@@ -100,7 +99,7 @@ pub struct TrainingServer {
     daemon: Option<hkask_mcp::DaemonClient>,
     semantic: Option<SemanticMemory>,
     provider: Box<dyn TrainingProvider>,
-    pipeline: DatasetPipeline,
+    pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
 }
 
@@ -120,7 +119,7 @@ impl TrainingServer {
             daemon,
             semantic,
             provider,
-            pipeline,
+            pipeline: Mutex::new(pipeline),
             adapter_store,
         }
     }
@@ -268,7 +267,7 @@ impl TrainingServer {
         }
 
         // Ingest and normalize the dataset
-        let normalized_path = match self.pipeline.ingest(&file_path) {
+        let normalized_path = match self.pipeline.lock().unwrap().ingest(&file_path) {
             Ok(path) => path,
             Err(e) => {
                 return span.error(
@@ -358,29 +357,28 @@ impl TrainingServer {
         let span = ToolSpanGuard::new("training_list_adapters", &self.webid);
         match self.provider.list_adapters().await {
             Ok(adapter_ids) => {
-                // Enrich with metadata from adapter store
-                let metadata_list: Vec<serde_json::Value> =
-                    futures::future::join_all(adapter_ids.iter().map(|id| async {
-                        match self.adapter_store.get_metadata(id).await {
-                            Ok(Some(adapter)) => json!({
-                                "id": adapter.id,
-                                "name": adapter.name,
-                                "base_model": adapter.base_model,
-                                "dataset_hash": adapter.dataset_hash,
-                                "training_job_id": adapter.training_job_id,
-                                "created_at": adapter.created_at,
-                                "size_bytes": adapter.size_bytes,
-                                "metrics": adapter.metrics.map(|m| json!({
-                                    "loss": m.loss,
-                                    "perplexity": m.perplexity,
-                                    "training_duration_secs": m.training_duration_secs,
-                                    "tokens_processed": m.tokens_processed,
-                                })),
-                            }),
-                            _ => json!({"id": id, "warning": "metadata not found in store"}),
-                        }
-                    }))
-                    .await;
+                let mut metadata_list: Vec<serde_json::Value> = Vec::new();
+                for id in &adapter_ids {
+                    let entry = match self.adapter_store.get_metadata(id).await {
+                        Ok(Some(adapter)) => json!({
+                            "id": adapter.id,
+                            "name": adapter.name,
+                            "base_model": adapter.base_model,
+                            "dataset_hash": adapter.dataset_hash,
+                            "training_job_id": adapter.training_job_id,
+                            "created_at": adapter.created_at,
+                            "size_bytes": adapter.size_bytes,
+                            "metrics": adapter.metrics.map(|m| json!({
+                                "loss": m.loss,
+                                "perplexity": m.perplexity,
+                                "training_duration_secs": m.training_duration_secs,
+                                "tokens_processed": m.tokens_processed,
+                            })),
+                        }),
+                        _ => json!({"id": id, "warning": "metadata not found in store"}),
+                    };
+                    metadata_list.push(entry);
+                }
                 span.ok_json(json!({
                     "adapters": metadata_list,
                     "total": metadata_list.len(),

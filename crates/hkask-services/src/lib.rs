@@ -21,6 +21,7 @@ pub mod experience;
 pub mod goal;
 pub mod inference;
 pub mod kata;
+pub mod lifecycle;
 pub mod onboarding;
 pub mod pods;
 pub mod scheduler;
@@ -63,6 +64,9 @@ pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
     KataResult, KataState, KataStep, PracticeEntry, StepExperience,
+};
+pub use lifecycle::{
+    LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
 };
 pub use onboarding::{
     OnboardingService, RegistryHandle, ReplicantContactConfig, ResolvedSecrets, SignInOutcome,

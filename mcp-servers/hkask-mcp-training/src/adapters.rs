@@ -9,7 +9,6 @@
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use uuid::Uuid;
 
 // ── LoRA adapter metadata ──────────────────────────────────────────────────
@@ -209,32 +208,32 @@ impl AdapterStore for InMemoryAdapterStore {
 
 // ── SQLite adapter store ───────────────────────────────────────────────────
 
-/// SQLite-backed adapter store using `hkask-storage`.
+/// SQLite-backed adapter store using `hkask-storage::Database`.
 ///
-/// Stores metadata in a `lora_adapters` table and blobs in `hkask-storage`'s
-/// blob table. Used in production deployments.
+/// Stores metadata in a `lora_adapters` table and blobs in a `lora_blobs` table.
+/// Used in production deployments. The caller must run `migrate()` once during
+/// server startup to create the tables (idempotent via `IF NOT EXISTS`).
 pub struct SqliteAdapterStore {
-    conn: hkask_storage::DatabaseConnection,
+    conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
 }
 
 impl SqliteAdapterStore {
-    /// Create a new SQLite-backed store.
-    ///
-    /// `conn` should be an `hkask_storage::Database` connection.
-    /// The caller is responsible for running migrations to create the
-    /// `lora_adapters` table.
-    pub fn new(conn: hkask_storage::DatabaseConnection) -> Self {
-        Self { conn }
+    /// Create a new SQLite-backed store using an existing `hkask_storage::Database`.
+    pub fn new(db: hkask_storage::Database) -> Self {
+        Self {
+            conn: db.conn_arc(),
+        }
     }
 
-    /// Initialize the `lora_adapters` table schema.
+    /// Initialize the `lora_adapters` and `lora_blobs` tables.
     ///
-    /// Call this once during server startup. Idempotent — uses `IF NOT EXISTS`.
+    /// Call once during server startup. Idempotent — uses `IF NOT EXISTS`.
     pub fn migrate(&self) -> Result<(), AdapterStoreError> {
-        hkask_storage::migrate::run_migration(
-            &self.conn,
-            "hkask-mcp-training",
-            "create_lora_adapters",
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AdapterStoreError::Storage(format!("Lock error: {}", e)))?;
+        conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS lora_adapters (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -244,10 +243,32 @@ impl SqliteAdapterStore {
                 created_at INTEGER NOT NULL,
                 size_bytes INTEGER NOT NULL,
                 metrics_json TEXT
-            )",
+            );
+            CREATE TABLE IF NOT EXISTS lora_blobs (
+                adapter_id TEXT PRIMARY KEY,
+                data BLOB NOT NULL,
+                FOREIGN KEY (adapter_id) REFERENCES lora_adapters(id) ON DELETE CASCADE
+            );",
         )
         .map_err(|e| AdapterStoreError::Storage(format!("Migration failed: {}", e)))
     }
+
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, AdapterStoreError> {
+        self.conn
+            .lock()
+            .map_err(|e| AdapterStoreError::Storage(format!("Lock error: {}", e)))
+    }
+}
+
+// Helper to execute and discard row count
+fn exec_discard(
+    conn: &rusqlite::Connection,
+    sql: &str,
+    params: &[&dyn rusqlite::types::ToSql],
+) -> Result<(), AdapterStoreError> {
+    conn.execute(sql, params)
+        .map(|_| ())
+        .map_err(|e| AdapterStoreError::Storage(format!("Execute failed: {}", e)))
 }
 
 #[async_trait::async_trait]
@@ -262,23 +283,14 @@ impl AdapterStore for SqliteAdapterStore {
             })
             .transpose()?;
 
-        hkask_storage::migrate::execute_no_params(
-            &self.conn,
+        let conn = self.lock()?;
+        exec_discard(
+            &conn,
             "INSERT OR REPLACE INTO lora_adapters
              (id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            &[
-                &adapter.id,
-                &adapter.name,
-                &adapter.base_model,
-                &adapter.dataset_hash,
-                &adapter.training_job_id,
-                &adapter.created_at.to_string(),
-                &adapter.size_bytes.to_string(),
-                &metrics_json.unwrap_or_default(),
-            ],
-        )
-        .map_err(|e| AdapterStoreError::Storage(format!("Insert failed: {}", e)))?;
+            &[&adapter.id, &adapter.name, &adapter.base_model, &adapter.dataset_hash, &adapter.training_job_id, &adapter.created_at as &dyn rusqlite::types::ToSql, &(adapter.size_bytes as i64) as &dyn rusqlite::types::ToSql, &metrics_json as &dyn rusqlite::types::ToSql],
+        )?;
 
         tracing::info!(
             target: "cns.training.adapter.created",
@@ -291,107 +303,136 @@ impl AdapterStore for SqliteAdapterStore {
     }
 
     async fn store_blob(&self, adapter_id: &str, blob: Vec<u8>) -> Result<(), AdapterStoreError> {
-        hkask_storage::blob::store_blob_sqlite(&self.conn, adapter_id, &blob)
-            .map_err(|e| AdapterStoreError::Storage(format!("Blob store failed: {}", e)))
+        let conn = self.lock()?;
+        exec_discard(
+            &conn,
+            "INSERT OR REPLACE INTO lora_blobs (adapter_id, data) VALUES (?1, ?2)",
+            &[
+                &adapter_id as &dyn rusqlite::types::ToSql,
+                &blob as &dyn rusqlite::types::ToSql,
+            ],
+        )
     }
 
     async fn get_metadata(
         &self,
         adapter_id: &str,
     ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
-        let rows = hkask_storage::migrate::query(
-            &self.conn,
-            "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json
-             FROM lora_adapters WHERE id = ?1",
-            &[adapter_id],
-        )
-        .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
-
-        if rows.is_empty() {
-            return Ok(None);
-        }
-        let row = &rows[0];
-        let created_at: i64 = row[5]
-            .parse()
-            .map_err(|e| AdapterStoreError::Serialization(format!("Parse created_at: {}", e)))?;
-        let size_bytes: u64 = row[6]
-            .parse()
-            .map_err(|e| AdapterStoreError::Serialization(format!("Parse size_bytes: {}", e)))?;
-        let metrics = if row[7] != "null" && !row[7].is_empty() {
-            Some(
-                serde_json::from_str(&row[7])
-                    .map_err(|e| AdapterStoreError::Serialization(format!("Metrics: {}", e)))?,
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json
+                 FROM lora_adapters WHERE id = ?1",
             )
-        } else {
-            None
-        };
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
 
-        Ok(Some(LoRAAdapter {
-            id: row[0].clone(),
-            name: row[1].clone(),
-            base_model: row[2].clone(),
-            dataset_hash: row[3].clone(),
-            training_job_id: row[4].clone(),
-            created_at,
-            size_bytes,
-            metrics,
-        }))
+        let result = stmt.query_row(rusqlite::params![adapter_id], |row| {
+            let created_at: i64 = row.get(5)?;
+            let size_bytes_i64: i64 = row.get(6)?;
+            let metrics_json: Option<String> = row.get(7)?;
+            let metrics = match metrics_json {
+                Some(ref json) if !json.is_empty() && json != "null" => {
+                    Some(serde_json::from_str(json).map_err(|_| {
+                        rusqlite::Error::InvalidColumnType(
+                            7,
+                            "Invalid metrics JSON".to_string(),
+                            rusqlite::types::Type::Text,
+                        )
+                    })?)
+                }
+                _ => None,
+            };
+            Ok(LoRAAdapter {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                base_model: row.get(2)?,
+                dataset_hash: row.get(3)?,
+                training_job_id: row.get(4)?,
+                created_at,
+                size_bytes: size_bytes_i64 as u64,
+                metrics,
+            })
+        });
+
+        match result {
+            Ok(adapter) => Ok(Some(adapter)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(AdapterStoreError::Storage(format!("Query failed: {}", e))),
+        }
     }
 
     async fn get_blob(&self, adapter_id: &str) -> Result<Option<Vec<u8>>, AdapterStoreError> {
-        hkask_storage::blob::read_blob_sqlite(&self.conn, adapter_id)
-            .map_err(|e| AdapterStoreError::Storage(format!("Blob read failed: {}", e)))
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare("SELECT data FROM lora_blobs WHERE adapter_id = ?1")
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+
+        match stmt.query_row(rusqlite::params![adapter_id], |row| row.get(0)) {
+            Ok(blob) => Ok(Some(blob)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(AdapterStoreError::Storage(format!("Query failed: {}", e))),
+        }
     }
 
     async fn list_all(&self) -> Result<Vec<LoRAAdapter>, AdapterStoreError> {
-        let rows = hkask_storage::migrate::query(
-            &self.conn,
-            "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json
-             FROM lora_adapters ORDER BY created_at DESC",
-            &[],
-        )
-        .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json
+                 FROM lora_adapters ORDER BY created_at DESC",
+            )
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
 
-        let mut adapters = Vec::with_capacity(rows.len());
-        for row in &rows {
-            let created_at: i64 = row[5].parse().map_err(|e| {
-                AdapterStoreError::Serialization(format!("Parse created_at: {}", e))
-            })?;
-            let size_bytes: u64 = row[6].parse().map_err(|e| {
-                AdapterStoreError::Serialization(format!("Parse size_bytes: {}", e))
-            })?;
-            let metrics = if row[7] != "null" && !row[7].is_empty() {
-                Some(
-                    serde_json::from_str(&row[7])
-                        .map_err(|e| AdapterStoreError::Serialization(format!("Metrics: {}", e)))?,
-                )
-            } else {
-                None
-            };
-            adapters.push(LoRAAdapter {
-                id: row[0].clone(),
-                name: row[1].clone(),
-                base_model: row[2].clone(),
-                dataset_hash: row[3].clone(),
-                training_job_id: row[4].clone(),
-                created_at,
-                size_bytes,
-                metrics,
-            });
+        let rows = stmt
+            .query_map([], |row| {
+                let created_at: i64 = row.get(5)?;
+                let size_bytes_i64: i64 = row.get(6)?;
+                let metrics_json: Option<String> = row.get(7)?;
+                let metrics = match metrics_json {
+                    Some(ref json) if !json.is_empty() && json != "null" => {
+                        Some(serde_json::from_str(json).map_err(|_| {
+                            rusqlite::Error::InvalidColumnType(
+                                7,
+                                "Invalid metrics JSON".to_string(),
+                                rusqlite::types::Type::Text,
+                            )
+                        })?)
+                    }
+                    _ => None,
+                };
+                Ok(LoRAAdapter {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    base_model: row.get(2)?,
+                    dataset_hash: row.get(3)?,
+                    training_job_id: row.get(4)?,
+                    created_at,
+                    size_bytes: size_bytes_i64 as u64,
+                    metrics,
+                })
+            })
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+
+        let mut adapters = Vec::new();
+        for row in rows {
+            adapters
+                .push(row.map_err(|e| AdapterStoreError::Storage(format!("Row error: {}", e)))?);
         }
         Ok(adapters)
     }
 
     async fn delete(&self, adapter_id: &str) -> Result<(), AdapterStoreError> {
-        hkask_storage::migrate::execute_no_params(
-            &self.conn,
+        let conn = self.lock()?;
+        exec_discard(
+            &conn,
+            "DELETE FROM lora_blobs WHERE adapter_id = ?1",
+            &[&adapter_id as &dyn rusqlite::types::ToSql],
+        )?;
+        exec_discard(
+            &conn,
             "DELETE FROM lora_adapters WHERE id = ?1",
-            &[adapter_id],
-        )
-        .map_err(|e| AdapterStoreError::Storage(format!("Delete metadata failed: {}", e)))?;
-
-        hkask_storage::blob::delete_blob_sqlite(&self.conn, adapter_id)
-            .map_err(|e| AdapterStoreError::Storage(format!("Delete blob failed: {}", e)))?;
+            &[&adapter_id as &dyn rusqlite::types::ToSql],
+        )?;
 
         tracing::info!(
             target: "cns.training.adapter.deleted",

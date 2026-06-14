@@ -104,6 +104,15 @@ pub struct DatasetPipeline {
     cache_key: Option<String>,
 }
 
+impl Clone for DatasetPipeline {
+    fn clone(&self) -> Self {
+        Self {
+            cache_dir: self.cache_dir.clone(),
+            cache_key: None, // Reset cache_key on clone to avoid stale references
+        }
+    }
+}
+
 impl DatasetPipeline {
     /// Create a new dataset pipeline with a given cache directory.
     pub fn new(cache_dir: PathBuf) -> Self {

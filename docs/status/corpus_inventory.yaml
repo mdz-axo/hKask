@@ -966,14 +966,15 @@ missing_referenced:
 # SUMMARY STATISTICS
 # =========================================================================
 summary:
-  total_documents: 79
+  total_documents: 80
   active_keep: 46
-  stale_refresh: 29
-  archive: 3
+  stale_refresh: 27
+  archived: 5
+  newly_created: 2
+  total_with_frontmatter: 63
+  total_without_frontmatter: 17
   missing_referenced: 3
-  total_with_frontmatter: 61
-  total_without_frontmatter: 18
   version_anomalies: 18
-  documents_not_in_master_index: 8
+  documents_not_in_master_index: 4
   documents_not_in_scaffold: 10
-  documents_not_in_portal: 5
+  documents_not_in_portal: 0
