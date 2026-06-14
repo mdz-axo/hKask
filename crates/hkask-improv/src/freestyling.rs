@@ -113,7 +113,6 @@ impl FreestyleSession {
             agent_id,
             participants: self.participants.clone(),
             turn_count: self.turn_count(),
-            session_label: Some("freestyle".to_string()),
             recursion_depth: 0,
         }
     }

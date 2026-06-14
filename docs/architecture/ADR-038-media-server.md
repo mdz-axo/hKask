@@ -18,15 +18,15 @@ mds_categories: [composition, domain]
 
 ## Context
 
-hKask requires media generation capabilities (image, video, audio, voice, collage, 3D) exposed as MCP tools. The `hkask-mcp-media` crate implements a 28-tool MCP server with fal.ai as the primary generation backend.
+hKask generates media (image, video, audio, voice, collage, 3D) through MCP tools. The `hkask-mcp-media` crate serves 28 tools from a single MCP server. fal.ai is the primary generation backend.
 
-The architecture was developed across multiple agent sessions and specified in `mcp-media-server-design.md`. This ADR retroactively documents the architectural decisions.
+Agent sessions developed the architecture across multiple handoffs (`media-voice-talk-2026-06-13.md`, `media-server-continuation-2026-06-14.md`). The `mcp-media-server-design.md` plan specifies the design. This ADR documents those decisions retroactively.
 
 ## Decision
 
 ### Single MCP Server, Multiple Tool Categories
 
-All media tools are served from a single MCP server (`hkask-mcp-media`) with tool categories:
+A single MCP server (`hkask-mcp-media`) serves all media tools across six categories:
 - **Image:** generate, edit, upscale, background-remove
 - **Video:** generate, edit
 - **Audio:** generate, transcribe
@@ -36,7 +36,7 @@ All media tools are served from a single MCP server (`hkask-mcp-media`) with too
 
 ### fal.ai as Primary Backend
 
-fal.ai is the primary generation backend for all media types. Local fallbacks are not implemented (P3 backlog).
+fal.ai generates all media types. Local fallbacks sit in the P3 backlog — not implemented.
 
 ### Tool Naming Convention
 
@@ -48,18 +48,18 @@ The server has 12 tests covering tool registration, parameter validation, and ou
 
 ## Consequences
 
-- **Positive:** Single server simplifies deployment — one binary, one MCP connection.
-- **Positive:** Consistent tool naming makes discovery predictable.
-- **Negative:** No local fallback — all generation requires network + fal.ai API key.
-- **Negative:** 28 tools is a large surface; future consolidation may be warranted.
-- **Negative:** No ADR existed during implementation — architectural knowledge was encoded only in code and handoffs. This ADR rectifies that.
+- **Positive:** One binary, one MCP connection — deployment is a single step.
+- **Positive:** `media/{category}/{action}` naming makes tool discovery predictable.
+- **Negative:** All generation needs network access and a fal.ai API key. No local fallback exists.
+- **Negative:** 28 tools create a large surface. Future consolidation should reduce this.
+- **Negative:** Architectural knowledge lived only in code and handoffs until this ADR. This document closes that gap.
 
 ## Procedural Rhetoric
 
 - **PS-01 (Shared Goal):** Media generation for agent communication and content creation.
 - **PS-02 (Bounded Lexicon):** 6 tool categories, fal.ai backend, `media/{category}/{action}` naming.
 - **PS-03 (Mode of Play):** Single-server, multi-category; fal.ai as primary backend.
-- **PS-12 (Invitational Voice):** New media categories are invited via additional tool registrations.
+- **PS-12 (Invitational Voice):** New media categories integrate via additional tool registrations.
 
 ---
 

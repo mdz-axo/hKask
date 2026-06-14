@@ -10,8 +10,10 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
-use hkask_services::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig};
-use hkask_types::{RegisteredAgent, UserProfile};
+use hkask_services::{
+    MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig, ServiceError,
+};
+use hkask_types::{InfrastructureError, RegisteredAgent, UserProfile};
 use thiserror::Error;
 
 use crate::repl::display;
@@ -20,29 +22,10 @@ use crate::repl::display;
 pub enum OnboardingError {
     #[error("Onboarding cancelled by user")]
     Cancelled,
-    #[error("Registry error: {0}")]
-    Registry(#[from] crate::errors::RegistryError),
-    #[error("Keychain error: {0}")]
-    Keychain(#[from] hkask_keystore::KeychainError),
-    #[error("Database error: {0}")]
-    Database(String),
+    #[error(transparent)]
+    Service(#[from] hkask_services::ServiceError),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-}
-
-impl From<hkask_services::ServiceError> for OnboardingError {
-    fn from(e: hkask_services::ServiceError) -> Self {
-        match &e {
-            hkask_services::ServiceError::Keystore(msg) => OnboardingError::Database(msg.clone()),
-            hkask_services::ServiceError::Storage(db_err) => {
-                OnboardingError::Database(db_err.to_string())
-            }
-            hkask_services::ServiceError::AgentRegistryStore(reg_err) => {
-                OnboardingError::Database(reg_err.to_string())
-            }
-            _ => OnboardingError::Database(e.to_string()),
-        }
-    }
 }
 
 /// Outcome of the onboarding flow
@@ -111,7 +94,9 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         eprintln!("  \x1b[31m✗\x1b[0m No hKask installation found in OS keychain.");
         eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
         eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
-        OnboardingError::Database("No keychain secrets — run `kask chat` first".to_string())
+        OnboardingError::Service(ServiceError::Config(
+            "No keychain secrets — run `kask chat` first".into(),
+        ))
     })?;
 
     // Open the existing registry.
@@ -537,7 +522,9 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             // Parse the file to check it has keys
             let content = std::fs::read_to_string(&path).map_err(|e| {
                 eprintln!("  \x1b[31m✗\x1b[0m Cannot read {}: {}", path.display(), e);
-                OnboardingError::Io(e)
+                OnboardingError::Service(ServiceError::Infra(InfrastructureError::Io(
+                    e.to_string(),
+                )))
             })?;
 
             let mut found_keys: Vec<&str> = Vec::new();
@@ -671,7 +658,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             let keychain = hkask_keystore::Keychain::default();
             keychain.store_by_key(key_name, api_key).map_err(|e| {
                 eprintln!("  \x1b[31m✗\x1b[0m Failed to store key: {}", e);
-                OnboardingError::Keychain(e)
+                OnboardingError::Service(ServiceError::Keystore(e.to_string()))
             })?;
 
             // Also set default provider to match
@@ -834,7 +821,7 @@ fn list_replicants(
 ) -> Result<Vec<RegisteredAgent>, OnboardingError> {
     store
         .list_by_kind(hkask_types::AgentKind::Replicant)
-        .map_err(|e| OnboardingError::Database(e.to_string()))
+        .map_err(|e| OnboardingError::Service(ServiceError::AgentRegistryStore(e)))
 }
 
 /// Read a line of input from the user

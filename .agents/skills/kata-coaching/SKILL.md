@@ -80,6 +80,20 @@ Coach:  "I'll be there at 2:15. Good plan."        [Commitment to check]
 
 Notice: The coach never said "you should add connection pooling." The coach asked questions that led the learner to their own experiment.
 
+## Improv Integration
+
+Coaching Kata pairs with the **improv** skill for constructive coaching postures:
+
+| Question | Improv Mode | Why |
+|----------|-------------|-----|
+| Q1–Q3 (Target, Actual, Obstacles) | *None* | Information-gathering — neutral posture. Coach is listening, not shaping. |
+| Q4 (Next step? What do you expect?) | **Yes But** | Introduce constraints that guide the learner's next experiment without dictating the answer. "Yes, that direction, but consider limiting to one variable." |
+| Q5 (How quickly can we go and see?) | **Plussing** | Amplify what the learner got right in their experimental design before suggesting refinements. Build on their plan, don't replace it. |
+
+**Activation:** Use `/improv cascade` to compose the recommended sequence for your coaching session.
+
+**CNS span:** `cns.kata.improv.effectiveness` — tracks whether improv modes improve learner automaticity scores vs. baseline coaching.
+
 ## CNS Integration
 
 - CNS spans under `cns.prompt.kata.coaching`

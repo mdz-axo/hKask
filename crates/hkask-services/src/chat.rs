@@ -1067,9 +1067,9 @@ fn improv_system_prompt(mode: &hkask_improv::ImprovMode) -> String {
         }
         hkask_improv::ImprovMode::Cascade(c) => {
             let step_labels: Vec<String> = c
-                .steps
+                .modes
                 .iter()
-                .map(|s| s.mode.label().to_string())
+                .map(|m| m.label().to_string())
                 .collect();
             format!(
                 "[Improv mode: Cascade — {}]\n\

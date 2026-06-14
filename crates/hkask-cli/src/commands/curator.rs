@@ -1,36 +1,33 @@
 //! Curator commands — delegates to CuratorService.
 
-use hkask_services::CuratorService;
+use hkask_services::{CuratorService, ServiceError};
 use hkask_storage::EscalationEntry;
 
 use crate::block_on;
 use crate::cli::CuratorAction;
-use crate::errors::CuratorError;
 
-pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, CuratorError> {
+pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     // Use the escalation queue via AgentService for raw EscalationEntry access.
     let queue = ctx.escalation_queue();
-    queue
-        .list_pending()
-        .map_err(|e| CuratorError::from(hkask_services::ServiceError::from(e)))
+    queue.list_pending().map_err(ServiceError::from)
 }
 
-pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
+pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::resolve(&ctx, id, "cli-administrator").map_err(CuratorError::from)
+    CuratorService::resolve(&ctx, id, "cli-administrator").map_err(ServiceError::from)
 }
 
-pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
+pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::dismiss(&ctx, id, "cli-administrator").map_err(CuratorError::from)
+    CuratorService::dismiss(&ctx, id, "cli-administrator").map_err(ServiceError::from)
 }
 
-pub async fn curator_metacognition() -> Result<String, CuratorError> {
+pub async fn curator_metacognition() -> Result<String, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     CuratorService::metacognition(&ctx)
         .await
-        .map_err(CuratorError::from)
+        .map_err(ServiceError::from)
 }
 
 pub fn run_curator(

@@ -125,7 +125,7 @@ status: VERIFIED
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
-- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`, `cns.condenser.compression_ratio`, `cns.evolution.energy_delta`, `cns.architecture.module_depth`
+- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`, `cns.test.*`, `cns.set_point.*`, `cns.cybernetics.backpressure`, `cns.cybernetics.cadence`, `cns.memory.encode`, `cns.memory.budget`, `cns.condenser.compression_ratio`, `cns.evolution.energy_delta`, `cns.architecture.module_depth`, `cns.improv.mode.active`, `cns.improv.plussing.ratio`, `cns.improv.freestyle.coherence`, `cns.improv.ensemble.coherence`, `cns.kata.improv.effectiveness`, `cns.improv.cascade.depth`
 - **This is the authoritative CNS span registry.** See `hkask-types::event::CANONICAL_NAMESPACES` for the code-level source of truth.
 - Algedonic Alert: Variety deficit > threshold/2 (50 default) → escalate to Curator; deficit > threshold (100 default) → escalate to human
 

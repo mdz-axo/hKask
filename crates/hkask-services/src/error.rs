@@ -41,6 +41,7 @@ use hkask_storage::{
 };
 use hkask_templates::TemplateError;
 use hkask_types::InfrastructureError;
+use hkask_types::McpErrorKind;
 use hkask_types::ports::{EmbeddingGenerationError, InferenceError, RegistryError};
 
 /// Unified domain error for all service operations.
@@ -259,6 +260,18 @@ pub enum ServiceError {
     /// Matrix homeserver operation failed (registration, connection, message send).
     #[error("Matrix error: {0}")]
     Matrix(String),
+
+    // ── MCP tool errors (out-of-process server failures) ─────────────────
+    /// MCP tool call failed. Carries the semantic error kind for retryability
+    /// and CNS observability. The `server` and `tool` fields identify the
+    /// failing MCP server and tool for debugging.
+    #[error("{kind}: {message} (server={server}, tool={tool})")]
+    McpTool {
+        kind: McpErrorKind,
+        server: String,
+        tool: String,
+        message: String,
+    },
 }
 
 impl From<uuid::Error> for ServiceError {
@@ -270,6 +283,17 @@ impl From<uuid::Error> for ServiceError {
 impl<T> From<std::sync::PoisonError<T>> for ServiceError {
     fn from(_: std::sync::PoisonError<T>) -> Self {
         ServiceError::Infra(hkask_types::InfrastructureError::LockPoisoned)
+    }
+}
+
+impl From<hkask_mcp::server::McpToolError> for ServiceError {
+    fn from(e: hkask_mcp::server::McpToolError) -> Self {
+        ServiceError::McpTool {
+            kind: e.kind,
+            server: String::new(),
+            tool: String::new(),
+            message: e.message,
+        }
     }
 }
 
@@ -307,6 +331,7 @@ impl ServiceError {
             ServiceError::Matrix(_) => true, // Network operations may be transient
             ServiceError::Config(_) => true, // Config resolution may succeed on retry
             ServiceError::Keystore(_) => true, // Keychain may be temporarily unavailable
+            ServiceError::McpTool { kind, .. } => kind.is_retryable(),
 
             // ── Non-retryable ────────────────────────────────────────
             // User-input errors: retrying won't change the outcome
@@ -562,6 +587,18 @@ impl ServiceError {
                 "cns.cybernetics",
                 "error.matrix",
                 serde_json::json!({ "message": msg }),
+            ),
+
+            // ── MCP tool errors ─────────────────────────────────────
+            ServiceError::McpTool {
+                kind,
+                server,
+                tool,
+                message,
+            } => (
+                "cns.tool",
+                "error",
+                serde_json::json!({ "kind": kind.to_string(), "server": server, "tool": tool, "message": message }),
             ),
 
             // ── Transparent wrappers not explicitly matched above ──────

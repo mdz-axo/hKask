@@ -52,12 +52,11 @@ fn format_mode(mode: &ImprovMode) -> String {
             format!("riffing ({})", policy)
         }
         ImprovMode::Cascade(c) => {
-            let step_labels: Vec<String> =
-                c.steps.iter().map(|s| s.mode.label().to_string()).collect();
+            let step_labels: Vec<String> = c.modes.iter().map(|m| m.label().to_string()).collect();
             format!(
-                "cascade [{}] (depth {}/{})",
+                "cascade [{}] ({}/{})",
                 step_labels.join(" → "),
-                c.total_depth,
+                c.total_applications(),
                 MATRYOSHKA_LIMIT
             )
         }

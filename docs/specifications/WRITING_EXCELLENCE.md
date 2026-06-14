@@ -1,7 +1,7 @@
 ---
 title: "Writing Excellence Protocol"
 audience: [contributors, developers, agents]
-last_updated: 2026-05-13
+last_updated: 2026-06-14
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -13,17 +13,12 @@ mds_categories: [curation]
 
 ## 1. Purpose
 
-This protocol defines the voice, style, and quality discipline for the
-hKask documentation corpus. It operationalizes four independent dimensions
-of documentation quality — each grounded in the work of a woman who shaped
-technical communication — into a scoring rubric governing publication
-decisions. It enforces the Writing Excellence Mandate in
+This protocol defines the voice, style, and quality discipline for the hKask documentation corpus. It translates four independent dimensions of documentation quality — each grounded in the work of a woman who shaped technical communication — into a scoring rubric that governs publication decisions. It enforces the Writing Excellence Mandate in
 [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §1.[^schriver-readers]
 
 ## 2. Voice and Style Standards
 
-These standards derive from plain-language technical writing principles
-established in research on reader cognition and document usability.[^schriver-dynamics]
+These standards draw from plain-language technical writing principles established in research on reader cognition and document usability.[^schriver-dynamics]
 
 ### 2.1 Voice
 
@@ -32,14 +27,14 @@ established in research on reader cognition and document usability.[^schriver-dy
 | **Register** | Formal-technical. No slang, no hedging, no filler. |
 | **Person** | Third person for specifications; second person for operator guides. Never first person plural ("we"). |
 | **Tense** | Present tense for current-state descriptions; past tense only for historical provenance. |
-| **Confidence** | Assertions are definite: "must", "shall", "does" — never "should probably", "might". State uncertainty as an explicit open question. |
+| **Confidence** | Make assertions definite: "must", "shall", "does" — never "should probably", "might". State uncertainty as an explicit open question. |
 
 ### 2.2 Sentence Construction
 
 - Maximum 35 words per sentence. Split if exceeded.
 - One idea per sentence. One claim per paragraph.
-- Active voice in all cases. Passive voice permitted only when describing what a source states.
-- Technical terms are defined on first use unless in the project glossary or a preceding section.
+- Active voice in all cases. Use passive voice only when describing what a source states.
+- Define technical terms on first use unless in the project glossary or a preceding section.
 
 ### 2.3 Structural Discipline
 
@@ -47,8 +42,7 @@ Every section follows: **1. Statement** (what is true, in one sentence);
 **2. Evidence** (code path, command, or external citation);
 **3. Diagram** (visual rendering, if applicable);
 **4. Implications** (what the reader should do with this knowledge).
-Sections lacking evidence are drafts; sections lacking implications are
-reference material.
+A section without evidence is a draft. A section without implications is reference material.
 
 ### 2.4 Citation Density Requirements
 

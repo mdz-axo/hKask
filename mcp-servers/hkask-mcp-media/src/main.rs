@@ -20,7 +20,7 @@ use gallery::vision::{self};
 use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
-use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError};
+use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError, Store};
 use hkask_types::{
     InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign, WebID,
 };
@@ -636,7 +636,7 @@ impl MediaServer {
         let absolute_path: String = conn
             .query_row(
                 "SELECT absolute_path FROM gallery_images WHERE id = ?1 AND gallery_id = ?2",
-                rusqlite::params![image_id, gallery_id],
+                [image_id, gallery_id.as_str()],
                 |row| row.get(0),
             )
             .map_err(|e| format!("Image not found by ID {}: {}", image_id, e))?;
@@ -1557,13 +1557,37 @@ impl MediaServer {
         let mut faces_matched = 0u32;
         let mut match_errors: Vec<String> = Vec::new();
         if include_faces {
-            let guard = self.gallery_state.lock().unwrap();
-            let gallery_id = match &*guard {
-                Some(s) => match &s.gallery_id {
-                    Some(id) => id.clone(),
+            // Extract gallery_id and drop the guard before any await
+            let gallery_id = {
+                let guard = self.gallery_state.lock().unwrap();
+                match &*guard {
+                    Some(s) => match &s.gallery_id {
+                        Some(id) => id.clone(),
+                        None => {
+                            return span.ok_json(serde_json::json!({
+                                "status": "refreshed",
+                                "gallery_id": gid,
+                                "scan": {
+                                    "images_added": added,
+                                    "total_images": total,
+                                    "persisted": persisted,
+                                },
+                                "analysis": {
+                                    "images_analyzed": analyzed,
+                                    "pipelines": pipelines,
+                                },
+                                "face_matching": {
+                                    "error": "Gallery not persisted — cannot match faces"
+                                },
+                                "errors": {
+                                    "analysis": analyze_errors,
+                                    "matching": serde_json::json!([]),
+                                },
+                            }));
+                        }
+                    },
                     None => {
-                        drop(guard);
-                        span.ok_json(serde_json::json!({
+                        return span.ok_json(serde_json::json!({
                             "status": "refreshed",
                             "gallery_id": gid,
                             "scan": {
@@ -1576,36 +1600,16 @@ impl MediaServer {
                                 "pipelines": pipelines,
                             },
                             "face_matching": {
-                                "error": "Gallery not persisted — cannot match faces"
+                                "error": "No gallery organized — cannot match faces"
                             },
-                            "errors": analyze_errors,
+                            "errors": {
+                                "analysis": analyze_errors,
+                                "matching": serde_json::json!([]),
+                            },
                         }));
-                        return;
                     }
-                },
-                None => {
-                    drop(guard);
-                    span.ok_json(serde_json::json!({
-                        "status": "refreshed",
-                        "gallery_id": gid,
-                        "scan": {
-                            "images_added": added,
-                            "total_images": total,
-                            "persisted": persisted,
-                        },
-                        "analysis": {
-                            "images_analyzed": analyzed,
-                            "pipelines": pipelines,
-                        },
-                        "face_matching": {
-                            "error": "No gallery organized — cannot match faces"
-                        },
-                        "errors": analyze_errors,
-                    }));
-                    return;
                 }
-            };
-            drop(guard);
+            }; // guard dropped here
 
             // Get valid registry entries
             let registry = match self.gallery_store.list_faces(Some("valid")) {

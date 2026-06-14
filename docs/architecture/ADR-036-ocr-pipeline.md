@@ -18,15 +18,15 @@ mds_categories: [composition, curation]
 
 ## Context
 
-hKask's document processing pipeline (`hkask-mcp-docproc`) requires OCR capabilities for extracting text from images and scanned PDFs. The pipeline must support multiple OCR backends (Tesseract, PaddleOCR, fal.ai) with deterministic routing based on document characteristics.
+hKask's document processing pipeline (`hkask-mcp-docproc`) extracts text from images and scanned PDFs via OCR. The pipeline routes documents to one of three backends (Tesseract, PaddleOCR, fal.ai) based on document characteristics — language, quality requirements, and network availability.
 
-The architecture was developed incrementally across multiple agent sessions (handoffs: `ocr-fal-self-2026-06-13.md`, `media-server-continuation-2026-06-14.md`) and encoded in the type system of `hkask-mcp-markitdown`. This ADR retroactively documents the decisions.
+Agent sessions developed the architecture incrementally across multiple handoffs (`ocr-fal-self-2026-06-13.md`, `media-server-continuation-2026-06-14.md`) and encoded it in the type system of `hkask-mcp-markitdown`. This ADR documents those decisions retroactively.
 
 ## Decision
 
 ### Sealed Type Hierarchy for Backend Selection
 
-OCR backends are represented as a sealed enum with compile-time exhaustiveness checking:
+OCR backends use a sealed enum. The compiler enforces exhaustiveness — every backend variant must have a handler:
 
 ```rust
 pub enum OcrBackend {
@@ -38,7 +38,7 @@ pub enum OcrBackend {
 
 ### Deterministic Routing
 
-Backend selection is deterministic based on document metadata, not LLM-driven:
+The router selects backends deterministically from document metadata. No LLM participates in routing decisions:
 - Language detection → PaddleOCR for non-English
 - Quality requirements → FalAI for high-accuracy needs
 - Offline requirement → Tesseract or PaddleOCR (local only)
@@ -46,14 +46,14 @@ Backend selection is deterministic based on document metadata, not LLM-driven:
 
 ### Pluggable Backend Trait
 
-Each backend implements a common `OcrEngine` trait, allowing new backends to be added without changing routing logic.
+Each backend implements the `OcrEngine` trait. Adding a new backend requires only implementing the trait and adding an enum variant — routing logic stays unchanged.
 
 ## Consequences
 
-- **Positive:** Compile-time guarantee that all backends are handled. No runtime `unreachable!()`.
-- **Positive:** New backends require only implementing the trait + adding an enum variant.
-- **Negative:** FalAI backend requires network access and API key — not available in air-gapped deployments.
-- **Negative:** No ADR existed during implementation — architectural knowledge was encoded only in code and handoffs. This ADR rectifies that.
+- **Positive:** The compiler guarantees every backend variant has a handler. No runtime `unreachable!()`.
+- **Positive:** New backends require only a trait implementation and an enum variant.
+- **Negative:** The FalAI backend needs network access and an API key. Air-gapped deployments cannot use it.
+- **Negative:** Architectural knowledge lived only in code and handoffs until this ADR. This document closes that gap.
 
 ## Procedural Rhetoric
 

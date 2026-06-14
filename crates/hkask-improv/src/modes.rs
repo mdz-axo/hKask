@@ -14,7 +14,7 @@ use std::time::Duration;
 ///
 /// Exhaustive enum — no `Other` or `Custom` fallback. New modes require
 /// a new variant and corresponding implementation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImprovMode {
     /// Plussing (Catmull): Extract agreeable components, silently discard remainder.
     /// Build constructively on selected seeds. Never explicitly negate.
@@ -119,13 +119,14 @@ impl ImprovMode {
                 }
             }
             ImprovMode::Cascade(cascade) => {
-                // Execute the cascade. If it fails (e.g., recursion exceeded),
-                // return an Error response rather than panicking.
+                // Execute the cascade. If it fails, return a Plussed response
+                // with the error message as the build (graceful degradation).
                 match cascade.execute(contribution, context) {
                     Ok(response) => response,
-                    Err(e) => ImprovResponse::Error {
-                        message: e.to_string(),
-                    },
+                    Err(e) => ImprovResponse::Plussed(plussing::PlussedResponse {
+                        selected_seeds: vec![],
+                        build: format!("[cascade error] {}", e),
+                    }),
                 }
             }
         }

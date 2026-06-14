@@ -366,6 +366,9 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADR-033-dampener-override-cooldown.md`](ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
 | [`ADR-034-academic-author-pipeline.md`](ADR-034-academic-author-pipeline.md) | Academic author pipeline — corpus_type discriminator, pre-processing, enumeration, disambiguation |
 | [`ADR-035-replicant-server-mode.md`](ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
+| [`ADR-036-ocr-pipeline.md`](ADR-036-ocr-pipeline.md) | OCR pipeline — sealed backend hierarchy (Tesseract, PaddleOCR, FalAI), deterministic routing |
+| [`ADR-037-wallet-payments.md`](ADR-037-wallet-payments.md) | Wallet payment mechanism — rJoule internal currency, multi-chain bridge architecture |
+| [`ADR-038-media-server.md`](ADR-038-media-server.md) | Media MCP server — 28 tools across 6 categories, fal.ai primary backend |
 
 ---
 
@@ -406,6 +409,9 @@ docs/architecture/
 ├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
 ├── ADR-034-academic-author-pipeline.md      # Decision record (Active)
 ├── ADR-035-replicant-server-mode.md          # Decision record (Active)
+├── ADR-036-ocr-pipeline.md                   # Decision record (Draft)
+├── ADR-037-wallet-payments.md                # Decision record (Draft)
+├── ADR-038-media-server.md                   # Decision record (Draft)
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
@@ -415,7 +421,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 25 active architecture documents (8 framework + 1 index + 10 ADRs + 6 reference artifacts).
+**Total:** 28 active architecture documents (8 framework + 1 index + 13 ADRs + 6 reference artifacts).
 
 ---
 

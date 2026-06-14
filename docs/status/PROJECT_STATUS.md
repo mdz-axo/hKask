@@ -75,10 +75,11 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Link checker | `docs/ci/check-links.sh` | ✅ Pass (201 links, 0 broken) | 2026-06-10 |
-| Metadata checker | `docs/ci/check-metadata.sh` | ⚠️ 49 missing `ddmvss_categories` (pre-existing: schema mismatch) | 2026-06-10 |
+| Link checker | `docs/ci/check-links.sh` | ✅ Pass (266 links, 0 broken) | 2026-06-14 |
+| Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (73 docs, 0 missing, 0 warnings) | 2026-06-14 |
+| Version sync | `docs/ci/sync-versions.sh --dry-run` | ✅ Pass (0 pending updates, 11 excluded) | 2026-06-14 |
 
-**Metadata checker**: 49 `ddmvss_categories` missing (pre-existing schema mismatch — not caused by this session).
+**All CI gates pass.** The previous `ddmvss_categories` check was migrated to `mds_categories` (5-category MDS taxonomy). No documents use the deprecated 9-category taxonomy.
 
 ---
 
@@ -86,14 +87,7 @@ All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing err
 
 See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) and [`docs/status/curation-decisions.yaml`](curation-decisions.yaml).
 
-| Classification | Count |
-|---|---|
-| spec_ahead | 5 |
-| code_ahead | 2 |
-| divergent | 5 |
-| duplicate | 2 |
-
-All P2-06 drift items (D1–D9) and DRIFT-001–004 resolved.
+**All 14 drift items resolved (2026-06-12).** Zero remaining spec_ahead, code_ahead, or divergent items.
 
 ---
 

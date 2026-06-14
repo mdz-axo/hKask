@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::cli::ReplicantAction;
-use crate::errors::UserError;
+use hkask_services::ServiceError;
 use hkask_storage::user_store::UserStore;
 use hkask_types::{RegistrationRequest, ReplicantIdentity, UserID, UserSession};
 use zeroize::Zeroizing;
@@ -19,27 +19,23 @@ fn io_or_die<T>(result: std::io::Result<T>, context: &str) -> T {
     })
 }
 
-fn validate_passphrase(passphrase: &str) -> Result<(), UserError> {
+fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
     if passphrase.len() < 8 || !passphrase.chars().all(|c| c.is_alphanumeric()) {
-        return Err(UserError::from(
-            hkask_services::ServiceError::InvalidPassphrase(
-                "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case".into(),
-            ),
+        return Err(ServiceError::InvalidPassphrase(
+            "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case".into(),
         ));
     }
     let has_upper = passphrase.chars().any(|c| c.is_ascii_uppercase());
     let has_lower = passphrase.chars().any(|c| c.is_ascii_lowercase());
     if !has_upper || !has_lower {
-        return Err(UserError::from(
-            hkask_services::ServiceError::InvalidPassphrase(
-                "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case".into(),
-            ),
+        return Err(ServiceError::InvalidPassphrase(
+            "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case".into(),
         ));
     }
     Ok(())
 }
 
-fn validate_registration(request: &RegistrationRequest) -> Result<(), UserError> {
+fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceError> {
     if request.replicant_name.is_empty()
         || request.replicant_name.len() > 64
         || !request
@@ -47,29 +43,25 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), UserError>
             .chars()
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     {
-        return Err(UserError::from(
-            hkask_services::ServiceError::ValidationError("Invalid replicant name".into()),
+        return Err(ServiceError::ValidationError(
+            "Invalid replicant name".into(),
         ));
     }
     if request.first_name.is_empty() || request.last_name.is_empty() {
-        return Err(UserError::from(
-            hkask_services::ServiceError::ValidationError("Required name field is empty".into()),
+        return Err(ServiceError::ValidationError(
+            "Required name field is empty".into(),
         ));
     }
     if request.email.is_empty() || !request.email.contains('@') {
-        return Err(UserError::from(
-            hkask_services::ServiceError::ValidationError(
-                "Invalid contact information format".into(),
-            ),
+        return Err(ServiceError::ValidationError(
+            "Invalid contact information format".into(),
         ));
     }
     if let Some(phone) = &request.phone
         && !phone.starts_with('+')
     {
-        return Err(UserError::from(
-            hkask_services::ServiceError::ValidationError(
-                "Invalid contact information format".into(),
-            ),
+        return Err(ServiceError::ValidationError(
+            "Invalid contact information format".into(),
         ));
     }
     validate_passphrase(&request.passphrase)?;
@@ -84,7 +76,7 @@ pub fn register_replicant_with_passphrase(
     email: &str,
     phone: Option<&str>,
     passphrase: Zeroizing<String>,
-) -> Result<ReplicantIdentity, UserError> {
+) -> Result<ReplicantIdentity, ServiceError> {
     validate_passphrase(&passphrase)?;
     let request = RegistrationRequest {
         replicant_name: replicant_name.to_string(),
@@ -113,35 +105,29 @@ pub fn login_with_passphrase(
     store: &Store,
     replicant_name: &str,
     passphrase: Zeroizing<String>,
-) -> Result<UserSession, UserError> {
+) -> Result<UserSession, ServiceError> {
     store
         .lock()
         .unwrap()
         .login(replicant_name, &passphrase)
-        .map_err(|_| {
-            UserError::from(hkask_services::ServiceError::LoginFailed(
-                "Invalid credentials".into(),
-            ))
-        })
+        .map_err(|_| ServiceError::LoginFailed("Invalid credentials".into()))
 }
 
-pub fn get_replicant(store: &Store, replicant_name: &str) -> Result<ReplicantIdentity, UserError> {
+pub fn get_replicant(
+    store: &Store,
+    replicant_name: &str,
+) -> Result<ReplicantIdentity, ServiceError> {
     store
         .lock()
         .unwrap()
         .get_replicant(replicant_name)?
-        .ok_or_else(|| {
-            UserError::from(hkask_services::ServiceError::UserNotFound(format!(
-                "Replicant '{}'",
-                replicant_name
-            )))
-        })
+        .ok_or_else(|| ServiceError::UserNotFound(format!("Replicant '{}'", replicant_name)))
 }
 
 pub fn get_replicants(
     store: &Store,
     user_id: &UserID,
-) -> Result<Vec<ReplicantIdentity>, UserError> {
+) -> Result<Vec<ReplicantIdentity>, ServiceError> {
     store
         .lock()
         .unwrap()
@@ -149,7 +135,7 @@ pub fn get_replicants(
         .map_err(Into::into)
 }
 
-pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSession>, UserError> {
+pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSession>, ServiceError> {
     store
         .lock()
         .unwrap()
@@ -157,17 +143,12 @@ pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSessi
         .map_err(Into::into)
 }
 
-pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, UserError> {
+pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, ServiceError> {
     let session = store
         .lock()
         .unwrap()
         .get_session(session_id)?
-        .ok_or_else(|| {
-            UserError::from(hkask_services::ServiceError::UserNotFound(format!(
-                "Session '{}'",
-                session_id
-            )))
-        })?;
+        .ok_or_else(|| ServiceError::UserNotFound(format!("Session '{}'", session_id)))?;
     store.lock().unwrap().logout(session_id)?;
     Ok(session)
 }
@@ -270,17 +251,12 @@ pub fn login_replicant() {
     }
 }
 
-pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), UserError> {
+pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
     let identity = store
         .lock()
         .unwrap()
         .get_replicant(replicant_name)?
-        .ok_or_else(|| {
-            UserError::from(hkask_services::ServiceError::UserNotFound(format!(
-                "Replicant '{}'",
-                replicant_name
-            )))
-        })?;
+        .ok_or_else(|| ServiceError::UserNotFound(format!("Replicant '{}'", replicant_name)))?;
     println!("Replicant: {}", identity.replicant_name);
     println!("  User ID: {}", identity.user_id);
     println!("  Created: {}", identity.created_at);
@@ -290,13 +266,13 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), UserErr
     Ok(())
 }
 
-pub fn list_replicants(store: &Store) -> Result<(), UserError> {
+pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     let user_id = hkask_types::UserID::new();
     let replicants = store
         .lock()
         .unwrap()
         .list_replicants(&user_id)
-        .map_err(|e| UserError::from(hkask_services::ServiceError::from(e)))?;
+        .map_err(|e| ServiceError::from(e))?;
     if replicants.is_empty() {
         println!("No replicants registered.");
         return Ok(());
@@ -314,23 +290,18 @@ pub fn list_replicants(store: &Store) -> Result<(), UserError> {
     Ok(())
 }
 
-pub fn logout(store: &Store, session_id: &str) -> Result<(), UserError> {
+pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     let session = store
         .lock()
         .unwrap()
         .get_session(session_id)?
-        .ok_or_else(|| {
-            UserError::from(hkask_services::ServiceError::UserNotFound(format!(
-                "Session '{}'",
-                session_id
-            )))
-        })?;
+        .ok_or_else(|| ServiceError::UserNotFound(format!("Session '{}'", session_id)))?;
     store.lock().unwrap().logout(session_id)?;
     println!("Session revoked: {}", session.session_id);
     Ok(())
 }
 
-pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), UserError> {
+pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
     let sessions = store.lock().unwrap().list_sessions(replicant_name)?;
     if sessions.is_empty() {
         println!("No active sessions.");

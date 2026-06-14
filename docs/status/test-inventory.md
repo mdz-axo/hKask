@@ -19,8 +19,8 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 
 | Crate/MCP Server | Tests | Module |
 |------------------|-------|--------|
-| `hkask-services` | 60 | chat, cns, pods, goals, curator, kata, wallet |
-| `hkask-cli` | 41 | settings (12), repl_settings (4), turn/compaction (3), onboarding (3), feedback (3), mcp parse (13), passphrase (3) |
+| `hkask-services` | 61 | chat, cns, pods, goals, curator, kata, wallet, lifecycle, sovereignty, deletion_test, discover, spec |
+| `hkask-cli` | 43 | settings (12), repl_settings (4), turn/compaction (3), onboarding (3), feedback (3), mcp parse (13), passphrase (3), talk (2) |
 | `hkask-storage` | 50 | spec_store (6), spec_types (5), wallet (12), gallery (8), escalation (6), triples (5), agent_registry (2), store_macros (4 doc), lock_helpers (3 doc) |
 | `hkask-templates` | 13 | contract_validator (5), lexicon (6), okapi_config (1 doc-test), manifest (1) |
 | `hkask-cns` | 20 | governed_tool (4 OCAP + 1 doc-test + 1 integration), algedonic (2), variety (3), alert (2), cns_service (6), runtime (1) |
@@ -31,6 +31,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-companies` | 82 | analysis (20) + providers (9) + portfolio (23) + screening (19) + tools (11) |
 | `hkask-mcp-research` | 46 | strip_html (8), freshness (6), ranking (5), rate_limiter (4), extraction (8), search (9), browsing (6) |
 | `hkask-inference` | 20 | config (7), chat_protocol (3), fal_backend (4), embedding_router (4), ollama_backend (2) |
+| `hkask-improv` | 59 | modes (6), plussing (6), protocol (2), riffing (5), freestyling (7), cns (2), cascade (7), kata (4) + integration: plussing (4), yes-and (3), yes-but (3), freestyling (5), riffing (5) |
 | `hkask-api` | 2 | settings merge, settings validation |
 | `hkask-types` | 21 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2), voice (2), transcript (2) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
@@ -42,7 +43,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-memory` | 14 | consolidation, episodic, semantic pipelines |
 | `hkask-keystore` | 6 | key derivation, encryption round-trip |
 
-**Total: 534 tests across 22 crates** (↑ from 305; expanded test coverage across multiple crates)
+**Total: 595 tests across 23 crates** (↑ from 534; +59 improv, +2 cli, +1 services)
 
 ---
 
@@ -65,6 +66,7 @@ Per C8: "Test depth matches module depth."
 | `hkask-keystore` | ⚠️ OS-bound | No tests. Requires OS keychain for integration tests. |
 | `hkask-memory` | ⚠️ Model-bound | No tests. Requires embedding model for behavioral validation. |
 | `hkask-mcp-spec` | ✅ Compliant | 7 tests: capture (3), coherence (1), graph_query (1), writing_quality (1), tool listing (1) |
+| `hkask-improv` | ✅ Compliant | 59 tests: all 5 modes + cascade + kata + CNS. Every test carries `// REQ:` tag. Deep module (Plussing, Cascade) gets deep tests; shallow modes (Yes And, Yes But) get shallower tests. C8 compliant. |
 
 ---
 

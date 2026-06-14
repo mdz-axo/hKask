@@ -54,7 +54,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-DOM-002: ν-Event Observability Primitive
 
-- **Category:** Domain, Observability
+- **Category:** Domain, Lifecycle
 - **Text:** When any significant operation occurs, I want a typed event emitted, so I can observe system behavior.
 - **Criteria:**
   - [x] `NuEvent` struct with span, phase, observer, payload
@@ -98,11 +98,11 @@ Curation: Merge | Revise | Defer | Discard
 
 ---
 
-## 3. Capability Requirements
+## 3. Trust Requirements
 
 ### REQ-CAP-001: Object-Capability Access Control
 
-- **Category:** Capability, Trust
+- **Category:** Trust
 - **Text:** When any operation is attempted, I want OCAP enforcement, so I can prevent ambient authority.
 - **Criteria:**
   - [x] `Capability` type with HMAC-SHA256 signing
@@ -116,7 +116,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-CAP-002: Capability Attenuation Chains
 
-- **Category:** Capability, Trust
+- **Category:** Trust
 - **Text:** When delegating a composition, I want attenuation enforced, so I can limit delegated authority.
 - **Criteria:**
   - [x] Attenuation depth configurable (default: 7)
@@ -130,7 +130,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-CAP-003: MCP Tool Surface
 
-- **Category:** Capability, Interface
+- **Category:** Trust, Composition
 - **Text:** When an agent needs a tool, I want MCP server dispatch, so I can route tool calls to the correct server.
 - **Criteria:**
   10 MCP servers registered in workspace
@@ -147,11 +147,11 @@ Curation: Merge | Revise | Defer | Discard
 
 ---
 
-## 4. Interface Requirements
+## 4. Composition Requirements
 
 ### REQ-IFC-001: MCP ≡ CLI ≡ API Equivalence
 
-- **Category:** Interface
+- **Category:** Composition
 - **Text:** When exercising a composition, I want identical semantics across MCP, CLI, and API, so I can choose the appropriate surface.
 - **Criteria:**
   - [x] CLI binary `kask` with 26 subcommand groups
@@ -164,7 +164,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-IFC-002: OpenAPI Documentation
 
-- **Category:** Interface
+- **Category:** Composition
 - **Text:** When integrating with the API, I want auto-generated OpenAPI docs, so I can discover endpoints.
 - **Criteria:**
   - [x] utoipa v5.5 with axum extras
@@ -208,7 +208,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-COM-003: Agent Pod Composition
 
-- **Category:** Composition, Capability
+- **Category:** Composition, Trust
 - **Text:** When creating an agent, I want pod-based composition, so I can bundle identity, capabilities, and templates.
 - **Criteria:**
   - [x] `AgentPod` composes identity, capabilities, templates, lifecycle state
@@ -241,7 +241,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-TRU-002: Encrypted Storage at Rest
 
-- **Category:** Trust, Persistence
+- **Category:** Trust, Lifecycle
 - **Text:** When data is stored, I want encryption at rest, so I can protect user data.
 - **Criteria:**
   - [x] SQLCipher with AES-256-CBC
@@ -268,11 +268,11 @@ Curation: Merge | Revise | Defer | Discard
 
 ---
 
-## 7. Observability Requirements
+## 7. Lifecycle Requirements
 
 ### REQ-OBS-001: CNS Span Emission
 
-- **Category:** Observability
+- **Category:** Lifecycle
 - **Text:** When a capability is invoked, I want a CNS span emitted, so I can monitor system behavior.
 - **Criteria:**
   - [x] 22 span namespaces (15 canonical + 7 hierarchical; see PRINCIPLES.md §1.4)
@@ -284,7 +284,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-OBS-002: Algedonic Alerting
 
-- **Category:** Observability
+- **Category:** Lifecycle
 - **Text:** When variety deficit exceeds threshold, I want an alert escalated, so I can intervene.
 - **Criteria:**
   - [x] `AlgedonicManager` with severity levels (Info, Warning, Critical)
@@ -390,7 +390,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-CAP-004: Condenser MCP Server
 
-- **Category:** Capability, Interface
+- **Category:** Trust, Composition
 - **Text:** When agent context approaches the window limit, I want automatic summarization and compression via a dedicated MCP server, so I can maintain conversation continuity without manual truncation.
 - **Criteria:**
   - [x] 761 LOC in `hkask-mcp-condenser`
@@ -404,7 +404,7 @@ Curation: Merge | Revise | Defer | Discard
 
 ### REQ-CAP-005: Web MCP Server
 
-- **Category:** Capability, Interface
+- **Category:** Trust, Composition
 - **Text:** When an agent needs to retrieve web content, I want a dedicated MCP server for search, fetch, and crawl operations, so I can ground agent responses in current external data.
 - **Criteria:**
   - [x] 3,389 LOC in `hkask-mcp-web`
@@ -424,9 +424,9 @@ Curation: Merge | Revise | Defer | Discard
 
 | ID | Requirement | Reason | ADR |
 |----|------------|--------|-----|
-| REQ-IFC-D01 | Remote LLM fallback | Local-first invariant | ADR pending |
-| REQ-COM-D01 | Federation transport | Complexity exceeds budget | ADR pending |
-| REQ-PER-D01 | Qdrant vector search | sqlite-vec sufficient for MVP | ADR pending |
+| REQ-COM-D01 | Remote LLM fallback | Local-first invariant | ADR pending |
+| REQ-COM-D02 | Federation transport | Complexity exceeds budget | ADR pending |
+| REQ-LIF-D01 | Qdrant vector search | sqlite-vec sufficient for MVP | ADR pending |
 
 [^principles-p5]: hKask Team. (2026). *Architecture Principles — P5.* `docs/architecture/PRINCIPLES.md` §2.5 — No feature flag without activator. Deferred requirements are explicitly not implemented.
 

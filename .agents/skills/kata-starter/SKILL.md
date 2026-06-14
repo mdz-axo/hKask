@@ -75,6 +75,20 @@ Practice distinguishing facts from interpretations. Look at a process or situati
 - Don't stay in Starter Kata forever — these are "starter" kata, not "finishing" kata. Graduate.
 - Don't use Starter Kata as a substitute for coaching — if you have a coach available, use Coaching Kata
 
+## Improv Integration
+
+Starter Kata pairs with the **improv** skill for constructive coaching postures:
+
+| Drill | Improv Mode | Why |
+|-------|-------------|-----|
+| Observation Drill | **Plussing** | Silently filter incorrect observations without discouraging the learner. Amplify correct fact/interpretation distinctions. |
+| Five Questions Drill | **Yes And** | Reinforce correct answers to build momentum. Accept the learner's response and extend with the next question. |
+| PDCA Cycle | **Yes But** | Constrain experiment scope — "yes, try that, but limit to one variable at a time." Narrows without contradicting. |
+
+**Activation:** Use `/improv cascade` to compose the recommended sequence for your kata session.
+
+**CNS span:** `cns.kata.improv.effectiveness` — tracks automaticity score delta when improv is active vs. baseline.
+
 ## Registry Templates
 
 This skill's runtime templates live in `registry/templates/kata-starter/`:

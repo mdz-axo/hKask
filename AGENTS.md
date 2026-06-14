@@ -15,6 +15,7 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 | **refactor-service-layer** | Extracting duplicated business logic from CLI/API/MCP surfaces into `hkask-services`. Strangler fig pattern, deep-module discipline. |
 | **improve-codebase-architecture** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
 | **condenser-continuation** | Resuming condenser implementation after context reset. Restores session state, prioritizes remaining tasks, verifies build health. |
+| **improv** | Agent interaction grammar — Plussing, Yes And, Yes But, Freestyling, Riffing. Sets replicant posture in dual-presence chat, ensemble sessions, and kata coaching. Use `/improv` in REPL. |
 
 ---
 
@@ -90,6 +91,7 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | `hkask-keystore` | OS keychain, AES-256-GCM, HKDF-SHA256 |
 | `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
 | `hkask-services` | Shared service layer (CLI/API deduplication) |
+| `hkask-improv` | Composable interaction grammar (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade) |
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 | `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage, 3D) — 24 tools

@@ -17,7 +17,7 @@ non-negotiable biases of this project:
 
 1. **Mermaid-First Visualization Mandate** — diagrams live inline in
    the documents they describe.
-2. **Sourced-Ideas Mandate** — no claim or convention is presented as
+2. **Sourced-Ideas Mandate** — no claim presents itself as
    team-originated; every significant design choice carries a footnoted
    citation with a URL.
 3. **Writing Excellence Mandate** — every document must pass at least
@@ -34,17 +34,16 @@ non-negotiable biases of this project:
     Rhetoric section per PS-05.
 
 The Writing Excellence protocol defines the voice, style, structural
-discipline, and quality rubric for the corpus. It is grounded in the work
+discipline, and quality rubric for the corpus. It grounds itself in the work
 of four women whose contributions to technical communication define
 excellence: Grace Hopper (clarity as access), Ada Lovelace (precision as
 vision), Karen Schriver (design for the reader), and Anne Gentle
 (documentation as living system). The protocol is not aspirational — it
 is the operational quality standard that governs publication decisions.
 
-These biases are implemented through the metadata, diagram, citation,
-and writing excellence conventions below. Violations block publication.
+The metadata, diagram, citation, and writing excellence conventions below implement these biases. Violations block publication.
 
-**Role:** This document is the verification gate. It tells you how to confirm that documentation is correct and complete. What to create and where to put it is governed by [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md).
+**Role:** This document is the verification gate. It confirms that documentation is correct and complete. [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) governs what to create and where to put it.
 
 ---
 

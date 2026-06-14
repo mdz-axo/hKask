@@ -18,11 +18,11 @@ mds_categories: [lifecycle, curation]
 
 ## 1. What Is a Handoff?
 
-A handoff is a transient document recording implementation state at the end of an agent session. It exists to allow continuation by another agent session (or the same agent after context reset). Handoffs are:
+A handoff records implementation state at the end of an agent session. It enables continuation by another agent session (or the same agent after context reset). Handoffs:
 
 - **Descriptive, not prescriptive.** They record what was done, what remains, and key decisions — not future plans.
 - **Supersession-oriented.** Each handoff should reference its predecessor if it continues the same workstream.
-- **Temporary.** Handoffs are committed to git history and cleaned from the working tree when superseded.
+- **Temporary.** Git tracks handoffs in history. The working tree removes them when superseded.
 
 ---
 
@@ -36,7 +36,7 @@ Created → Active → Superseded → Archived (git history)
 
 ### 2.1 Created
 
-A handoff is created at the end of an agent session. It includes:
+An agent creates a handoff at session end. It includes:
 
 - Date (ISO 8601) in filename: `{topic}-YYYY-MM-DD.md`
 - What was accomplished
@@ -47,7 +47,7 @@ A handoff is created at the end of an agent session. It includes:
 
 ### 2.2 Active
 
-A handoff is active while its workstream is ongoing. Active handoffs live in `docs/handoffs/` and are visible in the working tree. An active handoff:
+A handoff stays active while its workstream continues. Active handoffs live in `docs/handoffs/`. An active handoff:
 
 - Has a clear successor path (work is continuing)
 - Has been created within the last 30 days
@@ -61,7 +61,7 @@ A handoff is superseded when a newer handoff in the same workstream explicitly c
 - Re-encode all essential architectural decisions
 - State: "This session builds on {predecessor}, which carried state X, Y, Z"
 
-Upon supersession, the handoff is removed from the working tree via `git rm` and committed. Git history is the archive of record.
+The successor removes the superseded handoff from the working tree with `git rm` and commits the removal. Git history preserves the record.
 
 ### 2.4 Stale
 
@@ -71,7 +71,7 @@ A handoff becomes stale when:
 - The handoff is older than 30 days
 - OR the workstream is demonstrably complete (code, ADRs, and specs exist)
 
-Stale handoffs follow the same archival procedure as superseded ones: `git rm` from working tree.
+Stale handoffs follow the same procedure as superseded ones: remove from working tree with `git rm`.
 
 ---
 
@@ -82,7 +82,7 @@ Stale handoffs follow the same archival procedure as superseded ones: `git rm` f
 3. Commit with message: `docs: archive handoff {filename} (superseded by {successor})` or `docs: archive stale handoff {filename}`
 4. No on-disk archive copy is kept. Git history is the canonical archive.
 
-The `docs/archive/MANIFEST.md` records archive decisions but does not store document contents. Handoffs are never moved to `docs/archive/` — that directory is for non-handoff documents being retired.
+`docs/archive/MANIFEST.md` records archive decisions but stores no document contents. Handoffs never go to `docs/archive/` — that directory holds retired non-handoff documents.
 
 ---
 
@@ -100,10 +100,10 @@ The `docs/archive/MANIFEST.md` records archive decisions but does not store docu
 
 ## 5. Relationship to Other Lifecycle Policies
 
-- **`DOCUMENTATION_STANDARDS.md`** governs formal documents with frontmatter. Handoffs are exempt from frontmatter requirements due to their transient nature.
-- **`MDS_SCAFFOLD.md`** governs document placement. Handoffs live in `docs/handoffs/` only.
-- **`docs/archive/MANIFEST.md`** records retired non-handoff documents. Handoff archival is tracked in git commit history.
-- **`docs/plans/`** contains forward-looking work. Handoffs that drift into planning should be rewritten as plan documents.
+- **`DOCUMENTATION_STANDARDS.md`** governs formal documents with frontmatter. Handoffs skip frontmatter — they are transient, not formal docs.
+- **`MDS_SCAFFOLD.md`** governs document placement. Handoffs live only in `docs/handoffs/`.
+- **`docs/archive/MANIFEST.md`** records retired non-handoff documents. Git commit history tracks handoff archival.
+- **`docs/plans/`** holds forward-looking work. Rewrite handoffs that drift into planning as plan documents.
 
 ---
 

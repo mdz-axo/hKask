@@ -18,26 +18,26 @@ mds_categories: [domain, trust, lifecycle]
 
 ## Context
 
-hKask's economic layer requires a payment mechanism for agent-to-agent and human-to-agent resource transfers. The wallet crate (`hkask-wallet`) implements rJoule — an internal energy currency — with multi-chain support for bridging to external payment systems.
+hKask's economic layer uses rJoule — an internal energy currency — for agent-to-agent and human-to-agent resource transfers. The wallet crate (`hkask-wallet`) implements rJoule with multi-chain bridges to external payment systems.
 
-The architecture was developed across multiple sessions (handoffs: `wlt-cns-ph5-2026-06-12.md`) and specified in `wallet-specification.md`. This ADR documents the payment mechanism decisions.
+Agent sessions developed the architecture across multiple handoffs (`wlt-cns-ph5-2026-06-12.md`). The `wallet-specification.md` specifies the crate architecture. This ADR documents the payment mechanism decisions.
 
 ## Decision
 
 ### rJoule as Internal Energy Currency
 
-rJoule is the canonical unit of economic value within hKask. It is:
+rJoule is the canonical unit of economic value within hKask:
 - **Not a cryptocurrency.** No blockchain, no consensus, no mining.
 - **Energy-backed.** 1 rJoule = 1 unit of inference compute (gas).
-- **Transferable.** Agent-to-agent, human-to-agent, agent-to-human.
-- **Revocable.** Transfers can be reversed within a configurable window.
+- **Transferable.** Agents and humans can send rJoule to each other.
+- **Revocable.** A transfer can be reversed within a configurable window.
 
 ### Multi-Chain Bridge Architecture
 
-External payment systems (Stripe, cryptocurrency networks) connect via bridge adapters:
-- Each bridge implements a `PaymentBridge` trait
-- Bridges convert external currency ↔ rJoule at configurable exchange rates
-- Bridge selection is per-transaction, not global
+External payment systems (Stripe, cryptocurrency networks) connect through bridge adapters:
+- Each bridge implements the `PaymentBridge` trait
+- Bridges convert between external currency and rJoule at configurable exchange rates
+- Each transaction selects its bridge independently
 
 ### Wallet State Machine
 
@@ -49,21 +49,21 @@ Empty → Funded → Active → Frozen → Closed
 
 ### Key Storage
 
-Wallet private keys are stored in the OS keychain via `hkask-keystore` (AES-256-GCM, HKDF-SHA256). No plaintext keys on disk.
+The OS keychain stores wallet private keys via `hkask-keystore` (AES-256-GCM, HKDF-SHA256). No plaintext keys touch disk.
 
 ## Consequences
 
-- **Positive:** Internal currency decouples agent economics from external payment systems.
-- **Positive:** Multi-chain bridge architecture allows incremental external integration.
-- **Negative:** Exchange rate management is not yet automated — requires manual configuration.
-- **Negative:** Revocation window introduces a trust dependency on the revocation authority.
+- **Positive:** rJoule decouples agent economics from external payment systems.
+- **Positive:** Multi-chain bridges allow incremental external integration — add one bridge at a time.
+- **Negative:** Exchange rates require manual configuration. Rate automation is not implemented.
+- **Negative:** Revocation depends on a revocation authority. This creates a trust dependency.
 
 ## Procedural Rhetoric
 
 - **PS-01 (Shared Goal):** Economic layer for agent resource accounting and transfer.
 - **PS-02 (Bounded Lexicon):** rJoule, PaymentBridge, wallet state machine, multi-chain bridge.
 - **PS-03 (Mode of Play):** State machine with explicit transitions; bridge adapters for external systems.
-- **PS-12 (Invitational Voice):** New payment bridges are invited via trait implementation.
+- **PS-12 (Invitational Voice):** New payment bridges integrate via trait implementation.
 
 ---
 

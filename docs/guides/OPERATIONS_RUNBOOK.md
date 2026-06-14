@@ -18,7 +18,7 @@ mds_categories: [lifecycle, trust]
 
 ## 1. Deployment Architecture
 
-hKask runs as a single binary (`kask`) with a Unix socket daemon at `~/.config/hkask/daemon.sock`. The daemon mediates:
+hKask deploys as a single binary (`kask`) with a Unix socket daemon at `~/.config/hkask/daemon.sock`. The daemon handles:
 - Agent authentication and session management
 - MCP server role assignment
 - Capability verification (OCAP)
@@ -199,7 +199,7 @@ docker logs conduit  # or: podman logs conduit
 | Component | Log Location |
 |-----------|-------------|
 | Daemon | `~/.config/hkask/daemon.log` |
-| CLI sessions | stdout/stderr (not persisted by default) |
+| CLI sessions | stdout/stderr (CLI does not persist session output by default) |
 | Conduit | Docker/Podman logs (`docker logs conduit`) |
 | MCP servers | stdout/stderr of spawned process |
 | CNS events | SQLite database (via `hkask-storage`) |
@@ -208,7 +208,7 @@ docker logs conduit  # or: podman logs conduit
 
 ## 8. Backup & Recovery
 
-### What to Back Up
+### Back Up These Files
 
 - `~/.config/hkask/settings.json` — user settings
 - `~/.config/hkask/` — daemon state (SQLite databases)

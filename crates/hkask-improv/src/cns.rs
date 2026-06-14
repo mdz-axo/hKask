@@ -95,10 +95,6 @@ pub const FREESTYLE_MIN_TURNS_ALERT: usize = 0;
 /// (improv made kata performance worse).
 pub const KATA_IMPROV_EFFECTIVENESS_ALERT: f64 = 0.0;
 
-/// Ensemble coherence: alert if explicit mode degrades quality.
-/// Requires baseline measurement; threshold TBD through use.
-pub const ENSEMBLE_COHERENCE_DEGRADATION_ALERT: f64 = -0.1;
-
 #[cfg(test)]
 mod tests {
     use super::*;

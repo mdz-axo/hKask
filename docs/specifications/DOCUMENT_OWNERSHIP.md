@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # Document Category Ownership
 
-**Purpose:** Assigns clear ownership to each documentation directory, defines maintenance responsibilities, and establishes the review cadence for the documentation corpus.
+**Purpose:** Assigns ownership to each documentation directory, defines maintenance responsibilities, and establishes the review cadence.
 
 **Governing Principles:** P5 (Pared Surface), P6 (No Dead Docs), P8 (Semantic Grounding)
 
@@ -84,7 +84,7 @@ Every formal document (with YAML frontmatter) MUST carry `version` matching the 
 
 ### Exceptions
 
-- Documents tracking their own semantic version (e.g., `MDS_SCAFFOLD.md` at 2.5.0, `test-inventory.md` at 2.4.0) may diverge intentionally — but the divergence must be documented in `corpus_inventory.yaml` notes.
+- Documents tracking their own semantic version (e.g., `MDS_SCAFFOLD.md` at 2.5.0, `test-inventory.md` at 2.4.0) diverge intentionally. Document the divergence in `corpus_inventory.yaml` notes.
 - Auto-generated files (`docs/generated/cli-reference.md`) inherit workspace version automatically.
 - Handoffs and audit documents have no frontmatter (exempt).
 
@@ -96,9 +96,9 @@ On workspace version bump:
 3. For documents intentionally tracking their own version: verify the divergence is documented.
 4. For all other documents: bump `version` field to match workspace.
 
-### Automation Opportunity
+### Automation
 
-A `sync-versions.sh` script could automate Step 4. See `docs/plans/DOCUMENT_ROADMAP.md` for priority.
+`docs/ci/sync-versions.sh` automates Step 4. Run with `--dry-run` to preview changes. The script's exclusion list documents intentionally divergent versions.
 
 ---
 
@@ -119,12 +119,13 @@ All auto-generated documents MUST include a header comment noting their generati
 
 ## 5. Document Types Without Current Homes
 
-| Document Type | Recommended Home | Priority | Owner |
-|---------------|-----------------|----------|-------|
-| Runbooks / operational guides | `docs/guides/` or new `docs/runbooks/` | Medium | User advocate |
-| Replicant onboarding guide | `docs/user-guides/` | Low | User advocate |
-| OpenAPI specification | `docs/generated/openapi.json` | Medium | CI/CD steward |
-| New MCP server specifications | `docs/specifications/` | High | Workstream lead |
+| Document Type | Recommended Home | Priority | Owner | Status |
+|---------------|-----------------|----------|-------|--------|
+| Replicant onboarding guide | `docs/user-guides/` | Low | User advocate | Missing |
+| OpenAPI specification | `docs/generated/openapi.json` | Medium | CI/CD steward | Missing |
+| New MCP server specifications | `docs/specifications/` | High | Workstream lead | Per-server |
+
+**Resolved:** Runbooks now live at `docs/guides/OPERATIONS_RUNBOOK.md` (created 2026-06-14).
 
 ---
 

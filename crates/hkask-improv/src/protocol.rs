@@ -1,9 +1,4 @@
-//! Improv protocol — trait, input/output types.
-//!
-//! The `ImprovProtocol` trait defines the single contract that every improv mode
-//! must fulfill: accept a contribution and produce a response. Mode-specific
-//! operations (`cycle` for freestyling, `resolve` for riffing) live on their
-//! respective types, not on the trait — each thing does one thing.
+//! Improv protocol types — input/output types for improv interaction.
 //!
 //! `Contribution` is the input type (a turn in conversation).
 //! `ImprovResponse` is the unified output enum covering all five modes.
@@ -14,10 +9,13 @@ use crate::riffing::RiffReturn;
 use hkask_types::id::WebID;
 use std::time::Duration;
 
+/// Protocol trait for improv modes — each mode implements respond().
+pub trait ImprovProtocol {
+    fn respond(&self, contribution: &Contribution, context: &ConversationContext)
+    -> ImprovResponse;
+}
+
 /// A single turn in a conversation — the atomic unit of improv interaction.
-///
-/// Owned by the mode that processes it. The `source` field identifies
-/// which agent produced this contribution.
 #[derive(Debug, Clone)]
 pub struct Contribution {
     /// The agent that produced this contribution.
@@ -28,10 +26,7 @@ pub struct Contribution {
     pub turn_index: usize,
 }
 
-/// Unified response type covering all five improv modes plus cascade errors.
-///
-/// Each variant carries mode-specific output data. Callers match on the
-/// variant to determine what kind of response was produced.
+/// Unified response type covering all five improv modes.
 #[derive(Debug, Clone)]
 pub enum ImprovResponse {
     /// Plussing output: selected agreeable components + constructive build.
@@ -60,9 +55,6 @@ pub enum ImprovResponse {
         tangent: String,
         return_policy: RiffReturn,
     },
-
-    /// Error during cascade execution (e.g., recursion limit exceeded).
-    Error { message: String },
 }
 
 impl ImprovResponse {
@@ -88,20 +80,8 @@ impl ImprovResponse {
                 tangent,
                 return_policy: _,
             } => tangent.clone(),
-            ImprovResponse::Error { message } => format!("[improv error] {}", message),
         }
     }
-}
-
-/// The improv protocol — one trait, one method.
-///
-/// Every improv mode implements this trait. The single method `respond()`
-/// accepts a contribution and produces a mode-appropriate response.
-/// Mode-specific operations (`FreestyleSession::cycle()`, `riffing::resolve()`)
-/// live on their respective types — each thing does one thing.
-pub trait ImprovProtocol {
-    /// Accept a contribution and produce a response according to the mode.
-    fn respond(&self, prior: &Contribution, context: &ConversationContext) -> ImprovResponse;
 }
 
 #[cfg(test)]
@@ -125,40 +105,45 @@ mod tests {
     // REQ: ImprovResponse variants are constructable
     #[test]
     fn improv_response_variants_constructable() {
-        // Plussed
         let pr = PlussedResponse {
             selected_seeds: vec![],
             build: "build".to_string(),
         };
-        let r = ImprovResponse::Plussed(pr);
-        assert!(matches!(r, ImprovResponse::Plussed(_)));
+        assert!(matches!(
+            ImprovResponse::Plussed(pr),
+            ImprovResponse::Plussed(_)
+        ));
 
-        // Extended
-        let r = ImprovResponse::Extended {
-            accepted_base: "base".to_string(),
-            extension: "ext".to_string(),
-        };
-        assert!(matches!(r, ImprovResponse::Extended { .. }));
+        assert!(matches!(
+            ImprovResponse::Extended {
+                accepted_base: "base".to_string(),
+                extension: "ext".to_string(),
+            },
+            ImprovResponse::Extended { .. }
+        ));
 
-        // Constrained
-        let r = ImprovResponse::Constrained {
-            accepted_base: "base".to_string(),
-            constraint: "limit".to_string(),
-        };
-        assert!(matches!(r, ImprovResponse::Constrained { .. }));
+        assert!(matches!(
+            ImprovResponse::Constrained {
+                accepted_base: "base".to_string(),
+                constraint: "limit".to_string(),
+            },
+            ImprovResponse::Constrained { .. }
+        ));
 
-        // FreestyleTurn
-        let r = ImprovResponse::FreestyleTurn {
-            content: "rapid".to_string(),
-            time_remaining: Duration::from_secs(60),
-        };
-        assert!(matches!(r, ImprovResponse::FreestyleTurn { .. }));
+        assert!(matches!(
+            ImprovResponse::FreestyleTurn {
+                content: "rapid".to_string(),
+                time_remaining: Duration::from_secs(60),
+            },
+            ImprovResponse::FreestyleTurn { .. }
+        ));
 
-        // Riff
-        let r = ImprovResponse::Riff {
-            tangent: "tangent".to_string(),
-            return_policy: RiffReturn::ReturnToGroup,
-        };
-        assert!(matches!(r, ImprovResponse::Riff { .. }));
+        assert!(matches!(
+            ImprovResponse::Riff {
+                tangent: "tangent".to_string(),
+                return_policy: RiffReturn::ReturnToGroup,
+            },
+            ImprovResponse::Riff { .. }
+        ));
     }
 }
