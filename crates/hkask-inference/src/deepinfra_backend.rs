@@ -319,18 +319,98 @@ impl DeepInfraBackend {
     }
 
     /// Generate speech from text with a voice description.
-    /// Uses DeepInfra TTS models (e.g., coqui/XTTS-v2 or similar).
+    /// Uses DeepInfra's ElevenLabs-compatible TTS API.
+    /// Default model: hexgrad/Kokoro-82M.
+    /// API: POST /v1/text-to-speech/{voice_id}
     pub async fn generate_speech(
         &self,
         text: &str,
-        voice_description: &str,
+        voice_id: &str,
+        model_id: Option<&str>,
     ) -> Result<serde_json::Value, InferenceError> {
+        let model = model_id.unwrap_or("hexgrad/Kokoro-82M");
+        let url = format!("{}/v1/text-to-speech/{}", self.base_url, voice_id);
         let body = serde_json::json!({
-            "input": text,
-            "voice": voice_description,
+            "text": text,
+            "model_id": model,
+            "output_format": "mp3",
         });
-        // Route to a TTS-capable model on DeepInfra
-        self.di_inference_post("coqui/XTTS-v2", body).await
+
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(format!("DeepInfra TTS failed: {}", e)))?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let error_text = resp.text().await.unwrap_or_default();
+            return Err(InferenceError::Connection(format!(
+                "DeepInfra TTS status {}: {}",
+                status, error_text
+            )));
+        }
+
+        // TTS returns raw audio bytes — wrap in a JSON response with metadata
+        let audio_bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| InferenceError::Connection(format!("DeepInfra TTS read failed: {}", e)))?;
+
+        // Return as base64 data URI for portability
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&audio_bytes);
+        Ok(serde_json::json!({
+            "audio": format!("data:audio/mp3;base64,{}", b64),
+            "format": "mp3",
+            "model": model,
+            "voice_id": voice_id,
+        }))
+    }
+
+    /// Transcribe speech audio to text using Whisper.
+    /// Uses DeepInfra's OpenAI-compatible audio transcription endpoint.
+    /// API: POST /v1/audio/transcriptions
+    /// Requests word-level timestamps for interactive transcript bundles.
+    pub async fn transcribe(
+        &self,
+        audio_url: &str,
+        language: Option<&str>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let url = format!("{}/v1/audio/transcriptions", self.base_url);
+        let mut body = serde_json::json!({
+            "file": audio_url,
+            "model": "openai/whisper-large-v3",
+            "response_format": "verbose_json",
+            "timestamp_granularities": ["word", "segment"],
+        });
+        if let Some(lang) = language {
+            body["language"] = serde_json::json!(lang);
+        }
+
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(format!("DeepInfra STT failed: {}", e)))?;
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(InferenceError::Connection(format!(
+                "DeepInfra STT status {}: {}",
+                status, text
+            )));
+        }
+
+        serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("DeepInfra STT parse: {}", e)))
     }
 }
 

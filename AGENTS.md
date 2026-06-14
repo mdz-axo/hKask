@@ -47,7 +47,7 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 | `hkask-mcp-media` | Media generation MCP server (image, video, audio, 3D) |
-| `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache) |
+| `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache, query) |
 | `hkask-mcp-training` | Model training data ingestion MCP server (stub) |
 | `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research |
 | `hkask-mcp-replica` | Authorial style embedding and composition |

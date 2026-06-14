@@ -2173,6 +2173,7 @@ dependencies = [
 name = "hkask-inference"
 version = "0.27.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "futures-util",
  "hkask-keystore",

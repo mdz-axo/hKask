@@ -1,4 +1,4 @@
-//! hKask MCP Media — AI media generation (image and short-video via centralized inference router)
+//! hKask MCP Media — AI media generation (image, video, voice via centralized inference router)
 //!
 //! Tool families:
 //! - Gallery: set_root, scan, info, get_image, get_metadata
@@ -6,6 +6,7 @@
 //! - Abstraction: image_caption, image_describe_scene, image_classify_style
 //! - Derivation: remove_background, apply_style, create_collage, upscale, image_to_image
 //! - Video/GIF: generate_video, image_to_video, video_clip, video_to_gif, video_add_caption, video_remix
+//! - Voice: voice_design, generate_speech
 //! - Generation: generate_image, image_to_image, upscale, generate_video, caption
 
 mod gallery;
@@ -17,7 +18,9 @@ use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError};
-use hkask_types::{InferencePort, McpErrorKind, VoiceDesign, WebID};
+use hkask_types::{
+    InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign, WebID,
+};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -232,6 +235,124 @@ pub struct GenerateSpeechRequest {
     pub text: String,
     /// Voice design JSON (as produced by voice_design tool).
     pub voice_design: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TranscribeRequest {
+    /// URL or base64 data URI of the audio to transcribe.
+    pub audio_url: String,
+    /// Optional ISO 639-1 language code (e.g., "en", "ja").
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AudioCaptureRequest {
+    /// Duration to record in seconds (max 3600 = 1 hour).
+    pub duration_secs: f32,
+    /// Optional output path. Defaults to temp directory with UUID filename.
+    pub output_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RecordAndTranscribeRequest {
+    /// Duration to record in seconds (max 3600 = 1 hour).
+    pub duration_secs: f32,
+    /// Optional ISO 639-1 language code for transcription.
+    pub language: Option<String>,
+}
+
+// ── Search request types ────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GallerySearchRequest {
+    /// Search query — words or phrases to match against tags.
+    pub query: String,
+    /// Maximum results to return (default: 10).
+    pub limit: Option<usize>,
+    /// Filter to specific tag types (e.g., ["object", "color"]). Empty = all types.
+    pub tag_types: Option<Vec<String>>,
+    /// Minimum Levenshtein similarity threshold (0.0–1.0, default: 0.3).
+    pub min_similarity: Option<f64>,
+}
+
+/// Compute normalized Levenshtein similarity between two strings.
+/// Returns 1.0 for identical strings, 0.0 for completely different.
+fn levenshtein_similarity(a: &str, b: &str) -> f64 {
+    let a_len = a.chars().count();
+    let b_len = b.chars().count();
+    if a_len == 0 && b_len == 0 {
+        return 1.0;
+    }
+    if a_len == 0 || b_len == 0 {
+        return 0.0;
+    }
+
+    let a_lower = a.to_lowercase();
+    let b_lower = b.to_lowercase();
+    let a_chars: Vec<char> = a_lower.chars().collect();
+    let b_chars: Vec<char> = b_lower.chars().collect();
+
+    // Space-optimized DP: only keep two rows
+    let mut prev: Vec<usize> = (0..=b_len).collect();
+    let mut curr = vec![0usize; b_len + 1];
+
+    for i in 1..=a_len {
+        curr[0] = i;
+        for j in 1..=b_len {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            curr[j] = (prev[j] + 1) // deletion
+                .min(curr[j - 1] + 1) // insertion
+                .min(prev[j - 1] + cost); // substitution
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    let distance = prev[b_len];
+    let max_len = a_len.max(b_len) as f64;
+    1.0 - (distance as f64 / max_len)
+}
+
+#[cfg(test)]
+mod levenshtein_tests {
+    use super::*;
+
+    /// REQ: media-search-levenshtein-01 — identical strings return 1.0
+    #[test]
+    fn identical_strings() {
+        assert!((levenshtein_similarity("sunset", "sunset") - 1.0).abs() < 0.001);
+    }
+
+    /// REQ: media-search-levenshtein-02 — completely different strings return low score
+    #[test]
+    fn completely_different() {
+        let sim = levenshtein_similarity("sunset", "xyzzy");
+        assert!(sim < 0.3, "expected low similarity, got {}", sim);
+    }
+
+    /// REQ: media-search-levenshtein-03 — case insensitive
+    #[test]
+    fn case_insensitive() {
+        assert!((levenshtein_similarity("Sunset", "sunset") - 1.0).abs() < 0.001);
+    }
+
+    /// REQ: media-search-levenshtein-04 — typo-tolerant
+    #[test]
+    fn typo_tolerant() {
+        let sim = levenshtein_similarity("sunset", "sunest");
+        assert!(sim > 0.6, "expected high similarity for typo, got {}", sim);
+    }
+
+    /// REQ: media-search-levenshtein-05 — empty strings
+    #[test]
+    fn empty_strings() {
+        assert!((levenshtein_similarity("", "") - 1.0).abs() < 0.001);
+        assert!((levenshtein_similarity("sunset", "") - 0.0).abs() < 0.001);
+        assert!((levenshtein_similarity("", "sunset") - 0.0).abs() < 0.001);
+    }
 }
 
 impl MediaServer {
@@ -768,6 +889,115 @@ impl MediaServer {
             "hash": img_record.hash,
             "tags": tag_list,
             "exif": exif_data,
+        }))
+    }
+
+    #[tool(
+        description = "Search gallery images by fuzzy-matching tags using Levenshtein distance. Returns ranked results with matching tags highlighted."
+    )]
+    async fn gallery_search(
+        &self,
+        Parameters(GallerySearchRequest {
+            query,
+            limit,
+            tag_types,
+            min_similarity,
+        }): Parameters<GallerySearchRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("gallery_search", &self.webid);
+
+        let guard = self.gallery_state.lock().unwrap();
+        let state = match &*guard {
+            Some(s) => s,
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument("No gallery initialized.").to_json_string(),
+                );
+            }
+        };
+
+        let gallery_id = match &state.gallery_id {
+            Some(id) => id.clone(),
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(
+                        "Gallery not persisted — run gallery_set_root first.",
+                    )
+                    .to_json_string(),
+                );
+            }
+        };
+
+        let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+            Ok(tags) => tags,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to query tags: {}", e)).to_json_string(),
+                );
+            }
+        };
+
+        let limit = limit.unwrap_or(10);
+        let min_sim = min_similarity.unwrap_or(0.3);
+        let type_filter: Option<Vec<String>> =
+            tag_types.map(|t| t.into_iter().map(|s| s.to_lowercase()).collect());
+
+        // Score each tag against the query using Levenshtein similarity
+        let mut image_scores: std::collections::HashMap<String, (f64, Vec<serde_json::Value>)> =
+            std::collections::HashMap::new();
+
+        for (tag, relative_path) in &all_tags {
+            // Apply tag type filter if specified
+            if let Some(ref filter) = type_filter {
+                if !filter.contains(&tag.tag_type.to_lowercase()) {
+                    continue;
+                }
+            }
+
+            let sim = levenshtein_similarity(&query, &tag.value);
+            if sim < min_sim {
+                continue;
+            }
+
+            let weighted_sim = sim * tag.confidence;
+            let entry = image_scores
+                .entry(relative_path.clone())
+                .or_insert((0.0, Vec::new()));
+            entry.0 = entry.0.max(weighted_sim);
+            entry.1.push(serde_json::json!({
+                "tag_type": tag.tag_type,
+                "value": tag.value,
+                "similarity": sim,
+                "confidence": tag.confidence,
+            }));
+        }
+
+        // Sort by score descending, take top N
+        let mut ranked: Vec<(String, f64, Vec<serde_json::Value>)> = image_scores
+            .into_iter()
+            .map(|(path, (score, matches))| (path, score, matches))
+            .collect();
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        ranked.truncate(limit);
+
+        let results: Vec<serde_json::Value> = ranked
+            .into_iter()
+            .map(|(path, score, matches)| {
+                serde_json::json!({
+                    "image": path,
+                    "score": score,
+                    "matching_tags": matches,
+                })
+            })
+            .collect();
+
+        span.ok_json(serde_json::json!({
+            "query": query,
+            "results": results,
+            "total_matches": results.len(),
         }))
     }
 
@@ -1707,9 +1937,14 @@ impl MediaServer {
         };
 
         let params = hkask_types::LLMParameters::default();
+        // Use Llama 3.3 70B for structured JSON voice design generation
         let result = self
             .inference
-            .generate(&prompt, &params)
+            .generate_with_model(
+                &prompt,
+                &params,
+                Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+            )
             .await
             .map_err(|e| {
                 McpToolError::unavailable(format!("Voice design inference failed: {}", e))
@@ -1742,7 +1977,7 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Generate speech audio from text using a voice design. Returns audio URL."
+        description = "Generate speech audio from text using a voice design. Returns audio as base64 data URI."
     )]
     async fn generate_speech(
         &self,
@@ -1750,19 +1985,19 @@ impl MediaServer {
     ) -> String {
         let span = ToolSpanGuard::new("generate_speech", &self.webid);
 
-        // Build voice description for TTS model
-        let voice_desc = if let Some(ref vd_json) = voice_design {
+        // Resolve voice preset from VoiceDesign or use default
+        let voice = if let Some(ref vd_json) = voice_design {
             match serde_json::from_str::<VoiceDesign>(vd_json) {
-                Ok(vd) => vd.to_tts_description(),
-                Err(_) => vd_json.clone(),
+                Ok(vd) => vd.to_elevenlabs_voice().to_string(),
+                Err(_) => "Rachel".to_string(),
             }
         } else {
-            VoiceDesign::default().to_tts_description()
+            "Rachel".to_string()
         };
 
         let result = self
             .inference
-            .generate_speech(&text, &voice_desc)
+            .generate_speech(&text, &voice)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Speech generation failed: {}", e)));
 
@@ -1770,10 +2005,288 @@ impl MediaServer {
             "generate_speech",
             &text,
             if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"voice": voice_desc}),
+            serde_json::json!({"voice": voice}),
         );
 
         span.finish(result)
+    }
+
+    #[tool(
+        description = "Transcribe speech audio to text. Returns transcribed text for REPL injection."
+    )]
+    async fn transcribe(
+        &self,
+        Parameters(TranscribeRequest {
+            audio_url,
+            language,
+        }): Parameters<TranscribeRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("transcribe", &self.webid);
+        if let Err(e) = validate_tool_url(&audio_url) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        let result = self
+            .inference
+            .transcribe(&audio_url, language.as_deref())
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Transcription failed: {}", e)));
+
+        self.record_experience(
+            "transcribe",
+            &format!("audio_url={}", audio_url),
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"language": language}),
+        );
+
+        span.finish(result)
+    }
+
+    #[tool(
+        description = "Transcribe audio and return a synchronized TranscriptBundle with word-level timings. Enables interactive highlighting and click-to-seek in frontends."
+    )]
+    async fn transcribe_bundle(
+        &self,
+        Parameters(TranscribeRequest {
+            audio_url,
+            language,
+        }): Parameters<TranscribeRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("transcribe_bundle", &self.webid);
+        if let Err(e) = validate_tool_url(&audio_url) {
+            return span.error(e.kind, e.to_json_string());
+        }
+
+        let result = self
+            .inference
+            .transcribe(&audio_url, language.as_deref())
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Transcription failed: {}", e)));
+
+        match result {
+            Ok(raw) => {
+                let full_text = raw
+                    .get("text")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let duration = raw.get("duration").and_then(|d| d.as_f64()).unwrap_or(0.0) as f32;
+                let model = raw
+                    .get("model")
+                    .and_then(|m| m.as_str())
+                    .map(|s| s.to_string());
+                let words: Vec<TimedWord> = raw
+                    .get("words")
+                    .and_then(|w| w.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|w| {
+                                Some(TimedWord {
+                                    word: w.get("word")?.as_str()?.to_string(),
+                                    start_ms: (w.get("start")?.as_f64()? * 1000.0) as u64,
+                                    end_ms: (w.get("end")?.as_f64()? * 1000.0) as u64,
+                                    confidence: w.get("confidence").and_then(|c| c.as_f64()),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let segments: Vec<TranscriptSegment> = raw
+                    .get("segments")
+                    .and_then(|s| s.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|s| {
+                                Some(TranscriptSegment {
+                                    text: s.get("text")?.as_str()?.to_string(),
+                                    start_ms: (s.get("start")?.as_f64()? * 1000.0) as u64,
+                                    end_ms: (s.get("end")?.as_f64()? * 1000.0) as u64,
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let bundle = TranscriptBundle {
+                    format: "hkask-transcript-v1".to_string(),
+                    audio_path: audio_url.clone(),
+                    audio_duration_secs: duration,
+                    full_text,
+                    words,
+                    segments,
+                    language: language.clone(),
+                    model,
+                };
+
+                self.record_experience(
+                    "transcribe_bundle",
+                    &format!("audio_url={}", audio_url),
+                    "success",
+                    serde_json::json!({"word_count": bundle.word_count()}),
+                );
+
+                span.ok_json(
+                    serde_json::to_value(&bundle).unwrap_or_else(
+                        |_| serde_json::json!({"error": "Failed to serialize bundle"}),
+                    ),
+                )
+            }
+            Err(e) => span.error(e.kind, e.to_json_string()),
+        }
+    }
+
+    #[tool(
+        description = "Capture audio from the default system microphone. Records to a WAV file optimized for Whisper transcription (16kHz mono)."
+    )]
+    async fn audio_capture(
+        &self,
+        Parameters(AudioCaptureRequest {
+            duration_secs,
+            output_path,
+        }): Parameters<AudioCaptureRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("audio_capture", &self.webid);
+
+        if duration_secs <= 0.0 || duration_secs > 3600.0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "duration_secs must be between 0.1 and 3600 (1 hour).",
+                )
+                .to_json_string(),
+            );
+        }
+
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found — audio capture unavailable.")
+                    .to_json_string(),
+            );
+        }
+
+        match self
+            .ffmpeg
+            .capture_audio(duration_secs, output_path.as_deref())
+            .await
+        {
+            Ok(path) => {
+                self.record_experience(
+                    "audio_capture",
+                    &format!("duration={}s", duration_secs),
+                    "success",
+                    serde_json::json!({"output": path.display().to_string()}),
+                );
+                span.ok_json(serde_json::json!({
+                    "status": "captured",
+                    "duration_secs": duration_secs,
+                    "output": path.display().to_string(),
+                    "format": "wav",
+                    "sample_rate": 16000,
+                    "channels": 1,
+                }))
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Record audio from microphone and transcribe it in one call. Returns linked audio file path and transcript. Use for meetings, notes, or any recording you want to keep."
+    )]
+    async fn record_and_transcribe(
+        &self,
+        Parameters(RecordAndTranscribeRequest {
+            duration_secs,
+            language,
+        }): Parameters<RecordAndTranscribeRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("record_and_transcribe", &self.webid);
+
+        if duration_secs <= 0.0 || duration_secs > 3600.0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "duration_secs must be between 0.1 and 3600 (1 hour).",
+                )
+                .to_json_string(),
+            );
+        }
+
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found — audio capture unavailable.")
+                    .to_json_string(),
+            );
+        }
+
+        // Step 1: capture audio
+        let audio_path = match self.ffmpeg.capture_audio(duration_secs, None).await {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Audio capture failed: {}", e)).to_json_string(),
+                );
+            }
+        };
+
+        // Step 2: read audio file and encode as base64 data URI
+        let audio_data = match std::fs::read(&audio_path) {
+            Ok(d) => d,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to read captured audio: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &audio_data);
+        let audio_uri = format!("data:audio/wav;base64,{}", b64);
+
+        // Step 3: transcribe
+        let transcribe_result = self
+            .inference
+            .transcribe(&audio_uri, language.as_deref())
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Transcription failed: {}", e)));
+
+        match transcribe_result {
+            Ok(tr) => {
+                self.record_experience(
+                    "record_and_transcribe",
+                    &format!("duration={}s", duration_secs),
+                    "success",
+                    serde_json::json!({"audio_path": audio_path.display().to_string()}),
+                );
+                span.ok_json(serde_json::json!({
+                    "status": "recorded_and_transcribed",
+                    "duration_secs": duration_secs,
+                    "audio_path": audio_path.display().to_string(),
+                    "audio_format": "wav",
+                    "sample_rate": 16000,
+                    "channels": 1,
+                    "transcript": tr,
+                }))
+            }
+            Err(e) => {
+                // Transcription failed but audio was captured — return partial success
+                span.ok_json(serde_json::json!({
+                    "status": "partial",
+                    "duration_secs": duration_secs,
+                    "audio_path": audio_path.display().to_string(),
+                    "audio_format": "wav",
+                    "sample_rate": 16000,
+                    "channels": 1,
+                    "transcript_error": e.to_json_string(),
+                    "message": "Audio captured successfully but transcription failed. The audio file is saved and can be transcribed later."
+                }))
+            }
+        }
     }
 
     // ── fal.ai generation tools ──────────────────────────────────────────────

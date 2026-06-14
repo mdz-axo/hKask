@@ -355,16 +355,18 @@ impl InferenceRouter {
         backend.image_to_video(image_url, prompt, duration).await
     }
 
-    /// Generate speech from text with a voice description.
-    /// Routes to DeepInfra TTS (default) with fal.ai ElevenLabs fallback.
+    /// Generate speech from text with a voice preset.
+    /// Routes to DeepInfra ElevenLabs-compatible API (default) with fal.ai fallback.
+    /// Default voice: "Rachel" (ElevenLabs default, available on both providers).
+    /// Default model on DeepInfra: hexgrad/Kokoro-82M.
     pub async fn generate_speech(
         &self,
         text: &str,
-        voice_description: &str,
+        voice: &str,
     ) -> Result<serde_json::Value, InferenceError> {
-        // Try DeepInfra first
+        // Try DeepInfra first (ElevenLabs-compatible API)
         if let Some(ref di) = self.deepinfra {
-            match di.generate_speech(text, voice_description).await {
+            match di.generate_speech(text, voice, None).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
                     tracing::warn!(target: "hkask.inference", error = %e, "DeepInfra TTS failed, falling back to fal.ai");
@@ -375,7 +377,30 @@ impl InferenceRouter {
         let backend = self.fal.as_ref().ok_or_else(|| {
             InferenceError::Connection("No backend available for speech generation".to_string())
         })?;
-        backend.generate_speech(text, voice_description).await
+        backend.generate_speech(text, voice).await
+    }
+
+    /// Transcribe speech audio to text.
+    /// Routes to DeepInfra Whisper (default) with fal.ai Whisper fallback.
+    pub async fn transcribe(
+        &self,
+        audio_url: &str,
+        language: Option<&str>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        // Try DeepInfra first
+        if let Some(ref di) = self.deepinfra {
+            match di.transcribe(audio_url, language).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.inference", error = %e, "DeepInfra STT failed, falling back to fal.ai");
+                }
+            }
+        }
+        // Fallback to fal.ai Whisper
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection("No backend available for speech transcription".to_string())
+        })?;
+        backend.transcribe(audio_url).await
     }
 }
 

@@ -27,9 +27,9 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 | fal | `hkask-mcp-media` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| docproc | `hkask-mcp-docproc` | 8 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional), `HKASK_MEMORY_DB` (optional) |
+| docproc | `hkask-mcp-docproc` | 9 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional) |
 | training | `hkask-mcp-training` | 1 | L2 (Episodic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| **Total** | | **~84** | | |
+| **Total** | | **~86** | | |
 
 ---
 
@@ -153,24 +153,40 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### fal
 
-**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 12 (9 generation + 3 gallery)
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 29 (6 gallery + 4 tagging + 2 abstraction + 3 derivation + 5 video + 2 voice + 7 generation)
 
-**Required:** `HKASK_FAL_API_KEY`
+**Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one)
 
 | Tool | Description |
 |------|-------------|
-| `fal_ping` | Ping Fal.ai API |
-| `fal_generate_image` | Generate an image from a prompt |
-| `fal_image_to_image` | Transform an image with a prompt |
-| `fal_upscale` | Upscale an image |
-| `fal_generate_video` | Generate a video from a prompt |
-| `fal_generate_music` | Generate music from a prompt |
-| `fal_whisper` | Transcribe audio to text |
-| `fal_caption` | Generate a caption for an image |
-| `fal_generate_3d` | Generate a 3D model |
-| `gallery_init` | Initialize an image gallery (path + mode) |
+| `gallery_set_root` | Initialize gallery with path and policy mode |
 | `gallery_scan` | Scan gallery for images (checksums, dimensions) |
 | `gallery_info` | Get gallery status summary |
+| `gallery_get_image` | Get image by index or hash (path/base64) |
+| `gallery_get_metadata` | Get image metadata including EXIF and AI tags |
+| `gallery_search` | Fuzzy search gallery by tags (Levenshtein distance) |
+| `tag_faces` | Detect and describe faces using vision LLM |
+| `tag_objects` | Detect and label objects using vision LLM |
+| `tag_colors` | Analyze dominant colors and palette |
+| `tag_composition` | Analyze photographic composition |
+| `image_describe_scene` | Describe full scene (subject, setting, mood) |
+| `image_classify_style` | Classify photographic style and genre |
+| `image_remove_background` | Remove background (Bria RMBG 2.0) |
+| `image_apply_style` | Apply style transfer (Flux img2img) |
+| `image_create_collage` | Create collage from gallery images |
+| `video_clip` | Trim video to segment (ffmpeg) |
+| `video_to_gif` | Convert video segment to GIF (ffmpeg) |
+| `image_to_video` | Animate image to short video |
+| `video_add_caption` | Add text overlay to video (ffmpeg) |
+| `video_remix` | Clip + caption + GIF composite |
+| `voice_design` | Design synthetic voice from character description |
+| `generate_speech` | Generate speech audio from text + voice design |
+| `fal_ping` | Ping fal.ai API |
+| `fal_generate_image` | Generate image from prompt |
+| `fal_image_to_image` | Transform image with prompt |
+| `fal_upscale` | Upscale an image |
+| `fal_generate_video` | Generate video from prompt |
+| `fal_caption` | Generate caption for an image |
 
 ---
 
@@ -219,22 +235,31 @@ Consolidation of former `hkask-mcp-episodic` and `hkask-mcp-semantic` servers.
 
 ### docproc
 
-**Crate:** `hkask-mcp-docproc` · **Loop:** L2 · **Tools:** 8
+**Crate:** `hkask-mcp-docproc` · **Loop:** L2 · **Tools:** 9
 
 Unified document processing server — supersedes former `hkask-mcp-markitdown` and `hkask-mcp-doc-knowledge` (2026-06-13).
 
-**Credentials:** `HKASK_OCR_MODEL` (optional, for OCR), `HKASK_MEMORY_DB` + `HKASK_DB_PASSPHRASE` (optional, for QA storage)
+**Credentials:** `HKASK_OCR_MODEL` (optional, for OCR)
 
 | Tool | Description |
 |------|-------------|
 | `docproc_convert` | Extract text from documents (PDF/MD/HTML/TXT) with OCR fallback |
 | `docproc_ocr` | Explicit OCR using vision model |
-| `docproc_chunk` | Chunk text or file into passages (single or multi-tier) |
+| `docproc_chunk` | Chunk text or file into passages (single or multi-tier), auto-indexes for query |
 | `docproc_extract_triples` | Extract RDF triples from text via LLM |
 | `docproc_embed` | Generate embedding vectors for passages or triples |
 | `docproc_generate_qa` | Generate QA pairs from text via LLM |
-| `docproc_store_qa` | Store QA items with provenance in semantic memory |
 | `docproc_cache` | Cache processed text to ~/.config/hkask/docproc-cache/ |
+| `docproc_query` | Search indexed passages by natural language query, optionally generate LLM answer |
+| `docproc_clear_index` | Reset the vector index for a new document set |
+
+**Pipeline flow:**
+```
+convert → chunk (auto-index) → query → (generate answer)
+              ↘ extract_triples → embed
+              ↘ generate_qa → training_ingest_qa
+              ↘ cache
+```
 
 ---
 
@@ -259,4 +284,4 @@ Stub server for model training data ingestion (2026-06-13). Full training pipeli
 - **Consolidation (2026-06-13):** `hkask-mcp-markitdown` (3 tools) + `hkask-mcp-doc-knowledge` (5 tools) → `hkask-mcp-docproc` (8 tools). Added `hkask-mcp-training` (1 tool, stub).
 - **New (2026-06-11):** `hkask-mcp-replica` added (6 tools, style embedding and composition).
 - **Spec server correction:** Previous inventory listed 11 spec tools. Only 5 exist per MDS.md §3 and code verification.
-- **Total:** ~84 tools across 12 servers.
+- **Total:** ~86 tools across 12 servers.

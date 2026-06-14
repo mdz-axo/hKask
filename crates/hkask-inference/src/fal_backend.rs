@@ -462,18 +462,29 @@ impl FalBackend {
             .await
     }
 
-    /// Generate speech from text with a voice description.
-    /// Uses fal.ai ElevenLabs or similar TTS endpoint.
+    /// Generate speech from text with a voice preset.
+    /// Uses fal.ai ElevenLabs TTS (eleven-v3).
+    /// Available voices: Rachel, Aria, Roger, Sarah, Laura, Charlie, George,
+    /// Callum, River, Liam, Charlotte, Alice, Matilda, Will, Jessica, Eric,
+    /// Chris, Brian, Daniel, Lily, Bill. Default: "Rachel".
     pub async fn generate_speech(
         &self,
         text: &str,
-        voice_description: &str,
+        voice: &str,
     ) -> Result<serde_json::Value, InferenceError> {
         let body = serde_json::json!({
-            "input": text,
-            "voice": voice_description,
+            "text": text,
+            "voice": voice,
         });
-        self.fal_sync_post("fal-ai/elevenlabs/tts", body).await
+        self.fal_sync_post("fal-ai/elevenlabs/tts/eleven-v3", body)
+            .await
+    }
+
+    /// Transcribe speech audio to text using Whisper.
+    /// Endpoint: fal-ai/whisper
+    pub async fn transcribe(&self, audio_url: &str) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({"audio_url": audio_url});
+        self.fal_sync_post("fal-ai/whisper", body).await
     }
 }
 

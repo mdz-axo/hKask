@@ -384,6 +384,43 @@ impl GalleryStore {
         })
     }
 
+    /// Get all tags for all images in a gallery.
+    ///
+    /// Returns tags joined with their image's relative path for search ranking.
+    /// REQ: media-gallery-search-tags-01
+    pub fn get_all_tags(
+        &self,
+        gallery_id: &str,
+    ) -> std::result::Result<Vec<(TagRecord, String)>, GalleryStoreError> {
+        let conn = self.lock_conn()?;
+
+        let mut stmt = conn.prepare(
+            "SELECT t.id, t.image_id, t.tag_type, t.value, t.confidence, t.model_used, t.created_at, i.relative_path
+             FROM gallery_tags t
+             JOIN gallery_images i ON t.image_id = i.id
+             WHERE i.gallery_id = ?1
+             ORDER BY t.created_at DESC",
+        )?;
+
+        let rows = stmt
+            .query_map([gallery_id], |row| {
+                let tag = TagRecord {
+                    id: row.get(0)?,
+                    image_id: row.get(1)?,
+                    tag_type: row.get(2)?,
+                    value: row.get(3)?,
+                    confidence: row.get(4)?,
+                    model_used: row.get(5)?,
+                    created_at: row.get(6)?,
+                };
+                let relative_path: String = row.get(7)?;
+                Ok((tag, relative_path))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(rows)
+    }
+
     // ── Row mappers ──
 
     fn image_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImageRecord> {

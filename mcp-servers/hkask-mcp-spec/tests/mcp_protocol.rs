@@ -22,7 +22,7 @@ use tokio_util::sync::CancellationToken;
 
 /// All-zeros hex secret used in integration tests (matches HKASK_OCAP_SECRET env).
 const TEST_OCAP_SECRET_HEX: &str =
-    "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
+    "0000000000000000000000000000000000000000000000000000000000000000";
 
 /// Known WebID used for both the server identity and the token delegate.
 const TEST_WEBID_STR: &str = "00000000-0000-0000-0000-000000000001";
@@ -272,5 +272,97 @@ async fn writing_quality_assesses_spec_with_token() {
     assert!(
         q_text.contains("dimensions_passing"),
         "Writing quality must return dimensions_passing, got: {q_text}"
+    );
+}
+
+/// REQ: MDS-REPLICA-001 — spec_require_writing_quality returns dimension_scores
+/// when replica_persona + db_path + db_passphrase are provided.
+#[tokio::test]
+async fn writing_quality_with_replica_returns_dimension_scores() {
+    let peer = spawn_server().await;
+
+    // Capture a spec about documentation requirements (should align with Gentle dimension)
+    let token = make_capability_token("capture", DelegationAction::Write);
+    let capture_params = CallToolRequestParams::new("spec_goal_capture").with_arguments(
+        serde_json::from_str(&format!(
+            r#"{{"description": "All public functions must have documentation. Every pub fn has a doc comment referencing a spec ID.", "context": "domain hkask composition", "capability_token": "{token}"}}"#
+        ))
+        .expect("valid JSON arguments"),
+    );
+    let result = peer
+        .call_tool(capture_params)
+        .await
+        .expect("Tool call failed");
+    let text = text_from_result(&result);
+    let goal_id: String = {
+        let v: serde_json::Value =
+            serde_json::from_str(&text).expect("capture response must be valid JSON");
+        v["content"]["goal_id"].as_str().unwrap_or("").to_string()
+    };
+    assert!(!goal_id.is_empty(), "Capture must return a valid goal_id");
+
+    // Resolve styles DB path relative to workspace root
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+    let db_path = std::path::PathBuf::from(&manifest_dir).join("../../data/hkask-styles.db");
+    if !db_path.exists() {
+        eprintln!(
+            "Styles DB not found at {} — skipping replica test",
+            db_path.display()
+        );
+        return;
+    }
+
+    // Assess with replica persona
+    let read_token = make_capability_token(&goal_id, DelegationAction::Read);
+    let q_params = CallToolRequestParams::new("spec_require_writing_quality").with_arguments(
+        serde_json::from_str(&format!(
+            r#"{{"spec_id": "{goal_id}", "replica_persona": "gentle-lovelace", "db_path": "{}", "db_passphrase": "test-pass", "capability_token": "{read_token}"}}"#,
+            db_path.display()
+        ))
+        .expect("valid JSON arguments"),
+    );
+
+    let q_result = peer.call_tool(q_params).await.expect("Tool call failed");
+    let q_text = text_from_result(&q_result);
+
+    eprintln!(
+        "Writing quality response: {}",
+        &q_text[..q_text.len().min(500)]
+    );
+
+    // Must include dimension_scores when replica is used
+    assert!(
+        q_text.contains("dimension_scores"),
+        "Replica path must return dimension_scores, got: {}",
+        &q_text[..q_text.len().min(200)]
+    );
+
+    // Parse and verify structure
+    let v: serde_json::Value = serde_json::from_str(&q_text).expect("Response must be valid JSON");
+    let content = &v["content"];
+
+    let dims_passing = content["dimensions_passing"].as_u64().unwrap_or(0);
+    eprintln!("Dimensions passing: {}", dims_passing);
+
+    let scores = content["dimension_scores"].as_array();
+    assert!(scores.is_some(), "dimension_scores must be an array");
+    let scores = scores.unwrap();
+    assert!(
+        !scores.is_empty(),
+        "dimension_scores must not be empty when replica is used"
+    );
+
+    eprintln!("Dimension scores: {}", scores.len());
+    for score in scores {
+        let dim = score["dimension"].as_str().unwrap_or("?");
+        let dist = score["cosine_distance"].as_f64().unwrap_or(-1.0);
+        let qual = score["qualitative"].as_str().unwrap_or("?");
+        eprintln!("  {}: distance={:.4} ({})", dim, dist, qual);
+    }
+
+    // Verify weakest_dimension is present
+    assert!(
+        content["weakest_dimension"].is_string() || content["weakest_dimension"].is_null(),
+        "weakest_dimension must be present"
     );
 }

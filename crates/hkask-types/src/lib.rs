@@ -36,9 +36,11 @@ pub mod text;
 pub mod time;
 pub mod visibility;
 
+pub mod transcript;
 pub mod voice;
 pub mod wallet;
 
+pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use voice::VoiceDesign;
 
 #[cfg(feature = "sql")]

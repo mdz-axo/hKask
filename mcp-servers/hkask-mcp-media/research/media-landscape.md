@@ -143,3 +143,96 @@ The Rust tool is the coordinator; the LLM is the engine.
 | Whisper Large v3 | Audio Transcription | `openai/whisper-large-v3` | sync | text |
 | Bria Video Eraser | Video Object Removal | `Bria/video_eraser` | sync | video |
 | Bria Video BG Removal | Video BG Removal | `Bria/video_remove_background` | sync | video |
+
+---
+
+## Voice & Talk Service Architecture
+
+### Talk Service (TTS — Text to Speech)
+
+**Default TTS model:** `hexgrad/Kokoro-82M` on DeepInfra (ElevenLabs-compatible API)
+**Fallback:** `fal-ai/elevenlabs/tts/eleven-v3` on fal.ai
+**Default voice:** `"Rachel"` (ElevenLabs default, warm feminine)
+
+**API contracts:**
+
+| Provider | Endpoint | Method | Voice Parameter |
+|----------|----------|--------|----------------|
+| DeepInfra | `POST /v1/text-to-speech/{voice_id}` | `generate_speech(text, voice_id, model_id)` | `voice_id` — preset voice identifier |
+| fal.ai | `POST https://fal.run/fal-ai/elevenlabs/tts/eleven-v3` | `generate_speech(text, voice)` | `voice` — preset name (Rachel, Aria, Roger, etc.) |
+
+**VoiceDesign → Voice Preset Mapping:**
+
+The `VoiceDesign` struct maps its characteristics (gender_presentation, age_range, timbre, pitch)
+to the closest ElevenLabs voice preset via `to_elevenlabs_voice()`. Available presets:
+
+| Voice | Character |
+|-------|----------|
+| Rachel | Default warm feminine |
+| Aria | Soft feminine |
+| Roger | Confident masculine |
+| Sarah | Warm feminine, senior |
+| Laura | Calm feminine, deep |
+| Charlie | Friendly masculine, bright |
+| George | Authoritative masculine, deep |
+| Callum | Deep masculine |
+| River | Gentle androgynous, young |
+| Liam | Young masculine, warm |
+| Charlotte | Bright feminine |
+| Alice | Clear feminine |
+| Matilda | Young feminine, warm |
+| Will | Warm masculine |
+| Jessica | Expressive feminine |
+| Eric | Steady masculine |
+| Chris | Casual masculine |
+| Brian | Deep masculine |
+| Daniel | Measured masculine |
+| Lily | Soft feminine |
+| Bill | Older masculine, deep |
+
+**VoiceDesign JSON constraints for TTS compatibility:**
+- `gender_presentation` must be one of: masculine, feminine, androgynous, neutral
+- `age_range` must be one of: young, young-adult, middle-aged, senior
+- `timbre` must be one of: warm, bright, dark, breathy, clear, resonant, nasal
+- `pitch` must be one of: low, medium-low, medium, medium-high, high
+- `pace` must be one of: slow, deliberate, moderate, brisk, fast
+- These constrained enums ensure the mapping function produces a valid voice preset
+
+### Listen Service (STT — Speech to Text)
+
+**Proposed design — not yet implemented.**
+
+**Default STT model:** `openai/whisper-large-v3` on DeepInfra
+**Fallback:** `fal-ai/whisper` on fal.ai
+
+**API contracts:**
+
+| Provider | Endpoint | Input | Output |
+|----------|----------|-------|--------|
+| DeepInfra | `POST /v1/inference/openai/whisper-large-v3` | `{audio_url, language}` | `{text, segments}` |
+| fal.ai | `POST https://fal.run/fal-ai/whisper` | `{audio_url}` | `{text, chunks}` |
+
+**Tool signature:**
+```rust
+#[tool(description = "Transcribe speech audio to text. Returns transcribed text.")]
+async fn transcribe(
+    &self,
+    Parameters(TranscribeRequest { audio_url, language }): Parameters<TranscribeRequest>,
+) -> String {}
+// Delegates to: InferenceRouter::transcribe() → DI Whisper → fal Whisper fallback
+```
+
+**InferenceRouter dispatch:**
+```rust
+pub async fn transcribe(
+    &self,
+    audio_url: &str,
+    language: Option<&str>,
+) -> Result<serde_json::Value, InferenceError>
+```
+
+**Backend methods needed:**
+- `DeepInfraBackend::transcribe(audio_url, language)` → `POST /v1/inference/openai/whisper-large-v3`
+- `FalBackend::transcribe(audio_url)` → `POST https://fal.run/fal-ai/whisper`
+
+**Flow:** Human speaks → audio captured → `transcribe` tool → text returned → agent processes

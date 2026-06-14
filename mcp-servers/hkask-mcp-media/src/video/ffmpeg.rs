@@ -205,4 +205,62 @@ impl FfmpegRunner {
         tracing::info!(target: "hkask.mcp.media.ffmpeg", input = %input, text = %text, output = %output.display(), "Caption added");
         Ok(output)
     }
+
+    /// Capture audio from the default system input device.
+    /// Uses ffmpeg to record from the platform-specific default audio source.
+    /// Saves to a WAV file in the temp directory (or specified path).
+    pub async fn capture_audio(
+        &self,
+        duration_secs: f32,
+        output_path: Option<&str>,
+    ) -> Result<PathBuf, String> {
+        if !self.available {
+            return Err("ffmpeg not available".to_string());
+        }
+        self.ensure_temp_dir()?;
+
+        let output = match output_path {
+            Some(p) => PathBuf::from(p),
+            None => self.output_path("wav"),
+        };
+
+        // Detect platform-specific audio input device
+        let (input_format, input_device) = if cfg!(target_os = "linux") {
+            ("alsa", "default")
+        } else if cfg!(target_os = "macos") {
+            ("avfoundation", ":0")
+        } else if cfg!(target_os = "windows") {
+            ("dshow", "audio=Microphone")
+        } else {
+            return Err("Unsupported platform for audio capture".to_string());
+        };
+
+        let status = Command::new(&self.ffmpeg_path)
+            .arg("-f")
+            .arg(input_format)
+            .arg("-i")
+            .arg(input_device)
+            .arg("-t")
+            .arg(format!("{:.1}", duration_secs))
+            .arg("-ac")
+            .arg("1") // mono
+            .arg("-ar")
+            .arg("16000") // 16kHz sample rate (good for Whisper)
+            .arg(&output)
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .status()
+            .await
+            .map_err(|e| format!("ffmpeg audio capture spawn failed: {}", e))?;
+
+        if !status.success() {
+            return Err(format!(
+                "ffmpeg audio capture failed with exit code: {:?}",
+                status.code()
+            ));
+        }
+
+        tracing::info!(target: "hkask.mcp.media.ffmpeg", duration = %duration_secs, output = %output.display(), "Audio captured");
+        Ok(output)
+    }
 }

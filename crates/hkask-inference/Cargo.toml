@@ -16,3 +16,4 @@ tokio.workspace = true
 reqwest.workspace = true
 futures-util.workspace = true
 chrono.workspace = true
+base64.workspace = true

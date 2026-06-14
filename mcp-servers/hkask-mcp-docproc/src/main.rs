@@ -1,13 +1,15 @@
 //! hKask MCP DocProc — Unified document processing MCP server
 //!
-//! Starts an MCP server over stdio exposing 7 tools:
+//! Starts an MCP server over stdio exposing 9 tools:
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
-//! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier)
+//! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier), auto-indexes
 //! - `docproc_extract_triples` — Extract RDF triples from text via LLM
 //! - `docproc_embed` — Generate embedding vectors for passages or triples
 //! - `docproc_generate_qa` — Generate QA pairs from text via LLM
 //! - `docproc_cache` — Cache processed text for reference
+//! - `docproc_query` — Search indexed passages by natural language query, optionally generate answer
+//! - `docproc_clear_index` — Reset the vector index for a new document set
 //!
 //! # Environment Variables
 //!

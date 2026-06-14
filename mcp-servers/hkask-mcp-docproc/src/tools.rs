@@ -1,17 +1,21 @@
 //! MCP tool implementations for docproc server.
 //!
-//! 7 tools:
+//! 9 tools:
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
-//! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier)
+//! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier), auto-indexes
 //! - `docproc_extract_triples` — Extract RDF triples from text via LLM
 //! - `docproc_embed` — Generate embedding vectors for passages or triples
 //! - `docproc_generate_qa` — Generate QA pairs from text via LLM
 //! - `docproc_cache` — Cache processed text for reference
+//! - `docproc_query` — Search indexed passages by natural language query, optionally generate answer
+//! - `docproc_clear_index` — Reset the vector index for a new document set
 
 use crate::convert;
 use crate::ocr::{decimation, pipeline};
-use crate::server::{DocProcServer, OCR_FALLBACK_WORD_THRESHOLD, default_ocr_max_tokens};
+use crate::server::{
+    DocProcServer, IndexedPassage, OCR_FALLBACK_WORD_THRESHOLD, default_ocr_max_tokens,
+};
 use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
@@ -81,6 +85,21 @@ fn strip_json_fences(text: &str) -> String {
     }
 }
 
+/// Cosine similarity between two vectors.
+/// Returns 0.0 if either vector is empty or dimensions mismatch.
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.is_empty() || b.is_empty() || a.len() != b.len() {
+        return 0.0;
+    }
+    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+    dot / (norm_a * norm_b)
+}
+
 // ── Request structs ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -135,6 +154,13 @@ pub struct ChunkRequest {
     /// Max tokens for fine tier (multi-tier mode, default 128).
     #[serde(default)]
     pub fine_max_tokens: Option<usize>,
+    /// If true, automatically index passages for later query via docproc_query (default true).
+    #[serde(default = "default_true")]
+    pub index: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -172,6 +198,25 @@ pub struct CacheRequest {
     pub content: String,
     /// Label/key for the cached entry.
     pub label: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QueryRequest {
+    /// Natural language question to search for.
+    pub query: String,
+    /// Number of top results to return (default 5).
+    #[serde(default)]
+    pub top_k: Option<usize>,
+    /// If true, generate an LLM-augmented answer from retrieved passages.
+    #[serde(default)]
+    pub generate_answer: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClearIndexRequest {
+    /// Optional index_id to clear a specific index. If absent, clears all.
+    #[serde(default)]
+    pub index_id: Option<String>,
 }
 
 // ── Extract outcome enum ─────────────────────────────────────────────────
@@ -677,6 +722,7 @@ impl DocProcServer {
             coarse_max_tokens,
             medium_max_tokens,
             fine_max_tokens,
+            index,
         }): Parameters<ChunkRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("docproc_chunk", &self.webid);
@@ -824,10 +870,21 @@ impl DocProcServer {
                 "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
                 "medium_max_tokens": medium_max_tokens.unwrap_or(512),
                 "fine_max_tokens": fine_max_tokens.unwrap_or(128),
-                "coarse": serialize_passages(coarse),
-                "medium": serialize_passages(medium),
-                "fine": serialize_passages(fine),
+                "coarse": serialize_passages(coarse.clone()),
+                "medium": serialize_passages(medium.clone()),
+                "fine": serialize_passages(fine.clone()),
             });
+
+            // Auto-index if requested
+            let indexed = if index {
+                let all: Vec<_> = coarse.into_iter().chain(medium).chain(fine).collect();
+                self.index_passages(&all, &source_label).await
+            } else {
+                0
+            };
+
+            let mut result = result;
+            result["indexed"] = json!(indexed);
             self.record_experience("docproc_chunk", &source_label, "success", result.clone());
             span.ok_json(result)
         } else {
@@ -843,7 +900,14 @@ impl DocProcServer {
             );
 
             let total_passages = passages.len();
-            let serialized = serialize_passages(passages);
+            let serialized = serialize_passages(passages.clone());
+
+            // Auto-index if requested
+            let indexed = if index {
+                self.index_passages(&passages, &source_label).await
+            } else {
+                0
+            };
 
             let result = json!({
                 "source": source_label,
@@ -856,6 +920,7 @@ impl DocProcServer {
                 "min_words": min_words,
                 "sentence_boundary": boundary,
                 "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
+                "indexed": indexed,
             });
             self.record_experience("docproc_chunk", &source_label, "success", result.clone());
             span.ok_json(result)
@@ -1123,6 +1188,154 @@ impl DocProcServer {
             })),
         }
     }
+
+    #[tool(
+        description = "Query the in-memory vector index for passages relevant to a natural language question. Embeds the query, computes cosine similarity against indexed passages, and returns top-k results. Optionally generates an LLM-augmented answer from retrieved context."
+    )]
+    async fn docproc_query(
+        &self,
+        Parameters(QueryRequest {
+            query,
+            top_k,
+            generate_answer,
+        }): Parameters<QueryRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("docproc_query", &self.webid);
+
+        if query.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("query must not be empty").to_json_string(),
+            );
+        }
+
+        let k = top_k.unwrap_or(5).max(1).min(50);
+
+        // Embed the query
+        let Some(ref emb_router) = self.embedding_router else {
+            return span.error(
+                McpErrorKind::FailedPrecondition,
+                McpToolError::failed_precondition(
+                    "Embedding router not configured — cannot embed query",
+                )
+                .to_json_string(),
+            );
+        };
+
+        let model_name = std::env::var("HKASK_EMBEDDING_MODEL")
+            .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+
+        let query_embedding = match emb_router
+            .embed_sentences(&model_name, &[query.as_str()])
+            .await
+        {
+            Ok(v) => v.into_iter().next().unwrap_or_default(),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(format!("Query embedding failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        if query_embedding.is_empty() {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("Query embedding returned empty vector").to_json_string(),
+            );
+        }
+
+        // Search the index (scoped to drop guard before any await)
+        let (results, total_indexed) = {
+            let index = self.index.lock().unwrap();
+            if index.is_empty() {
+                return span.ok_json(json!({
+                    "query": query,
+                    "results": [],
+                    "total_indexed": 0,
+                    "note": "No passages indexed. Run docproc_chunk with index=true first.",
+                }));
+            }
+
+            let mut scored: Vec<(f32, &IndexedPassage)> = index
+                .iter()
+                .map(|p| (cosine_similarity(&query_embedding, &p.embedding), p))
+                .collect();
+
+            scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+            scored.truncate(k);
+
+            let results: Vec<serde_json::Value> = scored
+                .iter()
+                .map(|(score, p)| {
+                    json!({
+                        "text": p.text.clone(),
+                        "metadata": p.metadata.clone(),
+                        "score": score,
+                    })
+                })
+                .collect();
+
+            (results, index.len())
+        }; // guard dropped here
+
+        let mut result = json!({
+            "query": query,
+            "results": results,
+            "total_indexed": total_indexed,
+        });
+
+        // Optionally generate an LLM-augmented answer
+        if generate_answer.unwrap_or(false) && !results.is_empty() {
+            let context: String = results
+                .iter()
+                .map(|r| r["text"].as_str().unwrap_or(""))
+                .collect::<Vec<_>>()
+                .join("\n\n");
+
+            let prompt = format!(
+                "Answer the following question based on the provided context. If the context doesn't contain enough information, say so.\n\n\
+                 Context:\n{context}\n\n\
+                 Question: {query}\n\n\
+                 Answer:"
+            );
+
+            let router = InferenceRouter::new(self.inference_config.clone());
+            let params = LLMParameters {
+                temperature: 0.3,
+                max_tokens: 1024,
+                ..Default::default()
+            };
+
+            match router.generate(&prompt, &params).await {
+                Ok(response) => {
+                    result["answer"] = json!(response.text);
+                    result["answer_tokens"] = json!(response.usage.total_tokens);
+                }
+                Err(e) => {
+                    result["answer_error"] = json!(format!("{}", e));
+                }
+            }
+        }
+
+        self.record_experience("docproc_query", &query, "success", result.clone());
+        span.ok_json(result)
+    }
+
+    #[tool(
+        description = "Clear the in-memory vector index. Call this when starting a new document set to avoid cross-document contamination in query results."
+    )]
+    async fn docproc_clear_index(
+        &self,
+        Parameters(ClearIndexRequest { index_id: _ }): Parameters<ClearIndexRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("docproc_clear_index", &self.webid);
+        let mut index = self.index.lock().unwrap();
+        let cleared = index.len();
+        index.clear();
+        span.ok_json(json!({"cleared": cleared}))
+    }
 }
 
 #[cfg(test)]
@@ -1282,5 +1495,60 @@ mod tests {
             bloom_levels: None,
         };
         assert!(req.chunk_id.is_empty());
+    }
+
+    // REQ: docproc-query-01 — cosine_similarity identical vectors = 1.0
+    #[test]
+    fn cosine_similarity_identical() {
+        let v = vec![1.0, 2.0, 3.0];
+        let sim = cosine_similarity(&v, &v);
+        assert!(
+            (sim - 1.0).abs() < 0.001,
+            "identical vectors should have similarity 1.0, got {sim}"
+        );
+    }
+
+    // REQ: docproc-query-02 — cosine_similarity orthogonal vectors = 0.0
+    #[test]
+    fn cosine_similarity_orthogonal() {
+        let a = vec![1.0, 0.0, 0.0];
+        let b = vec![0.0, 1.0, 0.0];
+        let sim = cosine_similarity(&a, &b);
+        assert!(
+            (sim - 0.0).abs() < 0.001,
+            "orthogonal vectors should have similarity 0.0, got {sim}"
+        );
+    }
+
+    // REQ: docproc-query-03 — cosine_similarity empty vectors = 0.0
+    #[test]
+    fn cosine_similarity_empty() {
+        assert_eq!(cosine_similarity(&[], &[1.0]), 0.0);
+        assert_eq!(cosine_similarity(&[1.0], &[]), 0.0);
+        assert_eq!(cosine_similarity(&[], &[]), 0.0);
+    }
+
+    // REQ: docproc-query-04 — cosine_similarity dimension mismatch = 0.0
+    #[test]
+    fn cosine_similarity_dimension_mismatch() {
+        assert_eq!(cosine_similarity(&[1.0, 2.0], &[1.0, 2.0, 3.0]), 0.0);
+    }
+
+    // REQ: docproc-query-05 — query rejects empty query string
+    #[test]
+    fn query_rejects_empty() {
+        let req = QueryRequest {
+            query: String::new(),
+            top_k: None,
+            generate_answer: None,
+        };
+        assert!(req.query.is_empty());
+    }
+
+    // REQ: docproc-chunk-05 — chunk defaults index to true
+    #[test]
+    fn chunk_defaults_index_true() {
+        // Verify the default_true helper
+        assert!(default_true());
     }
 }

@@ -35,20 +35,20 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-types` | 17 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
 | `hkask-mcp-replica` | 0 | Shallow module — pass-through to compose/embed services (C8) |
-| `hkask-mcp-docproc` | 54 | ocr pipeline (51: calibration 6, complexity 6, routing 6, cross-validation 6, semantic 4, verification 4, pipeline 4, decimation 5, tesseract 4, llm_ocr 3, tools 3) + integration (3) |
+| `hkask-mcp-docproc` | 72 | ocr pipeline (51) + tools (21: strip_json_fences 5, chunk 5, cache 2, cosine 4, validation 5) + integration (3) |
 | `hkask-mcp-training` | 0 | Stub — shallow pass-through to semantic memory (C8) |
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
-| `hkask-mcp-media` | 7 | Gallery state (7: init 4, scan 2, info 1) |
+| `hkask-mcp-media` | 12 | Gallery state (7) + Levenshtein (5) |
 
-**Total: 278 tests across 19 crates** (↓ from 282; markitdown/doc-knowledge → docproc consolidation)
+**Total: 296 tests across 19 crates** (↑ from 278; docproc tools deepened)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |
 | `hkask-mcp-research` | 0 | External server (consolidated web + rss-reader 2026-06-11) |
 | `hkask-mcp-fmp` | 0 | External server |
 | `hkask-mcp-communication` | 0 | External server |
-| `hkask-mcp-media` | 7 | External server; 7 gallery tests |
-| **Total** | **102** | |
+| `hkask-mcp-media` | 12 | External server; 12 unit tests |
+| **Total** | **107** | |
 
 ---
 
@@ -80,7 +80,7 @@ DocProc server consolidation + training stub:
 
 | Crate | Tests Added | P8 Status | Details |
 |-------|------------|-----------|--------|
-| `hkask-mcp-docproc` | 54 | ✅ New | Merged markitdown (OCR pipeline) + doc-knowledge (chunk/parse/QA). 51 OCR pipeline + 3 integration. Added triple extraction, embedding, cache, enhanced QA generation. |
+| `hkask-mcp-docproc` | 72 | ✅ New | Merged markitdown (OCR pipeline) + doc-knowledge (chunk/parse/QA). 51 OCR pipeline + 21 tools (strip_json_fences, chunk, cache, cosine similarity, validation) + 3 integration. Added triple extraction, embedding, RAG query/retrieval, auto-indexing, cache. |
 | `hkask-mcp-training` | 0 | ✅ New | Stub server for model training data ingestion. Single tool: `training_ingest_qa`. |
 | `hkask-inference` | 4 | ✅ New | `fal_backend` (4: construction fail/succeed, static catalog, vision heuristic) |
 | `hkask-types` | 11 | ✅ Expanded | ocr types expanded from 6→17 (id, event, ports, capability, cns types) |

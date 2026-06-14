@@ -45,6 +45,17 @@ pub struct DocProcServer {
     /// Accumulated cross-validations across pipeline runs for threshold self-tuning.
     /// Cleared after a drift alert is emitted to avoid redundant suggestions.
     pub cv_accumulator: Mutex<Vec<hkask_types::ocr::CrossValidation>>,
+    /// In-memory vector index for RAG query/retrieval. Passages indexed by `docproc_chunk`
+    /// are stored here with their embeddings for cosine-similarity search via `docproc_query`.
+    pub index: Mutex<Vec<IndexedPassage>>,
+}
+
+/// A passage stored in the in-memory vector index with its embedding.
+#[derive(Debug, Clone)]
+pub struct IndexedPassage {
+    pub text: String,
+    pub metadata: serde_json::Value,
+    pub embedding: Vec<f32>,
 }
 
 impl DocProcServer {
@@ -69,12 +80,54 @@ impl DocProcServer {
             embedding_router,
             cns_observer,
             cv_accumulator: Mutex::new(Vec::new()),
+            index: Mutex::new(Vec::new()),
         })
     }
 
     /// Check whether OCR capability is available.
     pub fn has_ocr(&self) -> bool {
         self.ocr_model.is_some()
+    }
+
+    /// Index passages into the in-memory vector store for later query.
+    /// Embeds each passage text and stores it with metadata.
+    /// Returns the number of passages indexed (0 if embedding router unavailable).
+    pub async fn index_passages(&self, passages: &[(String, String)], source_label: &str) -> usize {
+        let Some(ref emb_router) = self.embedding_router else {
+            return 0;
+        };
+
+        let texts: Vec<&str> = passages.iter().map(|(_, t)| t.as_str()).collect();
+        if texts.is_empty() {
+            return 0;
+        }
+
+        let model_name = std::env::var("HKASK_EMBEDDING_MODEL")
+            .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string());
+
+        let vectors = match emb_router.embed_sentences(&model_name, &texts).await {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!(target: "hkask.mcp.docproc.index", error = %e, "Failed to embed passages for indexing");
+                return 0;
+            }
+        };
+
+        let mut index = self.index.lock().unwrap();
+        for (i, ((entity_ref, passage_text), embedding)) in
+            passages.iter().zip(vectors.into_iter()).enumerate()
+        {
+            index.push(IndexedPassage {
+                text: passage_text.clone(),
+                metadata: serde_json::json!({
+                    "entity_ref": entity_ref,
+                    "source": source_label,
+                    "position": i,
+                }),
+                embedding,
+            });
+        }
+        passages.len()
     }
 }
 
