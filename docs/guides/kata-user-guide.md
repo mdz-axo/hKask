@@ -1,7 +1,7 @@
 ---
 title: "Kata User Guide — Toyota Kata for Agent Capability Development"
 audience: [developers, operators, curators]
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 version: "0.27.0"
 status: "Active"
 domain: "Technology"
@@ -156,7 +156,7 @@ Each skill is **independently usable and adoptable.** An agent doesn't need the 
 
 ### 2.5 Hexagonal Ports
 
-The kata system exposes hexagonal ports defined in `registry/ports/kata-ports.yaml`:
+The kata system's interfaces are defined in code:
 
 | Port | Direction | Purpose |
 |------|-----------|---------|
@@ -224,15 +224,11 @@ Month 2+: kata bundle
 **When:** New agent, low automaticity score, or returning after a gap.
 
 **How:**
-```
-kask chat -m qwen3:8b
-> /agent kata-starter
+```bash
+kask kata start starter-kata --bot Alice
 ```
 
-The agent will be routed through the starter selector, which picks the appropriate routine based on learner state:
-- First session → Five Questions Drill
-- After mastering questions → PDCA Cycle
-- After mastering PDCA → Observation Drill
+This executes all 3 practice routines (daily_cns_report, span_emission_practice, energy_awareness) with no LLM calls — pure habit formation. Gas cost is zero.
 
 **What to expect:** The agent will practice the routine, record the session to memory, and emit a CNS span. No real problems are solved — this is pure practice.
 
@@ -245,16 +241,26 @@ The agent will be routed through the starter selector, which picks the appropria
 **Prerequisites:** Completed kata-starter.
 
 **How:**
-```
-kask chat -m qwen3:8b
-> /agent kata-improvement
+```bash
+kask kata start improvement-kata --bot Alice --ctx "capability=span_emission"
 ```
 
-The agent will be guided through the 4-step pattern:
-1. **Direction:** "What capability gap are we addressing?"
-2. **Current Condition:** "What are the metrics now? Go and see."
-3. **Target Condition:** "What specific, measurable improvement by when?"
-4. **Iterate:** "What's the ONE obstacle? What experiment? What do you expect?"
+The engine walks the 4-step PDCA cycle:
+1. **Direction** — classification step, uses Gemma 4 26B classifier model
+2. **Current Condition** — classification step, uses Gemma 4 26B classifier model
+3. **Target Condition** — reasoning step, uses the configured generation model
+4. **Experiment** — reasoning step, uses the configured generation model
+
+Steps marked `classifier: true` in the manifest use the system classifier model (`google/gemma-4-26B-A4B-it` via DeepInfra). Reasoning steps use the default generation model.
+
+**Save and resume:**
+```bash
+# Run and save state
+kask kata start improvement-kata --bot Alice --save /tmp/kata-state.json
+
+# Resume from saved state (skips completed steps)
+kask kata start improvement-kata --bot Alice --resume /tmp/kata-state.json
+```
 
 **What to expect:** The agent will define a target condition, identify obstacles, and begin running PDCA experiments. Each experiment produces learning. The knowledge threshold moves forward.
 
@@ -267,25 +273,35 @@ The agent will be guided through the 4-step pattern:
 **Prerequisites:** Learner has an active IK cycle with a target condition. Coach has practiced the Five Questions Drill.
 
 **How:**
-```
-kask chat -m qwen3:8b
-> /agent kata-coaching
+```bash
+kask kata start coaching-kata --bot Alice --ctx "learner=Bob"
 ```
 
-The coach will ask the 5 questions in sequence. The learner responds with their IK storyboard data. The coach provides procedural guidance, not solutions.
+The coach asks the 5 questions in sequence. Each question builds on accumulated context from previous responses. The learner responds with their IK storyboard data.
 
 **What to expect:** Daily 20-minute sessions. The coach reinforces the scientific pattern. The learner's thinking becomes visible. Over time, the learner internalizes the pattern.
 
 **Consent required:** Learner must explicitly consent to being coached. Consent is revocable at any time.
 
-### 3.5 Using the kata Bundle (Month 2+)
+### 3.5 CNS Observability
+
+All kata execution emits tracing spans under the `hkask.kata` target with the manifest's namespace as a field:
+
+| Span | When | Fields |
+|------|------|--------|
+| `kata.cycle.start` | Cycle begins | kata_type, bot, namespace |
+| `kata.step.start` | Each step begins | step, action, bot, namespace |
+| `kata.step.complete` | Each step completes | step, gas, namespace |
+| `kata.coaching.question` | Each coaching question | question, bot, namespace |
+| `kata.cycle.complete` | Cycle ends | steps/questions/practices, gas, namespace |
+
+### 3.6 Using the kata Bundle (Month 2+)
 
 **When:** Multiple agents at different stages. Full system monitoring desired.
 
 **How:**
-```
-kask chat -m qwen3:8b
-> /agent kata
+```bash
+kask kata start kata-pattern --bot Curator --ctx "learner=Alice"
 ```
 
 The bundle's `kata-selector.j2` routes agents based on context:
@@ -297,7 +313,7 @@ The bundle's `kata-selector.j2` routes agents based on context:
 
 **What to expect:** CNS monitors all practices. Algedonic alerts fire if practices drop below baseline. Habit interventions trigger automatically.
 
-### 3.6 Composition Rules
+### 3.7 Composition Rules
 
 | Transition | Allowed? | Condition | Consent |
 |------------|----------|-----------|---------|
@@ -307,7 +323,7 @@ The bundle's `kata-selector.j2` routes agents based on context:
 | Starter → Coaching | No | Starter is self-contained | — |
 | Any → Starter | Yes | Low automaticity or 7+ day gap | Self |
 
-### 3.7 Anti-Patterns
+### 3.8 Anti-Patterns
 
 1. **Deploying the full bundle on day one.** Adopt incrementally. Start with kata-starter.
 2. **Skipping Starter Kata.** Agents without foundational habits will struggle with improvement.
@@ -318,7 +334,7 @@ The bundle's `kata-selector.j2` routes agents based on context:
 7. **Staying in Starter Kata forever.** These are "starter" kata, not "finishing" kata. Graduate.
 8. **Ignoring CNS alerts.** Variety deficits and habit decay require intervention, not silence.
 
-### 3.8 Quick Reference Card
+### 3.9 Quick Reference Card
 
 ```
 ┌─────────────────────────────────────────────────────────┐

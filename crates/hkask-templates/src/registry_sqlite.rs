@@ -61,6 +61,7 @@ fn query_column(conn: &Connection, sql: &str, id: &str) -> Result<Vec<String>> {
 
 // ── SqliteRegistry ─────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct SqliteRegistry {
     conn: Arc<Mutex<Connection>>,
     hlexicon: Option<HLexicon>,

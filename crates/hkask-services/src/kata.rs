@@ -8,6 +8,7 @@
 //! Manifests are loaded from `registry/manifests/*.yaml`. Templates are rendered
 //! via the hKask template registry (Jinja2). Inference uses the centralized router.
 
+use crate::settings::HkaskSettings;
 use hkask_templates::SqliteRegistry;
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use tracing;
 
 // ── Manifest types ─────────────────────────────────────────────────────────
 
@@ -85,6 +87,9 @@ pub struct KataStep {
     pub renderer: Option<String>,
     #[serde(default)]
     pub template_ref: Option<String>,
+    /// When true, uses the system classifier model (Gemma 4 26B) instead of the generation model.
+    #[serde(default)]
+    pub classifier: bool,
     #[serde(default)]
     pub gas_cap: Option<u64>,
     #[serde(default)]
@@ -222,7 +227,7 @@ impl Default for AuditConfig {
 // ── Execution types ────────────────────────────────────────────────────────
 
 /// Accumulated state during kata execution.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct KataState {
     /// Step outputs keyed by ordinal ("1", "2", ...) or question number.
     pub step_outputs: HashMap<String, serde_json::Value>,
@@ -234,6 +239,38 @@ pub struct KataState {
     pub gas_consumed: u64,
     /// Current step index.
     pub current_step: usize,
+    /// Manifest ID this state belongs to.
+    #[serde(default)]
+    pub manifest_id: String,
+}
+
+impl KataState {
+    /// Save state to a JSON file for later resumption.
+    pub fn save(&self, path: &Path) -> Result<(), KataError> {
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| KataError::LoadFailed(format!("Failed to serialize state: {}", e)))?;
+        std::fs::write(path, &json).map_err(|e| {
+            KataError::LoadFailed(format!(
+                "Failed to write state to {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Load state from a previously saved JSON file.
+    pub fn load(path: &Path) -> Result<Self, KataError> {
+        let json = std::fs::read_to_string(path).map_err(|e| {
+            KataError::LoadFailed(format!(
+                "Failed to read state from {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+        serde_json::from_str(&json)
+            .map_err(|e| KataError::ParseFailed(format!("Failed to parse state: {}", e)))
+    }
 }
 
 /// Result of executing a full kata cycle.
@@ -258,6 +295,11 @@ pub struct KataResult {
 pub struct KataEngine {
     inference: Arc<dyn InferencePort>,
     registry: SqliteRegistry,
+    /// Optional consent checker — called before kata execution.
+    /// Receives (kata_type, learner_bot) and returns Ok(()) if consented.
+    consent_check: Option<Arc<dyn Fn(&str, &str) -> Result<(), KataError> + Send + Sync>>,
+    /// Optional CNS observer — called after each step with (namespace, step_ordinal, action).
+    cns_observer: Option<Arc<dyn Fn(&str, u32, &str) + Send + Sync>>,
 }
 
 impl KataEngine {
@@ -265,7 +307,27 @@ impl KataEngine {
         Self {
             inference,
             registry,
+            consent_check: None,
+            cns_observer: None,
         }
+    }
+
+    /// Set a consent checker that gates kata execution.
+    pub fn with_consent<F>(mut self, check: F) -> Self
+    where
+        F: Fn(&str, &str) -> Result<(), KataError> + Send + Sync + 'static,
+    {
+        self.consent_check = Some(Arc::new(check));
+        self
+    }
+
+    /// Set a CNS observer called after each step completes.
+    pub fn with_cns<F>(mut self, observer: F) -> Self
+    where
+        F: Fn(&str, u32, &str) + Send + Sync + 'static,
+    {
+        self.cns_observer = Some(Arc::new(observer));
+        self
     }
 
     /// Load a kata manifest from a YAML file.
@@ -297,9 +359,79 @@ impl KataEngine {
         };
 
         match manifest.manifest.kata_type.as_str() {
-            "improvement" => self.run_improvement(manifest, &mut state).await,
-            "coaching" => self.run_coaching(manifest, &mut state).await,
-            "starter" => self.run_starter(manifest, &mut state).await,
+            "improvement" => {
+                // Curator consent required for Improvement Kata
+                if let Some(ref check) = self.consent_check {
+                    check("improvement", learner_bot)?;
+                }
+                if manifest.cns.emit_spans {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        namespace = %manifest.cns.span_namespace,
+                        kata_type = "improvement",
+                        bot = %learner_bot,
+                        "kata.cycle.start"
+                    );
+                }
+                let result = self.run_improvement(manifest, &mut state).await?;
+                if manifest.cns.emit_spans {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        namespace = %manifest.cns.span_namespace,
+                        steps = result.steps_completed,
+                        gas = result.gas_consumed,
+                        "kata.cycle.complete"
+                    );
+                }
+                Ok(result)
+            }
+            "coaching" => {
+                // Learner consent required for Coaching Kata
+                if let Some(ref check) = self.consent_check {
+                    check("coaching", learner_bot)?;
+                }
+                if manifest.cns.emit_spans {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        namespace = %manifest.cns.span_namespace,
+                        kata_type = "coaching",
+                        bot = %learner_bot,
+                        "kata.cycle.start"
+                    );
+                }
+                let result = self.run_coaching(manifest, &mut state).await?;
+                if manifest.cns.emit_spans {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        namespace = %manifest.cns.span_namespace,
+                        questions = result.steps_completed,
+                        gas = result.gas_consumed,
+                        "kata.cycle.complete"
+                    );
+                }
+                Ok(result)
+            }
+            "starter" => {
+                if manifest.cns.emit_spans {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        namespace = %manifest.cns.span_namespace,
+                        kata_type = "starter",
+                        bot = %learner_bot,
+                        "kata.cycle.start"
+                    );
+                }
+                let result = self.run_starter(manifest, &mut state).await?;
+                if manifest.cns.emit_spans {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        namespace = %manifest.cns.span_namespace,
+                        practices = result.steps_completed,
+                        "kata.cycle.complete"
+                    );
+                }
+                Ok(result)
+            }
             other => Err(KataError::UnknownType(other.to_string())),
         }
     }
@@ -310,12 +442,38 @@ impl KataEngine {
         manifest: &KataManifest,
         state: &mut KataState,
     ) -> Result<KataResult, KataError> {
+        self.run_improvement_from(manifest, state).await
+    }
+
+    /// Resume an Improvement Kata from saved state, skipping completed steps.
+    pub async fn run_improvement_from(
+        &self,
+        manifest: &KataManifest,
+        state: &mut KataState,
+    ) -> Result<KataResult, KataError> {
         let total_steps = manifest.steps.len();
         if total_steps == 0 {
             return Err(KataError::NoSteps(manifest.manifest.id.clone()));
         }
 
         for step in &manifest.steps {
+            // Skip already-completed steps when resuming
+            if (step.ordinal as usize) <= state.current_step && !state.step_outputs.is_empty() {
+                continue;
+            }
+
+            // CNS span: step start
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    step = step.ordinal,
+                    action = %step.action,
+                    bot = %state.learner_bot,
+                    "kata.step.start"
+                );
+            }
+
             // Gas gate
             let step_gas = step.gas_cap.unwrap_or(2000);
             if state.gas_consumed + step_gas > manifest.gas.cap {
@@ -329,6 +487,22 @@ impl KataEngine {
             state.step_outputs.insert(step.ordinal.to_string(), output);
             state.gas_consumed += step_gas;
             state.current_step = step.ordinal as usize;
+
+            // CNS span: step complete
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    step = step.ordinal,
+                    gas = state.gas_consumed,
+                    "kata.step.complete"
+                );
+            }
+
+            // CNS observer callback
+            if let Some(ref obs) = self.cns_observer {
+                obs(&manifest.cns.span_namespace, step.ordinal, &step.action);
+            }
         }
 
         Ok(KataResult {
@@ -349,12 +523,36 @@ impl KataEngine {
         manifest: &KataManifest,
         state: &mut KataState,
     ) -> Result<KataResult, KataError> {
+        self.run_coaching_from(manifest, state).await
+    }
+
+    /// Resume a Coaching Kata from saved state, skipping completed questions.
+    pub async fn run_coaching_from(
+        &self,
+        manifest: &KataManifest,
+        state: &mut KataState,
+    ) -> Result<KataResult, KataError> {
         let total = manifest.questions.len();
         if total == 0 {
             return Err(KataError::NoSteps(manifest.manifest.id.clone()));
         }
 
         for q in &manifest.questions {
+            // Skip already-completed questions when resuming
+            if (q.number as usize) <= state.current_step && !state.step_outputs.is_empty() {
+                continue;
+            }
+
+            // CNS span
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    question = q.number,
+                    bot = %state.learner_bot,
+                    "kata.coaching.question"
+                );
+            }
             let step_gas = 2000; // coaching questions use default gas
             if state.gas_consumed + step_gas > manifest.gas.cap {
                 return Err(KataError::GasExceeded {
@@ -364,18 +562,32 @@ impl KataEngine {
             }
 
             // Build coaching prompt from question + accumulated context
+            let prev_context = state
+                .step_outputs
+                .iter()
+                .map(|(k, v)| {
+                    let text = v.get("response").and_then(|r| r.as_str()).unwrap_or("");
+                    format!("Q{}: {}", k.trim_start_matches('q'), text)
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+
             let prompt = format!(
-                "You are coaching a learner through the Improvement Kata.\n\
-                 Previous context:\n{prev}\n\n\
-                 Question {n}: {q}\n\
-                 Description: {desc}\n\n\
-                 Respond as the learner would — be specific, data-driven, and honest.",
-                prev = state
-                    .step_outputs
-                    .iter()
-                    .map(|(k, v)| format!("  Step {}: {}", k, v))
-                    .collect::<Vec<_>>()
-                    .join("\n"),
+                "You are a Toyota Kata coach conducting a 5-question coaching cycle.\n\
+                 Your role: ask questions that reveal the learner's thinking pattern.\n\
+                 Never give solutions. Never say 'you should'. Only ask.\n\n\
+                 Previous answers from the learner:\n\
+                 {prev}\n\n\
+                 Now ask Question {n}: {q}\n\
+                 Context: {desc}\n\n\
+                 Ask the question in a way that makes the learner think.\n\
+                 Then, as the learner, respond with specific data and observations\n\
+                 from your Improvement Kata storyboard.",
+                prev = if prev_context.is_empty() {
+                    "(first question — no prior answers)"
+                } else {
+                    &prev_context
+                },
                 n = q.number,
                 q = q.question,
                 desc = q.description,
@@ -395,6 +607,11 @@ impl KataEngine {
             );
             state.gas_consumed += step_gas;
             state.current_step = q.number as usize;
+
+            // CNS observer callback
+            if let Some(ref obs) = self.cns_observer {
+                obs(&manifest.cns.span_namespace, q.number, "coaching_question");
+            }
         }
 
         Ok(KataResult {
@@ -410,7 +627,7 @@ impl KataEngine {
     }
 
     /// Run a Starter Kata: execute practice routines (no LLM calls — habit formation).
-    async fn run_starter(
+    pub async fn run_starter(
         &self,
         manifest: &KataManifest,
         state: &mut KataState,
@@ -463,12 +680,21 @@ impl KataEngine {
             step.description.clone()
         };
 
-        // Call inference
-        let result = self
-            .inference
-            .generate(&prompt, &default_llm_params())
-            .await
-            .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?;
+        // Call inference — use classifier model for classification steps
+        let result = if step.classifier {
+            let cls_model = HkaskSettings::load().classifier_model();
+            // Route classifier to DeepInfra (model name lacks provider prefix)
+            let routed = format!("DI/{}", cls_model);
+            self.inference
+                .generate_with_model(&prompt, &default_llm_params(), Some(&routed))
+                .await
+                .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?
+        } else {
+            self.inference
+                .generate(&prompt, &default_llm_params())
+                .await
+                .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?
+        };
 
         let response = result.text;
 

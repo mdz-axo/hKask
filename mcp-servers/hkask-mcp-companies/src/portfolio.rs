@@ -54,7 +54,7 @@ pub struct PositionSummary {
 // ── PortfolioManager ────────────────────────────────────────────────
 
 pub struct PortfolioManager {
-    base_dir: PathBuf,
+    db_path: PathBuf,
 }
 
 impl Default for PortfolioManager {
@@ -69,17 +69,100 @@ impl PortfolioManager {
         path.push("hkask");
         path.push("portfolios");
         let _ = std::fs::create_dir_all(&path);
-        Self { base_dir: path }
+        path.push("master.db");
+        // Ensure schema exists on first use
+        if let Ok(conn) = Connection::open(&path) {
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS portfolios (
+                    name TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    date TEXT NOT NULL,
+                    type TEXT NOT NULL CHECK(type IN ('buy','sell','dividend','deposit','withdrawal')),
+                    symbol TEXT,
+                    quantity REAL,
+                    price REAL,
+                    commission REAL DEFAULT 0,
+                    amount REAL,
+                    currency TEXT DEFAULT 'USD',
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_tx_portfolio ON transactions(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
+                CREATE INDEX IF NOT EXISTS idx_tx_symbol ON transactions(symbol);
+                CREATE TABLE IF NOT EXISTS price_cache (
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    close REAL NOT NULL,
+                    source TEXT NOT NULL,
+                    fetched_at TEXT NOT NULL,
+                    PRIMARY KEY (portfolio_name, symbol, date)
+                );
+                CREATE TABLE IF NOT EXISTS security_links (
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    ledger_symbol TEXT NOT NULL,
+                    data_symbol TEXT NOT NULL,
+                    PRIMARY KEY (portfolio_name, ledger_symbol)
+                );"
+            );
+        }
+        Self { db_path: path }
     }
 
     #[cfg(test)]
     pub fn with_dir(base_dir: PathBuf) -> Self {
         let _ = std::fs::create_dir_all(&base_dir);
-        Self { base_dir }
+        let db_path = base_dir.join("master.db");
+        if let Ok(conn) = Connection::open(&db_path) {
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS portfolios (
+                    name TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    type TEXT NOT NULL CHECK(type IN ('buy','sell','dividend','deposit','withdrawal')),
+                    symbol TEXT,
+                    quantity REAL,
+                    price REAL,
+                    commission REAL DEFAULT 0,
+                    amount REAL,
+                    currency TEXT DEFAULT 'USD',
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_tx_portfolio ON transactions(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
+                CREATE INDEX IF NOT EXISTS idx_tx_symbol ON transactions(symbol);
+                CREATE TABLE IF NOT EXISTS price_cache (
+                    portfolio_name TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    close REAL NOT NULL,
+                    source TEXT NOT NULL,
+                    fetched_at TEXT NOT NULL,
+                    PRIMARY KEY (portfolio_name, symbol, date)
+                );
+                CREATE TABLE IF NOT EXISTS security_links (
+                    portfolio_name TEXT NOT NULL,
+                    ledger_symbol TEXT NOT NULL,
+                    data_symbol TEXT NOT NULL,
+                    PRIMARY KEY (portfolio_name, ledger_symbol)
+                );"
+            );
+        }
+        Self { db_path }
     }
 
-    fn db_path(&self, name: &str) -> PathBuf {
-        self.base_dir.join(format!("{name}.db"))
+    fn open(&self) -> Result<Connection, String> {
+        Connection::open(&self.db_path).map_err(|e| format!("db open: {e}"))
     }
 
     // ── Portfolio CRUD ───────────────────────────────────────────
@@ -88,84 +171,65 @@ impl PortfolioManager {
         if name.is_empty() || name.contains('/') || name.contains('\\') {
             return Err("portfolio name must not be empty or contain path separators".into());
         }
-        let path = self.db_path(name);
-        if path.exists() {
-            return Err(format!("portfolio '{name}' already exists"));
-        }
-        let conn = Connection::open(&path).map_err(|e| format!("db open: {e}"))?;
-        conn.execute_batch(
-            "CREATE TABLE transactions (
-                id TEXT PRIMARY KEY,
-                date TEXT NOT NULL,
-                type TEXT NOT NULL CHECK(type IN ('buy','sell','dividend','deposit','withdrawal')),
-                symbol TEXT,
-                quantity REAL,
-                price REAL,
-                commission REAL DEFAULT 0,
-                amount REAL,
-                currency TEXT DEFAULT 'USD',
-                notes TEXT DEFAULT '',
-                created_at TEXT NOT NULL
-            );
-            CREATE INDEX idx_tx_date ON transactions(date);
-            CREATE INDEX idx_tx_symbol ON transactions(symbol);
-            CREATE TABLE IF NOT EXISTS price_cache (
-                symbol TEXT NOT NULL,
-                date TEXT NOT NULL,
-                close REAL NOT NULL,
-                source TEXT NOT NULL,
-                fetched_at TEXT NOT NULL,
-                PRIMARY KEY (symbol, date)
-            );
-            CREATE TABLE IF NOT EXISTS security_links (
-                ledger_symbol TEXT PRIMARY KEY,
-                data_symbol TEXT NOT NULL
-            );",
+        let conn = self.open()?;
+        conn.execute(
+            "INSERT INTO portfolios (name, created_at) VALUES (?1, ?2)",
+            params![name, chrono::Utc::now().to_rfc3339()],
         )
-        .map_err(|e| format!("schema: {e}"))?;
+        .map_err(|e| format!("create: {e}"))?;
         Ok(())
     }
 
     pub fn delete(&self, name: &str) -> Result<(), String> {
-        let path = self.db_path(name);
-        if !path.exists() {
+        let conn = self.open()?;
+        let rows = conn
+            .execute("DELETE FROM portfolios WHERE name = ?1", params![name])
+            .map_err(|e| format!("delete: {e}"))?;
+        if rows == 0 {
             return Err(format!("portfolio '{name}' does not exist"));
         }
-        std::fs::remove_file(&path).map_err(|e| format!("delete: {e}"))?;
         Ok(())
     }
 
     pub fn list(&self) -> Result<Vec<String>, String> {
+        let conn = self.open()?;
+        let mut stmt = conn
+            .prepare("SELECT name FROM portfolios ORDER BY name")
+            .map_err(|e| format!("query: {e}"))?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("query: {e}"))?;
         let mut names = Vec::new();
-        if let Ok(entries) = std::fs::read_dir(&self.base_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().is_some_and(|e| e == "db")
-                    && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
-                {
-                    names.push(stem.to_string());
-                }
-            }
+        for row in rows {
+            names.push(row.map_err(|e| format!("row: {e}"))?);
         }
-        names.sort();
         Ok(names)
     }
 
-    fn open(&self, name: &str) -> Result<Connection, String> {
-        let path = self.db_path(name);
-        if !path.exists() {
+    fn check_exists(&self, conn: &Connection, name: &str) -> Result<(), String> {
+        let exists: bool = conn
+            .query_row(
+                "SELECT 1 FROM portfolios WHERE name = ?1",
+                params![name],
+                |_| Ok(()),
+            )
+            .is_ok();
+        if !exists {
             return Err(format!("portfolio '{name}' does not exist"));
         }
-        Connection::open(&path).map_err(|e| format!("db open: {e}"))
+        Ok(())
     }
 
+    #[allow(dead_code)] // kept for internal/future use
     pub fn add_transaction(&self, name: &str, tx: &Transaction) -> Result<(), String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
         conn.execute(
-            "INSERT INTO transactions (id, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            "INSERT INTO transactions (id, portfolio_name, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 tx.id,
+                name,
                 tx.date,
                 tx.tx_type,
                 tx.symbol,
@@ -183,11 +247,12 @@ impl PortfolioManager {
     }
 
     pub fn append_note(&self, name: &str, tx_id: &str, note: &str) -> Result<(), String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
         let existing: String = conn
             .query_row(
-                "SELECT notes FROM transactions WHERE id = ?1",
-                params![tx_id],
+                "SELECT notes FROM transactions WHERE id = ?1 AND portfolio_name = ?2",
+                params![tx_id, name],
                 |row| row.get(0),
             )
             .map_err(|e| format!("lookup: {e}"))?;
@@ -198,8 +263,8 @@ impl PortfolioManager {
             format!("{existing}\n[{timestamp}] {note}")
         };
         conn.execute(
-            "UPDATE transactions SET notes = ?1 WHERE id = ?2",
-            params![updated, tx_id],
+            "UPDATE transactions SET notes = ?1 WHERE id = ?2 AND portfolio_name = ?3",
+            params![updated, tx_id, name],
         )
         .map_err(|e| format!("update: {e}"))?;
         Ok(())
@@ -213,9 +278,11 @@ impl PortfolioManager {
         from_date: Option<&str>,
         to_date: Option<&str>,
     ) -> Result<Vec<Transaction>, String> {
-        let conn = self.open(name)?;
-        let mut sql = "SELECT id, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at FROM transactions WHERE 1=1".to_string();
-        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
+        let mut sql = "SELECT id, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at FROM transactions WHERE portfolio_name = ?1".to_string();
+        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> =
+            vec![Box::new(name.to_string())];
 
         if let Some(s) = symbol {
             bind_values.push(Box::new(s.to_string()));
@@ -430,14 +497,16 @@ impl PortfolioManager {
         name: &str,
         txs: Vec<Transaction>,
     ) -> Result<Vec<String>, String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
         let mut imported = Vec::new();
         for tx in &txs {
             match conn.execute(
-                "INSERT OR IGNORE INTO transactions (id, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT OR IGNORE INTO transactions (id, portfolio_name, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
                     tx.id,
+                    name,
                     tx.date,
                     tx.tx_type,
                     tx.symbol,
@@ -490,14 +559,15 @@ impl PortfolioManager {
 
     // ── Data linkage ─────────────────────────────────────────────
 
-    /// Get all unique symbols from the portfolio ledger.
+    /// Get all unique symbols from a portfolio's ledger.
     pub fn get_symbols(&self, name: &str) -> Result<Vec<String>, String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
         let mut stmt = conn
-            .prepare("SELECT DISTINCT symbol FROM transactions WHERE symbol IS NOT NULL AND symbol != ''")
+            .prepare("SELECT DISTINCT symbol FROM transactions WHERE portfolio_name = ?1 AND symbol IS NOT NULL AND symbol != ''")
             .map_err(|e| format!("query: {e}"))?;
         let rows = stmt
-            .query_map([], |row| row.get::<_, String>(0))
+            .query_map(params![name], |row| row.get::<_, String>(0))
             .map_err(|e| format!("query: {e}"))?;
         let mut symbols = Vec::new();
         for row in rows {
@@ -507,12 +577,12 @@ impl PortfolioManager {
     }
 
     /// Resolve a ledger symbol to its data provider symbol.
-    /// Checks security_links table first, falls back to using the ledger symbol as-is.
+    #[allow(dead_code)] // kept for internal/future use
     pub fn resolve_symbol(&self, name: &str, ledger_symbol: &str) -> Result<String, String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
         match conn.query_row(
-            "SELECT data_symbol FROM security_links WHERE ledger_symbol = ?1",
-            params![ledger_symbol],
+            "SELECT data_symbol FROM security_links WHERE portfolio_name = ?1 AND ledger_symbol = ?2",
+            params![name, ledger_symbol],
             |row| row.get::<_, String>(0),
         ) {
             Ok(data_symbol) => Ok(data_symbol),
@@ -522,39 +592,43 @@ impl PortfolioManager {
     }
 
     /// Link a ledger symbol to a specific data provider symbol.
+    #[allow(dead_code)] // kept for internal/future use
     pub fn link_security(
         &self,
         name: &str,
         ledger_symbol: &str,
         data_symbol: &str,
     ) -> Result<(), String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
         conn.execute(
-            "INSERT OR REPLACE INTO security_links (ledger_symbol, data_symbol) VALUES (?1, ?2)",
-            params![ledger_symbol, data_symbol],
+            "INSERT OR REPLACE INTO security_links (portfolio_name, ledger_symbol, data_symbol) VALUES (?1, ?2, ?3)",
+            params![name, ledger_symbol, data_symbol],
         )
         .map_err(|e| format!("insert: {e}"))?;
         Ok(())
     }
 
-    /// Get the date range of transactions for a symbol (or all symbols).
+    /// Get the date range of transactions for a symbol (or all symbols) in a portfolio.
+    #[allow(dead_code)] // kept for internal/future use
     pub fn get_date_range(
         &self,
         name: &str,
         symbol: Option<&str>,
     ) -> Result<(String, String), String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
+        self.check_exists(&conn, name)?;
         let (sql, params): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(sym) =
             symbol
         {
             (
-                    "SELECT MIN(date), MAX(date) FROM transactions WHERE symbol = ?1 AND symbol IS NOT NULL".into(),
-                    vec![Box::new(sym.to_string())],
-                )
+                "SELECT MIN(date), MAX(date) FROM transactions WHERE portfolio_name = ?1 AND symbol = ?2 AND symbol IS NOT NULL".into(),
+                vec![Box::new(name.to_string()), Box::new(sym.to_string())],
+            )
         } else {
             (
-                "SELECT MIN(date), MAX(date) FROM transactions".into(),
-                vec![],
+                "SELECT MIN(date), MAX(date) FROM transactions WHERE portfolio_name = ?1".into(),
+                vec![Box::new(name.to_string())],
             )
         };
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
@@ -569,7 +643,8 @@ impl PortfolioManager {
         }
     }
 
-    /// Find dates in [from, to] that are missing from price_cache for a symbol.
+    /// Find dates in [from, to] missing from price_cache for a symbol in a portfolio.
+    #[allow(dead_code)] // kept for internal/future use
     pub fn get_missing_price_dates(
         &self,
         name: &str,
@@ -577,20 +652,20 @@ impl PortfolioManager {
         from: &str,
         to: &str,
     ) -> Result<Vec<String>, String> {
-        let conn = self.open(name)?;
-        // Get all dates we have cached for this symbol in range
+        let conn = self.open()?;
         let mut stmt = conn
             .prepare(
-                "SELECT date FROM price_cache WHERE symbol = ?1 AND date >= ?2 AND date <= ?3 ORDER BY date",
+                "SELECT date FROM price_cache WHERE portfolio_name = ?1 AND symbol = ?2 AND date >= ?3 AND date <= ?4 ORDER BY date",
             )
             .map_err(|e| format!("query: {e}"))?;
         let cached: Vec<String> = stmt
-            .query_map(params![symbol, from, to], |row| row.get::<_, String>(0))
+            .query_map(params![name, symbol, from, to], |row| {
+                row.get::<_, String>(0)
+            })
             .map_err(|e| format!("query: {e}"))?
             .filter_map(|r| r.ok())
             .collect();
 
-        // Generate all calendar dates in range and find missing
         let from_date = chrono::NaiveDate::parse_from_str(from, "%Y-%m-%d")
             .map_err(|e| format!("invalid from date '{from}': {e}"))?;
         let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d")
@@ -609,6 +684,7 @@ impl PortfolioManager {
     }
 
     /// Store a closing price in the cache.
+    #[allow(dead_code)] // kept for internal/future use
     pub fn store_price(
         &self,
         name: &str,
@@ -617,10 +693,10 @@ impl PortfolioManager {
         close: f64,
         source: &str,
     ) -> Result<(), String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
         conn.execute(
-            "INSERT OR REPLACE INTO price_cache (symbol, date, close, source, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![symbol, date, close, source, chrono::Utc::now().to_rfc3339()],
+            "INSERT OR REPLACE INTO price_cache (portfolio_name, symbol, date, close, source, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![name, symbol, date, close, source, chrono::Utc::now().to_rfc3339()],
         )
         .map_err(|e| format!("insert: {e}"))?;
         Ok(())
@@ -635,12 +711,12 @@ impl PortfolioManager {
         from: &str,
         to: &str,
     ) -> Result<Vec<(String, f64, String)>, String> {
-        let conn = self.open(name)?;
+        let conn = self.open()?;
         let mut stmt = conn
-            .prepare("SELECT date, close, source FROM price_cache WHERE symbol = ?1 AND date >= ?2 AND date <= ?3 ORDER BY date")
+            .prepare("SELECT date, close, source FROM price_cache WHERE portfolio_name = ?1 AND symbol = ?2 AND date >= ?3 AND date <= ?4 ORDER BY date")
             .map_err(|e| format!("query: {e}"))?;
         let rows = stmt
-            .query_map(params![symbol, from, to], |row| {
+            .query_map(params![name, symbol, from, to], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, f64>(1)?,
@@ -653,6 +729,80 @@ impl PortfolioManager {
             prices.push(row.map_err(|e| format!("row: {e}"))?);
         }
         Ok(prices)
+    }
+
+    // ── Portfolio comparison ────────────────────────────────────
+
+    /// Compare two portfolios — side-by-side positions, overlap, unique symbols.
+    pub fn compare(&self, name_a: &str, name_b: &str) -> Result<serde_json::Value, String> {
+        let report_a = self.validate(name_a)?;
+        let report_b = self.validate(name_b)?;
+
+        let positions_a: std::collections::HashMap<&str, &PositionSummary> = report_a
+            .positions
+            .iter()
+            .map(|p| (p.symbol.as_str(), p))
+            .collect();
+        let positions_b: std::collections::HashMap<&str, &PositionSummary> = report_b
+            .positions
+            .iter()
+            .map(|p| (p.symbol.as_str(), p))
+            .collect();
+
+        let all_symbols: std::collections::BTreeSet<&str> = positions_a
+            .keys()
+            .chain(positions_b.keys())
+            .copied()
+            .collect();
+
+        let mut shared = Vec::new();
+        let mut only_a = Vec::new();
+        let mut only_b = Vec::new();
+
+        for sym in &all_symbols {
+            match (positions_a.get(sym), positions_b.get(sym)) {
+                (Some(pa), Some(pb)) => shared.push(serde_json::json!({
+                    "symbol": sym,
+                    "shares_a": pa.shares,
+                    "shares_b": pb.shares,
+                    "buys_a": pa.total_buys,
+                    "sells_a": pa.total_sells,
+                    "buys_b": pb.total_buys,
+                    "sells_b": pb.total_sells,
+                })),
+                (Some(pa), None) => only_a.push(serde_json::json!({
+                    "symbol": sym,
+                    "shares": pa.shares,
+                    "buys": pa.total_buys,
+                    "sells": pa.total_sells,
+                })),
+                (None, Some(pb)) => only_b.push(serde_json::json!({
+                    "symbol": sym,
+                    "shares": pb.shares,
+                    "buys": pb.total_buys,
+                    "sells": pb.total_sells,
+                })),
+                (None, None) => unreachable!(),
+            }
+        }
+
+        Ok(serde_json::json!({
+            "portfolio_a": {
+                "name": name_a,
+                "transactions": report_a.transaction_count,
+                "positions": report_a.positions.len(),
+                "cash": report_a.cash_balance,
+            },
+            "portfolio_b": {
+                "name": name_b,
+                "transactions": report_b.transaction_count,
+                "positions": report_b.positions.len(),
+                "cash": report_b.cash_balance,
+            },
+            "shared_positions": shared,
+            "only_in_a": only_a,
+            "only_in_b": only_b,
+        }))
     }
 }
 

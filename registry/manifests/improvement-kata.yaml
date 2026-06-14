@@ -29,6 +29,7 @@ steps:
       What capability needs development? What is the long-term goal?
     renderer: minijinja
     template_ref: kata-improvement/improvement-step1-direction
+    classifier: true
     gas_cap: 2000
     timeout_seconds: 20
     output_schema:
@@ -48,6 +49,7 @@ steps:
       What is the actual performance now? Measure, don't assume.
     renderer: minijinja
     template_ref: kata-improvement/improvement-step2-current
+    classifier: true
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:

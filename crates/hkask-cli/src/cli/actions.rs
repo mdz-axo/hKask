@@ -616,6 +616,12 @@ pub enum KataAction {
         /// Optional context key=value pairs
         #[arg(short, long = "ctx", num_args = 1..)]
         context: Vec<String>,
+        /// Save state to a file after execution
+        #[arg(long)]
+        save: Option<PathBuf>,
+        /// Resume from a previously saved state file
+        #[arg(long)]
+        resume: Option<PathBuf>,
     },
 }
 

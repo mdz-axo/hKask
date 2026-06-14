@@ -9,7 +9,7 @@ use hkask_inference::InferenceConfig;
 use hkask_services::{KataEngine, KataError};
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Resolve the registry/manifests directory relative to the project root.
 fn manifests_dir() -> PathBuf {
@@ -17,11 +17,24 @@ fn manifests_dir() -> PathBuf {
     cwd.join("registry").join("manifests")
 }
 
-pub fn run(action: KataAction) {
+pub fn run(action: KataAction, registry: &SqliteRegistry) {
     match action {
         KataAction::List => list_manifests(),
         KataAction::Show { name } => show_manifest(&name),
-        KataAction::Start { name, bot, context } => start_kata(&name, &bot, &context),
+        KataAction::Start {
+            name,
+            bot,
+            context,
+            save,
+            resume,
+        } => start_kata(
+            &name,
+            &bot,
+            &context,
+            save.as_deref(),
+            resume.as_deref(),
+            registry,
+        ),
     }
 }
 
@@ -135,7 +148,14 @@ fn show_manifest(name: &str) {
     }
 }
 
-fn start_kata(name: &str, bot: &str, context: &[String]) {
+fn start_kata(
+    name: &str,
+    bot: &str,
+    context: &[String],
+    save_path: Option<&Path>,
+    resume_path: Option<&Path>,
+    registry: &SqliteRegistry,
+) {
     let dir = manifests_dir();
     let path = dir.join(format!("{}.yaml", name));
 
@@ -147,17 +167,14 @@ fn start_kata(name: &str, bot: &str, context: &[String]) {
         }
     }
 
-    // Build engine
+    // Build engine with shared registry (has bootstrapped templates)
     let inf_cfg = InferenceConfig::from_env();
     let inference = hkask_inference::InferenceRouter::new(inf_cfg);
     let inference_port: std::sync::Arc<dyn hkask_types::ports::InferencePort> =
         std::sync::Arc::new(inference);
 
-    let registry = crate::commands::helpers::or_exit(
-        SqliteRegistry::new(None),
-        "Failed to initialize registry",
-    );
-    let engine = KataEngine::new(inference_port, registry);
+    // Clone the registry's connection for the engine
+    let engine = KataEngine::new(inference_port, registry.clone());
 
     // Load manifest
     let manifest = match KataEngine::load_manifest(&path) {
@@ -168,16 +185,58 @@ fn start_kata(name: &str, bot: &str, context: &[String]) {
         }
     };
 
+    // Resume from saved state if provided
+    let initial_state = if let Some(rp) = resume_path {
+        match hkask_services::KataState::load(rp) {
+            Ok(state) => {
+                eprintln!(
+                    "Resumed state from {} (step {}/{})",
+                    rp.display(),
+                    state.current_step,
+                    if manifest.manifest.kata_type == "improvement" {
+                        manifest.steps.len()
+                    } else {
+                        manifest.questions.len()
+                    }
+                );
+                Some(state)
+            }
+            Err(e) => {
+                eprintln!("Failed to load state: {} — starting fresh", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     eprintln!("=== Executing {} ===", manifest.manifest.name);
     eprintln!("Type: {}", manifest.manifest.kata_type);
     eprintln!("Bot: {}", bot);
     eprintln!("Gas cap: {}", manifest.gas.cap);
+    if resume_path.is_some() {
+        eprintln!("Resume: true");
+    }
     eprintln!();
 
     // Execute
     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-    match rt.block_on(engine.execute(&manifest, bot, ctx)) {
-        Ok(result) => {
+    let result = if let Some(mut state) = initial_state {
+        // Resume: continue from saved state
+        rt.block_on(async {
+            match manifest.manifest.kata_type.as_str() {
+                "improvement" => engine.run_improvement_from(&manifest, &mut state).await,
+                "coaching" => engine.run_coaching_from(&manifest, &mut state).await,
+                "starter" => engine.run_starter(&manifest, &mut state).await,
+                other => Err(KataError::UnknownType(other.to_string())),
+            }
+        })
+    } else {
+        rt.block_on(engine.execute(&manifest, bot, ctx))
+    };
+
+    match result {
+        Ok(mut result) => {
             eprintln!("=== Kata complete ===");
             eprintln!(
                 "Steps completed: {}/{}",
@@ -193,6 +252,16 @@ fn start_kata(name: &str, bot: &str, context: &[String]) {
                     0.0
                 }
             );
+
+            // Save state if requested
+            if let Some(sp) = save_path {
+                result.state.manifest_id = manifest.manifest.id.clone();
+                match result.state.save(sp) {
+                    Ok(()) => eprintln!("State saved to {}", sp.display()),
+                    Err(e) => eprintln!("Failed to save state: {}", e),
+                }
+            }
+
             eprintln!();
             eprintln!("Step outputs:");
             for (key, value) in &result.state.step_outputs {

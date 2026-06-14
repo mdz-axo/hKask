@@ -73,16 +73,6 @@ fn endpoint_mapping(tool: &str) -> EndpointMapping {
             eodhd_path: "/search",
             normalize_eodhd: false,
         },
-        "analyst_estimates" => EndpointMapping {
-            fmp_path: "/analyst-estimates",
-            eodhd_path: "/fundamentals",
-            normalize_eodhd: true,
-        },
-        "dcf_analysis" => EndpointMapping {
-            fmp_path: "/discounted-cash-flow",
-            eodhd_path: "/fundamentals",
-            normalize_eodhd: true,
-        },
         _ => EndpointMapping {
             fmp_path: "",
             eodhd_path: "",
@@ -266,8 +256,6 @@ fn normalize_eodhd(tool: &str, eodhd_value: &Value, symbol: &str) -> Value {
         "cash_flow_statement" => normalize_eodhd_cash_flow(eodhd_value),
         "key_metrics" => normalize_eodhd_key_metrics(eodhd_value),
         "historical_price" => normalize_eodhd_historical(eodhd_value, symbol),
-        "analyst_estimates" => normalize_eodhd_analyst_estimates(eodhd_value),
-        "dcf_analysis" => normalize_eodhd_dcf(eodhd_value),
         _ => eodhd_value.clone(),
     }
 }
@@ -559,50 +547,6 @@ fn normalize_eodhd_historical(eod_value: &Value, symbol: &str) -> Value {
         "symbol": symbol,
         "historical": historical,
     })
-}
-
-/// Extract analyst estimates from EODHD AnalystRatings → FMP format.
-fn normalize_eodhd_analyst_estimates(fundamentals: &Value) -> Value {
-    let ratings = fundamentals.get("AnalystRatings");
-    match ratings {
-        Some(r) => {
-            // FMP returns an array of estimate objects
-            if r.is_object() {
-                let obj = r.as_object().unwrap();
-                let mut items: Vec<Value> = obj
-                    .iter()
-                    .map(|(key, value)| {
-                        serde_json::json!({
-                            "date": key,
-                            "estimatedRevenueGrowth": value.get("revenueEstimateGrowth"),
-                            "estimatedEpsGrowth": value.get("epsEstimateGrowth"),
-                        })
-                    })
-                    .collect();
-                items.sort_by(|a, b| {
-                    let da = a.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                    let db = b.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                    db.cmp(da)
-                });
-                Value::Array(items)
-            } else {
-                Value::Array(vec![r.clone()])
-            }
-        }
-        None => Value::Array(vec![]),
-    }
-}
-
-/// Extract DCF data from EODHD Valuation section → FMP format.
-fn normalize_eodhd_dcf(fundamentals: &Value) -> Value {
-    let valuation = fundamentals.get("Valuation");
-    match valuation {
-        Some(v) => {
-            // FMP DCF returns an array with one element
-            Value::Array(vec![v.clone()])
-        }
-        None => Value::Array(vec![]),
-    }
 }
 
 // ── Search functions (query-based, not symbol-based) ───────────────

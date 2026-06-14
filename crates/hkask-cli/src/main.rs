@@ -87,7 +87,7 @@ fn main() {
 
         Commands::Style { action } => commands::style::run(&rt, action),
 
-        Commands::Kata { action } => commands::kata::run(action),
+        Commands::Kata { action } => commands::kata::run(action, &registry),
 
         Commands::Models => commands::models::run(&rt),
 

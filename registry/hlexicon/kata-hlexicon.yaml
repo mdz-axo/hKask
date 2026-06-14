@@ -11,18 +11,6 @@ hlexicon:
       functional_role: action-word
       produces: intervention_message
 
-    - id: kata-port-cns-emit
-      path: registry/ports/kata-ports.yaml
-      description: Emit CNS span with carbon data
-      functional_role: action-word
-      produces: cns_span
-
-    - id: kata-port-memory-record
-      path: registry/ports/kata-ports.yaml
-      description: Record practice to episodic memory
-      functional_role: action-word
-      produces: memory_triple
-
   # FlowDef templates
   flowdef_templates:
     - id: kata-pattern-manifest
@@ -75,24 +63,6 @@ hlexicon:
       description: Determine if iteration is needed
       functional_role: knowledge-action
       produces: iteration_decision
-
-    - id: kata-port-execute
-      path: registry/ports/kata-ports.yaml
-      description: Authorization judgment for Kata execution
-      functional_role: knowledge-action
-      produces: authorization_decision
-
-    - id: kata-port-switch
-      path: registry/ports/kata-ports.yaml
-      description: Transition authorization judgment
-      functional_role: knowledge-action
-      produces: switch_authorization
-
-    - id: kata-port-revoke-consent
-      path: registry/ports/kata-ports.yaml
-      description: Revocation authorization judgment
-      functional_role: knowledge-action
-      produces: revocation_decision
 
   # ── Kata-Starter ─────────────────────────────────────────────────────
   starter_templates:

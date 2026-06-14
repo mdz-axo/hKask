@@ -4,8 +4,7 @@
 //! symbol characteristics, with automatic fallback. EODHD responses are
 //! normalized to match FMP format so analysis functions work transparently.
 //!
-//! Tools:
-//! - `ping` — API reachability check
+//! Financial data tools:
 //! - `company_profile` — Company profile by symbol
 //! - `stock_quote` — Real-time stock quote
 //! - `income_statement` — Income statements
@@ -14,12 +13,21 @@
 //! - `key_metrics` — Key financial metrics
 //! - `historical_price` — Historical price data
 //! - `symbol_search` — Symbol search
-//! - `analyst_estimates` — Analyst estimates
-//! - `dcf_analysis` — Discounted cash flow analysis
 //! - `moat_check` — MAIA competitive moat analysis
 //! - `management_scorecard` — MAIA CEO capital allocation scorecard
 //! - `working_capital_cycle` — MAIA CFO working capital analysis
-//! - `expectations_gap` — MAIA expectations gap analysis
+//! - `expectations_gap` — Gordon Growth Model: implied vs historical growth
+//!
+//! Portfolio tools:
+//! - `ledger_import` — Import CSV/JSON (auto-creates portfolio)
+//! - `ledger_export` — Export CSV/JSON
+//! - `portfolio_list` — List all portfolios
+//! - `portfolio_delete` — Delete a portfolio
+//! - `portfolio_create` — Create a portfolio (also auto-created on import)
+//! - `transaction_note_append` — Annotate a transaction
+//! - `portfolio_attribution` — What moved the portfolio
+//! - `portfolio_characteristics` — Weighted-average fundamentals
+//! - `portfolio_comparison` — Side-by-side comparison
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
@@ -69,27 +77,6 @@ pub struct PortfolioNameRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct TransactionAddRequest {
-    pub portfolio: String,
-    pub date: String,
-    #[serde(rename = "type")]
-    pub tx_type: String,
-    pub symbol: Option<String>,
-    pub quantity: Option<f64>,
-    pub price: Option<f64>,
-    pub commission: Option<f64>,
-    pub amount: Option<f64>,
-    #[serde(default = "default_currency")]
-    pub currency: String,
-    #[serde(default)]
-    pub notes: String,
-}
-
-fn default_currency() -> String {
-    "USD".to_string()
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct TransactionNoteRequest {
     pub portfolio: String,
     pub tx_id: String,
@@ -110,10 +97,28 @@ pub struct LedgerExportRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct PortfolioLinkRequest {
+pub struct PortfolioCompareRequest {
+    pub portfolio_a: String,
+    pub portfolio_b: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AttributionRequest {
     pub portfolio: String,
-    pub ledger_symbol: String,
-    pub data_symbol: String,
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CharacteristicsRequest {
+    pub portfolio: String,
+    pub date: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExpectationsGapRequest {
+    pub symbol: String,
+    pub target_return: Option<f64>,
 }
 
 // ── Validation ──────────────────────────────────────────────────────
@@ -200,28 +205,6 @@ impl CompaniesServer {
 
 #[tool_router(server_handler)]
 impl CompaniesServer {
-    #[tool(description = "Ping company data APIs")]
-    async fn ping(&self) -> String {
-        let span = ToolSpanGuard::new("ping", &self.webid);
-        span.finish(
-            companies_get(
-                &self.client,
-                "company_profile",
-                "AAPL",
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[],
-            )
-            .await
-            .map(|_| {
-                serde_json::json!({
-                    "status": "ok",
-                    "message": "Company data APIs are reachable"
-                })
-            }),
-        )
-    }
-
     #[tool(description = "Get company profile")]
     async fn company_profile(
         &self,
@@ -444,50 +427,6 @@ impl CompaniesServer {
                 span.finish(eodhd_result)
             }
         }
-    }
-
-    #[tool(description = "Get analyst estimates")]
-    async fn analyst_estimates(
-        &self,
-        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("analyst_estimates", &self.webid);
-        if let Err(e) = validate_symbol(&symbol) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        span.finish(
-            companies_get(
-                &self.client,
-                "analyst_estimates",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("period", "annual")],
-            )
-            .await,
-        )
-    }
-
-    #[tool(description = "Get discounted cash flow analysis")]
-    async fn dcf_analysis(
-        &self,
-        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("dcf_analysis", &self.webid);
-        if let Err(e) = validate_symbol(&symbol) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        span.finish(
-            companies_get(
-                &self.client,
-                "dcf_analysis",
-                &symbol,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[],
-            )
-            .await,
-        )
     }
 
     #[tool(
@@ -719,111 +658,187 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Expectations gap analysis (MAIA valuation framework): reverse-engineers market-implied expectations and compares to analyst consensus"
+        description = "Expectations gap: compare trailing 5-year actual performance to the future performance implied by the current price. Uses Gordon Growth Model to compute implied growth from valuation multiples vs historical profitability and growth."
     )]
     async fn expectations_gap(
         &self,
-        Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
+        Parameters(req): Parameters<ExpectationsGapRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("expectations_gap", &self.webid);
-        if let Err(e) = validate_symbol(&symbol) {
+        if let Err(e) = validate_symbol(&req.symbol) {
             return span.error(e.kind, e.to_json_string());
         }
+        let target_return = req.target_return.unwrap_or(0.15);
 
-        // Parallel fetch: profile (for P/E, P/B, P/S) + analyst estimates
+        // Fetch 5 years of key metrics for historical profitability and growth
+        let metrics_result = companies_get(
+            &self.client,
+            "key_metrics",
+            &req.symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[("limit", "5")],
+        )
+        .await;
+
         let profile_result = companies_get(
             &self.client,
             "company_profile",
-            &symbol,
+            &req.symbol,
             &self.fmp_api_key,
             &self.eodhd_api_key,
             &[],
         )
         .await;
 
-        let estimates_result = companies_get(
+        let bs_result = companies_get(
             &self.client,
-            "analyst_estimates",
-            &symbol,
+            "balance_sheet",
+            &req.symbol,
             &self.fmp_api_key,
             &self.eodhd_api_key,
-            &[("period", "annual")],
+            &[("limit", "1")],
         )
         .await;
 
-        let (profile_arr, estimates_arr) = match (profile_result, estimates_result) {
-            (Ok(p), Ok(e)) => (p, e),
-            (Err(e), _) | (_, Err(e)) => return span.error(e.kind, e.to_json_string()),
+        let (metrics_arr, profile_arr, bs_arr) = match (metrics_result, profile_result, bs_result) {
+            (Ok(m), Ok(p), Ok(b)) => (m, p, b),
+            (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                return span.error(e.kind, e.to_json_string());
+            }
         };
 
-        // Extract market multiples from profile
+        // Extract trailing 5-year averages
+        let metrics_list = metrics_arr.as_array();
         let profile = profile_arr.as_array().and_then(|a| a.first());
-        let profile_data: Option<(f64, f64, f64, f64)> = match profile {
-            Some(p) => {
-                let eps = p.get("eps").and_then(|v| v.as_f64()).unwrap_or(-1.0);
-                let price = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                let bv = p
-                    .get("bookValuePerShare")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(-1.0);
-                let sales_per_share = p
-                    .get("revenuePerShare")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(-1.0);
-                if price > 0.0 && eps > 0.0 && bv > 0.0 && sales_per_share > 0.0 {
-                    Some((price / eps, price / bv, price / sales_per_share, price))
-                } else {
-                    None
-                }
-            }
-            None => None,
+        let bs = bs_arr.as_array().and_then(|a| a.first());
+
+        if metrics_list.is_none_or(|m| m.len() < 2) || profile.is_none() {
+            return span.ok_json(serde_json::json!({
+                "symbol": req.symbol,
+                "error": "insufficient data — need at least 2 years of metrics and a profile",
+            }));
+        }
+
+        let metrics = metrics_list.unwrap();
+
+        // ── Set A: Net Margins, Sales Growth, P/Sales ──
+        let (net_margins, sales_growths) = extract_net_margin_and_sales_growth(metrics);
+        let avg_net_margin: f64 = if !net_margins.is_empty() {
+            net_margins.iter().sum::<f64>() / net_margins.len() as f64
+        } else {
+            0.0
+        };
+        let hist_sales_growth: f64 = if sales_growths.len() >= 2 {
+            cagr_from_series(&sales_growths)
+        } else {
+            0.0
+        };
+        let ps = profile
+            .and_then(|p| {
+                let price = p.get("price").and_then(|v| v.as_f64())?;
+                let sps = p.get("revenuePerShare").and_then(|v| v.as_f64())?;
+                if sps > 0.0 { Some(price / sps) } else { None }
+            })
+            .unwrap_or(0.0);
+
+        // ── Set B: ROE, Book Value Growth, P/Book ──
+        let (roes, bv_growths) = extract_roe_and_bv_growth(metrics);
+        let avg_roe: f64 = if !roes.is_empty() {
+            roes.iter().sum::<f64>() / roes.len() as f64
+        } else {
+            0.0
+        };
+        let hist_bv_growth: f64 = if bv_growths.len() >= 2 {
+            cagr_from_series(&bv_growths)
+        } else {
+            0.0
+        };
+        let pb = profile
+            .and_then(|p| {
+                let price = p.get("price").and_then(|v| v.as_f64())?;
+                let bv = p.get("bookValuePerShare").and_then(|v| v.as_f64())?;
+                if bv > 0.0 { Some(price / bv) } else { None }
+            })
+            .unwrap_or(0.0);
+
+        // ── Set C: ROA, Asset Growth, P/Assets ──
+        let (roas, asset_growths) = extract_roa_and_asset_growth(metrics);
+        let avg_roa: f64 = if !roas.is_empty() {
+            roas.iter().sum::<f64>() / roas.len() as f64
+        } else {
+            0.0
+        };
+        let hist_asset_growth: f64 = if asset_growths.len() >= 2 {
+            cagr_from_series(&asset_growths)
+        } else {
+            0.0
+        };
+        let market_cap = profile
+            .and_then(|p| p.get("mktCap").and_then(|v| v.as_f64()))
+            .unwrap_or(0.0);
+        let total_assets = bs
+            .and_then(|b| b.get("totalAssets").and_then(|v| v.as_f64()))
+            .unwrap_or(0.0);
+        let pa = if total_assets > 0.0 {
+            market_cap / total_assets
+        } else {
+            0.0
         };
 
-        // Extract analyst growth estimates
-        let estimates = estimates_arr.as_array();
-        let analyst_growth: Option<Vec<serde_json::Value>> = estimates.and_then(|arr| {
-            let items: Vec<serde_json::Value> = arr
-                .iter()
-                .filter_map(|e| {
-                    let year = e.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                    let revenue_growth =
-                        e.get("estimatedRevenueGrowth").and_then(|v| v.as_f64())?;
-                    let eps_growth = e.get("estimatedEpsGrowth").and_then(|v| v.as_f64())?;
-                    Some(serde_json::json!({
-                        "year": year,
-                        "estimated_revenue_growth": revenue_growth,
-                        "estimated_eps_growth": eps_growth,
-                    }))
-                })
-                .collect();
-            if items.is_empty() { None } else { Some(items) }
-        });
-
-        let (pe, pb, ps, price) = match profile_data {
-            Some((pe, pb, ps, price)) => (pe, pb, ps, price),
-            None => {
-                return span.ok_json(serde_json::json!({
-                    "symbol": symbol,
-                    "error": "insufficient data for expectations gap analysis",
-                }));
-            }
+        // ── Gordon Growth Model: implied growth from valuation ──
+        // Assumes profitability and growth are correlated — a company expected
+        // to grow 10% is also expected to improve profitability ~10%.
+        // Total cash flow growth ≈ 2g, so: P/V = profitability / (r - 2g)
+        // Rearranging: g = (r - profitability / (P/V)) / 2
+        let implied_sales_growth = if ps > 0.0 && avg_net_margin > 0.0 {
+            (target_return - avg_net_margin / ps) / 2.0
+        } else {
+            f64::NAN
         };
-
-        // MAIA valuation insight
-        let market_implied_expensive = pe > 25.0 || ps > 5.0;
-        let market_implied_cheap = pe < 12.0 && ps < 2.0;
+        let implied_bv_growth = if pb > 0.0 && avg_roe > 0.0 {
+            (target_return - avg_roe / pb) / 2.0
+        } else {
+            f64::NAN
+        };
+        let implied_asset_growth = if pa > 0.0 && avg_roa > 0.0 {
+            (target_return - avg_roa / pa) / 2.0
+        } else {
+            f64::NAN
+        };
 
         span.ok_json(serde_json::json!({
-            "symbol": symbol,
-            "current_price": price,
-            "market_multiples": {
-                "price_to_earnings": pe,
-                "price_to_book": pb,
-                "price_to_sales": ps,
+            "symbol": req.symbol,
+            "target_return": target_return,
+            "historical": {
+                "years": metrics.len(),
+                "set_a_income": {
+                    "avg_net_margin": avg_net_margin,
+                    "hist_sales_growth": hist_sales_growth,
+                    "price_to_sales": ps,
+                },
+                "set_b_balance": {
+                    "avg_roe": avg_roe,
+                    "hist_book_value_growth": hist_bv_growth,
+                    "price_to_book": pb,
+                },
+                "set_c_assets": {
+                    "avg_roa": avg_roa,
+                    "hist_asset_growth": hist_asset_growth,
+                    "price_to_assets": pa,
+                },
             },
-            "market_sentiment": if market_implied_expensive { "high_expectations" } else if market_implied_cheap { "low_expectations" } else { "moderate_expectations" },
-            "analyst_estimates": analyst_growth,
-            "framework": "MAIA expectations investing: compare market-implied expectations (price multiples) against analyst consensus. Low market expectations + reasonable analyst growth = potential opportunity. High market expectations = setup for disappointment.",
+            "implied": {
+                "set_a_sales_growth_implied": implied_sales_growth,
+                "set_b_book_value_growth_implied": implied_bv_growth,
+                "set_c_asset_growth_implied": implied_asset_growth,
+            },
+            "gaps": {
+                "sales_growth_gap": if implied_sales_growth.is_finite() && hist_sales_growth.is_finite() { implied_sales_growth - hist_sales_growth } else { f64::NAN },
+                "book_value_growth_gap": if implied_bv_growth.is_finite() && hist_bv_growth.is_finite() { implied_bv_growth - hist_bv_growth } else { f64::NAN },
+                "asset_growth_gap": if implied_asset_growth.is_finite() && hist_asset_growth.is_finite() { implied_asset_growth - hist_asset_growth } else { f64::NAN },
+            },
+            "framework": "Gordon Growth Model with profitability-growth correlation: P/V = profitability / (r - 2g). Assumes growth and profitability improvement are proportional — a company expected to grow 10% is also expected to improve profitability ~10%. Total cash flow growth ≈ 2g. Implied g = (r - profitability / valuation_ratio) / 2. Compare to historical CAGR. Consistent methodology → rank ordering is accurate even if precise quantification is not.",
         }))
     }
 
@@ -871,51 +886,7 @@ impl CompaniesServer {
         }
     }
 
-    #[tool(description = "Add a transaction to a portfolio ledger")]
-    async fn transaction_add(&self, Parameters(req): Parameters<TransactionAddRequest>) -> String {
-        let span = ToolSpanGuard::new("transaction_add", &self.webid);
-        let tx = portfolio::Transaction {
-            id: uuid::Uuid::new_v4().to_string(),
-            date: req.date,
-            tx_type: req.tx_type,
-            symbol: req.symbol,
-            quantity: req.quantity,
-            price: req.price,
-            commission: req.commission,
-            amount: req.amount,
-            currency: req.currency,
-            notes: req.notes,
-            created_at: chrono::Utc::now().to_rfc3339(),
-        };
-        match self.portfolio.add_transaction(&req.portfolio, &tx) {
-            Ok(()) => span.ok_json(serde_json::json!({"status": "added", "id": tx.id})),
-            Err(e) => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(e).to_json_string(),
-            ),
-        }
-    }
-
-    #[tool(description = "Append a note to an existing transaction")]
-    async fn transaction_note_append(
-        &self,
-        Parameters(TransactionNoteRequest {
-            portfolio,
-            tx_id,
-            note,
-        }): Parameters<TransactionNoteRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("transaction_note_append", &self.webid);
-        match self.portfolio.append_note(&portfolio, &tx_id, &note) {
-            Ok(()) => span.ok_json(serde_json::json!({"status": "note appended", "tx_id": tx_id})),
-            Err(e) => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(e).to_json_string(),
-            ),
-        }
-    }
-
-    #[tool(description = "Import transactions from CSV or JSON")]
+    #[tool(description = "Import transactions from CSV or JSON into a portfolio ledger")]
     async fn ledger_import(
         &self,
         Parameters(LedgerImportRequest {
@@ -925,13 +896,43 @@ impl CompaniesServer {
         }): Parameters<LedgerImportRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("ledger_import", &self.webid);
+        // Auto-create portfolio if it doesn't exist
+        if self.portfolio.list().is_ok_and(|l| !l.contains(&portfolio))
+            && let Err(e) = self.portfolio.create(&portfolio)
+        {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!("auto-create failed: {e}")).to_json_string(),
+            );
+        }
         let result = match format.as_str() {
             "csv" => self.portfolio.import_csv(&portfolio, &data),
             "json" => self.portfolio.import_json(&portfolio, &data),
             other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
         };
         match result {
-            Ok(ids) => span.ok_json(serde_json::json!({"status": "imported", "count": ids.len()})),
+            Ok(ids) => {
+                // Auto-validate after import
+                let validation = self.portfolio.validate(&portfolio).unwrap_or_else(|e| {
+                    portfolio::ValidationReport {
+                        valid: false,
+                        transaction_count: ids.len(),
+                        positions: vec![],
+                        cash_balance: 0.0,
+                        issues: vec![e],
+                    }
+                });
+                span.ok_json(serde_json::json!({
+                    "status": "imported",
+                    "count": ids.len(),
+                    "validation": {
+                        "valid": validation.valid,
+                        "positions": validation.positions.len(),
+                        "cash": validation.cash_balance,
+                        "issues": validation.issues,
+                    }
+                }))
+            }
             Err(e) => span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(e).to_json_string(),
@@ -959,34 +960,18 @@ impl CompaniesServer {
         }
     }
 
-    #[tool(description = "Validate a portfolio ledger — positions, cash, and consistency")]
-    async fn ledger_validate(
+    #[tool(description = "Append a note to an existing transaction")]
+    async fn transaction_note_append(
         &self,
-        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+        Parameters(TransactionNoteRequest {
+            portfolio,
+            tx_id,
+            note,
+        }): Parameters<TransactionNoteRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("ledger_validate", &self.webid);
-        match self.portfolio.validate(&name) {
-            Ok(report) => span.ok_json(serde_json::to_value(report).unwrap_or_default()),
-            Err(e) => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(e).to_json_string(),
-            ),
-        }
-    }
-
-    // ── Data linkage tools ───────────────────────────────────────
-
-    #[tool(description = "Link a ledger symbol to a data provider symbol")]
-    async fn portfolio_link_security(
-        &self,
-        Parameters(req): Parameters<PortfolioLinkRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("portfolio_link_security", &self.webid);
-        match self
-            .portfolio
-            .link_security(&req.portfolio, &req.ledger_symbol, &req.data_symbol)
-        {
-            Ok(()) => span.ok_json(serde_json::json!({"status": "linked"})),
+        let span = ToolSpanGuard::new("transaction_note_append", &self.webid);
+        match self.portfolio.append_note(&portfolio, &tx_id, &note) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "note appended", "tx_id": tx_id})),
             Err(e) => span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(e).to_json_string(),
@@ -995,16 +980,42 @@ impl CompaniesServer {
     }
 
     #[tool(
-        description = "Refresh prices for all securities in a portfolio — fetches missing daily closes"
+        description = "Compare two portfolios side by side — positions, overlap, unique symbols"
     )]
-    async fn portfolio_refresh_prices(
+    async fn portfolio_comparison(
         &self,
-        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+        Parameters(PortfolioCompareRequest {
+            portfolio_a,
+            portfolio_b,
+        }): Parameters<PortfolioCompareRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("portfolio_refresh_prices", &self.webid);
+        let span = ToolSpanGuard::new("portfolio_comparison", &self.webid);
+        match self.portfolio.compare(&portfolio_a, &portfolio_b) {
+            Ok(report) => span.ok_json(report),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
 
-        let symbols = match self.portfolio.get_symbols(&name) {
-            Ok(s) => s,
+    // ── Analysis tools ───────────────────────────────────────────
+
+    #[tool(
+        description = "What moved the portfolio — each position's weight, return, and contribution, ranked by impact"
+    )]
+    async fn portfolio_attribution(
+        &self,
+        Parameters(req): Parameters<AttributionRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_attribution", &self.webid);
+
+        // Get transactions and compute positions at start and end
+        let txs = match self
+            .portfolio
+            .get_transactions(&req.portfolio, None, None, None, None)
+        {
+            Ok(t) => t,
             Err(e) => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
@@ -1013,98 +1024,150 @@ impl CompaniesServer {
             }
         };
 
-        let (from, to) = match self.portfolio.get_date_range(&name, None) {
-            Ok(range) => range,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(e).to_json_string(),
-                );
-            }
-        };
-
-        let mut fetched = 0u32;
-        let mut errors = Vec::new();
-
-        for ledger_sym in &symbols {
-            let data_sym = self
-                .portfolio
-                .resolve_symbol(&name, ledger_sym)
-                .unwrap_or_else(|_| ledger_sym.clone());
-
-            let missing = match self
-                .portfolio
-                .get_missing_price_dates(&name, &data_sym, &from, &to)
-            {
-                Ok(m) => m,
-                Err(e) => {
-                    errors.push(format!("{ledger_sym}: {e}"));
-                    continue;
-                }
-            };
-
-            if missing.is_empty() {
-                continue;
-            }
-
-            // Fetch historical prices for the full range; companies_get returns
-            // FMP-style {symbol, historical: [...]} or EODHD-style normalized.
-            let result = companies_get(
-                &self.client,
-                "historical_price",
-                &data_sym,
-                &self.fmp_api_key,
-                &self.eodhd_api_key,
-                &[("from", &from), ("to", &to)],
-            )
-            .await;
-
-            match result {
-                Ok(value) => {
-                    let historical = value.get("historical").and_then(|h| h.as_array());
-                    if let Some(days) = historical {
-                        for day in days {
-                            let date = day.get("date").and_then(|d| d.as_str()).unwrap_or("");
-                            let close = day
-                                .get("close")
-                                .or_else(|| day.get("adjClose"))
-                                .and_then(|v| v.as_f64());
-                            if let (Some(c), true) = (close, !date.is_empty())
-                                && missing.contains(&date.to_string())
-                            {
-                                if let Err(e) =
-                                    self.portfolio.store_price(&name, &data_sym, date, c, "api")
-                                {
-                                    errors.push(format!("{ledger_sym} {date}: {e}"));
-                                } else {
-                                    fetched += 1;
-                                }
-                            }
+        // Compute positions at from_date and to_date
+        let mut positions_start: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        let mut positions_end: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        for tx in &txs {
+            if let Some(ref sym) = tx.symbol {
+                if tx.date <= req.from {
+                    match tx.tx_type.as_str() {
+                        "buy" => {
+                            *positions_start.entry(sym.clone()).or_insert(0.0) +=
+                                tx.quantity.unwrap_or(0.0)
                         }
+                        "sell" => {
+                            *positions_start.entry(sym.clone()).or_insert(0.0) -=
+                                tx.quantity.unwrap_or(0.0)
+                        }
+                        _ => {}
                     }
                 }
-                Err(e) => {
-                    errors.push(format!("{ledger_sym}: {}", e.to_json_string()));
+                if tx.date <= req.to {
+                    match tx.tx_type.as_str() {
+                        "buy" => {
+                            *positions_end.entry(sym.clone()).or_insert(0.0) +=
+                                tx.quantity.unwrap_or(0.0)
+                        }
+                        "sell" => {
+                            *positions_end.entry(sym.clone()).or_insert(0.0) -=
+                                tx.quantity.unwrap_or(0.0)
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
 
+        // Only include symbols with non-zero position at start
+        positions_start.retain(|_, v| *v > 0.0001);
+        if positions_start.is_empty() {
+            return span.ok_json(
+                serde_json::json!({"attribution": [], "message": "no positions at start date"}),
+            );
+        }
+
+        // Fetch prices for all symbols at both dates
+        let mut prices_start = serde_json::Map::new();
+        let mut prices_end = serde_json::Map::new();
+        let mut errors = Vec::new();
+
+        for sym in positions_start.keys() {
+            // Fetch historical prices around each date
+            for (date, prices_map) in [(&req.from, &mut prices_start), (&req.to, &mut prices_end)] {
+                match companies_get(
+                    &self.client,
+                    "historical_price",
+                    sym,
+                    &self.fmp_api_key,
+                    &self.eodhd_api_key,
+                    &[("from", date), ("to", date)],
+                )
+                .await
+                {
+                    Ok(value) => {
+                        let historical = value.get("historical").and_then(|h| h.as_array());
+                        if let Some(days) = historical
+                            && let Some(day) = days.first()
+                        {
+                            let close = day
+                                .get("close")
+                                .or_else(|| day.get("adjClose"))
+                                .and_then(|v| v.as_f64());
+                            if let Some(c) = close {
+                                prices_map.insert(sym.clone(), serde_json::Value::from(c));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!("{sym}@{date}: {}", e.to_json_string()));
+                    }
+                }
+            }
+        }
+
+        // Build attribution table
+        let mut rows = Vec::new();
+        for (sym, shares) in &positions_start {
+            let p_start = prices_start
+                .get(sym)
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let p_end = prices_end.get(sym).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            if p_start <= 0.0 {
+                continue;
+            }
+            let security_return = (p_end - p_start) / p_start;
+            let mv_start = shares * p_start;
+            rows.push((sym.clone(), mv_start, security_return));
+        }
+
+        let total_mv: f64 = rows.iter().map(|(_, mv, _)| mv).sum();
+        let mut attribution: Vec<serde_json::Value> = rows
+            .into_iter()
+            .map(|(sym, mv_start, ret)| {
+                let weight = if total_mv > 0.0 { mv_start / total_mv } else { 0.0 };
+                let contribution_bps = weight * ret * 10000.0;
+                let shares_end = positions_end.get(&sym).copied().unwrap_or(0.0);
+                let p_end = prices_end.get(&sym).and_then(|v| v.as_f64()).unwrap_or(0.0);
+                serde_json::json!({
+                    "symbol": sym,
+                    "weight_start_pct": (weight * 100.0),
+                    "weight_end_pct": if total_mv > 0.0 { shares_end * p_end / total_mv * 100.0 } else { 0.0 },
+                    "security_return_pct": (ret * 100.0),
+                    "contribution_bps": contribution_bps,
+                    "gain_loss": mv_start * ret,
+                })
+            })
+            .collect();
+
+        // Sort by absolute contribution
+        attribution.sort_by(|a, b| {
+            let ca = a["contribution_bps"].as_f64().unwrap_or(0.0).abs();
+            let cb = b["contribution_bps"].as_f64().unwrap_or(0.0).abs();
+            cb.partial_cmp(&ca).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
         span.ok_json(serde_json::json!({
-            "status": "completed",
-            "symbols_checked": symbols.len(),
-            "prices_fetched": fetched,
+            "portfolio": req.portfolio,
+            "from": req.from,
+            "to": req.to,
+            "attribution": attribution,
             "errors": errors,
         }))
     }
 
-    #[tool(description = "Refresh fundamental data for all securities in a portfolio")]
-    async fn portfolio_refresh_fundamentals(
+    #[tool(
+        description = "Weighted-average fundamentals of what the portfolio owns — valuation, profitability, leverage, growth, composition"
+    )]
+    async fn portfolio_characteristics(
         &self,
-        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+        Parameters(req): Parameters<CharacteristicsRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("portfolio_refresh_fundamentals", &self.webid);
+        let span = ToolSpanGuard::new("portfolio_characteristics", &self.webid);
 
-        let symbols = match self.portfolio.get_symbols(&name) {
+        let symbols = match self.portfolio.get_symbols(&req.portfolio) {
             Ok(s) => s,
             Err(e) => {
                 return span.error(
@@ -1114,63 +1177,276 @@ impl CompaniesServer {
             }
         };
 
-        let mut profiles = serde_json::Map::new();
-        let mut metrics = serde_json::Map::new();
-        let mut errors = Vec::new();
+        if symbols.is_empty() {
+            return span.ok_json(
+                serde_json::json!({"characteristics": {}, "message": "no symbols in portfolio"}),
+            );
+        }
 
-        for ledger_sym in &symbols {
-            let data_sym = self
+        // Get positions at the as-of date
+        let txs =
+            match self
                 .portfolio
-                .resolve_symbol(&name, ledger_sym)
-                .unwrap_or_else(|_| ledger_sym.clone());
+                .get_transactions(&req.portfolio, None, None, None, Some(&req.date))
+            {
+                Ok(t) => t,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
+            };
+        let mut positions: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        for tx in &txs {
+            if let Some(ref sym) = tx.symbol {
+                match tx.tx_type.as_str() {
+                    "buy" => {
+                        *positions.entry(sym.clone()).or_insert(0.0) += tx.quantity.unwrap_or(0.0)
+                    }
+                    "sell" => {
+                        *positions.entry(sym.clone()).or_insert(0.0) -= tx.quantity.unwrap_or(0.0)
+                    }
+                    _ => {}
+                }
+            }
+        }
+        positions.retain(|_, v| *v > 0.0001);
 
-            // Fetch profile
+        // Fetch prices and market values
+        let mut market_values = Vec::new();
+        let mut errors = Vec::new();
+        for sym in positions.keys() {
             match companies_get(
                 &self.client,
-                "company_profile",
-                &data_sym,
+                "stock_quote",
+                sym,
                 &self.fmp_api_key,
                 &self.eodhd_api_key,
                 &[],
             )
             .await
             {
-                Ok(v) => {
-                    profiles.insert(ledger_sym.clone(), v);
+                Ok(value) => {
+                    let price = value
+                        .as_array()
+                        .and_then(|a| a.first())
+                        .and_then(|q| q.get("price").and_then(|p| p.as_f64()))
+                        .unwrap_or(0.0);
+                    let shares = positions.get(sym).copied().unwrap_or(0.0);
+                    market_values.push((sym.clone(), shares, price, shares * price));
                 }
                 Err(e) => {
-                    errors.push(format!("{ledger_sym} profile: {}", e.to_json_string()));
+                    errors.push(format!("{sym} quote: {}", e.to_json_string()));
+                }
+            }
+        }
+
+        let total_mv: f64 = market_values.iter().map(|(_, _, _, mv)| mv).sum();
+        if total_mv <= 0.0 {
+            return span
+                .ok_json(serde_json::json!({"characteristics": {}, "message": "no market value"}));
+        }
+
+        // Fetch fundamentals and compute weighted averages
+        let mut characteristics = serde_json::Map::new();
+        for (sym, _shares, _price, mv) in &market_values {
+            let weight = mv / total_mv;
+
+            // Fetch profile for sector/industry/country/market cap
+            if let Ok(profile_val) = companies_get(
+                &self.client,
+                "company_profile",
+                sym,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[],
+            )
+            .await
+                && let Some(profile) = profile_val.as_array().and_then(|a| a.first())
+            {
+                for field in ["sector", "industry", "country", "mktCap"] {
+                    if let Some(val) = profile.get(field) {
+                        let key = field.to_string();
+                        let entry = characteristics.entry(key).or_insert(serde_json::json!(0.0));
+                        if val.is_string() {
+                            let str_val = val.as_str().unwrap();
+                            let sub = characteristics
+                                .entry(format!("{field}_breakdown"))
+                                .or_insert(serde_json::json!({}));
+                            if let Some(sub_map) = sub.as_object_mut() {
+                                let e = sub_map
+                                    .entry(str_val.to_string())
+                                    .or_insert(serde_json::json!(0.0));
+                                *e = serde_json::json!(e.as_f64().unwrap_or(0.0) + weight);
+                            }
+                        } else if let Some(num) = val.as_f64() {
+                            *entry =
+                                serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * num);
+                        }
+                    }
                 }
             }
 
-            // Fetch key metrics
-            match companies_get(
+            // Fetch key metrics for profitability/valuation
+            if let Ok(metrics_val) = companies_get(
                 &self.client,
                 "key_metrics",
-                &data_sym,
+                sym,
                 &self.fmp_api_key,
                 &self.eodhd_api_key,
-                &[("limit", "5")],
+                &[("limit", "1")],
             )
             .await
+                && let Some(metrics) = metrics_val.as_array().and_then(|a| a.first())
             {
-                Ok(v) => {
-                    metrics.insert(ledger_sym.clone(), v);
+                for field in [
+                    "peRatio",
+                    "priceToBookRatio",
+                    "priceToSalesRatio",
+                    "roic",
+                    "roe",
+                    "grossProfitMargin",
+                    "operatingProfitMargin",
+                    "netProfitMargin",
+                    "debtToEquity",
+                    "dividendYield",
+                    "revenueGrowth",
+                    "epsGrowth",
+                ] {
+                    if let Some(val) = metrics.get(field).and_then(|v| v.as_f64()) {
+                        let entry = characteristics
+                            .entry(field.to_string())
+                            .or_insert(serde_json::json!(0.0));
+                        *entry = serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * val);
+                    }
                 }
-                Err(e) => {
-                    errors.push(format!("{ledger_sym} metrics: {}", e.to_json_string()));
+            }
+
+            // Balance sheet for leverage
+            if let Ok(bs_val) = companies_get(
+                &self.client,
+                "balance_sheet",
+                sym,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("limit", "1")],
+            )
+            .await
+                && let Some(bs) = bs_val.as_array().and_then(|a| a.first())
+            {
+                let assets = bs.get("totalAssets").and_then(|v| v.as_f64());
+                let equity = bs.get("totalEquity").and_then(|v| v.as_f64());
+                if let (Some(a), Some(e)) = (assets, equity)
+                    && e > 0.0
+                {
+                    let lev = a / e;
+                    let entry = characteristics
+                        .entry("financialLeverage".to_string())
+                        .or_insert(serde_json::json!(0.0));
+                    *entry = serde_json::json!(entry.as_f64().unwrap_or(0.0) + weight * lev);
                 }
             }
         }
 
         span.ok_json(serde_json::json!({
-            "status": "completed",
-            "symbols_checked": symbols.len(),
-            "profiles": profiles,
-            "metrics": metrics,
+            "portfolio": req.portfolio,
+            "date": req.date,
+            "total_market_value": total_mv,
+            "position_count": market_values.len(),
+            "characteristics": characteristics,
             "errors": errors,
         }))
     }
+}
+
+// ── Expectations gap helpers ─────────────────────────────────────
+
+fn extract_net_margin_and_sales_growth(metrics: &[serde_json::Value]) -> (Vec<f64>, Vec<f64>) {
+    let mut margins = Vec::new();
+    let mut revenues: Vec<(String, f64)> = Vec::new();
+    for m in metrics {
+        if let Some(npm) = m.get("netProfitMargin").and_then(|v| v.as_f64()) {
+            margins.push(npm);
+        }
+        if let Some(rev) = m.get("revenuePerShare").and_then(|v| v.as_f64()) {
+            let year = m.get("calendarYear").and_then(|v| v.as_str()).unwrap_or("");
+            revenues.push((year.to_string(), rev));
+        }
+    }
+    revenues.sort_by(|a, b| a.0.cmp(&b.0));
+    let growths: Vec<f64> = revenues
+        .windows(2)
+        .filter_map(|w| {
+            if w[0].1 > 0.0 {
+                Some((w[1].1 - w[0].1) / w[0].1)
+            } else {
+                None
+            }
+        })
+        .collect();
+    (margins, growths)
+}
+
+fn extract_roe_and_bv_growth(metrics: &[serde_json::Value]) -> (Vec<f64>, Vec<f64>) {
+    let mut roes = Vec::new();
+    let mut bvs: Vec<(String, f64)> = Vec::new();
+    for m in metrics {
+        if let Some(roe) = m.get("roe").and_then(|v| v.as_f64()) {
+            roes.push(roe);
+        }
+        if let Some(bv) = m.get("bookValuePerShare").and_then(|v| v.as_f64()) {
+            let year = m.get("calendarYear").and_then(|v| v.as_str()).unwrap_or("");
+            bvs.push((year.to_string(), bv));
+        }
+    }
+    bvs.sort_by(|a, b| a.0.cmp(&b.0));
+    let growths: Vec<f64> = bvs
+        .windows(2)
+        .filter_map(|w| {
+            if w[0].1 > 0.0 {
+                Some((w[1].1 - w[0].1) / w[0].1)
+            } else {
+                None
+            }
+        })
+        .collect();
+    (roes, growths)
+}
+
+fn extract_roa_and_asset_growth(metrics: &[serde_json::Value]) -> (Vec<f64>, Vec<f64>) {
+    let mut roas = Vec::new();
+    let mut assets: Vec<(String, f64)> = Vec::new();
+    for m in metrics {
+        if let Some(roa) = m.get("roa").and_then(|v| v.as_f64()) {
+            roas.push(roa);
+        }
+        if let Some(ta) = m.get("totalAssets").and_then(|v| v.as_f64()) {
+            let year = m.get("calendarYear").and_then(|v| v.as_str()).unwrap_or("");
+            assets.push((year.to_string(), ta));
+        }
+    }
+    assets.sort_by(|a, b| a.0.cmp(&b.0));
+    let growths: Vec<f64> = assets
+        .windows(2)
+        .filter_map(|w| {
+            if w[0].1 > 0.0 {
+                Some((w[1].1 - w[0].1) / w[0].1)
+            } else {
+                None
+            }
+        })
+        .collect();
+    (roas, growths)
+}
+
+fn cagr_from_series(yoy_growths: &[f64]) -> f64 {
+    if yoy_growths.is_empty() {
+        return 0.0;
+    }
+    let product: f64 = yoy_growths.iter().map(|g| 1.0 + g).product();
+    product.powf(1.0 / yoy_growths.len() as f64) - 1.0
 }
 
 // ── Main ───────────────────────────────────────────────────────────
