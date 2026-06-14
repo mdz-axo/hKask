@@ -8,7 +8,7 @@
 //! - Tag generation
 //! - Image classification
 //!
-//! All prompts are backed by Jinja2 manifests in manifests/media/.
+//! All prompts are backed by Jinja2 templates embedded in templates.rs.
 //!
 //! Phase 1: Stub — tools will be implemented in Phase 2.
 

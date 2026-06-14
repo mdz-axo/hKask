@@ -145,6 +145,7 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 |----------|--------|-------------|
 | [`AGENT-POD-CREATION-GUIDE.md`](user-guides/AGENT-POD-CREATION-GUIDE.md) | domain | Creating agent pods |
 | [`COMMON-AGENT-PATTERNS.md`](user-guides/COMMON-AGENT-PATTERNS.md) | domain | Common agent patterns and templates |
+| [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | domain, composition | Company research and portfolio management user guide |
 
 ---
 

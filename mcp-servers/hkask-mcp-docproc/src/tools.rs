@@ -1209,7 +1209,7 @@ impl DocProcServer {
             );
         }
 
-        let k = top_k.unwrap_or(5).max(1).min(50);
+        let k = top_k.unwrap_or(5).clamp(1, 50);
 
         // Embed the query
         let Some(ref emb_router) = self.embedding_router else {

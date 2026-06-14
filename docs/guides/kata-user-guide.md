@@ -120,10 +120,10 @@ Each skill is **independently usable and adoptable.** An agent doesn't need the 
 | Manifest | Skill | Purpose |
 |----------|-------|---------|
 | `kata-pattern.yaml` | kata (bundle) | Unified orchestration — routes to starter/improvement/coaching |
-| `kata-iteration.yaml` | kata (bundle) | Variance assessment sub-manifest (max 2 iterations) |
 | `starter-kata.yaml` | kata-starter | 3-step practice flow (select → execute → record) |
 | `improvement-kata.yaml` | kata-improvement | 4-step scientific pattern with gas, CNS, OCAP |
 | `coaching-kata.yaml` | kata-coaching | 5-question dialogue flow with gas, CNS, OCAP |
+| `kata-iteration.yaml` | kata-improvement | Standalone iteration manifest — 2-step variance assessment (loadable, engine-compatible) |
 
 ### 2.5 Engine Interfaces
 
@@ -136,8 +136,10 @@ The kata engine (`crates/hkask-services/src/kata.rs`) exposes:
 | `KataEngine::with_consent()` | Set OCAP consent gate (P2 Affirmative Consent) |
 | `KataEngine::with_cns()` | Set CNS observer callback |
 | `KataEngine::with_history()` | Inject practice history for streak/automaticity tracking |
+| `KataEngine::with_history_store()` | Inject SQLite-backed kata history store for concurrent persistence |
 | `KataEngine::with_metrics()` | Inject metric collector for before/after measurement |
 | `KataEngine::with_cns_runtime()` | Inject CnsRuntime for variety counter integration |
+| `KataEngine::record_history_entry()` | Persist a practice entry to the SQLite store when available |
 | `KataState::save()` / `KataState::load()` | Persist and resume kata state |
 
 ### 2.6 CNS Integration
@@ -171,7 +173,7 @@ The kata engine integrates with the Cybernetic Nervous System at two levels:
 
 ### 2.7 Automaticity & Habit Tracking
 
-Kata practice history is stored in `data/kata-history.json` with per-agent practice entries. The engine computes:
+Kata practice history is stored in `data/kata-history.json` with per-agent practice entries. The engine also supports SQLite-based persistence via `KataHistoryStore` when a database is available (default path: `data/hkask.db`, overridable via `HKASK_DB_PATH`). When both stores are available, entries are persisted to both — JSON for backward compatibility, SQLite for queryability and concurrent access. The daemon reads `kata_history` rows to power CNS queries and memory narratives.
 
 - **Streak**: Consecutive days with at least one practice
 - **Automaticity**: `min(1.0, streak_days / 21.0)` — linearly approaches 1.0 over 21 consecutive days

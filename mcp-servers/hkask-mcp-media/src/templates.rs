@@ -16,11 +16,7 @@ pub fn create_env() -> Environment<'static> {
     env.add_template("describe_scene", DESCRIBE_SCENE).ok();
     env.add_template("classify_style", CLASSIFY_STYLE).ok();
     env.add_template("caption", CAPTION).ok();
-    env.add_template(
-        "voice_design",
-        include_str!("../manifests/media/voice_design.j2"),
-    )
-    .ok();
+    env.add_template("voice_design", VOICE_DESIGN).ok();
     env.add_template("video_caption", VIDEO_CAPTION).ok();
     env
 }
@@ -171,3 +167,20 @@ Generate 5-10 relevant hashtags for this video content. Each should start with #
 {% endif %}
 
 Return ONLY the text. No markdown, no preamble, no labels."#;
+
+const VOICE_DESIGN: &str = r#"Design a synthetic voice based on this character description:
+
+{{ character_description }}
+
+Produce a structured voice profile with these fields:
+- name: A short, evocative name for this voice (e.g., "Warm Mentor", "Crisp Analyst", "Gentle Storyteller")
+- pitch: One of "low", "medium-low", "medium", "medium-high", "high"
+- timbre: One of "warm", "bright", "dark", "breathy", "clear", "resonant", "nasal"
+- pace: One of "slow", "deliberate", "moderate", "brisk", "fast"
+- accent: A specific accent if appropriate (e.g., "british", "american-southern", "australian", "indian"), or empty string for neutral
+- emotion_range: Array of 2-4 emotions this voice naturally conveys (e.g., ["warm", "authoritative", "playful"])
+- gender_presentation: One of "masculine", "feminine", "androgynous", "neutral"
+- age_range: One of "young", "young-adult", "middle-aged", "senior"
+- description: A 1-2 sentence natural-language description synthesizing all the above, suitable as input to a TTS model. Write it in prose like "A warm, middle-aged feminine voice with a gentle British accent, speaking at a moderate pace with a clear, resonant timbre."
+
+Return ONLY a JSON object with exactly these 9 fields. No markdown, no preamble."#;

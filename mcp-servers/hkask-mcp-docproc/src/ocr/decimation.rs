@@ -368,7 +368,7 @@ mod tests {
     fn otsu_binarization_bw_output() {
         // Create a text-like test image (dark text on light background)
         let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(400, 100, |x, y| {
-            if y < 30 || y > 70 || (x / 10 + y / 15) % 3 == 0 {
+            if !(30..=70).contains(&y) || (x / 10 + y / 15) % 3 == 0 {
                 image::Luma([240]) // Light background
             } else {
                 image::Luma([30]) // Dark "text" pixels

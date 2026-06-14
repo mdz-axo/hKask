@@ -34,22 +34,30 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 
 `hkask-mcp-companies` and `hkask-mcp-media` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
 
-### 2.1 `hkask-mcp-companies` (FMP + EODHD dual-provider) — 15 tools
+### 2.1 `hkask-mcp-companies` (FMP + EODHD dual-provider) — 21 tools
 
-**Current state:** Each tool calls one FMP endpoint and returns raw JSON.
+**Completed 2026-06-14.** The server has evolved from a thin API proxy into a dual-provider financial data and portfolio management server with value-added analysis:
 
-**Value-add targets:**
-- Portfolio tracking: aggregate multiple symbols, track positions over time
-- Correlation analysis: compute pairwise correlations across holdings
-- Alert conditions: user-defined thresholds on metrics (price, P/E, volume)
-- Multi-symbol aggregation: batch `fmp_quote` / `fmp_key_metrics` across a portfolio
-- Historical analysis: combine `fmp_historical_price` + `fmp_key_metrics` into time-series summaries
+**Financial data (12 tools):**
+- Dual-provider routing (FMP primary for US, EODHD primary for international)
+- EODHD response normalization to FMP flat-array format
+- 4 MAIA-framework analysis tools: moat_check, management_scorecard, working_capital_cycle, expectations_gap
+- 8 fundamental data tools: profile, quote, income, balance sheet, cash flow, key metrics, historical price, symbol search
 
-**Architecture note:** Value-add logic should live in the MCP server, not in a separate crate, unless it grows deep enough to justify extraction (C4: "Extract only with 3+ consumers").
+**Portfolio management (9 tools):**
+- Transaction ledger with CSV/JSON import/export (auto-creates portfolios on import)
+- Position calculation, cash tracking, and validation
+- Research notes and file attachments per security
+- Portfolio attribution (position-level return decomposition)
+- Portfolio characteristics (weighted-average fundamentals)
+- Portfolio comparison (side-by-side)
+- Portfolio returns (Modified Dietz TWR + Newton-method IRR)
+
+**Architecture note:** All logic lives in the MCP server — `providers.rs` (dual-provider abstraction), `analysis.rs` (MAIA framework), `portfolio.rs` (ledger + notes + files). No separate crate extraction needed.
 
 | Status | Owner | Priority |
 |--------|-------|----------|
-| ⬜ Open | — | Medium |
+| ✅ Complete | — | — |
 
 ### 2.2 `hkask-mcp-communication` (Local TTS/STT) — 3 tools
 
@@ -157,7 +165,7 @@ Document (PDF, MD, HTML, TXT)
 | `hkask-mcp-media` | 7 | Gallery state (init, scan, info) |
 | `hkask-mcp-condenser` | 29 | algorithms (16), types (11) — tested via library crate |
 | `hkask-mcp-research` | 23 | strip_html, freshness, ranking, rate_limiter |
-| `hkask-mcp-companies` | 29 | Financial analysis algorithms (20) + provider abstraction (9) |
+| `hkask-mcp-companies` | 41 | Financial analysis (20) + provider abstraction (9) + portfolio management (12) |
 | `hkask-mcp-memory` | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
 | `hkask-mcp-replica` | 0 | Thin wrapper; pass-through to compose/embed services |
 | `hkask-mcp-training` | 0 | Stub; shallow pass-through to semantic memory |
@@ -208,7 +216,7 @@ Document (PDF, MD, HTML, TXT)
 | 1 | Collapse rss-reader + web → research | — | High | Medium | None | ✅ Complete (2026-06-11) |
 | 2 | Define RAG pipeline architecture | §3 | High | Design-only | None | ⬜ Open |
 | 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete | ⬜ Open |
-| 4 | FMP value-add layer (Tier 1: moat, management, working capital, expectations gap) | §2.1 | Medium | High | None | ✅ Complete (2026-06-11) — 4 MAIA-framework tools, 20 tests, 1 new module (analysis.rs) |
+| 4 | FMP value-add layer (Tier 1: moat, management, working capital, expectations gap + Tier 2: portfolio tracking) | §2.1 | Medium | High | None | ✅ Complete (2026-06-14) — 4 MAIA + 9 portfolio tools, 12 new tests, 3 modules |
 | 5 | Communication server (local TTS) | §2.2 | Medium | High | None | ✅ Partial (2026-06-12) — `tts_speak`, `tts_generate`, `tts_list_voices` via espeak. Telnyx fully deleted. Remaining: STT, voice design in onboarding, verbal mode templates. |
 | 6 | Fal value-add layer | §2.3 | Medium | High | None | ⬜ Open |
 | 7 | Tier 1 unit tests (condenser, research) | §5.3 | Medium | Medium | None | ✅ Complete (2026-06-11) — 50 tests: 27 condenser, 23 research |

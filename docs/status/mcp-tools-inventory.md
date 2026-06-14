@@ -2,7 +2,7 @@
 title: "MCP Tools Inventory"
 audience: [architects, developers, agents]
 version: "2.1.0"
-last_updated: 2026-06-12
+last_updated: 2026-06-15
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [composition, lifecycle]
@@ -19,17 +19,17 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 
 | Server | Crate | Tools | Loop | Required Credentials |
 |--------|-------|-------|------|----------------------|
-| condenser | `hkask-mcp-condenser` | 6 | L2 (Episodic) | — |
+| condenser | `hkask-mcp-condenser` | 7 | L2 (Episodic) | — |
 | research | `hkask-mcp-research` | ~17 | L4 (Communication) | See per-server detail |
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
 | companies | `hkask-mcp-companies` | 21 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
 | communication | `hkask-mcp-communication` | 3 | L4 (Communication) | — |
-| media | `hkask-mcp-media` | 20 | L4 (Communication) | `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` |
+| media | `hkask-mcp-media` | 24 | L4 (Communication) | `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
 | docproc | `hkask-mcp-docproc` | 9 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional) |
 | training | `hkask-mcp-training` | 1 | L2 (Episodic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| **Total** | | **~105** | | |
+| **Total** | | **~107** | | |
 
 ---
 
@@ -37,7 +37,7 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 
 ### condenser
 
-**Crate:** `hkask-mcp-condenser` · **Loop:** L2 · **Tools:** 6
+**Crate:** `hkask-mcp-condenser` · **Loop:** L2 · **Tools:** 7
 
 | Tool | Description |
 |------|-------------|
@@ -47,8 +47,7 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 | `condenser_stats` | Cumulative compression statistics |
 | `condenser_classify` | Classify tool name to context category |
 | `condenser_persist` | Persist a compressed output to episodic memory |
-
-**Note:** `condenser_thread_summary` is implemented in `inference.rs` as a pure HTTP function, not as an `#[tool]`-registered MCP tool. If it should be exposed as an MCP tool, it needs registration.
+| `condenser_thread_summary` | Summarize conversation history via hKask inference router |
 
 ---
 
@@ -184,7 +183,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### media
 
-**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 28 (3 gallery + 4 analysis + 4 image + 7 video + 2 voice + 4 audio + 4 generation)
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 24 (3 gallery + 4 analysis + 7 video + 2 voice + 4 audio + 4 generation)
 
 **Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one)
 
@@ -308,7 +307,8 @@ Stub server for model training data ingestion (2026-06-13). Full training pipeli
 
 - **Count method:** `grep '#\[tool' mcp-servers/*/src/main.rs` for `#[tool]`-based servers.
 - **Consolidation (2026-06-11):** `hkask-mcp-web` (4 tools) + `hkask-mcp-rss-reader` (~10 tools) → `hkask-mcp-research` (~17 tools).
-- **Consolidation (2026-06-13):** `hkask-mcp-markitdown` (3 tools) + `hkask-mcp-doc-knowledge` (5 tools) → `hkask-mcp-docproc` (8 tools). Added `hkask-mcp-training` (1 tool, stub).
+- **Consolidation (2026-06-13):** `hkask-mcp-markitdown` (3 tools) + `hkask-mcp-doc-knowledge` (5 tools) → `hkask-mcp-docproc` (8 tools). Added `hkask-mcp-training` (1 tool, stub). Added `hkask-mcp-docproc` 9th tool (docproc_clear_index).
 - **New (2026-06-11):** `hkask-mcp-replica` added (6 tools, style embedding and composition).
 - **Spec server correction:** Previous inventory listed 11 spec tools. Only 5 exist per MDS.md §3 and code verification.
-- **Total:** ~86 tools across 12 servers.
+- **Tool promotions:** `condenser_thread_summary` promoted to registered MCP tool (was inference.rs HTTP function).
+- **Total:** ~107 tools across 12 servers.
