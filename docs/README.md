@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -129,6 +129,24 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | [`2026-06-12-replicant-server-mode.md`](plans/2026-06-12-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode handoff |
 | [`2026-06-12-wallet-payment-mechanism.md`](plans/2026-06-12-wallet-payment-mechanism.md) | domain, composition, trust, lifecycle | Wallet payment integration plan |
 | [`2026-06-12-wallet-rjoule-payments.md`](plans/2026-06-12-wallet-rjoule-payments.md) | domain, composition, trust, lifecycle | Wallet rJoule multi-chain plan |
+| [`mcp-media-server-design.md`](plans/mcp-media-server-design.md) | domain, composition, lifecycle | MCP media server — design & implementation plan |
+
+---
+
+## Handoffs (`handoffs/`)
+
+Transient session handoffs recording implementation state. Active handoffs carry essential continuity context between sessions. Superseded handoffs are removed from the active tree.
+
+| Document | Description |
+|----------|-------------|
+| [`acad-disc-2026-06-12.md`](handoffs/acad-disc-2026-06-12.md) | Academic corpus discovery pipeline |
+| [`cmpn-prtfl-2026-06-13.md`](handoffs/cmpn-prtfl-2026-06-13.md) | Companies MCP + portfolio tracking |
+| [`gl-embed-2026-06-13.md`](handoffs/gl-embed-2026-06-13.md) | Gentle Lovelace embedding pipeline |
+| [`kata-redesign-2026-06-14.md`](handoffs/kata-redesign-2026-06-14.md) | Kata system redesign |
+| [`media-server-continuation-2026-06-14.md`](handoffs/media-server-continuation-2026-06-14.md) | Media server continuation |
+| [`ocr-fal-self-2026-06-13.md`](handoffs/ocr-fal-self-2026-06-13.md) | OCR pipeline + fal.ai integration |
+| [`reg-kata-glv-2026-06-13.md`](handoffs/reg-kata-glv-2026-06-13.md) | Registry, kata, Gentle Lovelace integration |
+| [`wlt-cns-ph5-2026-06-12.md`](handoffs/wlt-cns-ph5-2026-06-12.md) | Wallet phase 5 — CNS integration |
 
 
 ---
@@ -155,10 +173,10 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 | Document | MDS | Description |
 |----------|--------|-------------|
-| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | all | Mermaid diagram verification registry |
-| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, lifecycle, curation | Underspecified aspects (4 of 7 resolved) |
+| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | domain, composition, trust, lifecycle, curation | Mermaid diagram verification registry |
+| [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | domain, composition, lifecycle, curation | Underspecified aspects |
 
-| [`generated/cli-reference.md`](generated/cli-reference.md) | interface | Auto-generated CLI reference |
+| [`generated/cli-reference.md`](generated/cli-reference.md) | composition | Auto-generated CLI reference |
 
 ---
 
