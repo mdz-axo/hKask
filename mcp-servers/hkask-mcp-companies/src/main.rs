@@ -1,30 +1,39 @@
-//! hKask MCP FMP — Financial Modeling Prep API integration
+//! hKask MCP Companies — Dual-provider company financial data (FMP + EODHD)
 //!
-//! Uses the FMP /stable/ API endpoints (v3 endpoints deprecated Aug 2025).
+//! Tools are provider-agnostic: each tool routes to FMP or EODHD based on
+//! symbol characteristics, with automatic fallback. EODHD responses are
+//! normalized to match FMP format so analysis functions work transparently.
+//!
 //! Tools:
-//! - `fmp_ping` — API reachability check
-//! - `fmp_company_profile` — Company profile by symbol
-//! - `fmp_quote` — Real-time stock quote
-//! - `fmp_income_statement` — Income statements
-//! - `fmp_balance_sheet` — Balance sheet statements
-//! - `fmp_cash_flow_statement` — Cash flow statements
-//! - `fmp_key_metrics` — Key financial metrics
-//! - `fmp_historical_price` — Historical price data
-//! - `fmp_search` — Symbol search
-//! - `fmp_analyst_estimates` — Analyst estimates
-//! - `fmp_dcf` — Discounted cash flow analysis
+//! - `ping` — API reachability check
+//! - `company_profile` — Company profile by symbol
+//! - `stock_quote` — Real-time stock quote
+//! - `income_statement` — Income statements
+//! - `balance_sheet` — Balance sheet statements
+//! - `cash_flow_statement` — Cash flow statements
+//! - `key_metrics` — Key financial metrics
+//! - `historical_price` — Historical price data
+//! - `symbol_search` — Symbol search
+//! - `analyst_estimates` — Analyst estimates
+//! - `dcf_analysis` — Discounted cash flow analysis
+//! - `moat_check` — MAIA competitive moat analysis
+//! - `management_scorecard` — MAIA CEO capital allocation scorecard
+//! - `working_capital_cycle` — MAIA CFO working capital analysis
+//! - `expectations_gap` — MAIA expectations gap analysis
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use serde_json::Value;
 
 mod analysis;
+mod providers;
 
-const BASE_URL: &str = "https://financialmodelingprep.com/stable";
+use providers::companies_get;
+
+// ── Request structs ─────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SymbolRequest {
@@ -50,53 +59,33 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
 }
 
-async fn fmp_get(
-    client: &reqwest::Client,
-    path: &str,
-    api_key: &str,
-    params: &[(&str, &str)],
-) -> Result<Value, McpToolError> {
-    let url = format!("{BASE_URL}{path}");
-    let mut query: Vec<(&str, &str)> = params.to_vec();
-    query.push(("apikey", api_key));
-
-    let resp = client
-        .get(&url)
-        .query(&query)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("request failed: {e}")))?;
-
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_http_error("FMP", status, &body));
-    }
-
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("failed to parse response: {e}")))
-}
+// ── Validation ──────────────────────────────────────────────────────
 
 fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
-    validate_identifier("symbol", symbol, 16)
+    // Allow exchange-qualified symbols (e.g., VOD.L, BMW.DE) for EODHD
+    validate_identifier("symbol", symbol, 32)
 }
 
-pub struct FmpServer {
+// ── Server struct ──────────────────────────────────────────────────
+
+pub struct CompaniesServer {
     webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
     replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
     daemon: Option<DaemonClient>,
     client: reqwest::Client,
-    api_key: String,
+    fmp_api_key: String,
+    eodhd_api_key: String,
 }
 
-impl FmpServer {
+impl CompaniesServer {
     pub fn new(
         webid: WebID,
         replicant: String,
         daemon: Option<DaemonClient>,
-        api_key: String,
+        fmp_api_key: String,
+        eodhd_api_key: String,
     ) -> Result<Self, anyhow::Error> {
         let client = reqwest::Client::new();
         Ok(Self {
@@ -104,7 +93,8 @@ impl FmpServer {
             replicant,
             daemon,
             client,
-            api_key,
+            fmp_api_key,
+            eodhd_api_key,
         })
     }
 
@@ -133,13 +123,13 @@ impl FmpServer {
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.fmp.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "hkask.mcp.companies.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.fmp.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "hkask.mcp.companies.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.fmp.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "hkask.mcp.companies.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });
@@ -147,48 +137,54 @@ impl FmpServer {
     }
 }
 
+// ── Tools ──────────────────────────────────────────────────────────
+
 #[tool_router(server_handler)]
-impl FmpServer {
-    #[tool(description = "Ping FMP API")]
-    async fn fmp_ping(&self) -> String {
-        let span = ToolSpanGuard::new("fmp_ping", &self.webid);
+impl CompaniesServer {
+    #[tool(description = "Ping company data APIs")]
+    async fn ping(&self) -> String {
+        let span = ToolSpanGuard::new("ping", &self.webid);
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/profile",
-                &self.api_key,
-                &[("symbol", "AAPL")],
+                "company_profile",
+                "AAPL",
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[],
             )
             .await
             .map(|_| {
                 serde_json::json!({
                     "status": "ok",
-                    "message": "FMP API is reachable"
+                    "message": "Company data APIs are reachable"
                 })
             }),
         )
     }
 
     #[tool(description = "Get company profile")]
-    async fn fmp_company_profile(
+    async fn company_profile(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_company_profile", &self.webid);
+        let span = ToolSpanGuard::new("company_profile", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        let result = fmp_get(
+        let result = companies_get(
             &self.client,
-            "/profile",
-            &self.api_key,
-            &[("symbol", &symbol)],
+            "company_profile",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[],
         )
         .await;
         match &result {
             Ok(v) => {
                 self.record_experience(
-                    "fmp_company_profile",
+                    "company_profile",
                     &format!("symbol={}", symbol),
                     "success",
                     v.clone(),
@@ -196,7 +192,7 @@ impl FmpServer {
             }
             Err(e) => {
                 self.record_experience(
-                    "fmp_company_profile",
+                    "company_profile",
                     &format!("symbol={}", symbol),
                     "error",
                     serde_json::json!({"error": e.to_json_string()}),
@@ -207,25 +203,27 @@ impl FmpServer {
     }
 
     #[tool(description = "Get stock quote")]
-    async fn fmp_quote(
+    async fn stock_quote(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_quote", &self.webid);
+        let span = ToolSpanGuard::new("stock_quote", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
-        let result = fmp_get(
+        let result = companies_get(
             &self.client,
-            "/quote",
-            &self.api_key,
-            &[("symbol", &symbol)],
+            "stock_quote",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[],
         )
         .await;
         match &result {
             Ok(v) => {
                 self.record_experience(
-                    "fmp_quote",
+                    "stock_quote",
                     &format!("symbol={}", symbol),
                     "success",
                     v.clone(),
@@ -233,7 +231,7 @@ impl FmpServer {
             }
             Err(e) => {
                 self.record_experience(
-                    "fmp_quote",
+                    "stock_quote",
                     &format!("symbol={}", symbol),
                     "error",
                     serde_json::json!({"error": e.to_json_string()}),
@@ -244,115 +242,125 @@ impl FmpServer {
     }
 
     #[tool(description = "Get income statement")]
-    async fn fmp_income_statement(
+    async fn income_statement(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_income_statement", &self.webid);
+        let span = ToolSpanGuard::new("income_statement", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/income-statement",
-                &self.api_key,
-                &[("symbol", &symbol), ("limit", &limit_str)],
+                "income_statement",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("limit", &limit_str)],
             )
             .await,
         )
     }
 
     #[tool(description = "Get balance sheet")]
-    async fn fmp_balance_sheet(
+    async fn balance_sheet(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_balance_sheet", &self.webid);
+        let span = ToolSpanGuard::new("balance_sheet", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/balance-sheet-statement",
-                &self.api_key,
-                &[("symbol", &symbol), ("limit", &limit_str)],
+                "balance_sheet",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("limit", &limit_str)],
             )
             .await,
         )
     }
 
     #[tool(description = "Get cash flow statement")]
-    async fn fmp_cash_flow_statement(
+    async fn cash_flow_statement(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_cash_flow_statement", &self.webid);
+        let span = ToolSpanGuard::new("cash_flow_statement", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/cash-flow-statement",
-                &self.api_key,
-                &[("symbol", &symbol), ("limit", &limit_str)],
+                "cash_flow_statement",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("limit", &limit_str)],
             )
             .await,
         )
     }
 
     #[tool(description = "Get key metrics")]
-    async fn fmp_key_metrics(
+    async fn key_metrics(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_key_metrics", &self.webid);
+        let span = ToolSpanGuard::new("key_metrics", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/key-metrics",
-                &self.api_key,
-                &[("symbol", &symbol), ("limit", &limit_str)],
+                "key_metrics",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("limit", &limit_str)],
             )
             .await,
         )
     }
 
     #[tool(description = "Get historical price data")]
-    async fn fmp_historical_price(
+    async fn historical_price(
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_historical_price", &self.webid);
+        let span = ToolSpanGuard::new("historical_price", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/historical-price-full",
-                &self.api_key,
-                &[("symbol", &symbol), ("from", &from), ("to", &to)],
+                "historical_price",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("from", &from), ("to", &to)],
             )
             .await,
         )
     }
 
     #[tool(description = "Search for symbols")]
-    async fn fmp_search(
+    async fn symbol_search(
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_search", &self.webid);
+        let span = ToolSpanGuard::new("symbol_search", &self.webid);
         if query.is_empty() {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -360,52 +368,64 @@ impl FmpServer {
             );
         }
         let limit_str = limit.unwrap_or(10).to_string();
-        span.finish(
-            fmp_get(
-                &self.client,
-                "/search-name",
-                &self.api_key,
-                &[("query", &query), ("limit", &limit_str)],
-            )
-            .await,
-        )
+        // Search is special: it doesn't use a symbol, it uses a query.
+        // Route to FMP first (better US coverage), fall back to EODHD.
+        let fmp_result =
+            providers::fmp_search_get(&self.client, &query, &limit_str, &self.fmp_api_key).await;
+        match fmp_result {
+            Ok(v) => span.ok_json(v),
+            Err(_) => {
+                let eodhd_result = providers::eodhd_search_get(
+                    &self.client,
+                    &query,
+                    &limit_str,
+                    &self.eodhd_api_key,
+                )
+                .await;
+                span.finish(eodhd_result)
+            }
+        }
     }
 
     #[tool(description = "Get analyst estimates")]
-    async fn fmp_analyst_estimates(
+    async fn analyst_estimates(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_analyst_estimates", &self.webid);
+        let span = ToolSpanGuard::new("analyst_estimates", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/analyst-estimates",
-                &self.api_key,
-                &[("symbol", &symbol), ("period", "annual")],
+                "analyst_estimates",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("period", "annual")],
             )
             .await,
         )
     }
 
     #[tool(description = "Get discounted cash flow analysis")]
-    async fn fmp_dcf(
+    async fn dcf_analysis(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_dcf", &self.webid);
+        let span = ToolSpanGuard::new("dcf_analysis", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         span.finish(
-            fmp_get(
+            companies_get(
                 &self.client,
-                "/discounted-cash-flow",
-                &self.api_key,
-                &[("symbol", &symbol)],
+                "dcf_analysis",
+                &symbol,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[],
             )
             .await,
         )
@@ -414,22 +434,24 @@ impl FmpServer {
     #[tool(
         description = "Analyze competitive moat using MAIA framework: gross margin stability and working capital market power signal"
     )]
-    async fn fmp_moat_check(
+    async fn moat_check(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_moat_check", &self.webid);
+        let span = ToolSpanGuard::new("moat_check", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
 
         // Fetch 10 years of key metrics for gross margin stability analysis
         let limit = "10";
-        let metrics_result = fmp_get(
+        let metrics_result = companies_get(
             &self.client,
-            "/key-metrics",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", limit)],
+            "key_metrics",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[("limit", limit)],
         )
         .await;
 
@@ -437,7 +459,7 @@ impl FmpServer {
             Ok(v) => v,
             Err(e) => {
                 self.record_experience(
-                    "fmp_moat_check",
+                    "moat_check",
                     &format!("symbol={}", symbol),
                     "error",
                     serde_json::json!({"error": e.to_json_string()}),
@@ -454,7 +476,7 @@ impl FmpServer {
                 "reason": "No gross margin data available for this symbol",
             });
             self.record_experience(
-                "fmp_moat_check",
+                "moat_check",
                 &format!("symbol={}", symbol),
                 "insufficient_data",
                 output.clone(),
@@ -492,7 +514,7 @@ impl FmpServer {
             "data_periods": gross_margins.len(),
         });
         self.record_experience(
-            "fmp_moat_check",
+            "moat_check",
             &format!("symbol={}", symbol),
             "success",
             output.clone(),
@@ -503,29 +525,33 @@ impl FmpServer {
     #[tool(
         description = "CEO capital allocation scorecard (MAIA framework): rates how well management allocates capital by comparing returns on capital vs invested capital over time"
     )]
-    async fn fmp_management_scorecard(
+    async fn management_scorecard(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_management_scorecard", &self.webid);
+        let span = ToolSpanGuard::new("management_scorecard", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
 
         let limit = "10";
-        let metrics_result = fmp_get(
+        let metrics_result = companies_get(
             &self.client,
-            "/key-metrics",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", limit)],
+            "key_metrics",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[("limit", limit)],
         )
         .await;
 
-        let bs_result = fmp_get(
+        let bs_result = companies_get(
             &self.client,
-            "/balance-sheet-statement",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", limit)],
+            "balance_sheet",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[("limit", limit)],
         )
         .await;
 
@@ -554,21 +580,23 @@ impl FmpServer {
     #[tool(
         description = "Working capital cycle analysis (MAIA CFO scorecard): tracks days payable, days sales outstanding, and cash conversion cycle over time"
     )]
-    async fn fmp_working_capital_cycle(
+    async fn working_capital_cycle(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_working_capital_cycle", &self.webid);
+        let span = ToolSpanGuard::new("working_capital_cycle", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
         let limit_str = (limit.unwrap_or(10) as usize).min(40).to_string();
 
-        let result = fmp_get(
+        let result = companies_get(
             &self.client,
-            "/key-metrics",
-            &self.api_key,
-            &[("symbol", &symbol), ("limit", &limit_str)],
+            "key_metrics",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[("limit", &limit_str)],
         )
         .await;
 
@@ -607,7 +635,6 @@ impl FmpServer {
             .collect();
 
         // MAIA CFO score: consistency of working capital management
-        // Measure stability of DPO−DSO spread across periods
         let spreads: Vec<f64> = periods
             .iter()
             .filter_map(|p| p.get("spread")?.as_f64())
@@ -635,29 +662,33 @@ impl FmpServer {
     #[tool(
         description = "Expectations gap analysis (MAIA valuation framework): reverse-engineers market-implied expectations and compares to analyst consensus"
     )]
-    async fn fmp_expectations_gap(
+    async fn expectations_gap(
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp_expectations_gap", &self.webid);
+        let span = ToolSpanGuard::new("expectations_gap", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
 
         // Parallel fetch: profile (for P/E, P/B, P/S) + analyst estimates
-        let profile_result = fmp_get(
+        let profile_result = companies_get(
             &self.client,
-            "/profile",
-            &self.api_key,
-            &[("symbol", &symbol)],
+            "company_profile",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[],
         )
         .await;
 
-        let estimates_result = fmp_get(
+        let estimates_result = companies_get(
             &self.client,
-            "/analyst-estimates",
-            &self.api_key,
-            &[("symbol", &symbol), ("period", "annual")],
+            "analyst_estimates",
+            &symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            &[("period", "annual")],
         )
         .await;
 
@@ -719,9 +750,7 @@ impl FmpServer {
             }
         };
 
-        // MAIA valuation insight: The market price embeds expectations.
-        // High P/E = market expects high growth. Compare to analyst consensus.
-        // A P/E of 15 with 5% expected growth vs P/E of 30 with 30% expected growth.
+        // MAIA valuation insight
         let market_implied_expensive = pe > 25.0 || ps > 5.0;
         let market_implied_cheap = pe < 12.0 && ps < 2.0;
 
@@ -740,6 +769,8 @@ impl FmpServer {
     }
 }
 
+// ── Main ───────────────────────────────────────────────────────────
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -748,7 +779,7 @@ async fn main() -> anyhow::Result<()> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.fmp", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "hkask.mcp.companies", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -760,20 +791,37 @@ async fn main() -> anyhow::Result<()> {
     };
 
     hkask_mcp::run_server(
-        "hkask-mcp-fmp",
+        "hkask-mcp-companies",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let api_key = ctx
+            let fmp_api_key = ctx
                 .credentials
                 .get("HKASK_FMP_API_KEY")
                 .expect("required credential checked by run_stdio_server")
                 .clone();
-            FmpServer::new(ctx.webid, replicant.clone(), daemon_client.clone(), api_key)
+            let eodhd_api_key = ctx
+                .credentials
+                .get("HKASK_EODHD_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            CompaniesServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                fmp_api_key,
+                eodhd_api_key,
+            )
         },
-        vec![hkask_mcp::CredentialRequirement::required(
-            "HKASK_FMP_API_KEY",
-            "Financial Modeling Prep API key",
-        )],
+        vec![
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_FMP_API_KEY",
+                "Financial Modeling Prep API key",
+            ),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_EODHD_API_KEY",
+                "EOD Historical Data (EODHD) API key",
+            ),
+        ],
     )
     .await
 }
@@ -788,7 +836,7 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
             webid: Some(ref webid),
             ..
         } => {
-            tracing::info!(target: "hkask.mcp.fmp", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
+            tracing::info!(target: "hkask.mcp.companies", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
         }
         DaemonResponse::AuthResponse {
             authenticated: false,
@@ -803,14 +851,14 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
         other => anyhow::bail!("Unexpected auth response: {:?}", other),
     }
 
-    let assignment = client.assignment_query(replicant, "fmp").await?;
+    let assignment = client.assignment_query(replicant, "companies").await?;
     match assignment {
         DaemonResponse::AssignmentResponse { assigned: true } => {
-            tracing::info!(target: "hkask.mcp.fmp", replicant = %replicant, "Replicant assigned to fmp role");
+            tracing::info!(target: "hkask.mcp.companies", replicant = %replicant, "Replicant assigned to companies role");
         }
         DaemonResponse::AssignmentResponse { assigned: false } => {
             anyhow::bail!(
-                "Replicant '{}' is not assigned to the fmp MCP role. Use 'kask replicant assign {} fmp' to grant this role.",
+                "Replicant '{}' is not assigned to the companies MCP role. Use 'kask pod assign {} companies' to grant this role.",
                 replicant,
                 replicant
             );
@@ -818,6 +866,6 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
         other => anyhow::bail!("Unexpected assignment response: {:?}", other),
     }
 
-    tracing::info!(target: "hkask.mcp.fmp", replicant = %replicant, "P4 dual-gate verification complete");
+    tracing::info!(target: "hkask.mcp.companies", replicant = %replicant, "P4 dual-gate verification complete");
     Ok(())
 }

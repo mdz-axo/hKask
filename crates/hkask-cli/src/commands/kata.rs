@@ -1,15 +1,18 @@
-//! Kata command — list and inspect kata manifests
+//! Kata command — list, inspect, and execute kata manifests.
 //!
-//! Establishes the code path for kata manifest loading. Full execution
-//! (step rendering, gas tracking, CNS spans) is future work.
+//! `kask kata start` runs a full kata cycle: loads the manifest, walks its
+//! steps/questions/practices, renders templates, calls inference, and
+//! accumulates state. Uses the centralized inference router.
 
 use crate::cli::KataAction;
+use hkask_inference::InferenceConfig;
+use hkask_services::{KataEngine, KataError};
+use hkask_templates::SqliteRegistry;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Resolve the registry/manifests directory relative to the project root.
 fn manifests_dir() -> PathBuf {
-    // Walk up from the binary's location or use CARGO_MANIFEST_DIR heuristic.
-    // In development, the binary runs from the workspace root.
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     cwd.join("registry").join("manifests")
 }
@@ -18,6 +21,7 @@ pub fn run(action: KataAction) {
     match action {
         KataAction::List => list_manifests(),
         KataAction::Show { name } => show_manifest(&name),
+        KataAction::Start { name, bot, context } => start_kata(&name, &bot, &context),
     }
 }
 
@@ -72,7 +76,6 @@ fn show_manifest(name: &str) {
         }
     };
 
-    // Parse as YAML to validate structure
     let parsed: serde_yaml::Value = match serde_yaml::from_str(&content) {
         Ok(v) => v,
         Err(e) => {
@@ -81,7 +84,6 @@ fn show_manifest(name: &str) {
         }
     };
 
-    // Print structured summary
     if let Some(manifest) = parsed.get("manifest") {
         eprintln!("=== {} ===", name);
         if let Some(n) = manifest.get("name") {
@@ -129,6 +131,86 @@ fn show_manifest(name: &str) {
     if let Some(cns) = parsed.get("cns") {
         if let Some(ns) = cns.get("span_namespace").and_then(|v| v.as_str()) {
             eprintln!("CNS namespace: {}", ns);
+        }
+    }
+}
+
+fn start_kata(name: &str, bot: &str, context: &[String]) {
+    let dir = manifests_dir();
+    let path = dir.join(format!("{}.yaml", name));
+
+    // Parse context key=value pairs
+    let mut ctx = HashMap::new();
+    for pair in context {
+        if let Some((k, v)) = pair.split_once('=') {
+            ctx.insert(k.to_string(), v.to_string());
+        }
+    }
+
+    // Build engine
+    let inf_cfg = InferenceConfig::from_env();
+    let inference = hkask_inference::InferenceRouter::new(inf_cfg);
+    let inference_port: std::sync::Arc<dyn hkask_types::ports::InferencePort> =
+        std::sync::Arc::new(inference);
+
+    let registry = crate::commands::helpers::or_exit(
+        SqliteRegistry::new(None),
+        "Failed to initialize registry",
+    );
+    let engine = KataEngine::new(inference_port, registry);
+
+    // Load manifest
+    let manifest = match KataEngine::load_manifest(&path) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Failed to load manifest '{}': {}", name, e);
+            std::process::exit(1);
+        }
+    };
+
+    eprintln!("=== Executing {} ===", manifest.manifest.name);
+    eprintln!("Type: {}", manifest.manifest.kata_type);
+    eprintln!("Bot: {}", bot);
+    eprintln!("Gas cap: {}", manifest.gas.cap);
+    eprintln!();
+
+    // Execute
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    match rt.block_on(engine.execute(&manifest, bot, ctx)) {
+        Ok(result) => {
+            eprintln!("=== Kata complete ===");
+            eprintln!(
+                "Steps completed: {}/{}",
+                result.steps_completed, result.total_steps
+            );
+            eprintln!(
+                "Gas consumed: {} / {} ({:.0}%)",
+                result.gas_consumed,
+                result.gas_cap,
+                if result.gas_cap > 0 {
+                    (result.gas_consumed as f64 / result.gas_cap as f64) * 100.0
+                } else {
+                    0.0
+                }
+            );
+            eprintln!();
+            eprintln!("Step outputs:");
+            for (key, value) in &result.state.step_outputs {
+                let display =
+                    serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
+                eprintln!("  [{}]: {}", key, display);
+            }
+        }
+        Err(KataError::GasExceeded { consumed, cap }) => {
+            eprintln!(
+                "Kata aborted: gas exceeded (consumed {}, cap {})",
+                consumed, cap
+            );
+            std::process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("Kata failed: {}", e);
+            std::process::exit(1);
         }
     }
 }

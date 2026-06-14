@@ -21,6 +21,7 @@ pub fn create_env() -> Environment<'static> {
         include_str!("../manifests/media/voice_design.j2"),
     )
     .ok();
+    env.add_template("video_caption", VIDEO_CAPTION).ok();
     env
 }
 
@@ -158,3 +159,15 @@ Write concise alt text for this image suitable for accessibility. Describe only 
 {% endif %}
 
 Return ONLY the caption text. No markdown, no preamble, no labels."#;
+
+const VIDEO_CAPTION: &str = r#"You are viewing keyframes extracted from a short video clip, shown in chronological order.
+
+{% if style == "descriptive" %}
+Describe what happens in this video. Cover the subject, action, setting, and any notable visual elements. Write 3-5 sentences covering the full sequence.
+{% elif style == "summary" %}
+Write a concise 1-2 sentence summary of what this video shows.
+{% elif style == "hashtags" %}
+Generate 5-10 relevant hashtags for this video content. Each should start with # and be a single concept. Focus on discoverability.
+{% endif %}
+
+Return ONLY the text. No markdown, no preamble, no labels."#;

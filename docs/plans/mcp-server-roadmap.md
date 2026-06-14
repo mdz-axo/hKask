@@ -32,9 +32,9 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 
 ## 2. Value-Added Layers for External Service Wrappers
 
-`hkask-mcp-fmp` and `hkask-mcp-media` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
+`hkask-mcp-companies` and `hkask-mcp-media` are currently thin API proxies — each tool is a 1:1 passthrough to the external service. They need value-added layers that compose the raw API calls into higher-level capabilities.
 
-### 2.1 `hkask-mcp-fmp` (Financial Modeling Prep) — 11 tools
+### 2.1 `hkask-mcp-companies` (FMP + EODHD dual-provider) — 15 tools
 
 **Current state:** Each tool calls one FMP endpoint and returns raw JSON.
 
@@ -157,7 +157,7 @@ Document (PDF, MD, HTML, TXT)
 | `hkask-mcp-media` | 7 | Gallery state (init, scan, info) |
 | `hkask-mcp-condenser` | 29 | algorithms (16), types (11) — tested via library crate |
 | `hkask-mcp-research` | 23 | strip_html, freshness, ranking, rate_limiter |
-| `hkask-mcp-fmp` | 20 | Financial analysis algorithms |
+| `hkask-mcp-companies` | 29 | Financial analysis algorithms (20) + provider abstraction (9) |
 | `hkask-mcp-memory` | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
 | `hkask-mcp-replica` | 0 | Thin wrapper; pass-through to compose/embed services |
 | `hkask-mcp-training` | 0 | Stub; shallow pass-through to semantic memory |
@@ -167,7 +167,7 @@ Document (PDF, MD, HTML, TXT)
 
 | Tier | Servers | Strategy |
 |------|---------|----------|
-| **Tier 1: Internal logic** | docproc, condenser, research, fmp | Unit-test algorithms and request builders directly. These servers have significant internal logic. |
+| **Tier 1: Internal logic** | docproc, condenser, research, companies | Unit-test algorithms and request builders directly. These servers have significant internal logic. |
 | **Tier 2: Thin wrappers** | memory, replica, training, communication | Low-value to unit test passthroughs. Value-add layers should carry tests. |
 | **Tier 3: Integration** | docproc, condenser, research | `rmcp` transport tests once `hkask-test-utils` is extracted. |
 

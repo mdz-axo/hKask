@@ -66,7 +66,7 @@ Each server now follows the **thin launcher + narrative recording** pattern:
 | `hkask-mcp-replica` | `replica` | `replica_build`, `replica_compose`, `replica_mashup` |
 | `hkask-mcp-doc-knowledge` | `doc_knowledge` | `doc_knowledge_chunk`, `doc_knowledge_parse`, `doc_knowledge_store_qa` |
 | `hkask-mcp-markitdown` | `markitdown` | `markitdown_convert`, `markitdown_ocr` |
-| `hkask-mcp-fmp` | `fmp` | `fmp_company_profile`, `fmp_quote`, `fmp_search` |
+| `hkask-mcp-companies` | `companies` | `company_profile`, `stock_quote`, `symbol_search` |
 | `hkask-mcp-communication` | `communication` | `tts_speak`, `tts_generate` |
 | `hkask-mcp-media` | `fal` | `fal_generate_image` |
 

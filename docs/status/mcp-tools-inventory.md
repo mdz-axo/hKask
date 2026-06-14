@@ -22,7 +22,7 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 | condenser | `hkask-mcp-condenser` | 6 | L2 (Episodic) | — |
 | research | `hkask-mcp-research` | ~17 | L4 (Communication) | See per-server detail |
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
-| fmp | `hkask-mcp-fmp` | 11 | L4 (Communication) | `HKASK_FMP_API_KEY` |
+| companies | `hkask-mcp-companies` | 15 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
 | communication | `hkask-mcp-communication` | 3 | L4 (Communication) | — |
 | fal | `hkask-mcp-media` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
@@ -115,25 +115,31 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ---
 
-### fmp
+### companies
 
-**Crate:** `hkask-mcp-fmp` · **Loop:** L4 · **Tools:** 11
+**Crate:** `hkask-mcp-companies` · **Loop:** L4 · **Tools:** 15
 
-**Required:** `HKASK_FMP_API_KEY`
+**Required:** `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY`
+
+**Providers:** FMP (US-focused) + EODHD (global, 70+ exchanges). Auto-routing by symbol exchange suffix; automatic fallback.
 
 | Tool | Description |
 |------|-------------|
-| `fmp_ping` | Ping FMP API |
-| `fmp_company_profile` | Get company profile |
-| `fmp_quote` | Get stock quote |
-| `fmp_income_statement` | Get income statement |
-| `fmp_balance_sheet` | Get balance sheet |
-| `fmp_cash_flow_statement` | Get cash flow statement |
-| `fmp_key_metrics` | Get key metrics |
-| `fmp_historical_price` | Get historical price data |
-| `fmp_search` | Search for symbols |
-| `fmp_analyst_estimates` | Get analyst estimates |
-| `fmp_dcf` | Get discounted cash flow analysis |
+| `ping` | Ping company data APIs |
+| `company_profile` | Get company profile |
+| `stock_quote` | Get stock quote |
+| `income_statement` | Get income statement |
+| `balance_sheet` | Get balance sheet |
+| `cash_flow_statement` | Get cash flow statement |
+| `key_metrics` | Get key metrics |
+| `historical_price` | Get historical price data |
+| `symbol_search` | Search for symbols |
+| `analyst_estimates` | Get analyst estimates |
+| `dcf_analysis` | Get discounted cash flow analysis |
+| `moat_check` | MAIA competitive moat analysis |
+| `management_scorecard` | MAIA CEO capital allocation scorecard |
+| `working_capital_cycle` | MAIA CFO working capital analysis |
+| `expectations_gap` | MAIA expectations gap analysis |
 
 ---
 

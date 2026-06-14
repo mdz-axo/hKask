@@ -596,7 +596,7 @@ pub enum SkillAction {
     },
 }
 
-/// Kata actions — list and inspect kata manifests
+/// Kata actions — list, inspect, and execute kata manifests
 #[derive(Subcommand)]
 pub enum KataAction {
     /// List available kata manifests
@@ -605,6 +605,17 @@ pub enum KataAction {
     Show {
         /// Manifest name (e.g., "starter-kata", "improvement-kata")
         name: String,
+    },
+    /// Execute a kata cycle
+    Start {
+        /// Manifest name (e.g., "improvement-kata", "starter-kata")
+        name: String,
+        /// Learner bot identity (e.g., "Alice")
+        #[arg(short, long)]
+        bot: String,
+        /// Optional context key=value pairs
+        #[arg(short, long = "ctx", num_args = 1..)]
+        context: Vec<String>,
     },
 }
 

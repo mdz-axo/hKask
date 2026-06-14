@@ -133,5 +133,17 @@ fn main() {
             db,
             passphrase,
         } => commands::registry::run_rm(&rt, &mut registry, target, db, passphrase),
+
+        Commands::Transcript { path } => {
+            let mut viewer = hkask_cli::transcript_viewer::TranscriptViewer::from_file(&path)
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to load transcript: {}", e);
+                    std::process::exit(1);
+                });
+            if let Err(e) = viewer.run() {
+                eprintln!("Transcript viewer error: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 }

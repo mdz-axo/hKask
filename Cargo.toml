@@ -18,7 +18,7 @@ members = [
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",
-    "mcp-servers/hkask-mcp-fmp",
+    "mcp-servers/hkask-mcp-companies",
     "mcp-servers/hkask-mcp-communication",
     "mcp-servers/hkask-mcp-media",
     "mcp-servers/hkask-mcp-spec",
@@ -108,6 +108,13 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 
 tempfile = "3"
 async-trait = "0.1"
+
+# TUI
+ratatui = "0.28"
+crossterm = "0.28"
+
+# Audio playback
+rodio = "0.20"
 
 # Pattern matching (for migration)
 regex = "1"

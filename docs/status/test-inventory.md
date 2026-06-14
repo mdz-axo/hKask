@@ -28,7 +28,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-spec` | 7 | goal_capture (2 + 1 fuzz), coherence (1), graph_query (1), writing_quality (1), tool listing (1) |
 | `hkask-mcp` | 5 | daemon (5: auth, unauth, assignment, capability, dual-encoding) |
 | `hkask-mcp-condenser` | 27 | algorithms (16), types (11) |
-| `hkask-mcp-fmp` | 20 | analysis (20: management 6, moat/working capital 14) |
+| `hkask-mcp-companies` | 29 | analysis (20: management 6, moat/working capital 14) + providers (9: routing, normalization) |
 | `hkask-mcp-research` | 23 | strip_html (8), freshness (6), ranking (5), rate_limiter (4) |
 | `hkask-inference` | 20 | config (7), chat_protocol (3), fal_backend (4), embedding_router (4), ollama_backend (2) |
 | `hkask-api` | 2 | settings merge, settings validation |
@@ -40,12 +40,12 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
 | `hkask-mcp-media` | 12 | Gallery state (7) + Levenshtein (5) |
 
-**Total: 296 tests across 19 crates** (↑ from 278; docproc tools deepened)
+**Total: 305 tests across 19 crates** (↑ from 296; companies provider abstraction tests)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |
 | `hkask-mcp-research` | 0 | External server (consolidated web + rss-reader 2026-06-11) |
-| `hkask-mcp-fmp` | 0 | External server |
+| `hkask-mcp-companies` | 0 | External server |
 | `hkask-mcp-communication` | 0 | External server |
 | `hkask-mcp-media` | 12 | External server; 12 unit tests |
 | **Total** | **107** | |

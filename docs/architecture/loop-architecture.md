@@ -266,7 +266,7 @@ MCP servers are operational units that reside within the loop architecture. Each
 | `hkask-mcp-condenser` | L2 (Episodic) | Context condensation operates on the active conversation window (episodic boundary) |
 | `hkask-mcp-memory` | L2↔L2b (bridge) | Combined episodic + semantic memory storage and retrieval. Bridges episodic (L2) and semantic (L2b) loops. |
 | `hkask-mcp-web` | L4 (Communication) | External I/O dispatch — Communication routes web requests |
-| `hkask-mcp-fmp` | L4 (Communication) | FMP financial data — Communication routes external integrations |
+| `hkask-mcp-companies` | L4 (Communication) | Company financial data (FMP + EODHD) — Communication routes external integrations |
 | `hkask-mcp-communication` | L4 (Communication) | Local TTS/STT — Communication routes voice I/O |
 | `hkask-mcp-media` | L4 (Communication) | AI media generation — Communication routes external integrations |
 | `hkask-mcp-rss-reader` | L2 (Episodic) | RSS feeds are consumed into episodic memory |
@@ -499,7 +499,7 @@ when an agent's budget is exhausted, the operation is rejected by Cybernetics.
 | Local I/O | spec | 5 | Local filesystem I/O |
 | Moderate | condenser, doc-knowledge, markitdown | 10 | Some computation + local I/O |
 | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
-| External API | web, fmp, rss-reader | 20-50 | Network I/O, rate-limited |
+| External API | web, companies, rss-reader | 20-50 | Network I/O, rate-limited |
 | Heavy external | fal | 100 | GPU compute, expensive |
 | Inference | hkask-mcp-inference | token-based | LLM compute, scales with tokens |
 

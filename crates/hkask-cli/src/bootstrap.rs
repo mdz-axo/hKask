@@ -257,7 +257,7 @@ impl BootstrapSequence {
             "hkask-mcp-memory",
             "hkask-mcp-spec",
             "hkask-mcp-research",
-            "hkask-mcp-fmp",
+            "hkask-mcp-companies",
             "hkask-mcp-communication",
             "hkask-mcp-media",
             "hkask-mcp-condenser",

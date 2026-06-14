@@ -221,6 +221,30 @@ pub struct VideoRemixRequest {
     pub caption_text: Option<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VideoFromImagesRequest {
+    /// Gallery image indices to use as frames (in order).
+    pub image_indices: Vec<usize>,
+    /// Frames per second (default: 24).
+    pub fps: Option<u32>,
+    /// Output format: "mp4", "gif", or "webp" (default: "mp4").
+    pub format: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VideoConcatRequest {
+    /// Video URLs or paths to concatenate (in order).
+    pub video_urls: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VideoCaptionRequest {
+    /// Video URL or path to analyze.
+    pub video_url: String,
+    /// Caption style: "descriptive", "summary", or "hashtags" (default: "descriptive").
+    pub style: Option<String>,
+}
+
 // ── Voice request types ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -507,6 +531,35 @@ impl MediaServer {
                 tracing::warn!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
             }
         }
+    }
+
+    /// Resolve the best available vision model with fallback chain.
+    /// Tries: DeepInfra → Fireworks → Ollama (local).
+    /// Returns the model name and a label for recording.
+    async fn resolve_vision_model(&self) -> (&'static str, &'static str) {
+        let models = self.inference.list_vision_models().await;
+
+        for model in &models {
+            match model.provider {
+                hkask_inference::ProviderId::DeepInfra => {
+                    return (
+                        "DI/meta-llama/Llama-3.2-11B-Vision-Instruct",
+                        "llama-3.2-vision",
+                    );
+                }
+                hkask_inference::ProviderId::Fireworks => {
+                    return ("FW/llama-v3p1-70b-instruct", "llama-3.1-vision");
+                }
+                hkask_inference::ProviderId::Ollama => return ("OM/llava:13b", "llava"),
+                _ => continue,
+            }
+        }
+
+        // Fallback: try DeepInfra anyway (will error if unavailable)
+        (
+            "DI/meta-llama/Llama-3.2-11B-Vision-Instruct",
+            "llama-3.2-vision",
+        )
     }
 
     /// Extract EXIF metadata from an image file.
@@ -1031,15 +1084,11 @@ impl MediaServer {
             }
         };
 
+        let (vision_model, vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await;
 
         self.record_experience(
@@ -1056,14 +1105,13 @@ impl MediaServer {
                     if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
                         for face in &faces {
                             let value = serde_json::to_string(face).unwrap_or_default();
-                            self.persist_tag(&image_id, "face", &value, 0.85, "llama-3.2-vision");
+                            self.persist_tag(&image_id, "face", &value, 0.85, vision_label);
                         }
                     } else {
-                        // Non-JSON response — store as raw text
-                        self.persist_tag(&image_id, "face", r.text.trim(), 0.7, "llama-3.2-vision");
+                        self.persist_tag(&image_id, "face", r.text.trim(), 0.7, vision_label);
                     }
                 }
-                span.ok_json(serde_json::json!({"faces": r.text, "model": "llama-3.2-vision"}))
+                span.ok_json(serde_json::json!({"faces": r.text, "model": vision_label}))
             }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
@@ -1105,15 +1153,11 @@ impl MediaServer {
             }
         };
 
+        let (vision_model, vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await;
 
         self.record_experience(
@@ -1130,19 +1174,13 @@ impl MediaServer {
                     if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
                         for obj in &objects {
                             let value = serde_json::to_string(obj).unwrap_or_default();
-                            self.persist_tag(&image_id, "object", &value, 0.85, "llama-3.2-vision");
+                            self.persist_tag(&image_id, "object", &value, 0.85, vision_label);
                         }
                     } else {
-                        self.persist_tag(
-                            &image_id,
-                            "object",
-                            r.text.trim(),
-                            0.7,
-                            "llama-3.2-vision",
-                        );
+                        self.persist_tag(&image_id, "object", r.text.trim(), 0.7, vision_label);
                     }
                 }
-                span.ok_json(serde_json::json!({"objects": r.text, "model": "llama-3.2-vision"}))
+                span.ok_json(serde_json::json!({"objects": r.text, "model": vision_label}))
             }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
@@ -1178,15 +1216,11 @@ impl MediaServer {
             }
         };
 
+        let (vision_model, vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await;
 
         self.record_experience(
@@ -1205,32 +1239,20 @@ impl MediaServer {
                         if let Some(colors) = parsed["colors"].as_array() {
                             for color in colors {
                                 let value = serde_json::to_string(color).unwrap_or_default();
-                                self.persist_tag(
-                                    &image_id,
-                                    "color",
-                                    &value,
-                                    0.85,
-                                    "llama-3.2-vision",
-                                );
+                                self.persist_tag(&image_id, "color", &value, 0.85, vision_label);
                             }
                         }
                         // Also store palette-level metadata
                         for field in &["palette_style", "temperature", "saturation"] {
                             if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                self.persist_tag(&image_id, "color", v, 0.9, "llama-3.2-vision");
+                                self.persist_tag(&image_id, "color", v, 0.9, vision_label);
                             }
                         }
                     } else {
-                        self.persist_tag(
-                            &image_id,
-                            "color",
-                            r.text.trim(),
-                            0.7,
-                            "llama-3.2-vision",
-                        );
+                        self.persist_tag(&image_id, "color", r.text.trim(), 0.7, vision_label);
                     }
                 }
-                span.ok_json(serde_json::json!({"colors": r.text, "model": "llama-3.2-vision"}))
+                span.ok_json(serde_json::json!({"colors": r.text, "model": vision_label}))
             }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
@@ -1263,15 +1285,11 @@ impl MediaServer {
             }
         };
 
+        let (vision_model, vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await;
 
         self.record_experience(
@@ -1297,13 +1315,7 @@ impl MediaServer {
                             "negative_space",
                         ] {
                             if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                self.persist_tag(
-                                    &image_id,
-                                    "composition",
-                                    v,
-                                    0.85,
-                                    "llama-3.2-vision",
-                                );
+                                self.persist_tag(&image_id, "composition", v, 0.85, vision_label);
                             }
                         }
                     } else {
@@ -1312,13 +1324,11 @@ impl MediaServer {
                             "composition",
                             r.text.trim(),
                             0.7,
-                            "llama-3.2-vision",
+                            vision_label,
                         );
                     }
                 }
-                span.ok_json(
-                    serde_json::json!({"composition": r.text, "model": "llama-3.2-vision"}),
-                )
+                span.ok_json(serde_json::json!({"composition": r.text, "model": vision_label}))
             }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
@@ -1357,15 +1367,11 @@ impl MediaServer {
             }
         };
 
+        let (vision_model, _vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await;
 
         self.record_experience(
@@ -1413,15 +1419,11 @@ impl MediaServer {
             }
         };
 
+        let (vision_model, vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await;
 
         self.record_experience(
@@ -1432,9 +1434,9 @@ impl MediaServer {
         );
 
         match result {
-            Ok(r) => span.ok_json(
-                serde_json::json!({"classifications": r.text, "model": "llama-3.2-vision"}),
-            ),
+            Ok(r) => {
+                span.ok_json(serde_json::json!({"classifications": r.text, "model": vision_label}))
+            }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable(format!("Vision inference failed: {}", e))
@@ -1906,6 +1908,184 @@ impl MediaServer {
             Err(e) => span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(format!("GIF step failed: {}", e)).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Create a video or GIF from a sequence of gallery images using ffmpeg.")]
+    async fn video_from_images(
+        &self,
+        Parameters(VideoFromImagesRequest {
+            image_indices,
+            fps,
+            format,
+        }): Parameters<VideoFromImagesRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("video_from_images", &self.webid);
+
+        if image_indices.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("At least one image index is required.")
+                    .to_json_string(),
+            );
+        }
+
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
+            );
+        }
+
+        // Resolve all image paths
+        let mut paths = Vec::new();
+        for idx in &image_indices {
+            match self.resolve_image_path(*idx) {
+                Ok(p) => paths.push(p),
+                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            }
+        }
+
+        let fps = fps.unwrap_or(24);
+        let fmt = format.as_deref().unwrap_or("mp4");
+
+        match self.ffmpeg.images_to_video(&paths, fps, fmt).await {
+            Ok(output) => span.ok_json(serde_json::json!({
+                "status": "created",
+                "frame_count": paths.len(),
+                "fps": fps,
+                "format": fmt,
+                "output": output.display().to_string(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Concatenate multiple video clips into one using ffmpeg.")]
+    async fn video_concat(
+        &self,
+        Parameters(VideoConcatRequest { video_urls }): Parameters<VideoConcatRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("video_concat", &self.webid);
+
+        if video_urls.len() < 2 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("At least 2 video URLs are required.")
+                    .to_json_string(),
+            );
+        }
+
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
+            );
+        }
+
+        match self.ffmpeg.concat(&video_urls).await {
+            Ok(output) => span.ok_json(serde_json::json!({
+                "status": "concatenated",
+                "clip_count": video_urls.len(),
+                "output": output.display().to_string(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Generate a description of video content by extracting keyframes and analyzing them with a vision LLM."
+    )]
+    async fn video_caption(
+        &self,
+        Parameters(VideoCaptionRequest { video_url, style }): Parameters<VideoCaptionRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("video_caption", &self.webid);
+
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
+            );
+        }
+
+        // Extract keyframes (1 frame per 2 seconds, max 10 frames)
+        let frames = match self.ffmpeg.extract_keyframes(&video_url, 2.0, 10).await {
+            Ok(f) => f,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Keyframe extraction failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        if frames.is_empty() {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal("No keyframes extracted from video.").to_json_string(),
+            );
+        }
+
+        // Encode frames as base64 for vision LLM
+        let mut image_urls = Vec::new();
+        for frame in &frames {
+            match std::fs::read(frame) {
+                Ok(data) => {
+                    let b64 =
+                        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+                    image_urls.push(format!("data:image/jpeg;base64,{}", b64));
+                }
+                Err(e) => {
+                    tracing::warn!(target: "hkask.mcp.media", frame = %frame.display(), error = %e, "Failed to read keyframe");
+                }
+            }
+        }
+
+        let style_str = style.as_deref().unwrap_or("descriptive");
+        let mut vars = HashMap::new();
+        vars.insert("style", style_str);
+        let prompt = match self.render_prompt("video_caption", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        let (vision_model, _vision_label) = self.resolve_vision_model().await;
+        let params = hkask_types::LLMParameters::default();
+        let result = self
+            .inference
+            .generate_vision(&prompt, &image_urls, &params, Some(vision_model))
+            .await;
+
+        // Clean up temp frames
+        for frame in &frames {
+            let _ = std::fs::remove_file(frame);
+        }
+
+        match result {
+            Ok(r) => span.ok_json(serde_json::json!({
+                "caption": r.text.trim(),
+                "style": style_str,
+                "frames_analyzed": image_urls.len(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("Vision inference failed: {}", e))
+                    .to_json_string(),
             ),
         }
     }
@@ -2409,15 +2589,11 @@ impl MediaServer {
                 );
             }
         };
+        let (vision_model, _vision_label) = self.resolve_vision_model().await;
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
-            .generate_vision(
-                &prompt,
-                &[image_url],
-                &params,
-                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
-            )
+            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
             .await
             .map_err(|e| McpToolError::unavailable(format!("Caption generation failed: {}", e)));
         match result {

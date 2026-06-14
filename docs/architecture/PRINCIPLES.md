@@ -98,7 +98,7 @@ status: VERIFIED
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-research` — Web search, extraction, browsing, RSS feed research
 - `hkask-mcp-spec` — MDS spec capture
-- `hkask-mcp-fmp` — FMP integration
+- `hkask-mcp-companies` — FMP + EODHD dual-provider company financial data
 - `hkask-mcp-communication` — Local TTS/STT
 - `hkask-mcp-media` — AI media generation
 - `hkask-mcp-replica` — Authorial style embedding and composition

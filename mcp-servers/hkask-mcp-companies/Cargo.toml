@@ -1,12 +1,12 @@
 [package]
-name = "hkask-mcp-fmp"
+name = "hkask-mcp-companies"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Financial Modeling Prep (FMP) REST API MCP server for fundamental analysis"
+description = "Company financial data MCP server — FMP + EODHD dual-provider integration for global fundamental analysis"
 
 [lib]
-name = "hkask_mcp_fmp"
+name = "hkask_mcp_companies"
 path = "src/lib.rs"
 
 [dependencies]

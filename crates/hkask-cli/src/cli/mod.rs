@@ -248,4 +248,10 @@ pub enum Commands {
         #[arg(long, env = "HKASK_DB_PASSPHRASE")]
         passphrase: Option<String>,
     },
+
+    /// View a transcript bundle with synchronized audio playback (TUI)
+    Transcript {
+        /// Path to the transcript bundle JSON file
+        path: PathBuf,
+    },
 }

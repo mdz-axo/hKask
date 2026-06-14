@@ -188,7 +188,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-08** | MCP server consolidation — Collapse rss-reader + web → research; document replica | 2026-06-11 | New `hkask-mcp-research` (1,044 LOC, ~17 tools). Deleted `hkask-mcp-web` (535 LOC) and `hkask-mcp-rss-reader` (504 LOC). Updated 7 code files, 5 docs, workspace Cargo.toml. |
 | **C-10** | Tier 1 unit tests — condenser algorithms, profile parsing, classify_tool, registry | 2026-06-11 | 27 tests across types.rs and algorithms.rs. All compression algorithms verified. `algorithms` module promoted to `pub mod` in lib.rs. |
 | **C-11** | Tier 1 unit tests — research freshness, ranking, strip_html, rate_limiter | 2026-06-11 | 23 tests: 6 freshness parsing/brave/serpapi, 5 ranking dedup/rerank, 8 strip_html, 4 rate_limiter. Added `[lib]` target to research crate. |
-| **C-13** | FMP value-add tools — Tier 1 MAIA framework (moat, management, working capital, expectations gap) | 2026-06-11 | 4 new tools: `fmp_moat_check`, `fmp_management_scorecard`, `fmp_working_capital_cycle`, `fmp_expectations_gap`. New `analysis.rs` module with 20 tests. FMP server now has 15 tools (11 passthrough + 4 analytical). |
+| **C-13** | Companies value-add tools — Tier 1 MAIA framework (moat, management, working capital, expectations gap) | 2026-06-11 | 4 new tools: `moat_check`, `management_scorecard`, `working_capital_cycle`, `expectations_gap`. New `analysis.rs` module with 20 tests. Companies server now has 15 tools (11 passthrough + 4 analytical). |
 
 ---
 
@@ -228,4 +228,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated 2026-06-11 after FMP value-add tools (C-13).*
+*This TODO is the single source of truth for open work. Last updated 2026-06-13 after companies rename + EODHD dual-provider integration.*

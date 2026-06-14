@@ -65,7 +65,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-research` — Web search, extraction, browsing, and RSS feed research
 - `hkask-mcp-spec` — DDMVSS spec capture
-- `hkask-mcp-fmp` — Financial data (FMP)
+- `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
 - `hkask-mcp-communication` — Local TTS/STT (espeak)
 - `hkask-mcp-media` — Media generation (image, video, audio, 3D)
 - `hkask-mcp-replica` — Authorial style embedding and composition

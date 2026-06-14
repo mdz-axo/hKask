@@ -553,7 +553,7 @@ Started automatically at REPL boot via `builtin_servers::start_builtin_servers()
 | `condenser` | `hkask-mcp-condenser` | Context condensation, reranking, compression |
 | `spec` | `hkask-mcp-spec` | MDS specification capture |
 | `web` | `hkask-mcp-web` | Web search, scrape, extract |
-| `fmp` | `hkask-mcp-fmp` | Financial Modeling Prep integration |
+| `companies` | `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) |
 | `communication` | `hkask-mcp-communication` | Local TTS/STT (espeak) |
 | `fal` | `hkask-mcp-media` | FAL.ai image generation |
 | `rss-reader` | `hkask-mcp-rss-reader` | RSS feed reading |

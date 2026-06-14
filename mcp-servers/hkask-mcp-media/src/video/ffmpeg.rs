@@ -263,4 +263,176 @@ impl FfmpegRunner {
         tracing::info!(target: "hkask.mcp.media.ffmpeg", duration = %duration_secs, output = %output.display(), "Audio captured");
         Ok(output)
     }
+
+    /// Create a video from a sequence of images.
+    /// Images are concatenated at the specified frame rate.
+    pub async fn images_to_video(
+        &self,
+        image_paths: &[PathBuf],
+        fps: u32,
+        output_format: &str,
+    ) -> Result<PathBuf, String> {
+        if !self.available {
+            return Err("ffmpeg not available".to_string());
+        }
+        if image_paths.is_empty() {
+            return Err("No images provided".to_string());
+        }
+        self.ensure_temp_dir()?;
+
+        let ext = match output_format {
+            "gif" => "gif",
+            "webp" => "webp",
+            _ => "mp4",
+        };
+        let output = self.output_path(ext);
+
+        // Write image list to a temp file for concat demuxer
+        let list_path = self.output_path("txt");
+        let list_content: String = image_paths
+            .iter()
+            .map(|p| format!("file '{}'", p.display()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&list_path, list_content)
+            .map_err(|e| format!("Failed to write image list: {}", e))?;
+
+        let status = Command::new(&self.ffmpeg_path)
+            .arg("-f")
+            .arg("concat")
+            .arg("-safe")
+            .arg("0")
+            .arg("-r")
+            .arg(fps.to_string())
+            .arg("-i")
+            .arg(&list_path)
+            .arg("-c:v")
+            .arg(if ext == "gif" || ext == "webp" {
+                "libwebp"
+            } else {
+                "libx264"
+            })
+            .arg("-pix_fmt")
+            .arg("yuv420p")
+            .arg(&output)
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .status()
+            .await
+            .map_err(|e| format!("ffmpeg images_to_video spawn failed: {}", e))?;
+
+        let _ = std::fs::remove_file(&list_path);
+
+        if !status.success() {
+            return Err(format!(
+                "ffmpeg images_to_video failed with exit code: {:?}",
+                status.code()
+            ));
+        }
+
+        tracing::info!(target: "hkask.mcp.media.ffmpeg", image_count = image_paths.len(), fps = %fps, output = %output.display(), "Video created from images");
+        Ok(output)
+    }
+
+    /// Concatenate multiple video clips into one.
+    /// Uses the concat demuxer for fast, lossless joining.
+    pub async fn concat(&self, video_paths: &[String]) -> Result<PathBuf, String> {
+        if !self.available {
+            return Err("ffmpeg not available".to_string());
+        }
+        if video_paths.len() < 2 {
+            return Err("At least 2 videos required for concat".to_string());
+        }
+        self.ensure_temp_dir()?;
+
+        let output = self.output_path("mp4");
+
+        // Write concat list
+        let list_path = self.output_path("txt");
+        let list_content: String = video_paths
+            .iter()
+            .map(|p| format!("file '{}'", p))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&list_path, list_content)
+            .map_err(|e| format!("Failed to write concat list: {}", e))?;
+
+        let status = Command::new(&self.ffmpeg_path)
+            .arg("-f")
+            .arg("concat")
+            .arg("-safe")
+            .arg("0")
+            .arg("-i")
+            .arg(&list_path)
+            .arg("-c")
+            .arg("copy")
+            .arg(&output)
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .status()
+            .await
+            .map_err(|e| format!("ffmpeg concat spawn failed: {}", e))?;
+
+        let _ = std::fs::remove_file(&list_path);
+
+        if !status.success() {
+            return Err(format!(
+                "ffmpeg concat failed with exit code: {:?}",
+                status.code()
+            ));
+        }
+
+        tracing::info!(target: "hkask.mcp.media.ffmpeg", clip_count = video_paths.len(), output = %output.display(), "Videos concatenated");
+        Ok(output)
+    }
+
+    /// Extract keyframes from a video at regular intervals.
+    /// Returns paths to extracted frame images for vision LLM analysis.
+    pub async fn extract_keyframes(
+        &self,
+        input: &str,
+        interval_sec: f32,
+        max_frames: u32,
+    ) -> Result<Vec<PathBuf>, String> {
+        if !self.available {
+            return Err("ffmpeg not available".to_string());
+        }
+        self.ensure_temp_dir()?;
+
+        let prefix = uuid::Uuid::new_v4().to_string();
+        let pattern = self.temp_dir.join(format!("{}_%03d.jpg", prefix));
+
+        let status = Command::new(&self.ffmpeg_path)
+            .arg("-i")
+            .arg(input)
+            .arg("-vf")
+            .arg(format!("fps=1/{},scale=640:-1", interval_sec))
+            .arg("-vframes")
+            .arg(max_frames.to_string())
+            .arg(&pattern)
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .status()
+            .await
+            .map_err(|e| format!("ffmpeg keyframe extraction spawn failed: {}", e))?;
+
+        if !status.success() {
+            return Err(format!(
+                "ffmpeg keyframe extraction failed with exit code: {:?}",
+                status.code()
+            ));
+        }
+
+        // Collect generated frame files
+        let mut frames = Vec::new();
+        for i in 1..=max_frames {
+            let path = self.temp_dir.join(format!("{}_ {:03}.jpg", prefix, i));
+            if path.exists() {
+                frames.push(path);
+            }
+        }
+
+        tracing::info!(target: "hkask.mcp.media.ffmpeg", input = %input, frame_count = frames.len(), "Keyframes extracted");
+        Ok(frames)
+    }
 }

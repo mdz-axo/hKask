@@ -69,7 +69,7 @@ steps:
       Question 1: What is your target condition?
       Establish the goal the learner is working toward.
     renderer: minijinja
-    template_ref: kata/coaching-q1-target.j2
+    template_ref: kata-coaching/coaching-q1-target
     model_tier: fast_local
     gas_cap: 1500
     timeout_seconds: 15
@@ -78,7 +78,7 @@ steps:
       properties:
         target_condition:
           type: string
-        learner_understanding:
+        learner_response:
           type: string
 
   - ordinal: 2
@@ -87,7 +87,7 @@ steps:
       Question 2: What is your actual condition now?
       What does the learner observe about current performance?
     renderer: minijinja
-    template_ref: kata/coaching-q2-actual.j2
+    template_ref: kata-coaching/coaching-q2-actual
     model_tier: fast_local
     gas_cap: 1500
     timeout_seconds: 15
@@ -96,7 +96,7 @@ steps:
       properties:
         actual_condition:
           type: string
-        gap_from_target:
+        learner_response:
           type: string
 
   - ordinal: 3
@@ -106,7 +106,7 @@ steps:
       you from reaching the target condition? Which one are you
       addressing now?
     renderer: minijinja
-    template_ref: kata/coaching-q3-obstacles.j2
+    template_ref: kata-coaching/coaching-q3-obstacles
     model_tier: reasoning_local
     gas_cap: 2500
     timeout_seconds: 20
@@ -115,7 +115,7 @@ steps:
       properties:
         obstacles:
           type: array
-        selected_obstacle:
+        focus_obstacle:
           type: string
 
   - ordinal: 4
@@ -124,7 +124,7 @@ steps:
       Question 4: What is your next step (next experiment)?
       What do you expect?
     renderer: minijinja
-    template_ref: kata/coaching-q4-experiment.j2
+    template_ref: kata-coaching/coaching-q4-experiment
     model_tier: balanced
     gas_cap: 3000
     timeout_seconds: 25
@@ -135,8 +135,6 @@ steps:
           type: string
         prediction:
           type: string
-        expected_outcome:
-          type: object
 
   - ordinal: 5
     action: populate
@@ -145,7 +143,7 @@ steps:
       learned from taking that step?
       Establish immediate feedback loop.
     renderer: minijinja
-    template_ref: kata/coaching-q5-learn.j2
+    template_ref: kata-coaching/coaching-q5-learn
     model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 15
@@ -167,7 +165,7 @@ steps:
     renderer: null
     template_ref: null
     target: synthesize_coaching_outcome
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     tool: cns_emit
     gas_cap: 1500
     timeout_seconds: 10
