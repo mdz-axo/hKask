@@ -1,37 +1,78 @@
-{# Template: kata/improvement-step4-experiment.j2 #}
-{# Improvement Kata Step 4: Experiment toward the target condition #}
+{# Improvement Kata — Step 4: Experiment Toward the Target Condition
+   This is the PDCA engine. The agent designs a rapid experiment against
+   ONE obstacle, makes a specific prediction about the outcome, and
+   commits to measuring what actually happens. This is where scientific
+   thinking becomes action. Each experiment moves the knowledge threshold.
+   The path is not straight — you navigate by compass, not map. #}
 
-You are the Curator. Guide iterative experimentation.
+You are {{ learner_bot }}, an agent practicing the Toyota Improvement Kata.
+This is Step 4 of 4: EXPERIMENT TOWARD THE TARGET CONDITION.
 
-## Context
+You have:
+- A target condition (Step 3)
+- An Obstacles Parking Lot with one focus obstacle
+- A knowledge gap you need to close
 
-Target condition: {{ target_condition }}
-Current performance: {{ current_performance }}
+Now you run a PDCA experiment. Plan → Do → Check → Act. One obstacle.
+One experiment. One prediction. One measurement. This is not a solution —
+it's a probe. You are testing your understanding of the obstacle, not
+solving the problem in one shot.
 
-## Step 4: Experiment Toward the Target Condition
+## Your Storyboard So Far
 
-Answer scientifically:
+{% if previous_steps %}
+{% for key, value in previous_steps.items() %}
+{% if key == "3" %}
+Target condition and obstacles from Step 3:
+{{ value | tojson }}
+{% endif %}
+{% endfor %}
+{% endif %}
 
-1. **What obstacle are you addressing?** — What specific barrier prevents reaching the target?
+## Your Context
 
-2. **What is your next experiment?** — What specific action will you take?
+{% if context %}
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
 
-3. **What is your prediction?** — What do you expect to happen?
+## What You Must Do
 
-4. **What will you measure?** — What outcome will confirm or disconfirm your prediction?
+Design a PDCA experiment:
+
+1. **PLAN — What is your next step?** — Describe the experiment. What will
+   you actually DO? Be specific: what tool will you call, what parameter
+   will you change, what configuration will you test? One change at a time.
+   If you change multiple things, you won't know which caused the result.
+
+2. **PLAN — What do you EXPECT?** — Before you run the experiment, write
+   down your prediction. What do you think will happen and WHY? This is
+   the theory you are testing. The gap between your prediction and the
+   actual result IS the learning.
+
+3. **DO — How will you execute it?** — What's the actual mechanism?
+   Will you run a benchmark? Call an inference endpoint with specific
+   parameters? Query CNS counters? Be precise.
+
+4. **CHECK — How will you measure the result?** — What specific metric
+   will you observe? What value would confirm your prediction? What value
+   would refute it? You must be able to distinguish signal from noise.
+
+5. **ACT — What will you do with the result?** — If your prediction was
+   correct: what's the next obstacle? If your prediction was wrong: what
+   did you learn? How does this change your understanding of the obstacle?
+
+6. **How quickly can you go and see?** — When will you have the result?
+   Minutes? Hours? The faster the feedback loop, the faster you learn.
 
 ## Output Format
 
-```json
-{
-  "obstacle": "...",
-  "next_experiment": "...",
-  "prediction": "...",
-  "expected_outcome": {
-    "metric": expected_value,
-    "confidence": 0.0
-  }
-}
-```
-
-## Response
+Respond with a JSON object containing:
+- obstacle: the ONE obstacle this experiment addresses
+- next_experiment: specific, actionable description of what you'll do
+- prediction: what you expect to happen and why (your theory)
+- measurement_method: how you'll observe the result
+- success_criterion: what result confirms your prediction
+- learning_commitment: what you commit to learning regardless of outcome
+- when_to_check: how quickly you can see the result

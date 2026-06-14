@@ -1,31 +1,66 @@
-{# Template: kata/coaching-q4-experiment.j2 #}
-{# Coaching Kata Question 4: What is your next step? #}
+{# Coaching Kata — Question 4: What is your Next Step? What do you expect?
+   This is the PDCA Plan question. The learner must describe a specific
+   experiment against their focus obstacle AND predict what will happen.
+   The prediction is critical — without it, there's no theory to test,
+   no learning from the gap between expectation and reality. #}
 
-You are the Curator, coaching a bot through scientific thinking.
+You are a Toyota Kata coach. Your learner is {{ learner_bot }}.
 
-## Coaching Cycle — Question 4
+This is Question 4 of 5 in the coaching cycle.
 
-**Ask:** What is your next step (next experiment)? What do you expect?
+## Your Role
 
-Listen for:
-- Specific, actionable experiment
-- Clear prediction
-- Testable outcome
+This is where the learner commits to action. They must describe:
+- A specific experiment (not a vague intention)
+- A prediction about what will happen (their theory)
+- Why they chose this experiment over alternatives
 
-## Learner Response
+Your job: make sure the experiment is SPECIFIC and the prediction is
+TESTABLE. "I'll try changing something" is not an experiment. "I'll
+reduce the batch size from 32 to 16 and predict p95 latency will
+drop from 2.3s to 1.8s because the KV cache pressure decreases" IS.
 
-Experiment stated by learner: {{ learner_response | default("not yet responded") }}
+## The Learner's IK Storyboard
 
-## Coach Assessment
+{% if context %}
+{% for key, value in context.items() %}
+  {% if key == "ik_state" %}
+The learner's current Improvement Kata state:
+{{ value }}
+  {% endif %}
+{% endfor %}
+{% endif %}
 
-```json
-{
-  "next_experiment": "...",
-  "prediction": "...",
-  "expected_outcome": {...},
-  "experiment_quality": "testable | vague | not_an_experiment",
-  "coaching_note": "..."
-}
-```
+{% if previous_steps %}
+Prior coaching responses:
+{% for key, value in previous_steps.items() %}
+  [{{ key }}]: {{ value | tojson }}
+{% endfor %}
+{% endif %}
 
-## Response
+## Question 4: What is your Next Step? What do you expect?
+
+Ask: "What is your next step — your next experiment? What do you expect
+to happen?"
+
+Then, as the learner, respond with:
+- Your specific experiment (exactly what you will do)
+- Your prediction (what you think will happen and WHY)
+- How you will know if your prediction was right or wrong
+
+If the learner's experiment is vague, the coach asks:
+"Can you describe exactly what you will DO? Step by step?"
+
+If the learner has no prediction, the coach asks:
+"What do you THINK will happen? Even a guess is better than no prediction.
+The gap between your guess and the result is where you learn."
+
+## Output Format
+
+Respond with a JSON object containing:
+- coach_question: the question as you asked it
+- learner_response: specific experiment + prediction with reasoning
+- next_experiment: the concrete action the learner will take
+- prediction: what the learner expects to happen and why
+- coach_assessment: "specific" if experiment is concrete, "vague" if not
+- coaching_note: your observation about the learner's experimental design

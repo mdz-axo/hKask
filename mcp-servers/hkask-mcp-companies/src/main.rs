@@ -25,6 +25,12 @@
 //! - `portfolio_delete` — Delete a portfolio
 //! - `portfolio_create` — Create a portfolio (also auto-created on import)
 //! - `transaction_note_append` — Annotate a transaction
+//! - `note_add` — Add a research note to a security
+//! - `note_list` — List notes with optional date/tag filtering
+//! - `note_delete` — Delete a note
+//! - `file_attach` — Attach a file (base64) to a security
+//! - `file_list` — List attached files for a security
+//! - `file_delete` — Delete an attached file
 //! - `portfolio_attribution` — What moved the portfolio
 //! - `portfolio_characteristics` — Weighted-average fundamentals
 //! - `portfolio_comparison` — Side-by-side comparison
@@ -119,6 +125,55 @@ pub struct CharacteristicsRequest {
 pub struct ExpectationsGapRequest {
     pub symbol: String,
     pub target_return: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NoteAddRequest {
+    pub portfolio: String,
+    pub symbol: String,
+    pub date: String,
+    pub title: String,
+    pub body: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NoteListRequest {
+    pub portfolio: String,
+    pub symbol: String,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NoteDeleteRequest {
+    pub note_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FileAttachRequest {
+    pub portfolio: String,
+    pub symbol: String,
+    pub date: String,
+    pub filename: String,
+    pub mime_type: String,
+    /// Base64-encoded file content
+    pub data: String,
+    #[serde(default)]
+    pub notes: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FileListRequest {
+    pub portfolio: String,
+    pub symbol: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FileDeleteRequest {
+    pub file_id: String,
 }
 
 // ── Validation ──────────────────────────────────────────────────────
@@ -992,6 +1047,130 @@ impl CompaniesServer {
         let span = ToolSpanGuard::new("portfolio_comparison", &self.webid);
         match self.portfolio.compare(&portfolio_a, &portfolio_b) {
             Ok(report) => span.ok_json(report),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    // ── Notes & Files tools ─────────────────────────────────────
+
+    #[tool(description = "Add a note to a company/security as of a date")]
+    async fn note_add(
+        &self,
+        Parameters(NoteAddRequest {
+            portfolio,
+            symbol,
+            date,
+            title,
+            body,
+            tags,
+        }): Parameters<NoteAddRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("note_add", &self.webid);
+        match self
+            .portfolio
+            .add_note(&portfolio, &symbol, &date, &title, &body, &tags)
+        {
+            Ok(id) => span.ok_json(serde_json::json!({"status": "created", "id": id})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "List notes for a symbol, optionally filtered by date range or tags")]
+    async fn note_list(
+        &self,
+        Parameters(NoteListRequest {
+            portfolio,
+            symbol,
+            date_from,
+            date_to,
+            tags,
+        }): Parameters<NoteListRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("note_list", &self.webid);
+        match self.portfolio.list_notes(
+            &portfolio,
+            &symbol,
+            date_from.as_deref(),
+            date_to.as_deref(),
+            tags.as_deref(),
+        ) {
+            Ok(notes) => span.ok_json(serde_json::json!({"notes": notes})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Delete a note by ID")]
+    async fn note_delete(
+        &self,
+        Parameters(NoteDeleteRequest { note_id }): Parameters<NoteDeleteRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("note_delete", &self.webid);
+        match self.portfolio.delete_note(&note_id) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "deleted", "id": note_id})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Attach a file (base64-encoded) to a company/security")]
+    async fn file_attach(
+        &self,
+        Parameters(FileAttachRequest {
+            portfolio,
+            symbol,
+            date,
+            filename,
+            mime_type,
+            data,
+            notes,
+        }): Parameters<FileAttachRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("file_attach", &self.webid);
+        match self.portfolio.attach_file(
+            &portfolio, &symbol, &date, &filename, &mime_type, &data, &notes,
+        ) {
+            Ok(id) => span.ok_json(serde_json::json!({"status": "attached", "id": id})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "List attached files for a symbol in a portfolio")]
+    async fn file_list(
+        &self,
+        Parameters(FileListRequest { portfolio, symbol }): Parameters<FileListRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("file_list", &self.webid);
+        match self.portfolio.list_files(&portfolio, &symbol) {
+            Ok(files) => span.ok_json(serde_json::json!({"files": files})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Delete an attached file by ID — removes record and file from disk")]
+    async fn file_delete(
+        &self,
+        Parameters(FileDeleteRequest { file_id }): Parameters<FileDeleteRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("file_delete", &self.webid);
+        match self.portfolio.delete_file(&file_id) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "deleted", "id": file_id})),
             Err(e) => span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(e).to_json_string(),

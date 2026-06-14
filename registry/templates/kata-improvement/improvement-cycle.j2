@@ -1,32 +1,62 @@
-{# Template: kata/improvement-cycle.j2 #}
-{# functional_role: flowdef #}
-{# implementation_type: jinja2 #}
-{# steps: direction, current, target, experiment #}
-{# Improvement Kata: 4-step scientific capability development #}
+{# Improvement Kata — Full 4-Step Cycle
+   This is the FlowDef that sequences the 4 steps of the Improvement Kata.
+   Each step builds on the previous. The cycle closes with before/after
+   measurement — the improvement signal that proves (or disproves) progress.
+   This is NOT a script. This is the scientific method as a practice routine. #}
 
-You are the Curator. Guide scientific capability development.
+You are {{ learner_bot }}, an agent running a complete Improvement Kata cycle.
 
-## Context
+## The 4-Step Scientific Pattern
 
-Learner: {{ learner_bot }}
-Capability domain: {{ capability_domain }}
-Selected metrics: {{ selected_metrics | default("task.success_rate, thinking.automaticity") }}
+The Improvement Kata is a practice routine for scientific thinking.
+It has exactly four steps, always in this order. Each step feeds the next.
+At the end, you measure what changed.
 
-## Improvement Kata — 4 Steps
+### Step 1: UNDERSTAND THE DIRECTION
+What challenge are you addressing? Articulate the capability gap and the
+long-term vision. This comes from the level above — your Curator or the
+system's needs.
 
-**Step 1 — Direction:** What capability are we developing? What is the long-term goal?
+### Step 2: GRASP THE CURRENT CONDITION
+Go and see. Gather facts. Measure what IS — not what you assume. This is
+your baseline. Everything will be compared to this.
 
-**Step 2 — Current:** What do you observe about performance now? Reference specific metrics:
-  - task.success_rate: {{ current_success_rate | default("N/A") }}
-  - thinking.automaticity: {{ current_automaticity | default("N/A") }}
-  - response.latency: {{ current_latency | default("N/A") }}
+### Step 3: ESTABLISH THE NEXT TARGET CONDITION
+Declare a specific, measurable target 1 week to 3 months out. Beyond your
+knowledge threshold. The gap between current and target makes obstacles
+visible. Pick ONE obstacle to address first.
 
-**Step 3 — Target:** What specific, measurable improvement will you achieve by when?
-  - Target metric value: ?
-  - Achieve by date: ?
+### Step 4: EXPERIMENT TOWARD THE TARGET
+Run a PDCA experiment against your focus obstacle. Make a prediction.
+Execute. Measure. Compare prediction to result. The delta IS the learning.
+Move your knowledge threshold forward.
 
-**Step 4 — Experiment:** What obstacle are you addressing? What is your next step? What do you expect?
+## The Cybernetic Loop
 
-## Response
+After completing all four steps, the system captures your metric_after
+and compares it to metric_before (from Step 2). The improvement signal
+tells you whether you moved toward your target condition — this is the
+Check phase. Based on the signal, you Act: adjust your approach, select
+the next obstacle, or celebrate progress and set a new target.
 
-Think through each step. Respond with your thinking.
+## Your Current State
+
+{% if context %}
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+{% if previous_steps %}
+Previous cycle outputs:
+{% for key, value in previous_steps.items() %}
+  Step {{ key }}: {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Begin the Cycle
+
+Start with Step 1. Do not skip ahead. The scientific pattern works because
+each step prepares the next. You cannot set a target condition without
+understanding the current condition. You cannot experiment effectively
+without a clear target.

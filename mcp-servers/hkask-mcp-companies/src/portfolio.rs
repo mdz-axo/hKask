@@ -2,7 +2,7 @@
 //!
 //! A portfolio is a ledger. Everything else is arithmetic on the ledger
 //! at a point in time. This module manages the SQLite-backed transaction
-//! ledger — create, read, validate, import, export.
+//! ledger — create, read, validate, import, export, notes, and file attachments.
 
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -108,7 +108,33 @@ impl PortfolioManager {
                     ledger_symbol TEXT NOT NULL,
                     data_symbol TEXT NOT NULL,
                     PRIMARY KEY (portfolio_name, ledger_symbol)
-                );"
+                );
+                CREATE TABLE IF NOT EXISTS notes (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    tags TEXT DEFAULT '[]',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_notes_portfolio ON notes(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_notes_symbol ON notes(symbol);
+                CREATE TABLE IF NOT EXISTS files (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    mime_type TEXT NOT NULL,
+                    size INTEGER NOT NULL,
+                    path TEXT NOT NULL,
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_files_portfolio ON files(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);"
             );
         }
         Self { db_path: path }
@@ -155,7 +181,33 @@ impl PortfolioManager {
                     ledger_symbol TEXT NOT NULL,
                     data_symbol TEXT NOT NULL,
                     PRIMARY KEY (portfolio_name, ledger_symbol)
-                );"
+                );
+                CREATE TABLE IF NOT EXISTS notes (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    tags TEXT DEFAULT '[]',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_notes_portfolio ON notes(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_notes_symbol ON notes(symbol);
+                CREATE TABLE IF NOT EXISTS files (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    mime_type TEXT NOT NULL,
+                    size INTEGER NOT NULL,
+                    path TEXT NOT NULL,
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_files_portfolio ON files(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);"
             );
         }
         Self { db_path }
@@ -163,6 +215,13 @@ impl PortfolioManager {
 
     fn open(&self) -> Result<Connection, String> {
         Connection::open(&self.db_path).map_err(|e| format!("db open: {e}"))
+    }
+
+    /// Base directory for portfolio file storage (parent of master.db).
+    fn base_dir(&self) -> &std::path::Path {
+        self.db_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
     }
 
     // ── Portfolio CRUD ───────────────────────────────────────────
@@ -804,6 +863,211 @@ impl PortfolioManager {
             "only_in_b": only_b,
         }))
     }
+
+    // ── Notes ────────────────────────────────────────────────────
+
+    /// Add a note to a company/security as of a date. Returns the note ID.
+    pub fn add_note(
+        &self,
+        portfolio: &str,
+        symbol: &str,
+        date: &str,
+        title: &str,
+        body: &str,
+        tags: &[String],
+    ) -> Result<String, String> {
+        let conn = self.open()?;
+        self.check_exists(&conn, portfolio)?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let tags_json = serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string());
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO notes (id, portfolio_name, symbol, date, title, body, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![id, portfolio, symbol, date, title, body, tags_json, now],
+        )
+        .map_err(|e| format!("add_note: {e}"))?;
+        Ok(id)
+    }
+
+    /// List notes for a symbol, optionally filtered by date range or tags.
+    pub fn list_notes(
+        &self,
+        portfolio: &str,
+        symbol: &str,
+        date_from: Option<&str>,
+        date_to: Option<&str>,
+        tags: Option<&[String]>,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let conn = self.open()?;
+        self.check_exists(&conn, portfolio)?;
+        let mut sql = "SELECT id, symbol, date, title, body, tags, created_at FROM notes WHERE portfolio_name = ?1 AND symbol = ?2".to_string();
+        let mut bind_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![
+            Box::new(portfolio.to_string()),
+            Box::new(symbol.to_string()),
+        ];
+
+        if let Some(f) = date_from {
+            bind_values.push(Box::new(f.to_string()));
+            sql.push_str(&format!(" AND date >= ?{}", bind_values.len()));
+        }
+        if let Some(t) = date_to {
+            bind_values.push(Box::new(t.to_string()));
+            sql.push_str(&format!(" AND date <= ?{}", bind_values.len()));
+        }
+        sql.push_str(" ORDER BY date DESC");
+
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            bind_values.iter().map(|b| b.as_ref()).collect();
+        let mut stmt = conn.prepare(&sql).map_err(|e| format!("query: {e}"))?;
+        let rows = stmt
+            .query_map(params_refs.as_slice(), |row| {
+                let tags_str: String = row.get::<_, String>(5).unwrap_or_default();
+                let parsed_tags: Vec<String> = serde_json::from_str(&tags_str).unwrap_or_default();
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0)?,
+                    "symbol": row.get::<_, String>(1)?,
+                    "date": row.get::<_, String>(2)?,
+                    "title": row.get::<_, String>(3)?,
+                    "body": row.get::<_, String>(4)?,
+                    "tags": parsed_tags,
+                    "created_at": row.get::<_, String>(6)?,
+                }))
+            })
+            .map_err(|e| format!("query: {e}"))?;
+
+        let mut notes = Vec::new();
+        for row in rows {
+            let note = row.map_err(|e| format!("row: {e}"))?;
+            // Apply tag filter in-memory if specified
+            if let Some(filter_tags) = tags {
+                let note_tags: Vec<&str> = note["tags"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+                    .unwrap_or_default();
+                let has_any = filter_tags.iter().any(|t| note_tags.contains(&t.as_str()));
+                if !has_any {
+                    continue;
+                }
+            }
+            notes.push(note);
+        }
+        Ok(notes)
+    }
+
+    /// Delete a note by ID.
+    pub fn delete_note(&self, note_id: &str) -> Result<(), String> {
+        let conn = self.open()?;
+        let rows = conn
+            .execute("DELETE FROM notes WHERE id = ?1", params![note_id])
+            .map_err(|e| format!("delete_note: {e}"))?;
+        if rows == 0 {
+            return Err(format!("note '{note_id}' not found"));
+        }
+        Ok(())
+    }
+
+    // ── File attachments ─────────────────────────────────────────
+
+    /// Attach a file to a company/security. Receives base64-encoded content,
+    /// writes to `portfolios/{name}/files/{uuid}_{filename}`, returns the file ID.
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_file(
+        &self,
+        portfolio: &str,
+        symbol: &str,
+        date: &str,
+        filename: &str,
+        mime_type: &str,
+        data_b64: &str,
+        notes: &str,
+    ) -> Result<String, String> {
+        let conn = self.open()?;
+        self.check_exists(&conn, portfolio)?;
+
+        // Decode base64
+        let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data_b64)
+            .map_err(|e| format!("invalid base64 data: {e}"))?;
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let safe_filename = format!("{id}_{filename}");
+        let files_dir = self.base_dir().join(portfolio).join("files");
+        let _ = std::fs::create_dir_all(&files_dir);
+        let file_path = files_dir.join(&safe_filename);
+
+        std::fs::write(&file_path, &bytes).map_err(|e| format!("write file: {e}"))?;
+
+        let path_str = file_path.to_string_lossy().to_string();
+        let size = bytes.len() as i64;
+        let now = chrono::Utc::now().to_rfc3339();
+
+        conn.execute(
+            "INSERT INTO files (id, portfolio_name, symbol, date, filename, mime_type, size, path, notes, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![id, portfolio, symbol, date, filename, mime_type, size, path_str, notes, now],
+        )
+        .map_err(|e| format!("attach_file: {e}"))?;
+
+        Ok(id)
+    }
+
+    /// List attached files for a symbol in a portfolio.
+    pub fn list_files(
+        &self,
+        portfolio: &str,
+        symbol: &str,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let conn = self.open()?;
+        self.check_exists(&conn, portfolio)?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, symbol, date, filename, mime_type, size, path, notes, created_at FROM files WHERE portfolio_name = ?1 AND symbol = ?2 ORDER BY date DESC",
+            )
+            .map_err(|e| format!("query: {e}"))?;
+        let rows = stmt
+            .query_map(params![portfolio, symbol], |row| {
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0)?,
+                    "symbol": row.get::<_, String>(1)?,
+                    "date": row.get::<_, String>(2)?,
+                    "filename": row.get::<_, String>(3)?,
+                    "mime_type": row.get::<_, String>(4)?,
+                    "size": row.get::<_, i64>(5)?,
+                    "path": row.get::<_, String>(6)?,
+                    "notes": row.get::<_, String>(7)?,
+                    "created_at": row.get::<_, String>(8)?,
+                }))
+            })
+            .map_err(|e| format!("query: {e}"))?;
+
+        let mut files = Vec::new();
+        for row in rows {
+            files.push(row.map_err(|e| format!("row: {e}"))?);
+        }
+        Ok(files)
+    }
+
+    /// Delete an attached file by ID — removes DB record and physical file.
+    pub fn delete_file(&self, file_id: &str) -> Result<(), String> {
+        let conn = self.open()?;
+        // Look up the file path first
+        let path: String = conn
+            .query_row(
+                "SELECT path FROM files WHERE id = ?1",
+                params![file_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("lookup: {e}"))?;
+
+        let rows = conn
+            .execute("DELETE FROM files WHERE id = ?1", params![file_id])
+            .map_err(|e| format!("delete_file: {e}"))?;
+        if rows == 0 {
+            return Err(format!("file '{file_id}' not found"));
+        }
+
+        // Best-effort delete of the physical file
+        let _ = std::fs::remove_file(&path);
+        Ok(())
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────
@@ -1027,5 +1291,140 @@ deposit,2024-01-01,,,,,10000.0
                 .iter()
                 .any(|i| i.contains("non-positive quantity"))
         );
+    }
+
+    // REQ: NOTES-CRUD — add, list, filter, delete a company note
+    #[test]
+    fn notes_crud() {
+        let dir = tempfile::tempdir().unwrap();
+        let pm = PortfolioManager::with_dir(dir.path().to_path_buf());
+        pm.create("test").unwrap();
+
+        let id = pm
+            .add_note(
+                "test",
+                "AAPL",
+                "2024-06-15",
+                "Earnings review",
+                "Beat estimates by 5%",
+                &["earnings".into(), "bullish".into()],
+            )
+            .unwrap();
+        assert!(!id.is_empty());
+
+        // List all
+        let notes = pm.list_notes("test", "AAPL", None, None, None).unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0]["title"], "Earnings review");
+
+        // Filter by tag
+        let tagged = pm
+            .list_notes("test", "AAPL", None, None, Some(&["earnings".into()]))
+            .unwrap();
+        assert_eq!(tagged.len(), 1);
+
+        let not_found = pm
+            .list_notes("test", "AAPL", None, None, Some(&["bearish".into()]))
+            .unwrap();
+        assert!(not_found.is_empty());
+
+        // Filter by date range
+        let in_range = pm
+            .list_notes("test", "AAPL", Some("2024-01-01"), Some("2024-12-31"), None)
+            .unwrap();
+        assert_eq!(in_range.len(), 1);
+
+        let out_of_range = pm
+            .list_notes("test", "AAPL", Some("2025-01-01"), None, None)
+            .unwrap();
+        assert!(out_of_range.is_empty());
+
+        // Delete
+        pm.delete_note(&id).unwrap();
+        let empty = pm.list_notes("test", "AAPL", None, None, None).unwrap();
+        assert!(empty.is_empty());
+    }
+
+    // REQ: NOTES-DELETE — non-existent note
+    #[test]
+    fn delete_nonexistent_note() {
+        let dir = tempfile::tempdir().unwrap();
+        let pm = PortfolioManager::with_dir(dir.path().to_path_buf());
+        pm.create("test").unwrap();
+
+        assert!(pm.delete_note("nonexistent-id").is_err());
+    }
+
+    // REQ: FILES-ATTACH — attach a base64 file and list it
+    #[test]
+    fn file_attach_and_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let pm = PortfolioManager::with_dir(dir.path().to_path_buf());
+        pm.create("test").unwrap();
+
+        let data = base64::engine::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            b"Hello, portfolio!",
+        );
+
+        let id = pm
+            .attach_file(
+                "test",
+                "AAPL",
+                "2024-06-15",
+                "notes.txt",
+                "text/plain",
+                &data,
+                "my research notes",
+            )
+            .unwrap();
+        assert!(!id.is_empty());
+
+        let files = pm.list_files("test", "AAPL").unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0]["filename"], "notes.txt");
+        assert_eq!(files[0]["mime_type"], "text/plain");
+        assert_eq!(files[0]["size"], 17);
+        assert_eq!(files[0]["notes"], "my research notes");
+
+        // Verify file exists on disk
+        let disk_path = files[0]["path"].as_str().unwrap();
+        assert!(std::path::Path::new(disk_path).exists());
+        let contents = std::fs::read_to_string(disk_path).unwrap();
+        assert_eq!(contents, "Hello, portfolio!");
+    }
+
+    // REQ: FILES-DELETE — delete file record and physical file
+    #[test]
+    fn file_delete() {
+        let dir = tempfile::tempdir().unwrap();
+        let pm = PortfolioManager::with_dir(dir.path().to_path_buf());
+        pm.create("test").unwrap();
+
+        let data = base64::engine::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            b"temp file",
+        );
+
+        let id = pm
+            .attach_file(
+                "test",
+                "MSFT",
+                "2024-01-01",
+                "temp.txt",
+                "text/plain",
+                &data,
+                "",
+            )
+            .unwrap();
+
+        let files = pm.list_files("test", "MSFT").unwrap();
+        let disk_path = files[0]["path"].as_str().unwrap().to_string();
+
+        pm.delete_file(&id).unwrap();
+        assert!(pm.list_files("test", "MSFT").unwrap().is_empty());
+        assert!(!std::path::Path::new(&disk_path).exists());
+
+        assert!(pm.delete_file("nonexistent").is_err());
     }
 }

@@ -6,8 +6,14 @@
 //! - Video: clip, to_gif, image_to_video, add_caption, remix, concat, from_images
 //! - Generation: generate_image, transform_image, upscale_image, generate_video
 //! - Voice: voice_design, generate_speech
+//! - Audio: transcribe, transcribe_bundle, audio_capture, record_and_transcribe
 
-mod gallery;
+// When compiled as a library (for integration tests), main() and try_daemon_flow()
+// are unused. Pre-existing collapsible_if/cloned_ref patterns are from the original
+// bin-only codebase and should be addressed in a separate refactoring pass.
+#![allow(dead_code, clippy::collapsible_if, clippy::cloned_ref_to_slice_refs)]
+
+pub mod gallery;
 mod templates;
 mod video;
 
@@ -36,9 +42,9 @@ pub struct MediaServer {
     /// Centralized inference router for ALL model calls (vision LLM + media generation)
     inference: Arc<InferenceRouter>,
     /// Active gallery state (None until gallery_set_root is called)
-    gallery_state: Arc<Mutex<Option<GalleryState>>>,
+    pub gallery_state: Arc<Mutex<Option<GalleryState>>>,
     /// SQLite-backed gallery store for persistent indexing
-    gallery_store: Arc<GalleryStore>,
+    pub gallery_store: Arc<GalleryStore>,
     /// Jinja2 template environment for prompt rendering
     template_env: minijinja::Environment<'static>,
     /// ffmpeg runner for video processing (None if ffmpeg not found)
@@ -1653,7 +1659,7 @@ impl MediaServer {
                 (images.len() as f64).sqrt().ceil() as u32
             }
         };
-        let rows = (images.len() as u32 + cols - 1) / cols;
+        let rows = (images.len() as u32).div_ceil(cols);
 
         // Parse canvas size
         let parts: Vec<&str> = canvas_size.split('x').collect();
@@ -2257,6 +2263,8 @@ impl MediaServer {
 
         span.finish(result)
     }
+
+    // ── Audio tools ─────────────────────────────────────────────────────────
 
     #[tool(
         description = "Transcribe speech audio to text. Returns transcribed text for REPL injection."

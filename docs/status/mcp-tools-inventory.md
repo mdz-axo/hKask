@@ -22,14 +22,14 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 | condenser | `hkask-mcp-condenser` | 6 | L2 (Episodic) | — |
 | research | `hkask-mcp-research` | ~17 | L4 (Communication) | See per-server detail |
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
-| companies | `hkask-mcp-companies` | 15 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
+| companies | `hkask-mcp-companies` | 21 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
 | communication | `hkask-mcp-communication` | 3 | L4 (Communication) | — |
 | media | `hkask-mcp-media` | 20 | L4 (Communication) | `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
 | docproc | `hkask-mcp-docproc` | 9 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional) |
 | training | `hkask-mcp-training` | 1 | L2 (Episodic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| **Total** | | **~97** | | |
+| **Total** | | **~105** | | |
 
 ---
 
@@ -117,7 +117,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### companies
 
-**Crate:** `hkask-mcp-companies` · **Loop:** L4 · **Tools:** 15
+**Crate:** `hkask-mcp-companies` · **Loop:** L4 · **Tools:** 21
 
 **Required:** `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY`
 
@@ -129,9 +129,10 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 **Coverage:** FMP (US-focused, deep fundamentals) + EODHD (global, 70+ exchanges, broad coverage). MAIA deep fundamental analysis works best with FMP; EODHD expands global reach for profiles, quotes, search, and historical prices.
 
+**Financial data tools:**
+
 | Tool | Description |
 |------|-------------|
-| `ping` | Ping company data APIs |
 | `company_profile` | Get company profile |
 | `stock_quote` | Get stock quote |
 | `income_statement` | Get income statement |
@@ -140,12 +141,30 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `key_metrics` | Get key metrics (with derived metrics from EODHD financials) |
 | `historical_price` | Get historical price data |
 | `symbol_search` | Search for symbols (FMP primary, EODHD fallback) |
-| `analyst_estimates` | Get analyst estimates |
-| `dcf_analysis` | Get discounted cash flow analysis |
 | `moat_check` | MAIA competitive moat analysis (gross margin stability + working capital signal) |
 | `management_scorecard` | MAIA CEO capital allocation scorecard (ROIC vs invested capital trend) |
 | `working_capital_cycle` | MAIA CFO working capital analysis (DPO/DSO/DIO/CCC over time) |
-| `expectations_gap` | MAIA expectations gap (market-implied vs analyst consensus) |
+| `expectations_gap` | Gordon Growth Model: market-implied vs historical growth across 3 valuation sets |
+
+**Portfolio management tools:**
+
+| Tool | Description |
+|------|-------------|
+| `portfolio_create` | Create a new portfolio (also auto-created on import) |
+| `portfolio_delete` | Delete a portfolio and all associated data |
+| `portfolio_list` | List all portfolios |
+| `ledger_import` | Import transactions from CSV or JSON (auto-creates portfolio) |
+| `ledger_export` | Export full ledger to CSV or JSON |
+| `transaction_note_append` | Append a note to an existing transaction |
+| `note_add` | Add a research note to a company/security |
+| `note_list` | List notes for a symbol with optional date/tag filtering |
+| `note_delete` | Delete a note by ID |
+| `file_attach` | Attach a file (base64-encoded) to a company/security |
+| `file_list` | List attached files for a symbol |
+| `file_delete` | Delete an attached file (record + disk) |
+| `portfolio_attribution` | What moved the portfolio — position-level contribution ranking |
+| `portfolio_characteristics` | Weighted-average fundamentals across holdings |
+| `portfolio_comparison` | Side-by-side portfolio comparison |
 
 ---
 
@@ -165,7 +184,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### media
 
-**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 20 (3 gallery + 4 image + 7 video + 2 voice + 4 generation)
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 28 (3 gallery + 4 analysis + 4 image + 7 video + 2 voice + 4 audio + 4 generation)
 
 **Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one)
 
@@ -187,6 +206,10 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `video_from_images` | Create video/GIF from image sequence (ffmpeg) |
 | `voice_design` | Design a synthetic voice from a character description |
 | `generate_speech` | Generate speech audio from text + voice design |
+| `transcribe` | Transcribe speech audio to text |
+| `transcribe_bundle` | Transcribe with word-level timings for interactive UIs |
+| `audio_capture` | Record audio from microphone (ffmpeg) |
+| `record_and_transcribe` | Record + transcribe in one call |
 | `generate_image` | Generate an image from a text prompt |
 | `transform_image` | Transform an existing image with a text prompt |
 | `upscale_image` | Upscale an image to higher resolution |

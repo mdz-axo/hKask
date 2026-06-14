@@ -6,7 +6,7 @@
 
 use crate::cli::KataAction;
 use hkask_inference::InferenceConfig;
-use hkask_services::{CliExperienceRecorder, KataEngine, KataError};
+use hkask_services::{CliExperienceRecorder, KataEngine, KataError, KataHistory, PracticeEntry};
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -167,6 +167,24 @@ fn start_kata(
         }
     }
 
+    // Load kata history for habit tracking and automaticity scoring
+    let history_path = kata_history_path();
+    let history = KataHistory::load(&history_path).unwrap_or_else(|e| {
+        eprintln!(
+            "Warning: Failed to load kata history: {} — starting fresh",
+            e
+        );
+        KataHistory::default()
+    });
+
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    eprintln!(
+        "Agent '{}': streak={} days, automaticity={:.2}",
+        bot,
+        history.current_streak(bot, &today),
+        history.compute_automaticity(bot, &today)
+    );
+
     // Build engine with shared registry (has bootstrapped templates)
     let inf_cfg = InferenceConfig::from_env();
     let inference = hkask_inference::InferenceRouter::new(inf_cfg);
@@ -174,7 +192,7 @@ fn start_kata(
         std::sync::Arc::new(inference);
 
     // Clone the registry's connection for the engine
-    let engine = KataEngine::new(inference_port, registry.clone());
+    let engine = KataEngine::new(inference_port, registry.clone()).with_history(history);
 
     // Load manifest
     let manifest = match KataEngine::load_manifest(&path) {
@@ -253,6 +271,19 @@ fn start_kata(
                 }
             );
 
+            // Display improvement signal if present
+            if let Some(ref signal) = result.improvement_signal {
+                eprintln!(
+                    "Improvement: {:?} (delta: {:?})",
+                    signal.direction, signal.delta
+                );
+            }
+
+            // Display automaticity delta if present
+            if let Some(delta) = result.automaticity_delta {
+                eprintln!("Automaticity delta: {:.2}", delta);
+            }
+
             // Save state if requested
             if let Some(sp) = save_path {
                 result.state.manifest_id = manifest.manifest.id.clone();
@@ -270,13 +301,35 @@ fn start_kata(
                 eprintln!("  [{}]: {}", key, display);
             }
 
-            // Record experience via daemon — agent learns from kata
-            let recorder = CliExperienceRecorder::new();
+            // Record step-level experiences via daemon — agent learns from every step
+            let bot_name = bot.to_string();
+            let step_experiences = result.step_experiences.clone();
             let kata_type = result.kata_type.clone();
             let steps = result.steps_completed;
             let gas = result.gas_consumed;
-            let bot_name = bot.to_string();
             rt.spawn(async move {
+                let recorder = CliExperienceRecorder::new();
+
+                // Record each step as an individual experience
+                for exp in &step_experiences {
+                    recorder
+                        .record(
+                            &bot_name,
+                            "kata_step",
+                            &format!("{}/{}: {}", exp.kata_type, exp.step_label, exp.action),
+                            "success",
+                            serde_json::json!({
+                                "kata_type": exp.kata_type,
+                                "step_label": exp.step_label,
+                                "action": exp.action,
+                                "summary": exp.output_summary,
+                                "gas_used": exp.gas_used,
+                            }),
+                        )
+                        .await;
+                }
+
+                // Record overall cycle completion
                 recorder
                     .record(
                         &bot_name,
@@ -287,10 +340,35 @@ fn start_kata(
                             "kata_type": kata_type,
                             "steps_completed": steps,
                             "gas_consumed": gas,
+                            "step_experiences_count": step_experiences.len(),
                         }),
                     )
                     .await;
             });
+
+            // Record practice to kata history and save
+            let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+            let mut history = KataHistory::load(&history_path).unwrap_or_default();
+            history.record(
+                bot,
+                PracticeEntry {
+                    date: today.clone(),
+                    kata_type: manifest.manifest.kata_type.clone(),
+                    practice_name: manifest.manifest.id.clone(),
+                    steps_completed: result.steps_completed,
+                    gas_consumed: result.gas_consumed,
+                },
+            );
+            if let Err(e) = history.save(&history_path) {
+                eprintln!("Warning: Failed to save kata history: {}", e);
+            } else {
+                let auto = history.compute_automaticity(bot, &today);
+                let streak = history.current_streak(bot, &today);
+                eprintln!(
+                    "Kata history updated: streak={}, automaticity={:.2}",
+                    streak, auto
+                );
+            }
         }
         Err(KataError::GasExceeded { consumed, cap }) => {
             eprintln!(
@@ -304,4 +382,10 @@ fn start_kata(
             std::process::exit(1);
         }
     }
+}
+
+/// Path to the kata history file for habit tracking.
+fn kata_history_path() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    cwd.join("data").join("kata-history.json")
 }

@@ -1,9 +1,15 @@
-//! Kata execution engine — scientific capability development for agents.
+//! Kata execution engine — cybernetic learning system for agent self-improvement.
 //!
-//! Implements Mike Rother's Toyota Kata methodology:
-//! - Improvement Kata: 4-step PDCA cycle (Understand → Grasp → Target → Experiment)
-//! - Coaching Kata: 5-question dialogue (Coach guides Learner through IK thinking)
-//! - Starter Kata: Practice routines for building scientific thinking habits
+//! Implements Mike Rother's Toyota Kata methodology as composable recursive
+//! self-improvement tools:
+//! - Improvement Kata: 4-step PDCA cycle with closed cybernetic loop
+//!   (Understand → Grasp → Target → Experiment → Check → Act)
+//! - Coaching Kata: 5-question dialogue grounded in active IK state
+//! - Starter Kata: Practice routines with habit tracking and automaticity scoring
+//!
+//! Every step feeds into the agent's episodic memory stream via structured
+//! experience events. Before/after metric capture computes improvement signals.
+//! Kata history tracks practice frequency, streaks, and graduation criteria.
 //!
 //! Manifests are loaded from `registry/manifests/*.yaml`. Templates are rendered
 //! via the hKask template registry (Jinja2). Inference uses the centralized router.
@@ -224,6 +230,228 @@ impl Default for AuditConfig {
     }
 }
 
+// ── Cybernetic feedback types ───────────────────────────────────────────────
+
+/// Kata practice history — tracks practice frequency, streaks, and automaticity.
+///
+/// Persisted per agent to enable composition (graduation criteria, habit monitoring).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct KataHistory {
+    /// Practice entries keyed by agent name.
+    pub agents: HashMap<String, Vec<PracticeEntry>>,
+}
+
+/// A single practice event recorded in kata history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PracticeEntry {
+    pub date: String, // ISO 8601 date (YYYY-MM-DD)
+    pub kata_type: String,
+    pub practice_name: String,
+    pub steps_completed: usize,
+    pub gas_consumed: u64,
+}
+
+impl KataHistory {
+    /// Load history from a JSON file, or return empty if not found.
+    pub fn load(path: &Path) -> Result<Self, KataError> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let json = std::fs::read_to_string(path).map_err(|e| {
+            KataError::LoadFailed(format!(
+                "Failed to read history from {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+        serde_json::from_str(&json)
+            .map_err(|e| KataError::ParseFailed(format!("Failed to parse history: {}", e)))
+    }
+
+    /// Save history to a JSON file.
+    pub fn save(&self, path: &Path) -> Result<(), KataError> {
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| KataError::LoadFailed(format!("Failed to serialize history: {}", e)))?;
+        std::fs::write(path, &json).map_err(|e| {
+            KataError::LoadFailed(format!(
+                "Failed to write history to {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Record a practice entry for an agent.
+    pub fn record(&mut self, agent: &str, entry: PracticeEntry) {
+        self.agents
+            .entry(agent.to_string())
+            .or_default()
+            .push(entry);
+    }
+
+    /// Compute the agent's practice streak (consecutive days, counting backward from today).
+    pub fn current_streak(&self, agent: &str, today: &str) -> u32 {
+        let entries = match self.agents.get(agent) {
+            Some(e) => e,
+            None => return 0,
+        };
+        // Collect unique practice dates in descending order
+        let mut dates: Vec<&str> = entries.iter().map(|e| e.date.as_str()).collect();
+        dates.sort();
+        dates.dedup();
+        dates.reverse();
+
+        if dates.is_empty() || dates[0] != today {
+            return 0;
+        }
+
+        let mut streak = 1u32;
+        for window in dates.windows(2) {
+            let prev = window[0];
+            let next = window[1];
+            // Check if dates are consecutive (simple string comparison works for ISO dates)
+            if is_consecutive_day(prev, next) {
+                streak += 1;
+            } else {
+                break;
+            }
+        }
+        streak
+    }
+
+    /// Compute automaticity score (0.0–1.0) based on streak and recency.
+    ///
+    /// Formula: auto = min(1.0, streak_days / 21.0)
+    /// Decay: auto *= 0.8^(days_since_last / 3) when days_since_last > 3
+    pub fn compute_automaticity(&self, agent: &str, today: &str) -> f64 {
+        let streak = self.current_streak(agent, today) as f64;
+        let days_since = self.days_since_last(agent, today) as f64;
+
+        let mut auto = (streak / 21.0).min(1.0);
+
+        // Apply decay if no practice for more than 3 days
+        if days_since > 3.0 {
+            auto *= 0.8_f64.powf(days_since / 3.0);
+        }
+
+        (auto * 100.0).round() / 100.0 // Round to 2 decimal places
+    }
+
+    /// Days since the agent's last practice.
+    pub fn days_since_last(&self, agent: &str, today: &str) -> u32 {
+        let entries = match self.agents.get(agent) {
+            Some(e) => e,
+            None => return u32::MAX,
+        };
+        let last_date = entries.iter().map(|e| e.date.as_str()).max();
+        match last_date {
+            Some(last) => days_between(last, today).unwrap_or(u32::MAX),
+            None => u32::MAX,
+        }
+    }
+
+    /// Check if agent meets graduation criteria for starter kata (automaticity > 0.5).
+    pub fn can_graduate_from_starter(&self, agent: &str, today: &str) -> bool {
+        self.compute_automaticity(agent, today) > 0.5
+    }
+
+    /// Check if agent needs habit intervention (3+ days since last practice).
+    pub fn needs_habit_intervention(&self, agent: &str, today: &str) -> bool {
+        let days = self.days_since_last(agent, today);
+        days >= 3 && days < u32::MAX
+    }
+}
+
+/// Check if two ISO 8601 dates (YYYY-MM-DD) are consecutive calendar days.
+fn is_consecutive_day(earlier: &str, later: &str) -> bool {
+    // Simple approach: parse and compare
+    let parse = |s: &str| -> Option<(i32, u32, u32)> {
+        let parts: Vec<&str> = s.split('-').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+        Some((
+            parts[0].parse().ok()?,
+            parts[1].parse().ok()?,
+            parts[2].parse().ok()?,
+        ))
+    };
+    let (y1, m1, d1) = match parse(earlier) {
+        Some(v) => v,
+        None => return false,
+    };
+    let (y2, m2, d2) = match parse(later) {
+        Some(v) => v,
+        None => return false,
+    };
+    // Compute day-of-year approximation
+    let doy = |y: i32, m: u32, d: u32| -> u32 {
+        let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let leap = (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
+        let mut doy = d;
+        for i in 0..(m as usize - 1) {
+            doy += days_in_month[i];
+        }
+        if leap && m > 2 {
+            doy += 1;
+        }
+        doy
+    };
+    let doy1 = doy(y1, m1, d1);
+    let doy2 = doy(y2, m2, d2);
+    // Same year, adjacent days → doy2 == doy1 + 1
+    // Year boundary → Dec 31 → Jan 1
+    y1 == y2 && doy2 == doy1 + 1 || (y1 + 1 == y2 && m1 == 12 && d1 == 31 && m2 == 1 && d2 == 1)
+}
+
+/// Compute calendar days between two ISO 8601 dates.
+fn days_between(from: &str, to: &str) -> Option<u32> {
+    let parse = |s: &str| -> Option<chrono::NaiveDate> {
+        chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
+    };
+    let from_d = parse(from)?;
+    let to_d = parse(to)?;
+    let delta = to_d.signed_duration_since(from_d).num_days();
+    if delta < 0 { None } else { Some(delta as u32) }
+}
+
+/// The cybernetic feedback from before/after measurement.
+///
+/// Every Improvement Kata cycle captures metrics before and after, then computes
+/// this signal. The signal is the system's evidence of improvement — IS, not OUGHT.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImprovementSignal {
+    /// Metric value captured before the kata cycle.
+    pub metric_before: Option<serde_json::Value>,
+    /// Metric value captured after the kata cycle.
+    pub metric_after: Option<serde_json::Value>,
+    /// Computed delta (after - before) where both are numeric.
+    pub delta: Option<f64>,
+    /// Direction of change.
+    pub direction: ImprovementDirection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ImprovementDirection {
+    Positive,
+    Negative,
+    Stalled,
+    NotMeasured,
+}
+
+/// A structured experience event emitted by each kata step for memory recording.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StepExperience {
+    pub agent: String,
+    pub kata_type: String,
+    pub step_label: String,
+    pub action: String,
+    pub output_summary: String,
+    pub gas_used: u64,
+    pub timestamp: String,
+}
+
 // ── Execution types ────────────────────────────────────────────────────────
 
 /// Accumulated state during kata execution.
@@ -242,6 +470,18 @@ pub struct KataState {
     /// Manifest ID this state belongs to.
     #[serde(default)]
     pub manifest_id: String,
+    /// Metric values captured before kata cycle (Improvement Kata).
+    #[serde(default)]
+    pub metric_before: Option<serde_json::Value>,
+    /// Metric values captured after kata cycle (Improvement Kata).
+    #[serde(default)]
+    pub metric_after: Option<serde_json::Value>,
+    /// Reference to an active Improvement Kata state (for coaching linkage).
+    #[serde(default)]
+    pub ik_state_ref: Option<String>,
+    /// Structured step experiences for memory recording.
+    #[serde(default)]
+    pub step_experiences: Vec<StepExperience>,
 }
 
 impl KataState {
@@ -284,6 +524,12 @@ pub struct KataResult {
     pub gas_cap: u64,
     pub state: KataState,
     pub outcome: Option<String>,
+    /// Cybernetic improvement signal from before/after measurement.
+    pub improvement_signal: Option<ImprovementSignal>,
+    /// Step-level experience events for memory recording.
+    pub step_experiences: Vec<StepExperience>,
+    /// Automaticity score delta from this cycle.
+    pub automaticity_delta: Option<f64>,
 }
 
 // ── Engine ─────────────────────────────────────────────────────────────────
@@ -291,7 +537,8 @@ pub struct KataResult {
 /// Execution engine for kata manifests.
 ///
 /// Loads a manifest, walks its steps/questions/practices, renders templates,
-/// calls inference, and accumulates state.
+/// calls inference, collects before/after metrics, computes improvement signals,
+/// tracks habit formation, and accumulates state for memory recording.
 pub struct KataEngine {
     inference: Arc<dyn InferencePort>,
     registry: SqliteRegistry,
@@ -300,6 +547,12 @@ pub struct KataEngine {
     consent_check: Option<Arc<dyn Fn(&str, &str) -> Result<(), KataError> + Send + Sync>>,
     /// Optional CNS observer — called after each step with (namespace, step_ordinal, action).
     cns_observer: Option<Arc<dyn Fn(&str, u32, &str) + Send + Sync>>,
+    /// Kata practice history for habit tracking and automaticity scoring.
+    history: Option<KataHistory>,
+    /// Optional metric collector — called to capture CNS metrics before/after cycles.
+    /// Receives (agent_name, metric_name) and returns the current metric value.
+    metric_collector:
+        Option<Arc<dyn Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync>>,
 }
 
 impl KataEngine {
@@ -309,6 +562,8 @@ impl KataEngine {
             registry,
             consent_check: None,
             cns_observer: None,
+            history: None,
+            metric_collector: None,
         }
     }
 
@@ -330,6 +585,21 @@ impl KataEngine {
         self
     }
 
+    /// Set a kata practice history for habit tracking and automaticity scoring.
+    pub fn with_history(mut self, history: KataHistory) -> Self {
+        self.history = Some(history);
+        self
+    }
+
+    /// Set a metric collector for before/after measurement.
+    pub fn with_metrics<F>(mut self, collector: F) -> Self
+    where
+        F: Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync + 'static,
+    {
+        self.metric_collector = Some(Arc::new(collector));
+        self
+    }
+
     /// Load a kata manifest from a YAML file.
     pub fn load_manifest(path: &Path) -> Result<KataManifest, KataError> {
         let content = std::fs::read_to_string(path).map_err(|e| {
@@ -343,9 +613,9 @@ impl KataEngine {
     /// Execute a full kata cycle.
     ///
     /// Dispatches to the appropriate runner based on `manifest.manifest.kata_type`:
-    /// - "improvement" → run improvement steps
-    /// - "coaching" → run coaching questions
-    /// - "starter" → run practice routines
+    /// - "improvement" → run improvement steps with before/after metrics
+    /// - "coaching" → run coaching questions (requires optional IK state reference)
+    /// - "starter" → run practice routines with habit tracking
     pub async fn execute(
         &self,
         manifest: &KataManifest,
@@ -364,6 +634,9 @@ impl KataEngine {
                 if let Some(ref check) = self.consent_check {
                     check("improvement", learner_bot)?;
                 }
+                // Capture before metrics
+                self.capture_before_metrics(manifest, learner_bot, &mut state);
+
                 if manifest.cns.emit_spans {
                     tracing::info!(
                         target: "hkask.kata",
@@ -373,13 +646,21 @@ impl KataEngine {
                         "kata.cycle.start"
                     );
                 }
-                let result = self.run_improvement(manifest, &mut state).await?;
+                let mut result = self.run_improvement(manifest, &mut state).await?;
+
+                // Capture after metrics and compute improvement signal
+                self.capture_after_metrics(manifest, learner_bot, &mut state);
+                let signal = self.compute_improvement_signal(&state);
+                result.improvement_signal = signal;
+                result.step_experiences = state.step_experiences.clone();
+
                 if manifest.cns.emit_spans {
                     tracing::info!(
                         target: "hkask.kata",
                         namespace = %manifest.cns.span_namespace,
                         steps = result.steps_completed,
                         gas = result.gas_consumed,
+                        has_signal = result.improvement_signal.is_some(),
                         "kata.cycle.complete"
                     );
                 }
@@ -399,7 +680,9 @@ impl KataEngine {
                         "kata.cycle.start"
                     );
                 }
-                let result = self.run_coaching(manifest, &mut state).await?;
+                let mut result = self.run_coaching(manifest, &mut state).await?;
+                result.step_experiences = state.step_experiences.clone();
+
                 if manifest.cns.emit_spans {
                     tracing::info!(
                         target: "hkask.kata",
@@ -412,21 +695,42 @@ impl KataEngine {
                 Ok(result)
             }
             "starter" => {
+                // Track automaticity before starting
+                let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+                let auto_before = self
+                    .history
+                    .as_ref()
+                    .map(|h| h.compute_automaticity(learner_bot, &today))
+                    .unwrap_or(0.0);
+
                 if manifest.cns.emit_spans {
                     tracing::info!(
                         target: "hkask.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "starter",
                         bot = %learner_bot,
+                        automaticity_before = auto_before,
                         "kata.cycle.start"
                     );
                 }
-                let result = self.run_starter(manifest, &mut state).await?;
+                let mut result = self.run_starter(manifest, &mut state).await?;
+                result.step_experiences = state.step_experiences.clone();
+
+                // Compute automaticity delta (history mutation happens in CLI layer)
+                let auto_after = self
+                    .history
+                    .as_ref()
+                    .map(|h| h.compute_automaticity(learner_bot, &today))
+                    .unwrap_or(0.0);
+                result.automaticity_delta = Some(auto_after - auto_before);
+
                 if manifest.cns.emit_spans {
                     tracing::info!(
                         target: "hkask.kata",
                         namespace = %manifest.cns.span_namespace,
                         practices = result.steps_completed,
+                        automaticity_after = auto_after,
+                        automaticity_delta = result.automaticity_delta,
                         "kata.cycle.complete"
                     );
                 }
@@ -434,6 +738,97 @@ impl KataEngine {
             }
             other => Err(KataError::UnknownType(other.to_string())),
         }
+    }
+
+    /// Capture metrics declared in the manifest before the kata cycle begins.
+    fn capture_before_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
+        if manifest.metrics.is_empty() || self.metric_collector.is_none() {
+            return;
+        }
+        let collector = self.metric_collector.as_ref().unwrap();
+        let mut metrics = serde_json::Map::new();
+        for m in &manifest.metrics {
+            if let Some(ref span) = m.span {
+                match collector(agent, span) {
+                    Ok(value) => {
+                        metrics.insert(m.name.clone(), value);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "hkask.kata",
+                            metric = %m.name,
+                            error = %e,
+                            "Failed to capture before metric"
+                        );
+                    }
+                }
+            }
+        }
+        if !metrics.is_empty() {
+            state.metric_before = Some(serde_json::Value::Object(metrics));
+        }
+    }
+
+    /// Capture metrics after the kata cycle completes.
+    fn capture_after_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
+        if manifest.metrics.is_empty() || self.metric_collector.is_none() {
+            return;
+        }
+        let collector = self.metric_collector.as_ref().unwrap();
+        let mut metrics = serde_json::Map::new();
+        for m in &manifest.metrics {
+            if let Some(ref span) = m.span {
+                match collector(agent, span) {
+                    Ok(value) => {
+                        metrics.insert(m.name.clone(), value);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "hkask.kata",
+                            metric = %m.name,
+                            error = %e,
+                            "Failed to capture after metric"
+                        );
+                    }
+                }
+            }
+        }
+        if !metrics.is_empty() {
+            state.metric_after = Some(serde_json::Value::Object(metrics));
+        }
+    }
+
+    /// Compute improvement signal from before/after metrics.
+    ///
+    /// Produces IS evidence: the measured delta between before and after values.
+    /// This is the cybernetic feedback that closes the PDCA loop.
+    fn compute_improvement_signal(&self, state: &KataState) -> Option<ImprovementSignal> {
+        let before = state.metric_before.as_ref()?;
+        let after = state.metric_after.as_ref()?;
+
+        // Compute delta for numeric values
+        let delta = match (before, after) {
+            (serde_json::Value::Number(b), serde_json::Value::Number(a)) => {
+                let bf = b.as_f64()?;
+                let af = a.as_f64()?;
+                Some(af - bf)
+            }
+            _ => None,
+        };
+
+        let direction = match delta {
+            Some(d) if d > 0.0 => ImprovementDirection::Positive,
+            Some(d) if d < 0.0 => ImprovementDirection::Negative,
+            Some(_) => ImprovementDirection::Stalled,
+            None => ImprovementDirection::NotMeasured,
+        };
+
+        Some(ImprovementSignal {
+            metric_before: Some(before.clone()),
+            metric_after: Some(after.clone()),
+            delta,
+            direction,
+        })
     }
 
     /// Run an Improvement Kata: walk 4 steps, render templates, call LLM.
@@ -484,9 +879,42 @@ impl KataEngine {
             }
 
             let output = self.execute_step(manifest, step, state).await?;
-            state.step_outputs.insert(step.ordinal.to_string(), output);
+
+            // PDCA Check phase: compare output against declared target/expectations
+            let check_result = self.check_step_output(step, &output);
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    step = step.ordinal,
+                    passed_check = check_result,
+                    "kata.step.checked"
+                );
+            }
+
+            state
+                .step_outputs
+                .insert(step.ordinal.to_string(), output.clone());
             state.gas_consumed += step_gas;
             state.current_step = step.ordinal as usize;
+
+            // Emit structured step experience for memory recording
+            let summary = output
+                .get("response")
+                .and_then(|r| r.as_str())
+                .unwrap_or("")
+                .chars()
+                .take(200)
+                .collect::<String>();
+            state.step_experiences.push(StepExperience {
+                agent: state.learner_bot.clone(),
+                kata_type: "improvement".into(),
+                step_label: format!("{}", step.ordinal),
+                action: step.action.clone(),
+                output_summary: summary,
+                gas_used: step_gas,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            });
 
             // CNS span: step complete
             if manifest.cns.emit_spans {
@@ -514,7 +942,51 @@ impl KataEngine {
             gas_cap: manifest.gas.cap,
             state: state.clone(),
             outcome: None,
+            improvement_signal: None,
+            step_experiences: vec![],
+            automaticity_delta: None,
         })
+    }
+
+    /// PDCA Check phase — compare step output against declared expectations.
+    ///
+    /// Returns true if the output passes basic validation (contains expected fields),
+    /// false if the output appears malformed or empty.
+    fn check_step_output(&self, step: &KataStep, output: &serde_json::Value) -> bool {
+        // If no output schema is declared, we can't validate — pass by default
+        let schema = match &step.output_schema {
+            Some(s) => s,
+            None => return true,
+        };
+
+        // Check for expected properties
+        if let Some(props) = schema.get("properties").and_then(|p| p.as_object()) {
+            for key in props.keys() {
+                if output.get(key).is_none() {
+                    // Check if maybe the key is nested under "response"
+                    if let Some(resp) = output.get("response") {
+                        if resp.get(key).is_none() {
+                            tracing::debug!(
+                                target: "hkask.kata",
+                                step = step.ordinal,
+                                missing = %key,
+                                "Step output missing expected field"
+                            );
+                            return false;
+                        }
+                    } else {
+                        tracing::debug!(
+                            target: "hkask.kata",
+                            step = step.ordinal,
+                            missing = %key,
+                            "Step output missing expected field"
+                        );
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 
     /// Run a Coaching Kata: walk 5 questions, each is a prompt→LLM→response cycle.
@@ -527,6 +999,9 @@ impl KataEngine {
     }
 
     /// Resume a Coaching Kata from saved state, skipping completed questions.
+    ///
+    /// If the state contains an `ik_state_ref`, coaching questions are grounded
+    /// in the learner's actual Improvement Kata storyboard data.
     pub async fn run_coaching_from(
         &self,
         manifest: &KataManifest,
@@ -536,6 +1011,9 @@ impl KataEngine {
         if total == 0 {
             return Err(KataError::NoSteps(manifest.manifest.id.clone()));
         }
+
+        // Check if we have an IK state reference to ground the coaching
+        let ik_context = state.ik_state_ref.clone();
 
         for q in &manifest.questions {
             // Skip already-completed questions when resuming
@@ -550,6 +1028,7 @@ impl KataEngine {
                     namespace = %manifest.cns.span_namespace,
                     question = q.number,
                     bot = %state.learner_bot,
+                    has_ik_state = ik_context.is_some(),
                     "kata.coaching.question"
                 );
             }
@@ -561,7 +1040,7 @@ impl KataEngine {
                 });
             }
 
-            // Build coaching prompt from question + accumulated context
+            // Build coaching prompt from question + accumulated context + IK state data
             let prev_context = state
                 .step_outputs
                 .iter()
@@ -572,10 +1051,20 @@ impl KataEngine {
                 .collect::<Vec<_>>()
                 .join("\n");
 
+            // Ground coaching in actual IK data when available
+            let ik_data_section = match &ik_context {
+                Some(ik_ref) => format!(
+                    "\nThe learner's current Improvement Kata storyboard:\n{}\n\n",
+                    ik_ref
+                ),
+                None => String::new(),
+            };
+
             let prompt = format!(
                 "You are a Toyota Kata coach conducting a 5-question coaching cycle.\n\
                  Your role: ask questions that reveal the learner's thinking pattern.\n\
-                 Never give solutions. Never say 'you should'. Only ask.\n\n\
+                 Never give solutions. Never say 'you should'. Only ask.\n\
+                 {ik_data}\n\
                  Previous answers from the learner:\n\
                  {prev}\n\n\
                  Now ask Question {n}: {q}\n\
@@ -583,6 +1072,7 @@ impl KataEngine {
                  Ask the question in a way that makes the learner think.\n\
                  Then, as the learner, respond with specific data and observations\n\
                  from your Improvement Kata storyboard.",
+                ik_data = ik_data_section,
                 prev = if prev_context.is_empty() {
                     "(first question — no prior answers)"
                 } else {
@@ -608,6 +1098,17 @@ impl KataEngine {
             state.gas_consumed += step_gas;
             state.current_step = q.number as usize;
 
+            // Emit structured step experience for memory recording
+            state.step_experiences.push(StepExperience {
+                agent: state.learner_bot.clone(),
+                kata_type: "coaching".into(),
+                step_label: format!("q{}", q.number),
+                action: "coaching_question".into(),
+                output_summary: response.text.chars().take(200).collect(),
+                gas_used: step_gas,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            });
+
             // CNS observer callback
             if let Some(ref obs) = self.cns_observer {
                 obs(&manifest.cns.span_namespace, q.number, "coaching_question");
@@ -623,10 +1124,17 @@ impl KataEngine {
             gas_cap: manifest.gas.cap,
             state: state.clone(),
             outcome: None,
+            improvement_signal: None,
+            step_experiences: vec![],
+            automaticity_delta: None,
         })
     }
 
-    /// Run a Starter Kata: execute practice routines (no LLM calls — habit formation).
+    /// Run a Starter Kata: execute practice routines with habit tracking.
+    ///
+    /// Each practice is recorded as a structured experience. The engine
+    /// tracks practice frequency, computes automaticity, and emits CNS
+    /// automaticity signals. No LLM calls — starter kata is pure habit formation.
     pub async fn run_starter(
         &self,
         manifest: &KataManifest,
@@ -637,19 +1145,77 @@ impl KataEngine {
             return Err(KataError::NoSteps(manifest.manifest.id.clone()));
         }
 
+        let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+        // Check habit health before starting
+        if let Some(ref history) = self.history {
+            let auto = history.compute_automaticity(&state.learner_bot, &today);
+            let streak = history.current_streak(&state.learner_bot, &today);
+            let needs_intervention = history.needs_habit_intervention(&state.learner_bot, &today);
+
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    bot = %state.learner_bot,
+                    automaticity = auto,
+                    streak_days = streak,
+                    needs_intervention = needs_intervention,
+                    "kata.starter.habit_check"
+                );
+            }
+
+            // Emit algedonic warning if habit decay detected
+            if needs_intervention {
+                tracing::warn!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    bot = %state.learner_bot,
+                    days_since_last = history.days_since_last(&state.learner_bot, &today),
+                    "kata.starter.habit_decay_alert — intervention recommended"
+                );
+            }
+        }
+
         for practice in &manifest.practices {
-            // Starter kata practices are habit-forming routines — no LLM calls.
-            // Record the practice execution in state.
-            state.step_outputs.insert(
-                practice.name.clone(),
-                serde_json::json!({
-                    "practice": practice.name,
-                    "steps": practice.steps,
-                    "success_criteria": practice.success_criteria,
-                    "status": "executed",
-                }),
-            );
+            // Record the practice execution in state with structured metadata
+            let output = serde_json::json!({
+                "practice": practice.name,
+                "description": practice.description,
+                "frequency": practice.frequency,
+                "duration_minutes": practice.duration_minutes,
+                "steps": practice.steps,
+                "success_criteria": practice.success_criteria,
+                "cns_spans": practice.cns_spans,
+                "status": "executed",
+                "date": today,
+            });
+            state
+                .step_outputs
+                .insert(practice.name.clone(), output.clone());
             state.current_step += 1;
+
+            // Emit structured step experience for memory recording
+            state.step_experiences.push(StepExperience {
+                agent: state.learner_bot.clone(),
+                kata_type: "starter".into(),
+                step_label: practice.name.clone(),
+                action: "practice_routine".into(),
+                output_summary: practice.description.clone(),
+                gas_used: 0, // starter kata has no LLM gas cost
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            });
+
+            // CNS span for each practice
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    practice = %practice.name,
+                    bot = %state.learner_bot,
+                    "kata.starter.practice"
+                );
+            }
         }
 
         Ok(KataResult {
@@ -661,6 +1227,9 @@ impl KataEngine {
             gas_cap: manifest.gas.cap,
             state: state.clone(),
             outcome: None,
+            improvement_signal: None,
+            step_experiences: vec![],
+            automaticity_delta: None,
         })
     }
 

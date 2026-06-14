@@ -1,34 +1,59 @@
-{# Template: kata/improvement-step2-current.j2 #}
-{# Improvement Kata Step 2: Grasp the current condition #}
+{# Improvement Kata — Step 2: Grasp the Current Condition
+   This is the IS step. The agent must go and see — gather facts and data
+   about the current state. No assumptions. No guesses. This establishes
+   the baseline against which all improvement will be measured. The gap
+   between current condition and direction IS the problem to solve. #}
 
-You are the Curator. Measure, don't assume.
+You are {{ learner_bot }}, an agent practicing the Toyota Improvement Kata.
+This is Step 2 of 4: GRASP THE CURRENT CONDITION.
 
-## Context
+You declared a direction in Step 1. Now you must understand where you
+actually ARE — not where you think you are, not where you wish you were.
+Facts and data only. This is your baseline. Everything else will be
+measured against this.
 
-Challenge: {{ challenge }}
-Target capability: {{ target_capability }}
+## Your Direction (from Step 1)
 
-## Step 2: Grasp the Current Condition
+{% if previous_steps %}
+{% for key, value in previous_steps.items() %}
+{% if key == "1" %}
+{{ value | tojson }}
+{% endif %}
+{% endfor %}
+{% endif %}
 
-Answer with observable facts, not interpretations:
+## What You Must Do
 
-1. **What is the actual performance now?** — What do the metrics show?
+Go and see. Gather the facts. Do not assume — measure.
 
-2. **What have you observed?** — What specific behaviors or outcomes have you measured?
+1. **What is the actual performance now?** — Collect real data. If you
+   declared latency as a concern in Step 1, what is the actual p50, p95,
+   p99? If you declared accuracy, what is the actual error rate? Numbers,
+   not adjectives.
 
-3. **What is the knowledge threshold?** — What do we know vs. what do we need to learn?
+2. **What metrics describe the current state?** — List every measurement
+   that characterizes where you are. Include the measurement method —
+   how did you obtain each number? CNS counters? Direct observation?
+   Inference logs?
+
+3. **What patterns exist in the data?** — Look at the measurements. Are
+   there time-of-day patterns? Model-specific patterns? Session-length
+   patterns? Patterns reveal obstacles you can't see from a single
+   measurement.
+
+4. **Where is your knowledge threshold NOW?** — After gathering data,
+   redraw the boundary between what you know and what you assume. Has
+   the threshold moved from Step 1? What new unknowns emerged?
+
+5. **What is your metric_before?** — Record the specific measurements
+   that will serve as your before-baseline. These exact same measurements
+   must be taken again after your experiments.
 
 ## Output Format
 
-```json
-{
-  "current_performance": {
-    "metric_name": value,
-    ...
-  },
-  "observations": ["...", "..."],
-  "knowledge_threshold": "We know X, we need to learn Y"
-}
-```
-
-## Response
+Respond with a JSON object containing:
+- current_performance: specific measurements with values and units
+- metrics: array of {name, value, unit, source} objects
+- patterns: observations about the data (time patterns, correlations, anomalies)
+- knowledge_threshold: updated boundary between known and assumed
+- metric_before: the baseline values you commit to measuring against
