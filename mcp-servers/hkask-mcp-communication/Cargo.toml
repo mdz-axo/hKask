@@ -3,11 +3,17 @@ name = "hkask-mcp-communication"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hKask MCP Communication — local TTS/STT"
+description = "hKask MCP Communication — local TTS/STT, Matrix-based agent chat, moderation"
+
+[lib]
+name = "hkask_mcp_communication"
+path = "src/lib.rs"
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-cns = { path = "../../crates/hkask-cns" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true
@@ -15,3 +21,5 @@ serde_json.workspace = true
 schemars.workspace = true
 anyhow.workspace = true
 uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true

@@ -2304,12 +2304,16 @@ name = "hkask-mcp-communication"
 version = "0.27.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "hkask-cns",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-types",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -2517,6 +2521,8 @@ name = "hkask-mcp-training"
 version = "0.27.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "blake3",
  "chrono",
  "dotenvy",
  "hkask-mcp",
@@ -2527,8 +2533,10 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

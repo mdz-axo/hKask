@@ -389,18 +389,22 @@ Detailed lookup tables and diagrams in `reference/`:
 docs/architecture/
 ├── hKask-architecture-master.md           # THIS FILE (index — includes REPL Architecture)
 ├── MDS.md                              # Framework (5 categories, 5 tools)
-├── PRINCIPLES.md                          # Framework (P3 updated with ReplSettings)
+├── PRINCIPLES.md                          # Framework (P1-P12)
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── magna-carta.md                         # Framework
+├── P12-replicant-host-mandate.md          # Framework (replicant host mandate — P12)
+├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
+├── lazy-universe-research.md              # Research (least-action principle grounding)
+├── wallet-specification.md                # Specification (wallet crate architecture)
 ├── ADR-024-unified-registry.md            # Decision record
 ├── ADR-025-attenuation-depth-limit.md     # Decision record
 ├── ADR-026-bitemporal-triple-schema.md    # Decision record
 ├── ADR-027-argon2-hkdf-master-key.md      # Decision record
-├── ADR-030-skill-bundler.md                # Decision record
+├── ADR-030-skill-bundler.md                # Decision record (Draft)
 ├── ADR-031-consolidation-authorization.md  # Decision record
 ├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
 ├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
-├── ADR-034-academic-author-pipeline.md      # Decision record (Draft)
+├── ADR-034-academic-author-pipeline.md      # Decision record (Active)
 ├── ADR-035-replicant-server-mode.md          # Decision record (Active)
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
@@ -411,7 +415,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 21 active architecture documents (4 framework + 1 index + 10 ADRs + 6 reference artifacts).
+**Total:** 25 active architecture documents (8 framework + 1 index + 10 ADRs + 6 reference artifacts).
 
 ---
 

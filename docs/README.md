@@ -36,16 +36,18 @@ crate prefix `hkask-`, workspace v0.27.0.
 
 ## Architecture (`architecture/`)
 
-The architecture is specified in four MDS-aligned documents, each authoritative
-for its category cluster.
+The architecture is specified in eight MDS-aligned documents, each authoritative for its category cluster.
 
 | Document | MDS Categories | Description |
 |----------|-------------------|-------------|
 | [`MDS.md`](architecture/MDS.md) | domain, composition, trust, lifecycle, curation | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
-| [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P9), 5 anchors, anti-patterns |
+| [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P12), 5 anchors, anti-patterns |
 | [`magna-carta.md`](architecture/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
 | [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle, curation | 4-loop architecture — RateLimiting→EnergyBudget, crate↔loop mapping |
 | [`wallet-specification.md`](architecture/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
+| [`P12-replicant-host-mandate.md`](architecture/P12-replicant-host-mandate.md) | domain, trust, composition | Replicant host mandate — P12 elaboration |
+| [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | domain, trust, lifecycle, curation | Energy, gas, payments & API key architecture |
+| [`lazy-universe-research.md`](architecture/lazy-universe-research.md) | domain, composition, curation | Least-action principle — research grounding |
 
 ### Architecture Decision Records
 
