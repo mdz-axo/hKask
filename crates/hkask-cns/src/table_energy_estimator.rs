@@ -7,7 +7,7 @@
 //! |------|---------|------|----------|
 //! | Memory | memory | 5 | Internal storage read |
 //! | Local I/O | spec | 5 | No network |
-//! | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + I/O |
+//! | Moderate | condenser, docproc, training | 10-15 | Compute + I/O |
 //! | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 //! | External | web, fmp, rss-reader | 20-50 | Network I/O |
 //! | Heavy | fal | 100 | GPU compute |
@@ -34,6 +34,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     // Moderate — compute + local I/O
     table.insert("hkask-mcp-condenser", 10);
     table.insert("hkask-mcp-docproc", 15);
+    table.insert("hkask-mcp-training", 10);
 
     // External API tools — expensive
     table.insert("hkask-mcp-research", 50);
@@ -65,7 +66,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 /// |------|---------|------------|----------|
 /// | Memory | memory | 5 | Internal storage read |
 /// | Local I/O | spec | 5 | Local I/O, no network |
-/// | Moderate | condenser, doc-knowledge, markitdown | 10-15 | Compute + local I/O |
+/// | Moderate | condenser, docproc, training | 10-15 | Compute + local I/O |
 /// | Moderate+Network | condenser (thread_summary) | 25 | HTTP call to inference engine |
 /// | External API | web, fmp, rss-reader | 20-50 | Network I/O, rate-limited |
 /// | Heavy external | fal | 100 | GPU compute, expensive |

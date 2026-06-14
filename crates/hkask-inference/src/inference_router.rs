@@ -257,6 +257,103 @@ impl InferenceRouter {
             }
         }
     }
+
+    // ── Media generation dispatch ──────────────────────────────────────────
+
+    /// Generate an image from a text prompt.
+    /// Routes to fal.ai FLUX Schnell (default) or DeepInfra FLUX 2 Klein.
+    pub async fn generate_image(
+        &self,
+        prompt: &str,
+        image_size: Option<&str>,
+        num_images: Option<u32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        // Default to fal.ai for image generation
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection(
+                "fal.ai backend unavailable for image generation".to_string(),
+            )
+        })?;
+        backend.generate_image(prompt, image_size, num_images).await
+    }
+
+    /// Transform an existing image with a prompt (image-to-image).
+    /// Routes to fal.ai Flux dev img2img (default) or DeepInfra Qwen Image Edit.
+    pub async fn image_to_image(
+        &self,
+        image_url: &str,
+        prompt: &str,
+        strength: Option<f32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection("fal.ai backend unavailable for image-to-image".to_string())
+        })?;
+        backend.image_to_image(image_url, prompt, strength).await
+    }
+
+    /// Remove background from an image.
+    /// Routes to DeepInfra Bria RMBG 2.0 (cheapest) with fal.ai Birefnet fallback.
+    pub async fn remove_background(
+        &self,
+        image_url: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        // Try DeepInfra first (cheapest at $0.018/image)
+        if let Some(ref di) = self.deepinfra {
+            match di.remove_background(image_url).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.inference", error = %e, "DeepInfra background removal failed, falling back to fal.ai");
+                }
+            }
+        }
+        // Fallback to fal.ai Birefnet
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection("No backend available for background removal".to_string())
+        })?;
+        backend.remove_background(image_url).await
+    }
+
+    /// Upscale an image.
+    /// Routes to fal.ai SeedVR2 (queue).
+    pub async fn upscale(
+        &self,
+        image_url: &str,
+        scale: Option<u32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection("fal.ai backend unavailable for upscaling".to_string())
+        })?;
+        backend.upscale(image_url, scale).await
+    }
+
+    /// Generate a video from a text prompt.
+    /// Routes to fal.ai MiniMax video-01-live (queue).
+    pub async fn generate_video(
+        &self,
+        prompt: &str,
+        duration: Option<f32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection(
+                "fal.ai backend unavailable for video generation".to_string(),
+            )
+        })?;
+        backend.generate_video(prompt, duration).await
+    }
+
+    /// Animate a still image into a video.
+    /// Routes to fal.ai Seedance 2.0 image-to-video (queue).
+    pub async fn image_to_video(
+        &self,
+        image_url: &str,
+        prompt: Option<&str>,
+        duration: Option<f32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection("fal.ai backend unavailable for image-to-video".to_string())
+        })?;
+        backend.image_to_video(image_url, prompt, duration).await
+    }
 }
 
 impl InferencePort for InferenceRouter {

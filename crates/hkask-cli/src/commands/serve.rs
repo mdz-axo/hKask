@@ -21,6 +21,7 @@ const API_SERVERS: &[(&str, &str)] = &[
     ("communication", "hkask-mcp-communication"),
     ("fal", "hkask-mcp-media"),
     ("docproc", "hkask-mcp-docproc"),
+    ("training", "hkask-mcp-training"),
     ("replica", "hkask-mcp-replica"),
 ];
 

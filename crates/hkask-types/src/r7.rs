@@ -122,7 +122,7 @@ pub fn default_r7_bots() -> &'static [R7BotIdentity] {
                 vec![
                     "mcp".into(), "web".into(),
                     "condenser".into(), "spec".into(),
-                    "memory".into(), "doc-knowledge".into(), "markitdown".into(),
+                    "memory".into(), "docproc".into(), "training".into(),
                     "fmp".into(), "fal".into(), "rss-reader".into(),
                     "replica".into(),
                 ],

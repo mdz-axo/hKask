@@ -246,6 +246,77 @@ impl DeepInfraBackend {
 
         Ok(filtered)
     }
+
+    // ── Media generation methods ───────────────────────────────────────────
+
+    /// Call a DeepInfra inference endpoint for image generation.
+    /// DeepInfra image models use POST /v1/inference/{model} with custom bodies.
+    async fn di_inference_post(
+        &self,
+        model: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let url = format!("{}/v1/inference/{}", self.base_url, model);
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(format!("DeepInfra request failed: {}", e)))?;
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(InferenceError::Connection(format!(
+                "DeepInfra {} status {}: {}",
+                model, status, text
+            )));
+        }
+        serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("DeepInfra JSON parse: {}", e)))
+    }
+
+    /// Remove background from an image using Bria RMBG 2.0.
+    /// Model: Bria/remove_background — $0.018/image, commercial-ready.
+    pub async fn remove_background(
+        &self,
+        image_url: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({"image_url": image_url});
+        self.di_inference_post("Bria/remove_background", body).await
+    }
+
+    /// Generate an image from a text prompt using FLUX 2 Klein.
+    /// Model: black-forest-labs/FLUX-2-klein-4b — fast 4B param FLUX.
+    pub async fn generate_image(
+        &self,
+        prompt: &str,
+        _image_size: Option<&str>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "prompt": prompt,
+            "width": 1024,
+            "height": 1024,
+        });
+        self.di_inference_post("black-forest-labs/FLUX-2-klein-4b", body)
+            .await
+    }
+
+    /// Edit/transform an image using Qwen Image Edit.
+    /// Model: Qwen/Qwen-Image-Edit — style transfer, precise edits.
+    pub async fn image_to_image(
+        &self,
+        image_url: &str,
+        prompt: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "image_url": image_url,
+            "prompt": prompt,
+        });
+        self.di_inference_post("Qwen/Qwen-Image-Edit", body).await
+    }
 }
 
 // ── DeepInfra model types ────────────────────────────────────────────────────

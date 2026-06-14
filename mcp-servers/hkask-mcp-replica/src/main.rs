@@ -969,7 +969,7 @@ impl ReplicaServer {
                 ordinal: 5,
                 name: "Content Extraction".into(),
                 description: "Extract full text from all discovered works".into(),
-                sources: vec!["web_extract".into(), "markitdown (PDF)".into()],
+                sources: vec!["web_extract".into(), "docproc (PDF/OCR)".into()],
             },
             DiscoverPhase {
                 ordinal: 6,

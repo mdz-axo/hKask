@@ -24,6 +24,7 @@ members = [
     "mcp-servers/hkask-mcp-spec",
     "mcp-servers/hkask-mcp-memory",
     "mcp-servers/hkask-mcp-docproc",
+    "mcp-servers/hkask-mcp-training",
     "mcp-servers/hkask-mcp-replica",
 ]
 

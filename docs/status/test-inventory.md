@@ -35,12 +35,12 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-types` | 17 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
 | `hkask-mcp-replica` | 0 | Shallow module — pass-through to compose/embed services (C8) |
-| `hkask-mcp-doc-knowledge` | 0 | Shallow module — pass-through to parsing/chunking (C8) |
-| `hkask-mcp-markitdown` | 55 | ocr pipeline (52: calibration 6, complexity 6, routing 6, cross-validation 6, semantic 4, verification 4, pipeline 4, decimation 5, tesseract 4, llm_ocr 3, tools 4) + integration (3) |
+| `hkask-mcp-docproc` | 54 | ocr pipeline (51: calibration 6, complexity 6, routing 6, cross-validation 6, semantic 4, verification 4, pipeline 4, decimation 5, tesseract 4, llm_ocr 3, tools 3) + integration (3) |
+| `hkask-mcp-training` | 0 | Stub — shallow pass-through to semantic memory (C8) |
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
 | `hkask-mcp-media` | 7 | Gallery state (7: init 4, scan 2, info 1) |
 
-**Total: 282 tests across 19 crates** (↑ from 275)
+**Total: 278 tests across 19 crates** (↓ from 282; markitdown/doc-knowledge → docproc consolidation)
 | `hkask-memory` | 0 | Requires external embedding model |
 | `hkask-keystore` | 0 | Requires OS keychain |
 | `hkask-mcp-condenser` | 0 | External server; tested via integration |
@@ -76,13 +76,14 @@ Per C8: "Test depth matches module depth."
 
 ## Recent Additions (2026-06-13 Session)
 
-OCR pipeline deepening + fal.ai integration:
+DocProc server consolidation + training stub:
 
 | Crate | Tests Added | P8 Status | Details |
 |-------|------------|-----------|--------|
+| `hkask-mcp-docproc` | 54 | ✅ New | Merged markitdown (OCR pipeline) + doc-knowledge (chunk/parse/QA). 51 OCR pipeline + 3 integration. Added triple extraction, embedding, cache, enhanced QA generation. |
+| `hkask-mcp-training` | 0 | ✅ New | Stub server for model training data ingestion. Single tool: `training_ingest_qa`. |
 | `hkask-inference` | 4 | ✅ New | `fal_backend` (4: construction fail/succeed, static catalog, vision heuristic) |
 | `hkask-types` | 11 | ✅ Expanded | ocr types expanded from 6→17 (id, event, ports, capability, cns types) |
-| `hkask-mcp-markitdown` | 11 | ✅ Expanded | calibration (6), decimation (2: contrast stretch + preprocess stub), tools (4: pipeline verification), integration tests now run by default (3) |
 
 ---
 

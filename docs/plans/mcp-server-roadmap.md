@@ -10,9 +10,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # MCP Server Roadmap
 
-Surfaced from architecture audit on 2026-06-11. Covers 10 MCP servers.
+Surfaced from architecture audit on 2026-06-11. Covers 12 MCP servers.
 
-See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) for current tool catalog (~82 tools across 10 servers).
+See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) for current tool catalog.
 
 ---
 
@@ -87,49 +87,41 @@ See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.m
 
 ---
 
-## 3. RAG Pipeline: `doc-knowledge` + `markitdown`
+## 3. RAG Pipeline: `doc-knowledge` + `markitdown` → `hkask-mcp-docproc` ✅ COMPLETED
 
-These two servers are standalone tools today with no composition. They are components of a Retrieval-Augmented Generation pipeline that needs to be defined and built.
-
-### 3.1 Current State
-
-| Server | Tools | Role |
-|--------|-------|------|
-| `hkask-mcp-markitdown` | `extract_text`, `detect_format`, `ocr` | Document → raw text |
-| `hkask-mcp-doc-knowledge` | `parse`, `detect_format`, `extract_markdown`, `store_qa` | Text → chunks + Q&A |
-
-### 3.2 Required Pipeline Definition
+**Completed 2026-06-13.** The two servers have been merged into `hkask-mcp-docproc`, a unified document processing server with 8 tools covering the full pipeline:
 
 ```
-Document (PDF, DOCX, image)
-  └─ markitdown_extract_text  →  raw text
-      └─ doc_knowledge_parse  →  chunks with metadata
-          └─ embed             →  vector embeddings  (calls hkask-mcp-memory)
-              └─ index          →  searchable index
-                  └─ query      →  retrieve relevant chunks
-                      └─ generate →  LLM-augmented answer
+Document (PDF, MD, HTML, TXT)
+  └─ docproc_convert  →  raw text (with OCR fallback)
+      └─ docproc_chunk  →  passages (single or multi-tier)
+          ├─ docproc_extract_triples  →  RDF (s, p, o) knowledge triples
+          ├─ docproc_embed  →  vector embeddings
+          ├─ docproc_generate_qa  →  QA pairs (LLM-generated)
+          │   └─ docproc_store_qa  →  stored in semantic memory
+          │       └─ training_ingest_qa  →  hkask-mcp-training (stub)
+          └─ docproc_cache  →  cached markdown reference
 ```
 
-### 3.3 Open Design Questions
+### 3.1 Resolved Design Questions
 
-1. **Orchestration location:** Should the pipeline live in a new `hkask-mcp-rag` server, or should `doc-knowledge` absorb `markitdown` as internal modules?
-2. **Embedding integration:** `doc-knowledge` currently has no embedding tool. Should it call `hkask-mcp-memory`'s `semantic_embed` and `semantic_search`, or embed locally?
-3. **Chunking strategy:** `doc_knowledge_parse` mentions "multi-tier chunking" — is the strategy defined? (Recursive character, semantic, token-aware?)
-4. **Query interface:** What does the end-user tool look like? `rag_query` with natural language → retrieved chunks → generated answer?
-5. **Provenance:** Should answers cite source chunks with document + page references?
+1. **Orchestration:** ✅ Merged into single `hkask-mcp-docproc` server — no separate RAG server needed.
+2. **Embedding:** ✅ `docproc_embed` uses the inference router's embedding model directly.
+3. **Chunking:** ✅ `docproc_chunk` supports single-tier (configurable token size + overlap) and multi-tier (coarse/medium/fine).
+4. **Triple extraction:** ✅ `docproc_extract_triples` extracts RDF triples via LLM, analogous to replica's Fish process for chat streams.
+5. **QA generation:** ✅ `docproc_generate_qa` actually calls the LLM (not just returns a prompt).
 
-### 3.4 Implementation Phases
+### 3.2 Remaining
 
-| Phase | Scope | Deliverable |
-|-------|-------|-------------|
-| **Phase 1** | Pipeline definition | Architecture doc with tool contracts and data flow |
-| **Phase 2** | Embedding integration | `doc-knowledge` calls memory server for embed + search |
-| **Phase 3** | Query + generate | End-to-end: document → extract → chunk → embed → retrieve → answer |
-| **Phase 4** | Provenance + citations | Answers include source references |
+| Item | Status |
+|------|--------|
+| Query + retrieve + generate (end-to-end RAG) | ⬜ Future — needs search/retrieval integration |
+| Provenance + citations in answers | ⬜ Future |
+| `hkask-mcp-training` full pipeline (dataset assembly, formatting, fine-tuning) | ⬜ Stub only |
 
 | Status | Owner | Priority |
 |--------|-------|----------|
-| ⬜ Open (Phase 1) | — | High |
+| ✅ Completed | — | — |
 
 ---
 
@@ -156,41 +148,38 @@ Document (PDF, DOCX, image)
 
 ### 5.1 Current State
 
-9 of 10 MCP servers have **zero tests**. Only `hkask-mcp-spec` has 7 tests.
+4 of 12 MCP servers have tests. `hkask-mcp-docproc` leads with 54 tests (deep OCR pipeline).
 
-| Server | Tests | Rationale in Inventory |
-|--------|-------|----------------------|
-| condenser | 0 | "External server; tested via integration" |
-| research | 0 | "External server" (consolidated web + rss-reader) |
-| fmp | 0 | "External server" |
-| communication | 0 | "External server" |
-| fal | 0 | "External server" |
-| memory | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
-| doc-knowledge | 0 | Not listed in test inventory |
-| markitdown | 0 | Not listed in test inventory |
-| replica | 0 | Not listed in test inventory |
+| Server | Tests | Rationale |
+|--------|-------|----------|
+| `hkask-mcp-docproc` | 54 | Deep OCR pipeline (51 unit + 3 integration) |
+| `hkask-mcp-spec` | 7 | capture, coherence, graph_query, writing_quality, tool listing |
+| `hkask-mcp-media` | 7 | Gallery state (init, scan, info) |
+| `hkask-mcp-condenser` | 29 | algorithms (16), types (11) — tested via library crate |
+| `hkask-mcp-research` | 23 | strip_html, freshness, ranking, rate_limiter |
+| `hkask-mcp-fmp` | 20 | Financial analysis algorithms |
+| `hkask-mcp-memory` | 0 | Thin wrapper; library (`hkask-memory`) requires embedding model |
+| `hkask-mcp-replica` | 0 | Thin wrapper; pass-through to compose/embed services |
+| `hkask-mcp-training` | 0 | Stub; shallow pass-through to semantic memory |
+| `hkask-mcp-communication` | 0 | Thin wrapper; local TTS passthrough |
 
 ### 5.2 Test Strategy
 
-Per the test program (`docs/specifications/test-program.md`), MCP server tests require `rmcp` transport. Open question #5 notes: "Extract `hkask-test-utils` when 3+ servers need shared fixtures (currently 2 — below C4 threshold)."
-
-**Tiered approach:**
-
 | Tier | Servers | Strategy |
 |------|---------|----------|
-| **Tier 1: Internal logic** | condenser, research, doc-knowledge, markitdown | Unit-test algorithms and request builders directly (no rmcp transport needed). These servers have significant internal logic outside API calls. |
-| **Tier 2: Thin wrappers** | fmp, communication, fal | Low-value to unit test passthroughs. Value-add layers (Section 2) should carry tests. |
-| **Tier 3: Integration** | condenser, research | `rmcp` transport tests once `hkask-test-utils` is extracted. |
+| **Tier 1: Internal logic** | docproc, condenser, research, fmp | Unit-test algorithms and request builders directly. These servers have significant internal logic. |
+| **Tier 2: Thin wrappers** | memory, replica, training, communication | Low-value to unit test passthroughs. Value-add layers should carry tests. |
+| **Tier 3: Integration** | docproc, condenser, research | `rmcp` transport tests once `hkask-test-utils` is extracted. |
 
 ### 5.3 Priority Targets
 
-1. **condenser** — algorithms (`rtk_style`, `saliency_rank`, `flashrank`) are pure functions testable without any transport
-2. **research** — `strip_html`, `freshness`, `ranking`, `rate_limiter`, RSS `db.rs` query functions are pure logic
-3. **doc-knowledge** — chunking logic is algorithmic and testable
+1. **docproc** — ✅ 54 tests already. OCR pipeline is deeply tested.
+2. **condenser** — ✅ 29 tests. Algorithms are pure functions.
+3. **research** — ✅ 23 tests. Core logic is covered.
 
 | Status | Owner | Priority |
 |--------|-------|----------|
-| ⬜ Open (Tier 1) | — | Medium |
+| ✅ Largely complete | — | Low |
 
 ---
 

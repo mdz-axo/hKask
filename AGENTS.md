@@ -47,12 +47,12 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 | `hkask-mcp-media` | Media generation MCP server (image, video, audio, 3D) |
-| `hkask-mcp-doc-knowledge` | Document parsing/chunking MCP server |
-| `hkask-mcp-markitdown` | Document conversion + OCR MCP server |
+| `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache) |
+| `hkask-mcp-training` | Model training data ingestion MCP server (stub) |
 | `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research |
 | `hkask-mcp-replica` | Authorial style embedding and composition |
 
-**10 MCP servers:** memory, condenser, research, spec, fmp, communication, media, replica, doc-knowledge, markitdown
+**12 MCP servers:** memory, condenser, research, spec, fmp, communication, media, replica, docproc, training
 **Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra, fal.ai), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
 **External:** Ollama, Fireworks.ai, DeepInfra, fal.ai, ACP (acp-runtime), MCP (rmcp)
 

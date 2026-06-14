@@ -2265,6 +2265,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "chrono",
+ "dirs",
  "dotenvy",
  "hkask-inference",
  "hkask-mcp",
@@ -2318,7 +2319,6 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "image",
- "reqwest",
  "rmcp",
  "schemars",
  "serde",
@@ -2422,6 +2422,25 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-training"
+version = "0.27.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dotenvy",
+ "hkask-mcp",
+ "hkask-memory",
+ "hkask-storage",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
  "tracing",
 ]
 

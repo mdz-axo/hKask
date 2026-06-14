@@ -232,6 +232,235 @@ impl FalBackend {
             },
         ])
     }
+
+    // ── Media generation methods ───────────────────────────────────────────
+
+    /// Call a fal.ai sync endpoint (https://fal.run/{endpoint}).
+    async fn fal_sync_post(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let url = format!("https://fal.run/{}", endpoint);
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Key {}", self.api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(format!("fal.ai request failed: {}", e)))?;
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(InferenceError::Connection(format!(
+                "fal.ai {} status {}: {}",
+                endpoint, status, text
+            )));
+        }
+        serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("fal.ai JSON parse: {}", e)))
+    }
+
+    /// Call a fal.ai queue endpoint (https://queue.fal.run/{endpoint}) with polling.
+    async fn fal_queue_post(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let submit_url = format!("https://queue.fal.run/{}", endpoint);
+        let resp = self
+            .client
+            .post(&submit_url)
+            .header("Authorization", format!("Key {}", self.api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| {
+                InferenceError::Connection(format!("fal.ai queue submit failed: {}", e))
+            })?;
+
+        let status = resp.status();
+        let v: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| InferenceError::Json(format!("fal.ai queue parse: {}", e)))?;
+
+        if !status.is_success() {
+            return Err(InferenceError::Connection(format!(
+                "fal.ai queue {} status {}: {}",
+                endpoint, status, v
+            )));
+        }
+
+        let request_id = v
+            .get("request_id")
+            .and_then(|r| r.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let status_url = format!(
+            "https://queue.fal.run/{}/requests/{}/status",
+            endpoint, request_id
+        );
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(120);
+
+        loop {
+            if tokio::time::Instant::now() > deadline {
+                return Err(InferenceError::Connection(format!(
+                    "fal.ai queue poll timed out after 120s (request_id: {})",
+                    request_id
+                )));
+            }
+            match self
+                .client
+                .get(&status_url)
+                .header("Authorization", format!("Key {}", self.api_key))
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    let v: serde_json::Value = resp
+                        .json()
+                        .await
+                        .map_err(|e| InferenceError::Json(format!("fal.ai status parse: {}", e)))?;
+                    match v.get("status").and_then(|s| s.as_str()) {
+                        Some("COMPLETED") => break,
+                        Some("FAILED") => {
+                            return Err(InferenceError::Generation(format!(
+                                "fal.ai job failed: {}",
+                                v
+                            )));
+                        }
+                        _ => {}
+                    }
+                }
+                Err(e) => {
+                    return Err(InferenceError::Connection(format!(
+                        "fal.ai status check failed: {}",
+                        e
+                    )));
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+
+        let result_url = format!("https://queue.fal.run/{}/requests/{}", endpoint, request_id);
+        let resp = self
+            .client
+            .get(&result_url)
+            .header("Authorization", format!("Key {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                InferenceError::Connection(format!("fal.ai result fetch failed: {}", e))
+            })?;
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(InferenceError::Connection(format!(
+                "fal.ai result {} status {}: {}",
+                endpoint, status, text
+            )));
+        }
+        serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("fal.ai result parse: {}", e)))
+    }
+
+    /// Generate an image from a text prompt.
+    /// Endpoint: fal-ai/flux/schnell (fast) or fal-ai/flux-pro (quality).
+    pub async fn generate_image(
+        &self,
+        prompt: &str,
+        image_size: Option<&str>,
+        num_images: Option<u32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "prompt": prompt,
+            "image_size": image_size.unwrap_or("1024x1024"),
+            "num_images": num_images.unwrap_or(1),
+        });
+        self.fal_sync_post("fal-ai/flux/schnell", body).await
+    }
+
+    /// Transform an existing image with a prompt (image-to-image).
+    /// Endpoint: fal-ai/flux/dev/image-to-image
+    pub async fn image_to_image(
+        &self,
+        image_url: &str,
+        prompt: &str,
+        strength: Option<f32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let mut body = serde_json::json!({
+            "prompt": prompt,
+            "image_url": image_url,
+        });
+        if let Some(s) = strength {
+            body["strength"] = serde_json::json!(s);
+        }
+        self.fal_sync_post("fal-ai/flux/dev/image-to-image", body)
+            .await
+    }
+
+    /// Remove background from an image.
+    /// Endpoint: fal-ai/birefnet
+    pub async fn remove_background(
+        &self,
+        image_url: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({"image_url": image_url});
+        self.fal_sync_post("fal-ai/birefnet", body).await
+    }
+
+    /// Upscale an image.
+    /// Endpoint: fal-ai/seedvr2 (queue)
+    pub async fn upscale(
+        &self,
+        image_url: &str,
+        scale: Option<u32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "image_url": image_url,
+            "scale": scale.unwrap_or(4),
+        });
+        self.fal_queue_post("fal-ai/seedvr2", body).await
+    }
+
+    /// Generate a video from a text prompt.
+    /// Endpoint: fal-ai/minimax/video-01-live (queue)
+    pub async fn generate_video(
+        &self,
+        prompt: &str,
+        duration: Option<f32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let mut body = serde_json::json!({"prompt": prompt});
+        if let Some(d) = duration {
+            body["duration"] = serde_json::json!(d);
+        }
+        self.fal_queue_post("fal-ai/minimax/video-01-live", body)
+            .await
+    }
+
+    /// Animate a still image into a video.
+    /// Endpoint: fal-ai/seedance-2.0/image-to-video (queue)
+    pub async fn image_to_video(
+        &self,
+        image_url: &str,
+        prompt: Option<&str>,
+        duration: Option<f32>,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let mut body = serde_json::json!({"image_url": image_url});
+        if let Some(p) = prompt {
+            body["prompt"] = serde_json::json!(p);
+        }
+        if let Some(d) = duration {
+            body["duration"] = serde_json::json!(d);
+        }
+        self.fal_queue_post("fal-ai/seedance-2.0/image-to-video", body)
+            .await
+    }
 }
 
 // ── fal.ai model types ──────────────────────────────────────────────────────

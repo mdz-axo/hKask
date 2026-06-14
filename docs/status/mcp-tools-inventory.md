@@ -10,8 +10,8 @@ mds_categories: [composition, lifecycle]
 
 # MCP Tools Inventory
 
-Catalog of all 10 hKask MCP servers and their tools.
-Updated 2026-06-11: `hkask-mcp-web` + `hkask-mcp-rss-reader` → `hkask-mcp-research`. Added `hkask-mcp-replica`.
+Catalog of all 12 hKask MCP servers and their tools.
+Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkask-mcp-docproc`. Added `hkask-mcp-training`.
 
 ---
 
@@ -27,9 +27,9 @@ Updated 2026-06-11: `hkask-mcp-web` + `hkask-mcp-rss-reader` → `hkask-mcp-rese
 | fal | `hkask-mcp-media` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| doc-knowledge | `hkask-mcp-doc-knowledge` | 5 | L2 (Episodic) | — |
-| markitdown | `hkask-mcp-markitdown` | ~3 | L2 (Episodic) | — |
-| **Total** | | **~82** | | |
+| docproc | `hkask-mcp-docproc` | 8 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional), `HKASK_MEMORY_DB` (optional) |
+| training | `hkask-mcp-training` | 1 | L2 (Episodic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
+| **Total** | | **~84** | | |
 
 ---
 
@@ -217,40 +217,46 @@ Consolidation of former `hkask-mcp-episodic` and `hkask-mcp-semantic` servers.
 
 ---
 
-### doc-knowledge
+### docproc
 
-**Crate:** `hkask-mcp-doc-knowledge` · **Loop:** L2 · **Tools:** 5
+**Crate:** `hkask-mcp-docproc` · **Loop:** L2 · **Tools:** 8
 
-**Credentials:** Optional (`HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE`)
+Unified document processing server — supersedes former `hkask-mcp-markitdown` and `hkask-mcp-doc-knowledge` (2026-06-13).
+
+**Credentials:** `HKASK_OCR_MODEL` (optional, for OCR), `HKASK_MEMORY_DB` + `HKASK_DB_PASSPHRASE` (optional, for QA storage)
 
 | Tool | Description |
 |------|-------------|
-| `doc_knowledge_ping` | Liveness check |
-| `doc_knowledge_detect_format` | Detect document format from extension |
-| `doc_knowledge_extract_markdown` | Extract text and image refs from markdown |
-| `doc_knowledge_parse` | Parse document with multi-tier chunking |
-| `doc_knowledge_store_qa` | Store QA items with provenance |
+| `docproc_convert` | Extract text from documents (PDF/MD/HTML/TXT) with OCR fallback |
+| `docproc_ocr` | Explicit OCR using vision model |
+| `docproc_chunk` | Chunk text or file into passages (single or multi-tier) |
+| `docproc_extract_triples` | Extract RDF triples from text via LLM |
+| `docproc_embed` | Generate embedding vectors for passages or triples |
+| `docproc_generate_qa` | Generate QA pairs from text via LLM |
+| `docproc_store_qa` | Store QA items with provenance in semantic memory |
+| `docproc_cache` | Cache processed text to ~/.config/hkask/docproc-cache/ |
 
 ---
 
-### markitdown
+### training
 
-**Crate:** `hkask-mcp-markitdown` · **Loop:** L2 · **Tools:** ~3
+**Crate:** `hkask-mcp-training` · **Loop:** L2 · **Tools:** 1
 
-Uses manual tool registration. Credentials optional (`HKASK_OCR_MODEL`, `OKAPI_BASE_URL`).
+Stub server for model training data ingestion (2026-06-13). Full training pipeline (dataset assembly, formatting, fine-tuning) planned for future release.
+
+**Credentials:** `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE`
 
 | Tool | Description |
 |------|-------------|
-| `markitdown_extract_text` | Extract text with automatic OCR fallback |
-| `markitdown_detect_format` | Detect format from file path |
-| `markitdown_ocr` | OCR using a local vision model |
+| `training_ingest_qa` | Ingest QA pairs for model training |
 
 ---
 
 ## Verification Notes
 
-- **Count method:** `grep '#\[tool' mcp-servers/*/src/main.rs` for `#[tool]`-based servers. markitdown uses manual `run_server` registration — tool counts estimated from registration lists.
-- **Consolidation (2026-06-11):** `hkask-mcp-web` (4 tools) + `hkask-mcp-rss-reader` (~10 tools) → `hkask-mcp-research` (~17 tools with `web_search` added). RSS tools now use `#[tool]` macros and `run_server_with_preloaded`.
+- **Count method:** `grep '#\[tool' mcp-servers/*/src/main.rs` for `#[tool]`-based servers.
+- **Consolidation (2026-06-11):** `hkask-mcp-web` (4 tools) + `hkask-mcp-rss-reader` (~10 tools) → `hkask-mcp-research` (~17 tools).
+- **Consolidation (2026-06-13):** `hkask-mcp-markitdown` (3 tools) + `hkask-mcp-doc-knowledge` (5 tools) → `hkask-mcp-docproc` (8 tools). Added `hkask-mcp-training` (1 tool, stub).
 - **New (2026-06-11):** `hkask-mcp-replica` added (6 tools, style embedding and composition).
 - **Spec server correction:** Previous inventory listed 11 spec tools. Only 5 exist per MDS.md §3 and code verification.
-- **Total:** ~82 tools across 10 servers.
+- **Total:** ~84 tools across 12 servers.

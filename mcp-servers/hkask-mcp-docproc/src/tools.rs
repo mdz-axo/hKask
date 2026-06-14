@@ -1,22 +1,27 @@
 //! MCP tool implementations for docproc server.
 //!
-//! 6 tools:
-//! - `docproc_detect_format` — Detect document format from path/extension
+//! 8 tools:
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
 //! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier)
-//! - `docproc_generate_qa` — Generate QA pairs from text chunk
+//! - `docproc_extract_triples` — Extract RDF triples from text via LLM
+//! - `docproc_embed` — Generate embedding vectors for passages or triples
+//! - `docproc_generate_qa` — Generate QA pairs from text via LLM
 //! - `docproc_store_qa` — Store QA items with provenance
+//! - `docproc_cache` — Cache processed text for reference
 
 use crate::convert;
 use crate::ocr::{decimation, pipeline};
 use crate::server::{DocProcServer, OCR_FALLBACK_WORD_THRESHOLD, default_ocr_max_tokens};
+use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
+use hkask_types::LLMParameters;
 use hkask_types::McpErrorKind;
 use hkask_types::Visibility;
+use hkask_types::ports::InferencePort;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -66,12 +71,6 @@ pub struct ConvertRequest {
     /// If true, skip text extraction and go directly to OCR.
     #[serde(default)]
     pub force_ocr: bool,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DetectFormatRequest {
-    /// Path to the document file to detect format for.
-    pub path: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -141,6 +140,35 @@ pub struct QaItem {
 pub struct StoreQaRequest {
     pub qa_items: Vec<QaItem>,
     pub source_document: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExtractTriplesRequest {
+    /// Text to extract RDF triples from.
+    pub text: String,
+    /// Optional entity namespace prefix (e.g., "doc:myfile").
+    #[serde(default)]
+    pub namespace: Option<String>,
+    /// Maximum triples to extract (default 50).
+    #[serde(default)]
+    pub max_triples: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EmbedRequest {
+    /// Texts to embed (passages or triple strings).
+    pub texts: Vec<String>,
+    /// Embedding model to use. If not set, uses the configured default.
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CacheRequest {
+    /// Text content to cache.
+    pub content: String,
+    /// Label/key for the cached entry.
+    pub label: String,
 }
 
 // ── Extract outcome enum ─────────────────────────────────────────────────
@@ -579,29 +607,6 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Detect the document format from a file path/extension. Returns format name, whether text extraction is supported, and note for unsupported formats."
-    )]
-    async fn docproc_detect_format(
-        &self,
-        Parameters(DetectFormatRequest { path }): Parameters<DetectFormatRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("docproc_detect_format", &self.webid);
-
-        let (format, supported, note) = convert::detect_format(&path);
-
-        let mut result = serde_json::json!({
-            "path": path,
-            "format": format,
-            "supported": supported,
-        });
-        if let Some(n) = note {
-            result["note"] = serde_json::json!(n);
-        }
-
-        span.ok_json(result)
-    }
-
-    #[tool(
         description = "OCR a document using a local vision model. Requires HKASK_OCR_MODEL env var or explicit model parameter. The model must be a vision-capable model available in the inference catalog."
     )]
     async fn docproc_ocr(
@@ -855,7 +860,7 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Generate QA prompt from text chunk (returns structured prompt for LLM; actual LLM call routed through inference engine)"
+        description = "Generate QA pairs from a text chunk by calling the inference engine. Returns structured question-answer pairs at specified Bloom's taxonomy levels."
     )]
     async fn docproc_generate_qa(
         &self,
@@ -897,10 +902,40 @@ impl DocProcServer {
              Respond in JSON format: {{\"qa_pairs\": [{{\"question\": \"...\", \"answer\": \"...\", \"bloom_level\": \"...\"}}]}}"
         );
 
-        span.ok_json(json!({
-            "prompt": prompt, "chunk_id": chunk_id, "strategy": strat, "bloom_levels": levels,
-            "note": "Route this prompt through the inference engine for LLM completion",
-        }))
+        // Call the inference engine to generate QA pairs
+        let router = InferenceRouter::new(self.inference_config.clone());
+        let params = LLMParameters {
+            temperature: 0.3,
+            max_tokens: 4096,
+            ..Default::default()
+        };
+
+        match router.generate(&prompt, &params).await {
+            Ok(response) => {
+                // Try to parse the JSON response
+                let qa_pairs: serde_json::Value = match serde_json::from_str(&response.text) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        // If parsing fails, return raw text with a note
+                        json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
+                    }
+                };
+
+                let result = json!({
+                    "chunk_id": chunk_id,
+                    "strategy": strat,
+                    "bloom_levels": levels,
+                    "qa_pairs": qa_pairs,
+                    "tokens_used": response.usage.total_tokens,
+                });
+                self.record_experience("docproc_generate_qa", &chunk_id, "success", result.clone());
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("QA generation failed: {}", e)).to_json_string(),
+            ),
+        }
     }
 
     #[tool(description = "Store QA items with provenance")]
@@ -965,6 +1000,193 @@ impl DocProcServer {
                 json!({ "stored": stored, "errors": errors, "source_document": source_document });
             self.record_experience("docproc_store_qa", &source_doc, "partial", result.clone());
             span.internal_error(result)
+        }
+    }
+
+    #[tool(
+        description = "Extract RDF triples (subject, predicate, object) from text using the inference engine. Returns structured knowledge triples with confidence scores."
+    )]
+    async fn docproc_extract_triples(
+        &self,
+        Parameters(ExtractTriplesRequest {
+            text,
+            namespace,
+            max_triples,
+        }): Parameters<ExtractTriplesRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("docproc_extract_triples", &self.webid);
+
+        if text.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("text must not be empty").to_json_string(),
+            );
+        }
+
+        let ns = namespace.unwrap_or_else(|| "doc".to_string());
+        let limit = max_triples.unwrap_or(50);
+
+        let prompt = format!(
+            "Extract up to {limit} factual RDF triples from the following text.\n\n\
+             Each triple should be in the form (subject, predicate, object) where:\n\
+             - subject: an entity mentioned in the text (prefix with '{ns}:')\n\
+             - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
+             - object: another entity, a literal value, or a type\n\n\
+             For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
+             Text:\n{text}\n\n\
+             Respond in JSON format: {{\"triples\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
+        );
+
+        let router = InferenceRouter::new(self.inference_config.clone());
+        let params = LLMParameters {
+            temperature: 0.1,
+            max_tokens: 4096,
+            ..Default::default()
+        };
+
+        match router.generate(&prompt, &params).await {
+            Ok(response) => {
+                let triples: serde_json::Value = match serde_json::from_str(&response.text) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
+                    }
+                };
+
+                let result = json!({
+                    "namespace": ns,
+                    "max_triples": limit,
+                    "triples": triples,
+                    "tokens_used": response.usage.total_tokens,
+                });
+                self.record_experience("docproc_extract_triples", &ns, "success", result.clone());
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("Triple extraction failed: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Generate embedding vectors for a list of texts (passages or triples). Uses the configured embedding model via the inference router."
+    )]
+    async fn docproc_embed(
+        &self,
+        Parameters(EmbedRequest { texts, model }): Parameters<EmbedRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("docproc_embed", &self.webid);
+
+        if texts.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("texts must not be empty").to_json_string(),
+            );
+        }
+
+        let Some(ref emb_router) = self.embedding_router else {
+            return span.error(
+                McpErrorKind::FailedPrecondition,
+                McpToolError::failed_precondition(
+                    "Embedding router not configured — inference config may be missing",
+                )
+                .to_json_string(),
+            );
+        };
+
+        let model_name = model.unwrap_or_else(|| {
+            std::env::var("HKASK_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string())
+        });
+
+        let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+
+        match emb_router.embed_sentences(&model_name, &text_refs).await {
+            Ok(vectors) => {
+                let result = json!({
+                    "count": texts.len(),
+                    "dimensions": vectors.first().map(|v| v.len()).unwrap_or(0),
+                    "vectors": vectors,
+                    "model": model_name,
+                });
+                self.record_experience(
+                    "docproc_embed",
+                    &format!("{} texts", texts.len()),
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("Embedding failed: {}", e)).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Cache processed document text for reference. Stores content keyed by label in the docproc cache directory (~/.config/hkask/docproc-cache/)."
+    )]
+    async fn docproc_cache(
+        &self,
+        Parameters(CacheRequest { content, label }): Parameters<CacheRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("docproc_cache", &self.webid);
+
+        if content.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("content must not be empty").to_json_string(),
+            );
+        }
+
+        if label.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("label must not be empty").to_json_string(),
+            );
+        }
+
+        // Resolve cache directory
+        let cache_dir = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("hkask")
+            .join("docproc-cache");
+
+        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+            return span.internal_error(json!({
+                "error": format!("Failed to create cache directory '{}': {}", cache_dir.display(), e),
+            }));
+        }
+
+        // Sanitize label for filesystem
+        let safe_label: String = label
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let cache_path = cache_dir.join(format!("{}.md", safe_label));
+
+        match std::fs::write(&cache_path, &content) {
+            Ok(()) => {
+                let result = json!({
+                    "label": label,
+                    "path": cache_path.display().to_string(),
+                    "size_bytes": content.len(),
+                });
+                self.record_experience("docproc_cache", &label, "success", result.clone());
+                span.ok_json(result)
+            }
+            Err(e) => span.internal_error(json!({
+                "error": format!("Failed to write cache file '{}': {}", cache_path.display(), e),
+            })),
         }
     }
 }

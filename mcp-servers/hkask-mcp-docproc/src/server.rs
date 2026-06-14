@@ -1,5 +1,5 @@
-//! Unified DocProc server — combines OCR pipeline (from markitdown) with
-//! knowledge extraction (from doc-knowledge) into a single MCP server.
+//! Unified DocProc server — combines OCR pipeline with knowledge extraction,
+//! triple extraction, embedding, QA generation, and caching.
 
 use crate::ocr::llm_ocr::LlmOcrExecutor;
 use crate::ocr::pipeline::OcrExecutor;

@@ -1,68 +1,43 @@
-//! hKask MCP Media — AI media generation (image, video, audio, 3D via fal.ai and other providers)
+//! hKask MCP Media — AI media generation (image and short-video via centralized inference router)
 //!
 //! Tool families:
-//! - Gallery: init, scan, info, detect_objects, detect_faces, caption, tag, classify, search, collage, derivative
-//! - Video/GIF: from_image, from_images, to_gif, trim, meme, add_text, caption, concat
-//! - Generation: generate_image, image_to_image, upscale, generate_video, generate_music, whisper, caption, generate_3d
+//! - Gallery: set_root, scan, info, get_image, get_metadata
+//! - Tagging: tag_faces, tag_objects, tag_colors, tag_composition
+//! - Abstraction: image_caption, image_describe_scene, image_classify_style
+//! - Derivation: remove_background, apply_style, create_collage, upscale, image_to_image
+//! - Video/GIF: generate_video, image_to_video, video_clip, video_to_gif, video_add_caption, video_remix
+//! - Generation: generate_image, image_to_image, upscale, generate_video, caption
 
 mod gallery;
 mod video;
 
 use gallery::{GalleryMode as LocalGalleryMode, GalleryState};
 use hkask_inference::InferenceRouter;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, classify_http_error, validate_tool_url};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
-const SYNC_BASE: &str = "https://fal.run";
-const QUEUE_BASE: &str = "https://queue.fal.run";
-const MAX_POLL_SECS: u64 = 60;
-const POLL_INTERVAL_SECS: u64 = 2;
-
-fn build_client(api_key: &str) -> Result<reqwest::Client, McpToolError> {
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::AUTHORIZATION,
-        format!("Key {api_key}")
-            .parse()
-            .map_err(|e| McpToolError::internal(format!("Invalid header: {e}")))?,
-    );
-
-    reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(Duration::from_secs(300))
-        .build()
-        .map_err(|e| McpToolError::internal(format!("Failed to build HTTP client: {e}")))
+pub struct MediaServer {
+    webid: WebID,
+    /// Replicant identity serving this MCP server (for narrative memory)
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<DaemonClient>,
+    /// Centralized inference router for ALL model calls (vision LLM + media generation)
+    inference: Arc<InferenceRouter>,
+    /// Active gallery state (None until gallery_init is called)
+    gallery_state: Arc<Mutex<Option<GalleryState>>>,
+    /// SQLite-backed gallery store for persistent indexing
+    gallery_store: Arc<GalleryStore>,
 }
 
-async fn fal_post(
-    client: &reqwest::Client,
-    endpoint: &str,
-    body: Value,
-) -> Result<Value, McpToolError> {
-    let url = format!("{SYNC_BASE}/{endpoint}");
-    let resp = client
-        .post(&url)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("Request failed: {e}")))?;
-    let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_http_error("Fal", status, &text));
-    }
-    serde_json::from_str(&text)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
-}
+// ── Legacy request types (existing tools) ───────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateImageRequest {
@@ -91,33 +66,13 @@ pub struct GenerateVideoRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct GenerateMusicRequest {
-    pub prompt: String,
-    pub duration_seconds: Option<f32>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct WhisperRequest {
-    pub audio_url: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct CaptionRequest {
     pub image_url: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct Generate3dRequest {
-    pub image_url: String,
-}
-
-// ── Gallery request types ────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct GalleryInitRequest {
-    /// Absolute path to the gallery folder.
     pub path: String,
-    /// Operating mode: "original" (read-only) or "copy" (editable).
     #[serde(default = "default_gallery_mode")]
     pub mode: String,
 }
@@ -128,10 +83,8 @@ fn default_gallery_mode() -> String {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GalleryScanRequest {
-    /// Whether to scan subdirectories recursively.
     #[serde(default = "default_true")]
     pub recursive: bool,
-    /// File extensions to include (default: jpg, jpeg, png, webp, gif, bmp, tiff).
     pub extensions: Option<Vec<String>>,
 }
 
@@ -269,37 +222,18 @@ pub struct VideoRemixRequest {
     pub caption_text: Option<String>,
 }
 
-pub struct MediaServer {
-    webid: WebID,
-    /// Replicant identity serving this MCP server (for narrative memory)
-    replicant: String,
-    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
-    daemon: Option<DaemonClient>,
-    /// fal.ai HTTP client for generation tools
-    client: reqwest::Client,
-    /// Inference router for vision LLM tasks (object detection, captioning, etc.)
-    inference: Arc<InferenceRouter>,
-    /// Active gallery state (None until gallery_init is called)
-    gallery_state: Arc<Mutex<Option<GalleryState>>>,
-    /// SQLite-backed gallery store for persistent indexing
-    gallery_store: Arc<GalleryStore>,
-}
-
 impl MediaServer {
     pub fn new(
         webid: WebID,
         replicant: String,
         daemon: Option<DaemonClient>,
-        api_key: String,
         inference: Arc<InferenceRouter>,
         gallery_store: Arc<GalleryStore>,
     ) -> Result<Self, anyhow::Error> {
-        let client = build_client(&api_key)?;
         Ok(Self {
             webid,
             replicant,
             daemon,
-            client,
             inference,
             gallery_state: Arc::new(Mutex::new(None)),
             gallery_store,
@@ -423,84 +357,6 @@ impl MediaServer {
             }
         }
         Err(format!("Image not found at index {}", image_index))
-    }
-
-    async fn queue_post(&self, endpoint: &str, body: Value) -> Result<Value, McpToolError> {
-        let submit_url = format!("{QUEUE_BASE}/{endpoint}");
-
-        let resp = self
-            .client
-            .post(&submit_url)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| McpToolError::unavailable(format!("Submit failed: {e}")))?;
-
-        let status = resp.status();
-        let v: Value = resp
-            .json()
-            .await
-            .map_err(|e| McpToolError::internal(format!("Failed to parse submission: {e}")))?;
-
-        if !status.is_success() {
-            return Err(classify_http_error("Fal", status, &v.to_string()));
-        }
-
-        let request_id = v
-            .get("request_id")
-            .and_then(|r| r.as_str())
-            .unwrap_or("unknown")
-            .to_string();
-
-        let status_url = format!("{QUEUE_BASE}/{endpoint}/requests/{request_id}/status");
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(MAX_POLL_SECS);
-
-        loop {
-            if tokio::time::Instant::now() > deadline {
-                return Err(McpToolError::timeout(format!(
-                    "Polling timed out after {MAX_POLL_SECS}s (request_id: {request_id})"
-                )));
-            }
-
-            match self.client.get(&status_url).send().await {
-                Ok(resp) => {
-                    let v: Value = resp.json().await.map_err(|e| {
-                        McpToolError::internal(format!("Failed to parse status: {e}"))
-                    })?;
-                    match v.get("status").and_then(|s| s.as_str()) {
-                        Some("COMPLETED") => break,
-                        Some("FAILED") => {
-                            return Err(McpToolError::internal(format!("Job failed: {v}")));
-                        }
-                        _ => {}
-                    }
-                }
-                Err(e) => {
-                    return Err(McpToolError::unavailable(format!(
-                        "Status check failed: {e}"
-                    )));
-                }
-            }
-
-            tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
-        }
-
-        let result_url = format!("{QUEUE_BASE}/{endpoint}/requests/{request_id}");
-        let resp = self
-            .client
-            .get(&result_url)
-            .send()
-            .await
-            .map_err(|e| McpToolError::unavailable(format!("Result fetch failed: {e}")))?;
-
-        let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
-        if !status.is_success() {
-            return Err(classify_http_error("Fal", status, &text));
-        }
-
-        serde_json::from_str(&text)
-            .map_err(|e| McpToolError::internal(format!("Failed to parse result: {e}")))
     }
 }
 
@@ -1160,10 +1016,12 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        // Route to DeepInfra Bria RMBG 2.0 via inference router
-        // For now, use fal.ai birefnet as the available endpoint
-        let body = serde_json::json!({"image_url": image_url});
-        let result = fal_post(&self.client, "fal-ai/birefnet", body).await;
+        // Route through centralized inference router
+        let result = self
+            .inference
+            .remove_background(&image_url)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Background removal failed: {}", e)));
 
         self.record_experience(
             "image_remove_background",
@@ -1191,15 +1049,11 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let mut body = serde_json::json!({
-            "prompt": style_prompt,
-            "image_url": image_url,
-        });
-        if let Some(s) = strength {
-            body["strength"] = serde_json::json!(s);
-        }
-
-        let result = fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await;
+        let result = self
+            .inference
+            .image_to_image(&image_url, &style_prompt, strength)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Style transfer failed: {}", e)));
         self.record_experience(
             "image_apply_style",
             &style_prompt,
@@ -1331,21 +1185,11 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let model_endpoint = match model.as_deref() {
-            Some("kling") => "fal-ai/kling-video/v3/pro/image-to-video",
-            Some("minimax") => "fal-ai/minimax/video-01-live",
-            _ => "fal-ai/seedance-2.0/image-to-video",
-        };
-
-        let mut body = serde_json::json!({"image_url": image_url});
-        if let Some(ref p) = prompt {
-            body["prompt"] = serde_json::json!(p);
-        }
-        if let Some(d) = duration {
-            body["duration"] = serde_json::json!(d);
-        }
-
-        let result = self.queue_post(model_endpoint, body).await;
+        let result = self
+            .inference
+            .image_to_video(&image_url, prompt.as_deref(), duration)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Image-to-video failed: {}", e)));
         self.record_experience(
             "image_to_video",
             &format!("image_index={}", image_index),
@@ -1420,34 +1264,19 @@ impl MediaServer {
     #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
     async fn fal_ping(&self) -> String {
         let span = ToolSpanGuard::new("fal_ping", &self.webid);
-        let url = format!("{SYNC_BASE}/fal-ai/flux/schnell");
+        // Ping via inference router — try a lightweight image generation
         match self
-            .client
-            .post(&url)
-            .json(&serde_json::json!({}))
-            .send()
+            .inference
+            .generate_image("test ping", Some("64x64"), Some(1))
             .await
         {
-            Ok(resp) => {
-                let status = resp.status();
-                if status == reqwest::StatusCode::UNAUTHORIZED
-                    || status == reqwest::StatusCode::FORBIDDEN
-                {
-                    let err = McpToolError::permission_denied(
-                        "Fal.ai API key is invalid or unauthorized",
-                    );
-                    span.error(err.kind, err.to_json_string())
-                } else {
-                    span.ok_json(serde_json::json!({
-                        "status": "ok",
-                        "message": "Fal.ai API is reachable and authenticated",
-                        "http_status": status.as_u16(),
-                    }))
-                }
-            }
+            Ok(_) => span.ok_json(serde_json::json!({
+                "status": "ok",
+                "message": "fal.ai API is reachable and authenticated via inference router",
+            })),
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Connection failed: {e}")).to_json_string(),
+                McpToolError::unavailable(format!("Connection failed: {}", e)).to_json_string(),
             ),
         }
     }
@@ -1463,12 +1292,11 @@ impl MediaServer {
     ) -> String {
         let span = ToolSpanGuard::new("fal_generate_image", &self.webid);
         let size = image_size.clone();
-        let body = serde_json::json!({
-            "prompt": prompt,
-            "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
-            "num_images": num_images.unwrap_or(1),
-        });
-        let result = fal_post(&self.client, "fal-ai/flux/schnell", body).await;
+        let result = self
+            .inference
+            .generate_image(&prompt, size.as_deref(), num_images)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Image generation failed: {}", e)));
         self.record_experience(
             "fal_generate_image",
             &prompt,
@@ -1491,14 +1319,12 @@ impl MediaServer {
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
-        let mut body = serde_json::json!({
-            "prompt": prompt,
-            "image_url": image_url,
-        });
-        if let Some(s) = strength {
-            body["strength"] = serde_json::json!(s);
-        }
-        span.finish(fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await)
+        let result = self
+            .inference
+            .image_to_image(&image_url, &prompt, strength)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Image-to-image failed: {}", e)));
+        span.finish(result)
     }
 
     #[tool(description = "Upscale an image")]
@@ -1510,11 +1336,12 @@ impl MediaServer {
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
-        let body = serde_json::json!({
-            "image_url": image_url,
-            "scale": scale.unwrap_or(4),
-        });
-        span.finish(fal_post(&self.client, "fal-ai/imageutils/u2net", body).await)
+        let result = self
+            .inference
+            .upscale(&image_url, scale)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Upscale failed: {}", e)));
+        span.finish(result)
     }
 
     #[tool(description = "Generate a video from a prompt")]
@@ -1523,46 +1350,12 @@ impl MediaServer {
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("fal_generate_video", &self.webid);
-        let mut body = serde_json::json!({
-            "prompt": prompt,
-        });
-        if let Some(d) = duration {
-            body["duration"] = serde_json::json!(d);
-        }
-        span.finish(self.queue_post("fal-ai/minimax/video-01-live", body).await)
-    }
-
-    #[tool(description = "Generate music from a prompt")]
-    async fn fal_generate_music(
-        &self,
-        Parameters(GenerateMusicRequest {
-            prompt,
-            duration_seconds,
-        }): Parameters<GenerateMusicRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("fal_generate_music", &self.webid);
-        let mut body = serde_json::json!({
-            "prompt": prompt,
-        });
-        if let Some(d) = duration_seconds {
-            body["duration"] = serde_json::json!(d);
-        }
-        span.finish(self.queue_post("fal-ai/stable-audio", body).await)
-    }
-
-    #[tool(description = "Transcribe audio to text")]
-    async fn fal_whisper(
-        &self,
-        Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("fal_whisper", &self.webid);
-        if let Err(e) = validate_tool_url(&audio_url) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        let body = serde_json::json!({
-            "audio_url": audio_url,
-        });
-        span.finish(fal_post(&self.client, "fal-ai/whisper", body).await)
+        let result = self
+            .inference
+            .generate_video(&prompt, duration)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Video generation failed: {}", e)));
+        span.finish(result)
     }
 
     #[tool(description = "Generate a caption for an image")]
@@ -1574,33 +1367,21 @@ impl MediaServer {
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
-        let body = serde_json::json!({
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Provide a detailed caption for this image."},
-                        {"type": "image_url", "image_url": {"url": image_url}}
-                    ]
-                }
-            ]
-        });
-        span.finish(fal_post(&self.client, "fal-ai/any-llm", body).await)
-    }
-
-    #[tool(description = "Generate a 3D model from an image")]
-    async fn fal_generate_3d(
-        &self,
-        Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("fal_generate_3d", &self.webid);
-        if let Err(e) = validate_tool_url(&image_url) {
-            return span.error(e.kind, e.to_json_string());
+        let params = hkask_types::LLMParameters::default();
+        let result = self
+            .inference
+            .generate_vision(
+                "Provide a detailed caption for this image.",
+                &[image_url],
+                &params,
+                Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
+            )
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Caption generation failed: {}", e)));
+        match result {
+            Ok(r) => span.ok_json(serde_json::json!({"caption": r.text})),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
-        let body = serde_json::json!({
-            "image_url": image_url,
-        });
-        span.finish(self.queue_post("fal-ai/hunyuan3d", body).await)
     }
 }
 
@@ -1641,24 +1422,15 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-media",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let api_key = ctx
-                .credentials
-                .get("HKASK_FAL_API_KEY")
-                .expect("required credential checked by run_stdio_server")
-                .clone();
             MediaServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
-                api_key,
                 inference.clone(),
                 gallery_store.clone(),
             )
         },
-        vec![hkask_mcp::CredentialRequirement::required(
-            "HKASK_FAL_API_KEY",
-            "Fal.ai API key for AI image generation",
-        )],
+        vec![],
     )
     .await
 }
