@@ -1,13 +1,11 @@
 //! hKask MCP Media — AI media generation (image, video, voice via centralized inference router)
 //!
 //! Tool families:
-//! - Gallery: set_root, scan, info, get_image, get_metadata
-//! - Tagging: tag_faces, tag_objects, tag_colors, tag_composition
-//! - Abstraction: image_caption, image_describe_scene, image_classify_style
-//! - Derivation: remove_background, apply_style, create_collage, upscale, image_to_image
-//! - Video/GIF: generate_video, image_to_video, video_clip, video_to_gif, video_add_caption, video_remix
+//! - Gallery: organize, search, status
+//! - Image: describe, remove_background, apply_style, create_collage
+//! - Video: clip, to_gif, image_to_video, add_caption, remix, concat, from_images
+//! - Generation: generate_image, transform_image, upscale_image, generate_video
 //! - Voice: voice_design, generate_speech
-//! - Generation: generate_image, image_to_image, upscale, generate_video, caption
 
 mod gallery;
 mod templates;
@@ -37,7 +35,7 @@ pub struct MediaServer {
     daemon: Option<DaemonClient>,
     /// Centralized inference router for ALL model calls (vision LLM + media generation)
     inference: Arc<InferenceRouter>,
-    /// Active gallery state (None until gallery_init is called)
+    /// Active gallery state (None until gallery_set_root is called)
     gallery_state: Arc<Mutex<Option<GalleryState>>>,
     /// SQLite-backed gallery store for persistent indexing
     gallery_store: Arc<GalleryStore>,
@@ -47,7 +45,7 @@ pub struct MediaServer {
     ffmpeg: FfmpegRunner,
 }
 
-// ── Legacy request types (existing tools) ───────────────────────────────────
+// ── Request types ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateImageRequest {
@@ -57,14 +55,14 @@ pub struct GenerateImageRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct ImageToImageRequest {
+pub struct TransformImageRequest {
     pub prompt: String,
     pub image_url: String,
     pub strength: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct UpscaleRequest {
+pub struct UpscaleImageRequest {
     pub image_url: String,
     pub scale: Option<u32>,
 }
@@ -76,87 +74,40 @@ pub struct GenerateVideoRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct CaptionRequest {
+pub struct DescribeImageRequest {
+    /// Image URL or gallery search result reference.
     pub image_url: String,
+    /// Caption style: "descriptive", "artistic", "technical", "alt_text".
+    pub style: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct GalleryScanRequest {
-    #[serde(default = "default_true")]
-    pub recursive: bool,
-    pub extensions: Option<Vec<String>>,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-// ── Gallery management request types ──────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GallerySetRootRequest {
+pub struct GalleryOrganizeRequest {
+    /// Absolute path to the gallery folder.
     pub path: String,
+    /// Policy mode: "read-only", "copy-on-write", or "destructive".
     #[serde(default = "default_mode")]
     pub mode: String,
+    /// Whether to scan subdirectories recursively (default: true).
+    #[serde(default = "default_true")]
+    pub recursive: bool,
 }
 
 fn default_mode() -> String {
     "read-only".to_string()
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GalleryGetImageRequest {
-    pub index: Option<usize>,
-    pub hash: Option<String>,
-    pub format: Option<String>,
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct GalleryGetMetadataRequest {
-    pub index: Option<usize>,
-    pub hash: Option<String>,
+pub struct GallerySearchRequest {
+    pub query: String,
+    pub limit: Option<usize>,
+    pub tag_types: Option<Vec<String>>,
+    pub min_similarity: Option<f64>,
 }
-
-// ── Tagging request types ────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TagFacesRequest {
-    pub image_index: usize,
-    pub detail_level: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TagObjectsRequest {
-    pub image_index: usize,
-    pub detail_level: Option<String>,
-    pub max_objects: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TagColorsRequest {
-    pub image_index: usize,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TagCompositionRequest {
-    pub image_index: usize,
-}
-
-// ── Abstraction request types ────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DescribeSceneRequest {
-    pub image_index: usize,
-    pub style: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ClassifyStyleRequest {
-    pub image_index: usize,
-    pub categories: Option<String>,
-}
-
-// ── Derivation request types ─────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RemoveBackgroundRequest {
@@ -173,13 +124,31 @@ pub struct ApplyStyleRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateCollageRequest {
-    pub image_indices: Vec<usize>,
-    pub layout: Option<String>,
-    pub spacing: Option<u32>,
-    pub canvas_size: Option<String>,
+    pub search_terms: Option<Vec<String>>,
+    pub similar_to_index: Option<usize>,
+    pub image_indices: Option<Vec<usize>>,
+    #[serde(default = "default_max_items")]
+    pub max_items: usize,
+    #[serde(default = "default_layout")]
+    pub layout: String,
+    #[serde(default = "default_spacing")]
+    pub spacing: u32,
+    #[serde(default = "default_canvas")]
+    pub canvas_size: String,
 }
 
-// ── Video request types ──────────────────────────────────────────────────────
+fn default_max_items() -> usize {
+    6
+}
+fn default_layout() -> String {
+    "grid".to_string()
+}
+fn default_spacing() -> u32 {
+    8
+}
+fn default_canvas() -> String {
+    "1200x900".to_string()
+}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VideoClipRequest {
@@ -223,43 +192,34 @@ pub struct VideoRemixRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VideoFromImagesRequest {
-    /// Gallery image indices to use as frames (in order).
     pub image_indices: Vec<usize>,
-    /// Frames per second (default: 24).
     pub fps: Option<u32>,
-    /// Output format: "mp4", "gif", or "webp" (default: "mp4").
     pub format: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VideoConcatRequest {
-    /// Video URLs or paths to concatenate (in order).
     pub video_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VideoCaptionRequest {
-    /// Video URL or path to analyze.
     pub video_url: String,
-    /// Caption style: "descriptive", "summary", or "hashtags" (default: "descriptive").
     pub style: Option<String>,
 }
 
-// ── Voice request types ──────────────────────────────────────────────────────
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoiceDesignRequest {
-    /// Character description to design a voice for.
     pub character_description: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateSpeechRequest {
-    /// Text to convert to speech.
     pub text: String,
-    /// Voice design JSON (as produced by voice_design tool).
     pub voice_design: Option<String>,
 }
+
+// ── Audio request types ───────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TranscribeRequest {
@@ -283,20 +243,6 @@ pub struct RecordAndTranscribeRequest {
     pub duration_secs: f32,
     /// Optional ISO 639-1 language code for transcription.
     pub language: Option<String>,
-}
-
-// ── Search request types ────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GallerySearchRequest {
-    /// Search query — words or phrases to match against tags.
-    pub query: String,
-    /// Maximum results to return (default: 10).
-    pub limit: Option<usize>,
-    /// Filter to specific tag types (e.g., ["object", "color"]). Empty = all types.
-    pub tag_types: Option<Vec<String>>,
-    /// Minimum Levenshtein similarity threshold (0.0–1.0, default: 0.3).
-    pub min_similarity: Option<f64>,
 }
 
 /// Compute normalized Levenshtein similarity between two strings.
@@ -638,7 +584,7 @@ impl MediaServer {
                 return span.error(
                     McpErrorKind::InvalidArgument,
                     McpToolError::invalid_argument(
-                        "No gallery initialized. Use gallery_init first.",
+                        "No gallery initialized. Use gallery_set_root first.",
                     )
                     .to_json_string(),
                 );
@@ -695,7 +641,7 @@ impl MediaServer {
             Some(state) => span.ok_json(state.summary()),
             None => span.ok_json(serde_json::json!({
                 "status": "no_gallery",
-                "message": "No gallery initialized. Use gallery_init to create one."
+                "message": "No gallery initialized. Use gallery_set_root to create one."
             })),
         }
     }
@@ -1511,46 +1457,194 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Create a collage from multiple gallery images. Local composition using image crate."
+        description = "Create a collage from multiple gallery images. Local composition using image crate. Three modes: search_terms (semantic tag search), similar_to_index (visually similar images), or image_indices (explicit list)."
     )]
     async fn image_create_collage(
         &self,
         Parameters(CreateCollageRequest {
+            search_terms,
+            similar_to_index,
             image_indices,
-            layout: _layout,
-            spacing: _spacing,
-            canvas_size: _canvas_size,
+            max_items,
+            layout,
+            spacing,
+            canvas_size,
         }): Parameters<CreateCollageRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("image_create_collage", &self.webid);
 
-        if image_indices.is_empty() {
+        // Validate mutual exclusivity: exactly one mode must be active
+        let mode_count = search_terms.is_some() as u8
+            + similar_to_index.is_some() as u8
+            + image_indices.is_some() as u8;
+        if mode_count == 0 {
             return span.error(
                 McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("At least one image index is required.")
-                    .to_json_string(),
+                McpToolError::invalid_argument(
+                    "Must specify one of: search_terms, similar_to_index, or image_indices.",
+                )
+                .to_json_string(),
+            );
+        }
+        if mode_count > 1 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "search_terms, similar_to_index, and image_indices are mutually exclusive. Choose one.",
+                )
+                .to_json_string(),
             );
         }
 
-        if image_indices.len() > 9 {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("Maximum 9 images supported for collage.")
+        // Get gallery state
+        let guard = self.gallery_state.lock().unwrap();
+        let state = match &*guard {
+            Some(s) => s,
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument("No gallery initialized.").to_json_string(),
+                );
+            }
+        };
+        let gallery_id = match &state.gallery_id {
+            Some(id) => id.clone(),
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(
+                        "Gallery not persisted — run gallery_set_root first.",
+                    )
                     .to_json_string(),
-            );
-        }
+                );
+            }
+        };
+        let gallery_root = state.path.clone();
+        drop(guard); // release lock before long operations
 
-        // Resolve all image paths
+        // Resolve image paths based on mode
         let mut paths = Vec::new();
-        for idx in &image_indices {
-            match self.resolve_image_path(*idx) {
-                Ok(p) => paths.push(p),
+
+        if let Some(ref terms) = search_terms {
+            // ── Search mode: find images matching search terms via tag similarity ──
+            let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+                Ok(tags) => tags,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to query tags: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            };
+
+            let mut image_scores: HashMap<String, f64> = HashMap::new();
+            for (tag, relative_path) in &all_tags {
+                for term in terms {
+                    let sim = levenshtein_similarity(term, &tag.value);
+                    if sim >= 0.3 {
+                        let weighted = sim * tag.confidence;
+                        let entry = image_scores.entry(relative_path.clone()).or_insert(0.0);
+                        *entry = entry.max(weighted);
+                    }
+                }
+            }
+
+            let mut ranked: Vec<(String, f64)> = image_scores.into_iter().collect();
+            ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            ranked.truncate(max_items);
+
+            for (rel_path, _score) in &ranked {
+                paths.push(gallery_root.join(rel_path));
+            }
+        } else if let Some(ref_idx) = similar_to_index {
+            // ── Similar mode: find images with tags similar to the reference image ──
+            let ref_path = match self.resolve_image_path(ref_idx) {
+                Ok(p) => p,
                 Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            };
+            let ref_image_id = match self.resolve_image_id(ref_idx) {
+                Ok(id) => id,
+                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            };
+            let ref_tags = match self.gallery_store.get_tags(&ref_image_id) {
+                Ok(tags) => tags,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to get reference tags: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            };
+
+            let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
+                Ok(tags) => tags,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to query tags: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            };
+
+            let mut image_scores: HashMap<String, f64> = HashMap::new();
+            for (tag, relative_path) in &all_tags {
+                let abs_path = gallery_root.join(relative_path);
+                if abs_path == ref_path {
+                    continue; // skip the reference image itself
+                }
+                for ref_tag in &ref_tags {
+                    let sim = levenshtein_similarity(&ref_tag.value, &tag.value);
+                    if sim >= 0.3 {
+                        let weighted = sim * tag.confidence;
+                        let entry = image_scores.entry(relative_path.clone()).or_insert(0.0);
+                        *entry = entry.max(weighted);
+                    }
+                }
+            }
+
+            let mut ranked: Vec<(String, f64)> = image_scores.into_iter().collect();
+            ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            ranked.truncate(max_items.saturating_sub(1)); // reserve spot for reference
+
+            // Reference image first, then similar images
+            paths.push(ref_path);
+            for (rel_path, _score) in &ranked {
+                paths.push(gallery_root.join(rel_path));
+            }
+        } else if let Some(ref indices) = image_indices {
+            // ── Explicit mode: use provided indices ──
+            if indices.is_empty() {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument("At least one image index is required.")
+                        .to_json_string(),
+                );
+            }
+            if indices.len() > 9 {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument("Maximum 9 images supported for collage.")
+                        .to_json_string(),
+                );
+            }
+            let limit = indices.len().min(max_items);
+            for idx in indices.iter().take(limit) {
+                match self.resolve_image_path(*idx) {
+                    Ok(p) => paths.push(p),
+                    Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+                }
             }
         }
 
-        let spacing = _spacing.unwrap_or(8);
-        let layout = _layout.as_deref().unwrap_or("grid");
+        if paths.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("No images found for collage.").to_json_string(),
+            );
+        }
 
         // Load all images
         let mut images = Vec::new();
@@ -1568,9 +1662,10 @@ impl MediaServer {
         }
 
         // Compute grid dimensions
-        let cols = match layout {
+        let cols = match layout.as_str() {
             "horizontal" => images.len() as u32,
             "vertical" => 1u32,
+            "masonry" => 3u32.min(images.len() as u32),
             _ => {
                 // grid: auto-compute columns for roughly square layout
                 (images.len() as f64).sqrt().ceil() as u32
@@ -1578,20 +1673,10 @@ impl MediaServer {
         };
         let rows = (images.len() as u32 + cols - 1) / cols;
 
-        // Determine cell size from canvas or auto-compute
-        let canvas_w: u32;
-        let canvas_h: u32;
-        if let Some(ref size_str) = _canvas_size {
-            let parts: Vec<&str> = size_str.split('x').collect();
-            canvas_w = parts.first().and_then(|s| s.parse().ok()).unwrap_or(1920);
-            canvas_h = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(1080);
-        } else {
-            // Auto-size: use the largest image dimensions as cell size
-            let max_w = images.iter().map(|img| img.width()).max().unwrap_or(640);
-            let max_h = images.iter().map(|img| img.height()).max().unwrap_or(480);
-            canvas_w = max_w * cols + spacing * (cols + 1);
-            canvas_h = max_h * rows + spacing * (rows + 1);
-        }
+        // Parse canvas size
+        let parts: Vec<&str> = canvas_size.split('x').collect();
+        let canvas_w: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(1200);
+        let canvas_h: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(900);
 
         let cell_w = (canvas_w - spacing * (cols + 1)) / cols;
         let cell_h = (canvas_h - spacing * (rows + 1)) / rows;

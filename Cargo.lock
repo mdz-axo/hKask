@@ -2319,16 +2319,20 @@ version = "0.27.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "dirs",
  "dotenvy",
  "hkask-mcp",
  "hkask-types",
  "reqwest",
  "rmcp",
+ "rusqlite",
  "schemars",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

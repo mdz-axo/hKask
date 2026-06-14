@@ -29,8 +29,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 mod analysis;
+mod portfolio;
 mod providers;
 
+use portfolio::PortfolioManager;
 use providers::companies_get;
 
 // ── Request structs ─────────────────────────────────────────────────
@@ -59,6 +61,54 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
 }
 
+// ── Portfolio request structs ──────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PortfolioNameRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TransactionAddRequest {
+    pub portfolio: String,
+    pub date: String,
+    #[serde(rename = "type")]
+    pub tx_type: String,
+    pub symbol: Option<String>,
+    pub quantity: Option<f64>,
+    pub price: Option<f64>,
+    pub commission: Option<f64>,
+    pub amount: Option<f64>,
+    #[serde(default = "default_currency")]
+    pub currency: String,
+    #[serde(default)]
+    pub notes: String,
+}
+
+fn default_currency() -> String {
+    "USD".to_string()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TransactionNoteRequest {
+    pub portfolio: String,
+    pub tx_id: String,
+    pub note: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LedgerImportRequest {
+    pub portfolio: String,
+    pub format: String, // "csv" or "json"
+    pub data: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LedgerExportRequest {
+    pub portfolio: String,
+    pub format: String, // "csv" or "json"
+}
+
 // ── Validation ──────────────────────────────────────────────────────
 
 fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
@@ -77,6 +127,7 @@ pub struct CompaniesServer {
     client: reqwest::Client,
     fmp_api_key: String,
     eodhd_api_key: String,
+    portfolio: PortfolioManager,
 }
 
 impl CompaniesServer {
@@ -95,6 +146,7 @@ impl CompaniesServer {
             client,
             fmp_api_key,
             eodhd_api_key,
+            portfolio: PortfolioManager::new(),
         })
     }
 
@@ -766,6 +818,153 @@ impl CompaniesServer {
             "analyst_estimates": analyst_growth,
             "framework": "MAIA expectations investing: compare market-implied expectations (price multiples) against analyst consensus. Low market expectations + reasonable analyst growth = potential opportunity. High market expectations = setup for disappointment.",
         }))
+    }
+
+    // ── Portfolio tools ──────────────────────────────────────────
+
+    #[tool(description = "Create a new portfolio")]
+    async fn portfolio_create(
+        &self,
+        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_create", &self.webid);
+        match self.portfolio.create(&name) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "created", "name": name})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Delete a portfolio and all its data")]
+    async fn portfolio_delete(
+        &self,
+        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_delete", &self.webid);
+        match self.portfolio.delete(&name) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "deleted", "name": name})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "List all portfolios")]
+    async fn portfolio_list(&self) -> String {
+        let span = ToolSpanGuard::new("portfolio_list", &self.webid);
+        match self.portfolio.list() {
+            Ok(names) => span.ok_json(serde_json::json!({"portfolios": names})),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Add a transaction to a portfolio ledger")]
+    async fn transaction_add(&self, Parameters(req): Parameters<TransactionAddRequest>) -> String {
+        let span = ToolSpanGuard::new("transaction_add", &self.webid);
+        let tx = portfolio::Transaction {
+            id: uuid::Uuid::new_v4().to_string(),
+            date: req.date,
+            tx_type: req.tx_type,
+            symbol: req.symbol,
+            quantity: req.quantity,
+            price: req.price,
+            commission: req.commission,
+            amount: req.amount,
+            currency: req.currency,
+            notes: req.notes,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+        match self.portfolio.add_transaction(&req.portfolio, &tx) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "added", "id": tx.id})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Append a note to an existing transaction")]
+    async fn transaction_note_append(
+        &self,
+        Parameters(TransactionNoteRequest {
+            portfolio,
+            tx_id,
+            note,
+        }): Parameters<TransactionNoteRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("transaction_note_append", &self.webid);
+        match self.portfolio.append_note(&portfolio, &tx_id, &note) {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "note appended", "tx_id": tx_id})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Import transactions from CSV or JSON")]
+    async fn ledger_import(
+        &self,
+        Parameters(LedgerImportRequest {
+            portfolio,
+            format,
+            data,
+        }): Parameters<LedgerImportRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("ledger_import", &self.webid);
+        let result = match format.as_str() {
+            "csv" => self.portfolio.import_csv(&portfolio, &data),
+            "json" => self.portfolio.import_json(&portfolio, &data),
+            other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
+        };
+        match result {
+            Ok(ids) => span.ok_json(serde_json::json!({"status": "imported", "count": ids.len()})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Export portfolio ledger to CSV or JSON")]
+    async fn ledger_export(
+        &self,
+        Parameters(LedgerExportRequest { portfolio, format }): Parameters<LedgerExportRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("ledger_export", &self.webid);
+        let result = match format.as_str() {
+            "csv" => self.portfolio.export_csv(&portfolio),
+            "json" => self.portfolio.export_json(&portfolio),
+            other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
+        };
+        match result {
+            Ok(data) => span.ok_json(serde_json::json!({"format": format, "data": data})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(description = "Validate a portfolio ledger — positions, cash, and consistency")]
+    async fn ledger_validate(
+        &self,
+        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("ledger_validate", &self.webid);
+        match self.portfolio.validate(&name) {
+            Ok(report) => span.ok_json(serde_json::to_value(report).unwrap_or_default()),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
     }
 }
 

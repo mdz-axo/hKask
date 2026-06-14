@@ -121,7 +121,13 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 **Required:** `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY`
 
-**Providers:** FMP (US-focused) + EODHD (global, 70+ exchanges). Auto-routing by symbol exchange suffix; automatic fallback.
+**Architecture:** Dual-provider abstraction layer (`providers.rs`) with:
+- **Auto-routing:** Exchange-qualified symbols (`VOD.L`, `BMW.DE`) → EODHD primary; plain symbols (`AAPL`) → FMP primary
+- **Automatic fallback:** Primary failure → secondary provider; plain symbols get `.US` suffix for EODHD fallback
+- **Response normalization:** EODHD's nested `/fundamentals/{symbol}` JSON normalized to FMP's flat array format so `analysis.rs` functions work transparently with either provider
+- **Derived metrics:** `key_metrics` computes `grossProfitMargin`, `roic`, `daysOfPayablesOutstanding`, `daysOfSalesOutstanding` from EODHD financial statements when native metrics unavailable
+
+**Coverage:** FMP (US-focused, deep fundamentals) + EODHD (global, 70+ exchanges, broad coverage). MAIA deep fundamental analysis works best with FMP; EODHD expands global reach for profiles, quotes, search, and historical prices.
 
 | Tool | Description |
 |------|-------------|
@@ -131,15 +137,15 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `income_statement` | Get income statement |
 | `balance_sheet` | Get balance sheet |
 | `cash_flow_statement` | Get cash flow statement |
-| `key_metrics` | Get key metrics |
+| `key_metrics` | Get key metrics (with derived metrics from EODHD financials) |
 | `historical_price` | Get historical price data |
-| `symbol_search` | Search for symbols |
+| `symbol_search` | Search for symbols (FMP primary, EODHD fallback) |
 | `analyst_estimates` | Get analyst estimates |
 | `dcf_analysis` | Get discounted cash flow analysis |
-| `moat_check` | MAIA competitive moat analysis |
-| `management_scorecard` | MAIA CEO capital allocation scorecard |
-| `working_capital_cycle` | MAIA CFO working capital analysis |
-| `expectations_gap` | MAIA expectations gap analysis |
+| `moat_check` | MAIA competitive moat analysis (gross margin stability + working capital signal) |
+| `management_scorecard` | MAIA CEO capital allocation scorecard (ROIC vs invested capital trend) |
+| `working_capital_cycle` | MAIA CFO working capital analysis (DPO/DSO/DIO/CCC over time) |
+| `expectations_gap` | MAIA expectations gap (market-implied vs analyst consensus) |
 
 ---
 

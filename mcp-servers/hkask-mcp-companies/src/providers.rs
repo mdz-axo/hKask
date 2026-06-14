@@ -258,17 +258,17 @@ async fn eodhd_get(
 // so that analysis.rs functions work unchanged.
 
 /// Normalize EODHD response based on which logical tool endpoint was requested.
-fn normalize_eodhd(tool: &str, eodhd_value: &Value, _symbol: &str) -> Value {
+fn normalize_eodhd(tool: &str, eodhd_value: &Value, symbol: &str) -> Value {
     match tool {
         "company_profile" => normalize_eodhd_profile(eodhd_value),
         "income_statement" => normalize_eodhd_income_statement(eodhd_value),
         "balance_sheet" => normalize_eodhd_balance_sheet(eodhd_value),
         "cash_flow_statement" => normalize_eodhd_cash_flow(eodhd_value),
         "key_metrics" => normalize_eodhd_key_metrics(eodhd_value),
-        "historical_price" => normalize_eodhd_historical(eodhd_value),
+        "historical_price" => normalize_eodhd_historical(eodhd_value, symbol),
         "analyst_estimates" => normalize_eodhd_analyst_estimates(eodhd_value),
         "dcf_analysis" => normalize_eodhd_dcf(eodhd_value),
-        _ => eodhd_value.clone(), // passthrough for non-fundamentals endpoints
+        _ => eodhd_value.clone(),
     }
 }
 
@@ -394,19 +394,31 @@ fn normalize_eodhd_cash_flow(fundamentals: &Value) -> Value {
     }
 }
 
-/// Build key-metrics array from EODHD Highlights + Earnings.History → FMP format.
+/// Build key-metrics array from EODHD Highlights + Earnings.History + Financials → FMP format.
 ///
 /// FMP key-metrics is an array of yearly objects with fields like:
 /// grossProfitMargin, roic, daysOfPayablesOutstanding, daysOfSalesOutstanding,
 /// calendarYear, period, etc.
 ///
-/// EODHD provides Highlights (latest snapshot) and Earnings.History (yearly data).
-/// We combine them to build per-year metric objects.
+/// EODHD provides Highlights (latest snapshot), Earnings.History (yearly earnings),
+/// and Financials (yearly balance sheet + income statement). We combine them
+/// and compute derived metrics so MAIA analysis functions work.
+///
+/// Note: EODHD-derived metrics are best-effort approximations. MAIA deep
+/// fundamental analysis works best with FMP's native key-metrics endpoint.
 fn normalize_eodhd_key_metrics(fundamentals: &Value) -> Value {
     let highlights = fundamentals.get("Highlights");
     let earnings_history = fundamentals.get("Earnings").and_then(|e| e.get("History"));
+    let income_yearly = fundamentals
+        .get("Financials")
+        .and_then(|f| f.get("Income_Statement"))
+        .and_then(|is| is.get("yearly"));
+    let balance_yearly = fundamentals
+        .get("Financials")
+        .and_then(|f| f.get("Balance_Sheet"))
+        .and_then(|bs| bs.get("yearly"));
 
-    // Build per-year objects from Earnings.History
+    // Build per-year objects from Earnings.History, enriched with computed metrics
     let mut items: Vec<Value> = match earnings_history {
         Some(Value::Object(map)) => map
             .iter()
@@ -418,7 +430,7 @@ fn normalize_eodhd_key_metrics(fundamentals: &Value) -> Value {
                     "period": "FY",
                 });
 
-                // Copy earnings fields that map to key-metrics
+                // Copy earnings fields
                 if let Some(obj_map) = obj.as_object_mut()
                     && let Some(e_obj) = earnings.as_object()
                 {
@@ -426,6 +438,9 @@ fn normalize_eodhd_key_metrics(fundamentals: &Value) -> Value {
                         obj_map.insert(key.clone(), value.clone());
                     }
                 }
+
+                // Compute derived metrics from financial statements for this year
+                compute_year_metrics(&mut obj, date, income_yearly, balance_yearly);
 
                 obj
             })
@@ -445,7 +460,6 @@ fn normalize_eodhd_key_metrics(fundamentals: &Value) -> Value {
         && let (Some(h_obj), Some(f_map)) = (highlights.as_object(), first.as_object_mut())
     {
         for (key, value) in h_obj {
-            // Only add if not already present from earnings
             f_map.entry(key.clone()).or_insert_with(|| value.clone());
         }
     }
@@ -453,22 +467,96 @@ fn normalize_eodhd_key_metrics(fundamentals: &Value) -> Value {
     Value::Array(items)
 }
 
+/// Compute derived financial metrics for a single year from EODHD financial statements.
+///
+/// Looks up the Income_Statement and Balance_Sheet entries matching `date` and computes:
+/// - grossProfitMargin = grossProfit / revenue
+/// - roic = netIncome / totalAssets (simplified approximation)
+/// - daysOfPayablesOutstanding = accountsPayable / (costOfRevenue / 365)
+/// - daysOfSalesOutstanding = accountsReceivable / (revenue / 365)
+fn compute_year_metrics(
+    obj: &mut Value,
+    date: &str,
+    income_yearly: Option<&Value>,
+    balance_yearly: Option<&Value>,
+) {
+    let income_entry = income_yearly.and_then(|iy| iy.get(date));
+    let balance_entry = balance_yearly.and_then(|by| by.get(date));
+
+    let obj_map = match obj.as_object_mut() {
+        Some(m) => m,
+        None => return,
+    };
+
+    // ── grossProfitMargin ──
+    if let Some(income) = income_entry {
+        let revenue = income.get("revenue").and_then(|v| v.as_f64());
+        let gross_profit = income.get("grossProfit").and_then(|v| v.as_f64());
+        if let (Some(rev), Some(gp)) = (revenue, gross_profit)
+            && rev > 0.0
+        {
+            obj_map
+                .entry("grossProfitMargin".to_string())
+                .or_insert(Value::from(gp / rev));
+        }
+
+        // ── roic (simplified: netIncome / totalAssets) ──
+        let net_income = income.get("netIncome").and_then(|v| v.as_f64());
+        if let Some(balance) = balance_entry {
+            let total_assets = balance.get("totalAssets").and_then(|v| v.as_f64());
+            if let (Some(ni), Some(ta)) = (net_income, total_assets)
+                && ta > 0.0
+            {
+                obj_map
+                    .entry("roic".to_string())
+                    .or_insert(Value::from(ni / ta));
+            }
+        }
+
+        // ── daysOfPayablesOutstanding ──
+        // DPO = accountsPayable / (costOfRevenue / 365)
+        let cost_of_revenue = income
+            .get("costOfRevenue")
+            .or_else(|| income.get("costOfGoodsSold"))
+            .and_then(|v| v.as_f64());
+        if let Some(balance) = balance_entry {
+            let accounts_payable = balance.get("accountsPayable").and_then(|v| v.as_f64());
+            if let (Some(ap), Some(cor)) = (accounts_payable, cost_of_revenue)
+                && cor > 0.0
+            {
+                obj_map
+                    .entry("daysOfPayablesOutstanding".to_string())
+                    .or_insert(Value::from(ap / (cor / 365.0)));
+            }
+        }
+
+        // ── daysOfSalesOutstanding ──
+        // DSO = accountsReceivable / (revenue / 365)
+        if let Some(balance) = balance_entry {
+            let accounts_receivable = balance.get("accountsReceivable").and_then(|v| v.as_f64());
+            if let (Some(ar), Some(rev)) = (accounts_receivable, revenue)
+                && rev > 0.0
+            {
+                obj_map
+                    .entry("daysOfSalesOutstanding".to_string())
+                    .or_insert(Value::from(ar / (rev / 365.0)));
+            }
+        }
+    }
+}
+
 /// Normalize EODHD /eod/{symbol} historical prices → FMP historical-price-full format.
 ///
 /// EODHD returns an array of {date, open, high, low, close, adjusted_close, volume}.
 /// FMP returns {symbol, historical: [{date, open, high, low, close, adjClose, volume, ...}]}.
-fn normalize_eodhd_historical(eod_value: &Value) -> Value {
-    // EODHD /eod returns a direct array of daily price objects
+fn normalize_eodhd_historical(eod_value: &Value, symbol: &str) -> Value {
     let historical = match eod_value {
         Value::Array(arr) => Value::Array(arr.clone()),
         _ => Value::Array(vec![]),
     };
 
-    // Wrap in FMP-style {symbol, historical} envelope
-    // Symbol is extracted from the request context; we use a placeholder
-    // since the caller already knows the symbol
     serde_json::json!({
-        "symbol": null,
+        "symbol": symbol,
         "historical": historical,
     })
 }
@@ -664,7 +752,7 @@ mod tests {
         assert_eq!(arr[0]["calendarYear"], "2024");
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_key_metrics builds yearly array
+    // REQ: COMPANIES-PROVIDER — normalize_eodhd_key_metrics builds yearly array with computed metrics
     #[test]
     fn normalize_key_metrics_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -683,6 +771,38 @@ mod tests {
                         "revenueActual": 352583000000.0
                     }
                 }
+            },
+            "Financials": {
+                "Income_Statement": {
+                    "yearly": {
+                        "2024-09-30": {
+                            "revenue": 383285000000.0,
+                            "grossProfit": 169148000000.0,
+                            "netIncome": 96995000000.0,
+                            "costOfRevenue": 214137000000.0
+                        },
+                        "2023-09-30": {
+                            "revenue": 352583000000.0,
+                            "grossProfit": 152836000000.0,
+                            "netIncome": 82143000000.0,
+                            "costOfRevenue": 199747000000.0
+                        }
+                    }
+                },
+                "Balance_Sheet": {
+                    "yearly": {
+                        "2024-09-30": {
+                            "totalAssets": 352583000000.0,
+                            "accountsPayable": 62000000000.0,
+                            "accountsReceivable": 33000000000.0
+                        },
+                        "2023-09-30": {
+                            "totalAssets": 320000000000.0,
+                            "accountsPayable": 58000000000.0,
+                            "accountsReceivable": 28000000000.0
+                        }
+                    }
+                }
             }
         });
         let result = normalize_eodhd_key_metrics(&fundamentals);
@@ -694,16 +814,29 @@ mod tests {
         assert!(
             (arr[0]["MarketCapitalization"].as_f64().unwrap() - 3000000000000.0_f64).abs() < 1.0
         );
+        // Computed grossProfitMargin: 169148000000 / 383285000000 ≈ 0.441
+        let gpm = arr[0]["grossProfitMargin"].as_f64().unwrap();
+        assert!((gpm - 0.441).abs() < 0.01, "expected ~0.441, got {gpm}");
+        // Computed roic: 96995000000 / 352583000000 ≈ 0.275
+        let roic = arr[0]["roic"].as_f64().unwrap();
+        assert!((roic - 0.275).abs() < 0.01, "expected ~0.275, got {roic}");
+        // Computed DPO: 62000000000 / (214137000000/365) ≈ 105.7
+        let dpo = arr[0]["daysOfPayablesOutstanding"].as_f64().unwrap();
+        assert!((dpo - 105.7).abs() < 2.0, "expected ~105.7, got {dpo}");
+        // Computed DSO: 33000000000 / (383285000000/365) ≈ 31.4
+        let dso = arr[0]["daysOfSalesOutstanding"].as_f64().unwrap();
+        assert!((dso - 31.4).abs() < 2.0, "expected ~31.4, got {dso}");
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_historical wraps EOD array
+    // REQ: COMPANIES-PROVIDER — normalize_eodhd_historical wraps EOD array with symbol
     #[test]
     fn normalize_historical_from_eodhd() {
         let eod_data = serde_json::json!([
             {"date": "2024-06-13", "close": 190.0, "volume": 50000000},
             {"date": "2024-06-12", "close": 188.0, "volume": 48000000}
         ]);
-        let result = normalize_eodhd_historical(&eod_data);
+        let result = normalize_eodhd_historical(&eod_data, "AAPL");
+        assert_eq!(result["symbol"], "AAPL");
         assert_eq!(result["historical"].as_array().unwrap().len(), 2);
     }
 
