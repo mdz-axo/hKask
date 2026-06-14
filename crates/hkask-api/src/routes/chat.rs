@@ -14,7 +14,6 @@ use axum::{
 };
 use std::convert::Infallible;
 use utoipa_axum::{router::OpenApiRouter, routes};
-
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
@@ -22,7 +21,6 @@ use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
 /// Chat request sent to the Curator or a specified agent.
 ///
 /// The `model` field allows switching the LLM at request time. When omitted,
@@ -38,11 +36,8 @@ pub struct ChatRequest {
     #[serde(default)]
     pub model: Option<String>,
 }
-
 /// Chat response from the Curator or agent.
-///
 /// The `model` field echoes which LLM was used, confirming model switching.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatResponse {
     /// Generated response text
     pub output: String,
@@ -50,21 +45,15 @@ pub struct ChatResponse {
     pub template_id: String,
     /// Model identifier used for inference
     pub model: String,
-}
-
 /// Create chat router
 pub fn chat_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(chat))
         .routes(routes!(chat_stream))
-}
-
 /// Chat with the Curator or a specified agent.
-///
 /// Accepts an optional `model` field to switch the LLM at request time.
 /// When omitted, the server default (`qwen3:8b`) is used. The response
 /// echoes the `model` used, confirming which LLM generated the output.
-///
 /// Use `GET /api/models` or `GET /api/models/search?q=...` to discover
 /// available model identifiers.
 #[utoipa::path(
@@ -86,13 +75,11 @@ pub(crate) async fn chat(
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
     let model: &str = &model_str;
     let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
-
     // Frame the prompt via PromptStrategy (API-specific — uses template_id)
     let prompt = match &req.template_id {
         Some(id) => format!("[template: {}] {}", id, req.input),
         None => strategy.frame(&req.input).to_string(),
     };
-
     let svc_req = ServiceChatRequest {
         input: prompt,
         agent_name: Some("Curator".to_string()),
@@ -103,8 +90,6 @@ pub(crate) async fn chat(
         semantic_storage_override: None,
         auth_context: Some(auth),
         params_override: None,
-    };
-
     let result = match ChatService::chat(&state.agent_service, svc_req).await {
         Ok(resp) => resp,
         Err(e) => hkask_services::ChatResponse {
@@ -113,8 +98,6 @@ pub(crate) async fn chat(
             finish_reason: "error".to_string(),
             tool_calls: vec![],
         },
-    };
-
     Json(ChatResponse {
         output: result.text,
         template_id: req
@@ -122,44 +105,21 @@ pub(crate) async fn chat(
             .unwrap_or_else(|| strategy.name().to_string()),
         model: model.to_string(),
     })
-}
-
 /// Stream chat inference output as Server-Sent Events.
-///
 /// Accepts the same `ChatRequest` as `/api/chat` but streams the inference
 /// output as SSE `data:` events. Each event carries a JSON object with
 /// `text_delta`, `model`, and optionally `finish_reason`. The final event
 /// has `finish_reason: "stop"` and includes `usage` stats.
-///
 /// This is a surface-layer endpoint — it bypasses ChatService's full
 /// pipeline (memory recall, episodic storage) and calls the inference port
 /// directly for streaming. Use `/api/chat` for the full pipeline with
 /// memory integration.
-#[utoipa::path(
-    post,
     path = "/api/chat/stream",
-    tag = "chat",
-    request_body = ChatRequest,
-    responses(
         (status = 200, description = "SSE stream of chat chunks", content_type = "text/event-stream"),
-        (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
-        (status = 500, description = "Internal server error"),
-    ),
-)]
 pub(crate) async fn chat_stream(
-    State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-    Json(req): Json<ChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
-    let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
-    let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
-
-    let prompt = match &req.template_id {
-        Some(id) => format!("[template: {}] {}", id, req.input),
-        None => strategy.frame(&req.input).to_string(),
-    };
-
     let params = LLMParameters {
         temperature: 0.7,
         top_p: 0.9,
@@ -170,16 +130,12 @@ pub(crate) async fn chat_stream(
         presence_penalty: 0.0,
         max_tokens: 512,
         seed: None,
-    };
-
     let inference = state.agent_service.inference_port();
-
     // Use a channel to bridge the borrowed inference stream into a 'static
     // stream for the SSE response. A spawned task owns the Arc and sends
     // chunks through the channel.
     let (tx, rx): (tokio::sync::mpsc::Sender<Result<Event, Infallible>>, _) =
         tokio::sync::mpsc::channel(32);
-
     match inference {
         Some(port) => {
             tokio::spawn(async move {
@@ -224,9 +180,6 @@ pub(crate) async fn chat_stream(
                     .to_string(),
                 )))
                 .await;
-        }
     }
-
     let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
     Sse::new(Box::pin(stream)).keep_alive(axum::response::sse::KeepAlive::default())
-}

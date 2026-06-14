@@ -33,6 +33,7 @@ use std::sync::{Arc, Mutex};
 use video::FfmpegRunner;
 
 use ab_glyph::Font;
+use face_id::analyzer::FaceAnalyzer;
 
 pub struct MediaServer {
     webid: WebID,
@@ -50,6 +51,8 @@ pub struct MediaServer {
     template_env: minijinja::Environment<'static>,
     /// ffmpeg runner for video processing (None if ffmpeg not found)
     ffmpeg: FfmpegRunner,
+    /// ONNX face detection + recognition pipeline (None if model download failed)
+    face_analyzer: Option<Arc<FaceAnalyzer>>,
 }
 
 // ── Request types ──────────────────────────────────────────────────────────
@@ -497,6 +500,7 @@ impl MediaServer {
         daemon: Option<DaemonClient>,
         inference: Arc<InferenceRouter>,
         gallery_store: Arc<GalleryStore>,
+        face_analyzer: Option<Arc<FaceAnalyzer>>,
     ) -> Result<Self, anyhow::Error> {
         Ok(Self {
             webid,
@@ -507,6 +511,7 @@ impl MediaServer {
             gallery_store,
             template_env: templates::create_env(),
             ffmpeg: FfmpegRunner::detect(),
+            face_analyzer,
         })
     }
 
@@ -995,6 +1000,75 @@ impl MediaServer {
         (analyzed, errors)
     }
 
+    /// Run ONNX-based face detection + embedding extraction on gallery images.
+    /// Returns (faces_found, embeddings_by_image, errors).
+    /// Each embedding is paired with its image_id and bbox for cropping.
+    async fn run_onnx_face_pipeline(
+        &self,
+        indices: &[usize],
+    ) -> (u32, Vec<(String, Vec<u8>, serde_json::Value)>, Vec<String>) {
+        let analyzer = match &self.face_analyzer {
+            Some(a) => a,
+            None => {
+                return (
+                    0,
+                    Vec::new(),
+                    vec!["ONNX analyzer not available".to_string()],
+                );
+            }
+        };
+
+        let mut faces_found = 0u32;
+        let mut embeddings: Vec<(String, Vec<u8>, serde_json::Value)> = Vec::new();
+        let mut errors = Vec::new();
+
+        for idx in indices {
+            let image_id = match self.resolve_image_id(*idx) {
+                Ok(id) => id,
+                Err(e) => {
+                    errors.push(format!("image {}: {}", idx, e));
+                    continue;
+                }
+            };
+            let image_path = match self.resolve_image_path(*idx) {
+                Ok(p) => p,
+                Err(e) => {
+                    errors.push(format!("image {}: {}", idx, e));
+                    continue;
+                }
+            };
+
+            let img = match image::open(&image_path) {
+                Ok(i) => i,
+                Err(e) => {
+                    errors.push(format!("image {} open: {}", idx, e));
+                    continue;
+                }
+            };
+
+            match analyzer.analyze(&img) {
+                Ok(faces) => {
+                    for face in &faces {
+                        let bbox = serde_json::json!({
+                            "x_pct": (face.detection.bbox.x1 * 100.0).round(),
+                            "y_pct": (face.detection.bbox.y1 * 100.0).round(),
+                            "w_pct": ((face.detection.bbox.x2 - face.detection.bbox.x1) * 100.0).round(),
+                            "h_pct": ((face.detection.bbox.y2 - face.detection.bbox.y1) * 100.0).round(),
+                        });
+                        let blob = embedding_to_blob(&face.embedding);
+                        embeddings.push((image_id.clone(), blob, bbox));
+                        faces_found += 1;
+                    }
+                }
+                Err(e) => {
+                    errors.push(format!("image {} analysis: {}", idx, e));
+                }
+            }
+        }
+
+        (faces_found, embeddings, errors)
+    }
+
     /// Extract EXIF metadata from an image file.
     /// Returns key fields as a JSON object, or null if EXIF is unavailable.
     fn extract_exif(path: &str) -> serde_json::Value {
@@ -1102,6 +1176,24 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     } else {
         dot / (norm_a * norm_b)
     }
+}
+
+/// Convert a 512-dim f32 embedding to raw bytes for BLOB storage.
+fn embedding_to_blob(embedding: &[f32]) -> Vec<u8> {
+    embedding.iter().flat_map(|f| f.to_le_bytes()).collect()
+}
+
+/// Convert raw BLOB bytes back to a 512-dim f32 embedding.
+fn blob_to_embedding(blob: &[u8]) -> Option<Vec<f32>> {
+    if blob.len() % 4 != 0 {
+        return None;
+    }
+    let count = blob.len() / 4;
+    let mut vec = Vec::with_capacity(count);
+    for chunk in blob.chunks_exact(4) {
+        vec.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+    }
+    Some(vec)
 }
 
 #[tool_router(server_handler)]
@@ -1678,12 +1770,65 @@ impl MediaServer {
                     Vec::new()
                 }
             };
-
-            // Track registry count for the response
             registry_count = registry.len();
 
-            if !registry.is_empty() {
-                // Get all face tags
+            // Try ONNX embedding matching first (fast, local, no API calls)
+            let onnx_used = if self.face_analyzer.is_some() && !registry.is_empty() {
+                let (_onnx_faces, onnx_embeddings, onnx_errors) =
+                    self.run_onnx_face_pipeline(&all_indices).await;
+                match_errors.extend(onnx_errors);
+
+                if !onnx_embeddings.is_empty() {
+                    // Match each ONNX-detected face against registry embeddings
+                    for (image_id, query_blob, bbox) in &onnx_embeddings {
+                        let query_embedding = match blob_to_embedding(query_blob) {
+                            Some(e) => e,
+                            None => continue,
+                        };
+
+                        for reg_entry in &registry {
+                            let ref_embedding = match &reg_entry.embedding {
+                                Some(blob) => match blob_to_embedding(blob) {
+                                    Some(e) => e,
+                                    None => continue,
+                                },
+                                None => continue, // skip registry entries without embeddings
+                            };
+
+                            let similarity = cosine_similarity(&query_embedding, &ref_embedding);
+                            if similarity >= 0.6 {
+                                let name =
+                                    format!("{} {}", reg_entry.first_name, reg_entry.last_name);
+                                let new_value = serde_json::json!({
+                                    "name": name,
+                                    "match_confidence": similarity,
+                                    "registry_id": reg_entry.id,
+                                    "method": "onnx",
+                                    "bbox": bbox,
+                                });
+                                self.persist_tag(
+                                    image_id,
+                                    "face",
+                                    &new_value.to_string(),
+                                    similarity as f64,
+                                    "arcface-onnx",
+                                );
+                                faces_matched += 1;
+                                break;
+                            }
+                        }
+                    }
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            // Fall back to vision LLM matching if ONNX unavailable or found no matches
+            if !onnx_used && !registry.is_empty() {
+                // Get all face tags (from vision LLM detection in Step 3)
                 let all_tags = match self.gallery_store.get_all_tags(&gallery_id) {
                     Ok(t) => t,
                     Err(e) => {
@@ -1699,7 +1844,6 @@ impl MediaServer {
                         continue;
                     }
 
-                    // Parse the face tag value to get the image_id and bbox
                     let face_image_id = &tag.image_id;
 
                     // Try to extract bbox for face region cropping
@@ -1712,16 +1856,13 @@ impl MediaServer {
                     let query_url = if let Some(ref bbox) = face_bbox {
                         match self.crop_face_region(face_image_id, bbox) {
                             Ok(cropped_url) => cropped_url,
-                            Err(_) => {
-                                // Fall back to full image on crop failure
-                                match self.resolve_image_url_by_id(face_image_id) {
-                                    Ok(url) => url,
-                                    Err(e) => {
-                                        match_errors.push(format!("Face tag {}: {}", tag.id, e));
-                                        continue;
-                                    }
+                            Err(_) => match self.resolve_image_url_by_id(face_image_id) {
+                                Ok(url) => url,
+                                Err(e) => {
+                                    match_errors.push(format!("Face tag {}: {}", tag.id, e));
+                                    continue;
                                 }
-                            }
+                            },
                         }
                     } else {
                         match self.resolve_image_url_by_id(face_image_id) {
@@ -1755,7 +1896,6 @@ impl MediaServer {
                         {
                             Ok(result) => {
                                 if result.is_match && result.confidence >= 0.7 {
-                                    // Update the face tag with the person's name
                                     let name =
                                         format!("{} {}", reg_entry.first_name, reg_entry.last_name);
                                     if let Ok(parsed) =
@@ -1767,6 +1907,7 @@ impl MediaServer {
                                             "name": name,
                                             "match_confidence": result.confidence,
                                             "registry_id": reg_entry.id,
+                                            "method": "vision_llm",
                                         });
                                         self.persist_tag(
                                             &tag.image_id,
@@ -1777,7 +1918,7 @@ impl MediaServer {
                                         );
                                         faces_matched += 1;
                                     }
-                                    break; // Stop comparing once matched
+                                    break;
                                 }
                             }
                             Err(e) => {
@@ -2156,11 +2297,34 @@ impl MediaServer {
             (status, notes, Some(v))
         };
 
-        // Register in the face registry
+        // Register in the face registry (with ONNX embedding if available)
+        let embedding_blob = if let Some(ref analyzer) = self.face_analyzer {
+            // Compute ArcFace embedding from the reference image
+            match self.resolve_image_path(image_index) {
+                Ok(path) => match image::open(&path) {
+                    Ok(img) => match analyzer.analyze(&img) {
+                        Ok(faces) => faces.first().map(|f| embedding_to_blob(&f.embedding)),
+                        Err(e) => {
+                            tracing::warn!(target: "hkask.mcp.media.face", error = %e, "ONNX face analysis failed during registration");
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.media.face", error = %e, "Failed to open image for embedding");
+                        None
+                    }
+                },
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
         let record = match self.gallery_store.register_face(
             &first_name,
             &last_name,
             &image_id,
+            embedding_blob.as_deref(),
             status,
             &notes,
         ) {
@@ -3847,6 +4011,18 @@ async fn main() -> anyhow::Result<()> {
     }
     let gallery_store = Arc::new(GalleryStore::new(db.conn_arc()));
 
+    // Initialize ONNX face analyzer (downloads ~250MB models on first run)
+    let face_analyzer = match FaceAnalyzer::from_hf().build().await {
+        Ok(a) => {
+            tracing::info!(target: "hkask.mcp.media", "ONNX face analyzer ready");
+            Some(Arc::new(a))
+        }
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.media", error = %e, "ONNX face analyzer unavailable — face detection will use vision LLM fallback");
+            None
+        }
+    };
+
     hkask_mcp::run_server(
         "hkask-mcp-media",
         env!("CARGO_PKG_VERSION"),
@@ -3857,6 +4033,7 @@ async fn main() -> anyhow::Result<()> {
                 daemon_client.clone(),
                 inference.clone(),
                 gallery_store.clone(),
+                face_analyzer.clone(),
             )
         },
         vec![
@@ -4200,7 +4377,7 @@ mod integration_tests {
 
         // Register a face
         let face = store
-            .register_face("Alice", "Chen", &img.id, "valid", "Frontal portrait")
+            .register_face("Alice", "Chen", &img.id, None, "valid", "Frontal portrait")
             .expect("register face");
         assert_eq!(face.first_name, "Alice");
         assert_eq!(face.status, "valid");
@@ -4252,10 +4429,10 @@ mod integration_tests {
             .expect("add img2");
 
         store
-            .register_face("Alice", "A", &img1.id, "valid", "")
+            .register_face("Alice", "A", &img1.id, None, "valid", "")
             .unwrap();
         store
-            .register_face("Bob", "B", &img2.id, "rejected", "Too dark")
+            .register_face("Bob", "B", &img2.id, None, "rejected", "Too dark")
             .unwrap();
 
         let valid = store.list_faces(Some("valid")).unwrap();

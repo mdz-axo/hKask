@@ -638,6 +638,23 @@ impl AgentService {
             None,
         ));
 
+        // Register Matrix auto-registration hook for pod activation.
+        // When a pod is activated, the replicant gets a Matrix account on Conduit.
+        // Uses a direct HTTP call — no dependency on the communication server.
+        {
+            let homeserver_url = std::env::var("HKASK_MATRIX_URL")
+                .unwrap_or_else(|_| "http://localhost:8008".to_string());
+            pod_manager
+                .register_activation_hook(Box::new(move |webid, pod_name| {
+                    let url = homeserver_url.clone();
+                    let name = pod_name.clone();
+                    tokio::spawn(async move {
+                        register_pod_on_matrix(&url, &webid, &name).await;
+                    });
+                }))
+                .await;
+        }
+
         // ── 8b. Daemon handler + listener ──────────────────────────────────
         let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
             Arc::clone(&pod_manager),
@@ -727,5 +744,66 @@ impl AgentService {
             daemon_handler,
             config,
         })
+    }
+}
+
+/// Register a pod's replicant as a Matrix user on Conduit.
+///
+/// Called from the pod activation hook. Derives a username from the pod's
+/// display name, generates a password, and POSTs to Conduit's register API.
+/// Credentials are stored in the OS keychain for the communication server.
+async fn register_pod_on_matrix(homeserver_url: &str, webid: &hkask_types::WebID, pod_name: &str) {
+    let localpart = pod_name.to_lowercase().replace(' ', "-");
+    let username = format!("{}-bot", localpart);
+    let password = uuid::Uuid::new_v4().to_string();
+
+    let url = format!(
+        "{}/_matrix/client/v3/register",
+        homeserver_url.trim_end_matches('/')
+    );
+
+    let body = serde_json::json!({
+        "username": &username,
+        "password": &password,
+        "initial_device_display_name": format!("hKask Pod: {}", pod_name),
+        "auth": {"type": "m.login.dummy"}
+    });
+
+    match reqwest::Client::new()
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) if response.status().is_success() => {
+            let full_id = format!("@{}:localhost", username);
+            // Store credentials in keychain
+            let keychain = hkask_keystore::Keychain::default();
+            let _ = keychain.store_by_key(&format!("matrix-pod-{}", pod_name), &password);
+            tracing::info!(
+                target: "cns.communication.matrix.pod_registered",
+                pod = %pod_name,
+                webid = %webid.redacted_display(),
+                matrix_id = %full_id,
+                "Pod replicant registered on Matrix"
+            );
+        }
+        Ok(response) => {
+            tracing::warn!(
+                target: "cns.communication.matrix.pod_registered",
+                pod = %pod_name,
+                status = %response.status().as_u16(),
+                "Matrix registration for pod failed — Conduit may not be running"
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "cns.communication.matrix.pod_registered",
+                pod = %pod_name,
+                error = %e,
+                "Matrix registration for pod failed — Conduit unreachable"
+            );
+        }
     }
 }

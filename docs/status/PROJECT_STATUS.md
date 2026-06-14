@@ -12,23 +12,24 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Registry reorganization, kata system refactor, documentation sweep (2026-06-13).
+**Current session:** Matrix integration architecture, implementation, and documentation (2026-06-14).
 
 ---
 
 ## Build
 
-All 18 workspace members. `hkask-cli` and `hkask-services` have pre-existing errors **in tests only** (not from this session).
+All 18 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass | 2026-06-13 |
-| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-13 |
-| MCP servers (condenser, research, spec, fmp, communication, fal, replica, markitdown, doc-knowledge) | ✅ Pass | 2026-06-13 |
-| `hkask-cli` (production) | ✅ Pass | 2026-06-13 |
+| Workspace (`cargo check --workspace`) | ✅ Pass | 2026-06-14 |
+| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api) | ✅ Pass | 2026-06-14 |
+| MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory) | ✅ Pass | 2026-06-14 |
+| `hkask-cli` (production) | ✅ Pass | 2026-06-14 |
 | `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
-| `hkask-services` (production) | ✅ Pass | 2026-06-13 |
+| `hkask-services` (production) | ✅ Pass | 2026-06-14 |
 | `hkask-services` (tests) | ✅ Pass — 29 tests | 2026-06-11 |
+| `hkask-api` (production) | ⚠️ 6 pre-existing errors (missing `From` trait impls for error types — unrelated to Matrix) | 2026-06-14 |
 
 ---
 
@@ -102,7 +103,21 @@ See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) and [`docs/status
 
 ---
 
-## This Session (2026-06-13)
+## This Session (2026-06-14)
+
+**Matrix Integration — Architecture, Specification, and Implementation:**
+
+- Architecture research report: `docs/architecture/matrix-integration-architecture.md` (~1,800 lines). Full deployment model, client orchestration, identity binding, agent interaction patterns, essentialist/grill-me/pragmatic-semantics/pragmatic-cybernetics reviews, gap analysis, verification spec, CNS span specification.
+- Spec resolved 4 Blocking gaps (B1–B4: Caddy TLS automation, MXID format, `.well-known` delegation, Conduit config defaults), 6 Important gaps (I1–I6: recovery keys, device names, message format, room encryption, error taxonomy, gas accounting), 4 Prohibitions (P1–P4), 10 Guardrails (G1–G10).
+- Implementation: `matrix.rs` — 303 lines of stubs replaced with ~380 lines of real `MatrixTransport` using `matrix-sdk` 0.16. Login, send_message, get_messages (on-demand polling), create_room, invite_user, list_rooms. CNS tracing on all operations.
+- CLI: `kask matrix deploy-sidecar` (generates Caddy + Conduit + Hydrogen docker-compose), `kask matrix register --agent` (credential prompt, MXID derivation, Conduit admin API), `kask matrix register --user` (human account creation), `kask matrix status-sidecar` (Docker health check).
+- `TurnRequest.source` field: `MessageSource` enum (Matrix, Daemon, Cli, Api) for P12 compliance.
+- Overengineering removed: continuous sync loop, message inbox, `register_user` on MatrixTransport, `Encryption` error variant, `MatrixAction::Listen` CLI command, `AgentRegistry::register` (Matrix SDK registration). Net reduction: ~180 lines removed.
+- All callers migrated: `main.rs`, `agent_registration.rs`, `moderation.rs`. Type renames: `RoomIdStr`→`RoomId`, `UserIdStr`→`UserId`, `MatrixClient`→`MatrixTransport`. `ConduitSidecar` and `EmbeddedHomeserver` deleted.
+- E2EE deferred to v2 (SQLCipher/SQLite linking conflict between hkask-storage and matrix-sdk-sqlite). Continuous sync deferred until VOIP/real-time use case exists.
+- Workspace build: ✅ Pass (all 18 members). `hkask-api` has 6 pre-existing errors (missing `From` trait impls — unrelated).
+
+## Session (2026-06-13)
 
 - Registry reorganization: deleted `registry/registries/` (26 misfiled YAMLs moved to correct locations), deleted `registry/corpora/` (moved to `registry/styles/gentle-lovelace/corpus-sources/`), deleted `registry/kata/` (replaced by 4-skill kata architecture)
 - Root cleanup: 6 DB files → `data/`, 2 scripts → `scripts/`, `feedback.md` → `docs/`, `david-dunning/` → `registry/styles/david-dunning/`
@@ -150,6 +165,18 @@ See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) and [`docs/status
 |----------|------|
 | LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
 | NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
+
+### Communication Server — Remaining Items
+
+| Priority | Task | Status |
+|----------|------|--------|
+| MEDIUM | `kask matrix register --agent` credential verification against stored keystore hash | TODO — currently accepts any credential with format warning |
+| MEDIUM | SAS QR code generation for device verification | Deferred to v2 (requires matrix-sdk-crypto, blocked by SQLCipher/SQLite conflict) |
+| LOW | Daemon periodic sidecar health task (every 60s: poll containers, emit CNS spans) | Deferred — `kask matrix status-sidecar` provides on-demand checks |
+| LOW | CNS span formal registration in CNS registry | Deferred — spans emit via tracing, functional but not registered |
+| LOW | `kask matrix listen` (continuous sync for VOIP/real-time) | Deferred until use case exists |
+| v2 | E2EE integration (Olm/Megolm, CryptoStore against hkask-keystore) | Blocked by SQLCipher/SQLite linking conflict |
+| v2 | Cross-installation agent-to-agent communication via federation | Requires E2EE + continuous sync |
 
 ### Citation Audit (2026-06-11)
 

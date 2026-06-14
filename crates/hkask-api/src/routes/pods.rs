@@ -7,41 +7,26 @@ use hkask_agents::pod::AgentPersona;
 use hkask_types::DelegationResource;
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
-
-use crate::ApiError;
 use crate::ApiState;
+use crate::ApiError;
 use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodRequest {
     pub template: String,
     pub persona_yaml: String,
     pub name: Option<String>,
 }
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodResponse {
     pub pod_id: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PodStatusResponse {
-    pub pod_id: String,
-    pub name: Option<String>,
     pub state: String,
     pub webid: String,
     pub agent_type: String,
-    pub template: String,
     pub created_at: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ListPodsResponse {
     pub pods: Vec<PodStatusResponse>,
-}
-
 pub fn pods_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/pods", axum::routing::get(list_pods))
@@ -52,8 +37,6 @@ pub fn pods_router() -> OpenApiRouter<ApiState> {
             axum::routing::post(deactivate_pod),
         )
         .route("/api/pods/{id}/status", axum::routing::get(pod_status))
-}
-
 fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
     use hkask_agents::pod::PodID;
     Uuid::parse_str(id)
@@ -61,8 +44,6 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
         .map_err(|e| ApiError::BadRequest {
             message: format!("Invalid pod ID: {e}"),
         })
-}
-
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
         .await
@@ -77,11 +58,8 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
             agent_type: s.agent_type.to_string(),
             template: s.template,
             created_at: s.created_at,
-        })
         .collect();
     Json(ListPodsResponse { pods })
-}
-
 async fn create_pod(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -103,15 +81,11 @@ async fn create_pod(
     let pm = state.agent_service.pod_manager();
     let pod_id = pm
         .create_pod(&req.template, &persona, req.name)
-        .await
         .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(Json(CreatePodResponse {
         pod_id: pod_id.to_string(),
     }))
-}
-
 async fn activate_pod(
-    State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
@@ -120,38 +94,13 @@ async fn activate_pod(
         .agent_service
         .pod_manager()
         .activate_pod(&pid)
-        .await
-        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(StatusCode::NO_CONTENT)
-}
-
 async fn deactivate_pod(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-    Path(id): Path<String>,
-) -> Result<StatusCode, ApiError> {
-    let pid = parse_pod_id(&id)?;
-    state
-        .agent_service
-        .pod_manager()
         .deactivate_pod(&pid)
-        .await
-        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
 async fn pod_status(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-    Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ApiError> {
-    let pid = parse_pod_id(&id)?;
     let status = state
-        .agent_service
-        .pod_manager()
         .get_pod_status(&pid)
-        .await
-        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,
         name: status.name,
@@ -160,5 +109,3 @@ async fn pod_status(
         agent_type: status.agent_type.to_string(),
         template: status.template,
         created_at: status.created_at,
-    }))
-}

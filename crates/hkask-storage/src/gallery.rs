@@ -1023,7 +1023,7 @@ mod tests {
             .unwrap();
 
         let face = store
-            .register_face("Alice", "Chen", &img.id, "valid", "")
+            .register_face("Alice", "Chen", &img.id, None, "valid", "")
             .unwrap();
 
         let retrieved = store.get_face(&face.id).unwrap();
@@ -1060,7 +1060,7 @@ mod tests {
             .unwrap();
 
         let face = store
-            .register_face("Alice", "Chen", &img.id, "valid", "")
+            .register_face("Alice", "Chen", &img.id, None, "valid", "")
             .unwrap();
 
         store.remove_face(&face.id).unwrap();
@@ -1090,7 +1090,7 @@ mod tests {
             .unwrap();
 
         let face = store
-            .register_face("Alice", "Chen", &img.id, "pending", "")
+            .register_face("Alice", "Chen", &img.id, None, "pending", "")
             .unwrap();
 
         let updated = store

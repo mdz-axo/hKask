@@ -5,37 +5,24 @@ use axum::{Json, extract::Path, extract::Query, extract::State};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
-
-use crate::ApiError;
 use crate::ApiState;
+use crate::ApiError;
 use crate::middleware::AuthContext;
-
 pub fn goal_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_goals))
         .routes(routes!(create_goal))
         .routes(routes!(set_goal_state))
 }
-
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct CreateGoalRequest {
     pub text: String,
     pub visibility: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
 pub struct SetGoalStateRequest {
     pub state: String,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalResponse {
     pub id: String,
-    pub text: String,
-    pub state: String,
     pub visibility: String,
-}
-
 impl From<hkask_services::GoalResponse> for GoalResponse {
     fn from(g: hkask_services::GoalResponse) -> Self {
         Self {
@@ -45,13 +32,8 @@ impl From<hkask_services::GoalResponse> for GoalResponse {
             visibility: g.visibility,
         }
     }
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalListResponse {
     pub goals: Vec<GoalResponse>,
-}
-
 /// Create a new goal for the authenticated agent.
 #[utoipa::path(
     post, path = "/api/goals", tag = "goals",
@@ -74,55 +56,32 @@ pub(crate) async fn create_goal(
         owner: auth.webid,
     };
     let goal = hkask_services::GoalService::create_goal(&state.agent_service, svc_req)
-        .map_err(ApiError::from)?;
+        ?;
     Ok(Json(goal.into()))
-}
-
 /// List all goals for the authenticated agent, optionally filtered by state.
-#[utoipa::path(
     get, path = "/api/goals", tag = "goals",
     params(("state" = Option<String>, Query, description = "Optional state filter")),
-    responses(
         (status = 200, description = "Goals listed", body = GoalListResponse),
         (status = 400, description = "Invalid state filter"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Authority denied"),
-    ),
-)]
 pub(crate) async fn list_goals(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<GoalListResponse>, ApiError> {
     let state_filter = params.get("state").map(|s| s.as_str());
     let goals =
         hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)
-            .map_err(ApiError::from)?;
+            ?;
     Ok(Json(GoalListResponse {
         goals: goals.into_iter().map(|g| g.into()).collect(),
     }))
-}
-
 /// Transition a goal to a new state (legal transitions only).
-#[utoipa::path(
     post, path = "/api/goals/{id}/state", tag = "goals",
     params(("id" = String, Path, description = "Goal ID")),
     request_body = SetGoalStateRequest,
-    responses(
         (status = 200, description = "Goal state changed"),
         (status = 400, description = "Invalid or illegal transition"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Authority denied"),
         (status = 404, description = "Goal not found"),
-    ),
-)]
 pub(crate) async fn set_goal_state(
-    State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
-) -> Result<Json<GoalResponse>, ApiError> {
     let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)
-        .map_err(ApiError::from)?;
-    Ok(Json(goal.into()))
-}

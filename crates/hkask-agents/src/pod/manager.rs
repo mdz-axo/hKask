@@ -29,6 +29,9 @@ pub struct PodManager {
     pub(crate) governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
     consent: Arc<dyn crate::SovereigntyConsent>,
+    /// Hooks called after a pod is successfully activated.
+    /// Each hook receives the pod's WebID and display name.
+    activation_hooks: RwLock<Vec<Box<dyn Fn(WebID, String) + Send + Sync>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,12 +104,22 @@ impl PodManager {
             governed_tool,
             nu_event_sink,
             consent: Arc::new(crate::DenyAllConsent),
+            activation_hooks: RwLock::new(Vec::new()),
         }
     }
 
     pub fn with_consent_port(mut self, consent: Arc<dyn crate::SovereigntyConsent>) -> Self {
         self.consent = consent;
         self
+    }
+
+    /// Register a hook to be called after every successful pod activation.
+    ///
+    /// The hook receives the pod's WebID and display name. Use this for
+    /// cross-cutting concerns like Matrix registration that should happen
+    /// whenever a pod becomes active.
+    pub async fn register_activation_hook(&self, hook: Box<dyn Fn(WebID, String) + Send + Sync>) {
+        self.activation_hooks.write().await.push(hook);
     }
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
         self.capability_checker = Some(Arc::new(checker));
@@ -173,6 +186,7 @@ impl PodManager {
             governed_tool: None,
             nu_event_sink: None,
             consent: Arc::new(crate::DenyAllConsent),
+            activation_hooks: RwLock::new(Vec::new()),
         }
     }
 }
@@ -251,6 +265,15 @@ impl PodManager {
             crate::pod::nu_event::emit_pod_activated(sink.as_ref(), pod.webid, &pod.id.to_string());
         }
         info!(target: "hkask.pod", pod_id = %pod_id, "Pod activated");
+
+        // Run activation hooks (e.g., Matrix registration)
+        let pod_name = pod.persona.agent.name.clone();
+        let pod_webid = pod.webid;
+        let hooks = self.activation_hooks.read().await;
+        for hook in hooks.iter() {
+            hook(pod_webid, pod_name.clone());
+        }
+
         Ok(())
     }
 

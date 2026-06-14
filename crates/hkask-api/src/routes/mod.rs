@@ -18,7 +18,6 @@ pub(crate) mod sovereignty;
 pub(crate) mod spec;
 pub(crate) mod templates;
 pub(crate) mod wallet;
-
 // Re-export router functions
 pub use acp::acp_router;
 pub use bots::bots_router;
@@ -38,7 +37,6 @@ pub use sovereignty::sovereignty_router;
 pub use spec::spec_router;
 pub use templates::templates_router;
 pub use wallet::wallet_router;
-
 // Re-export domain-local types that may be used externally
 pub use acp::{AcpAgentResponse, AcpRegisterRequest, AcpRegisterResponse, AgentListResponse};
 pub use bundles::{
@@ -51,20 +49,15 @@ pub use curator::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
     ResolveEscalationRequest, ResolveEscalationResponse,
-};
-
 pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
 pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
-
 pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use spec::{
     SpecCaptureRequestDto, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,
-};
 pub use templates::{GrantCapabilityRequest, TemplateResponse};
 pub use wallet::{
     ApiKeyCreatedResponse, ApiKeyEntry, ApiKeyListResponse, ApiKeyRevokedResponse,
     CreateKeyRequest, FundKeyRequest, FundKeyResponse, KeyRequestRequest, KeyRequestResponse,
     RateLimitConfig,
-};

@@ -79,6 +79,46 @@ impl IntoResponse for ApiError {
     }
 }
 
+// ── ServiceError newtype for Axum IntoResponse ───────────────────────
+//
+// Route handlers return `Result<Json<T>, ServiceErrorResponse>`.
+// `ServiceError` cannot implement `IntoResponse` directly (orphan rule:
+// both the trait and type are foreign). This newtype bridges the gap,
+// delegating to `ApiError` for HTTP status code mapping.
+
+/// Newtype wrapper that implements `IntoResponse` for `ServiceError`.
+///
+/// Route handlers return `Result<Json<T>, ServiceErrorResponse>`.
+/// The `?` operator auto-converts `ServiceError` via the `From` impl.
+#[derive(Debug)]
+pub struct ServiceErrorResponse(pub hkask_services::ServiceError);
+
+impl From<hkask_services::ServiceError> for ServiceErrorResponse {
+    fn from(e: hkask_services::ServiceError) -> Self {
+        ServiceErrorResponse(e)
+    }
+}
+
+impl IntoResponse for ServiceErrorResponse {
+    fn into_response(self) -> Response {
+        ApiError::from(self.0).into_response()
+    }
+}
+
+// ── Temporary bridge: allow existing ApiError constructions to be ──────
+// returned from routes that now use ServiceErrorResponse. During migration,
+// manual ApiError::BadRequest/etc. constructions still work. Once all
+// manual constructions are converted to ServiceError variants, this impl
+// can be deleted.
+
+impl From<ApiError> for ServiceErrorResponse {
+    fn from(e: ApiError) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::Infra(
+            hkask_types::InfrastructureError::Database(e.to_string()),
+        ))
+    }
+}
+
 // ── Service layer adapter ────────────────────────────────────────────
 
 impl From<hkask_services::ServiceError> for ApiError {
