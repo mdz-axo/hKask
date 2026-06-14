@@ -531,14 +531,13 @@ async fn setup_provider() -> Result<(), OnboardingError> {
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
-                if let Some((key, value)) = line.split_once('=') {
-                    if !value.trim().is_empty()
-                        && (key.trim() == "DI_API_KEY"
-                            || key.trim() == "FW_API_KEY"
-                            || key.trim() == "FA_API_KEY")
-                    {
-                        found_keys.push(key.trim());
-                    }
+                if let Some((key, value)) = line.split_once('=')
+                    && !value.trim().is_empty()
+                    && (key.trim() == "DI_API_KEY"
+                        || key.trim() == "FW_API_KEY"
+                        || key.trim() == "FA_API_KEY")
+                {
+                    found_keys.push(key.trim());
                 }
             }
 

@@ -75,7 +75,7 @@ macro_rules! define_store {
 
             fn lock_conn(
                 &self,
-            ) -> Result<
+            ) -> std::result::Result<
                 std::sync::MutexGuard<'_, rusqlite::Connection>,
                 hkask_types::InfrastructureError,
             > {

@@ -100,29 +100,39 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
 
 /// Preprocess a page image for OCR quality improvement.
 ///
-/// Default path: local Otsu binarization — O(w·h), instant, free.
-/// Optional: fal.ai `docres` when `HKASK_FAL_API_KEY` is set.
-/// Falls back to Otsu on any fal.ai failure.
-///
-/// # Cost
-/// Otsu: free, local, instant. fal.ai: $0.025/MP, ~40s queue-based.
+/// Default: local Otsu binarization — O(w·h), instant, free.
+/// Optional: fal.ai `docres` when `HKASK_USE_FAL_DOCRES=true` AND
+/// `HKASK_FAL_API_KEY` is set. ~40s latency — opt-in only.
 pub(crate) async fn preprocess_via_fal(image: &mut DynamicImage) {
-    // Check for optional fal.ai key
+    // Otsu first — always instant
+    otsu_binarize(image);
+
+    // fal.ai docres is opt-in only (explicit env var required due to ~40s latency)
+    let use_fal = std::env::var("HKASK_USE_FAL_DOCRES")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
+
+    if !use_fal {
+        return;
+    }
+
     let api_key = std::env::var("HKASK_FAL_API_KEY")
         .or_else(|_| std::env::var("FAL_KEY"))
         .or_else(|_| std::env::var("FA_API_KEY"))
         .unwrap_or_default();
 
-    if !api_key.is_empty() {
-        if let Some(enhanced) = try_fal_docres(image, &api_key).await {
-            *image = enhanced;
-            return;
-        }
-        // fal.ai failed — fall through to Otsu
-        tracing::warn!(target: "cns.pipeline.ocr", "fal.ai docres failed, falling back to Otsu");
+    if api_key.is_empty() {
+        tracing::warn!(target: "cns.pipeline.ocr", "HKASK_USE_FAL_DOCRES set but no API key found");
+        return;
     }
 
-    otsu_binarize(image);
+    // Try fal.ai enhancement on top of Otsu-binarized image
+    if let Some(enhanced) = try_fal_docres(image, &api_key).await {
+        tracing::info!(target: "cns.pipeline.ocr", "fal.ai docres enhancement applied");
+        *image = enhanced;
+    } else {
+        tracing::warn!(target: "cns.pipeline.ocr", "fal.ai docres failed, keeping Otsu result");
+    }
 }
 
 /// Try fal.ai docres binarization. Returns None on any failure.
@@ -230,8 +240,8 @@ fn otsu_level(hist: &[u32; 256]) -> u8 {
         .map(|(i, &count)| i as f64 * count as f64)
         .sum();
 
-    for t in 0..256 {
-        let count = hist[t] as f64;
+    for (t, &count_val) in hist.iter().enumerate() {
+        let count = count_val as f64;
         w_b += count;
         if w_b == 0.0 {
             continue;
@@ -443,7 +453,7 @@ mod tests {
     fn otsu_binarization_bw_output() {
         // Create a text-like test image (dark text on light background)
         let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(400, 100, |x, y| {
-            if y < 30 || y > 70 || (x / 10 + y / 15) % 3 == 0 {
+            if !(30..=70).contains(&y) || (x / 10 + y / 15) % 3 == 0 {
                 image::Luma([240]) // Light background
             } else {
                 image::Luma([30]) // Dark "text" pixels
@@ -499,7 +509,7 @@ mod tests {
 
         // Create a text-like test image
         let img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(400, 100, |x, y| {
-            if y < 30 || y > 70 || (x / 10 + y / 15) % 3 == 0 {
+            if !(30..=70).contains(&y) || (x / 10 + y / 15) % 3 == 0 {
                 image::Luma([240])
             } else {
                 image::Luma([30])

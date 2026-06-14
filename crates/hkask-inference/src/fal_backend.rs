@@ -266,8 +266,10 @@ mod tests {
     /// REQ: inf-fal-02 — Construction succeeds with API key
     #[test]
     fn construction_succeeds_with_api_key() {
-        let mut config = InferenceConfig::default();
-        config.fal_api_key = "test-key-123".into();
+        let config = InferenceConfig {
+            fal_api_key: "test-key-123".into(),
+            ..Default::default()
+        };
         let result = FalBackend::new(&config);
         assert!(
             result.is_ok(),
@@ -279,8 +281,10 @@ mod tests {
     /// REQ: inf-fal-03 — Static catalog returns known vision models
     #[tokio::test]
     async fn static_catalog_returns_vision_models() {
-        let mut config = InferenceConfig::default();
-        config.fal_api_key = "test-key".into();
+        let config = InferenceConfig {
+            fal_api_key: "test-key".into(),
+            ..Default::default()
+        };
         let backend = FalBackend::new(&config).unwrap();
         let models = backend.list_models().await.unwrap();
         assert!(!models.is_empty(), "catalog should not be empty");

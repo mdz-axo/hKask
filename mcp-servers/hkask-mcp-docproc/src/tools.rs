@@ -1,11 +1,10 @@
 //! MCP tool implementations for docproc server.
 //!
-//! 7 tools:
+//! 6 tools:
 //! - `docproc_detect_format` — Detect document format from path/extension
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
-//! - `docproc_chunk` — Chunk text at configurable token granularity
-//! - `docproc_parse` — Parse document into multi-tier IR (coarse/medium/fine)
+//! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier)
 //! - `docproc_generate_qa` — Generate QA pairs from text chunk
 //! - `docproc_store_qa` — Store QA items with provenance
 
@@ -89,23 +88,33 @@ pub struct OcrRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ChunkRequest {
-    pub text: String,
+    /// Raw text to chunk. Mutually exclusive with `path`.
+    #[serde(default)]
+    pub text: Option<String>,
+    /// Path to a document file to extract text from and chunk. Mutually exclusive with `text`.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Prefix for entity references in chunk output.
     pub entity_ref_prefix: String,
+    /// Max tokens per chunk (single-tier mode, default 512).
     #[serde(default)]
     pub max_tokens: Option<usize>,
+    /// Overlap tokens between chunks (single-tier mode, default 64).
     #[serde(default)]
     pub overlap_tokens: Option<usize>,
+    /// Strip Project Gutenberg headers from text before chunking.
     #[serde(default)]
     pub strip_gutenberg: Option<bool>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ParseRequest {
-    pub path: String,
+    /// If true, produce coarse/medium/fine multi-tier output instead of single-tier.
+    #[serde(default)]
+    pub multi_tier: Option<bool>,
+    /// Max tokens for coarse tier (multi-tier mode, default 2048).
     #[serde(default)]
     pub coarse_max_tokens: Option<usize>,
+    /// Max tokens for medium tier (multi-tier mode, default 512).
     #[serde(default)]
     pub medium_max_tokens: Option<usize>,
+    /// Max tokens for fine tier (multi-tier mode, default 128).
     #[serde(default)]
     pub fine_max_tokens: Option<usize>,
 }
@@ -645,21 +654,36 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Chunk text at configurable token granularity (delegates to SemanticMemory::chunk_text)"
+        description = "Chunk text into passages at configurable token granularity. Accepts raw text or a file path (extracts text from PDF/MD/HTML/TXT with OCR fallback for scanned PDFs). Supports single-tier or multi-tier (coarse/medium/fine) output."
     )]
     async fn docproc_chunk(
         &self,
         Parameters(ChunkRequest {
             text,
+            path,
             entity_ref_prefix,
             max_tokens,
             overlap_tokens,
             strip_gutenberg,
+            multi_tier,
+            coarse_max_tokens,
+            medium_max_tokens,
+            fine_max_tokens,
         }): Parameters<ChunkRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("docproc_chunk", &self.webid);
 
-        validate_non_empty!(span, McpErrorKind::InvalidArgument, "text", text);
+        // Exactly one of text or path must be provided
+        let has_text = text.as_ref().is_some_and(|t| !t.is_empty());
+        let has_path = path.as_ref().is_some_and(|p| !p.is_empty());
+        if has_text == has_path {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("Exactly one of 'text' or 'path' must be provided")
+                    .to_json_string(),
+            );
+        }
+
         validate_non_empty!(
             span,
             McpErrorKind::InvalidArgument,
@@ -668,86 +692,42 @@ impl DocProcServer {
         );
         validate_field!(span, "entity_ref_prefix", &entity_ref_prefix, 256);
 
-        let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
-        let boundary = ".!? ".to_string();
+        // Resolve the source text
+        let source_text: String;
+        let source_label: String;
 
-        let processed = if strip_gutenberg.unwrap_or(false) {
-            SemanticMemory::strip_gutenberg_headers(&text)
-        } else {
-            text.clone()
-        };
+        if let Some(ref raw_text) = text
+            && !raw_text.is_empty()
+        {
+            source_text = raw_text.clone();
+            source_label = entity_ref_prefix.clone();
+        } else if let Some(ref file_path) = path
+            && !file_path.is_empty()
+        {
+            let (format, supported, _) = convert::detect_format(file_path);
+            if !supported {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!(
+                        "Unsupported document format '{}' for path '{}'. Supported formats: pdf, markdown, html, plain",
+                        format, file_path
+                    ))
+                    .to_json_string(),
+                );
+            }
 
-        let passages = SemanticMemory::chunk_text(
-            &processed,
-            &entity_ref_prefix,
-            min_words,
-            max_words,
-            &boundary,
-        );
-
-        let total_passages = passages.len();
-        let serialized = serialize_passages(passages);
-
-        let result = json!({
-            "total_passages": total_passages, "passages": serialized,
-            "max_tokens": max_tokens.unwrap_or(512), "overlap_tokens": overlap_tokens.unwrap_or(64),
-            "max_words": max_words, "min_words": min_words, "sentence_boundary": boundary,
-            "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
-        });
-        self.record_experience(
-            "docproc_chunk",
-            &entity_ref_prefix,
-            "success",
-            result.clone(),
-        );
-        span.ok_json(result)
-    }
-
-    #[tool(
-        description = "Parse document into IR with multi-tier chunking (coarse/medium/fine). Supports PDF, markdown, HTML, and plain text."
-    )]
-    async fn docproc_parse(
-        &self,
-        Parameters(ParseRequest {
-            path,
-            coarse_max_tokens,
-            medium_max_tokens,
-            fine_max_tokens,
-        }): Parameters<ParseRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("docproc_parse", &self.webid);
-        let path_clone = path.clone();
-
-        validate_non_empty!(span, McpErrorKind::InvalidArgument, "path", path);
-
-        let (format, supported, _) = convert::detect_format(&path);
-        if !supported {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(format!(
-                    "Unsupported document format '{}' for path '{}'. Supported formats: pdf, markdown, html, plain",
-                    format, path
-                ))
-                .to_json_string(),
-            );
-        }
-
-        // Read and extract text based on format
-        let text = match format {
-            "pdf" => {
-                // Try pdf-extract first
-                match pdf_extract::extract_text(&path) {
-                    Ok(text) => {
-                        let word_count = text.split_whitespace().count();
-                        if word_count < OCR_FALLBACK_WORD_THRESHOLD {
-                            // Near-empty — try OCR fallback
+            source_text = match format {
+                "pdf" => match pdf_extract::extract_text(file_path) {
+                    Ok(t) => {
+                        let wc = t.split_whitespace().count();
+                        if wc < OCR_FALLBACK_WORD_THRESHOLD {
                             if let Ok(model) = self.resolve_ocr_model(None).await {
-                                let file_bytes = match std::fs::read(&path) {
+                                let file_bytes = match std::fs::read(file_path) {
                                     Ok(b) => b,
                                     Err(e) => {
                                         return span.internal_error(serde_json::json!({
-                                            "error": format!("Failed to read file '{}': {}", path, e),
-                                        }));
+                                                "error": format!("Failed to read file '{}': {}", file_path, e),
+                                            }));
                                     }
                                 };
                                 match self
@@ -755,70 +735,123 @@ impl DocProcServer {
                                     .await
                                 {
                                     Ok(ocr_text) => ocr_text,
-                                    Err(_) => text,
+                                    Err(_) => t,
                                 }
                             } else {
-                                text
+                                t
                             }
                         } else {
-                            text
+                            t
                         }
                     }
                     Err(_) => {
                         return span.internal_error(serde_json::json!({
-                            "error": format!("Failed to extract text from PDF '{}'", path),
+                            "error": format!("Failed to extract text from PDF '{}'", file_path),
                         }));
                     }
-                }
-            }
-            "markdown" => match std::fs::read_to_string(&path) {
-                Ok(content) => convert::strip_frontmatter(&content),
-                Err(e) => {
-                    return span.internal_error(serde_json::json!({
-                        "error": format!("Failed to read file '{}': {}", path, e),
-                    }));
-                }
-            },
-            "html" | "htm" => match std::fs::read_to_string(&path) {
-                Ok(content) => convert::strip_html(&content),
-                Err(e) => {
-                    return span.internal_error(serde_json::json!({
-                        "error": format!("Failed to read file '{}': {}", path, e),
-                    }));
-                }
-            },
-            _ => match std::fs::read_to_string(&path) {
-                Ok(content) => content,
-                Err(e) => {
-                    return span.internal_error(serde_json::json!({
-                        "error": format!("Failed to read file '{}': {}", path, e),
-                    }));
-                }
-            },
+                },
+                "markdown" => match std::fs::read_to_string(file_path) {
+                    Ok(content) => convert::strip_frontmatter(&content),
+                    Err(e) => {
+                        return span.internal_error(serde_json::json!({
+                            "error": format!("Failed to read file '{}': {}", file_path, e),
+                        }));
+                    }
+                },
+                "html" | "htm" => match std::fs::read_to_string(file_path) {
+                    Ok(content) => convert::strip_html(&content),
+                    Err(e) => {
+                        return span.internal_error(serde_json::json!({
+                            "error": format!("Failed to read file '{}': {}", file_path, e),
+                        }));
+                    }
+                },
+                _ => match std::fs::read_to_string(file_path) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        return span.internal_error(serde_json::json!({
+                            "error": format!("Failed to read file '{}': {}", file_path, e),
+                        }));
+                    }
+                },
+            };
+            source_label = file_path.replace(['/', '\\', '.', ' '], "_");
+        } else {
+            // Unreachable — validated above
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("No text or path provided").to_json_string(),
+            );
+        }
+
+        // Apply Gutenberg stripping if requested
+        let processed = if strip_gutenberg.unwrap_or(false) {
+            SemanticMemory::strip_gutenberg_headers(&source_text)
+        } else {
+            source_text
         };
 
-        let entity_base = path.replace(['/', '\\', '.', ' '], "_");
         let boundary = ".!? ";
 
-        let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| -> Vec<_> {
-            let w = tokens_to_words(max_tok.unwrap_or(default));
-            SemanticMemory::chunk_text(&text, &format!("{entity_base}:{tier}"), w / 4, w, boundary)
-        };
+        if multi_tier.unwrap_or(false) {
+            // Multi-tier: coarse / medium / fine
+            let chunk_tier = |tier: &str, max_tok: Option<usize>, default: usize| -> Vec<_> {
+                let w = tokens_to_words(max_tok.unwrap_or(default));
+                SemanticMemory::chunk_text(
+                    &processed,
+                    &format!("{source_label}:{tier}"),
+                    w / 4,
+                    w,
+                    boundary,
+                )
+            };
 
-        let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
-        let medium = chunk_tier("medium", medium_max_tokens, 512);
-        let fine = chunk_tier("fine", fine_max_tokens, 128);
+            let coarse = chunk_tier("coarse", coarse_max_tokens, 2048);
+            let medium = chunk_tier("medium", medium_max_tokens, 512);
+            let fine = chunk_tier("fine", fine_max_tokens, 128);
 
-        let result = json!({
-            "format": format, "path": path,
-            "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
-            "medium_max_tokens": medium_max_tokens.unwrap_or(512),
-            "fine_max_tokens": fine_max_tokens.unwrap_or(128),
-            "coarse": serialize_passages(coarse), "medium": serialize_passages(medium),
-            "fine": serialize_passages(fine),
-        });
-        self.record_experience("docproc_parse", &path_clone, "success", result.clone());
-        span.ok_json(result)
+            let result = json!({
+                "source": source_label,
+                "multi_tier": true,
+                "coarse_max_tokens": coarse_max_tokens.unwrap_or(2048),
+                "medium_max_tokens": medium_max_tokens.unwrap_or(512),
+                "fine_max_tokens": fine_max_tokens.unwrap_or(128),
+                "coarse": serialize_passages(coarse),
+                "medium": serialize_passages(medium),
+                "fine": serialize_passages(fine),
+            });
+            self.record_experience("docproc_chunk", &source_label, "success", result.clone());
+            span.ok_json(result)
+        } else {
+            // Single-tier
+            let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
+
+            let passages = SemanticMemory::chunk_text(
+                &processed,
+                &entity_ref_prefix,
+                min_words,
+                max_words,
+                boundary,
+            );
+
+            let total_passages = passages.len();
+            let serialized = serialize_passages(passages);
+
+            let result = json!({
+                "source": source_label,
+                "multi_tier": false,
+                "total_passages": total_passages,
+                "passages": serialized,
+                "max_tokens": max_tokens.unwrap_or(512),
+                "overlap_tokens": overlap_tokens.unwrap_or(64),
+                "max_words": max_words,
+                "min_words": min_words,
+                "sentence_boundary": boundary,
+                "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
+            });
+            self.record_experience("docproc_chunk", &source_label, "success", result.clone());
+            span.ok_json(result)
+        }
     }
 
     #[tool(

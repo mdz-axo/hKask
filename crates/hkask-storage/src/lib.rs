@@ -23,6 +23,7 @@ pub(crate) mod standing_session;
 pub use standing_session::{
     StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
 };
+pub mod gallery;
 pub mod triples;
 pub mod user_store;
 pub mod wallet_store;
@@ -34,6 +35,9 @@ pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmb
 pub use escalation::{
     EscalationBatch, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,
     EscalationStatus,
+};
+pub use gallery::{
+    GalleryMode, GalleryRecord, GalleryStore, GalleryStoreError, ImageRecord, TagRecord,
 };
 pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::TripleID;

@@ -2314,6 +2314,7 @@ dependencies = [
  "dotenvy",
  "hkask-inference",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "image",

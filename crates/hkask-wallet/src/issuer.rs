@@ -79,6 +79,7 @@ impl ApiKeyIssuer {
     /// Generates a fresh Ed25519 keypair, creates a signed capability token
     /// with the specified limits, scope, and purpose, stores the public key,
     /// and returns the private key to the user (shown exactly once).
+    #[allow(clippy::too_many_arguments)]
     pub fn create_key(
         &self,
         wallet_id: WalletId,

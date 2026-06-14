@@ -51,6 +51,7 @@ pub struct DocProcServer {
 }
 
 impl DocProcServer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         webid: WebID,
         replicant: String,

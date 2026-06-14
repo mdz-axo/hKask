@@ -132,6 +132,7 @@ impl WalletService {
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Create a new API key with the specified limits, scope, and purpose.
+    #[allow(clippy::too_many_arguments)]
     pub fn create_key(
         &self,
         wallet_id: WalletId,
