@@ -36,7 +36,10 @@ pub mod text;
 pub mod time;
 pub mod visibility;
 
+pub mod voice;
 pub mod wallet;
+
+pub use voice::VoiceDesign;
 
 #[cfg(feature = "sql")]
 pub mod sql_impls;

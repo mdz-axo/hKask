@@ -317,6 +317,21 @@ impl DeepInfraBackend {
         });
         self.di_inference_post("Qwen/Qwen-Image-Edit", body).await
     }
+
+    /// Generate speech from text with a voice description.
+    /// Uses DeepInfra TTS models (e.g., coqui/XTTS-v2 or similar).
+    pub async fn generate_speech(
+        &self,
+        text: &str,
+        voice_description: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "input": text,
+            "voice": voice_description,
+        });
+        // Route to a TTS-capable model on DeepInfra
+        self.di_inference_post("coqui/XTTS-v2", body).await
+    }
 }
 
 // ── DeepInfra model types ────────────────────────────────────────────────────

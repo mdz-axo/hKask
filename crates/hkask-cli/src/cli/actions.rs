@@ -596,6 +596,18 @@ pub enum SkillAction {
     },
 }
 
+/// Kata actions — list and inspect kata manifests
+#[derive(Subcommand)]
+pub enum KataAction {
+    /// List available kata manifests
+    List,
+    /// Show details of a specific kata manifest
+    Show {
+        /// Manifest name (e.g., "starter-kata", "improvement-kata")
+        name: String,
+    },
+}
+
 /// REPL settings actions — get, set, list, reset inference parameters.
 /// Same settings as the `/repl` slash command in interactive mode.
 #[derive(Subcommand)]

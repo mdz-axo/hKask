@@ -461,6 +461,20 @@ impl FalBackend {
         self.fal_queue_post("fal-ai/seedance-2.0/image-to-video", body)
             .await
     }
+
+    /// Generate speech from text with a voice description.
+    /// Uses fal.ai ElevenLabs or similar TTS endpoint.
+    pub async fn generate_speech(
+        &self,
+        text: &str,
+        voice_description: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "input": text,
+            "voice": voice_description,
+        });
+        self.fal_sync_post("fal-ai/elevenlabs/tts", body).await
+    }
 }
 
 // ── fal.ai model types ──────────────────────────────────────────────────────

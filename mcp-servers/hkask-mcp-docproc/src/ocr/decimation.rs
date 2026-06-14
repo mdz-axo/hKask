@@ -4,13 +4,12 @@
 //! OCR pipeline. Uses `pdftoppm` from poppler-utils as a subprocess.
 //! Falls back gracefully if poppler is not installed.
 //!
-//! Applies contrast stretching to each page image to improve edge
-//! detection for complexity scoring and OCR quality on low-contrast scans.
-//! Optional fal.ai preprocessing (gated behind FA_API_KEY) can supplement
-//! contrast stretching with AI-based enhancement when available.
+//! Applies Otsu binarization to each page image for clean B&W output
+//! optimized for OCR. Optional fal.ai `docres` enhancement available
+//! when `HKASK_USE_FAL_DOCRES=true` and `HKASK_FAL_API_KEY` is set.
 
 use hkask_types::ocr::PipelineError;
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -265,53 +264,6 @@ fn otsu_level(hist: &[u32; 256]) -> u8 {
     best_threshold
 }
 
-/// Stretch contrast of a page image to full 0–255 range.
-///
-/// Improves edge detection for complexity scoring and OCR quality
-/// on low-contrast scans (e.g., faded text, uneven lighting).
-/// Pure function, O(w·h), no new dependencies.
-///
-/// Retained as a documented alternative to Otsu binarization.
-/// Currently unused in the default preprocessing path.
-#[allow(dead_code)]
-pub(crate) fn stretch_contrast(img: &mut DynamicImage) {
-    let (w, h) = img.dimensions();
-    if w == 0 || h == 0 {
-        return;
-    }
-
-    let gray = img.to_luma8();
-    let pixels = gray.as_raw();
-
-    // Find min/max pixel values
-    let mut min: u8 = 255;
-    let mut max: u8 = 0;
-    for &p in pixels.iter() {
-        if p < min {
-            min = p;
-        }
-        if p > max {
-            max = p;
-        }
-    }
-
-    // Skip if image is already full-range or uniform
-    if max <= min {
-        return;
-    }
-
-    // Rescale to 0–255
-    let range = (max - min) as f32;
-    let stretched: Vec<u8> = pixels
-        .iter()
-        .map(|&p| ((p as f32 - min as f32) / range * 255.0) as u8)
-        .collect();
-
-    *img = DynamicImage::ImageLuma8(
-        image::ImageBuffer::from_raw(w, h, stretched).expect("stretched buffer matches dimensions"),
-    );
-}
-
 /// Format a user-friendly error when pdftoppm is not found.
 fn pdftoppm_error(detail: &str) -> PipelineError {
     if detail.contains("No such file") || detail.contains("not found") {
@@ -411,49 +363,12 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ:ocr-decimate-04 — Contrast stretching expands narrow range to full 0–255
-    #[test]
-    fn contrast_stretch_expands_range() {
-        // Create a low-contrast image: pixels only in range 100–150
-        let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(100, 100, |x, y| {
-            image::Luma([100 + ((x + y) % 51) as u8])
-        }));
-
-        stretch_contrast(&mut img);
-
-        // After stretching, should have pixels at 0 and 255
-        let gray = img.as_luma8().unwrap();
-        let pixels = gray.as_raw();
-        let min = pixels.iter().min().copied().unwrap();
-        let max = pixels.iter().max().copied().unwrap();
-        assert_eq!(min, 0, "min should be 0 after stretch, got {}", min);
-        assert_eq!(max, 255, "max should be 255 after stretch, got {}", max);
-    }
-
-    // REQ:ocr-decimate-05 — Contrast stretching is idempotent on full-range images
-    #[test]
-    fn contrast_stretch_idempotent() {
-        // Create a full-range image (already 0–255)
-        let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(100, 100, |x, y| {
-            image::Luma([if (x + y) % 2 == 0 { 0 } else { 255 }])
-        }));
-
-        let gray_before = img.as_luma8().unwrap();
-        let pixels_before = gray_before.as_raw().to_vec();
-
-        stretch_contrast(&mut img);
-
-        // Full-range image should be unchanged
-        let gray_after = img.as_luma8().unwrap();
-        assert_eq!(gray_after.as_raw(), &pixels_before);
-    }
-
-    // REQ:ocr-decimate-06 — Otsu binarization produces valid B&W output
+    // REQ:ocr-decimate-04 — Otsu binarization produces valid B&W output
     #[test]
     fn otsu_binarization_bw_output() {
         // Create a text-like test image (dark text on light background)
         let mut img = DynamicImage::ImageLuma8(image::ImageBuffer::from_fn(400, 100, |x, y| {
-            if !(30..=70).contains(&y) || (x / 10 + y / 15) % 3 == 0 {
+            if y < 30 || y > 70 || (x / 10 + y / 15) % 3 == 0 {
                 image::Luma([240]) // Light background
             } else {
                 image::Luma([30]) // Dark "text" pixels
@@ -476,7 +391,7 @@ mod tests {
         assert!(unique.contains(&255), "should contain white pixels");
     }
 
-    // REQ:ocr-decimate-07 — Otsu binarization on uniform image returns 128 threshold
+    // REQ:ocr-decimate-05 — Otsu binarization on uniform image doesn't panic
     #[test]
     fn otsu_uniform_image() {
         // Uniform gray image — Otsu should still produce valid output
@@ -487,9 +402,18 @@ mod tests {
         assert!(img.as_luma8().is_some());
     }
 
-    // REQ:ocr-decimate-08 — fal.ai docres preprocessing (live, requires HKASK_FAL_API_KEY)
+    // REQ:ocr-decimate-06 — fal.ai docres preprocessing (live, requires HKASK_USE_FAL_DOCRES=true)
     #[tokio::test]
     async fn fal_docres_preprocessing_live() {
+        // Only run when explicitly opted in (avoids 40s latency in default test suite)
+        let use_fal = std::env::var("HKASK_USE_FAL_DOCRES")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+        if !use_fal {
+            eprintln!("SKIP: HKASK_USE_FAL_DOCRES not set to true");
+            return;
+        }
+
         // .env is at workspace root; cargo test runs from crate dir
         let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")

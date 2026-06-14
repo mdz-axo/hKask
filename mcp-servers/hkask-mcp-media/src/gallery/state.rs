@@ -40,6 +40,8 @@ pub struct GalleryState {
     pub last_scan: Option<String>,
     /// Number of unique tags in the index.
     pub tags_count: u64,
+    /// SQLite gallery ID (set after gallery_set_root creates the record).
+    pub gallery_id: Option<String>,
 }
 
 /// Result of a gallery scan operation.
@@ -50,6 +52,8 @@ pub struct ScanResult {
     pub unchanged: u32,
     pub total: u32,
     pub errors: Vec<String>,
+    /// Discovered image entries ready for SQLite persistence.
+    pub entries: Vec<ImageEntry>,
 }
 
 /// A single indexed image entry.
@@ -85,6 +89,7 @@ impl GalleryState {
             total_size_bytes: 0,
             last_scan: None,
             tags_count: 0,
+            gallery_id: None,
         }
     }
 
@@ -127,6 +132,7 @@ impl GalleryState {
 
         let mut added = 0u32;
         let mut errors = Vec::new();
+        let mut entries = Vec::new();
 
         let walker = if recursive {
             WalkDir::new(&self.path).into_iter()
@@ -183,7 +189,7 @@ impl GalleryState {
                     self.total_size_bytes += size_bytes;
                     added += 1;
 
-                    let _entry = ImageEntry {
+                    let entry = ImageEntry {
                         relative_path: path
                             .strip_prefix(&self.path)
                             .unwrap_or(path)
@@ -196,6 +202,7 @@ impl GalleryState {
                         size_bytes,
                         added_at: chrono::Utc::now().to_rfc3339(),
                     };
+                    entries.push(entry);
                 }
                 Err(e) => {
                     errors.push(format!("Failed to read {}: {}", path.display(), e));
@@ -207,10 +214,11 @@ impl GalleryState {
 
         ScanResult {
             added,
-            removed: 0,   // Full diff requires index comparison — Phase 2
-            unchanged: 0, // Full diff requires index comparison — Phase 2
+            removed: 0,
+            unchanged: 0,
             total: self.image_count as u32,
             errors,
+            entries,
         }
     }
 

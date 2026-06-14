@@ -1,13 +1,12 @@
 //! hKask MCP DocProc — Unified document processing MCP server
 //!
-//! Starts an MCP server over stdio exposing 8 tools:
+//! Starts an MCP server over stdio exposing 7 tools:
 //! - `docproc_convert` — Extract text from documents with OCR fallback
 //! - `docproc_ocr` — Explicit OCR using vision model
 //! - `docproc_chunk` — Chunk text or documents into passages (single or multi-tier)
 //! - `docproc_extract_triples` — Extract RDF triples from text via LLM
 //! - `docproc_embed` — Generate embedding vectors for passages or triples
 //! - `docproc_generate_qa` — Generate QA pairs from text via LLM
-//! - `docproc_store_qa` — Store QA items with provenance
 //! - `docproc_cache` — Cache processed text for reference
 //!
 //! # Environment Variables
@@ -16,13 +15,10 @@
 //!   Use `inference_models` to discover available models. No default — must be set
 //!   for OCR functionality. If unset, OCR requests return an error with guidance.
 //! - `OM_BASE_URL` — Ollama base URL (default: "http://127.0.0.1:11434")
-//! - `HKASK_MEMORY_DB` — Path to per-agent memory database for QA storage
-//! - `HKASK_DB_PASSPHRASE` — Passphrase for the database
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_mcp_docproc::server::DocProcServer;
 use hkask_types::ocr::ThresholdConfig;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -76,26 +72,6 @@ async fn main() -> anyhow::Result<()> {
             // Build embedding router for semantic cross-validation
             let embedding_router = EmbeddingRouter::new(inference_config.clone());
 
-            // Build semantic memory if configured
-            let semantic = match ctx.credentials.get("HKASK_MEMORY_DB") {
-                Some(path) => {
-                    let passphrase =
-                        ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                            anyhow::anyhow!("HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing")
-                        })?;
-                    let db = hkask_storage::Database::open(path, passphrase)
-                        .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
-                    let conn = db.conn_arc();
-                    let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
-                    let embedding_store = hkask_storage::EmbeddingStore::new(conn);
-                    Some(hkask_memory::SemanticMemory::new(
-                        triple_store,
-                        embedding_store,
-                    ))
-                }
-                None => None,
-            };
-
             DocProcServer::new(
                 ctx.webid,
                 replicant.clone(),
@@ -104,7 +80,6 @@ async fn main() -> anyhow::Result<()> {
                 inference_config,
                 ocr_thresholds,
                 Some(embedding_router),
-                semantic,
             )
         },
         vec![
@@ -115,14 +90,6 @@ async fn main() -> anyhow::Result<()> {
             hkask_mcp::CredentialRequirement::optional(
                 "OM_BASE_URL",
                 "Ollama base URL (default: http://127.0.0.1:11434).",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_MEMORY_DB",
-                "Path to per-agent memory database for QA storage (in-memory if absent)",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "HKASK_DB_PASSPHRASE",
-                "Passphrase for the database (required if HKASK_MEMORY_DB is set)",
             ),
         ],
     )

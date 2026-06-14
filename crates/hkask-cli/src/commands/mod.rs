@@ -18,6 +18,7 @@ pub mod ensemble;
 pub mod git_cmd;
 pub mod goal;
 pub mod helpers;
+pub mod kata;
 pub mod keystore;
 pub mod loops;
 pub mod magna_carta;

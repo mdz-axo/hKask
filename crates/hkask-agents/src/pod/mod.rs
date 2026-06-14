@@ -68,7 +68,7 @@ use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
 use hkask_types::{
     CapabilitySpec, DataCategory, DelegationAction, DelegationResource, DelegationToken,
-    SYSTEM_MAX_ATTENUATION, WebID,
+    SYSTEM_MAX_ATTENUATION, VoiceDesign, WebID,
 };
 use std::sync::Arc;
 use thiserror::Error;
@@ -111,6 +111,8 @@ pub struct AgentPod {
     pub mode: Option<AgentMode>,
     /// MCP server roles this agent is assigned to serve (e.g., ["research", "condenser"])
     pub assigned_mcp_roles: Vec<String>,
+    /// Voice design for TTS speech generation (None = use default neutral voice)
+    pub voice_design: Option<VoiceDesign>,
 }
 
 /// Agent pod error types
@@ -238,6 +240,7 @@ impl AgentPod {
             sovereignty_checker,
             mode: None,
             assigned_mcp_roles: Vec::new(),
+            voice_design: None,
         })
     }
 
@@ -464,6 +467,33 @@ impl AgentPod {
     /// Check if the agent is currently in server mode.
     pub fn is_in_server_mode(&self) -> bool {
         self.mode == Some(AgentMode::Server)
+    }
+
+    // ── Voice ──
+
+    /// Set the agent's voice design for TTS speech generation.
+    pub fn set_voice(&mut self, voice: VoiceDesign) {
+        tracing::info!(
+            target: "cns.pod",
+            pod_id = %self.id,
+            voice_name = %voice.name,
+            "Agent voice design set"
+        );
+        self.voice_design = Some(voice);
+    }
+
+    /// Get the agent's voice design, if one has been set.
+    pub fn get_voice(&self) -> Option<&VoiceDesign> {
+        self.voice_design.as_ref()
+    }
+
+    /// Get the TTS description for this agent's voice.
+    /// Returns the default neutral voice description if no voice is set.
+    pub fn voice_description(&self) -> String {
+        self.voice_design
+            .as_ref()
+            .map(|v| v.to_tts_description())
+            .unwrap_or_else(|| VoiceDesign::default().to_tts_description())
     }
 
     /// Check if the agent is currently in chat mode.

@@ -6,7 +6,6 @@ use crate::ocr::pipeline::OcrExecutor;
 use crate::ocr::tesseract::TesseractExecutor;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::DaemonClient;
-use hkask_memory::SemanticMemory;
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_types::ports::CnsObserver;
 use hkask_types::{LLMParameters, WebID};
@@ -46,8 +45,6 @@ pub struct DocProcServer {
     /// Accumulated cross-validations across pipeline runs for threshold self-tuning.
     /// Cleared after a drift alert is emitted to avoid redundant suggestions.
     pub cv_accumulator: Mutex<Vec<hkask_types::ocr::CrossValidation>>,
-    /// Semantic memory for QA storage (None if unavailable).
-    pub semantic: Option<SemanticMemory>,
 }
 
 impl DocProcServer {
@@ -60,7 +57,6 @@ impl DocProcServer {
         inference_config: InferenceConfig,
         ocr_thresholds: ThresholdConfig,
         embedding_router: Option<EmbeddingRouter>,
-        semantic: Option<SemanticMemory>,
     ) -> anyhow::Result<Self> {
         let cns_observer = DocProcCnsObserver::new(daemon.clone(), &replicant);
         Ok(Self {
@@ -73,18 +69,12 @@ impl DocProcServer {
             embedding_router,
             cns_observer,
             cv_accumulator: Mutex::new(Vec::new()),
-            semantic,
         })
     }
 
     /// Check whether OCR capability is available.
     pub fn has_ocr(&self) -> bool {
         self.ocr_model.is_some()
-    }
-
-    /// Check whether semantic memory is available.
-    pub fn has_semantic(&self) -> bool {
-        self.semantic.is_some()
     }
 }
 

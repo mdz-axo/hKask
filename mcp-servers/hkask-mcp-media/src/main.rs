@@ -9,6 +9,7 @@
 //! - Generation: generate_image, image_to_image, upscale, generate_video, caption
 
 mod gallery;
+mod templates;
 mod video;
 
 use gallery::{GalleryMode as LocalGalleryMode, GalleryState};
@@ -16,12 +17,14 @@ use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError};
-use hkask_types::{McpErrorKind, WebID};
+use hkask_types::{InferencePort, McpErrorKind, VoiceDesign, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use video::FfmpegRunner;
 
 pub struct MediaServer {
     webid: WebID,
@@ -35,6 +38,10 @@ pub struct MediaServer {
     gallery_state: Arc<Mutex<Option<GalleryState>>>,
     /// SQLite-backed gallery store for persistent indexing
     gallery_store: Arc<GalleryStore>,
+    /// Jinja2 template environment for prompt rendering
+    template_env: minijinja::Environment<'static>,
+    /// ffmpeg runner for video processing (None if ffmpeg not found)
+    ffmpeg: FfmpegRunner,
 }
 
 // ── Legacy request types (existing tools) ───────────────────────────────────
@@ -68,17 +75,6 @@ pub struct GenerateVideoRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CaptionRequest {
     pub image_url: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GalleryInitRequest {
-    pub path: String,
-    #[serde(default = "default_gallery_mode")]
-    pub mode: String,
-}
-
-fn default_gallery_mode() -> String {
-    "original".to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -222,6 +218,22 @@ pub struct VideoRemixRequest {
     pub caption_text: Option<String>,
 }
 
+// ── Voice request types ──────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoiceDesignRequest {
+    /// Character description to design a voice for.
+    pub character_description: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GenerateSpeechRequest {
+    /// Text to convert to speech.
+    pub text: String,
+    /// Voice design JSON (as produced by voice_design tool).
+    pub voice_design: Option<String>,
+}
+
 impl MediaServer {
     pub fn new(
         webid: WebID,
@@ -237,6 +249,8 @@ impl MediaServer {
             inference,
             gallery_state: Arc::new(Mutex::new(None)),
             gallery_store,
+            template_env: templates::create_env(),
+            ffmpeg: FfmpegRunner::detect(),
         })
     }
 
@@ -278,52 +292,40 @@ impl MediaServer {
         }
     }
 
+    /// Render a Jinja2 prompt template with the given variables.
+    fn render_prompt(&self, name: &str, vars: &HashMap<&str, &str>) -> Result<String, String> {
+        templates::render(&self.template_env, name, vars)
+    }
+
     /// Resolve an image index to a base64 data URL for vision LLM calls.
     fn resolve_image_url(&self, image_index: usize) -> Result<String, String> {
         let guard = self.gallery_state.lock().unwrap();
         let state = guard
             .as_ref()
             .ok_or("No gallery initialized.".to_string())?;
+        let gallery_id = state
+            .gallery_id
+            .as_ref()
+            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
 
-        let mut count = 0usize;
-        for entry in walkdir::WalkDir::new(&state.path)
-            .max_depth(1)
-            .into_iter()
-            .flatten()
-        {
-            if entry.file_type().is_file() {
-                let ext = entry
-                    .path()
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("");
-                if matches!(
-                    ext.to_lowercase().as_str(),
-                    "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp" | "tiff"
-                ) {
-                    if count == image_index {
-                        let data = std::fs::read(entry.path())
-                            .map_err(|e| format!("Failed to read image: {}", e))?;
-                        let b64 = base64::Engine::encode(
-                            &base64::engine::general_purpose::STANDARD,
-                            &data,
-                        );
-                        let mime = match ext.to_lowercase().as_str() {
-                            "jpg" | "jpeg" => "image/jpeg",
-                            "png" => "image/png",
-                            "webp" => "image/webp",
-                            "gif" => "image/gif",
-                            "bmp" => "image/bmp",
-                            "tiff" => "image/tiff",
-                            _ => "image/png",
-                        };
-                        return Ok(format!("data:{};base64,{}", mime, b64));
-                    }
-                    count += 1;
-                }
-            }
-        }
-        Err(format!("Image not found at index {}", image_index))
+        let img = self
+            .gallery_store
+            .get_image(gallery_id, Some(image_index), None)
+            .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
+
+        let data = std::fs::read(&img.absolute_path)
+            .map_err(|e| format!("Failed to read image: {}", e))?;
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+        let mime = match img.format.as_str() {
+            "jpg" | "jpeg" => "image/jpeg",
+            "png" => "image/png",
+            "webp" => "image/webp",
+            "gif" => "image/gif",
+            "bmp" => "image/bmp",
+            "tiff" => "image/tiff",
+            _ => "image/png",
+        };
+        Ok(format!("data:{};base64,{}", mime, b64))
     }
 
     /// Resolve an image index to a filesystem path.
@@ -332,76 +334,116 @@ impl MediaServer {
         let state = guard
             .as_ref()
             .ok_or("No gallery initialized.".to_string())?;
+        let gallery_id = state
+            .gallery_id
+            .as_ref()
+            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
 
-        let mut count = 0usize;
-        for entry in walkdir::WalkDir::new(&state.path)
-            .max_depth(1)
-            .into_iter()
-            .flatten()
+        let img = self
+            .gallery_store
+            .get_image(gallery_id, Some(image_index), None)
+            .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
+
+        Ok(PathBuf::from(&img.absolute_path))
+    }
+
+    /// Resolve an image index to its SQLite image ID for tag persistence.
+    fn resolve_image_id(&self, image_index: usize) -> Result<String, String> {
+        let guard = self.gallery_state.lock().unwrap();
+        let state = guard
+            .as_ref()
+            .ok_or("No gallery initialized.".to_string())?;
+        let gallery_id = state
+            .gallery_id
+            .as_ref()
+            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
+
+        let img = self
+            .gallery_store
+            .get_image(gallery_id, Some(image_index), None)
+            .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
+
+        Ok(img.id)
+    }
+
+    /// Persist a single tag to the gallery store (best-effort, logs errors).
+    fn persist_tag(
+        &self,
+        image_id: &str,
+        tag_type: &str,
+        value: &str,
+        confidence: f64,
+        model: &str,
+    ) {
+        match self
+            .gallery_store
+            .tag_image(image_id, tag_type, value, confidence, model)
         {
-            if entry.file_type().is_file() {
-                let ext = entry
-                    .path()
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("");
-                if matches!(
-                    ext.to_lowercase().as_str(),
-                    "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp" | "tiff"
-                ) {
-                    if count == image_index {
-                        return Ok(entry.path().to_path_buf());
-                    }
-                    count += 1;
+            Ok(_) => {
+                tracing::debug!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, value = %value, "Tag persisted")
+            }
+            Err(e) => {
+                tracing::warn!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
+            }
+        }
+    }
+
+    /// Extract EXIF metadata from an image file.
+    /// Returns key fields as a JSON object, or null if EXIF is unavailable.
+    fn extract_exif(path: &str) -> serde_json::Value {
+        let exif = match nom_exif::read_exif(path) {
+            Ok(e) => e,
+            Err(_) => return serde_json::Value::Null,
+        };
+
+        let mut fields = serde_json::Map::new();
+
+        // Map common EXIF tag codes to human-readable names
+        let tag_map: &[(u16, &str)] = &[
+            (0x010F, "camera_make"),   // Make
+            (0x0110, "camera_model"),  // Model
+            (0x9003, "date_taken"),    // DateTimeOriginal
+            (0x829A, "exposure_time"), // ExposureTime
+            (0x829D, "f_number"),      // FNumber
+            (0x8827, "iso"),           // ISOSpeedRatings
+            (0x920A, "focal_length"),  // FocalLength
+            (0x9209, "flash"),         // Flash
+            (0x010E, "description"),   // ImageDescription
+            (0x013B, "artist"),        // Artist
+            (0x8298, "copyright"),     // Copyright
+            (0x0131, "software"),      // Software
+        ];
+
+        for (code, name) in tag_map {
+            if let Some(entry) = exif.get_by_code(nom_exif::IfdIndex::MAIN, *code) {
+                if let Some(value_str) = entry.as_str() {
+                    fields.insert(
+                        name.to_string(),
+                        serde_json::Value::String(value_str.to_string()),
+                    );
                 }
             }
         }
-        Err(format!("Image not found at index {}", image_index))
+
+        // GPS info
+        if let Some(gps) = exif.gps_info() {
+            fields.insert(
+                "gps".to_string(),
+                serde_json::Value::String(gps.to_iso6709()),
+            );
+        }
+
+        if fields.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::Value::Object(fields)
+        }
     }
 }
 
 #[tool_router(server_handler)]
 impl MediaServer {
     // ── Gallery tools ────────────────────────────────────────────────────────
-
-    #[tool(
-        description = "Initialize or reconfigure an image gallery. Sets the folder path and operating mode (original=read-only, copy=editable)."
-    )]
-    async fn gallery_init(
-        &self,
-        Parameters(GalleryInitRequest { path, mode }): Parameters<GalleryInitRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("gallery_init", &self.webid);
-
-        let gallery_mode = match mode.as_str() {
-            "copy" => LocalGalleryMode::Copy,
-            _ => LocalGalleryMode::Original,
-        };
-
-        let state = GalleryState::new(PathBuf::from(&path), gallery_mode);
-
-        if let Err(e) = state.validate() {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(e).to_json_string(),
-            );
-        }
-
-        if let Err(e) = state.ensure_meta_dir() {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e).to_json_string(),
-            );
-        }
-
-        let summary = state.summary();
-        *self.gallery_state.lock().unwrap() = Some(state);
-
-        span.ok_json(serde_json::json!({
-            "status": "initialized",
-            "gallery": summary,
-        }))
-    }
 
     #[tool(
         description = "Scan the gallery directory for new, changed, or removed images. Computes SHA-256 checksums and image dimensions."
@@ -430,6 +472,30 @@ impl MediaServer {
         };
 
         let result = state.scan(recursive, extensions.as_deref());
+
+        // Persist discovered images to SQLite
+        let gallery_id = state.gallery_id.clone();
+        let mut persisted = 0u32;
+        let mut persist_errors = Vec::new();
+        if let Some(ref gid) = gallery_id {
+            for entry in &result.entries {
+                let abs_path = state.path.join(&entry.relative_path);
+                match self.gallery_store.add_image(
+                    gid,
+                    &entry.relative_path,
+                    &abs_path.to_string_lossy(),
+                    &entry.checksum,
+                    entry.width,
+                    entry.height,
+                    &entry.format,
+                    entry.size_bytes,
+                ) {
+                    Ok(_) => persisted += 1,
+                    Err(e) => persist_errors.push(format!("{}: {}", entry.relative_path, e)),
+                }
+            }
+        }
+
         let summary = state.summary();
 
         span.ok_json(serde_json::json!({
@@ -439,6 +505,8 @@ impl MediaServer {
                 "unchanged": result.unchanged,
                 "total": result.total,
                 "errors": result.errors,
+                "persisted": persisted,
+                "persist_errors": persist_errors,
             },
             "gallery": summary,
         }))
@@ -493,7 +561,7 @@ impl MediaServer {
                     GalleryMode::ReadOnly | GalleryMode::CopyOnWrite => LocalGalleryMode::Original,
                     GalleryMode::Destructive => LocalGalleryMode::Copy,
                 };
-                let state = GalleryState::new(PathBuf::from(&path), local_mode);
+                let mut state = GalleryState::new(PathBuf::from(&path), local_mode);
                 if let Err(e) = state.validate() {
                     return span.error(
                         McpErrorKind::InvalidArgument,
@@ -506,6 +574,8 @@ impl MediaServer {
                         McpToolError::internal(e).to_json_string(),
                     );
                 }
+                // Store gallery_id so scans can persist to SQLite
+                state.gallery_id = Some(record.id.clone());
                 *self.gallery_state.lock().unwrap() = Some(state);
 
                 span.ok_json(serde_json::json!({
@@ -550,76 +620,68 @@ impl MediaServer {
             }
         };
 
-        // Find image by index in the in-memory state
-        // For now, use the filesystem path directly
-        let img_path = if let Some(idx) = index {
-            // Walk the gallery to find the nth image
-            let mut found: Option<PathBuf> = None;
-            let mut count = 0usize;
-            for entry in walkdir::WalkDir::new(&state.path)
-                .max_depth(1)
-                .into_iter()
-                .flatten()
-            {
-                if entry.file_type().is_file() {
-                    let ext = entry
-                        .path()
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("");
-                    if matches!(
-                        ext.to_lowercase().as_str(),
-                        "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp" | "tiff"
-                    ) {
-                        if count == idx {
-                            found = Some(entry.path().to_path_buf());
-                            break;
-                        }
-                        count += 1;
-                    }
-                }
+        // Look up image in SQLite via GalleryStore
+        let gallery_id = match &state.gallery_id {
+            Some(id) => id.clone(),
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(
+                        "Gallery not persisted — run gallery_set_root first.",
+                    )
+                    .to_json_string(),
+                );
             }
-            found
-        } else if let Some(_h) = &hash {
-            // Hash lookup not supported in in-memory mode — would need SQLite
-            None
-        } else {
-            None
         };
 
-        match img_path {
-            Some(p) => {
-                let fmt = format.as_deref().unwrap_or("path");
-                match fmt {
-                    "base64" => match std::fs::read(&p) {
-                        Ok(data) => {
-                            let b64 = base64::Engine::encode(
-                                &base64::engine::general_purpose::STANDARD,
-                                &data,
-                            );
-                            span.ok_json(serde_json::json!({
-                                    "format": "base64",
-                                    "data": format!("data:image/{};base64,{}", p.extension().and_then(|e| e.to_str()).unwrap_or("png"), b64),
-                                    "path": p.display().to_string(),
-                                }))
-                        }
-                        Err(e) => span.error(
-                            McpErrorKind::Internal,
-                            McpToolError::internal(format!("Failed to read image: {}", e))
-                                .to_json_string(),
-                        ),
-                    },
-                    _ => span.ok_json(serde_json::json!({
-                        "format": "path",
-                        "path": p.display().to_string(),
-                    })),
-                }
+        let img_record = match self
+            .gallery_store
+            .get_image(&gallery_id, index, hash.as_deref())
+        {
+            Ok(r) => r,
+            Err(GalleryStoreError::ImageNotFound(msg)) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(msg).to_json_string(),
+                );
             }
-            None => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("Image not found at specified index/hash.")
-                    .to_json_string(),
-            ),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Gallery lookup failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        let img_path = PathBuf::from(&img_record.absolute_path);
+        let fmt = format.as_deref().unwrap_or("path");
+        match fmt {
+            "base64" => match std::fs::read(&img_path) {
+                Ok(data) => {
+                    let b64 =
+                        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+                    span.ok_json(serde_json::json!({
+                        "format": "base64",
+                        "data": format!("data:image/{};base64,{}", img_record.format, b64),
+                        "path": img_record.absolute_path,
+                        "hash": img_record.hash,
+                        "width": img_record.width,
+                        "height": img_record.height,
+                    }))
+                }
+                Err(e) => span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to read image: {}", e)).to_json_string(),
+                ),
+            },
+            _ => span.ok_json(serde_json::json!({
+                "format": "path",
+                "path": img_record.absolute_path,
+                "hash": img_record.hash,
+                "width": img_record.width,
+                "height": img_record.height,
+            })),
         }
     }
 
@@ -643,60 +705,70 @@ impl MediaServer {
             }
         };
 
-        // Find image by index
-        let img_path = if let Some(idx) = index {
-            let mut found: Option<PathBuf> = None;
-            let mut count = 0usize;
-            for entry in walkdir::WalkDir::new(&state.path)
-                .max_depth(1)
-                .into_iter()
-                .flatten()
-            {
-                if entry.file_type().is_file() {
-                    let ext = entry
-                        .path()
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("");
-                    if matches!(
-                        ext.to_lowercase().as_str(),
-                        "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp" | "tiff"
-                    ) {
-                        if count == idx {
-                            found = Some(entry.path().to_path_buf());
-                            break;
-                        }
-                        count += 1;
-                    }
-                }
+        let gallery_id = match &state.gallery_id {
+            Some(id) => id.clone(),
+            None => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(
+                        "Gallery not persisted — run gallery_set_root first.",
+                    )
+                    .to_json_string(),
+                );
             }
-            found
-        } else {
-            None
         };
 
-        match img_path {
-            Some(p) => {
-                // Read dimensions
-                let dims = image::image_dimensions(&p).ok();
-                let file_size = std::fs::metadata(&p).ok().map(|m| m.len());
-
-                span.ok_json(serde_json::json!({
-                    "path": p.display().to_string(),
-                    "filename": p.file_name().and_then(|n| n.to_str()).unwrap_or("unknown"),
-                    "format": p.extension().and_then(|e| e.to_str()).unwrap_or("unknown"),
-                    "width": dims.map(|(w, _)| w),
-                    "height": dims.map(|(_, h)| h),
-                    "size_bytes": file_size,
-                    "tags": [],
-                }))
+        let img_record = match self.gallery_store.get_image(&gallery_id, index, None) {
+            Ok(r) => r,
+            Err(GalleryStoreError::ImageNotFound(msg)) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(msg).to_json_string(),
+                );
             }
-            None => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("Image not found at specified index.")
-                    .to_json_string(),
-            ),
-        }
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Gallery lookup failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        // Read tags from SQLite
+        let tags = self
+            .gallery_store
+            .get_tags(&img_record.id)
+            .unwrap_or_default();
+        let tag_list: Vec<serde_json::Value> = tags
+            .iter()
+            .map(|t| {
+                serde_json::json!({
+                    "type": t.tag_type,
+                    "value": t.value,
+                    "confidence": t.confidence,
+                    "model": t.model_used,
+                })
+            })
+            .collect();
+
+        // Read EXIF metadata from the image file
+        let exif_data = Self::extract_exif(&img_record.absolute_path);
+
+        span.ok_json(serde_json::json!({
+            "path": img_record.absolute_path,
+            "filename": PathBuf::from(&img_record.absolute_path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown"),
+            "format": img_record.format,
+            "width": img_record.width,
+            "height": img_record.height,
+            "size_bytes": img_record.size_bytes,
+            "hash": img_record.hash,
+            "tags": tag_list,
+            "exif": exif_data,
+        }))
     }
 
     // ── Tagging tools ───────────────────────────────────────────────────────
@@ -715,14 +787,25 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let _detail = _detail_level.unwrap_or_else(|| "detailed".to_string());
-        let prompt = "Analyze this image and detect all visible human faces.\n\nFor each face, provide:\n1. Estimated age range\n2. Apparent gender presentation\n3. Notable features (glasses, beard, expression, hair color/style)\n4. Position in image\n5. Approximate face size relative to image\n\nReturn ONLY a JSON array. Each element: face_index, age_range, gender_presentation, features, position, size.";
+        let detail = _detail_level.as_deref().unwrap_or("detailed");
+        let mut vars = HashMap::new();
+        vars.insert("detail_level", detail);
+        let prompt = match self.render_prompt("tag_faces", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
 
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
             .generate_vision(
-                prompt,
+                &prompt,
                 &[image_url],
                 &params,
                 Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
@@ -733,11 +816,23 @@ impl MediaServer {
             "tag_faces",
             &format!("image_index={}", image_index),
             if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"detail_level": _detail}),
+            serde_json::json!({"detail_level": detail}),
         );
 
         match result {
             Ok(r) => {
+                // Persist face tags to gallery store
+                if let Ok(image_id) = self.resolve_image_id(image_index) {
+                    if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
+                        for face in &faces {
+                            let value = serde_json::to_string(face).unwrap_or_default();
+                            self.persist_tag(&image_id, "face", &value, 0.85, "llama-3.2-vision");
+                        }
+                    } else {
+                        // Non-JSON response — store as raw text
+                        self.persist_tag(&image_id, "face", r.text.trim(), 0.7, "llama-3.2-vision");
+                    }
+                }
                 span.ok_json(serde_json::json!({"faces": r.text, "model": "llama-3.2-vision"}))
             }
             Err(e) => span.error(
@@ -763,11 +858,22 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
+        let detail = _detail_level.as_deref().unwrap_or("detailed");
         let max = max_objects.unwrap_or(20);
-        let prompt = format!(
-            "Analyze this image and detect all visible objects.\n\nFor each object, provide:\n1. Object name (be specific)\n2. Bounding box description\n3. Confidence level (high/medium/low)\n4. Brief description of appearance\n\nLimit to the {} most prominent objects.\n\nReturn ONLY a JSON array. Each element: name, location, confidence, description.",
-            max
-        );
+        let max_str = max.to_string();
+        let mut vars = HashMap::new();
+        vars.insert("detail_level", detail);
+        vars.insert("max_objects", &max_str);
+        let prompt = match self.render_prompt("tag_objects", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
 
         let params = hkask_types::LLMParameters::default();
         let result = self
@@ -789,6 +895,23 @@ impl MediaServer {
 
         match result {
             Ok(r) => {
+                // Persist object tags to gallery store
+                if let Ok(image_id) = self.resolve_image_id(image_index) {
+                    if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
+                        for obj in &objects {
+                            let value = serde_json::to_string(obj).unwrap_or_default();
+                            self.persist_tag(&image_id, "object", &value, 0.85, "llama-3.2-vision");
+                        }
+                    } else {
+                        self.persist_tag(
+                            &image_id,
+                            "object",
+                            r.text.trim(),
+                            0.7,
+                            "llama-3.2-vision",
+                        );
+                    }
+                }
                 span.ok_json(serde_json::json!({"objects": r.text, "model": "llama-3.2-vision"}))
             }
             Err(e) => span.error(
@@ -812,13 +935,24 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let prompt = "Analyze this image and identify its color palette.\n\nFor each dominant color, provide: name, hex code, approximate percentage, role in composition.\nAlso describe: palette style, color temperature, saturation level.\n\nReturn ONLY a JSON object with fields: colors (array), palette_style, temperature, saturation.";
+        let mut vars = HashMap::new();
+        vars.insert("max_colors", "8");
+        let prompt = match self.render_prompt("tag_colors", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
 
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
             .generate_vision(
-                prompt,
+                &prompt,
                 &[image_url],
                 &params,
                 Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
@@ -834,6 +968,38 @@ impl MediaServer {
 
         match result {
             Ok(r) => {
+                // Persist color tags to gallery store
+                if let Ok(image_id) = self.resolve_image_id(image_index) {
+                    // Try to parse as structured JSON with colors array
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
+                        if let Some(colors) = parsed["colors"].as_array() {
+                            for color in colors {
+                                let value = serde_json::to_string(color).unwrap_or_default();
+                                self.persist_tag(
+                                    &image_id,
+                                    "color",
+                                    &value,
+                                    0.85,
+                                    "llama-3.2-vision",
+                                );
+                            }
+                        }
+                        // Also store palette-level metadata
+                        for field in &["palette_style", "temperature", "saturation"] {
+                            if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
+                                self.persist_tag(&image_id, "color", v, 0.9, "llama-3.2-vision");
+                            }
+                        }
+                    } else {
+                        self.persist_tag(
+                            &image_id,
+                            "color",
+                            r.text.trim(),
+                            0.7,
+                            "llama-3.2-vision",
+                        );
+                    }
+                }
                 span.ok_json(serde_json::json!({"colors": r.text, "model": "llama-3.2-vision"}))
             }
             Err(e) => span.error(
@@ -855,13 +1021,23 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let prompt = "Analyze the photographic composition of this image.\n\nEvaluate: focal point, rule of thirds, leading lines, depth of field, perspective, framing, symmetry, negative space.\n\nReturn ONLY a JSON object with these 8 fields.";
+        let vars = HashMap::new();
+        let prompt = match self.render_prompt("tag_composition", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
 
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
             .generate_vision(
-                prompt,
+                &prompt,
                 &[image_url],
                 &params,
                 Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
@@ -876,8 +1052,44 @@ impl MediaServer {
         );
 
         match result {
-            Ok(r) => span
-                .ok_json(serde_json::json!({"composition": r.text, "model": "llama-3.2-vision"})),
+            Ok(r) => {
+                // Persist composition tags to gallery store
+                if let Ok(image_id) = self.resolve_image_id(image_index) {
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
+                        for field in &[
+                            "focal_point",
+                            "rule_of_thirds",
+                            "leading_lines",
+                            "depth_of_field",
+                            "perspective",
+                            "framing",
+                            "symmetry",
+                            "negative_space",
+                        ] {
+                            if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
+                                self.persist_tag(
+                                    &image_id,
+                                    "composition",
+                                    v,
+                                    0.85,
+                                    "llama-3.2-vision",
+                                );
+                            }
+                        }
+                    } else {
+                        self.persist_tag(
+                            &image_id,
+                            "composition",
+                            r.text.trim(),
+                            0.7,
+                            "llama-3.2-vision",
+                        );
+                    }
+                }
+                span.ok_json(
+                    serde_json::json!({"composition": r.text, "model": "llama-3.2-vision"}),
+                )
+            }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable(format!("Vision inference failed: {}", e))
@@ -901,19 +1113,17 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let style_str = style.unwrap_or_else(|| "descriptive".to_string());
-        let prompt = match style_str.as_str() {
-            "artistic" => {
-                "Write an artistic, evocative description of this image. Use poetic language and focus on mood, emotion, and aesthetic quality. Write 2-3 sentences. Return ONLY the description text."
-            }
-            "technical" => {
-                "Provide a technical description of this image. Note photographic/compositional elements: focal point, depth of field, lighting, color palette, perspective. Write 2-4 sentences. Return ONLY the description text."
-            }
-            "alt_text" => {
-                "Write concise alt text for this image suitable for accessibility. Describe only what is visually present — no interpretation. Keep to 1-2 sentences, max 125 characters. Return ONLY the alt text."
-            }
-            _ => {
-                "Describe this image in detail. Cover the subject, setting, lighting, colors, composition, mood, and any notable details. Write 2-4 sentences. Return ONLY the description text."
+        let style_str = style.as_deref().unwrap_or("descriptive");
+        let mut vars = HashMap::new();
+        vars.insert("style", style_str);
+        let prompt = match self.render_prompt("describe_scene", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
             }
         };
 
@@ -921,7 +1131,7 @@ impl MediaServer {
         let result = self
             .inference
             .generate_vision(
-                prompt,
+                &prompt,
                 &[image_url],
                 &params,
                 Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
@@ -959,13 +1169,18 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        let prompt = if let Some(ref cats) = categories {
-            format!(
-                "Analyze this image and classify it. Classify into these categories (an image can belong to multiple): {}. For each matching category, provide: category (string), confidence (number 0.0-1.0). Return ONLY a JSON array.",
-                cats
-            )
-        } else {
-            "Analyze this image and classify its photographic style. Evaluate: genre (portrait, landscape, street, macro, architecture, documentary, abstract, etc.), era/style (contemporary, vintage, HDR, minimalist, etc.), technique (long exposure, bokeh, black-and-white, etc.). For each matching category, provide: category (string), confidence (number 0.0-1.0). Return ONLY a JSON array.".to_string()
+        let cats = categories.as_deref().unwrap_or("");
+        let mut vars = HashMap::new();
+        vars.insert("categories", cats);
+        let prompt = match self.render_prompt("classify_style", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
         };
 
         let params = hkask_types::LLMParameters::default();
@@ -1085,6 +1300,14 @@ impl MediaServer {
             );
         }
 
+        if image_indices.len() > 9 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("Maximum 9 images supported for collage.")
+                    .to_json_string(),
+            );
+        }
+
         // Resolve all image paths
         let mut paths = Vec::new();
         for idx in &image_indices {
@@ -1094,14 +1317,104 @@ impl MediaServer {
             }
         }
 
-        // For now, return the list of resolved paths as a collage manifest
-        // Full composition with image crate will be implemented in Phase 2
-        span.ok_json(serde_json::json!({
-            "status": "collage_manifest",
-            "image_count": paths.len(),
-            "images": paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
-            "message": "Collage composition (image crate layout) will be implemented in Phase 2."
-        }))
+        let spacing = _spacing.unwrap_or(8);
+        let layout = _layout.as_deref().unwrap_or("grid");
+
+        // Load all images
+        let mut images = Vec::new();
+        for path in &paths {
+            match image::open(path) {
+                Ok(img) => images.push(img),
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to open {}: {}", path.display(), e))
+                            .to_json_string(),
+                    );
+                }
+            }
+        }
+
+        // Compute grid dimensions
+        let cols = match layout {
+            "horizontal" => images.len() as u32,
+            "vertical" => 1u32,
+            _ => {
+                // grid: auto-compute columns for roughly square layout
+                (images.len() as f64).sqrt().ceil() as u32
+            }
+        };
+        let rows = (images.len() as u32 + cols - 1) / cols;
+
+        // Determine cell size from canvas or auto-compute
+        let canvas_w: u32;
+        let canvas_h: u32;
+        if let Some(ref size_str) = _canvas_size {
+            let parts: Vec<&str> = size_str.split('x').collect();
+            canvas_w = parts.first().and_then(|s| s.parse().ok()).unwrap_or(1920);
+            canvas_h = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(1080);
+        } else {
+            // Auto-size: use the largest image dimensions as cell size
+            let max_w = images.iter().map(|img| img.width()).max().unwrap_or(640);
+            let max_h = images.iter().map(|img| img.height()).max().unwrap_or(480);
+            canvas_w = max_w * cols + spacing * (cols + 1);
+            canvas_h = max_h * rows + spacing * (rows + 1);
+        }
+
+        let cell_w = (canvas_w - spacing * (cols + 1)) / cols;
+        let cell_h = (canvas_h - spacing * (rows + 1)) / rows;
+
+        // Create canvas
+        let mut canvas = image::DynamicImage::new_rgba8(canvas_w, canvas_h);
+        let bg = image::Rgba([30u8, 30u8, 30u8, 255u8]);
+        for pixel in canvas.as_mut_rgba8().unwrap().pixels_mut() {
+            *pixel = bg;
+        }
+
+        // Place images on grid
+        for (i, img) in images.iter().enumerate() {
+            let col = i as u32 % cols;
+            let row = i as u32 / cols;
+
+            // Resize image to fit cell while preserving aspect ratio
+            let scaled = img.resize_exact(
+                cell_w.saturating_sub(spacing),
+                cell_h.saturating_sub(spacing),
+                image::imageops::FilterType::Lanczos3,
+            );
+
+            let x = spacing
+                + col * (cell_w + spacing)
+                + (cell_w.saturating_sub(spacing) - scaled.width()) / 2;
+            let y = spacing
+                + row * (cell_h + spacing)
+                + (cell_h.saturating_sub(spacing) - scaled.height()) / 2;
+
+            image::imageops::overlay(&mut canvas, &scaled, x as i64, y as i64);
+        }
+
+        // Save to temp directory
+        let temp_dir = std::env::temp_dir().join("hkask-media");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let output_path = temp_dir.join(format!("collage_{}.png", uuid::Uuid::new_v4()));
+
+        match canvas.save(&output_path) {
+            Ok(_) => span.ok_json(serde_json::json!({
+                "status": "created",
+                "image_count": images.len(),
+                "layout": layout,
+                "cols": cols,
+                "rows": rows,
+                "canvas_width": canvas_w,
+                "canvas_height": canvas_h,
+                "spacing": spacing,
+                "output": output_path.display().to_string(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to save collage: {}", e)).to_json_string(),
+            ),
+        }
     }
 
     // ── Video tools ──────────────────────────────────────────────────────────
@@ -1128,16 +1441,30 @@ impl MediaServer {
             );
         }
 
-        // ffmpeg subprocess: ffmpeg -ss {start} -to {end} -i {input} -c copy {output}
-        // Phase 1: return the clip parameters as a manifest
-        span.ok_json(serde_json::json!({
-            "status": "clip_manifest",
-            "source": video_url,
-            "start_sec": start_sec,
-            "end_sec": end_sec,
-            "duration": end_sec - start_sec,
-            "message": "ffmpeg clip execution will be implemented in Phase 2."
-        }))
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(
+                    "ffmpeg not found on system PATH — video tools unavailable.",
+                )
+                .to_json_string(),
+            );
+        }
+
+        match self.ffmpeg.clip(&video_url, start_sec, end_sec).await {
+            Ok(output) => span.ok_json(serde_json::json!({
+                "status": "clipped",
+                "source": video_url,
+                "start_sec": start_sec,
+                "end_sec": end_sec,
+                "duration": end_sec - start_sec,
+                "output": output.display().to_string(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
     }
 
     #[tool(description = "Convert a video segment to GIF format using local ffmpeg.")]
@@ -1156,15 +1483,33 @@ impl MediaServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        span.ok_json(serde_json::json!({
-            "status": "gif_manifest",
-            "source": video_url,
-            "start_sec": start_sec.unwrap_or(0.0),
-            "duration_sec": duration_sec.unwrap_or(5.0),
-            "width": width.unwrap_or(480),
-            "fps": fps.unwrap_or(10),
-            "message": "ffmpeg GIF conversion will be implemented in Phase 2."
-        }))
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
+            );
+        }
+
+        let start = start_sec.unwrap_or(0.0);
+        let dur = duration_sec.unwrap_or(5.0);
+        let w = width.unwrap_or(480);
+        let f = fps.unwrap_or(10);
+
+        match self.ffmpeg.to_gif(&video_url, start, dur, w, f).await {
+            Ok(output) => span.ok_json(serde_json::json!({
+                "status": "converted",
+                "source": video_url,
+                "start_sec": start,
+                "duration_sec": dur,
+                "width": w,
+                "fps": f,
+                "output": output.display().to_string(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
     }
 
     #[tool(
@@ -1214,14 +1559,30 @@ impl MediaServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        span.ok_json(serde_json::json!({
-            "status": "caption_manifest",
-            "source": video_url,
-            "text": text,
-            "position": position.unwrap_or_else(|| "bottom".to_string()),
-            "font_size": font_size.unwrap_or(24),
-            "message": "ffmpeg drawtext overlay will be implemented in Phase 2."
-        }))
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
+            );
+        }
+
+        let pos = position.as_deref().unwrap_or("bottom");
+        let size = font_size.unwrap_or(24);
+
+        match self.ffmpeg.add_caption(&video_url, &text, pos, size).await {
+            Ok(output) => span.ok_json(serde_json::json!({
+                "status": "captioned",
+                "source": video_url,
+                "text": text,
+                "position": pos,
+                "font_size": size,
+                "output": output.display().to_string(),
+            })),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e).to_json_string(),
+            ),
+        }
     }
 
     #[tool(description = "Generate a video remix: clip, add caption, convert to GIF.")]
@@ -1247,16 +1608,172 @@ impl MediaServer {
             );
         }
 
-        span.ok_json(serde_json::json!({
-            "status": "remix_manifest",
-            "source": video_url,
-            "start_sec": start_sec,
-            "end_sec": end_sec,
-            "duration": end_sec - start_sec,
-            "caption": caption_text,
-            "pipeline": ["video_clip", "video_add_caption", "video_to_gif"],
-            "message": "Remix pipeline will be implemented in Phase 2."
-        }))
+        if !self.ffmpeg.available {
+            return span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable("ffmpeg not found on system PATH.").to_json_string(),
+            );
+        }
+
+        // Step 1: clip
+        let clipped = match self.ffmpeg.clip(&video_url, start_sec, end_sec).await {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Clip step failed: {}", e)).to_json_string(),
+                );
+            }
+        };
+
+        // Step 2: add caption (if text provided)
+        let captioned = if let Some(ref cap) = caption_text {
+            match self
+                .ffmpeg
+                .add_caption(&clipped.to_string_lossy(), cap, "bottom", 24)
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Caption step failed: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            }
+        } else {
+            clipped.clone()
+        };
+
+        // Step 3: convert to GIF
+        match self
+            .ffmpeg
+            .to_gif(
+                &captioned.to_string_lossy(),
+                0.0,
+                end_sec - start_sec,
+                480,
+                10,
+            )
+            .await
+        {
+            Ok(gif) => {
+                // Clean up intermediate files
+                let _ = std::fs::remove_file(&clipped);
+                if caption_text.is_some() {
+                    let _ = std::fs::remove_file(&captioned);
+                }
+                span.ok_json(serde_json::json!({
+                    "status": "remixed",
+                    "source": video_url,
+                    "start_sec": start_sec,
+                    "end_sec": end_sec,
+                    "caption": caption_text,
+                    "output": gif.display().to_string(),
+                }))
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("GIF step failed: {}", e)).to_json_string(),
+            ),
+        }
+    }
+
+    // ── Voice tools ──────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Design a synthetic voice profile from a character description. Returns a VoiceDesign JSON for use with generate_speech."
+    )]
+    async fn voice_design(
+        &self,
+        Parameters(VoiceDesignRequest {
+            character_description,
+        }): Parameters<VoiceDesignRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("voice_design", &self.webid);
+
+        let mut vars = HashMap::new();
+        vars.insert("character_description", character_description.as_str());
+        let prompt = match self.render_prompt("voice_design", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        let params = hkask_types::LLMParameters::default();
+        let result = self
+            .inference
+            .generate(&prompt, &params)
+            .await
+            .map_err(|e| {
+                McpToolError::unavailable(format!("Voice design inference failed: {}", e))
+            });
+
+        self.record_experience(
+            "voice_design",
+            &character_description,
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({}),
+        );
+
+        match result {
+            Ok(r) => {
+                // Validate that the response is valid JSON
+                match serde_json::from_str::<serde_json::Value>(&r.text) {
+                    Ok(v) => span.ok_json(serde_json::json!({
+                        "voice_design": v,
+                        "model": "llama-3.3-70b",
+                    })),
+                    Err(_) => span.ok_json(serde_json::json!({
+                        "voice_design": {"description": r.text.trim()},
+                        "model": "llama-3.3-70b",
+                        "warning": "LLM did not return valid JSON; using raw description."
+                    })),
+                }
+            }
+            Err(e) => span.error(e.kind, e.to_json_string()),
+        }
+    }
+
+    #[tool(
+        description = "Generate speech audio from text using a voice design. Returns audio URL."
+    )]
+    async fn generate_speech(
+        &self,
+        Parameters(GenerateSpeechRequest { text, voice_design }): Parameters<GenerateSpeechRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("generate_speech", &self.webid);
+
+        // Build voice description for TTS model
+        let voice_desc = if let Some(ref vd_json) = voice_design {
+            match serde_json::from_str::<VoiceDesign>(vd_json) {
+                Ok(vd) => vd.to_tts_description(),
+                Err(_) => vd_json.clone(),
+            }
+        } else {
+            VoiceDesign::default().to_tts_description()
+        };
+
+        let result = self
+            .inference
+            .generate_speech(&text, &voice_desc)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Speech generation failed: {}", e)));
+
+        self.record_experience(
+            "generate_speech",
+            &text,
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"voice": voice_desc}),
+        );
+
+        span.finish(result)
     }
 
     // ── fal.ai generation tools ──────────────────────────────────────────────
@@ -1367,11 +1884,23 @@ impl MediaServer {
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
+        let mut vars = HashMap::new();
+        vars.insert("style", "descriptive");
+        let prompt = match self.render_prompt("caption", &vars) {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Template render failed: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
         let params = hkask_types::LLMParameters::default();
         let result = self
             .inference
             .generate_vision(
-                "Provide a detailed caption for this image.",
+                &prompt,
                 &[image_url],
                 &params,
                 Some("DI/meta-llama/Llama-3.2-11B-Vision-Instruct"),
@@ -1430,7 +1959,20 @@ async fn main() -> anyhow::Result<()> {
                 gallery_store.clone(),
             )
         },
-        vec![],
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "DI_API_KEY",
+                "DeepInfra API key for vision LLMs and media generation",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "FA_API_KEY",
+                "fal.ai API key for image/video generation",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "FW_API_KEY",
+                "Fireworks API key for vision LLMs",
+            ),
+        ],
     )
     .await
 }

@@ -37,6 +37,7 @@ embed_one() {
     echo "Model: DI/Qwen/Qwen3-Embedding-0.6B (DeepInfra)"
     $KASK style embed-corpus \
         --config "$config" \
+        --replicant Curator \
         --db "$DB" \
         --passphrase test-pass 2>&1
     echo "=== ${name} done at $(date) ==="

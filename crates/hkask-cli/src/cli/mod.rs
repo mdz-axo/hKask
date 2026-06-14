@@ -158,6 +158,12 @@ pub enum Commands {
         action: StyleAction,
     },
 
+    /// Kata operations — list and inspect kata manifests
+    Kata {
+        #[command(subcommand)]
+        action: KataAction,
+    },
+
     /// List available LLM models
     Models,
 

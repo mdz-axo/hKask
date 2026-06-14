@@ -105,9 +105,10 @@ Fallback is not a separate code fork — it reuses the same `route_page` logic w
 - **`thresholds::{SIMPLE_MAX, MODERATE_MAX, DEFAULT_MODERATE_SAMPLE_RATE}`** — dead constants, superseded by `ThresholdConfig`.
 - **Custom `CnsObserver` trait in `pipeline.rs`** — unauthorized parallel path.
 - **Per-run calibration call in `pipeline.rs`** — moved to server-level accumulation.
+- **`stretch_contrast()` + 2 tests** — superseded by Otsu binarization (strictly better: optimal threshold vs. simple range expansion).
 
 ### Retained (Guideline)
-- **`stretch_contrast`** — retained as documented alternative to Otsu.
+- **`CnsObserver` trait impl** — now live, wired into server flow.
 
 ---
 
