@@ -18,6 +18,9 @@ pub fn create_env() -> Environment<'static> {
     env.add_template("caption", CAPTION).ok();
     env.add_template("voice_design", VOICE_DESIGN).ok();
     env.add_template("video_caption", VIDEO_CAPTION).ok();
+    env.add_template("validate_face_ref", VALIDATE_FACE_REF)
+        .ok();
+    env.add_template("match_faces", MATCH_FACES).ok();
     env
 }
 
@@ -184,3 +187,44 @@ Produce a structured voice profile with these fields:
 - description: A 1-2 sentence natural-language description synthesizing all the above, suitable as input to a TTS model. Write it in prose like "A warm, middle-aged feminine voice with a gentle British accent, speaking at a moderate pace with a clear, resonant timbre."
 
 Return ONLY a JSON object with exactly these 9 fields. No markdown, no preamble."#;
+
+const VALIDATE_FACE_REF: &str = r#"You are validating a reference image for facial recognition. This image will be used as the canonical reference for matching a specific person across a photo gallery. Assess it against these criteria:
+
+1. FACE COUNT: How many human faces are visible? Must be exactly 1.
+2. FACE COVERAGE: What percentage of the image does the face occupy? Must be ≥15%.
+3. POSE: Is the face frontal (facing the camera directly) or near-frontal (slight angle, both eyes visible)? Profile/side views are unacceptable.
+4. LIGHTING: Is the face well-lit with even illumination? Heavy shadows, backlighting, or severe underexposure are unacceptable.
+5. OCCLUSION: Are there any objects covering significant portions of the face? Sunglasses, masks, hands, hair covering eyes, or other obstructions are unacceptable.
+6. CLARITY: Is the face in sharp focus? Blur, motion blur, or heavy noise/grain are unacceptable.
+
+Return ONLY a JSON object with these fields:
+- valid: boolean (true if ALL criteria pass)
+- face_count: integer
+- face_coverage_pct: integer (estimated percentage)
+- pose: string ("frontal" | "near-frontal" | "profile" | "other")
+- lighting: string ("good" | "acceptable" | "poor")
+- occlusion: string ("none" | "minor" | "significant")
+- clarity: string ("sharp" | "acceptable" | "blurry")
+- issues: array of strings (list each failing criterion with a brief explanation, empty if all pass)
+
+No markdown, no preamble."#;
+
+const MATCH_FACES: &str = r#"You are comparing two face images to determine if they show the same person.
+
+Image 1 is a reference portrait of a known person.
+Image 2 is a face detected in a gallery photo.
+
+Compare these key identity markers:
+- Facial structure (bone structure, face shape, jawline)
+- Eye shape, spacing, and color
+- Nose shape and proportions
+- Mouth and lip shape
+- Ear shape (if visible)
+- Distinctive features (moles, scars, freckles, etc.)
+
+Return ONLY a JSON object with these fields:
+- match: boolean (true if same person, false if different)
+- confidence: number (0.0 to 1.0, where 1.0 is absolute certainty)
+- reasoning: string (1-2 sentences explaining the key similarities or differences that led to your conclusion)
+
+No markdown, no preamble."#;

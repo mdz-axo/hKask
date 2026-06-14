@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use crate::block_on;
 use crate::cli::BotAction;
-use crate::errors::AgentError;
 use hkask_agents::AgentRegistryLoader;
 use hkask_agents::adapters::FilesystemRegistrySource;
+use hkask_services::ServiceError;
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 
 #[derive(Debug)]
@@ -17,11 +17,11 @@ pub struct AgentReceipt {
     pub registered_at: String,
 }
 
-async fn build_loader() -> Result<AgentRegistryLoader, AgentError> {
+async fn build_loader() -> Result<AgentRegistryLoader, ServiceError> {
     let config = hkask_services::ServiceConfig::from_env()?;
     let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
     let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
+        .map_err(|e| ServiceError::AgentRegistrationFailed(e.to_string()))?;
     let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
     Ok(AgentRegistryLoader::new(
         config.registry_yaml_path,
@@ -31,7 +31,7 @@ async fn build_loader() -> Result<AgentRegistryLoader, AgentError> {
     ))
 }
 
-pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, AgentError> {
+pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, ServiceError> {
     let loader = build_loader().await?;
     let agents = loader.boot().await?;
     Ok(match kind_filter.and_then(AgentKind::parse) {
@@ -43,24 +43,24 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
     })
 }
 
-pub async fn bot_status(name: &str) -> Result<RegisteredAgent, AgentError> {
+pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
     let loader = build_loader().await?;
     let agents = loader.boot().await?;
     agents
         .into_iter()
         .find(|a| a.definition.name == name)
-        .ok_or_else(|| AgentError::NotFound(name.to_string()))
+        .ok_or_else(|| ServiceError::AgentNotFound(name.to_string()))
 }
 
 pub async fn agent_register(
     webid_str: &str,
     agent_type: &str,
     capabilities: Vec<String>,
-) -> Result<AgentReceipt, AgentError> {
+) -> Result<AgentReceipt, ServiceError> {
     let config = hkask_services::ServiceConfig::from_env()?;
     let webid = WebID::from_str(webid_str)?;
     let kind = AgentKind::parse(agent_type)
-        .ok_or_else(|| AgentError::InvalidType(agent_type.to_string()))?;
+        .ok_or_else(|| ServiceError::InvalidAgentType(agent_type.to_string()))?;
     let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
     let token = acp.register_agent(webid, kind, capabilities).await?;
     let def = AgentDefinition {
@@ -83,7 +83,7 @@ pub async fn agent_register(
         source_yaml: "cli-register".to_string(),
     };
     let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
+        .map_err(|e| ServiceError::AgentRegistrationFailed(e.to_string()))?;
     let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
     store.insert(&reg)?;
     Ok(AgentReceipt {
@@ -93,10 +93,10 @@ pub async fn agent_register(
     })
 }
 
-pub async fn agent_unregister(name: &str) -> Result<(), AgentError> {
+pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
     let config = hkask_services::ServiceConfig::from_env()?;
     let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
+        .map_err(|e| ServiceError::AgentRegistrationFailed(e.to_string()))?;
     let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
     store.remove(name)?;
     Ok(())

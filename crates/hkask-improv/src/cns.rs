@@ -75,6 +75,30 @@ pub fn cascade_depth_span(depth: u8) -> Option<Span> {
     improv_span("cns.improv.cascade.depth", &depth.to_string())
 }
 
+// ── CNS Alert Thresholds (reasonable starting estimates; tune through use) ──
+
+/// Plussing constructive ratio: alert if below 0.4 (less than 40% agreeable).
+/// Warning threshold: below 0.5.
+pub const PLUSSING_RATIO_ALERT_THRESHOLD: f64 = 0.4;
+pub const PLUSSING_RATIO_WARN_THRESHOLD: f64 = 0.5;
+
+/// Cascade depth: warn at 5, critical at matryoshka limit (7).
+pub const CASCADE_DEPTH_WARN: u8 = 5;
+pub const CASCADE_DEPTH_CRITICAL: u8 = 7;
+
+/// Freestyle coherence: alert if session produces 0 turns.
+/// Warning if fewer than 3 turns in a session.
+pub const FREESTYLE_MIN_TURNS_WARN: usize = 3;
+pub const FREESTYLE_MIN_TURNS_ALERT: usize = 0;
+
+/// Kata improv effectiveness: alert if automaticity delta is negative
+/// (improv made kata performance worse).
+pub const KATA_IMPROV_EFFECTIVENESS_ALERT: f64 = 0.0;
+
+/// Ensemble coherence: alert if explicit mode degrades quality.
+/// Requires baseline measurement; threshold TBD through use.
+pub const ENSEMBLE_COHERENCE_DEGRADATION_ALERT: f64 = -0.1;
+
 #[cfg(test)]
 mod tests {
     use super::*;

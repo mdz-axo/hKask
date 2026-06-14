@@ -13,7 +13,7 @@
 
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp_communication::agent_registration::AgentRegistry;
-use hkask_mcp_communication::matrix::{ConduitSidecar, MatrixClient, RoomIdStr};
+use hkask_mcp_communication::matrix::{MatrixTransport, RoomId};
 use hkask_mcp_communication::moderation::{ModerationQueue, NaiveKeywordClassifier, SevenR7Bot};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -93,7 +93,7 @@ pub struct TagAgentRequest {
 
 pub struct CommunicationServer {
     webid: WebID,
-    matrix: Arc<MatrixClient>,
+    matrix: Arc<MatrixTransport>,
     registry: Arc<AgentRegistry>,
     queue: Arc<ModerationQueue>,
 }
@@ -101,7 +101,7 @@ pub struct CommunicationServer {
 impl CommunicationServer {
     pub fn new(
         webid: WebID,
-        matrix: Arc<MatrixClient>,
+        matrix: Arc<MatrixTransport>,
         registry: Arc<AgentRegistry>,
         queue: Arc<ModerationQueue>,
     ) -> Self {
@@ -252,7 +252,7 @@ impl CommunicationServer {
         let span = ToolSpanGuard::new("send_message", &self.webid);
         match self
             .matrix
-            .send_message(&RoomIdStr::new(&room_id), &body, None)
+            .send_message(&RoomId::new(&room_id), &body, None)
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({ "sent": true, "room_id": room_id })),
@@ -315,7 +315,7 @@ impl CommunicationServer {
 
         match self
             .matrix
-            .invite_user(&RoomIdStr::new(&room_id), &user_id)
+            .invite_user(&RoomId::new(&room_id), &user_id)
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({
@@ -381,7 +381,7 @@ impl CommunicationServer {
 
         match self
             .registry
-            .monitor_thread(&webid, &RoomIdStr::new(&room_id))
+            .monitor_thread(&webid, &RoomId::new(&room_id))
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({
@@ -439,7 +439,7 @@ impl CommunicationServer {
         });
         match self
             .matrix
-            .send_message(&RoomIdStr::new(&room_id), &mention, Some(structured))
+            .send_message(&RoomId::new(&room_id), &mention, Some(structured))
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({
@@ -462,27 +462,42 @@ async fn main() -> anyhow::Result<()> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
-    // Connect to Conduit Docker sidecar
-    let sidecar = ConduitSidecar::connect(&homeserver_url)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to connect to Conduit sidecar: {}", e))?;
+    // Initialize Matrix transport if credentials are provided
+    let matrix: Arc<MatrixTransport> = {
+        let agent_username = std::env::var("HKASK_MATRIX_AGENT_USERNAME").ok();
+        let agent_password = std::env::var("HKASK_MATRIX_AGENT_PASSWORD").ok();
 
-    let matrix = sidecar.client();
+        if let (Some(username), Some(password)) = (agent_username, agent_password) {
+            let mut transport = MatrixTransport::new(&homeserver_url);
+            transport.health_check().await?;
+            transport.login(&username, &password).await?;
+            transport.start_sync().await?;
+            tracing::info!(
+                target: "cns.communication.server.started",
+                url = %homeserver_url,
+                agent = %username,
+                "Communication server started with Matrix transport"
+            );
+            Arc::new(transport)
+        } else {
+            tracing::warn!(
+                target: "cns.communication.server.started",
+                url = %homeserver_url,
+                "Matrix transport not configured — set HKASK_MATRIX_AGENT_USERNAME and HKASK_MATRIX_AGENT_PASSWORD"
+            );
+            // Create an unauthenticated transport for tool registration only
+            Arc::new(MatrixTransport::new(&homeserver_url))
+        }
+    };
+
     let registry = Arc::new(AgentRegistry::new());
     let queue = Arc::new(ModerationQueue::default());
 
     // Spawn 7R7 moderation bot (would run on a timer in production)
     let _sevenr7 = SevenR7Bot::new(
-        Arc::new(matrix.clone()),
+        Arc::clone(&matrix),
         Arc::clone(&queue),
         Box::new(NaiveKeywordClassifier),
-    );
-
-    // CNS lifecycle spans
-    tracing::info!(
-        target: "cns.communication.server.started",
-        url = %homeserver_url,
-        "Communication server started with embedded Matrix homeserver"
     );
 
     hkask_mcp::run_server(
@@ -491,7 +506,7 @@ async fn main() -> anyhow::Result<()> {
         |ctx: hkask_mcp::ServerContext| {
             Ok(CommunicationServer::new(
                 ctx.webid,
-                Arc::new(matrix.clone()),
+                Arc::clone(&matrix),
                 Arc::clone(&registry),
                 Arc::clone(&queue),
             ))

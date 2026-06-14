@@ -1,24 +1,66 @@
 //! REPL /improv handler — set or display the active improv mode.
 //!
-//! Improv modes (Plussing, Yes And, Yes But, Freestyling, Riffing) set the
-//! replicant's interaction posture. The mode is stored as a string on ReplState;
-//! full `ImprovMode` type integration occurs when hkask-improv is wired into
-//! the inference pipeline.
+//! Improv modes (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade)
+//! set the replicant's interaction posture. Uses the `hkask_improv::ImprovMode`
+//! type directly — no stringly-typed intermediation.
 
 use crate::repl::ReplState;
-
-/// Valid improv mode labels.
-const VALID_MODES: &[&str] = &["plussing", "yes-and", "yes-but", "freestyling", "riffing"];
+use hkask_improv::cascade::{ImprovCascade, MATRYOSHKA_LIMIT};
+use hkask_improv::modes::ImprovMode;
+use hkask_improv::riffing::RiffReturn;
+use std::time::Duration;
 
 /// Mode descriptions for display.
-fn mode_description(mode: &str) -> &'static str {
+fn mode_description(mode: &ImprovMode) -> &'static str {
     match mode {
-        "plussing" => "Extract agreeable, silently discard, build constructively (never negate)",
-        "yes-and" => "Accept whole contribution, extend with novel additive layer",
-        "yes-but" => "Accept whole, append constraint that narrows without contradicting",
-        "freestyling" => "Rapid collaborative short-response cycling (time-bounded, round-robin)",
-        "riffing" => "Solo divergent exploration from a seed (return to group or spawn thread)",
-        _ => "Unknown mode",
+        ImprovMode::Plussing => {
+            "Extract agreeable, silently discard, build constructively (never negate)"
+        }
+        ImprovMode::YesAnd => "Accept whole contribution, extend with novel additive layer",
+        ImprovMode::YesBut => "Accept whole, append constraint that narrows without contradicting",
+        ImprovMode::Freestyling { .. } => {
+            "Rapid collaborative short-response cycling (time-bounded, round-robin)"
+        }
+        ImprovMode::Riffing { .. } => {
+            "Solo divergent exploration from a seed (return to group or spawn thread)"
+        }
+        ImprovMode::Cascade(_c) => {
+            // Description is static; we can't format here, so return a generic one.
+            // The display code below prints the step count separately.
+            "Recursive cascade of improv modes (bounded by matryoshka limit of 7)"
+        }
+    }
+}
+
+/// Format a mode for display, including parameters.
+fn format_mode(mode: &ImprovMode) -> String {
+    match mode {
+        ImprovMode::Plussing => "plussing".to_string(),
+        ImprovMode::YesAnd => "yes-and".to_string(),
+        ImprovMode::YesBut => "yes-but".to_string(),
+        ImprovMode::Freestyling { time_bound } => {
+            format!("freestyling ({}s bound)", time_bound.as_secs())
+        }
+        ImprovMode::Riffing { return_policy } => {
+            let policy = match return_policy {
+                RiffReturn::ReturnToGroup => "return-to-group",
+                RiffReturn::SpawnThread => "spawn-thread",
+                RiffReturn::ReturnAfterSteps { max_steps } => {
+                    return format!("riffing (return after {} steps)", max_steps);
+                }
+            };
+            format!("riffing ({})", policy)
+        }
+        ImprovMode::Cascade(c) => {
+            let step_labels: Vec<String> =
+                c.steps.iter().map(|s| s.mode.label().to_string()).collect();
+            format!(
+                "cascade [{}] (depth {}/{})",
+                step_labels.join(" → "),
+                c.total_depth,
+                MATRYOSHKA_LIMIT
+            )
+        }
     }
 }
 
@@ -26,7 +68,6 @@ pub(crate) fn handle_improv(arg1: &str, arg2: &str, state: &mut ReplState) {
     let mode_arg = if arg2.is_empty() {
         arg1.to_lowercase()
     } else {
-        // Two-part argument (e.g., "freestyle 300" or "riff spawn")
         format!("{} {}", arg1.to_lowercase(), arg2.to_lowercase())
     };
 
@@ -34,18 +75,35 @@ pub(crate) fn handle_improv(arg1: &str, arg2: &str, state: &mut ReplState) {
         // Display current mode.
         match &state.improv_mode {
             Some(mode) => {
-                println!("  Active improv mode: \x1b[1m{}\x1b[0m", mode);
+                println!("  Active improv mode: \x1b[1m{}\x1b[0m", format_mode(mode));
                 println!("  {}", mode_description(mode));
+                if let ImprovMode::Cascade(c) = mode {
+                    println!("  Steps: {}", c.step_count());
+                    println!(
+                        "  Total applications: {} (limit: {})",
+                        c.total_applications(),
+                        MATRYOSHKA_LIMIT
+                    );
+                }
             }
             None => {
                 println!("  No improv mode active.");
                 println!("  Available modes:");
-                for m in VALID_MODES {
-                    println!("    \x1b[36m/improv {}\x1b[0m — {}", m, mode_description(m));
-                }
-                println!("  Freestyling accepts duration: \x1b[36m/improv freestyle 300\x1b[0m");
                 println!(
-                    "  Riffing accepts return policy: \x1b[36m/improv riff group|spawn|steps:N\x1b[0m"
+                    "    \x1b[36m/improv plussing\x1b[0m   — Extract agreeable, build constructively"
+                );
+                println!(
+                    "    \x1b[36m/improv yes-and\x1b[0m     — Accept whole, extend additively"
+                );
+                println!("    \x1b[36m/improv yes-but\x1b[0m     — Accept whole, constrain scope");
+                println!(
+                    "    \x1b[36m/improv freestyle [S]\x1b[0m — Rapid group cycling (S=seconds)"
+                );
+                println!(
+                    "    \x1b[36m/improv riff [POLICY]\x1b[0m — Solo tangent (group|spawn|steps:N)"
+                );
+                println!(
+                    "    \x1b[36m/improv cascade M1 M2...\x1b[0m — Compose modes recursively (max 7)"
                 );
             }
         }
@@ -53,40 +111,94 @@ pub(crate) fn handle_improv(arg1: &str, arg2: &str, state: &mut ReplState) {
         return;
     }
 
-    // Parse mode — handle freestyling with duration and riffing with policy.
-    let (mode_name, _extra) =
-        if mode_arg.starts_with("freestyling") || mode_arg.starts_with("freestyle") {
-            // /improv freestyle [duration_seconds]
-            let parts: Vec<&str> = mode_arg.split_whitespace().collect();
-            if parts.len() > 1 {
-                ("freestyling", Some(parts[1]))
-            } else {
-                ("freestyling", None)
+    // Parse the mode.
+    let parsed = parse_improv_mode(&mode_arg);
+    match parsed {
+        Ok(mode) => {
+            state.improv_mode = Some(mode.clone());
+            println!("  Improv mode set to: \x1b[1m{}\x1b[0m", format_mode(&mode));
+            println!("  {}", mode_description(&mode));
+            if let ImprovMode::Cascade(c) = &mode {
+                println!("  Steps: {}", c.step_count());
+                println!(
+                    "  Total applications: {} (matryoshka limit: {})",
+                    c.total_applications(),
+                    MATRYOSHKA_LIMIT
+                );
             }
-        } else if mode_arg.starts_with("riff") {
-            // /improv riff [group|spawn|steps:N]
-            let parts: Vec<&str> = mode_arg.split_whitespace().collect();
-            if parts.len() > 1 {
-                ("riffing", Some(parts[1]))
-            } else {
-                ("riffing", None)
-            }
-        } else {
-            (mode_arg.as_str(), None)
-        };
-
-    if !VALID_MODES.contains(&mode_name) {
-        println!("  Unknown improv mode: \x1b[31m{}\x1b[0m", mode_name);
-        println!("  Valid modes: {}", VALID_MODES.join(", "));
-        println!();
-        return;
-    }
-
-    state.improv_mode = Some(mode_name.to_string());
-    println!("  Improv mode set to: \x1b[1m{}\x1b[0m", mode_name);
-    println!("  {}", mode_description(mode_name));
-    if let Some(extra) = _extra {
-        println!("  Parameter: {}", extra);
+        }
+        Err(e) => {
+            println!("  \x1b[31m{}\x1b[0m", e);
+            println!("  Valid modes: plussing, yes-and, yes-but, freestyle [S], riff [POLICY]");
+            println!("  Cascade: /improv cascade plussing yes-and riff:spawn (max 7 apps)");
+        }
     }
     println!();
+}
+
+/// Parse a mode argument string into an `ImprovMode`.
+fn parse_improv_mode(input: &str) -> Result<ImprovMode, String> {
+    let parts: Vec<&str> = input.split_whitespace().collect();
+    let base = parts[0];
+
+    match base {
+        "plussing" => Ok(ImprovMode::Plussing),
+        "yes-and" | "yesand" => Ok(ImprovMode::YesAnd),
+        "yes-but" | "yesbut" => Ok(ImprovMode::YesBut),
+
+        "freestyling" | "freestyle" => {
+            let secs: u64 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(300);
+            Ok(ImprovMode::Freestyling {
+                time_bound: Duration::from_secs(secs),
+            })
+        }
+
+        "riffing" | "riff" => {
+            let policy_str = parts.get(1).unwrap_or(&"group");
+            let policy = parse_riff_policy(policy_str)?;
+            Ok(ImprovMode::Riffing {
+                return_policy: policy,
+            })
+        }
+
+        "cascade" => {
+            if parts.len() < 2 {
+                return Err(
+                    "Cascade requires at least one mode. Example: /improv cascade plussing yes-and"
+                        .to_string(),
+                );
+            }
+            // Parse each subsequent part as a mode.
+            let mut modes = Vec::new();
+            for part in &parts[1..] {
+                let mode = parse_improv_mode(part)?;
+                modes.push(mode);
+            }
+            let cascade = ImprovCascade::new(modes).map_err(|e| e.to_string())?;
+            Ok(ImprovMode::Cascade(cascade))
+        }
+
+        _ => Err(format!("Unknown improv mode: '{}'", base)),
+    }
+}
+
+/// Parse a riff return policy string.
+fn parse_riff_policy(s: &str) -> Result<RiffReturn, String> {
+    match s {
+        "group" | "return" | "return-to-group" => Ok(RiffReturn::ReturnToGroup),
+        "spawn" | "spawn-thread" | "new-thread" => Ok(RiffReturn::SpawnThread),
+        other => {
+            if other.starts_with("steps:") {
+                let max_steps: usize = other[6..]
+                    .parse()
+                    .map_err(|_| format!("Invalid step count in '{}'", other))?;
+                Ok(RiffReturn::ReturnAfterSteps { max_steps })
+            } else {
+                Err(format!(
+                    "Unknown riff policy: '{}'. Use group, spawn, or steps:N",
+                    s
+                ))
+            }
+        }
+    }
 }

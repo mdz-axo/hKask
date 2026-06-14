@@ -256,7 +256,7 @@ impl Escalation {
 /// It runs a polling loop: Monitor → Classify → EscalateOrIgnore.
 pub struct SevenR7Bot {
     /// Matrix client for polling.
-    matrix: Arc<crate::matrix::MatrixClient>,
+    matrix: Arc<crate::matrix::MatrixTransport>,
     /// Moderation queue for escalation output.
     queue: Arc<ModerationQueue>,
     /// Classification function (in production, would call an LLM).
@@ -266,7 +266,7 @@ pub struct SevenR7Bot {
 impl SevenR7Bot {
     /// Create a new 7R7 bot.
     pub fn new(
-        matrix: Arc<crate::matrix::MatrixClient>,
+        matrix: Arc<crate::matrix::MatrixTransport>,
         queue: Arc<ModerationQueue>,
         classifier: Box<dyn Classifier>,
     ) -> Self {
@@ -284,13 +284,9 @@ impl SevenR7Bot {
     /// 3. Push escalations to the ModerationQueue
     pub async fn check_cycle(
         &self,
-        rooms: &[crate::matrix::RoomIdStr],
+        _rooms: &[crate::matrix::RoomId],
     ) -> Result<usize, ModerationError> {
-        let messages = self
-            .matrix
-            .poll_unread(rooms)
-            .await
-            .map_err(|e| ModerationError::Storage(format!("Matrix poll failed: {}", e)))?;
+        let messages = self.matrix.pending_messages().await;
 
         let mut escalated = 0;
         for msg in &messages {

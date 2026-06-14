@@ -16,6 +16,7 @@ hkask-agents = { path = "../hkask-agents" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-improv = { path = "../hkask-improv" }
 hkask-mcp-condenser = { path = "../../mcp-servers/hkask-mcp-condenser" }
 thiserror.workspace = true
 tracing.workspace = true

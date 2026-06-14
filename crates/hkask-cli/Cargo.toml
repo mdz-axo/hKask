@@ -22,6 +22,7 @@ hkask-services = { path = "../hkask-services" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-memory = { path = "../hkask-memory" }
+hkask-improv = { path = "../hkask-improv" }
 axum.workspace = true
 clap.workspace = true
 chrono.workspace = true

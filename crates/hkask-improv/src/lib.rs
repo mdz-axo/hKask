@@ -22,6 +22,7 @@
 pub mod cascade;
 pub mod cns;
 pub mod freestyling;
+pub mod kata;
 pub mod modes;
 pub mod plussing;
 pub mod protocol;
@@ -30,6 +31,7 @@ pub mod riffing;
 pub use cascade::{ImprovCascade, ImprovCascadeStep, ImprovError, MATRYOSHKA_LIMIT};
 pub use cns::ImprovCns;
 pub use freestyling::FreestyleSession;
+pub use kata::{KataImprovResult, KataPhase, coaching_kata_cascade, starter_kata_cascade};
 pub use modes::ImprovMode;
 pub use plussing::{AgreeableComponent, PlussedResponse};
 pub use protocol::{Contribution, ImprovProtocol, ImprovResponse};

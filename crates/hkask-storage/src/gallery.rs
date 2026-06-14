@@ -583,7 +583,14 @@ impl GalleryStore {
             return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
         }
 
-        self.get_face(face_id)
+        // Read back the updated row within the same lock
+        conn.query_row(
+            "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+             FROM face_registry WHERE id = ?1",
+            [face_id],
+            Self::face_from_row,
+        )
+        .map_err(GalleryStoreError::from)
     }
 
     // ── Row mappers ──

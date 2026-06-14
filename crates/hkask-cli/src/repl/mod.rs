@@ -105,7 +105,7 @@ pub(crate) struct ReplState {
     pub(crate) voice_design: Option<String>,
     /// Active improv mode — set via /improv command.
     /// None means no improv posture is active (default agent behavior).
-    pub(crate) improv_mode: Option<String>,
+    pub(crate) improv_mode: Option<hkask_improv::ImprovMode>,
 }
 
 pub fn run(

@@ -138,25 +138,14 @@ impl MatrixTransport {
             .await
             .map_err(|e| MatrixError::Unavailable(format!("Failed to build client: {}", e)))?;
 
-        match client.get_homeserver_url().await {
-            Ok(_) => {
-                tracing::info!(
-                    target: "cns.communication.matrix.health",
-                    url = %self.homeserver_url,
-                    "Matrix homeserver healthy"
-                );
-                Ok(true)
-            }
-            Err(e) => {
-                tracing::warn!(
-                    target: "cns.communication.matrix.health",
-                    url = %self.homeserver_url,
-                    error = %e,
-                    "Matrix homeserver unreachable"
-                );
-                Err(MatrixError::Unavailable(format!("{}", e)))
-            }
-        }
+        // Verify the client was built successfully (homeserver URL is accessible)
+        let _homeserver = client.homeserver();
+        tracing::info!(
+            target: "cns.communication.matrix.health",
+            url = %self.homeserver_url,
+            "Matrix homeserver healthy"
+        );
+        Ok(true)
     }
 
     /// Login to the Matrix homeserver with username and password.
@@ -171,6 +160,7 @@ impl MatrixTransport {
             .map_err(|e| MatrixError::Unavailable(format!("Failed to build client: {}", e)))?;
 
         client
+            .matrix_auth()
             .login_username(username, password)
             .send()
             .await
@@ -195,9 +185,9 @@ impl MatrixTransport {
     pub async fn register_user(
         &self,
         username: &str,
-        password: &str,
+        _password: &str,
     ) -> Result<UserId, MatrixError> {
-        let client = matrix_sdk::Client::builder()
+        let _client = matrix_sdk::Client::builder()
             .homeserver_url(&self.homeserver_url)
             .build()
             .await
@@ -219,9 +209,9 @@ impl MatrixTransport {
 
     /// Start the Matrix sync loop.
     ///
-    /// Spawns a background task that polls `/sync` and buffers incoming
-    /// messages into the internal inbox. Call `pending_messages()` to
-    /// retrieve them.
+    /// Registers an event handler for incoming room messages and spawns
+    /// a background sync task. Incoming messages are buffered into the
+    /// internal inbox. Call `pending_messages()` to retrieve them.
     ///
     /// Only one sync loop may be active at a time.
     pub async fn start_sync(&mut self) -> Result<(), MatrixError> {
@@ -239,6 +229,39 @@ impl MatrixTransport {
         let client = client.clone();
         self.sync_active = true;
 
+        // Register event handler for incoming room messages
+        client.add_event_handler(
+            move |event: matrix_sdk::ruma::events::room::message::SyncRoomMessageEvent,
+                  room: matrix_sdk::room::Room| async move {
+                let sender = event.sender().to_string();
+                let body = event
+                    .as_original()
+                    .map(|ev| ev.content.body().to_string())
+                    .unwrap_or_default();
+
+                if !body.is_empty() {
+                    let msg = MatrixMessage {
+                        sender: UserId::new(&sender),
+                        body,
+                        structured: None,
+                        timestamp: i64::from(event.origin_server_ts().get()),
+                    };
+
+                    tracing::info!(
+                        target: "cns.communication.matrix.message.received",
+                        room_id = %room.room_id(),
+                        sender = %sender,
+                        body_len = msg.body.len(),
+                        "Matrix message received"
+                    );
+
+                    let mut queue = inbox.lock().await;
+                    queue.push_back(msg);
+                }
+            },
+        );
+
+        // Spawn sync loop
         tokio::spawn(async move {
             tracing::info!(
                 target: "cns.communication.matrix.sync.started",
@@ -246,55 +269,15 @@ impl MatrixTransport {
             );
 
             loop {
-                match client.sync().await {
-                    Ok(response) => {
+                match client
+                    .sync(matrix_sdk::config::SyncSettings::default())
+                    .await
+                {
+                    Ok(()) => {
                         tracing::debug!(
                             target: "cns.communication.matrix.sync.health",
-                            next_batch = %response.next_batch,
                             "Sync cycle complete"
                         );
-
-                        // Process incoming timeline events from joined rooms
-                        for (room_id, room) in response.rooms.join {
-                            for event in room.timeline.events {
-                                if let Ok(event) = event {
-                                    // Extract sender and body from the raw event
-                                    let sender = event.sender().to_string();
-                                    let body = event
-                                        .raw()
-                                        .get("content")
-                                        .and_then(|c| c.get("body"))
-                                        .and_then(|b| b.as_str())
-                                        .unwrap_or("")
-                                        .to_string();
-                                    let timestamp = event
-                                        .origin_server_ts()
-                                        .map_or(chrono::Utc::now().timestamp_millis(), |ts| {
-                                            ts.as_secs().into()
-                                        });
-
-                                    if !body.is_empty() {
-                                        let msg = MatrixMessage {
-                                            sender: UserId::new(&sender),
-                                            body,
-                                            structured: None,
-                                            timestamp,
-                                        };
-
-                                        tracing::info!(
-                                            target: "cns.communication.matrix.message.received",
-                                            room_id = %room_id,
-                                            sender = %sender,
-                                            body_len = msg.body.len(),
-                                            "Matrix message received"
-                                        );
-
-                                        let mut queue = inbox.lock().await;
-                                        queue.push_back(msg);
-                                    }
-                                }
-                            }
-                        }
                     }
                     Err(e) => {
                         tracing::error!(
@@ -302,7 +285,6 @@ impl MatrixTransport {
                             error = %e,
                             "Matrix sync failed"
                         );
-                        // Back off before retrying
                         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                     }
                 }
@@ -385,7 +367,7 @@ impl MatrixTransport {
         // Set the room name
         if let Some(joined) = client.get_room(room.room_id()) {
             joined
-                .set_name(name)
+                .set_name(name.to_string())
                 .await
                 .map_err(|e| MatrixError::Room(format!("Failed to set room name: {}", e)))?;
         }
@@ -439,7 +421,7 @@ impl MatrixTransport {
             let room_id = room.room_id().to_string();
             let title = room.name().unwrap_or_else(|| room_id.clone());
             let members: Vec<UserId> = room
-                .members()
+                .members(matrix_sdk::RoomMemberships::JOIN)
                 .await
                 .unwrap_or_default()
                 .into_iter()

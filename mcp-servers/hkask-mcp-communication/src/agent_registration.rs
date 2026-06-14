@@ -10,7 +10,7 @@
 //! The 7R7 bot polls the Matrix server for unread/flagged content, producing
 //! `Escalation` entries that feed the `ModerationQueue`.
 
-use crate::matrix::{MatrixClient, RoomIdStr, UserIdStr};
+use crate::matrix::{MatrixTransport, RoomId, UserId};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -25,9 +25,9 @@ use tracing;
 #[derive(Debug, Default)]
 pub struct AgentRegistry {
     /// Mapping from replicant WebID (string) to Matrix UserId.
-    entries: RwLock<HashMap<String, UserIdStr>>,
+    entries: RwLock<HashMap<String, UserId>>,
     /// Mapping from room ID to list of agents monitoring it.
-    thread_watchlists: RwLock<HashMap<RoomIdStr, Vec<String>>>,
+    thread_watchlists: RwLock<HashMap<RoomId, Vec<String>>>,
 }
 
 impl AgentRegistry {
@@ -43,8 +43,8 @@ impl AgentRegistry {
     pub async fn register(
         &self,
         webid: &WebID,
-        matrix: &MatrixClient,
-    ) -> Result<UserIdStr, AgentRegistrationError> {
+        matrix: &MatrixTransport,
+    ) -> Result<UserId, AgentRegistrationError> {
         let webid_str = webid.to_string();
         {
             let entries = self.entries.read().await;
@@ -89,7 +89,7 @@ impl AgentRegistry {
     }
 
     /// Resolve a WebID to its Matrix UserId.
-    pub async fn resolve(&self, webid: &WebID) -> Option<UserIdStr> {
+    pub async fn resolve(&self, webid: &WebID) -> Option<UserId> {
         self.entries.read().await.get(&webid.to_string()).cloned()
     }
 
@@ -97,7 +97,7 @@ impl AgentRegistry {
     pub async fn monitor_thread(
         &self,
         webid: &WebID,
-        room_id: &RoomIdStr,
+        room_id: &RoomId,
     ) -> Result<(), AgentRegistrationError> {
         let webid_str = webid.to_string();
         {
@@ -122,7 +122,7 @@ impl AgentRegistry {
     }
 
     /// Get agents monitoring a given thread.
-    pub async fn get_watchers(&self, room_id: &RoomIdStr) -> Vec<String> {
+    pub async fn get_watchers(&self, room_id: &RoomId) -> Vec<String> {
         self.thread_watchlists
             .read()
             .await
