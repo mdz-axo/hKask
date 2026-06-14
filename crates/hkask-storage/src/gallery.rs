@@ -120,6 +120,9 @@ pub struct FaceRegistryRecord {
     pub first_name: String,
     pub last_name: String,
     pub image_id: String,
+    /// 512-dim ArcFace embedding as raw f32 bytes (None if not yet computed).
+    #[serde(skip)]
+    pub embedding: Option<Vec<u8>>,
     pub status: String,
     pub notes: String,
     pub created_at: String,
@@ -183,6 +186,7 @@ impl GalleryStore {
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
                 image_id TEXT NOT NULL REFERENCES gallery_images(id) ON DELETE CASCADE,
+                embedding BLOB,
                 status TEXT NOT NULL DEFAULT 'pending',
                 notes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
@@ -469,6 +473,7 @@ impl GalleryStore {
         first_name: &str,
         last_name: &str,
         image_id: &str,
+        embedding: Option<&[u8]>,
         status: &str,
         notes: &str,
     ) -> std::result::Result<FaceRegistryRecord, GalleryStoreError> {
@@ -477,9 +482,9 @@ impl GalleryStore {
         let now = now_rfc3339();
 
         conn.execute(
-            "INSERT INTO face_registry (id, first_name, last_name, image_id, status, notes, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
-            rusqlite::params![id, first_name, last_name, image_id, status, notes, now],
+            "INSERT INTO face_registry (id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+            rusqlite::params![id, first_name, last_name, image_id, embedding, status, notes, now],
         )?;
 
         Ok(FaceRegistryRecord {
@@ -487,6 +492,7 @@ impl GalleryStore {
             first_name: first_name.to_string(),
             last_name: last_name.to_string(),
             image_id: image_id.to_string(),
+            embedding: embedding.map(|e| e.to_vec()),
             status: status.to_string(),
             notes: notes.to_string(),
             created_at: now.clone(),
@@ -505,7 +511,7 @@ impl GalleryStore {
 
         if let Some(status) = status_filter {
             let mut stmt = conn.prepare(
-                "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+                "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
                  FROM face_registry WHERE status = ?1
                  ORDER BY created_at DESC",
             )?;
@@ -514,7 +520,7 @@ impl GalleryStore {
                 .map_err(GalleryStoreError::from)
         } else {
             let mut stmt = conn.prepare(
-                "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+                "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
                  FROM face_registry
                  ORDER BY created_at DESC",
             )?;
@@ -534,7 +540,7 @@ impl GalleryStore {
         let conn = self.lock_conn()?;
 
         conn.query_row(
-            "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+            "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
              FROM face_registry WHERE id = ?1",
             [face_id],
             Self::face_from_row,
@@ -585,7 +591,7 @@ impl GalleryStore {
 
         // Read back the updated row within the same lock
         conn.query_row(
-            "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+            "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
              FROM face_registry WHERE id = ?1",
             [face_id],
             Self::face_from_row,
@@ -628,10 +634,11 @@ impl GalleryStore {
             first_name: row.get(1)?,
             last_name: row.get(2)?,
             image_id: row.get(3)?,
-            status: row.get(4)?,
-            notes: row.get(5)?,
-            created_at: row.get(6)?,
-            updated_at: row.get(7)?,
+            embedding: row.get::<_, Option<Vec<u8>>>(4)?,
+            status: row.get(5)?,
+            notes: row.get(6)?,
+            created_at: row.get(7)?,
+            updated_at: row.get(8)?,
         })
     }
 }
@@ -891,6 +898,7 @@ mod tests {
                 "Alice",
                 "Chen",
                 &img.id,
+                None,
                 "valid",
                 "Frontal portrait, good lighting",
             )
@@ -936,10 +944,10 @@ mod tests {
             .unwrap();
 
         store
-            .register_face("Alice", "Chen", &img1.id, "valid", "")
+            .register_face("Alice", "Chen", &img1.id, None, "valid", "")
             .unwrap();
         store
-            .register_face("Bob", "Smith", &img2.id, "valid", "")
+            .register_face("Bob", "Smith", &img2.id, None, "valid", "")
             .unwrap();
 
         let faces = store.list_faces(None).unwrap();
@@ -979,10 +987,10 @@ mod tests {
             .unwrap();
 
         store
-            .register_face("Alice", "Chen", &img1.id, "valid", "")
+            .register_face("Alice", "Chen", &img1.id, None, "valid", "")
             .unwrap();
         store
-            .register_face("Bob", "Smith", &img2.id, "rejected", "Too dark")
+            .register_face("Bob", "Smith", &img2.id, None, "rejected", "Too dark")
             .unwrap();
 
         let valid = store.list_faces(Some("valid")).unwrap();

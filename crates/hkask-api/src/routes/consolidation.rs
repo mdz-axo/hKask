@@ -116,9 +116,7 @@ pub(crate) async fn consolidate(
     let db_path = consolidation::db_path_for_agent(&webid);
     let outcome =
         consolidation::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)
-            .map_err(|e| ApiError::Internal {
-                message: e.to_string(),
-            })?;
+            .map_err(ApiError::from)?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

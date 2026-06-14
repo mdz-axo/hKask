@@ -177,9 +177,7 @@ fn resolve_api_composition_port(
         &ctx,
         &state.agent_service.config().default_model,
     )
-    .map_err(|e| ApiError::Internal {
-        message: format!("Failed to initialize inference port: {}", e),
-    })
+    .map_err(ApiError::from)
 }
 
 /// Compose a new bundle from specified skills
@@ -215,9 +213,7 @@ pub(crate) async fn compose_bundle(
         &editor,
     )
     .await
-    .map_err(|e| ApiError::Internal {
-        message: format!("Bundle composition failed: {}", e),
-    })?;
+    .map_err(ApiError::from)?;
 
     let manifest_json = serde_json::to_value(&result.manifest).map_err(|e| ApiError::Internal {
         message: format!("Failed to serialize bundle manifest: {}", e),

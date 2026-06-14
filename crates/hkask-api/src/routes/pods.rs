@@ -63,18 +63,6 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
         })
 }
 
-fn map_pod_err(e: hkask_agents::pod::AgentPodError) -> ApiError {
-    match &e {
-        hkask_agents::pod::AgentPodError::PodNotFound(id) => ApiError::NotFound {
-            resource: "pod".into(),
-            id: id.to_string(),
-        },
-        other => ApiError::Internal {
-            message: other.to_string(),
-        },
-    }
-}
-
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
         .await
@@ -116,7 +104,7 @@ async fn create_pod(
     let pod_id = pm
         .create_pod(&req.template, &persona, req.name)
         .await
-        .map_err(map_pod_err)?;
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(Json(CreatePodResponse {
         pod_id: pod_id.to_string(),
     }))
@@ -133,7 +121,7 @@ async fn activate_pod(
         .pod_manager()
         .activate_pod(&pid)
         .await
-        .map_err(map_pod_err)?;
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -148,7 +136,7 @@ async fn deactivate_pod(
         .pod_manager()
         .deactivate_pod(&pid)
         .await
-        .map_err(map_pod_err)?;
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -163,7 +151,7 @@ async fn pod_status(
         .pod_manager()
         .get_pod_status(&pid)
         .await
-        .map_err(map_pod_err)?;
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Pod(e)))?;
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,
         name: status.name,

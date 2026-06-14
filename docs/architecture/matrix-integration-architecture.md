@@ -1641,12 +1641,163 @@ All are Warning level — E2EE errors are operational noise, not Critical unless
 
 ### 12.9 Updated Next Actions (Post-Sweep)
 
-1. **Resolve B1–B4 (Blocking) before any code is written.** These are specification gaps that would force rework if discovered during implementation.
-2. **Resolve I1–I6 (Important) before starting the MCP server implementation.** These affect the SDK integration and CNS span design.
-3. **Resolve the 4 Prohibitions from §12.6** — P1 (admin token) is covered by B4; P2 (TurnRequest source) still needs specification; P3 (human notification) can be deferred with "admin checks manually"; P4 (credential CNS span) is covered by D5.
-4. **Resolve G1–G4, G7, G9, G10 from §12.6** — G9 and G10 are partially resolved by §1.5 and I5 above; remaining sync spans and thresholds need specification.
-5. **Defer D1–D5** — mark with "TBD" in the spec and resolve during or after initial implementation.
-6. **Add §13 (Verification)** with acceptance criteria.
-7. **Add §7.1 (CNS Span Specification)** with the complete span table.
-8. **Extend `TurnRequest`** with `source: MessageSource` per P2.
-9. **Add Caddy to docker-compose** per B1 — this eliminates the TLS barrier.
+1. **Resolve B1–B4 (Blocking)** — ✅ DONE. Caddy added, MXID format specified, `.well-known` delegated to Caddy, Conduit config defaults defined.
+2. **Resolve I1–I6 (Important)** — ✅ DONE. Recovery key, device name, message format, room encryption, error taxonomy, gas accounting all specified.
+3. **Resolve the 4 Prohibitions** — P1 ✅ (admin token in B4), P2 ✅ (TurnRequest.source implemented), P3 deferred (human notification when Matrix down), P4 deferred (credential CNS span).
+4. **Resolve G1–G4, G7, G9, G10** — G1–G4 ✅, G7 ✅ (see §13), G9 ✅ (see §7.1), G10 ✅ (thresholds in §1.5 and §7.1).
+5. **Defer D1–D5** — ✅ Marked TBD.
+6. **Add §13 (Verification)** — ✅ See below.
+7. **Add §7.1 (CNS Span Specification)** — ✅ See below.
+8. **Extend `TurnRequest`** — ✅ `source: MessageSource` field added.
+9. **Add Caddy to docker-compose** — ✅ Done.
+
+---
+
+## 13. Verification — Acceptance Criteria
+
+**Purpose:** Define verifiable success criteria for the Matrix integration. Per coding-guidelines principle 4: "Define success criteria. Loop until verified."
+
+### 13.1 Integration Tests
+
+**T1 — Sidecar Deployment:**
+```bash
+kask matrix deploy-sidecar --domain matrix.example.com
+# Verify: ~/.config/hkask/sidecar/ contains docker-compose.yml, Caddyfile, conduit.toml
+# Verify: docker-compose.yml references caddy:2-alpine, conduit:0.9.0
+# Verify: conduit.toml has allow_registration=true, allow_federation=false
+# Verify: admin token is 64 hex chars, stored in OS keychain as HKASK_MATRIX_ADMIN_TOKEN
+```
+
+**T2 — Agent Registration:**
+```bash
+kask matrix register --agent Alice-Smith
+# Verify: prompts for credential "FirstName-LastName/Passphrase"
+# Verify: MXID derived as @alice-smith:example.com (lowercase, spaces→hyphens)
+# Verify: POST to Conduit admin API succeeds (200)
+# Verify: agent credentials stored in keychain (HKASK_MATRIX_AGENT_USERNAME_Alice-Smith, HKASK_MATRIX_AGENT_PASSWORD_Alice-Smith)
+# Verify: output includes labeled verification instructions
+```
+
+**T3 — User Registration:**
+```bash
+kask matrix register --user Bob-Jones
+# Verify: MXID derived as @bob-jones:example.com
+# Verify: POST to Conduit admin API succeeds (200)
+# Verify: output includes MXID and generated password
+```
+
+**T4 — Message Send (via MCP tool):**
+```bash
+# Start communication server with agent credentials:
+HKASK_MATRIX_AGENT_USERNAME=@alice-smith:example.com \
+HKASK_MATRIX_AGENT_PASSWORD=<password> \
+kask mcp start communication
+# Call send_message tool:
+# Verify: message appears in Matrix room
+# Verify: cns.communication.matrix.message.sent tracing span emitted
+```
+
+**T5 — Message Poll (via MCP tool):**
+```bash
+# Human sends message to agent via FluffyChat
+# Agent calls get_messages(room_id, limit=20):
+# Verify: human's message appears in returned Vec<MatrixMessage>
+# Verify: cns.communication.matrix.messages.polled tracing span emitted
+```
+
+**T6 — Status Check:**
+```bash
+kask matrix status-sidecar
+# Verify: reports container status for Caddy, Conduit, Hydrogen (if enabled)
+# Verify: when containers are down, reports DOWN with appropriate messaging
+```
+
+### 13.2 CNS Span Verification
+
+**T7 — Span Emission:**
+```bash
+# After running T4 and T5, verify the following spans were emitted:
+# - cns.communication.matrix.health (on health_check)
+# - cns.communication.matrix.login (on login)
+# - cns.communication.matrix.message.sent (on send_message)
+# - cns.communication.matrix.messages.polled (on get_messages)
+# - cns.communication.server.started (on server start)
+```
+
+### 13.3 Failure Mode Tests
+
+**T8 — Homeserver Unreachable:**
+```bash
+# Stop Conduit container: docker compose stop conduit
+# Run: kask matrix status-sidecar
+# Verify: reports Conduit DOWN
+# Run: send_message via MCP tool
+# Verify: returns MatrixError::Unavailable
+```
+
+**T9 — Credential Gate:**
+```bash
+kask matrix register --agent Alice-Smith
+# Enter wrong credential format
+# Verify: warns about format but proceeds (credential verification is TODO)
+# Verify: no Curator/LLM invocation (direct CLI function, no AgentService path)
+```
+
+### 13.4 MXID Derivation Tests
+
+**T10 — Name Transformations:**
+```bash
+# Verify these transformations (unit-testable in derive_mxid):
+# "Alice-Smith" → @alice-smith:example.com
+# "Bob Jones" → @bob-jones:example.com
+# "María García" → @mara-garca:example.com (unicode stripped)
+# "O'Reilly" → @oreilly:example.com (apostrophe stripped)
+# "" → @agent-{8-hex}:example.com (fallback)
+```
+
+---
+
+## 7.1 CNS Span Specification
+
+**Purpose:** Define every `cns.communication.matrix.*` span emitted by the Matrix integration. Each span specifies its namespace, phase, payload schema, and algedonic thresholds.
+
+### Implemented Spans (v1)
+
+These spans are emitted via `tracing` macros in the current implementation. Formal CNS registry registration is deferred.
+
+| Span | Phase | Payload | Emitted By |
+|------|-------|---------|------------|
+| `cns.communication.matrix.health` | Observe | `{ url }` | `MatrixTransport::health_check()` |
+| `cns.communication.matrix.login` | Act | `{ username, homeserver }` | `MatrixTransport::login()` |
+| `cns.communication.matrix.message.sent` | Act | `{ room_id, body_len }` | `MatrixTransport::send_message()` |
+| `cns.communication.matrix.messages.polled` | Observe | `{ room_id, count }` | `MatrixTransport::get_messages()` |
+| `cns.communication.thread.created` | Act | `{ room_id, name }` | `MatrixTransport::create_room()` |
+| `cns.communication.agent.invited` | Act | `{ room_id, user }` | `MatrixTransport::invite_user()` |
+| `cns.communication.agent.registered` | Act | `{ webid, matrix_user }` | `AgentRegistry::record_mapping()` |
+| `cns.communication.server.started` | Act | `{ url, agent? }` | `main.rs` entry point |
+
+### Deferred Spans (v2 — requires continuous sync)
+
+These spans are specified but not implemented. They require the continuous sync loop (deferred until VOIP/real-time use case exists).
+
+| Span | Phase | Payload | Threshold (Warning/Critical) |
+|------|-------|---------|------------------------------|
+| `cns.communication.matrix.message.received` | Observe | `{ sender_mxid, room_id, body_len, timestamp }` | — |
+| `cns.communication.matrix.sync.health` | Observe | `{ connected, latency_ms, last_sync_token }` | — |
+| `cns.communication.matrix.sync.stalled` | Observe | `{ stall_duration_s, last_error }` | 60s / 300s |
+| `cns.communication.matrix.e2ee.error` | Observe | `{ error_type, room_id, sender_mxid }` | 5/hr / 20/hr |
+| `cns.communication.matrix.sender.unverified` | Observe | `{ sender_mxid, room_id }` | 1/activation / 5/activation |
+| `cns.communication.matrix.sidecar.health` | Observe | `{ caddy_up, conduit_up, conduit_api_ok, conduit_db_ok, hydrogen_up }` | 1 failure / 3 consecutive |
+| `cns.communication.matrix.throttled` | Observe | `{ agent, reason, message_rate }` | — |
+| `cns.sovereignty.credential_check` | Act | `{ operation, method, ai_invoked }` | — |
+
+### Algedonic Thresholds (v1 — sidecar health only)
+
+The only automated health check in v1 is `kask matrix status-sidecar` (on-demand CLI). The daemon periodic health task is deferred. When implemented, thresholds are:
+
+| Condition | Warning | Critical |
+|-----------|---------|----------|
+| `caddy_up: false` | — | 3 consecutive checks |
+| `conduit_up: false` | 1 check | 3 consecutive checks |
+| `conduit_db_ok: false` | — | Immediate |
+| `hydrogen_up: false` | 1 check | — (optional component) |

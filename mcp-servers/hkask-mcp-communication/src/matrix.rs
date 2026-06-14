@@ -381,4 +381,49 @@ impl MatrixTransport {
     pub fn healthy(&self) -> bool {
         self.client.is_some()
     }
+
+    /// Reconnect to the Matrix homeserver.
+    ///
+    /// Rebuilds the SDK client and re-authenticates using stored credentials.
+    /// Call this when the connection drops or the homeserver restarts.
+    /// Requires `HKASK_MATRIX_AGENT_USERNAME` and `HKASK_MATRIX_AGENT_PASSWORD`
+    /// environment variables to be set.
+    pub async fn reconnect(&mut self) -> Result<(), MatrixError> {
+        self.client = None;
+
+        let username = std::env::var("HKASK_MATRIX_AGENT_USERNAME")
+            .map_err(|_| MatrixError::Auth("HKASK_MATRIX_AGENT_USERNAME not set".to_string()))?;
+        let password = std::env::var("HKASK_MATRIX_AGENT_PASSWORD")
+            .map_err(|_| MatrixError::Auth("HKASK_MATRIX_AGENT_PASSWORD not set".to_string()))?;
+
+        self.login(&username, &password).await?;
+
+        tracing::info!(
+            target: "cns.communication.matrix.reconnect",
+            url = %self.homeserver_url,
+            "Matrix transport reconnected"
+        );
+        Ok(())
+    }
+
+    /// Check whether the Matrix connection is alive.
+    ///
+    /// Returns `true` if the client is authenticated AND the homeserver
+    /// responds to a version check. Returns `false` if either fails.
+    /// Does not mutate state — safe to call from health probes.
+    pub async fn is_healthy(&self) -> bool {
+        let Some(client) = &self.client else {
+            return false;
+        };
+
+        // Check if the client can reach the homeserver
+        let whoami = client.whoami().await;
+        whoami.is_ok()
+    }
+
+    /// Get the current logged-in user ID, if authenticated.
+    pub async fn current_user_id(&self) -> Option<String> {
+        let client = self.client.as_ref()?;
+        client.whoami().await.ok().map(|r| r.user_id.to_string())
+    }
 }

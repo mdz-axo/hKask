@@ -601,9 +601,9 @@ impl ServiceError {
                 serde_json::json!({ "kind": kind.to_string(), "server": server, "tool": tool, "message": message }),
             ),
 
-            // ── Transparent wrappers not explicitly matched above ──────
-            // These carry domain semantics from upstream crates.
-            // Default: emit as cybernetics error with the Display message.
+            // ── Remaining transparent wrappers ──────────────────────
+            // Each carries domain semantics from upstream crates.
+            // Every variant has an explicit arm — this match is exhaustive.
             ServiceError::Metacognition(e) => (
                 "cns.curation",
                 "error.metacognition",

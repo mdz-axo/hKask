@@ -693,6 +693,69 @@ impl MediaServer {
         }
     }
 
+    /// Crop a face region from an image using bounding box percentages.
+    ///
+    /// Returns a base64 data URL of the cropped face region, or the original
+    /// image URL if cropping fails (graceful degradation).
+    fn crop_face_region(&self, image_id: &str, bbox: &serde_json::Value) -> Result<String, String> {
+        // Resolve the image path
+        let guard = self.gallery_state.lock().unwrap();
+        let state = guard
+            .as_ref()
+            .ok_or("No gallery initialized.".to_string())?;
+        let gallery_id = state
+            .gallery_id
+            .as_ref()
+            .ok_or("Gallery not persisted.".to_string())?
+            .clone();
+        drop(guard);
+
+        let conn = self
+            .gallery_store
+            .lock_conn()
+            .map_err(|e| format!("Failed to lock store: {}", e))?;
+        let absolute_path: String = conn
+            .query_row(
+                "SELECT absolute_path FROM gallery_images WHERE id = ?1 AND gallery_id = ?2",
+                [image_id, gallery_id.as_str()],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("Image not found: {}", e))?;
+        drop(conn);
+
+        // Read and crop the image
+        let img =
+            image::open(&absolute_path).map_err(|e| format!("Failed to open image: {}", e))?;
+
+        let x_pct = bbox["x_pct"].as_f64().unwrap_or(0.0);
+        let y_pct = bbox["y_pct"].as_f64().unwrap_or(0.0);
+        let w_pct = bbox["w_pct"].as_f64().unwrap_or(100.0);
+        let h_pct = bbox["h_pct"].as_f64().unwrap_or(100.0);
+
+        let (img_w, img_h) = (img.width(), img.height());
+        let x = ((x_pct / 100.0) * img_w as f64).round() as u32;
+        let y = ((y_pct / 100.0) * img_h as f64).round() as u32;
+        let w = ((w_pct / 100.0) * img_w as f64).round() as u32;
+        let h = ((h_pct / 100.0) * img_h as f64).round() as u32;
+
+        // Clamp to image bounds
+        let x = x.min(img_w.saturating_sub(1));
+        let y = y.min(img_h.saturating_sub(1));
+        let w = w.min(img_w - x).max(1);
+        let h = h.min(img_h - y).max(1);
+
+        let cropped = img.crop_imm(x, y, w, h);
+
+        // Encode as base64 data URL
+        let mut buf = std::io::Cursor::new(Vec::new());
+        cropped
+            .write_to(&mut buf, image::ImageFormat::Jpeg)
+            .map_err(|e| format!("Failed to encode cropped image: {}", e))?;
+        let data = buf.into_inner();
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+        Ok(format!("data:image/jpeg;base64,{}", b64))
+    }
+
     /// Resolve the best available vision model with fallback chain.
     /// Tries: DeepInfra → Fireworks → Ollama (local).
     /// Returns the model name and a label for recording.
@@ -782,7 +845,6 @@ impl MediaServer {
         pipelines: &[String],
     ) -> (u32, Vec<String>) {
         let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
         let mut analyzed = 0u32;
         let mut errors = Vec::new();
 
@@ -830,114 +892,99 @@ impl MediaServer {
             }
 
             if run_objects {
-                let mut vars = HashMap::new();
-                vars.insert("detail_level", "detailed");
-                let max_str = "20".to_string();
-                vars.insert("max_objects", &max_str);
-                if let Ok(prompt) = self.render_prompt("tag_objects", &vars) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text)
-                        {
-                            for obj in &objects {
-                                let value = serde_json::to_string(obj).unwrap_or_default();
-                                self.persist_tag(&image_id, "object", &value, 0.85, vision_label);
-                            }
-                        } else {
-                            self.persist_tag(&image_id, "object", r.text.trim(), 0.7, vision_label);
+                match vision::detect_objects(
+                    &self.inference,
+                    &self.template_env,
+                    &image_url,
+                    Some(vision_model),
+                )
+                .await
+                {
+                    Ok(objects) => {
+                        for obj in &objects {
+                            let value = serde_json::to_string(obj).unwrap_or_default();
+                            self.persist_tag(&image_id, "object", &value, 0.85, vision_label);
                         }
+                    }
+                    Err(e) => {
+                        errors.push(format!("image {} object detection: {}", idx, e));
                     }
                 }
             }
 
             if run_colors {
-                let mut vars = HashMap::new();
-                vars.insert("max_colors", "8");
-                if let Ok(prompt) = self.render_prompt("tag_colors", &vars) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
-                            if let Some(colors) = parsed["colors"].as_array() {
-                                for color in colors {
-                                    let value = serde_json::to_string(color).unwrap_or_default();
-                                    self.persist_tag(
-                                        &image_id,
-                                        "color",
-                                        &value,
-                                        0.85,
-                                        vision_label,
-                                    );
-                                }
+                match vision::analyze_colors(
+                    &self.inference,
+                    &self.template_env,
+                    &image_url,
+                    Some(vision_model),
+                )
+                .await
+                {
+                    Ok(parsed) => {
+                        if let Some(colors) = parsed["colors"].as_array() {
+                            for color in colors {
+                                let value = serde_json::to_string(color).unwrap_or_default();
+                                self.persist_tag(&image_id, "color", &value, 0.85, vision_label);
                             }
-                            for field in &["palette_style", "temperature", "saturation"] {
-                                if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                    self.persist_tag(&image_id, "color", v, 0.9, vision_label);
-                                }
-                            }
-                        } else {
-                            self.persist_tag(&image_id, "color", r.text.trim(), 0.7, vision_label);
                         }
+                        for field in &["palette_style", "temperature", "saturation"] {
+                            if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
+                                self.persist_tag(&image_id, "color", v, 0.9, vision_label);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!("image {} color analysis: {}", idx, e));
                     }
                 }
             }
 
             if run_composition {
-                if let Ok(prompt) = self.render_prompt("tag_composition", &HashMap::new()) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
-                            for field in &[
-                                "focal_point",
-                                "rule_of_thirds",
-                                "leading_lines",
-                                "depth_of_field",
-                                "perspective",
-                                "framing",
-                                "symmetry",
-                                "negative_space",
-                            ] {
-                                if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                    self.persist_tag(
-                                        &image_id,
-                                        "composition",
-                                        v,
-                                        0.85,
-                                        vision_label,
-                                    );
-                                }
+                match vision::analyze_composition(
+                    &self.inference,
+                    &self.template_env,
+                    &image_url,
+                    Some(vision_model),
+                )
+                .await
+                {
+                    Ok(parsed) => {
+                        for field in &[
+                            "focal_point",
+                            "rule_of_thirds",
+                            "leading_lines",
+                            "depth_of_field",
+                            "perspective",
+                            "framing",
+                            "symmetry",
+                            "negative_space",
+                        ] {
+                            if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
+                                self.persist_tag(&image_id, "composition", v, 0.85, vision_label);
                             }
-                        } else {
-                            self.persist_tag(
-                                &image_id,
-                                "composition",
-                                r.text.trim(),
-                                0.7,
-                                vision_label,
-                            );
                         }
+                    }
+                    Err(e) => {
+                        errors.push(format!("image {} composition analysis: {}", idx, e));
                     }
                 }
             }
 
             if run_scene {
-                let mut vars = HashMap::new();
-                vars.insert("style", "descriptive");
-                if let Ok(prompt) = self.render_prompt("caption", &vars) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        self.persist_tag(&image_id, "caption", r.text.trim(), 0.9, vision_label);
+                match vision::caption_scene(
+                    &self.inference,
+                    &self.template_env,
+                    &image_url,
+                    Some(vision_model),
+                )
+                .await
+                {
+                    Ok(caption) => {
+                        self.persist_tag(&image_id, "caption", &caption, 0.9, vision_label);
+                    }
+                    Err(e) => {
+                        errors.push(format!("image {} scene caption: {}", idx, e));
                     }
                 }
             }
@@ -1528,7 +1575,7 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Refresh the gallery: scan for new/removed images, then update all AI metadata (objects, colors, composition, scene descriptions). Face detection is OFF by default — use gallery_analyze for face-specific workflows. This is the 'update everything' command."
+        description = "Refresh the gallery: scan for new/removed images, then update all AI metadata (objects, colors, composition, scene descriptions). Face detection is OFF by default. When include_faces=true, also auto-matches detected faces against the face_registry — named faces get person names instead of face_group numbers."
     )]
     async fn gallery_refresh(
         &self,
@@ -1652,15 +1699,37 @@ impl MediaServer {
                         continue;
                     }
 
-                    // Parse the face tag value to get the image_id
+                    // Parse the face tag value to get the image_id and bbox
                     let face_image_id = &tag.image_id;
 
-                    // Get the query image URL
-                    let query_url = match self.resolve_image_url_by_id(face_image_id) {
-                        Ok(url) => url,
-                        Err(e) => {
-                            match_errors.push(format!("Face tag {}: {}", tag.id, e));
-                            continue;
+                    // Try to extract bbox for face region cropping
+                    let face_bbox: Option<serde_json::Value> =
+                        serde_json::from_str::<serde_json::Value>(&tag.value)
+                            .ok()
+                            .and_then(|v| v.get("bbox").cloned());
+
+                    // Get the query image URL — crop to face region if bbox available
+                    let query_url = if let Some(ref bbox) = face_bbox {
+                        match self.crop_face_region(face_image_id, bbox) {
+                            Ok(cropped_url) => cropped_url,
+                            Err(_) => {
+                                // Fall back to full image on crop failure
+                                match self.resolve_image_url_by_id(face_image_id) {
+                                    Ok(url) => url,
+                                    Err(e) => {
+                                        match_errors.push(format!("Face tag {}: {}", tag.id, e));
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        match self.resolve_image_url_by_id(face_image_id) {
+                            Ok(url) => url,
+                            Err(e) => {
+                                match_errors.push(format!("Face tag {}: {}", tag.id, e));
+                                continue;
+                            }
                         }
                     };
 
@@ -1882,7 +1951,7 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Name a face group from gallery_analyze. Provide either a free-text name or a face_id from the face registry (which auto-resolves the name). After naming, gallery_search can find photos of that person by name."
+        description = "Name a face group from gallery_analyze. Provide either a free-text 'name' or a 'face_id' from the face registry (which auto-resolves to 'First Last'). After naming, gallery_search can find photos of that person by name."
     )]
     async fn gallery_name_face(
         &self,
@@ -2030,7 +2099,7 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Register a validated face reference with a person's name. The image must pass face_validate first. Stores in the face registry for automatic matching during gallery_refresh."
+        description = "Register a face reference with a person's name. Auto-validates the image against 6 criteria (face count, coverage, pose, lighting, occlusion, clarity). Pass --force to skip validation and register directly as valid. Stores in the face_registry table for automatic matching during gallery_refresh."
     )]
     async fn face_register(
         &self,
@@ -4026,5 +4095,178 @@ mod integration_tests {
             GalleryMode::ReadOnly.as_str(),
             GalleryMode::Destructive.as_str()
         );
+    }
+
+    // ── Face recognition tests ─────────────────────────────────────────────
+
+    /// REQ: media-face-validate-deser-01 — FaceValidationResult deserializes from valid JSON
+    #[test]
+    fn face_validation_deserialize_pass() {
+        let json = r#"{
+            "valid": true,
+            "face_count": 1,
+            "face_coverage_pct": 45,
+            "pose": "frontal",
+            "lighting": "good",
+            "occlusion": "none",
+            "clarity": "sharp",
+            "issues": []
+        }"#;
+        let result: crate::gallery::vision::FaceValidationResult =
+            serde_json::from_str(json).expect("deserialize");
+        assert!(result.valid);
+        assert_eq!(result.face_count, 1);
+        assert_eq!(result.face_coverage_pct, 45);
+        assert_eq!(result.pose, "frontal");
+        assert!(result.issues.is_empty());
+    }
+
+    /// REQ: media-face-validate-deser-02 — FaceValidationResult deserializes from reject JSON
+    #[test]
+    fn face_validation_deserialize_reject() {
+        let json = r#"{
+            "valid": false,
+            "face_count": 2,
+            "face_coverage_pct": 10,
+            "pose": "profile",
+            "lighting": "poor",
+            "occlusion": "significant",
+            "clarity": "blurry",
+            "issues": [
+                "Multiple faces detected (2) — reference must contain exactly 1 face",
+                "Face coverage too low (10%) — minimum 15% required",
+                "Profile pose — frontal or near-frontal required"
+            ]
+        }"#;
+        let result: crate::gallery::vision::FaceValidationResult =
+            serde_json::from_str(json).expect("deserialize");
+        assert!(!result.valid);
+        assert_eq!(result.face_count, 2);
+        assert_eq!(result.issues.len(), 3);
+        assert!(result.issues[0].contains("Multiple faces"));
+    }
+
+    /// REQ: media-face-match-deser-01 — FaceMatchResult deserializes from match JSON
+    #[test]
+    fn face_match_deserialize_match() {
+        let json = r#"{
+            "match": true,
+            "confidence": 0.94,
+            "reasoning": "Same bone structure, identical eye spacing, matching nose shape."
+        }"#;
+        let result: crate::gallery::vision::FaceMatchResult =
+            serde_json::from_str(json).expect("deserialize");
+        assert!(result.is_match);
+        assert!((result.confidence - 0.94).abs() < 0.001);
+        assert!(result.reasoning.contains("bone structure"));
+    }
+
+    /// REQ: media-face-match-deser-02 — FaceMatchResult deserializes from non-match JSON
+    #[test]
+    fn face_match_deserialize_no_match() {
+        let json = r#"{
+            "match": false,
+            "confidence": 0.85,
+            "reasoning": "Different jawline structure and eye shape — likely different people."
+        }"#;
+        let result: crate::gallery::vision::FaceMatchResult =
+            serde_json::from_str(json).expect("deserialize");
+        assert!(!result.is_match);
+        assert!((result.confidence - 0.85).abs() < 0.001);
+        assert!(result.reasoning.contains("Different"));
+    }
+
+    /// REQ: media-face-registry-lifecycle-01 — register, list, get, remove a face
+    #[test]
+    fn face_registry_lifecycle() {
+        let (store, _temp) = setup_store();
+
+        // Create a gallery and image for the face reference
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .expect("create gallery");
+        let img = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .expect("add image");
+
+        // Register a face
+        let face = store
+            .register_face("Alice", "Chen", &img.id, "valid", "Frontal portrait")
+            .expect("register face");
+        assert_eq!(face.first_name, "Alice");
+        assert_eq!(face.status, "valid");
+
+        // List faces
+        let faces = store.list_faces(None).expect("list faces");
+        assert_eq!(faces.len(), 1);
+
+        // Get by ID
+        let retrieved = store.get_face(&face.id).expect("get face");
+        assert_eq!(retrieved.last_name, "Chen");
+
+        // Remove
+        store.remove_face(&face.id).expect("remove face");
+        let faces = store.list_faces(None).expect("list after remove");
+        assert_eq!(faces.len(), 0);
+    }
+
+    /// REQ: media-face-registry-filter-01 — list_faces filters by status
+    #[test]
+    fn face_registry_status_filter() {
+        let (store, _temp) = setup_store();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .expect("create gallery");
+        let img1 = store
+            .add_image(
+                &gallery.id,
+                "a.jpg",
+                "/tmp/a.jpg",
+                "h1",
+                100,
+                100,
+                "jpg",
+                1000,
+            )
+            .expect("add img1");
+        let img2 = store
+            .add_image(
+                &gallery.id,
+                "b.jpg",
+                "/tmp/b.jpg",
+                "h2",
+                100,
+                100,
+                "jpg",
+                1000,
+            )
+            .expect("add img2");
+
+        store
+            .register_face("Alice", "A", &img1.id, "valid", "")
+            .unwrap();
+        store
+            .register_face("Bob", "B", &img2.id, "rejected", "Too dark")
+            .unwrap();
+
+        let valid = store.list_faces(Some("valid")).unwrap();
+        assert_eq!(valid.len(), 1);
+        assert_eq!(valid[0].first_name, "Alice");
+
+        let rejected = store.list_faces(Some("rejected")).unwrap();
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(rejected[0].first_name, "Bob");
+
+        let pending = store.list_faces(Some("pending")).unwrap();
+        assert_eq!(pending.len(), 0);
     }
 }

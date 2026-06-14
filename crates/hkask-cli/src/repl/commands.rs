@@ -182,6 +182,18 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "[plussing|yes-and|yes-but|freestyle|riff]",
         about: "Set or display the active improv interaction mode",
     },
+    SlashCommand {
+        primary: "matrix",
+        aliases: &["mx"],
+        args: "[ROOM_ID]",
+        about: "List Matrix rooms, or show messages from a room",
+    },
+    SlashCommand {
+        primary: "msg",
+        aliases: &["dm"],
+        args: "<ROOM_ID> <MESSAGE>",
+        about: "Send a message to a Matrix room",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -305,6 +317,8 @@ pub(super) fn handle_slash_command(
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),
         "talk" | "speak" => handlers::handle_talk(arg1, arg2, state, rt),
         "improv" | "imp" => handlers::handle_improv(arg1, arg2, state),
+        "matrix" | "mx" => handlers::handle_matrix(arg1, rt),
+        "msg" | "dm" => handlers::handle_msg(arg1, arg2, rt),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

@@ -30,6 +30,7 @@ imageproc.workspace = true
 ab_glyph.workspace = true
 uuid.workspace = true
 nom-exif.workspace = true
+face_id = "0.4"
 
 [dev-dependencies]
 tempfile.workspace = true

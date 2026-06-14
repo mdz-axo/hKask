@@ -3,6 +3,10 @@
 //! Uses the hKask inference router to call vision-capable LLMs
 //! (Llama 3.2 Vision, Qwen2-VL, Gemma 4, etc.) for:
 //! - Face detection and description
+//! - Object detection
+//! - Color palette analysis
+//! - Composition analysis
+//! - Scene captioning
 //! - Face reference validation
 //! - Face matching (same person?)
 //!
@@ -40,6 +44,7 @@ pub struct FaceValidationResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FaceMatchResult {
     /// Whether the two faces are the same person.
+    #[serde(rename = "match")]
     pub is_match: bool,
     /// Confidence score (0.0–1.0).
     pub confidence: f64,
@@ -164,4 +169,120 @@ pub async fn match_faces(
     })?;
 
     Ok(parsed)
+}
+
+/// Detect and label all prominent objects in an image.
+///
+/// Returns a list of object descriptions (JSON objects with name,
+/// location, confidence, description). Falls back to raw text.
+///
+/// REQ: media-objects-detect-01
+pub async fn detect_objects(
+    inference: &Arc<InferenceRouter>,
+    template_env: &Environment<'static>,
+    image_url: &str,
+    vision_model: Option<&str>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut vars: HashMap<&str, &str> = HashMap::new();
+    vars.insert("detail_level", "detailed");
+    vars.insert("max_objects", "20");
+    let prompt = crate::templates::render(template_env, "tag_objects", &vars)?;
+
+    let params = LLMParameters::default();
+
+    let result = inference
+        .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
+        .await
+        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+
+    if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&result.text) {
+        Ok(objects)
+    } else {
+        Ok(vec![serde_json::json!({"raw": result.text.trim()})])
+    }
+}
+
+/// Analyze the dominant color palette of an image.
+///
+/// Returns a JSON object with colors array, palette_style, temperature,
+/// and saturation. Falls back to raw text.
+///
+/// REQ: media-colors-analyze-01
+pub async fn analyze_colors(
+    inference: &Arc<InferenceRouter>,
+    template_env: &Environment<'static>,
+    image_url: &str,
+    vision_model: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    let mut vars: HashMap<&str, &str> = HashMap::new();
+    vars.insert("max_colors", "8");
+    let prompt = crate::templates::render(template_env, "tag_colors", &vars)?;
+
+    let params = LLMParameters::default();
+
+    let result = inference
+        .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
+        .await
+        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result.text) {
+        Ok(parsed)
+    } else {
+        Ok(serde_json::json!({"raw": result.text.trim()}))
+    }
+}
+
+/// Analyze the photographic composition of an image.
+///
+/// Returns a JSON object with focal_point, rule_of_thirds, leading_lines,
+/// depth_of_field, perspective, framing, symmetry, negative_space.
+/// Falls back to raw text.
+///
+/// REQ: media-composition-analyze-01
+pub async fn analyze_composition(
+    inference: &Arc<InferenceRouter>,
+    template_env: &Environment<'static>,
+    image_url: &str,
+    vision_model: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    let prompt = crate::templates::render(template_env, "tag_composition", &HashMap::new())?;
+
+    let params = LLMParameters::default();
+
+    let result = inference
+        .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
+        .await
+        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result.text) {
+        Ok(parsed)
+    } else {
+        Ok(serde_json::json!({"raw": result.text.trim()}))
+    }
+}
+
+/// Generate a descriptive caption for an image.
+///
+/// Returns plain text describing the scene (subject, setting, lighting,
+/// colors, composition, mood).
+///
+/// REQ: media-scene-caption-01
+pub async fn caption_scene(
+    inference: &Arc<InferenceRouter>,
+    template_env: &Environment<'static>,
+    image_url: &str,
+    vision_model: Option<&str>,
+) -> Result<String, String> {
+    let mut vars = HashMap::new();
+    vars.insert("style", "descriptive");
+    let prompt = crate::templates::render(template_env, "caption", &vars)?;
+
+    let params = LLMParameters::default();
+
+    let result = inference
+        .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
+        .await
+        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+
+    Ok(result.text.trim().to_string())
 }

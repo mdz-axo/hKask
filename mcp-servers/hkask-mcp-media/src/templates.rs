@@ -47,8 +47,9 @@ For each face, provide:
 3. Notable features (glasses, beard, expression, hair color/style)
 4. Position in image (e.g., "left third", "center-right", "foreground")
 5. Approximate face size relative to image (small / medium / large)
+6. Bounding box as percentages of image dimensions: x_pct (left edge), y_pct (top edge), w_pct (width), h_pct (height). All values 0-100.
 
-Return ONLY a JSON array. Each element: face_index, age_range, gender_presentation, features, position, size.
+Return ONLY a JSON array. Each element: face_index, age_range, gender_presentation, features, position, size, bbox { x_pct, y_pct, w_pct, h_pct }.
 {% endif %}"#;
 
 const TAG_OBJECTS: &str = r#"Analyze this image and detect all visible objects.
