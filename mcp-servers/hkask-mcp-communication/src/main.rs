@@ -13,8 +13,8 @@
 
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp_communication::agent_registration::AgentRegistry;
+use hkask_mcp_communication::listener::SevenR7Listener;
 use hkask_mcp_communication::matrix::{MatrixTransport, RoomId};
-use hkask_mcp_communication::moderation::{ModerationQueue, NaiveKeywordClassifier, SevenR7Bot};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -49,43 +49,32 @@ pub struct ListVoicesRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SendMessageRequest {
-    /// Matrix room ID to send to.
     pub room_id: String,
-    /// Message body.
     pub body: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateThreadRequest {
-    /// Thread title.
     pub title: String,
-    /// Optional topic description.
     pub topic: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct InviteAgentRequest {
-    /// Room ID to invite to.
     pub room_id: String,
-    /// Replicant WebID to invite.
     pub replicant_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MonitorThreadRequest {
-    /// Thread room ID to monitor.
     pub room_id: String,
-    /// Replicant WebID to assign as watcher.
     pub replicant_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TagAgentRequest {
-    /// Thread room ID.
     pub room_id: String,
-    /// Replicant WebID to tag.
     pub replicant_id: String,
-    /// Message body to send.
     pub body: String,
 }
 
@@ -95,21 +84,14 @@ pub struct CommunicationServer {
     webid: WebID,
     matrix: Arc<MatrixTransport>,
     registry: Arc<AgentRegistry>,
-    queue: Arc<ModerationQueue>,
 }
 
 impl CommunicationServer {
-    pub fn new(
-        webid: WebID,
-        matrix: Arc<MatrixTransport>,
-        registry: Arc<AgentRegistry>,
-        queue: Arc<ModerationQueue>,
-    ) -> Self {
+    pub fn new(webid: WebID, matrix: Arc<MatrixTransport>, registry: Arc<AgentRegistry>) -> Self {
         Self {
             webid,
             matrix,
             registry,
-            queue,
         }
     }
 }
@@ -290,7 +272,6 @@ impl CommunicationServer {
         }): Parameters<InviteAgentRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("invite_agent", &self.webid);
-        // Resolve replicant WebID to Matrix UserId
         let webid = match WebID::from_str(&replicant_id) {
             Ok(w) => w,
             Err(_) => {
@@ -429,7 +410,6 @@ impl CommunicationServer {
             }
         };
 
-        // Send a @mention-style message
         let mention = format!("@{} {}", user_id.as_str(), body);
         let structured = serde_json::json!({
             "tag": {
@@ -462,42 +442,34 @@ async fn main() -> anyhow::Result<()> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
-    // Initialize Matrix transport if credentials are provided
-    let matrix: Arc<MatrixTransport> = {
-        let agent_username = std::env::var("HKASK_MATRIX_AGENT_USERNAME").ok();
-        let agent_password = std::env::var("HKASK_MATRIX_AGENT_PASSWORD").ok();
+    // Connect to Conduit Docker sidecar
+    let mut transport = MatrixTransport::new(&homeserver_url);
+    transport.health_check().await?;
 
-        if let (Some(username), Some(password)) = (agent_username, agent_password) {
-            let mut transport = MatrixTransport::new(&homeserver_url);
-            transport.health_check().await?;
-            transport.login(&username, &password).await?;
-            transport.start_sync().await?;
-            tracing::info!(
-                target: "cns.communication.server.started",
-                url = %homeserver_url,
-                agent = %username,
-                "Communication server started with Matrix transport"
-            );
-            Arc::new(transport)
-        } else {
-            tracing::warn!(
-                target: "cns.communication.server.started",
-                url = %homeserver_url,
-                "Matrix transport not configured — set HKASK_MATRIX_AGENT_USERNAME and HKASK_MATRIX_AGENT_PASSWORD"
-            );
-            // Create an unauthenticated transport for tool registration only
-            Arc::new(MatrixTransport::new(&homeserver_url))
-        }
-    };
+    // Login if credentials are provided
+    if let (Ok(username), Ok(password)) = (
+        std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
+        std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
+    ) {
+        transport.login(&username, &password).await?;
+    }
 
+    let matrix = Arc::new(transport);
     let registry = Arc::new(AgentRegistry::new());
-    let queue = Arc::new(ModerationQueue::default());
 
-    // Spawn 7R7 moderation bot (would run on a timer in production)
-    let _sevenr7 = SevenR7Bot::new(
-        Arc::clone(&matrix),
-        Arc::clone(&queue),
-        Box::new(NaiveKeywordClassifier),
+    // Start 7R7 listener — polls Matrix rooms, emits CNS observation spans
+    let poll_interval = std::env::var("HKASK_COMMUNICATION_POLL_INTERVAL_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(60);
+    let listener = SevenR7Listener::new(Arc::clone(&matrix), poll_interval);
+    listener.start().await;
+
+    // CNS lifecycle spans
+    tracing::info!(
+        target: "cns.communication.server.started",
+        url = %homeserver_url,
+        "Communication server started with Matrix connection and 7R7 listener"
     );
 
     hkask_mcp::run_server(
@@ -508,7 +480,6 @@ async fn main() -> anyhow::Result<()> {
                 ctx.webid,
                 Arc::clone(&matrix),
                 Arc::clone(&registry),
-                Arc::clone(&queue),
             ))
         },
         vec![],

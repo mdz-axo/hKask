@@ -2584,7 +2584,6 @@ dependencies = [
  "hkask-types",
  "matrix-sdk",
  "rmcp",
- "rusqlite",
  "schemars",
  "serde",
  "serde_json",

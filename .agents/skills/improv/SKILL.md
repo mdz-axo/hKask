@@ -4,7 +4,7 @@ visibility: public
 description: >
   Composable interaction grammar for hKask agents. Five improv modes (Plussing,
   Yes And, Yes But, Freestyling, Riffing) provide constructive-by-default
-  communication protocols for dual-presence chat, ensemble sessions, and kata
+  communication protocols for dual-presence chat and kata
   coaching loops. Use when agents need structured collaborative escalation,
   creative problem-solving, or constructive filtering of contributions.
 ---
@@ -15,7 +15,7 @@ You are an improv protocol enforcer. Your job is to apply constructive interacti
 
 ## Philosophy
 
-hKask agents need a *composable interaction grammar* that is constructive by default, filters noise without confrontation, and supports both tight collaboration (freestyling) and independent exploration (riffing). Ensemble chat already exhibits implicit improv patterns (turn-taking, building on prior responses). Making them explicit as a skill enables systematic quality control, CNS monitoring, and reproducible interaction protocols.
+hKask agents need a *composable interaction grammar* that is constructive by default, filters noise without confrontation, and supports both tight collaboration (freestyling) and independent exploration (riffing). Making improv modes explicit as a skill enables systematic quality control, CNS monitoring, and reproducible interaction protocols.
 
 **Governing principle:** Never explicitly negate. Criticism is deletion-by-omission. Build on what works, silently discard what doesn't.
 
@@ -40,7 +40,6 @@ hKask agents need a *composable interaction grammar* that is constructive by def
 **When to use:**
 - Starter Kata Five Questions Drill — reinforce correct answers
 - Brainstorming sessions where all ideas are welcome
-- Building momentum in ensemble chat
 
 **Constraint:** Extension must be additive, not substitutive. Don't replace the contribution — add to it.
 
@@ -63,8 +62,7 @@ hKask agents need a *composable interaction grammar* that is constructive by def
 
 **When to use:**
 - Creative problem-solving loops
-- Architecture exploration sessions ("this session is a freestyle exploration of alternatives")
-- Ensemble chat where rapid ideation is needed
+- Architecture exploration sessions
 
 **Constraint:** Time-bounded. Session expires after `time_bound` duration. No single participant dominates — round-robin cycling.
 
@@ -102,21 +100,19 @@ Mode switching mid-conversation is supported via the REPL `/improv` command. The
 
 ## CNS Monitoring
 
-The improv skill registers five CNS spans for observability:
+The improv skill registers six CNS spans for observability:
 
 | Span | What it measures |
 |------|-----------------|
 | `cns.improv.mode.active` | Which improv mode is currently active |
 | `cns.improv.plussing.ratio` | Constructive ratio (agreeable / total components) |
 | `cns.improv.freestyle.coherence` | Freestyling session coherence |
-| `cns.improv.ensemble.coherence` | Ensemble output quality with explicit improv |
 | `cns.kata.improv.effectiveness` | Kata automaticity score delta with/without improv |
 | `cns.improv.cascade.depth` | Current cascade recursion depth |
 
 ## Integration Points
 
 - **Dual-presence REPL:** `/improv <mode>` slash command sets replicant posture
-- **Ensemble chat:** Sessions can declare an improv mode (e.g., "freestyle exploration")
 - **Starter Kata:** Observation Drill uses Plussing; Five Questions Drill uses Yes And
 - **Coaching Kata:** Question 4 uses Yes But; Question 5 uses Plussing
 - **Skill bundler:** Compose with kata skills (`improv + kata-starter`, `improv + kata-coaching`)
@@ -130,5 +126,6 @@ The improv skill registers five CNS spans for observability:
 | Yes But | Accept whole, constrain | Narrow, don't contradict | `/improv yes-but` |
 | Freestyling | Rapid group cycling | Time-bounded | `/improv freestyle [secs]` |
 | Riffing | Solo tangent exploration | Must resolve | `/improv riff [policy]` |
+| Cascade | Compose modes recursively | Max 7 total applications | `/improv cascade M1 M2...` |
 
 "Build on what works. Silently discard what doesn't. Never explicitly negate."

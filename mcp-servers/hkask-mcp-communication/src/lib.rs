@@ -10,11 +10,11 @@
 //! - `tag_agent` — Pull an agent into a discussion
 //!
 //! Architecture:
-//!   Conduit (embedded Matrix homeserver) — hosted per hKask install
-//!   Iamb (embedded TUI client) — human interface
+//!   Conduit (Docker sidecar Matrix homeserver) — hosted per hKask install
 //!   Agents connect via Matrix protocol directly
-//!   7R7 bot — polls Matrix for moderation → escalation pipeline
+//!   7R7 listener — polls Matrix rooms, emits CNS observation spans
+//!   Agent layer (Curator + skills + templates) — decides what content means
 
 pub mod agent_registration;
+pub mod listener;
 pub mod matrix;
-pub mod moderation;

@@ -186,7 +186,9 @@ pub(crate) async fn metacognition_status(
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
     let queue = state.agent_service.escalation_queue();
-    let stats = queue.stats().map_err(ApiError::from)?;
+    let stats = queue
+        .stats()
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Escalation(e)))?;
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
         pending: stats.pending,

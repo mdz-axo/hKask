@@ -2,25 +2,31 @@
 //!
 //! Registers improv-specific CNS spans following the canonical hierarchy
 //! defined in `docs/architecture/PRINCIPLES.md` §1.4.
-//!
-//! Spans registered:
-//! - `cns.improv.mode.active` — which improv mode is currently active
-//! - `cns.improv.plussing.ratio` — constructive ratio for Plussing
-//! - `cns.improv.freestyle.coherence` — freestyling coherence metric
-//! - `cns.improv.ensemble.coherence` — ensemble output quality with improv
-//! - `cns.kata.improv.effectiveness` — kata improv effectiveness
 
 use hkask_types::event::{Span, SpanNamespace};
 
 /// Trait for CNS integration — allows hkask-cns to receive improv span registrations.
-///
-/// This trait is implemented by the CNS runtime. The improv crate only
-/// depends on the trait, not on the concrete CNS implementation.
 pub trait ImprovCns {
     /// Register all improv-related CNS spans.
-    ///
-    /// Called once during CNS initialization via `ImprovSkill::register_with_cns()`.
     fn register_improv_spans(&mut self);
+}
+
+/// Default CNS integration — logs span registrations via `tracing`.
+///
+/// Used when the full CNS runtime isn't wired yet. Spans are emitted
+/// at `info` level under the `cns.improv` target.
+pub struct TracingImprovCns;
+
+impl ImprovCns for TracingImprovCns {
+    fn register_improv_spans(&mut self) {
+        for ns in IMPROV_SPAN_NAMESPACES {
+            tracing::info!(
+                target: "cns.improv",
+                namespace = ns,
+                "Improv CNS span registered"
+            );
+        }
+    }
 }
 
 /// Canonical improv CNS span namespaces.
@@ -31,15 +37,11 @@ pub const IMPROV_SPAN_NAMESPACES: &[&str] = &[
     "cns.improv.mode.active",
     "cns.improv.plussing.ratio",
     "cns.improv.freestyle.coherence",
-    "cns.improv.ensemble.coherence",
     "cns.kata.improv.effectiveness",
     "cns.improv.cascade.depth",
 ];
 
 /// Build a CNS span for improv mode tracking.
-///
-/// Returns `None` if the namespace hasn't been registered in `CANONICAL_NAMESPACES`.
-/// Callers should ensure `register_improv_spans()` has been called first.
 pub fn improv_span(namespace: &str, path: &str) -> Option<Span> {
     let ns = SpanNamespace::parse(namespace)?;
     Some(Span::new(ns, path))
@@ -58,11 +60,6 @@ pub fn plussing_ratio_span() -> Option<Span> {
 /// Build the freestyle coherence span.
 pub fn freestyle_coherence_span() -> Option<Span> {
     improv_span("cns.improv.freestyle.coherence", "coherence")
-}
-
-/// Build the ensemble coherence span.
-pub fn ensemble_coherence_span() -> Option<Span> {
-    improv_span("cns.improv.ensemble.coherence", "coherence")
 }
 
 /// Build the kata improv effectiveness span.
@@ -99,14 +96,13 @@ pub const KATA_IMPROV_EFFECTIVENESS_ALERT: f64 = 0.0;
 mod tests {
     use super::*;
 
-    // REQ: IMPROV_SPAN_NAMESPACES contains all six required spans
+    // REQ: IMPROV_SPAN_NAMESPACES contains all five required spans
     #[test]
     fn improv_span_namespaces_are_defined() {
-        assert_eq!(IMPROV_SPAN_NAMESPACES.len(), 6);
+        assert_eq!(IMPROV_SPAN_NAMESPACES.len(), 5);
         assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.improv.mode.active"));
         assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.improv.plussing.ratio"));
         assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.improv.freestyle.coherence"));
-        assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.improv.ensemble.coherence"));
         assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.kata.improv.effectiveness"));
         assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.improv.cascade.depth"));
     }
@@ -114,7 +110,6 @@ mod tests {
     // REQ: Span builders return Some when namespace is registered
     #[test]
     fn span_builders_return_some_after_registration() {
-        // These should return Some since the namespaces are now in CANONICAL_NAMESPACES.
         let span = mode_active_span("plussing");
         assert!(
             span.is_some(),

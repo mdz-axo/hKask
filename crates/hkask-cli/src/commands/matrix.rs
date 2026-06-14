@@ -17,7 +17,6 @@ pub fn run(action: MatrixAction) {
             run_register_agent(&agent, &homeserver)
         }
         MatrixAction::RegisterUser { user, homeserver } => run_register_user(&user, &homeserver),
-        MatrixAction::Listen { agent, homeserver } => run_listen(agent.as_deref(), &homeserver),
         MatrixAction::StatusSidecar => run_status_sidecar(),
     }
 }
@@ -370,20 +369,6 @@ fn run_register_user(user: &str, homeserver: &str) {
     println!("  3. Log in with the MXID and password above");
     println!("  4. Search for their agent and start a DM");
     println!();
-}
-
-// ── listen ─────────────────────────────────────────────────────────────────
-
-fn run_listen(agent: Option<&str>, homeserver: &str) {
-    let target = agent.unwrap_or("all registered agents");
-    println!(
-        "  Starting Matrix sync listener for {} on {}...",
-        target, homeserver
-    );
-    println!("  (Not yet implemented — requires MCP server startup with Matrix transport)");
-    println!(
-        "  TODO: Start hkask-mcp-communication with HKASK_MATRIX_AGENT_USERNAME/PASSWORD env vars."
-    );
 }
 
 // ── status-sidecar ─────────────────────────────────────────────────────────

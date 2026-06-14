@@ -8,6 +8,8 @@
 
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use hkask_agents::curator::persona_filter;
 use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
@@ -1009,6 +1011,36 @@ pub struct TurnRequest {
     /// to the system prompt so the model adopts the interaction posture.
     /// None means no improv posture (default agent behavior).
     pub improv_mode: Option<hkask_improv::ImprovMode>,
+    /// Source of this turn — which communication channel the message arrived from.
+    /// None means unknown/CLI (backward compatible). When set, enables the agent
+    /// to maintain separate conversation contexts per source (P12: every action
+    /// has an author).
+    pub source: Option<MessageSource>,
+}
+
+/// Which communication channel a turn's input arrived from.
+///
+/// Enables agents to distinguish between different humans and channels,
+/// maintaining separate conversation contexts. Per P12 (Replicant Host Mandate),
+/// every action must trace to an author — the source field provides that trace.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MessageSource {
+    /// Message from a Matrix room.
+    Matrix {
+        /// Matrix room ID (e.g., "!abc123:example.com")
+        room_id: String,
+        /// Sender's Matrix user ID (e.g., "@bob-jones:example.com")
+        sender_mxid: String,
+    },
+    /// Message from the daemon socket (local agent-to-agent).
+    Daemon {
+        /// Sender's WebID
+        sender_webid: String,
+    },
+    /// Message from the CLI REPL (stdin).
+    Cli,
+    /// Message from the HTTP API.
+    Api,
 }
 
 /// Result of a single-agent turn from `ChatService::execute_turn()`.

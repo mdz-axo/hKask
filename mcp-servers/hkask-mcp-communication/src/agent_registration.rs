@@ -7,10 +7,10 @@
 //! CNS spans route algedonic signals for thread lifecycle events:
 //!   `cns.communication.thread.{created,escalated,resolved}`
 //!
-//! The 7R7 bot polls the Matrix server for unread/flagged content, producing
-//! `Escalation` entries that feed the `ModerationQueue`.
+//! The 7R7 listener polls Matrix rooms and emits CNS observation spans.
+//! The agent layer (Curator + skills + templates) decides what action to take.
 
-use crate::matrix::{MatrixTransport, RoomId, UserId};
+use crate::matrix::{RoomId, UserId};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -36,42 +36,22 @@ impl AgentRegistry {
         Self::default()
     }
 
-    /// Register a replicant as a Matrix user.
+    /// Record a WebID → Matrix UserId mapping.
     ///
-    /// Called during `pod activate` — creates a Matrix user account
-    /// on the local Conduit homeserver and records the mapping.
-    pub async fn register(
-        &self,
-        webid: &WebID,
-        matrix: &MatrixTransport,
-    ) -> Result<UserId, AgentRegistrationError> {
-        let webid_str = webid.to_string();
-        {
-            let entries = self.entries.read().await;
-            if let Some(existing) = entries.get(&webid_str) {
-                return Ok(existing.clone());
-            }
-        }
-
-        let username = webid_to_username(webid);
-        let password = generate_agent_password(webid);
-        let user_id = matrix
-            .register_user(&username, &password)
-            .await
-            .map_err(|e| AgentRegistrationError::Matrix(format!("Registration failed: {}", e)))?;
-
+    /// Called after `kask matrix register --agent` succeeds.
+    /// Does NOT perform Matrix registration — that is done by the CLI
+    /// via Conduit's admin API.
+    pub async fn record_mapping(&self, webid: &WebID, user_id: &UserId) {
         self.entries
             .write()
             .await
-            .insert(webid_str, user_id.clone());
-
+            .insert(webid.to_string(), user_id.clone());
         tracing::info!(
             target: "cns.communication.agent.registered",
             webid = %webid.redacted_display(),
             matrix_user = %user_id.as_str(),
-            "Agent registered as Matrix user"
+            "Agent Matrix mapping recorded"
         );
-        Ok(user_id)
     }
 
     /// Deregister a replicant.
@@ -136,24 +116,8 @@ impl AgentRegistry {
 
 #[derive(Debug, Error)]
 pub enum AgentRegistrationError {
-    #[error("Matrix error: {0}")]
-    Matrix(String),
     #[error("Agent not registered: {0}")]
     NotRegistered(String),
     #[error("Lock error: {0}")]
     Lock(String),
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/// Convert a WebID to a valid Matrix username.
-fn webid_to_username(webid: &WebID) -> String {
-    // Use the first 12 chars of the hex string for a short, unique username.
-    let hex = webid.to_string();
-    format!("agent-{}", &hex[..hex.len().min(12)])
-}
-
-/// Generate a deterministic password for the agent's Matrix account.
-fn generate_agent_password(_webid: &WebID) -> String {
-    uuid::Uuid::new_v4().to_string()
 }

@@ -686,15 +686,6 @@ pub enum MatrixAction {
         #[arg(short, long, default_value = "http://localhost:8008")]
         homeserver: String,
     },
-    /// Start the Matrix sync listener for an agent
-    Listen {
-        /// Agent name to listen for (omit for all registered agents)
-        #[arg(short, long)]
-        agent: Option<String>,
-        /// Homeserver URL (default: http://localhost:8008)
-        #[arg(short, long, default_value = "http://localhost:8008")]
-        homeserver: String,
-    },
     /// Check sidecar health (Docker containers, API, database)
     StatusSidecar,
 }

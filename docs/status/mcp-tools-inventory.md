@@ -1,8 +1,8 @@
 ---
 title: "MCP Tools Inventory"
 audience: [architects, developers, agents]
-version: "2.1.0"
-last_updated: 2026-06-15
+version: "0.27.0"
+last_updated: 2026-06-14
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [composition, lifecycle]
@@ -10,8 +10,8 @@ mds_categories: [composition, lifecycle]
 
 # MCP Tools Inventory
 
-Catalog of all 12 hKask MCP servers and their tools.
-Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkask-mcp-docproc`. Added `hkask-mcp-training`.
+Catalog of all 10 hKask MCP servers and their 141 tools.
+Updated 2026-06-14: Full sweep — all servers verified against current implementation.
 
 ---
 
@@ -19,17 +19,17 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 
 | Server | Crate | Tools | Loop | Required Credentials |
 |--------|-------|-------|------|----------------------|
+| communication | `hkask-mcp-communication` | 9 | L4 (Communication) | — |
+| companies | `hkask-mcp-companies` | 27 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
 | condenser | `hkask-mcp-condenser` | 7 | L2 (Episodic) | — |
-| research | `hkask-mcp-research` | ~17 | L4 (Communication) | See per-server detail |
-| spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
-| companies | `hkask-mcp-companies` | 21 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
-| communication | `hkask-mcp-communication` | 3 | L4 (Communication) | — |
-| media | `hkask-mcp-media` | 24 | L4 (Communication) | `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` |
-| replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
-| memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
 | docproc | `hkask-mcp-docproc` | 9 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional) |
-| training | `hkask-mcp-training` | 1 | L2 (Episodic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| **Total** | | **~107** | | |
+| media | `hkask-mcp-media` | 36 | L4 (Communication) | `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` |
+| memory | `hkask-mcp-memory` | 16 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
+| replica | `hkask-mcp-replica` | 8 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
+| research | `hkask-mcp-research` | 17 | L4 (Communication) | See per-server detail |
+| spec | `hkask-mcp-spec` | 6 | L5 (Curation) | `HKASK_OCAP_SECRET` |
+| training | `hkask-mcp-training` | 6 | L5 (Curation) | — |
+| **TOTAL** | | **141** | |
 
 ---
 
@@ -53,7 +53,7 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 
 ### research
 
-**Crate:** `hkask-mcp-research` · **Loop:** L4 · **Tools:** ~17
+**Crate:** `hkask-mcp-research` · **Loop:** L4 · **Tools:** 17
 
 Consolidation of former `hkask-mcp-web` and `hkask-mcp-rss-reader` (2026-06-11).
 Web tools always available with at least one search provider key. RSS tools available when `HKASK_RSS_DB` + `HKASK_DB_PASSPHRASE` are set (graceful degradation otherwise).
@@ -92,19 +92,20 @@ Web tools always available with at least one search provider key. RSS tools avai
 
 ### spec
 
-**Crate:** `hkask-mcp-spec` · **Loop:** L5 · **Tools:** 5
+**Crate:** `hkask-mcp-spec` · **Loop:** L5 · **Tools:** 6
 
 **Required:** `HKASK_OCAP_SECRET`. Optional: `HKASK_SPEC_DB_PATH`, `HKASK_DB_PASSPHRASE`.
 
-Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cultivate`) deleted. Bind tool deleted. All five are OCAP-gated via `GovernedTool`.
+Per MDS.md §3 — six tools. Curation tools (`evaluate`, `reconcile`, `cultivate`) deleted. Bind tool deleted. All six are OCAP-gated via `GovernedTool`.
 
 | Tool | Status | Description |
 |------|--------|-------------|
-| `spec/goal/capture` | ✅ Implemented | Capture a specification goal with OCAP boundaries |
-| `spec/goal/decompose` | ✅ Implemented | Decompose a goal into ordered sub-goals (max depth 7) |
-| `spec/require/writing-quality` | ✅ Implemented | Assess writing quality against excellence criteria |
-| `spec/graph/query` | ✅ Implemented | Query spec document graph by category or domain anchor |
-| `spec/graph/coherence` | ✅ Implemented | Validate graph coherence and return score |
+| `spec_goal_capture` | ✅ Implemented | Capture a specification goal with OCAP boundaries |
+| `spec_goal_decompose` | ✅ Implemented | Decompose a goal into ordered sub-goals (max depth 7) |
+| `spec_require_writing_quality` | ✅ Implemented | Assess writing quality against excellence criteria |
+| `spec_graph_query` | ✅ Implemented | Query spec document graph by category or domain anchor |
+| `spec_graph_coherence` | ✅ Implemented | Validate graph coherence and return score |
+| `spec_replica_rewrite` | ✅ Implemented | Rewrite prose using Gentle Lovelace replica, optimized for a target quality dimension |
 
 **Not in MDS tool surface** (deleted from spec server):
 - `spec/require/bind` — Deleted: OCAP boundaries declared inline during capture
@@ -116,7 +117,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### companies
 
-**Crate:** `hkask-mcp-companies` · **Loop:** L4 · **Tools:** 21
+**Crate:** `hkask-mcp-companies` · **Loop:** L4 · **Tools:** 27
 
 **Required:** `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY`
 
@@ -169,21 +170,27 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### communication
 
-**Crate:** `hkask-mcp-communication` · **Loop:** L4 · **Tools:** 3
+**Crate:** `hkask-mcp-communication` · **Loop:** L4 · **Tools:** 9
 
-**Required:** — (local system TTS, no API key needed)
+**Required:** — (local system TTS + Matrix homeserver, no API key needed)
 
 | Tool | Description |
 |------|-------------|
 | `tts_speak` | Speak text aloud via system TTS (espeak) |
 | `tts_generate` | Generate TTS audio file (espeak), returns WAV path |
 | `tts_list_voices` | List available system TTS voices (espeak) |
+| `send_message` | Send a message to a Matrix room |
+| `create_thread` | Create a threaded conversation (Matrix room) |
+| `invite_agent` | Invite another replicant to a Matrix room |
+| `list_threads` | List active communication threads |
+| `monitor_thread` | Assign a thread to an agent's watchlist for monitoring |
+| `tag_agent` | Pull an agent into a discussion by sending a tagged message |
 
 ---
 
 ### media
 
-**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 34 (9 gallery + 4 face + 7 video + 2 voice + 4 audio + 4 generation + 4 derivation)
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 36 (8 gallery + 4 face + 5 image + 9 video + 2 voice + 4 audio + 4 generation)
 
 **Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one)
 
@@ -213,6 +220,8 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `video_remix` | Clip + caption + GIF composite |
 | `video_concat` | Concatenate multiple clips (ffmpeg) |
 | `video_from_images` | Create video/GIF from image sequence (ffmpeg) |
+| `video_describe` | Describe video content by extracting keyframes and analyzing with vision LLM |
+| `video_meme` | Create a meme video from a gallery image with text overlay and camera motion |
 | `voice_design` | Design a synthetic voice from a character description |
 | `generate_speech` | Generate speech audio from text + voice design |
 | `transcribe` | Transcribe speech audio to text |
@@ -228,7 +237,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ### replica
 
-**Crate:** `hkask-mcp-replica` · **Loop:** L4 · **Tools:** 6
+**Crate:** `hkask-mcp-replica` · **Loop:** L4 · **Tools:** 8
 
 **Credentials:** `HKASK_EMBEDDING_MODEL` (optional, defaults to `Qwen/Qwen3-Embedding-0.6B` via DeepInfra)
 
@@ -240,12 +249,14 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `replica_compare` | Measure stylistic distance between two authors |
 | `replica_registry` | List, inspect, and manage built replicas |
 | `replica_explain` | Explain centroids and style-space topology |
+| `replica_discover` | Discover an academic author's body of work and generate a corpus.yaml |
+| `replica_cache_work` | Cache an extracted work's content to disk for reuse by replica_build |
 
 ---
 
 ### memory
 
-**Crate:** `hkask-mcp-memory` · **Loop:** L2 · **Tools:** 13
+**Crate:** `hkask-mcp-memory` · **Loop:** L2 · **Tools:** 16
 
 **Required:** `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE`
 
@@ -257,12 +268,15 @@ Consolidation of former `hkask-mcp-episodic` and `hkask-mcp-semantic` servers.
 | `episodic_store` | Episodic | Store an episodic triple |
 | `episodic_recall` | Episodic | Recall episodic triples by entity |
 | `episodic_budget` | Episodic | Storage usage and budget |
+| `episodic_consolidate_status` | Episodic | Check consolidation candidates and budget status for episodic→semantic promotion |
 | `semantic_ping` | Semantic | Liveness and storage info |
 | `semantic_store` | Semantic | Store a shared semantic triple |
 | `semantic_recall` | Semantic | Recall shared semantic triples |
 | `semantic_embed` | Semantic | Store an embedding vector |
 | `semantic_search` | Semantic | KNN similarity search |
 | `semantic_purge` | Semantic | Purge embeddings by prefix |
+| `semantic_centroid` | Semantic | Compute mean embedding vector (centroid) for embeddings matching a prefix |
+| `semantic_chunk` | Semantic | Chunk text into passages for embedding, with optional Gutenberg header stripping |
 | `semantic_count` | Semantic | Triple and embedding counts |
 | `memory_backup` | Memory | Backup memory database |
 | `memory_restore` | Memory | Restore memory database |
@@ -301,24 +315,29 @@ convert → chunk (auto-index) → query → (generate answer)
 
 ### training
 
-**Crate:** `hkask-mcp-training` · **Loop:** L2 · **Tools:** 1
+**Crate:** `hkask-mcp-training` · **Loop:** L5 · **Tools:** 6
 
-Stub server for model training data ingestion (2026-06-13). Full training pipeline (dataset assembly, formatting, fine-tuning) planned for future release.
+Full training pipeline server for model fine-tuning data ingestion and LoRA adapter management (2026-06-13).
 
 **Credentials:** `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE`
 
 | Tool | Description |
 |------|-------------|
 | `training_ingest_qa` | Ingest QA pairs for model training |
+| `training_submit` | Submit a training job for LoRA fine-tuning via configured provider |
+| `training_status` | Query the status of a training job by its ID |
+| `training_cancel` | Cancel a running or queued training job |
+| `training_list_adapters` | List all completed LoRA adapters available for model composition |
+| `training_delete_adapter` | Delete a LoRA adapter and all associated artifacts |
 
 ---
 
 ## Verification Notes
 
 - **Count method:** `grep '#\[tool' mcp-servers/*/src/main.rs` for `#[tool]`-based servers.
-- **Consolidation (2026-06-11):** `hkask-mcp-web` (4 tools) + `hkask-mcp-rss-reader` (~10 tools) → `hkask-mcp-research` (~17 tools).
-- **Consolidation (2026-06-13):** `hkask-mcp-markitdown` (3 tools) + `hkask-mcp-doc-knowledge` (5 tools) → `hkask-mcp-docproc` (8 tools). Added `hkask-mcp-training` (1 tool, stub). Added `hkask-mcp-docproc` 9th tool (docproc_clear_index).
-- **New (2026-06-11):** `hkask-mcp-replica` added (6 tools, style embedding and composition).
-- **Spec server correction:** Previous inventory listed 11 spec tools. Only 5 exist per MDS.md §3 and code verification.
+- **Consolidation (2026-06-11):** `hkask-mcp-web` (4 tools) + `hkask-mcp-rss-reader` (~10 tools) → `hkask-mcp-research` (17 tools).
+- **Consolidation (2026-06-13):** `hkask-mcp-markitdown` (3 tools) + `hkask-mcp-doc-knowledge` (5 tools) → `hkask-mcp-docproc` (9 tools). Added `hkask-mcp-training` (6 tools, full pipeline).
+- **New (2026-06-11):** `hkask-mcp-replica` added (8 tools, style embedding, composition, discovery, and work caching).
+- **Spec server correction:** Previous inventory listed 11 spec tools. Only 6 exist per MDS.md §3 and code verification (5 core + replica_rewrite).
 - **Tool promotions:** `condenser_thread_summary` promoted to registered MCP tool (was inference.rs HTTP function).
-- **Total:** ~107 tools across 12 servers.
+- **Total:** 141 tools across 10 servers.

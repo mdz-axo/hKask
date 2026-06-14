@@ -6,10 +6,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use hkask_storage::{
-    AgentRegistryError, ConsentStoreError, GoalRepositoryError, NuEventError,
-    SovereigntyStoreError, TripleError, UserStoreError,
+    AgentRegistryError, ConsentStoreError, GoalRepositoryError, TripleError, UserStoreError,
 };
-use hkask_types::InfrastructureError;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -81,259 +79,6 @@ impl IntoResponse for ApiError {
     }
 }
 
-// ── Store error conversions ──────────────────────────────────────────
-
-impl From<TripleError> for ApiError {
-    fn from(e: TripleError) -> Self {
-        match e {
-            TripleError::NotFound => ApiError::NotFound {
-                resource: "triple".into(),
-                id: "unknown".into(),
-            },
-            TripleError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<GoalRepositoryError> for ApiError {
-    fn from(e: GoalRepositoryError) -> Self {
-        match &e {
-            GoalRepositoryError::NotFound(id) => ApiError::NotFound {
-                resource: "goal".into(),
-                id: id.clone(),
-            },
-            GoalRepositoryError::VisibilityDenied(reason) => ApiError::Forbidden {
-                reason: reason.clone(),
-            },
-            GoalRepositoryError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-            GoalRepositoryError::InvalidTransition(msg) => ApiError::BadRequest {
-                message: msg.clone(),
-            },
-            GoalRepositoryError::MaxDepthExceeded(msg) => ApiError::BadRequest {
-                message: msg.clone(),
-            },
-            GoalRepositoryError::Corrupt(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-            GoalRepositoryError::QuarantineFailed(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-        }
-    }
-}
-
-impl From<AgentRegistryError> for ApiError {
-    fn from(e: AgentRegistryError) -> Self {
-        match &e {
-            AgentRegistryError::NotFound(name) => ApiError::NotFound {
-                resource: "agent".into(),
-                id: name.clone(),
-            },
-            AgentRegistryError::AlreadyRegistered(name) => ApiError::Conflict {
-                message: format!("Agent already registered: {name}"),
-            },
-            AgentRegistryError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<NuEventError> for ApiError {
-    fn from(e: NuEventError) -> Self {
-        ApiError::Internal {
-            message: e.to_string(),
-        }
-    }
-}
-
-impl From<ConsentStoreError> for ApiError {
-    fn from(e: ConsentStoreError) -> Self {
-        match &e {
-            ConsentStoreError::NotFound(id) => ApiError::NotFound {
-                resource: "consent".into(),
-                id: id.clone(),
-            },
-            ConsentStoreError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<SovereigntyStoreError> for ApiError {
-    fn from(e: SovereigntyStoreError) -> Self {
-        match &e {
-            SovereigntyStoreError::UuidParse(msg) => ApiError::BadRequest {
-                message: msg.clone(),
-            },
-            SovereigntyStoreError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<UserStoreError> for ApiError {
-    fn from(e: UserStoreError) -> Self {
-        match &e {
-            UserStoreError::NotFound(id) => ApiError::NotFound {
-                resource: "user".into(),
-                id: id.clone(),
-            },
-            UserStoreError::ReplicantNameTaken(name) => ApiError::Conflict {
-                message: format!("Replicant name already registered: {name}"),
-            },
-            UserStoreError::InvalidCredentials => ApiError::Unauthorized {
-                reason: "Invalid credentials".into(),
-            },
-            UserStoreError::Encryption(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-            UserStoreError::Decryption(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-            UserStoreError::KeyDerivation(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-            UserStoreError::PasswordHash(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-            UserStoreError::PassphraseExpired(days) => ApiError::Unauthorized {
-                reason: format!("Passphrase expired {} days ago — must change", days),
-            },
-            UserStoreError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<InfrastructureError> for ApiError {
-    fn from(e: InfrastructureError) -> Self {
-        ApiError::Internal {
-            message: e.to_string(),
-        }
-    }
-}
-
-// ── Agent/crate error conversions ────────────────────────────────────
-
-impl From<hkask_agents::ConsentError> for ApiError {
-    fn from(e: hkask_agents::ConsentError) -> Self {
-        match &e {
-            hkask_agents::ConsentError::ConsentNotFound(id) => ApiError::NotFound {
-                resource: "consent".into(),
-                id: id.clone(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<hkask_storage::EscalationError> for ApiError {
-    fn from(e: hkask_storage::EscalationError) -> Self {
-        match &e {
-            hkask_storage::EscalationError::NotFound(id) => ApiError::NotFound {
-                resource: "escalation".into(),
-                id: id.clone(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<hkask_types::GitError> for ApiError {
-    fn from(e: hkask_types::GitError) -> Self {
-        match &e {
-            hkask_types::GitError::CrateNotFound(name) => ApiError::NotFound {
-                resource: "template crate".into(),
-                id: name.clone(),
-            },
-            hkask_types::GitError::Io(_) => ApiError::BadRequest {
-                message: e.to_string(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<hkask_agents::AcpError> for ApiError {
-    fn from(e: hkask_agents::AcpError) -> Self {
-        match &e {
-            hkask_agents::AcpError::AgentAlreadyRegistered(webid) => ApiError::Conflict {
-                message: format!("Agent already registered: {}", webid),
-            },
-            hkask_agents::AcpError::AgentNotFound(webid) => ApiError::NotFound {
-                resource: "agent".into(),
-                id: webid.to_string(),
-            },
-            hkask_agents::AcpError::CapabilityDenied(webid, perm) => ApiError::Forbidden {
-                reason: format!("Agent {} lacks permission: {}", webid, perm),
-            },
-            hkask_agents::AcpError::WildcardCapabilityNotAllowed => ApiError::BadRequest {
-                message: "Wildcard capabilities are not allowed".into(),
-            },
-            hkask_agents::AcpError::MalformedCapability(msg) => ApiError::BadRequest {
-                message: msg.clone(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<hkask_templates::TemplateError> for ApiError {
-    fn from(e: hkask_templates::TemplateError) -> Self {
-        match &e {
-            hkask_templates::TemplateError::NotFound(id) => ApiError::NotFound {
-                resource: "template".into(),
-                id: id.clone(),
-            },
-            hkask_templates::TemplateError::CapabilityDenied(msg) => ApiError::Forbidden {
-                reason: msg.clone(),
-            },
-            hkask_templates::TemplateError::PathTraversal(_) => ApiError::BadRequest {
-                message: e.to_string(),
-            },
-            hkask_templates::TemplateError::SandboxViolation(_) => ApiError::Forbidden {
-                reason: e.to_string(),
-            },
-            hkask_templates::TemplateError::Validation(msg) => ApiError::BadRequest {
-                message: msg.clone(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<hkask_types::ports::RegistryError> for ApiError {
-    fn from(e: hkask_types::ports::RegistryError) -> Self {
-        match &e {
-            hkask_types::ports::RegistryError::NotFound(id) => ApiError::NotFound {
-                resource: "template".into(),
-                id: id.clone(),
-            },
-            hkask_types::ports::RegistryError::Other(msg) => ApiError::Internal {
-                message: msg.clone(),
-            },
-        }
-    }
-}
-
 // ── Service layer adapter ────────────────────────────────────────────
 
 impl From<hkask_services::ServiceError> for ApiError {
@@ -392,12 +137,77 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::Escalation(_) => ApiError::Internal {
                 message: e.to_string(),
             },
-            SE::AgentRegistryStore(err) => ApiError::from(err),
-            SE::GoalRepo(err) => ApiError::from(err),
-            SE::Triple(err) => ApiError::from(err),
-            SE::ConsentStore(err) => ApiError::from(err),
-            SE::UserStore(err) => ApiError::from(err),
-            SE::Consent(err) => ApiError::from(err),
+            SE::AgentRegistryStore(err) => match err {
+                AgentRegistryError::NotFound(name) => ApiError::NotFound {
+                    resource: "agent".into(),
+                    id: name,
+                },
+                AgentRegistryError::AlreadyRegistered(name) => ApiError::Conflict {
+                    message: format!("Agent already registered: {name}"),
+                },
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
+            SE::GoalRepo(err) => match err {
+                GoalRepositoryError::NotFound(id) => ApiError::NotFound {
+                    resource: "goal".into(),
+                    id,
+                },
+                GoalRepositoryError::VisibilityDenied(reason) => ApiError::Forbidden { reason },
+                GoalRepositoryError::InvalidTransition(msg) => {
+                    ApiError::BadRequest { message: msg }
+                }
+                GoalRepositoryError::MaxDepthExceeded(msg) => ApiError::BadRequest { message: msg },
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
+            SE::Triple(err) => match err {
+                TripleError::NotFound => ApiError::NotFound {
+                    resource: "triple".into(),
+                    id: "unknown".into(),
+                },
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
+            SE::ConsentStore(err) => match err {
+                ConsentStoreError::NotFound(id) => ApiError::NotFound {
+                    resource: "consent".into(),
+                    id,
+                },
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
+            SE::UserStore(err) => match err {
+                UserStoreError::NotFound(id) => ApiError::NotFound {
+                    resource: "user".into(),
+                    id,
+                },
+                UserStoreError::ReplicantNameTaken(name) => ApiError::Conflict {
+                    message: format!("Replicant name already registered: {name}"),
+                },
+                UserStoreError::InvalidCredentials => ApiError::Unauthorized {
+                    reason: "Invalid credentials".into(),
+                },
+                UserStoreError::PassphraseExpired(days) => ApiError::Unauthorized {
+                    reason: format!("Passphrase expired {} days ago — must change", days),
+                },
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
+            SE::Consent(err) => match err {
+                hkask_agents::ConsentError::ConsentNotFound(id) => ApiError::NotFound {
+                    resource: "consent".into(),
+                    id,
+                },
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
             SE::Spec(err) => ApiError::Internal {
                 message: err.to_string(),
             },
@@ -418,7 +228,27 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::Pod(_) => ApiError::Internal {
                 message: e.to_string(),
             },
-            SE::Template(err) => ApiError::from(err),
+            SE::Template(err) => match err {
+                hkask_templates::TemplateError::NotFound(id) => ApiError::NotFound {
+                    resource: "template".into(),
+                    id,
+                },
+                hkask_templates::TemplateError::CapabilityDenied(msg) => {
+                    ApiError::Forbidden { reason: msg }
+                }
+                hkask_templates::TemplateError::PathTraversal(_) => ApiError::BadRequest {
+                    message: err.to_string(),
+                },
+                hkask_templates::TemplateError::SandboxViolation(_) => ApiError::Forbidden {
+                    reason: err.to_string(),
+                },
+                hkask_templates::TemplateError::Validation(msg) => {
+                    ApiError::BadRequest { message: msg }
+                }
+                _ => ApiError::Internal {
+                    message: err.to_string(),
+                },
+            },
             SE::NuEvent(err) => ApiError::Internal {
                 message: err.to_string(),
             },

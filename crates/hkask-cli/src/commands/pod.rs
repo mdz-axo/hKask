@@ -1,27 +1,26 @@
 //! Pod management command handlers — delegates to PodService.
 
-use hkask_services::{PodService, PodStatusResponse};
+use hkask_services::{PodService, PodStatusResponse, ServiceError};
 
 use crate::cli::PodAction;
 
-pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, String> {
+pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::get_pod_status(&ctx, pod_id)
-        .await
-        .map_err(|e| e.to_string())
+    PodService::get_pod_status(&ctx, pod_id).await
 }
 
-pub async fn list_pods() -> Result<Vec<PodStatusResponse>, String> {
+pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::list_pods(&ctx).await.map_err(|e| e.to_string())
+    PodService::list_pods(&ctx).await
 }
 
 pub async fn create_pod(
     template: &str,
     persona_path: &std::path::PathBuf,
     name: Option<&str>,
-) -> Result<String, String> {
-    let yaml = std::fs::read_to_string(persona_path).map_err(|e| format!("Read persona: {e}"))?;
+) -> Result<String, ServiceError> {
+    let yaml = std::fs::read_to_string(persona_path)
+        .map_err(|e| ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string())))?;
     let ctx = super::helpers::build_service_context();
     let resp = PodService::create_pod(
         &ctx,
@@ -31,37 +30,28 @@ pub async fn create_pod(
             name: name.map(String::from),
         },
     )
-    .await
-    .map_err(|e| e.to_string())?;
+    .await?;
     Ok(resp.pod_id)
 }
 
-pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
+pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::activate_pod(&ctx, pod_id)
-        .await
-        .map_err(|e| e.to_string())
+    PodService::activate_pod(&ctx, pod_id).await
 }
 
-pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
+pub async fn deactivate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::deactivate_pod(&ctx, pod_id)
-        .await
-        .map_err(|e| e.to_string())
+    PodService::deactivate_pod(&ctx, pod_id).await
 }
 
-pub async fn assign_role(name: &str, role: &str) -> Result<(), String> {
+pub async fn assign_role(name: &str, role: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::assign_role(&ctx, name, role)
-        .await
-        .map_err(|e| e.to_string())
+    PodService::assign_role(&ctx, name, role).await
 }
 
-pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), String> {
+pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    PodService::set_mode(&ctx, name, mode, role)
-        .await
-        .map_err(|e| e.to_string())
+    PodService::set_mode(&ctx, name, mode, role).await
 }
 
 pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {

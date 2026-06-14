@@ -29,7 +29,7 @@ pub mod protocol;
 pub mod riffing;
 
 pub use cascade::{ImprovCascade, ImprovError, MATRYOSHKA_LIMIT};
-pub use cns::ImprovCns;
+pub use cns::{ImprovCns, TracingImprovCns};
 pub use freestyling::FreestyleSession;
 pub use kata::{KataImprovResult, KataPhase};
 pub use modes::ImprovMode;

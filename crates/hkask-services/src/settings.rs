@@ -41,8 +41,8 @@ pub struct HkaskSettings {
     #[serde(default = "default_ocr_model")]
     pub ocr_model: String,
 
-    /// Communication server 7R7 moderation polling interval in seconds.
-    /// How often the 7R7 bot checks Matrix rooms for content to moderate.
+    /// Communication server 7R7 listener polling interval in seconds.
+    /// How often the 7R7 listener polls Matrix rooms for new messages.
     /// Override: `HKASK_COMMUNICATION_POLL_INTERVAL_SECS` env var.
     #[serde(default = "default_poll_interval")]
     pub communication_poll_interval_secs: u64,

@@ -6,16 +6,16 @@
 //! E2EE is deferred to v2 due to a SQLCipher/SQLite linking conflict between
 //! hkask-storage and matrix-sdk-sqlite. v1 uses TLS-only transport security.
 //!
-//! Public API (≤7 functions per deep-module discipline):
-//! - MatrixTransport: new, login, start_sync, send_message
-//! - Room management: create_room, invite_user, list_rooms
-//! - Health: health
+//! Continuous sync ("listening") is deferred until a VOIP/real-time use case
+//! exists. v1 uses on-demand message polling via `get_messages()`.
+//!
+//! Public API:
+//! - Lifecycle: new, health_check, login, healthy
+//! - Messaging: send_message, get_messages
+//! - Rooms: create_room, invite_user, list_rooms
 
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
-use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::Mutex;
 
 // ── Matrix types ───────────────────────────────────────────────────────────
 
@@ -89,8 +89,6 @@ pub enum MatrixError {
     Room(String),
     #[error("Network error: {0}")]
     Network(String),
-    #[error("Encryption error: {0}")]
-    Encryption(String),
     #[error("Not logged in — call login() first")]
     NotLoggedIn,
 }
@@ -99,20 +97,15 @@ pub enum MatrixError {
 
 /// Thin transport layer over `matrix_sdk::Client`.
 ///
-/// Owns the Matrix client lifecycle: login, sync, message send/receive.
-/// Does NOT manage E2EE keys (deferred to v2). Does NOT embed a homeserver.
-///
-/// Incoming messages are buffered in an internal queue. Callers poll via
-/// `pending_messages()` or register a sync callback via `start_sync()`.
+/// Owns the Matrix client lifecycle: login, message send, on-demand
+/// message polling. Does NOT maintain a continuous sync loop (deferred
+/// until VOIP/real-time use case exists). Does NOT manage E2EE keys
+/// (deferred to v2). Does NOT embed a homeserver.
 pub struct MatrixTransport {
     /// The underlying matrix-sdk Client. None before login.
     client: Option<matrix_sdk::Client>,
     /// Homeserver URL (e.g., "http://localhost:8008").
     homeserver_url: String,
-    /// Buffered incoming messages from the sync loop.
-    inbox: Arc<Mutex<VecDeque<MatrixMessage>>>,
-    /// Whether the sync loop is running.
-    sync_active: bool,
 }
 
 impl MatrixTransport {
@@ -123,8 +116,6 @@ impl MatrixTransport {
         Self {
             client: None,
             homeserver_url: homeserver_url.to_string(),
-            inbox: Arc::new(Mutex::new(VecDeque::new())),
-            sync_active: false,
         }
     }
 
@@ -151,7 +142,7 @@ impl MatrixTransport {
     /// Login to the Matrix homeserver with username and password.
     ///
     /// Stores the authenticated client for subsequent operations.
-    /// Must be called before `start_sync()`, `send_message()`, etc.
+    /// Must be called before `send_message()`, `get_messages()`, etc.
     pub async fn login(&mut self, username: &str, password: &str) -> Result<(), MatrixError> {
         let client = matrix_sdk::Client::builder()
             .homeserver_url(&self.homeserver_url)
@@ -177,131 +168,76 @@ impl MatrixTransport {
         Ok(())
     }
 
-    /// Register a new Matrix user on the homeserver.
+    /// Get recent messages from a Matrix room.
     ///
-    /// Requires open registration on the homeserver (`allow_registration = true`
-    /// in conduit.toml) OR a valid admin token passed via the registration API.
-    /// For admin-mediated registration, use `register_with_admin_token()`.
-    pub async fn register_user(
+    /// Performs a one-shot poll of the room's timeline. Does not require
+    /// a continuous sync loop. Call this when the agent is activated to
+    /// check for new messages.
+    pub async fn get_messages(
         &self,
-        username: &str,
-        _password: &str,
-    ) -> Result<UserId, MatrixError> {
-        let _client = matrix_sdk::Client::builder()
-            .homeserver_url(&self.homeserver_url)
-            .build()
-            .await
-            .map_err(|e| MatrixError::Unavailable(format!("Failed to build client: {}", e)))?;
-
-        // matrix-sdk 0.16 does not expose a direct registration API.
-        // Registration is typically done via the homeserver's web UI or admin API.
-        // For Conduit, we use the admin API with the admin token.
-        tracing::warn!(
-            target: "cns.communication.matrix.register",
-            username = %username,
-            "Direct registration via matrix-sdk not supported — use admin API or open registration"
-        );
-
-        Err(MatrixError::Unavailable(
-            "Registration via matrix-sdk not implemented. Use kask matrix register --agent or --user (admin API).".to_string(),
-        ))
-    }
-
-    /// Start the Matrix sync loop.
-    ///
-    /// Registers an event handler for incoming room messages and spawns
-    /// a background sync task. Incoming messages are buffered into the
-    /// internal inbox. Call `pending_messages()` to retrieve them.
-    ///
-    /// Only one sync loop may be active at a time.
-    pub async fn start_sync(&mut self) -> Result<(), MatrixError> {
+        room_id: &RoomId,
+        limit: usize,
+    ) -> Result<Vec<MatrixMessage>, MatrixError> {
         let client = self.client.as_ref().ok_or(MatrixError::NotLoggedIn)?;
 
-        if self.sync_active {
-            tracing::warn!(
-                target: "cns.communication.matrix.sync",
-                "Sync loop already active"
-            );
-            return Ok(());
-        }
+        let room_id = matrix_sdk::ruma::RoomId::parse(room_id.as_str())
+            .map_err(|e| MatrixError::Room(format!("Invalid room ID: {}", e)))?;
 
-        let inbox = Arc::clone(&self.inbox);
-        let client = client.clone();
-        self.sync_active = true;
+        let room = client
+            .get_room(&room_id)
+            .ok_or_else(|| MatrixError::Room(format!("Room not found: {}", room_id)))?;
 
-        // Register event handler for incoming room messages
-        client.add_event_handler(
-            move |event: matrix_sdk::ruma::events::room::message::SyncRoomMessageEvent,
-                  room: matrix_sdk::room::Room| async move {
-                let sender = event.sender().to_string();
-                let body = event
-                    .as_original()
-                    .map(|ev| ev.content.body().to_string())
-                    .unwrap_or_default();
+        // Perform a one-shot sync to get latest events, then read the timeline
+        client
+            .sync(matrix_sdk::config::SyncSettings::default())
+            .await
+            .map_err(|e| MatrixError::Network(format!("Sync failed: {}", e)))?;
 
-                if !body.is_empty() {
-                    let msg = MatrixMessage {
-                        sender: UserId::new(&sender),
-                        body,
-                        structured: None,
-                        timestamp: i64::from(event.origin_server_ts().get()),
-                    };
-
-                    tracing::info!(
-                        target: "cns.communication.matrix.message.received",
-                        room_id = %room.room_id(),
-                        sender = %sender,
-                        body_len = msg.body.len(),
-                        "Matrix message received"
-                    );
-
-                    let mut queue = inbox.lock().await;
-                    queue.push_back(msg);
+        let messages: Vec<MatrixMessage> = room
+            .messages(matrix_sdk::room::MessagesOptions::backward())
+            .await
+            .map_err(|e| MatrixError::Room(format!("Failed to get messages: {}", e)))?
+            .chunk
+            .into_iter()
+            .take(limit)
+            .filter_map(|ev| {
+                let raw_str = ev.raw().json().get();
+                let parsed: serde_json::Value = serde_json::from_str(raw_str).ok()?;
+                let sender = parsed
+                    .get("sender")
+                    .and_then(|s| s.as_str())
+                    .map(|s| UserId::new(s))
+                    .unwrap_or_else(|| UserId::new("unknown"));
+                let body = parsed
+                    .get("content")
+                    .and_then(|c| c.get("body"))
+                    .and_then(|b| b.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let timestamp = parsed
+                    .get("origin_server_ts")
+                    .and_then(|t| t.as_i64())
+                    .unwrap_or(0);
+                if body.is_empty() {
+                    return None;
                 }
-            },
+                Some(MatrixMessage {
+                    sender,
+                    body,
+                    structured: None,
+                    timestamp,
+                })
+            })
+            .collect();
+
+        tracing::debug!(
+            target: "cns.communication.matrix.messages.polled",
+            room_id = %room_id,
+            count = messages.len(),
+            "Messages polled from room"
         );
 
-        // Spawn sync loop
-        tokio::spawn(async move {
-            tracing::info!(
-                target: "cns.communication.matrix.sync.started",
-                "Matrix sync loop started"
-            );
-
-            loop {
-                match client
-                    .sync(matrix_sdk::config::SyncSettings::default())
-                    .await
-                {
-                    Ok(()) => {
-                        tracing::debug!(
-                            target: "cns.communication.matrix.sync.health",
-                            "Sync cycle complete"
-                        );
-                    }
-                    Err(e) => {
-                        tracing::error!(
-                            target: "cns.communication.matrix.sync.stalled",
-                            error = %e,
-                            "Matrix sync failed"
-                        );
-                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                    }
-                }
-            }
-        });
-
-        Ok(())
-    }
-
-    /// Retrieve pending messages from the sync inbox.
-    ///
-    /// Returns all buffered messages and clears the inbox.
-    /// Call this periodically to check for new messages.
-    pub async fn pending_messages(&self) -> Vec<MatrixMessage> {
-        let mut queue = self.inbox.lock().await;
-        let messages: Vec<MatrixMessage> = queue.drain(..).collect();
-        messages
+        Ok(messages)
     }
 
     /// Send a message to a Matrix room.
@@ -441,8 +377,8 @@ impl MatrixTransport {
         Ok(threads)
     }
 
-    /// Check whether the client is authenticated and the sync loop is active.
+    /// Check whether the client is authenticated.
     pub fn healthy(&self) -> bool {
-        self.client.is_some() && self.sync_active
+        self.client.is_some()
     }
 }

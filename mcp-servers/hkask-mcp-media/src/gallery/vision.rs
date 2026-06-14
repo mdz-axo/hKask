@@ -2,11 +2,7 @@
 //!
 //! Uses the hKask inference router to call vision-capable LLMs
 //! (Llama 3.2 Vision, Qwen2-VL, Gemma 4, etc.) for:
-//! - Object detection
 //! - Face detection and description
-//! - Image captioning
-//! - Tag generation
-//! - Image classification
 //! - Face reference validation
 //! - Face matching (same person?)
 //!
@@ -16,6 +12,7 @@ use hkask_inference::InferenceRouter;
 use hkask_types::LLMParameters;
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Result of face reference validation.
@@ -48,6 +45,39 @@ pub struct FaceMatchResult {
     pub confidence: f64,
     /// Human-readable reasoning for the decision.
     pub reasoning: String,
+}
+
+/// Detect and describe all faces in an image using a vision LLM.
+///
+/// Returns a list of face descriptions (JSON objects with face_index,
+/// age_range, gender_presentation, features, position, size).
+/// Falls back to raw text if JSON parsing fails.
+///
+/// REQ: media-face-detect-01
+pub async fn detect_faces(
+    inference: &Arc<InferenceRouter>,
+    template_env: &Environment<'static>,
+    image_url: &str,
+    vision_model: Option<&str>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut vars = HashMap::new();
+    vars.insert("detail_level", "detailed");
+    let prompt = crate::templates::render(template_env, "tag_faces", &vars)?;
+
+    let params = LLMParameters::default();
+
+    let result = inference
+        .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
+        .await
+        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+
+    // Try parsing as JSON array first
+    if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&result.text) {
+        Ok(faces)
+    } else {
+        // Fallback: wrap raw text as a single face entry
+        Ok(vec![serde_json::json!({"raw": result.text.trim()})])
+    }
 }
 
 /// Validate a reference image for use in facial recognition.

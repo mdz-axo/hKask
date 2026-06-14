@@ -65,7 +65,7 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [ADR-035](architecture/ADR-035-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode — AgentMode, daemon transport, dual memory | Active |
 | [ADR-036](architecture/ADR-036-ocr-pipeline.md) | composition, curation | OCR pipeline — sealed backend hierarchy, deterministic routing | Draft |
 | [ADR-037](architecture/ADR-037-wallet-payments.md) | domain, trust, lifecycle | Wallet payment mechanism — rJoule currency, multi-chain bridges | Draft |
-| [ADR-038](architecture/ADR-038-media-server.md) | composition, domain | Media MCP server — 28 tools, fal.ai backend, single-server architecture | Draft |
+| [ADR-038](architecture/ADR-038-media-server.md) | composition, domain | Media MCP server — 36 tools, fal.ai backend, single-server architecture | Draft |
 
 ### Reference Artifacts (`architecture/reference/`)
 
@@ -112,7 +112,7 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 |----------|--------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
 | [`test-inventory.md`](status/test-inventory.md) | lifecycle, curation | Test inventory from `cargo test --list` |
-| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | composition, lifecycle | MCP server tool catalog (~82 tools) |
+| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | composition, lifecycle | MCP server tool catalog — 141 tools across 10 servers |
 | [`skill-inventory.md`](status/skill-inventory.md) | composition, curation | Dual-layer skill registry — 33 skills cataloged |
 | [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | composition, domain | Dead code and simplification opportunities |
 | [`spec-code-drift.yaml`](status/spec-code-drift.yaml) | domain, composition, trust, lifecycle, curation | Spec-code drift tracking — 14/14 items resolved (2026-06-12) |

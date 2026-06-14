@@ -160,7 +160,11 @@ pub struct GalleryNameFaceRequest {
     /// The face group number (from analyze results).
     pub face_group: usize,
     /// Human-readable name for this person.
-    pub name: String,
+    /// If face_id is provided, this is ignored — the name is pulled from the registry.
+    pub name: Option<String>,
+    /// Optional: face registry ID. When provided, the name is resolved from the registry
+    /// instead of using the free-text name field.
+    pub face_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -177,6 +181,10 @@ pub struct FaceRegisterRequest {
     pub first_name: String,
     /// Person's last name.
     pub last_name: String,
+    /// Skip validation and register directly as valid (default: false).
+    /// Use when you know the image is a good reference but validation is overly strict.
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -619,14 +627,18 @@ impl MediaServer {
     /// Used by face matching where we have image IDs from tags/registry,
     /// not gallery indices.
     fn resolve_image_url_by_id(&self, image_id: &str) -> Result<String, String> {
-        let guard = self.gallery_state.lock().unwrap();
-        let state = guard
-            .as_ref()
-            .ok_or("No gallery initialized.".to_string())?;
-        let gallery_id = state
-            .gallery_id
-            .as_ref()
-            .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?;
+        // Extract gallery_id and drop the guard before any I/O
+        let gallery_id = {
+            let guard = self.gallery_state.lock().unwrap();
+            let state = guard
+                .as_ref()
+                .ok_or("No gallery initialized.".to_string())?;
+            state
+                .gallery_id
+                .as_ref()
+                .ok_or("Gallery not persisted — run gallery_set_root first.".to_string())?
+                .clone()
+        }; // guard dropped here
 
         // Look up the image's absolute path by its SQLite ID
         let conn = self
@@ -797,23 +809,22 @@ impl MediaServer {
             };
 
             if run_faces {
-                if let Ok(prompt) = self.render_prompt(
-                    "tag_faces",
-                    &[("detail_level", "detailed")].into_iter().collect(),
-                ) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
-                            for face in &faces {
-                                let value = serde_json::to_string(face).unwrap_or_default();
-                                self.persist_tag(&image_id, "face", &value, 0.85, vision_label);
-                            }
-                        } else {
-                            self.persist_tag(&image_id, "face", r.text.trim(), 0.7, vision_label);
+                match vision::detect_faces(
+                    &self.inference,
+                    &self.template_env,
+                    &image_url,
+                    Some(vision_model),
+                )
+                .await
+                {
+                    Ok(faces) => {
+                        for face in &faces {
+                            let value = serde_json::to_string(face).unwrap_or_default();
+                            self.persist_tag(&image_id, "face", &value, 0.85, vision_label);
                         }
+                    }
+                    Err(e) => {
+                        errors.push(format!("image {} face detection: {}", idx, e));
                     }
                 }
             }
@@ -1555,6 +1566,7 @@ impl MediaServer {
 
         // Step 4: Auto-match detected faces against the face registry
         let mut faces_matched = 0u32;
+        let mut registry_count = 0usize;
         let mut match_errors: Vec<String> = Vec::new();
         if include_faces {
             // Extract gallery_id and drop the guard before any await
@@ -1619,6 +1631,9 @@ impl MediaServer {
                     Vec::new()
                 }
             };
+
+            // Track registry count for the response
+            registry_count = registry.len();
 
             if !registry.is_empty() {
                 // Get all face tags
@@ -1720,14 +1735,7 @@ impl MediaServer {
             },
             "face_matching": {
                 "faces_matched": faces_matched,
-                "registry_entries": if include_faces {
-                    match self.gallery_store.list_faces(Some("valid")) {
-                        Ok(f) => f.len(),
-                        Err(_) => 0,
-                    }
-                } else {
-                    0
-                },
+                "registry_entries": registry_count,
             },
             "errors": {
                 "analysis": analyze_errors,
@@ -1874,13 +1882,47 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Name a face group from gallery_analyze. After naming, gallery_search can find photos of that person by name."
+        description = "Name a face group from gallery_analyze. Provide either a free-text name or a face_id from the face registry (which auto-resolves the name). After naming, gallery_search can find photos of that person by name."
     )]
     async fn gallery_name_face(
         &self,
-        Parameters(GalleryNameFaceRequest { face_group, name }): Parameters<GalleryNameFaceRequest>,
+        Parameters(GalleryNameFaceRequest {
+            face_group,
+            name,
+            face_id,
+        }): Parameters<GalleryNameFaceRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("gallery_name_face", &self.webid);
+
+        // Resolve the name: registry lookup takes priority over free-text
+        let resolved_name = if let Some(ref fid) = face_id {
+            match self.gallery_store.get_face(fid) {
+                Ok(face) => format!("{} {}", face.first_name, face.last_name),
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(format!(
+                            "Face registry ID not found: {}",
+                            e
+                        ))
+                        .to_json_string(),
+                    );
+                }
+            }
+        } else {
+            match name {
+                Some(n) if !n.trim().is_empty() => n,
+                _ => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(
+                            "Either 'name' or 'face_id' must be provided.",
+                        )
+                        .to_json_string(),
+                    );
+                }
+            }
+        };
 
         let guard = self.gallery_state.lock().unwrap();
         let state = match &*guard {
@@ -1925,7 +1967,7 @@ impl MediaServer {
                     // Re-persist with name added
                     let new_value = serde_json::json!({
                         "face_index": face_group,
-                        "name": name,
+                        "name": resolved_name,
                     });
                     self.persist_tag(&tag.image_id, "face", &new_value.to_string(), 1.0, "user");
                     renamed += 1;
@@ -1936,7 +1978,7 @@ impl MediaServer {
         span.ok_json(serde_json::json!({
             "status": "named",
             "face_group": face_group,
-            "name": name,
+            "name": resolved_name,
             "images_updated": renamed,
         }))
     }
@@ -1996,6 +2038,7 @@ impl MediaServer {
             image_index,
             first_name,
             last_name,
+            force,
         }): Parameters<FaceRegisterRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("face_register", &self.webid);
@@ -2006,36 +2049,42 @@ impl MediaServer {
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
         };
 
-        // Validate first
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let (vision_model, _vision_label) = self.resolve_vision_model().await;
-
-        let validation = match vision::validate_face_reference(
-            &self.inference,
-            &self.template_env,
-            &image_url,
-            Some(vision_model),
-        )
-        .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Face validation failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let (status, notes) = if validation.valid {
-            ("valid", String::new())
+        let (status, notes, validation) = if force {
+            ("valid", String::new(), None)
         } else {
-            ("rejected", validation.issues.join("; "))
+            // Resolve the image URL for validation
+            let image_url = match self.resolve_image_url(image_index) {
+                Ok(url) => url,
+                Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+            };
+
+            let (vision_model, _vision_label) = self.resolve_vision_model().await;
+
+            let v = match vision::validate_face_reference(
+                &self.inference,
+                &self.template_env,
+                &image_url,
+                Some(vision_model),
+            )
+            .await
+            {
+                Ok(v) => v,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Face validation failed: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            };
+
+            let status = if v.valid { "valid" } else { "rejected" };
+            let notes = if v.valid {
+                String::new()
+            } else {
+                v.issues.join("; ")
+            };
+            (status, notes, Some(v))
         };
 
         // Register in the face registry
