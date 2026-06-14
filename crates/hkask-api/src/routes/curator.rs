@@ -94,9 +94,9 @@ pub fn curator_router() -> OpenApiRouter<ApiState> {
 pub(crate) async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<ListEscalationsResponse>, ApiError> {
+) -> Result<Json<ListEscalationsResponse>, ServiceErrorResponse> {
     let entries = hkask_services::CuratorService::list_escalations(&state.agent_service)
-        .map_err(ApiError::from)?;
+        ?;
     let escalations: Vec<EscalationEntryResponse> = entries
         .into_iter()
         .map(|e| EscalationEntryResponse {
@@ -135,9 +135,9 @@ pub(crate) async fn resolve_escalation(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
-) -> Result<Json<ResolveEscalationResponse>, ApiError> {
+) -> Result<Json<ResolveEscalationResponse>, ServiceErrorResponse> {
     hkask_services::CuratorService::resolve(&state.agent_service, &id, &req.resolved_by)
-        .map_err(ApiError::from)?;
+        ?;
     Ok(Json(ResolveEscalationResponse {
         id,
         status: "resolved".into(),
@@ -163,9 +163,9 @@ pub(crate) async fn dismiss_escalation(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
-) -> Result<Json<DismissEscalationResponse>, ApiError> {
+) -> Result<Json<DismissEscalationResponse>, ServiceErrorResponse> {
     hkask_services::CuratorService::dismiss(&state.agent_service, &id, &req.dismissed_by)
-        .map_err(ApiError::from)?;
+        ?;
     Ok(Json(DismissEscalationResponse {
         id,
         status: "dismissed".into(),
@@ -184,9 +184,9 @@ pub(crate) async fn dismiss_escalation(
 pub(crate) async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<MetacognitionStatusResponse>, ApiError> {
+) -> Result<Json<MetacognitionStatusResponse>, ServiceErrorResponse> {
     let queue = state.agent_service.escalation_queue();
-    let stats = queue.stats().map_err(ApiError::from)?;
+    let stats = queue.stats()?;
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
         pending: stats.pending,

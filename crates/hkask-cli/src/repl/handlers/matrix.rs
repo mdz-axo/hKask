@@ -3,7 +3,7 @@
 //! /matrix [ROOM]  — list rooms, or show recent messages from a room
 //! /msg ROOM TEXT  — send a message to a Matrix room
 
-use hkask_mcp_communication::matrix::{MatrixTransport, RoomId};
+use hkask_communication::matrix::{MatrixTransport, RoomId};
 
 /// Handle /matrix — list rooms or show messages from a specific room.
 pub(crate) fn handle_matrix(arg: &str, rt: &tokio::runtime::Handle) {

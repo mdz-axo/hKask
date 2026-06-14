@@ -25,7 +25,7 @@ use crate::ApiState;
 use crate::middleware::AuthContext;
 
 /// Parse a WebID from a string, returning a structured error on failure.
-fn parse_webid(raw: &str) -> Result<WebID, ApiError> {
+fn parse_webid(raw: &str) -> Result<WebID, ServiceErrorResponse> {
     uuid::Uuid::parse_str(raw)
         .map(WebID::from_uuid)
         .map_err(|_| ApiError::BadRequest {
@@ -167,7 +167,7 @@ pub(crate) async fn acp_unregister_agent(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<StatusCode, ServiceErrorResponse> {
     use axum::http::StatusCode;
 
     let webid = parse_webid(&agent_id)?;

@@ -2709,11 +2709,11 @@ dependencies = [
  "hkask-agents",
  "hkask-api",
  "hkask-cns",
+ "hkask-communication",
  "hkask-improv",
  "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
- "hkask-mcp-communication",
  "hkask-memory",
  "hkask-services",
  "hkask-storage",
@@ -2755,6 +2755,23 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-communication"
+version = "0.27.0"
+dependencies = [
+ "chrono",
+ "hkask-keystore",
+ "hkask-types",
+ "matrix-sdk",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -2840,20 +2857,15 @@ name = "hkask-mcp-communication"
 version = "0.27.0"
 dependencies = [
  "anyhow",
- "chrono",
- "hkask-cns",
+ "hkask-communication",
  "hkask-mcp",
- "hkask-storage",
  "hkask-types",
- "matrix-sdk",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
  "uuid",
 ]
 
@@ -3105,6 +3117,7 @@ dependencies = [
  "hex",
  "hkask-agents",
  "hkask-cns",
+ "hkask-communication",
  "hkask-improv",
  "hkask-inference",
  "hkask-keystore",

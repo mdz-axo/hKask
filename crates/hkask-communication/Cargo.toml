@@ -1,0 +1,22 @@
+[package]
+name = "hkask-communication"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask Communication — core Matrix transport, agent registry, and 7R7 listener"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-keystore = { path = "../hkask-keystore" }
+matrix-sdk.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+url.workspace = true

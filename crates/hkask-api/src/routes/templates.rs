@@ -117,7 +117,7 @@ pub(crate) async fn get_template(
 async fn register_template(
     State(state): State<ApiState>,
     Json(_req): Json<TemplateResponse>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<StatusCode, ServiceErrorResponse> {
     use axum::http::StatusCode;
 
     let _registry = state.agent_service.registry().lock().await;

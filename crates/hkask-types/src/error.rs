@@ -4,11 +4,11 @@
 //! Layered error architecture (Miller separation):
 //! 1. `InfrastructureError` — cross-cutting transport errors (Database, Serialization,
 //!    LockPoisoned, Io). No domain semantics. Passes through crate boundaries.
-//! 2. `HkaskError` — the legacy consolidation type; delegates to `InfrastructureError`
-//!    for generic categories and adds domain-neutral variants.
-//! 3. Domain enums (e.g. `GoalRepositoryError`, `EmbeddingError`) — compose from
+//! 2. Domain enums (e.g. `GoalRepositoryError`, `EmbeddingError`) — compose from
 //!    `InfrastructureError` via `#[from]` and add only authority-bearing,
 //!    recovery-path-significant variants.
+//! 3. `ServiceError` (in `hkask-services`) — unified domain error vocabulary
+//!    composing all domain errors for surface presentation.
 //!
 //! Rule: if a variant name appears in 3+ crates with identical semantics, it
 //! belongs in `InfrastructureError`. If it carries domain-specific recovery
@@ -130,93 +130,6 @@ impl std::fmt::Display for McpErrorKind {
     }
 }
 
-// HkaskError — Unified Error Hierarchy
-
-/// Core error types shared across hKask crates.
-///
-/// Infrastructure failures (Database, Serialization, LockPoisoned, I/O, NotFound)
-/// are delegated to [`InfrastructureError`] via `#[from]`. Domain enums should
-/// prefer composing from `InfrastructureError` directly; `HkaskError` remains
-/// for code that needs a single flat type with domain-neutral categories.
-#[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum HkaskError {
-    /// Infrastructure transport failure (Database, Serialization, etc.)
-    #[error(transparent)]
-    Infra(#[from] InfrastructureError),
-
-    #[error("capability denied: {0}")]
-    CapabilityDenied(String),
-
-    #[error("invalid token: {0}")]
-    InvalidToken(String),
-
-    #[error("permission denied: {0}")]
-    PermissionDenied(String),
-}
-
-impl HkaskError {
-    pub fn database(msg: impl Into<String>) -> Self {
-        InfrastructureError::Database(msg.into()).into()
-    }
-
-    pub fn serialization(msg: impl Into<String>) -> Self {
-        InfrastructureError::Serialization(msg.into()).into()
-    }
-
-    pub fn not_found(msg: impl Into<String>) -> Self {
-        InfrastructureError::NotFound(msg.into()).into()
-    }
-
-    pub fn io_error(msg: impl Into<String>) -> Self {
-        InfrastructureError::Io(msg.into()).into()
-    }
-
-    pub fn lock_poisoned() -> Self {
-        InfrastructureError::LockPoisoned.into()
-    }
-
-    pub fn not_found_typed(entity_type: &'static str, id: impl Into<String>) -> Self {
-        InfrastructureError::NotFound(format!("{} not found: {}", entity_type, id.into())).into()
-    }
-
-    pub fn capability_denied(reason: impl Into<String>) -> Self {
-        HkaskError::CapabilityDenied(reason.into())
-    }
-
-    /// Check if error is retryable.
-    ///
-    /// Delegates to [`McpErrorKind::is_retryable`] via [`Self::to_mcp_kind`].
-    /// Retryable errors: infrastructure I/O failures (network, file system)
-    /// that map to [`McpErrorKind::Unavailable`]. All other error classes
-    /// (database, serialization, permission, token, lock poisoning) are
-    /// non-retryable — retrying would not change the outcome.
-    pub fn is_retryable(&self) -> bool {
-        self.to_mcp_kind().is_retryable()
-    }
-
-    /// Check if error requires user intervention
-    pub fn requires_intervention(&self) -> bool {
-        matches!(self, Self::CapabilityDenied(_) | Self::PermissionDenied(_))
-    }
-
-    /// Convert to McpErrorKind for MCP dispatch
-    pub fn to_mcp_kind(&self) -> McpErrorKind {
-        match self {
-            Self::Infra(e) => match e {
-                InfrastructureError::Database(_) => McpErrorKind::Internal,
-                InfrastructureError::Serialization(_) => McpErrorKind::Internal,
-                InfrastructureError::LockPoisoned => McpErrorKind::Internal,
-                InfrastructureError::NotFound(_) => McpErrorKind::NotFound,
-                InfrastructureError::Io(_) => McpErrorKind::Unavailable,
-            },
-            Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::InvalidToken(_) => {
-                McpErrorKind::PermissionDenied
-            }
-        }
-    }
-}
-
 // GitError — Git CAS errors
 
 /// Git CAS errors for content-addressable storage operations
@@ -278,15 +191,4 @@ impl std::fmt::Display for DimensionMismatch {
     }
 }
 
-// Conversions from common error types
-impl From<std::io::Error> for HkaskError {
-    fn from(err: std::io::Error) -> Self {
-        InfrastructureError::Io(err.to_string()).into()
-    }
-}
-
-impl From<serde_json::Error> for HkaskError {
-    fn from(err: serde_json::Error) -> Self {
-        InfrastructureError::Serialization(err.to_string()).into()
-    }
-}
+// Canonical domain error types — shared across all crates.

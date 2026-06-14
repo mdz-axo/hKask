@@ -1,20 +1,9 @@
-//! hKask MCP Communication — Agent-to-agent and human-to-agent communication server.
+//! hKask MCP Communication — thin MCP wrapper over core communication crate.
 //!
-//! Exposes a full communication surface:
-//! - `tts_speak`, `tts_generate`, `tts_list_voices` — local TTS/STT
-//! - `send_message` — Send a message to a Matrix room
-//! - `create_thread` — Create a threaded conversation
-//! - `invite_agent` — Invite another replicant to a room
-//! - `list_threads` — List active communication threads
-//! - `monitor_thread` — Assign a thread to an agent's watchlist
-//! - `tag_agent` — Pull an agent into a discussion
-//!
-//! Architecture:
-//!   Conduit (Docker sidecar Matrix homeserver) — hosted per hKask install
-//!   Agents connect via Matrix protocol directly
-//!   7R7 listener — polls Matrix rooms, emits CNS observation spans
-//!   Agent layer (Curator + skills + templates) — decides what content means
+//! Re-exports the core communication types and adds MCP-specific TTS tools.
+//! All Matrix operations delegate to `hkask-communication`.
 
-pub mod agent_registration;
-pub mod listener;
-pub mod matrix;
+// Re-export core communication types for backward compatibility
+pub use hkask_communication::agent_registration;
+pub use hkask_communication::listener;
+pub use hkask_communication::matrix;

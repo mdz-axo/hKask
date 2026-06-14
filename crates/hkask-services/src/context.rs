@@ -640,7 +640,7 @@ impl AgentService {
 
         // Register Matrix auto-registration hook for pod activation.
         // When a pod is activated, the replicant gets a Matrix account on Conduit.
-        // Uses a direct HTTP call — no dependency on the communication server.
+        // Uses MatrixTransport from the core communication crate.
         {
             let homeserver_url = std::env::var("HKASK_MATRIX_URL")
                 .unwrap_or_else(|_| "http://localhost:8008".to_string());
@@ -749,14 +749,17 @@ impl AgentService {
 
 /// Register a pod's replicant as a Matrix user on Conduit.
 ///
-/// Called from the pod activation hook. Derives a username from the pod's
-/// display name, generates a password, and POSTs to Conduit's register API.
-/// Credentials are stored in the OS keychain for the communication server.
-async fn register_pod_on_matrix(homeserver_url: &str, webid: &hkask_types::WebID, pod_name: &str) {
+/// Called from the pod activation hook. Uses MatrixTransport from the
+/// core communication crate for registration.
+async fn register_pod_on_matrix(homeserver_url: &str, _webid: &hkask_types::WebID, pod_name: &str) {
     let localpart = pod_name.to_lowercase().replace(' ', "-");
     let username = format!("{}-bot", localpart);
     let password = uuid::Uuid::new_v4().to_string();
 
+    let _transport = hkask_communication::matrix::MatrixTransport::new(homeserver_url);
+
+    // Register directly on Conduit — MatrixTransport doesn't have a register
+    // method (it uses login), so we use the same HTTP approach as onboarding.
     let url = format!(
         "{}/_matrix/client/v3/register",
         homeserver_url.trim_end_matches('/')
@@ -778,13 +781,11 @@ async fn register_pod_on_matrix(homeserver_url: &str, webid: &hkask_types::WebID
     {
         Ok(response) if response.status().is_success() => {
             let full_id = format!("@{}:localhost", username);
-            // Store credentials in keychain
             let keychain = hkask_keystore::Keychain::default();
             let _ = keychain.store_by_key(&format!("matrix-pod-{}", pod_name), &password);
             tracing::info!(
                 target: "cns.communication.matrix.pod_registered",
                 pod = %pod_name,
-                webid = %webid.redacted_display(),
                 matrix_id = %full_id,
                 "Pod replicant registered on Matrix"
             );

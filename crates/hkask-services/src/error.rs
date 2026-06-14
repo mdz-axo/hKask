@@ -392,6 +392,95 @@ impl ServiceError {
     }
 }
 
+// ── Internationalization (i18n) message keys ──────────────────────────
+//
+// Each variant carries a stable, language-independent key that surface
+// adapters can use for translation lookup. The `#[error("...")]` strings
+// are English fallbacks; `message_key()` returns the canonical key.
+
+impl ServiceError {
+    /// Returns a stable i18n key for this error variant.
+    ///
+    /// Surface adapters use this key for translation lookup instead of
+    /// parsing `Display` strings. Keys follow the pattern
+    /// `error.<domain>.<condition>`.
+    pub fn message_key(&self) -> &'static str {
+        match self {
+            // ── Curator domain ──────────────────────────────────────
+            ServiceError::EscalationNotFound(_) => "error.curator.escalation_not_found",
+            ServiceError::Escalation(_) => "error.curator.escalation",
+            ServiceError::Metacognition(_) => "error.curator.metacognition",
+
+            // ── Agent / ACP domain ───────────────────────────────────
+            ServiceError::AgentNotFound(_) => "error.agent.not_found",
+            ServiceError::InvalidAgentType(_) => "error.agent.invalid_type",
+            ServiceError::AgentRegistrationFailed(_) => "error.agent.registration_failed",
+            ServiceError::Acp(_) => "error.agent.acp",
+            ServiceError::AgentRegistry(_) => "error.agent.registry_load",
+            ServiceError::AgentRegistryStore(_) => "error.agent.registry_store",
+            ServiceError::Consent(_) => "error.agent.consent",
+
+            // ── Storage domain ──────────────────────────────────────
+            ServiceError::Storage(_) => "error.storage.database",
+            ServiceError::Registry(_) => "error.storage.registry",
+            ServiceError::Template(_) => "error.storage.template",
+            ServiceError::GoalRepo(_) => "error.storage.goal_repo",
+            ServiceError::Triple(_) => "error.storage.triple",
+            ServiceError::UserStore(_) => "error.storage.user_store",
+            ServiceError::ConsentStore(_) => "error.storage.consent_store",
+            ServiceError::SovereigntyStore(_) => "error.storage.sovereignty_store",
+            ServiceError::Spec(_) => "error.storage.spec",
+            ServiceError::NuEvent(_) => "error.storage.nu_event",
+
+            // ── Memory domain ──────────────────────────────────────
+            ServiceError::EpisodicMemory(_) => "error.memory.episodic",
+            ServiceError::SemanticMemory(_) => "error.memory.semantic",
+            ServiceError::Consolidation(_) => "error.memory.consolidation",
+
+            // ── CNS domain ──────────────────────────────────────────
+            ServiceError::Cns(_) => "error.cns.operation",
+            ServiceError::Keystore(_) => "error.cns.keystore",
+            ServiceError::Gas(_) => "error.cns.gas",
+
+            // ── Pod domain ──────────────────────────────────────────
+            ServiceError::PodNotFound(_) => "error.pod.not_found",
+            ServiceError::Pod(_) => "error.pod.operation",
+
+            // ── Inference domain ────────────────────────────────────
+            ServiceError::InferencePort(_) => "error.inference.port",
+            ServiceError::Embedding(_) => "error.inference.embedding",
+
+            // ── User domain ─────────────────────────────────────────
+            ServiceError::UserNotFound(_) => "error.user.not_found",
+            ServiceError::LoginFailed(_) => "error.user.login_failed",
+            ServiceError::InvalidPassphrase(_) => "error.user.invalid_passphrase",
+            ServiceError::ValidationError(_) => "error.user.validation",
+            ServiceError::InvalidWebID(_) => "error.user.invalid_webid",
+
+            // ── Infrastructure ──────────────────────────────────────
+            ServiceError::Infra(_) => "error.infra",
+            ServiceError::RegistryInitFailed(_) => "error.infra.registry_init",
+            ServiceError::RegistryLoadFailed(_) => "error.infra.registry_load",
+
+            // ── Pipeline / operational ──────────────────────────────
+            ServiceError::Archival(_) => "error.pipeline.archival",
+            ServiceError::Embed(_) => "error.pipeline.embed",
+            ServiceError::Compose(_) => "error.pipeline.compose",
+            ServiceError::Skill(_) => "error.pipeline.skill",
+            ServiceError::Verification(_) => "error.pipeline.verification",
+            ServiceError::Wallet(_) => "error.pipeline.wallet",
+
+            // ── Rate limiting / config / communication ──────────────
+            ServiceError::RateLimited(_) => "error.rate_limited",
+            ServiceError::Config(_) => "error.config",
+            ServiceError::Matrix(_) => "error.communication.matrix",
+
+            // ── MCP tool errors ─────────────────────────────────────
+            ServiceError::McpTool { .. } => "error.mcp.tool",
+        }
+    }
+}
+
 // ── CNS ν-event emission ───────────────────────────────────────────────
 //
 // Only system-level errors (infrastructure, inference, CNS, storage)
