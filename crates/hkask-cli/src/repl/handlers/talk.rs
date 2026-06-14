@@ -1,0 +1,336 @@
+//! `/talk on|off|voice` — agent speech output mode.
+//!
+//! When enabled, each agent response is summarized into 1-3 spoken sentences
+//! and played through the system audio output via ffplay.
+//!
+//! The summarizer strips tool calls, code blocks, and internal reasoning,
+//! keeping only what a person would say aloud.
+
+use crate::repl::ReplState;
+use hkask_types::DelegationAction;
+use hkask_types::DelegationResource;
+use hkask_types::DelegationToken;
+use hkask_types::WebID;
+use hkask_types::ports::ToolPort;
+
+/// Speech summarizer prompt — condenses agent response for spoken output.
+const SPEECH_SUMMARIZE_PROMPT: &str = "\
+You are a speech condenser. Convert the following agent response into 1-3 natural, \
+conversational sentences suitable for speaking aloud. Rules:
+- Drop all tool calls, code blocks, markdown formatting, and internal reasoning.
+- Keep only the core answer — what a person would actually say.
+- Use plain, direct language. No bullet points, no structured output.
+- Respond with ONLY the spoken text, no preamble or explanation.
+
+Agent response:
+";
+
+/// Handle `/talk on|off|voice [description]`.
+pub(crate) fn handle_talk(
+    subcommand: &str,
+    arg: &str,
+    state: &mut ReplState,
+    rt: &tokio::runtime::Handle,
+) {
+    match subcommand {
+        "on" => {
+            state.talk_enabled = true;
+            let voice_info = match &state.voice_design {
+                Some(vd) => {
+                    if let Ok(design) = serde_json::from_str::<serde_json::Value>(vd) {
+                        design
+                            .get("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("custom")
+                            .to_string()
+                    } else {
+                        "custom".to_string()
+                    }
+                }
+                None => "Rachel (default)".to_string(),
+            };
+            println!("  \x1b[32m✓\x1b[0m Talk mode \x1b[1mon\x1b[0m");
+            println!("  Voice: \x1b[36m{}\x1b[0m", voice_info);
+            println!("  Each agent response will be summarized and spoken aloud.");
+            println!();
+        }
+        "off" => {
+            state.talk_enabled = false;
+            println!("  Talk mode \x1b[1moff\x1b[0m");
+            println!();
+        }
+        "voice" => {
+            if arg.is_empty() {
+                // Show current voice
+                match &state.voice_design {
+                    Some(vd) => {
+                        println!("  Current voice design:");
+                        match serde_json::from_str::<serde_json::Value>(vd) {
+                            Ok(design) => {
+                                if let Some(name) = design.get("name").and_then(|n| n.as_str()) {
+                                    println!("    Name: \x1b[1m{}\x1b[0m", name);
+                                }
+                                if let Some(desc) =
+                                    design.get("description").and_then(|d| d.as_str())
+                                {
+                                    println!("    Description: {}", desc);
+                                }
+                                println!(
+                                    "    Preset: \x1b[36m{}\x1b[0m",
+                                    crate::voice_preset_from_design(vd)
+                                );
+                            }
+                            Err(_) => println!("    (unparseable)"),
+                        }
+                    }
+                    None => {
+                        println!("  Voice: \x1b[36mRachel\x1b[0m (default)");
+                        println!(
+                            "  Set a custom voice with \x1b[36m/talk voice \"description\"\x1b[0m"
+                        );
+                    }
+                }
+                println!();
+                return;
+            }
+
+            // Set voice via voice_design MCP tool
+            let acp_secret = match state.resolved_secrets {
+                Some(ref secrets) => secrets.acp_secret.as_bytes(),
+                None => {
+                    println!(
+                        "  \x1b[31mError:\x1b[0m No ACP secret resolved. Run onboarding first."
+                    );
+                    println!();
+                    return;
+                }
+            };
+
+            let token = DelegationToken::new(
+                DelegationResource::Tool,
+                "voice_design".to_string(),
+                DelegationAction::Execute,
+                WebID::new(),
+                state.agent_webid,
+                acp_secret,
+            );
+
+            println!("  \x1b[2mDesigning voice from description...\x1b[0m");
+
+            let result = rt.block_on(async {
+                state
+                    .governed_tool
+                    .invoke(
+                        "hkask-mcp-media",
+                        "voice_design",
+                        serde_json::json!({"description": arg}),
+                        &token,
+                    )
+                    .await
+            });
+
+            match result {
+                Ok(value) => {
+                    // voice_design returns the VoiceDesign JSON directly or wrapped
+                    let vd_json = serde_json::to_string(&value).unwrap_or_default();
+                    let preset = crate::voice_preset_from_design(&vd_json);
+                    state.voice_design = Some(vd_json);
+                    println!("  \x1b[32m✓\x1b[0m Voice set to \x1b[36m{}\x1b[0m", preset);
+                    if let Some(name) = value.get("name").and_then(|n| n.as_str()) {
+                        println!("  Profile: \x1b[1m{}\x1b[0m", name);
+                    }
+                }
+                Err(e) => {
+                    println!("  \x1b[31mVoice design failed:\x1b[0m {}", e);
+                    println!("  Using default \x1b[36mRachel\x1b[0m voice.");
+                }
+            }
+            println!();
+        }
+        "" => {
+            let status = if state.talk_enabled { "on" } else { "off" };
+            let voice_info = match &state.voice_design {
+                Some(vd) => crate::voice_preset_from_design(vd),
+                None => "Rachel (default)".to_string(),
+            };
+            println!("  \x1b[1mTalk mode:\x1b[0m {}", status);
+            println!("  \x1b[1mVoice:\x1b[0m     {}", voice_info);
+            println!();
+            println!("  \x1b[36m/talk on\x1b[0m                 Enable speech output");
+            println!("  \x1b[36m/talk off\x1b[0m                Disable speech output");
+            println!("  \x1b[36m/talk voice [DESC]\x1b[0m        Set or show voice profile");
+            println!();
+        }
+        other => {
+            println!("  Unknown /talk subcommand: \x1b[31m{}\x1b[0m", other);
+            println!(
+                "  Try \x1b[36m/talk on\x1b[0m, \x1b[36m/talk off\x1b[0m, or \x1b[36m/talk voice\x1b[0m"
+            );
+            println!();
+        }
+    }
+}
+
+/// Summarize an agent response for spoken output.
+///
+/// Calls the inference port with a speech-condensation prompt. Returns
+/// a concise spoken summary (1-3 sentences, plain text).
+pub(crate) fn summarize_for_speech(
+    response_text: &str,
+    state: &ReplState,
+    rt: &tokio::runtime::Handle,
+) -> Option<String> {
+    // Skip summarization for very short responses
+    if response_text.len() < 50 {
+        return Some(response_text.to_string());
+    }
+
+    let prompt = format!("{}{}", SPEECH_SUMMARIZE_PROMPT, response_text);
+
+    let params = hkask_types::LLMParameters {
+        temperature: 0.3,
+        max_tokens: 120,
+        ..Default::default()
+    };
+
+    let result = rt.block_on(async { state.inference_port.generate(&prompt, &params).await });
+
+    match result {
+        Ok(r) => {
+            let summary = r.text.trim().to_string();
+            if summary.is_empty() {
+                None
+            } else {
+                Some(summary)
+            }
+        }
+        Err(e) => {
+            tracing::warn!(target: "hkask.cli.talk", error = %e, "Speech summarization failed");
+            None
+        }
+    }
+}
+
+/// Speak text aloud: summarize → generate speech → play via ffplay.
+///
+/// Called after each agent response when talk mode is enabled.
+pub(crate) fn speak_response(
+    response_text: &str,
+    state: &mut ReplState,
+    rt: &tokio::runtime::Handle,
+) {
+    // Step 1: Summarize for speech
+    let Some(summary) = summarize_for_speech(response_text, state, rt) else {
+        return;
+    };
+
+    // Step 2: Generate speech audio
+    let acp_secret = match state.resolved_secrets {
+        Some(ref secrets) => secrets.acp_secret.as_bytes(),
+        None => return,
+    };
+
+    let token = DelegationToken::new(
+        DelegationResource::Tool,
+        "generate_speech".to_string(),
+        DelegationAction::Execute,
+        WebID::new(),
+        state.agent_webid,
+        acp_secret,
+    );
+
+    let voice_design = state.voice_design.clone();
+
+    let audio_result = rt.block_on(async {
+        let mut args = serde_json::json!({"text": summary});
+        if let Some(ref vd) = voice_design {
+            args["voice_design"] = serde_json::Value::String(vd.clone());
+        }
+        state
+            .governed_tool
+            .invoke("hkask-mcp-media", "generate_speech", args, &token)
+            .await
+    });
+
+    let audio_b64 = match audio_result {
+        Ok(value) => {
+            match value.get("audio").and_then(|a| a.as_str()) {
+                Some(data_uri) => {
+                    // Strip "data:audio/mp3;base64," prefix
+                    if let Some(comma_pos) = data_uri.find(',') {
+                        data_uri[comma_pos + 1..].to_string()
+                    } else {
+                        data_uri.to_string()
+                    }
+                }
+                None => {
+                    // Try plain "audio" field without data URI prefix
+                    value
+                        .get("audio")
+                        .and_then(|a| a.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_default()
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!(target: "hkask.cli.talk", error = %e, "Speech generation failed");
+            return;
+        }
+    };
+
+    if audio_b64.is_empty() {
+        return;
+    }
+
+    // Step 3: Decode base64 → temp file
+    let temp_dir = match std::env::temp_dir().join("hkask-talk").as_path() {
+        p if !p.exists() => {
+            let _ = std::fs::create_dir_all(p);
+            p.to_path_buf()
+        }
+        p => p.to_path_buf(),
+    };
+
+    let audio_path = temp_dir.join(format!("speech_{}.mp3", uuid::Uuid::new_v4()));
+
+    use base64::Engine;
+    let audio_bytes = match base64::engine::general_purpose::STANDARD.decode(&audio_b64) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(target: "hkask.cli.talk", error = %e, "Base64 decode failed");
+            return;
+        }
+    };
+
+    if let Err(e) = std::fs::write(&audio_path, &audio_bytes) {
+        tracing::warn!(target: "hkask.cli.talk", error = %e, "Failed to write audio temp file");
+        return;
+    }
+
+    // Step 4: Play via ffplay (non-blocking subprocess)
+    match std::process::Command::new("ffplay")
+        .args([
+            "-nodisp",
+            "-autoexit",
+            "-loglevel",
+            "quiet",
+            &audio_path.to_string_lossy(),
+        ])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(mut child) => {
+            // Wait for playback to complete (or until interrupted)
+            let _ = child.wait();
+            // Clean up temp file
+            let _ = std::fs::remove_file(&audio_path);
+        }
+        Err(e) => {
+            tracing::warn!(target: "hkask.cli.talk", error = %e, "ffplay failed to start");
+            let _ = std::fs::remove_file(&audio_path);
+        }
+    }
+}

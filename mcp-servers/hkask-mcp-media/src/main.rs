@@ -8,12 +8,10 @@
 //! - Voice: voice_design, generate_speech
 //! - Audio: transcribe, transcribe_bundle, audio_capture, record_and_transcribe
 
-// When compiled as a library (for integration tests), main() and try_daemon_flow()
-// are unused. Pre-existing collapsible_if/cloned_ref patterns are from the original
-// bin-only codebase and should be addressed in a separate refactoring pass.
-#![allow(dead_code, clippy::collapsible_if, clippy::cloned_ref_to_slice_refs)]
+// Pre-existing clippy lints from original bin-only codebase (addressed in separate refactoring pass).
+#![allow(clippy::collapsible_if, clippy::cloned_ref_to_slice_refs)]
 
-pub mod gallery;
+mod gallery;
 mod templates;
 mod video;
 
@@ -33,6 +31,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use video::FfmpegRunner;
 
+use ab_glyph::Font;
+
 pub struct MediaServer {
     webid: WebID,
     /// Replicant identity serving this MCP server (for narrative memory)
@@ -42,9 +42,9 @@ pub struct MediaServer {
     /// Centralized inference router for ALL model calls (vision LLM + media generation)
     inference: Arc<InferenceRouter>,
     /// Active gallery state (None until gallery_set_root is called)
-    pub gallery_state: Arc<Mutex<Option<GalleryState>>>,
+    gallery_state: Arc<Mutex<Option<GalleryState>>>,
     /// SQLite-backed gallery store for persistent indexing
-    pub gallery_store: Arc<GalleryStore>,
+    gallery_store: Arc<GalleryStore>,
     /// Jinja2 template environment for prompt rendering
     template_env: minijinja::Environment<'static>,
     /// ffmpeg runner for video processing (None if ffmpeg not found)
@@ -182,6 +182,27 @@ fn default_per_period() -> usize {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct GalleryFindSimilarRequest {
+    /// Find images similar to this text description.
+    pub text: Option<String>,
+    /// Find images visually similar to this gallery image (uses its AI caption).
+    pub image_index: Option<usize>,
+    /// Maximum results to return (default: 5).
+    #[serde(default = "default_similar_limit")]
+    pub limit: usize,
+    /// Minimum similarity threshold 0.0–1.0 (default: 0.3).
+    #[serde(default = "default_similar_threshold")]
+    pub min_similarity: f32,
+}
+
+fn default_similar_limit() -> usize {
+    5
+}
+fn default_similar_threshold() -> f32 {
+    0.3
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct RemoveBackgroundRequest {
     pub image_index: usize,
     pub new_bg_color: Option<String>,
@@ -278,6 +299,27 @@ pub struct VideoConcatRequest {
 pub struct VideoCaptionRequest {
     pub video_url: String,
     pub style: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VideoMemeRequest {
+    /// Gallery image index to use as the meme base.
+    pub image_index: usize,
+    /// Text at the top of the image (Impact-style meme text).
+    pub top_text: Option<String>,
+    /// Text at the bottom of the image.
+    pub bottom_text: Option<String>,
+    /// Camera motion for the video (e.g., "slow zoom in", "dramatic pan right").
+    #[serde(default = "default_motion")]
+    pub motion: String,
+    /// Video duration in seconds.
+    pub duration: Option<f32>,
+    /// Optional font path (TTF/OTF). Falls back to system DejaVu Sans Bold on Linux.
+    pub font_path: Option<String>,
+}
+
+fn default_motion() -> String {
+    "slow zoom in".to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -807,6 +849,47 @@ impl MediaServer {
             serde_json::Value::Object(fields)
         }
     }
+}
+
+/// Load a font for meme text rendering. Tries the provided path first,
+/// then common system paths, then returns an error with guidance.
+fn load_meme_font(font_path: Option<&str>) -> Result<ab_glyph::FontVec, String> {
+    if let Some(path) = font_path {
+        let data =
+            std::fs::read(path).map_err(|e| format!("Cannot read font at '{}': {}", path, e))?;
+        return ab_glyph::FontVec::try_from_vec(data)
+            .map_err(|e| format!("Invalid font file at '{}': {:?}", path, e));
+    }
+
+    // Try common system paths
+    let candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+    ];
+
+    for path in &candidates {
+        if let Ok(data) = std::fs::read(path) {
+            if let Ok(font) = ab_glyph::FontVec::try_from_vec(data) {
+                return Ok(font);
+            }
+        }
+    }
+
+    Err("No system font found".to_string())
+}
+
+/// Measure rendered text dimensions for centering.
+fn measure_text(font: &ab_glyph::FontVec, scale: ab_glyph::PxScale, text: &str) -> (u32, u32) {
+    let mut total_width = 0.0f32;
+    for c in text.chars() {
+        let glyph_id = font.glyph_id(c);
+        total_width += font.h_advance_unscaled(glyph_id) * scale.x;
+    }
+    let height = (font.ascent_unscaled() * scale.y / font.height_unscaled()).ceil() as u32;
+    (total_width.ceil() as u32, height)
 }
 
 #[tool_router(server_handler)]
@@ -2250,6 +2333,134 @@ impl MediaServer {
         }
     }
 
+    #[tool(
+        description = "Create a meme video from a gallery image with text overlay and camera motion. Composes text rendering + AI motion generation. Perfect for 'WHEN YOU SEE IT' style memes."
+    )]
+    async fn video_meme(
+        &self,
+        Parameters(VideoMemeRequest {
+            image_index,
+            top_text,
+            bottom_text,
+            motion,
+            duration,
+            font_path,
+        }): Parameters<VideoMemeRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("video_meme", &self.webid);
+
+        // Resolve image to a file path (we need it for imageproc pixel manipulation)
+        let image_path = match self.resolve_image_path(image_index) {
+            Ok(p) => p,
+            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
+        };
+
+        // Load the image
+        let mut img = match image::open(&image_path) {
+            Ok(i) => i,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to open image: {}", e)).to_json_string(),
+                );
+            }
+        };
+
+        // Resolve font
+        let font = match load_meme_font(font_path.as_deref()) {
+            Ok(f) => f,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(format!(
+                        "No font available for text rendering: {}. Install fonts-dejavu-core or provide --font_path.",
+                        e
+                    ))
+                    .to_json_string(),
+                );
+            }
+        };
+
+        let img_w = img.width();
+        let img_h = img.height();
+        let scale = ab_glyph::PxScale::from(img_h as f32 * 0.10);
+        let white = image::Rgba([255u8, 255u8, 255u8, 255u8]);
+        let black = image::Rgba([0u8, 0u8, 0u8, 255u8]);
+
+        // Render top text
+        if let Some(ref text) = top_text {
+            let text_upper: String = text.to_uppercase();
+            let (tw, _th) = measure_text(&font, scale, &text_upper);
+            let x = ((img_w as i32 - tw as i32) / 2).max(0);
+            let y = (img_h as f32 * 0.05) as i32;
+            // Stroke (black outline)
+            for &(dx, dy) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                imageproc::drawing::draw_text_mut(
+                    &mut img,
+                    black,
+                    x + dx,
+                    y + dy,
+                    scale,
+                    &font,
+                    &text_upper,
+                );
+            }
+            imageproc::drawing::draw_text_mut(&mut img, white, x, y, scale, &font, &text_upper);
+        }
+
+        // Render bottom text
+        if let Some(ref text) = bottom_text {
+            let text_upper: String = text.to_uppercase();
+            let (tw, th) = measure_text(&font, scale, &text_upper);
+            let x = ((img_w as i32 - tw as i32) / 2).max(0);
+            let y = (img_h as i32 - th as i32 - (img_h as f32 * 0.05) as i32).max(0);
+            for &(dx, dy) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                imageproc::drawing::draw_text_mut(
+                    &mut img,
+                    black,
+                    x + dx,
+                    y + dy,
+                    scale,
+                    &font,
+                    &text_upper,
+                );
+            }
+            imageproc::drawing::draw_text_mut(&mut img, white, x, y, scale, &font, &text_upper);
+        }
+
+        // Encode composited image as base64 data URI
+        let mut buf = std::io::Cursor::new(Vec::new());
+        if let Err(e) = img.write_to(&mut buf, image::ImageFormat::Png) {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to encode composited image: {}", e))
+                    .to_json_string(),
+            );
+        }
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, buf.get_ref());
+        let data_uri = format!("data:image/png;base64,{}", b64);
+
+        // Generate video with motion
+        let motion_prompt = if motion.is_empty() {
+            "slow zoom in".to_string()
+        } else {
+            motion.clone()
+        };
+        let result = self
+            .inference
+            .image_to_video(&data_uri, Some(&motion_prompt), duration)
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Image-to-video failed: {}", e)));
+
+        self.record_experience(
+            "video_meme",
+            &format!("image_index={}", image_index),
+            if result.is_ok() { "success" } else { "error" },
+            serde_json::json!({"motion": motion_prompt, "duration": duration}),
+        );
+        span.finish(result)
+    }
+
     // ── Voice tools ──────────────────────────────────────────────────────────
 
     #[tool(
@@ -2820,4 +3031,181 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
 
     tracing::info!(target: "hkask.mcp.media", replicant = %replicant, "P4 dual-gate verification complete");
     Ok(())
+}
+
+// ── Integration tests ────────────────────────────────────────────────────
+//
+// These tests exercise the GalleryStore + GalleryState pipeline and collage
+// composition logic. Inference-dependent tools require a running LLM backend
+// and are tested via the MCP protocol in live sessions.
+
+#[cfg(test)]
+mod integration_tests {
+    use crate::gallery::{GalleryMode, GalleryState};
+    use hkask_storage::gallery::GalleryStore;
+    use image::{Rgb, RgbImage};
+    use std::sync::{Arc, Mutex};
+    use tempfile::TempDir;
+
+    fn setup_store() -> (Arc<GalleryStore>, TempDir) {
+        let temp = TempDir::new().expect("tempdir");
+        let conn = rusqlite::Connection::open_in_memory().expect("in-memory db");
+        let conn = Arc::new(Mutex::new(conn));
+        GalleryStore::init_tables(&conn.lock().unwrap()).expect("init tables");
+        (Arc::new(GalleryStore::new(conn)), temp)
+    }
+
+    fn create_test_image(dir: &std::path::Path, name: &str, r: u8, g: u8, b: u8) {
+        let img: RgbImage = RgbImage::from_pixel(64, 64, Rgb([r, g, b]));
+        img.save(dir.join(name)).expect("save test image");
+    }
+
+    /// REQ: media-gallery-lifecycle-01 — full gallery lifecycle from init through search.
+    #[test]
+    fn gallery_lifecycle_init_to_search() {
+        let (store, temp) = setup_store();
+
+        create_test_image(temp.path(), "sunset.jpg", 255, 100, 50);
+        create_test_image(temp.path(), "ocean.jpg", 50, 100, 255);
+        create_test_image(temp.path(), "forest.png", 34, 139, 34);
+
+        let gallery = store
+            .create(
+                &temp.path().to_string_lossy(),
+                hkask_storage::GalleryMode::ReadOnly,
+            )
+            .expect("create gallery");
+        assert_eq!(gallery.image_count, 0);
+
+        let mut state = GalleryState::new(temp.path().to_path_buf(), GalleryMode::Original);
+        let scan = state.scan(false, None);
+        assert_eq!(scan.added, 3);
+
+        for entry in &scan.entries {
+            store
+                .add_image(
+                    &gallery.id,
+                    &entry.relative_path,
+                    &temp.path().join(&entry.relative_path).to_string_lossy(),
+                    &entry.checksum,
+                    entry.width,
+                    entry.height,
+                    &entry.format,
+                    entry.size_bytes,
+                )
+                .expect("add image");
+        }
+
+        let img = store
+            .get_image(&gallery.id, Some(0), None)
+            .expect("get image");
+        assert_eq!(img.width, 64);
+
+        store
+            .tag_image(&img.id, "object", "sunset", 0.95, "test")
+            .expect("tag");
+
+        let tags = store.get_tags(&img.id).expect("get tags");
+        assert_eq!(tags.len(), 1);
+
+        let all_tags = store.get_all_tags(&gallery.id).expect("get all tags");
+        assert!(!all_tags.is_empty());
+        assert!(all_tags.iter().any(|(t, _)| t.value == "sunset"));
+    }
+
+    /// REQ: media-collage-compose-01 — grid collage composition from programmatic images.
+    #[test]
+    fn collage_compose_grid_layout() {
+        let temp = TempDir::new().expect("tempdir");
+
+        let images: Vec<image::DynamicImage> = vec![
+            image::DynamicImage::ImageRgb8(RgbImage::from_pixel(64, 64, Rgb([255u8, 0, 0]))),
+            image::DynamicImage::ImageRgb8(RgbImage::from_pixel(64, 64, Rgb([0, 255u8, 0]))),
+            image::DynamicImage::ImageRgb8(RgbImage::from_pixel(64, 64, Rgb([0, 0, 255u8]))),
+            image::DynamicImage::ImageRgb8(RgbImage::from_pixel(64, 64, Rgb([255u8, 255u8, 0]))),
+        ];
+
+        let spacing: u32 = 8;
+        let canvas_w: u32 = 800;
+        let canvas_h: u32 = 600;
+        let cols = (images.len() as f64).sqrt().ceil() as u32;
+        let rows = (images.len() as u32).div_ceil(cols);
+        assert_eq!(cols, 2);
+        assert_eq!(rows, 2);
+
+        let cell_w = (canvas_w - spacing * (cols + 1)) / cols;
+        let cell_h = (canvas_h - spacing * (rows + 1)) / rows;
+
+        let mut canvas = image::DynamicImage::new_rgba8(canvas_w, canvas_h);
+        let bg = image::Rgba([30u8, 30u8, 30u8, 255u8]);
+        for pixel in canvas.as_mut_rgba8().unwrap().pixels_mut() {
+            *pixel = bg;
+        }
+
+        for (i, img) in images.iter().enumerate() {
+            let col = i as u32 % cols;
+            let row = i as u32 / cols;
+            let scaled = img.resize_exact(
+                cell_w.saturating_sub(spacing),
+                cell_h.saturating_sub(spacing),
+                image::imageops::FilterType::Lanczos3,
+            );
+            let x = spacing
+                + col * (cell_w + spacing)
+                + (cell_w.saturating_sub(spacing) - scaled.width()) / 2;
+            let y = spacing
+                + row * (cell_h + spacing)
+                + (cell_h.saturating_sub(spacing) - scaled.height()) / 2;
+            image::imageops::overlay(&mut canvas, &scaled, x as i64, y as i64);
+        }
+
+        let output_path = temp.path().join("collage_test.png");
+        canvas.save(&output_path).expect("save collage");
+        let collage = image::open(&output_path).expect("reopen");
+        assert_eq!(collage.width(), 800);
+        assert_eq!(collage.height(), 600);
+
+        let non_bg = collage
+            .to_rgba8()
+            .pixels()
+            .filter(|p| p.0 != [30, 30, 30, 255])
+            .count();
+        assert!(
+            non_bg > 100,
+            "collage should have non-bg pixels (got {})",
+            non_bg
+        );
+    }
+
+    /// REQ: media-gallery-error-01 — clear errors for invalid lookups.
+    #[test]
+    fn gallery_store_image_not_found() {
+        let (store, temp) = setup_store();
+        let gallery = store
+            .create(
+                &temp.path().to_string_lossy(),
+                hkask_storage::GalleryMode::ReadOnly,
+            )
+            .expect("create gallery");
+
+        assert!(store.get_image(&gallery.id, Some(999), None).is_err());
+        assert!(
+            store
+                .get_image(&gallery.id, None, Some("nonexistent"))
+                .is_err()
+        );
+    }
+
+    /// REQ: media-gallery-policy-01 — three gallery modes are distinct.
+    #[test]
+    fn gallery_three_state_policy() {
+        use hkask_storage::GalleryMode;
+        assert_eq!(GalleryMode::ReadOnly.as_str(), "read-only");
+        assert_eq!(GalleryMode::CopyOnWrite.as_str(), "copy-on-write");
+        assert_eq!(GalleryMode::Destructive.as_str(), "destructive");
+        assert_ne!(
+            GalleryMode::ReadOnly.as_str(),
+            GalleryMode::Destructive.as_str()
+        );
+    }
 }

@@ -15,6 +15,7 @@
 //! via the hKask template registry (Jinja2). Inference uses the centralized router.
 
 use crate::settings::HkaskSettings;
+use hkask_cns::CnsRuntime;
 use hkask_templates::SqliteRegistry;
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
@@ -22,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing;
 
 // ── Manifest types ─────────────────────────────────────────────────────────
@@ -553,6 +555,9 @@ pub struct KataEngine {
     /// Receives (agent_name, metric_name) and returns the current metric value.
     metric_collector:
         Option<Arc<dyn Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync>>,
+    /// Optional CNS runtime for variety counter increments and algedonic alert checks.
+    /// When present, replaces tracing-only spans with actual CNS state mutations.
+    cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
 }
 
 impl KataEngine {
@@ -564,6 +569,7 @@ impl KataEngine {
             cns_observer: None,
             history: None,
             metric_collector: None,
+            cns_runtime: None,
         }
     }
 
@@ -597,6 +603,15 @@ impl KataEngine {
         F: Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync + 'static,
     {
         self.metric_collector = Some(Arc::new(collector));
+        self
+    }
+
+    /// Set a CNS runtime for variety counter increments and algedonic alert checks.
+    ///
+    /// When present, kata execution increments CNS variety counters for each
+    /// practice and checks algedonic thresholds after cycle completion.
+    pub fn with_cns_runtime(mut self, cns: Arc<RwLock<CnsRuntime>>) -> Self {
+        self.cns_runtime = Some(cns);
         self
     }
 
@@ -654,6 +669,9 @@ impl KataEngine {
                 result.improvement_signal = signal;
                 result.step_experiences = state.step_experiences.clone();
 
+                // CNS algedonic check: is variety deficit exceeding threshold?
+                self.check_cns_alerts(manifest, "improvement").await;
+
                 if manifest.cns.emit_spans {
                     tracing::info!(
                         target: "hkask.kata",
@@ -682,6 +700,9 @@ impl KataEngine {
                 }
                 let mut result = self.run_coaching(manifest, &mut state).await?;
                 result.step_experiences = state.step_experiences.clone();
+
+                // CNS algedonic check: is coaching variety deficit exceeding threshold?
+                self.check_cns_alerts(manifest, "coaching").await;
 
                 if manifest.cns.emit_spans {
                     tracing::info!(
@@ -723,6 +744,25 @@ impl KataEngine {
                     .map(|h| h.compute_automaticity(learner_bot, &today))
                     .unwrap_or(0.0);
                 result.automaticity_delta = Some(auto_after - auto_before);
+
+                // CNS automaticity measurement: track habit formation progress
+                if auto_after > 0.0 {
+                    self.increment_cns_variety(
+                        &manifest.cns.span_namespace,
+                        "kata.automaticity.score",
+                    )
+                    .await;
+                    if auto_after > 0.5 {
+                        self.increment_cns_variety(
+                            &manifest.cns.span_namespace,
+                            "kata.habit.formation",
+                        )
+                        .await;
+                    }
+                }
+
+                // CNS algedonic check: is starter practice variety deficit exceeding threshold?
+                self.check_cns_alerts(manifest, "starter").await;
 
                 if manifest.cns.emit_spans {
                     tracing::info!(
@@ -831,6 +871,40 @@ impl KataEngine {
         })
     }
 
+    /// Increment a CNS variety counter for a kata practice event.
+    ///
+    /// When CNS runtime is wired, this replaces tracing-only spans with
+    /// actual variety counter state mutations tracked by the Cybernetic
+    /// Nervous System.
+    async fn increment_cns_variety(&self, domain: &str, state_name: &str) {
+        if let Some(ref cns) = self.cns_runtime {
+            cns.read().await.increment_variety(domain, state_name).await;
+        }
+    }
+
+    /// Check CNS algedonic thresholds after a kata cycle and emit alerts if needed.
+    async fn check_cns_alerts(&self, manifest: &KataManifest, kata_type: &str) {
+        let Some(ref cns) = self.cns_runtime else {
+            return;
+        };
+        let alert = cns
+            .read()
+            .await
+            .check_variety(&manifest.cns.span_namespace)
+            .await;
+        if let Some(a) = alert {
+            tracing::warn!(
+                target: "hkask.kata",
+                namespace = %manifest.cns.span_namespace,
+                kata_type = %kata_type,
+                severity = ?a.severity,
+                deficit = a.deficit,
+                threshold = a.threshold,
+                "kata.algedonic — variety deficit detected"
+            );
+        }
+    }
+
     /// Run an Improvement Kata: walk 4 steps, render templates, call LLM.
     async fn run_improvement(
         &self,
@@ -931,6 +1005,10 @@ impl KataEngine {
             if let Some(ref obs) = self.cns_observer {
                 obs(&manifest.cns.span_namespace, step.ordinal, &step.action);
             }
+
+            // CNS variety counter: record improvement step execution
+            self.increment_cns_variety(&manifest.cns.span_namespace, "kata.practices.completed")
+                .await;
         }
 
         Ok(KataResult {
@@ -1113,6 +1191,10 @@ impl KataEngine {
             if let Some(ref obs) = self.cns_observer {
                 obs(&manifest.cns.span_namespace, q.number, "coaching_question");
             }
+
+            // CNS variety counter: record coaching question asked
+            self.increment_cns_variety(&manifest.cns.span_namespace, "kata.practices.completed")
+                .await;
         }
 
         Ok(KataResult {
@@ -1216,6 +1298,10 @@ impl KataEngine {
                     "kata.starter.practice"
                 );
             }
+
+            // CNS variety counter: record starter practice
+            self.increment_cns_variety(&manifest.cns.span_namespace, "kata.practices.completed")
+                .await;
         }
 
         Ok(KataResult {

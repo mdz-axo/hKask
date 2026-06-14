@@ -250,7 +250,7 @@ fn handle_stop() {
     println!();
 }
 
-fn handle_view(file_arg: &str, rt: &tokio::runtime::Handle) {
+fn handle_view(file_arg: &str, _rt: &tokio::runtime::Handle) {
     let path = if file_arg.is_empty() {
         // Default: most recent recording
         let latest = transcripts_dir().join("latest.json");

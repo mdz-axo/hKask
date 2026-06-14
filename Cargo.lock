@@ -2178,6 +2178,7 @@ version = "0.27.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "crossterm",
@@ -2390,6 +2391,7 @@ dependencies = [
 name = "hkask-mcp-media"
 version = "0.27.0"
 dependencies = [
+ "ab_glyph",
  "anyhow",
  "base64 0.22.1",
  "chrono",
@@ -2400,6 +2402,7 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "image",
+ "imageproc",
  "minijinja",
  "nom-exif",
  "rmcp",

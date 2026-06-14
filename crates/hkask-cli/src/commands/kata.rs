@@ -5,11 +5,14 @@
 //! accumulates state. Uses the centralized inference router.
 
 use crate::cli::KataAction;
+use hkask_cns::CnsRuntime;
 use hkask_inference::InferenceConfig;
 use hkask_services::{CliExperienceRecorder, KataEngine, KataError, KataHistory, PracticeEntry};
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Resolve the registry/manifests directory relative to the project root.
 fn manifests_dir() -> PathBuf {
@@ -194,6 +197,9 @@ fn start_kata(
     // Build engine with shared registry (has bootstrapped templates)
     let engine = KataEngine::new(inference_port, registry.clone())
         .with_history(history)
+        .with_cns_runtime(Arc::new(RwLock::new(CnsRuntime::with_threshold(
+            hkask_cns::DEFAULT_THRESHOLD,
+        ))))
         .with_consent(move |kata_type: &str, _learner: &str| {
             // P2 Affirmative Consent — kata execution authorization
             match kata_type {

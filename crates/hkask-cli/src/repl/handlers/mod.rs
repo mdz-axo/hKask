@@ -15,6 +15,8 @@ pub(crate) mod repl_settings;
 pub(crate) mod start;
 pub(crate) mod status;
 
+pub(crate) mod talk;
+
 pub(crate) use agent::{handle_agent, handle_agents};
 pub(crate) use ask::handle_ask;
 pub(crate) use consolidation::handle_consolidate;
@@ -29,3 +31,4 @@ pub(crate) use model::handle_model;
 pub(crate) use repl_settings::{ReplSettings, handle_repl_set, to_llm_params};
 pub(crate) use start::handle_start;
 pub(crate) use status::handle_status;
+pub(crate) use talk::{handle_talk, speak_response};

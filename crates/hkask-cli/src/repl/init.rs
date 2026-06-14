@@ -241,6 +241,8 @@ pub(super) fn init_repl_state(
         service_context: ctx.clone(),
         repl_settings,
         is_first_run: onboarding_outcome.is_first_run,
+        talk_enabled: false,
+        voice_design: None,
     };
 
     // Discover available MCP tools and format the system prompt section.

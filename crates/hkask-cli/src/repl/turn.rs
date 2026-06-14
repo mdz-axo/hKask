@@ -14,6 +14,7 @@ use hkask_services::{ChatService, TurnRequest};
 use super::ReplState;
 use super::cns_display;
 use super::energy;
+use super::handlers::speak_response;
 use super::handlers::to_llm_params;
 use super::tool_augmented;
 
@@ -220,6 +221,10 @@ pub(super) fn single_agent_turn(
         if !processed.had_tool_calls {
             if iteration == 1 {
                 println!("{}: {}", state.current_agent, processed.text);
+            }
+            // Talk mode: summarize and speak the response aloud
+            if state.talk_enabled {
+                speak_response(&processed.text, state, rt);
             }
             break;
         }

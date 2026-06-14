@@ -99,6 +99,10 @@ pub(crate) struct ReplState {
     /// Whether this session started from a first-run onboarding (true)
     /// or a returning session (false). Controls First Steps display.
     pub(crate) is_first_run: bool,
+    /// Talk mode — when enabled, agent responses are summarized and spoken aloud.
+    pub(crate) talk_enabled: bool,
+    /// Voice design JSON for TTS (None = default "Rachel" voice).
+    pub(crate) voice_design: Option<String>,
 }
 
 pub fn run(

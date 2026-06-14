@@ -194,6 +194,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "start [SECONDS] | stop | view [FILE]",
         about: "Record audio, transcribe, and play back with word-level sync",
     },
+    SlashCommand {
+        primary: "talk",
+        aliases: &["speak"],
+        args: "on | off | voice [DESCRIPTION]",
+        about: "Enable spoken summaries of agent responses (TTS)",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -329,6 +335,7 @@ pub(super) fn handle_slash_command(
         "start" | "tour" | "onboarding" => handlers::handle_start(state),
         "feedback" => handlers::handle_feedback(state),
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),
+        "talk" | "speak" => handlers::handle_talk(arg1, arg2, state, rt),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

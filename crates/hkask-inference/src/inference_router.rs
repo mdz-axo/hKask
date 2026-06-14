@@ -8,6 +8,7 @@ use crate::RouterModelEntry;
 use crate::chat_protocol::validate_prompt;
 use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
+use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::fireworks_backend::FireworksBackend;
 use crate::ollama_backend::OllamaBackend;
@@ -27,6 +28,7 @@ pub struct InferenceRouter {
     fireworks: Option<FireworksBackend>,
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
+    embedding: Option<EmbeddingRouter>,
 }
 
 impl InferenceRouter {
@@ -60,6 +62,7 @@ impl InferenceRouter {
             fireworks,
             deepinfra,
             fal,
+            embedding: None, // EmbeddingRouter not yet implemented
         }
     }
 
@@ -607,5 +610,19 @@ impl InferencePort for InferenceRouter {
             self.generate_vision(&prompt, &images, &parameters, model_override.as_deref())
                 .await
         })
+    }
+}
+
+// Non-trait methods (not part of InferencePort)
+impl InferenceRouter {
+    /// Generate a text embedding vector — not yet implemented.
+    pub async fn embed_text(
+        &self,
+        _text: &str,
+        _model_override: Option<&str>,
+    ) -> Result<Vec<f32>, hkask_types::ports::EmbeddingGenerationError> {
+        Err(hkask_types::ports::EmbeddingGenerationError::Connection(
+            "Embedding router not yet implemented".into(),
+        ))
     }
 }
