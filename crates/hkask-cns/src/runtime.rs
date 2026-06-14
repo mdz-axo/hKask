@@ -242,6 +242,14 @@ impl CnsRuntime {
         state.tracker.variety_for_domain(domain)
     }
 
+    /// Synchronous version of variety_for_domain — uses blocking_read() on the
+    /// internal tokio RwLock. This enables sync contexts (e.g., metric collectors,
+    /// CLI closures) to query CNS variety counters without requiring async.
+    pub fn blocking_variety_for_domain(&self, domain: &str) -> u64 {
+        let state = self.state.blocking_read();
+        state.tracker.variety_for_domain(domain)
+    }
+
     /// Increment variety and check thresholds — the loop closes here.
     /// After persisting variety, notifies subscribers whose interest mask
     /// includes the relevant span namespace.

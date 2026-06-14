@@ -24,6 +24,7 @@ pub use standing_session::{
     StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
 };
 pub mod gallery;
+pub mod kata_history;
 pub mod triples;
 pub mod user_store;
 pub mod wallet_store;
@@ -41,6 +42,7 @@ pub use gallery::{
 };
 pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::TripleID;
+pub use kata_history::{KataHistoryEntry, KataHistoryError, KataHistoryStore};
 pub use nu_event_store::{DecayConfig, NuEventError, NuEventStore, WeightedEvent};
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};

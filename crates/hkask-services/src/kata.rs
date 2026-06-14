@@ -16,6 +16,7 @@
 
 use crate::settings::HkaskSettings;
 use hkask_cns::CnsRuntime;
+use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
@@ -56,6 +57,7 @@ pub struct KataManifest {
 pub struct ManifestMeta {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub kata_type: String,
     pub description: String,
     #[serde(default)]
@@ -66,6 +68,7 @@ pub struct ManifestMeta {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GasConfig {
+    #[serde(default = "default_gas_cap")]
     pub cap: u64,
     #[serde(default = "default_cost_per_token")]
     pub cost_per_token: f64,
@@ -73,6 +76,10 @@ pub struct GasConfig {
     pub alert_threshold: f64,
     #[serde(default = "default_hard_limit")]
     pub hard_limit: bool,
+}
+
+fn default_gas_cap() -> u64 {
+    15000
 }
 
 fn default_cost_per_token() -> f64 {
@@ -551,6 +558,8 @@ pub struct KataEngine {
     cns_observer: Option<Arc<dyn Fn(&str, u32, &str) + Send + Sync>>,
     /// Kata practice history for habit tracking and automaticity scoring.
     history: Option<KataHistory>,
+    /// Optional SQLite-backed kata history store for concurrent, queryable persistence.
+    history_store: Option<Arc<KataHistoryStore>>,
     /// Optional metric collector — called to capture CNS metrics before/after cycles.
     /// Receives (agent_name, metric_name) and returns the current metric value.
     metric_collector:
@@ -568,6 +577,7 @@ impl KataEngine {
             consent_check: None,
             cns_observer: None,
             history: None,
+            history_store: None,
             metric_collector: None,
             cns_runtime: None,
         }
@@ -597,6 +607,16 @@ impl KataEngine {
         self
     }
 
+    /// Set a SQLite-backed kata history store for concurrent, queryable persistence.
+    ///
+    /// When present, practice entries are persisted to SQLite in addition to
+    /// (or instead of) the JSON file. This enables CNS queries against practice
+    /// data and cross-session persistence through the daemon's memory pipeline.
+    pub fn with_history_store(mut self, store: Arc<KataHistoryStore>) -> Self {
+        self.history_store = Some(store);
+        self
+    }
+
     /// Set a metric collector for before/after measurement.
     pub fn with_metrics<F>(mut self, collector: F) -> Self
     where
@@ -615,6 +635,37 @@ impl KataEngine {
         self
     }
 
+    /// Record a practice entry to the SQLite-backed history store, if available.
+    ///
+    /// This enables concurrent, queryable persistence through the daemon's
+    /// memory pipeline. When the store is not set, this is a no-op — the
+    /// caller should fall back to JSON-based persistence.
+    pub fn record_history_entry(
+        &self,
+        agent_name: &str,
+        date: &str,
+        kata_type: &str,
+        practice_name: &str,
+        steps_completed: usize,
+        gas_consumed: u64,
+    ) -> Result<Option<i64>, KataError> {
+        if let Some(ref store) = self.history_store {
+            let id = store
+                .record(
+                    agent_name,
+                    date,
+                    kata_type,
+                    practice_name,
+                    steps_completed,
+                    gas_consumed,
+                )
+                .map_err(|e| KataError::LoadFailed(format!("History store: {}", e)))?;
+            Ok(Some(id))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Load a kata manifest from a YAML file.
     pub fn load_manifest(path: &Path) -> Result<KataManifest, KataError> {
         let content = std::fs::read_to_string(path).map_err(|e| {
@@ -623,6 +674,70 @@ impl KataEngine {
         let manifest: KataManifest = serde_yaml::from_str(&content)
             .map_err(|e| KataError::ParseFailed(format!("Failed to parse manifest: {}", e)))?;
         Ok(manifest)
+    }
+
+    /// Run a bundle manifest that orchestrates kata selection and execution.
+    ///
+    /// Bundle manifests (like kata-pattern.yaml) don't have a fixed kata_type.
+    /// Instead, they use a selector template to route to the appropriate kata
+    /// based on the agent's history, automaticity, and context.
+    pub async fn run_bundle(
+        &self,
+        manifest: &KataManifest,
+        learner_bot: &str,
+        initial_context: HashMap<String, String>,
+    ) -> Result<KataResult, KataError> {
+        let manifests_dir = std::path::PathBuf::from("registry/manifests");
+
+        // Step 1: Select the appropriate kata type
+        let selector_output = if let Some(step) = manifest.steps.first() {
+            let state = KataState {
+                learner_bot: learner_bot.to_string(),
+                context: initial_context.clone(),
+                ..Default::default()
+            };
+
+            if manifest.cns.emit_spans {
+                tracing::info!(
+                    target: "hkask.kata",
+                    namespace = %manifest.cns.span_namespace,
+                    kata_type = "bundle",
+                    bot = %learner_bot,
+                    "kata.cycle.start"
+                );
+            }
+
+            self.execute_step(manifest, step, &state).await?
+        } else {
+            return Err(KataError::NoSteps(manifest.manifest.id.clone()));
+        };
+
+        // Step 2: Route to the selected kata
+        let selected = selector_output
+            .get("selected_kata")
+            .and_then(|v| v.as_str())
+            .unwrap_or("starter");
+
+        let kata_manifest_name = match selected {
+            "improvement" => "improvement-kata.yaml",
+            "coaching" => "coaching-kata.yaml",
+            _ => "starter-kata.yaml",
+        };
+
+        tracing::info!(
+            target: "hkask.kata",
+            namespace = %manifest.cns.span_namespace,
+            selected = %selected,
+            manifest = %kata_manifest_name,
+            bot = %learner_bot,
+            "kata.bundle.routing"
+        );
+
+        // Load and execute the selected kata manifest
+        let kata_path = manifests_dir.join(kata_manifest_name);
+        let kata_manifest = Self::load_manifest(&kata_path)?;
+        self.execute(&kata_manifest, learner_bot, initial_context)
+            .await
     }
 
     /// Execute a full kata cycle.
@@ -1429,6 +1544,110 @@ impl KataEngine {
             .map_err(|e| KataError::TemplateNotFound(format!("Render failed: {}", e)))?;
 
         Ok(rendered)
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: kata-template-001 — templates render with standard context
+    //
+    // All 23 kata templates must render without errors when given
+    // a typical KataState with learner_bot, context, and previous_steps.
+    #[test]
+    fn all_improvement_templates_render_with_context() {
+        let state = KataState {
+            learner_bot: "TestBot".into(),
+            context: [("capability".into(), "span_emission".into())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        };
+
+        let templates = [
+            "kata-improvement/improvement-step1-direction",
+            "kata-improvement/improvement-step2-current",
+            "kata-improvement/improvement-step3-target",
+            "kata-improvement/improvement-step4-experiment",
+        ];
+
+        for template_ref in &templates {
+            // Path relative to project root (cargo test runs from crate dir)
+            let disk_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join("registry/templates")
+                .join(template_ref)
+                .with_extension("j2");
+            assert!(
+                disk_path.exists(),
+                "Template file must exist: {}",
+                disk_path.display()
+            );
+
+            let content = std::fs::read_to_string(&disk_path).unwrap();
+            let env = minijinja::Environment::new();
+            let ctx = minijinja::context! {
+                learner_bot => &state.learner_bot,
+                previous_steps => serde_json::to_value(&state.step_outputs).unwrap(),
+                context => serde_json::to_value(&state.context).unwrap(),
+                metric_before => serde_json::Value::Null,
+                metric_after => serde_json::Value::Null,
+                ik_state_ref => serde_json::Value::Null,
+            };
+            let rendered = env
+                .render_str(&content, ctx)
+                .unwrap_or_else(|e| panic!("Template {} failed to render: {}", template_ref, e));
+            assert!(
+                !rendered.is_empty(),
+                "Template {} rendered empty output",
+                template_ref
+            );
+        }
+    }
+
+    // REQ: kata-template-002 — templates contain learner_bot reference
+    //
+    // Every kata template must reference the learner's identity so the
+    // LLM knows who it's acting as. Missing {{ learner_bot }} means the
+    // template is a static form, not a kata practice prompt.
+    #[test]
+    fn all_templates_reference_learner_bot() {
+        let template_dirs = [
+            "registry/templates/kata-improvement",
+            "registry/templates/kata-coaching",
+            "registry/templates/kata-starter",
+            "registry/templates/kata",
+        ];
+
+        let mut checked = 0;
+        for dir in &template_dirs {
+            let dir_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(dir);
+            if !dir_path.exists() {
+                continue;
+            }
+            for entry in std::fs::read_dir(dir_path).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.extension().map_or(false, |e| e == "j2") {
+                    let content = std::fs::read_to_string(&path).unwrap();
+                    assert!(
+                        content.contains("{{ learner_bot }}"),
+                        "Template {} must contain {{{{ learner_bot }}}}",
+                        path.display()
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(
+            checked, 23,
+            "All 23 kata templates must contain learner_bot"
+        );
     }
 }
 

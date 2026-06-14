@@ -15,7 +15,7 @@ mod gallery;
 mod templates;
 mod video;
 
-use gallery::{GalleryMode as LocalGalleryMode, GalleryState};
+use gallery::GalleryState;
 use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
@@ -138,6 +138,20 @@ fn default_analyze_mode() -> String {
 }
 fn default_analyze_limit() -> usize {
     50
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GalleryRefreshRequest {
+    /// Whether to scan subdirectories recursively (default: true).
+    #[serde(default = "default_true")]
+    pub recursive: bool,
+    /// Whether to include face detection in the pipeline (default: false).
+    /// Face tagging is a separate workflow — enable this only when you want to re-tag faces.
+    #[serde(default)]
+    pub include_faces: bool,
+    /// Maximum images to process (safety limit, default: 50).
+    #[serde(default = "default_analyze_limit")]
+    pub max_images: usize,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -622,6 +636,57 @@ impl MediaServer {
         )
     }
 
+    /// Re-scan an existing gallery and persist new images.
+    /// Returns (gallery_id, old_image_count, images_added, total_images, persisted_count).
+    /// The MutexGuard is dropped before return so callers can safely await.
+    fn rescan_existing_gallery(
+        &self,
+        recursive: bool,
+    ) -> Result<(String, u64, u32, u32, u32), String> {
+        let guard = self.gallery_state.lock().unwrap();
+        match &*guard {
+            Some(state) => match &state.gallery_id {
+                Some(gid) => {
+                    let gid = gid.clone();
+                    let mut state_clone = state.clone();
+                    let old_count = state_clone.image_count;
+                    drop(guard);
+                    let scan_result = state_clone.scan(recursive, None);
+                    let mut persisted = 0u32;
+                    for entry in &scan_result.entries {
+                        let abs_path = state_clone.path.join(&entry.relative_path);
+                        if self
+                            .gallery_store
+                            .add_image(
+                                &gid,
+                                &entry.relative_path,
+                                &abs_path.to_string_lossy(),
+                                &entry.checksum,
+                                entry.width,
+                                entry.height,
+                                &entry.format,
+                                entry.size_bytes,
+                            )
+                            .is_ok()
+                        {
+                            persisted += 1;
+                        }
+                    }
+                    *self.gallery_state.lock().unwrap() = Some(state_clone);
+                    Ok((
+                        gid,
+                        old_count,
+                        scan_result.added,
+                        scan_result.total,
+                        persisted,
+                    ))
+                }
+                None => Err("Gallery not persisted — run gallery_organize first.".to_string()),
+            },
+            None => Err("No gallery organized. Use gallery_organize first.".to_string()),
+        }
+    }
+
     /// Run the analysis pipeline on a subset of gallery images.
     /// Used internally by gallery_organize auto_analyze and gallery_analyze.
     /// Returns (analyzed_count, error_messages).
@@ -945,62 +1010,22 @@ impl MediaServer {
         let record = match self.gallery_store.create(&path, gallery_mode.clone()) {
             Ok(r) => r,
             Err(GalleryStoreError::AlreadyExists(_)) => {
-                // Gallery exists — just scan.
-                // Extract state info in a block so the MutexGuard is dropped before any await.
-                let scan_info = {
-                    let guard = self.gallery_state.lock().unwrap();
-                    match &*guard {
-                        Some(state) => match &state.gallery_id {
-                            Some(gid) => {
-                                let gid_clone = gid.clone();
-                                let mut state_clone = state.clone();
-                                let old_count = state_clone.image_count;
-                                drop(guard);
-                                let scan_result = state_clone.scan(recursive, None);
-                                let mut persisted = 0u32;
-                                for entry in &scan_result.entries {
-                                    let abs_path = state_clone.path.join(&entry.relative_path);
-                                    if self
-                                        .gallery_store
-                                        .add_image(
-                                            &gid_clone,
-                                            &entry.relative_path,
-                                            &abs_path.to_string_lossy(),
-                                            &entry.checksum,
-                                            entry.width,
-                                            entry.height,
-                                            &entry.format,
-                                            entry.size_bytes,
-                                        )
-                                        .is_ok()
-                                    {
-                                        persisted += 1;
-                                    }
-                                }
-                                *self.gallery_state.lock().unwrap() = Some(state_clone);
-                                Some((gid_clone, old_count, scan_result, persisted))
-                            }
-                            None => None,
-                        },
-                        None => None,
-                    }
-                };
-
-                match scan_info {
-                    Some((gid_clone, old_count, scan_result, persisted)) => {
+                // Re-scan existing gallery
+                match self.rescan_existing_gallery(recursive) {
+                    Ok((gid, old_count, added, total, persisted)) => {
                         let result = serde_json::json!({
                             "status": "rescanned",
-                            "gallery_id": gid_clone,
+                            "gallery_id": gid,
                             "root_path": path,
                             "mode": mode,
-                            "images_added": scan_result.added,
-                            "total_images": scan_result.total,
+                            "images_added": added,
+                            "total_images": total,
                             "persisted": persisted,
                         });
 
-                        if auto_analyze && scan_result.added > 0 {
+                        if auto_analyze && added > 0 {
                             let new_indices: Vec<usize> = (old_count as usize
-                                ..(old_count as usize + scan_result.added as usize))
+                                ..(old_count as usize + added as usize))
                                 .collect();
                             let pipelines: Vec<String> =
                                 vec!["faces", "objects", "colors", "composition", "scene"]
@@ -1019,10 +1044,10 @@ impl MediaServer {
 
                         return span.ok_json(result);
                     }
-                    None => {
+                    Err(e) => {
                         return span.ok_json(serde_json::json!({
                             "status": "already_exists",
-                            "message": "A gallery already exists at this path but its state was lost. Please restart the server."
+                            "message": e,
                         }));
                     }
                 }
@@ -1037,11 +1062,7 @@ impl MediaServer {
         };
 
         // Set up in-memory GalleryState
-        let local_mode = match gallery_mode {
-            GalleryMode::ReadOnly | GalleryMode::CopyOnWrite => LocalGalleryMode::Original,
-            GalleryMode::Destructive => LocalGalleryMode::Copy,
-        };
-        let mut state = GalleryState::new(PathBuf::from(&path), local_mode);
+        let mut state = GalleryState::new(PathBuf::from(&path), gallery_mode.clone());
         if let Err(e) = state.validate() {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -1418,6 +1439,59 @@ impl MediaServer {
         span.ok_json(serde_json::json!({
             "query": text.unwrap_or_else(|| format!("image_index={}", image_index.unwrap())),
             "results": results,
+        }))
+    }
+
+    #[tool(
+        description = "Refresh the gallery: scan for new/removed images, then update all AI metadata (objects, colors, composition, scene descriptions). Face detection is OFF by default — use gallery_analyze for face-specific workflows. This is the 'update everything' command."
+    )]
+    async fn gallery_refresh(
+        &self,
+        Parameters(GalleryRefreshRequest {
+            recursive,
+            include_faces,
+            max_images,
+        }): Parameters<GalleryRefreshRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("gallery_refresh", &self.webid);
+
+        // Step 1: Re-scan the gallery
+        let (gid, _old_count, added, total, persisted) =
+            match self.rescan_existing_gallery(recursive) {
+                Ok(info) => info,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
+                }
+            };
+
+        // Step 2: Determine pipelines (faces off by default)
+        let mut pipeline_names = vec!["objects", "colors", "composition", "scene"];
+        if include_faces {
+            pipeline_names.push("faces");
+        }
+        let pipelines: Vec<String> = pipeline_names.into_iter().map(|s| s.to_string()).collect();
+
+        // Step 3: Analyze all images
+        let all_indices: Vec<usize> = (0..total as usize).take(max_images).collect();
+        let (analyzed, analyze_errors) =
+            self.run_analysis_on_indices(&all_indices, &pipelines).await;
+
+        span.ok_json(serde_json::json!({
+            "status": "refreshed",
+            "gallery_id": gid,
+            "scan": {
+                "images_added": added,
+                "total_images": total,
+                "persisted": persisted,
+            },
+            "analysis": {
+                "images_analyzed": analyzed,
+                "pipelines": pipelines,
+            },
+            "errors": analyze_errors,
         }))
     }
 
@@ -3015,22 +3089,80 @@ impl MediaServer {
             .map_err(|e| McpToolError::unavailable(format!("Transcription failed: {}", e)));
 
         match transcribe_result {
-            Ok(tr) => {
+            Ok(raw) => {
+                // Parse Whisper verbose_json into TranscriptBundle
+                // (same pattern as transcribe_bundle tool)
+                let full_text = raw
+                    .get("text")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let duration = raw
+                    .get("duration")
+                    .and_then(|d| d.as_f64())
+                    .unwrap_or(duration_secs as f64) as f32;
+                let model = raw
+                    .get("model")
+                    .and_then(|m| m.as_str())
+                    .map(|s| s.to_string());
+                let words: Vec<TimedWord> = raw
+                    .get("words")
+                    .and_then(|w| w.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|w| {
+                                Some(TimedWord {
+                                    word: w.get("word")?.as_str()?.to_string(),
+                                    start_ms: (w.get("start")?.as_f64()? * 1000.0) as u64,
+                                    end_ms: (w.get("end")?.as_f64()? * 1000.0) as u64,
+                                    confidence: w.get("confidence").and_then(|c| c.as_f64()),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let segments: Vec<TranscriptSegment> = raw
+                    .get("segments")
+                    .and_then(|s| s.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|s| {
+                                Some(TranscriptSegment {
+                                    text: s.get("text")?.as_str()?.to_string(),
+                                    start_ms: (s.get("start")?.as_f64()? * 1000.0) as u64,
+                                    end_ms: (s.get("end")?.as_f64()? * 1000.0) as u64,
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let audio_path_str = audio_path.display().to_string();
+                let bundle = TranscriptBundle {
+                    format: "hkask-transcript-v1".to_string(),
+                    audio_path: audio_path_str.clone(),
+                    audio_duration_secs: duration,
+                    full_text,
+                    words,
+                    segments,
+                    language: language.clone(),
+                    model,
+                };
+
                 self.record_experience(
                     "record_and_transcribe",
                     &format!("duration={}s", duration_secs),
                     "success",
-                    serde_json::json!({"audio_path": audio_path.display().to_string()}),
+                    serde_json::json!({
+                        "audio_path": audio_path_str,
+                        "word_count": bundle.word_count(),
+                    }),
                 );
-                span.ok_json(serde_json::json!({
-                    "status": "recorded_and_transcribed",
-                    "duration_secs": duration_secs,
-                    "audio_path": audio_path.display().to_string(),
-                    "audio_format": "wav",
-                    "sample_rate": 16000,
-                    "channels": 1,
-                    "transcript": tr,
-                }))
+                span.ok_json(
+                    serde_json::to_value(&bundle).unwrap_or_else(
+                        |_| serde_json::json!({"error": "Failed to serialize bundle"}),
+                    ),
+                )
             }
             Err(e) => {
                 // Transcription failed but audio was captured — return partial success
@@ -3247,8 +3379,8 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::gallery::{GalleryMode, GalleryState};
-    use hkask_storage::gallery::GalleryStore;
+    use crate::gallery::GalleryState;
+    use hkask_storage::gallery::{GalleryMode, GalleryStore};
     use image::{Rgb, RgbImage};
     use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
@@ -3283,7 +3415,7 @@ mod integration_tests {
             .expect("create gallery");
         assert_eq!(gallery.image_count, 0);
 
-        let mut state = GalleryState::new(temp.path().to_path_buf(), GalleryMode::Original);
+        let mut state = GalleryState::new(temp.path().to_path_buf(), GalleryMode::ReadOnly);
         let scan = state.scan(false, None);
         assert_eq!(scan.added, 3);
 

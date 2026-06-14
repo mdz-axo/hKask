@@ -28,9 +28,9 @@ gas:
 
   inference_energy:
     source: LLMCO2-AAAI-2026
-      fast_local: 0.0003
-      balanced: 0.0008
-      reasoning_local: 0.0015
+    fast_local: 0.0003
+    balanced: 0.0008
+    reasoning_local: 0.0015
 
   pue: 1.15
   token_budget: 100000
@@ -194,7 +194,7 @@ steps:
     renderer: null
     template_ref: null
     target: execute_kata_switch
-    mcp: null  # internal SqliteRegistry was hkask-mcp-templates
+    mcp: null # internal SqliteRegistry was hkask-mcp-templates
     tool: kata_switch
     token_cap: 5000
     timeout_seconds: 20
@@ -231,7 +231,7 @@ steps:
     renderer: null
     template_ref: null
     target: execute_kata_iteration
-    mcp: null  # internal SqliteRegistry was hkask-mcp-templates
+    mcp: null # internal SqliteRegistry was hkask-mcp-templates
     tool: kata_iteration
     token_cap: 50000
     timeout_seconds: 90

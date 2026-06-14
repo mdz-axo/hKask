@@ -46,7 +46,7 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 | `hkask-services` | Shared service layer (CLI/API deduplication) |
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
-| `hkask-mcp-media` | Media generation MCP server (image, video, audio, 3D) |
+| `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage, 3D) — 24 tools
 | `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache, query) |
 | `hkask-mcp-training` | Model training data ingestion MCP server (stub) |
 | `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research |
@@ -117,7 +117,7 @@ Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Ze
 
 **Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both. Concurrency planned for future release.
 
-**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`
+**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`, `/talk on|off|voice`, `/listen start|stop|view`
 
 **`/repl` sub-settings** (user-configurable inference params, persisted to `~/.config/hkask/settings.json`):
 

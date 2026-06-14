@@ -1,8 +1,8 @@
 ---
 title: "Test Inventory"
 audience: [architects, developers, agents]
-version: "2.3.0"
-last_updated: 2026-06-13
+version: "2.4.0"
+last_updated: 2026-06-14
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]
@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # Test Inventory
 
-Re-derived from `cargo test --workspace -- --list` on 2026-06-13.
+Re-derived from `cargo test --workspace -- --list` on 2026-06-14.
 Per MDS §8 and `docs/specifications/test-program.md`.
 
 ---
@@ -19,36 +19,30 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 
 | Crate/MCP Server | Tests | Module |
 |------------------|-------|--------|
-| `hkask-services` | 35 | chat (9), cns (3), pods (3), goal (3), curator (2), 15 others |
-| `hkask-cli` | 25 | settings (12), repl_settings (4), turn/compaction (3), onboarding (3), feedback (3) |
-| `hkask-storage` | 18 | spec_store (6), spec_types (5), store_macros (4 doc-tests), lock_helpers (3 doc-tests) |
-| `hkask-templates` | 12 | contract_validator (5), lexicon (6), okapi_config (1 doc-test) |
-| `hkask-cns` | 11 | governed_tool (4 OCAP + 1 doc-test + 1 integration), algedonic (2), variety (3) |
-| `hkask-agents` | 8 | mode (4: activation, exclusion, assignment, switch), curator persona_filter (4) |
-| `hkask-mcp-spec` | 7 | goal_capture (2 + 1 fuzz), coherence (1), graph_query (1), writing_quality (1), tool listing (1) |
-| `hkask-mcp` | 5 | daemon (5: auth, unauth, assignment, capability, dual-encoding) |
-| `hkask-mcp-condenser` | 27 | algorithms (16), types (11) |
-| `hkask-mcp-companies` | 29 | analysis (20: management 6, moat/working capital 14) + providers (9: routing, normalization) |
-| `hkask-mcp-research` | 23 | strip_html (8), freshness (6), ranking (5), rate_limiter (4) |
+| `hkask-services` | 60 | chat, cns, pods, goals, curator, kata, wallet |
+| `hkask-cli` | 41 | settings (12), repl_settings (4), turn/compaction (3), onboarding (3), feedback (3), mcp parse (13), passphrase (3) |
+| `hkask-storage` | 50 | spec_store (6), spec_types (5), wallet (12), gallery (8), escalation (6), triples (5), agent_registry (2), store_macros (4 doc), lock_helpers (3 doc) |
+| `hkask-templates` | 13 | contract_validator (5), lexicon (6), okapi_config (1 doc-test), manifest (1) |
+| `hkask-cns` | 20 | governed_tool (4 OCAP + 1 doc-test + 1 integration), algedonic (2), variety (3), alert (2), cns_service (6), runtime (1) |
+| `hkask-agents` | 10 | mode (4), curator persona_filter (4), pod (2) |
+| `hkask-mcp-spec` | 10 | goal_capture (3 + 1 fuzz), coherence (1), graph_query (1), writing_quality (1), tool listing (1), replica (2) |
+| `hkask-mcp` | 8 | daemon (5: auth, unauth, assignment, capability, dual-encoding), server (3) |
+| `hkask-mcp-condenser` | 29 | algorithms (16), types (11), engine (2) |
+| `hkask-mcp-companies` | 82 | analysis (20) + providers (9) + portfolio (23) + screening (19) + tools (11) |
+| `hkask-mcp-research` | 46 | strip_html (8), freshness (6), ranking (5), rate_limiter (4), extraction (8), search (9), browsing (6) |
 | `hkask-inference` | 20 | config (7), chat_protocol (3), fal_backend (4), embedding_router (4), ollama_backend (2) |
 | `hkask-api` | 2 | settings merge, settings validation |
-| `hkask-types` | 17 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2) |
+| `hkask-types` | 21 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2), voice (2), transcript (2) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
 | `hkask-mcp-replica` | 0 | Shallow module — pass-through to compose/embed services (C8) |
-| `hkask-mcp-docproc` | 72 | ocr pipeline (51) + tools (21: strip_json_fences 5, chunk 5, cache 2, cosine 4, validation 5) + integration (3) |
+| `hkask-mcp-docproc` | 73 | ocr pipeline (51) + tools (22: strip_json_fences 5, chunk 5, cache 2, cosine 4, validation 5, triples 1) |
 | `hkask-mcp-training` | 0 | Stub — shallow pass-through to semantic memory (C8) |
 | `hkask-mcp-communication` | 0 | Shallow module — local TTS passthrough (C8) |
-| `hkask-mcp-media` | 12 | Gallery state (7) + Levenshtein (5) |
+| `hkask-mcp-media` | 16 | Gallery state (7) + Levenshtein (5) + Integration (4) |
+| `hkask-memory` | 14 | consolidation, episodic, semantic pipelines |
+| `hkask-keystore` | 6 | key derivation, encryption round-trip |
 
-**Total: 305 tests across 19 crates** (↑ from 296; companies provider abstraction tests)
-| `hkask-memory` | 0 | Requires external embedding model |
-| `hkask-keystore` | 0 | Requires OS keychain |
-| `hkask-mcp-condenser` | 0 | External server; tested via integration |
-| `hkask-mcp-research` | 0 | External server (consolidated web + rss-reader 2026-06-11) |
-| `hkask-mcp-companies` | 0 | External server |
-| `hkask-mcp-communication` | 0 | External server |
-| `hkask-mcp-media` | 12 | External server; 12 unit tests |
-| **Total** | **107** | |
+**Total: 534 tests across 22 crates** (↑ from 305; expanded test coverage across multiple crates)
 
 ---
 
@@ -73,6 +67,16 @@ Per C8: "Test depth matches module depth."
 | `hkask-mcp-spec` | ✅ Compliant | 7 tests: capture (3), coherence (1), graph_query (1), writing_quality (1), tool listing (1) |
 
 ---
+
+## Recent Additions (2026-06-14 Session)
+
+Media MCP server completion — collage, tests, voice, listen, talk:
+
+| Crate | Tests Added | P8 Status | Details |
+|-------|------------|-----------|--------|
+| `hkask-mcp-media` | 4 | ✅ New | 4 integration tests: `gallery_lifecycle_init_to_search`, `collage_compose_grid_layout`, `gallery_store_image_not_found`, `gallery_three_state_policy`. Tagged `// REQ: media-gallery-lifecycle-01`, `media-collage-compose-01`, `media-gallery-error-01`, `media-gallery-policy-01`. |
+| `hkask-cli` | 0 | ✅ Expanded | New `/listen start|stop|view` and `/talk on|off|voice` REPL commands. Talk mode includes speech summarizer (LLM-condensed spoken output) and ffplay-based TTS playback. Listen mode includes capture→transcribe_bundle→save pipeline with `/listen view` opening TUI transcript viewer with word-level highlighting. |
+| `hkask-mcp-media` (tools) | — | ✅ Expanded | `image_create_collage` now supports three modes: `search_terms` (semantic tag search), `similar_to_index` (similar images), `image_indices` (explicit). Mutual exclusivity enforced. `record_and_transcribe` now returns `TranscriptBundle` with word-level timestamps (same format as `transcribe_bundle`). Gallery error messages consolidated from `gallery_init` → `gallery_set_root`. |
 
 ## Recent Additions (2026-06-13 Session)
 

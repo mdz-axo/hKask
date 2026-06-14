@@ -8,6 +8,7 @@ use crate::cli::KataAction;
 use hkask_cns::CnsRuntime;
 use hkask_inference::InferenceConfig;
 use hkask_services::{CliExperienceRecorder, KataEngine, KataError, KataHistory, PracticeEntry};
+use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -170,6 +171,24 @@ fn start_kata(
         }
     }
 
+    // Extract IK state reference if present (for coaching grounding)
+    let ik_state_path = ctx.get("ik_state").cloned();
+    let ik_state_ref = ik_state_path.as_ref().and_then(|p| {
+        let path = PathBuf::from(p);
+        if path.exists() {
+            match std::fs::read_to_string(&path) {
+                Ok(json) => Some(json),
+                Err(e) => {
+                    eprintln!("Warning: Failed to read IK state file '{}': {}", p, e);
+                    None
+                }
+            }
+        } else {
+            eprintln!("Warning: IK state file not found: {}", p);
+            None
+        }
+    });
+
     // Load kata history for habit tracking and automaticity scoring
     let history_path = kata_history_path();
     let history = KataHistory::load(&history_path).unwrap_or_else(|e| {
@@ -179,6 +198,10 @@ fn start_kata(
         );
         KataHistory::default()
     });
+
+    // Try to open SQLite history store for concurrent, queryable persistence.
+    // Falls back to JSON-only when the database is unavailable (e.g., standalone CLI).
+    let history_store = try_open_history_store();
 
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
     eprintln!(
@@ -195,11 +218,23 @@ fn start_kata(
         std::sync::Arc::new(inference);
 
     // Build engine with shared registry (has bootstrapped templates)
-    let engine = KataEngine::new(inference_port, registry.clone())
+    let cns_rt = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+        hkask_cns::DEFAULT_THRESHOLD,
+    )));
+
+    let mut engine = KataEngine::new(inference_port, registry.clone())
         .with_history(history)
-        .with_cns_runtime(Arc::new(RwLock::new(CnsRuntime::with_threshold(
-            hkask_cns::DEFAULT_THRESHOLD,
-        ))))
+        .with_cns_runtime(cns_rt)
+        .with_metrics(move |_agent: &str, _metric: &str| {
+            // CNS variety counters are accessible via the daemon's async API.
+            // Direct sync access requires async→sync bridging, which is not
+            // possible inside a tokio runtime (nested runtimes forbidden).
+            // The full CNS→Curator feedback loop goes through the daemon.
+            Ok(serde_json::json!({
+                "source": "cns_variety_daemon",
+                "note": "CNS metrics available through daemon connectivity"
+            }))
+        })
         .with_consent(move |kata_type: &str, _learner: &str| {
             // P2 Affirmative Consent — kata execution authorization
             match kata_type {
@@ -251,6 +286,11 @@ fn start_kata(
             );
         });
 
+    // Conditionally add SQLite history store (falls back to JSON when unavailable)
+    if let Some(ref store) = history_store {
+        engine = engine.with_history_store(store.clone());
+    }
+
     // Load manifest
     let manifest = match KataEngine::load_manifest(&path) {
         Ok(m) => m,
@@ -263,7 +303,7 @@ fn start_kata(
     // Resume from saved state if provided
     let initial_state = if let Some(rp) = resume_path {
         match hkask_services::KataState::load(rp) {
-            Ok(state) => {
+            Ok(mut state) => {
                 eprintln!(
                     "Resumed state from {} (step {}/{})",
                     rp.display(),
@@ -274,6 +314,12 @@ fn start_kata(
                         manifest.questions.len()
                     }
                 );
+                // Inject IK state reference for coaching grounding
+                if let Some(ref ik) = ik_state_ref {
+                    if state.ik_state_ref.is_none() {
+                        state.ik_state_ref = Some(ik.clone());
+                    }
+                }
                 Some(state)
             }
             Err(e) => {
@@ -282,11 +328,26 @@ fn start_kata(
             }
         }
     } else {
-        None
+        // New state with optional IK grounding
+        if let Some(ref ik) = ik_state_ref {
+            let mut state = hkask_services::KataState::default();
+            state.ik_state_ref = Some(ik.clone());
+            Some(state)
+        } else {
+            None
+        }
     };
 
     eprintln!("=== Executing {} ===", manifest.manifest.name);
-    eprintln!("Type: {}", manifest.manifest.kata_type);
+    let kata_type = manifest.manifest.kata_type.as_str();
+    eprintln!(
+        "Type: {}",
+        if kata_type.is_empty() {
+            "bundle"
+        } else {
+            kata_type
+        }
+    );
     eprintln!("Bot: {}", bot);
     eprintln!("Gas cap: {}", manifest.gas.cap);
     if resume_path.is_some() {
@@ -296,16 +357,24 @@ fn start_kata(
 
     // Execute
     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+
+    // Bundle manifests (no kata_type) use the bundle orchestrator
+    let is_bundle = kata_type.is_empty()
+        || (!matches!(kata_type, "improvement" | "coaching" | "starter")
+            && !manifest.steps.is_empty());
+
     let result = if let Some(mut state) = initial_state {
-        // Resume: continue from saved state
+        // Resume: continue from saved state (bundle resume not yet supported)
         rt.block_on(async {
-            match manifest.manifest.kata_type.as_str() {
+            match kata_type {
                 "improvement" => engine.run_improvement_from(&manifest, &mut state).await,
                 "coaching" => engine.run_coaching_from(&manifest, &mut state).await,
                 "starter" => engine.run_starter(&manifest, &mut state).await,
-                other => Err(KataError::UnknownType(other.to_string())),
+                _ => Err(KataError::UnknownType(kata_type.to_string())),
             }
         })
+    } else if is_bundle {
+        rt.block_on(engine.run_bundle(&manifest, bot, ctx))
     } else {
         rt.block_on(engine.execute(&manifest, bot, ctx))
     };
@@ -426,6 +495,32 @@ fn start_kata(
                     streak, auto
                 );
             }
+
+            // Persist to SQLite history store when available (concurrent, queryable)
+            match engine.record_history_entry(
+                bot,
+                &today,
+                &manifest.manifest.kata_type,
+                &manifest.manifest.id,
+                result.steps_completed,
+                result.gas_consumed,
+            ) {
+                Ok(Some(id)) => {
+                    tracing::info!(
+                        target: "hkask.kata",
+                        row_id = id,
+                        agent = %bot,
+                        kata_type = %manifest.manifest.kata_type,
+                        "Kata history recorded to SQLite"
+                    );
+                }
+                Ok(None) => {
+                    // No store available — already persisted to JSON above
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to record history to SQLite: {}", e);
+                }
+            }
         }
         Err(KataError::GasExceeded { consumed, cap }) => {
             eprintln!(
@@ -445,4 +540,43 @@ fn start_kata(
 fn kata_history_path() -> PathBuf {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     cwd.join("data").join("kata-history.json")
+}
+
+/// Default database path for kata history SQLite storage.
+///
+/// Matches the daemon's DEFAULT_DB_PATH. When the daemon is running,
+/// the database exists at this path. When running standalone CLI, the
+/// path may not exist — the caller handles the fallback.
+fn kata_default_db_path() -> String {
+    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "data/hkask.db".to_string())
+}
+
+/// Attempt to open a kata history store from the daemon's database.
+///
+/// Opens a direct unencrypted SQLite connection (bypasses SQLCipher).
+/// Creates the kata_history table if it doesn't exist. Returns `None` if
+/// the database file doesn't exist or can't be opened — the caller falls
+/// back to JSON-based persistence.
+fn try_open_history_store() -> Option<Arc<KataHistoryStore>> {
+    let db_path = kata_default_db_path();
+    if !std::path::Path::new(&db_path).exists() {
+        return None;
+    }
+    let conn = rusqlite::Connection::open(&db_path).ok()?;
+    // Create the kata_history table if it doesn't exist (idempotent)
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS kata_history (id INTEGER PRIMARY KEY AUTOINCREMENT, agent_name TEXT NOT NULL, date TEXT NOT NULL, kata_type TEXT NOT NULL, practice_name TEXT NOT NULL, steps_completed INTEGER NOT NULL DEFAULT 0, gas_consumed INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));"
+    ).ok()?;
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_kata_history_agent ON kata_history(agent_name);",
+    )
+    .ok()?;
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_kata_history_date ON kata_history(date);")
+        .ok()?;
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_kata_history_type ON kata_history(kata_type);",
+    )
+    .ok()?;
+    let store = KataHistoryStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+    Some(Arc::new(store))
 }

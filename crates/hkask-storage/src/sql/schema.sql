@@ -34,3 +34,8 @@ CREATE INDEX IF NOT EXISTS idx_deposit_refs_expires ON deposit_references(expire
 -- Encumbrance table — rJoule locks for API key allocations
 CREATE TABLE IF NOT EXISTS encumbrances (key_id TEXT PRIMARY KEY REFERENCES api_keys(key_id), wallet_id TEXT NOT NULL REFERENCES wallet_balances(wallet_id), amount_rj INTEGER NOT NULL, consumed_rj INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL DEFAULT (datetime('now')), released_at TEXT);
 CREATE INDEX IF NOT EXISTS idx_encumbrances_wallet_id ON encumbrances(wallet_id);
+-- Kata practice history — tracks practice frequency, streaks, and automaticity across sessions
+CREATE TABLE IF NOT EXISTS kata_history (id INTEGER PRIMARY KEY AUTOINCREMENT, agent_name TEXT NOT NULL, date TEXT NOT NULL, kata_type TEXT NOT NULL, practice_name TEXT NOT NULL, steps_completed INTEGER NOT NULL DEFAULT 0, gas_consumed INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE INDEX IF NOT EXISTS idx_kata_history_agent ON kata_history(agent_name);
+CREATE INDEX IF NOT EXISTS idx_kata_history_date ON kata_history(date);
+CREATE INDEX IF NOT EXISTS idx_kata_history_type ON kata_history(kata_type);

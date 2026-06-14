@@ -9,4 +9,4 @@
 pub mod state;
 pub mod vision;
 
-pub use state::{GalleryMode, GalleryState};
+pub use state::GalleryState;

@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -96,6 +96,21 @@ All ReplSettings fields are equally exposed across:
 - **API:** `GET /api/settings` and `PUT /api/settings` endpoints
 
 All three surfaces read/write the same `~/.config/hkask/settings.json` file. No settings are hidden, admin-gated, or surface-restricted.
+
+### Voice Interaction (Talk + Listen)
+
+The REPL supports bidirectional voice interaction through the media MCP server (`hkask-mcp-media`):
+
+| Command | Behavior |
+|---------|----------|
+| `/talk on` | Enable speech output — after each agent response, a speech summarizer condenses the output into 1-3 spoken sentences via LLM, then plays through ffplay |
+| `/talk off` | Disable speech output |
+| `/talk voice [DESC]` | Set or show the TTS voice profile (calls `voice_design` on media server, maps to ElevenLabs presets) |
+| `/listen start [SECONDS]` | Record audio from microphone (default 30s), transcribe with word-level timestamps via `transcribe_bundle`, save as `TranscriptBundle` JSON |
+| `/listen stop` | Show info about the last recording |
+| `/listen view [FILE]` | Open TUI transcript viewer with word-level highlighting synced to audio playback (Richmond Gold #B79163) |
+
+**Architecture:** `/talk` calls the speech summarizer (inference port) → `generate_speech` (MCP media) → ffplay. `/listen` calls `audio_capture` → `transcribe_bundle` (MCP media). Both use `GovernedTool` for OCAP-gated MCP invocation. The `TranscriptViewer` renders `TranscriptBundle` JSON using ratatui + ffplay subprocess.
 
 ---
 

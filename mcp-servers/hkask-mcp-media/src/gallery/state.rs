@@ -1,27 +1,20 @@
 //! Gallery state management — init, scan, info.
 //!
 //! Manages a local image directory with a SQLite index for metadata,
-//! tags, captions, objects, and faces. Supports two modes:
-//! - `original`: files are read-only, never modified
-//! - `copy`: files can be edited, originals preserved elsewhere
+//! tags, captions, objects, and faces. Supports three modes:
+//! - `read-only`: files are read-only, never modified
+//! - `copy-on-write`: files can be edited, originals preserved elsewhere
+//! - `destructive`: files may be edited in-place, original data may be lost
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+pub use hkask_storage::GalleryMode;
+
 /// Supported image extensions for gallery scanning.
 const DEFAULT_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff"];
-
-/// Gallery operating mode.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum GalleryMode {
-    /// Files are read-only, never modified.
-    Original,
-    /// Files can be edited, originals preserved elsewhere.
-    Copy,
-}
 
 /// Configuration and state for an active gallery.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,9 +258,9 @@ mod tests {
     /// REQ: media-gallery-init-01 — GalleryState::new creates valid state
     #[test]
     fn gallery_new_creates_state() {
-        let state = GalleryState::new(PathBuf::from("/tmp/test"), GalleryMode::Original);
+        let state = GalleryState::new(PathBuf::from("/tmp/test"), GalleryMode::ReadOnly);
         assert_eq!(state.path, PathBuf::from("/tmp/test"));
-        assert_eq!(state.mode, GalleryMode::Original);
+        assert_eq!(state.mode, GalleryMode::ReadOnly);
         assert_eq!(state.image_count, 0);
         assert_eq!(state.total_size_bytes, 0);
         assert!(state.last_scan.is_none());
@@ -278,7 +271,7 @@ mod tests {
     fn validate_rejects_missing_path() {
         let state = GalleryState::new(
             PathBuf::from("/nonexistent/path/12345"),
-            GalleryMode::Original,
+            GalleryMode::ReadOnly,
         );
         let result = state.validate();
         assert!(result.is_err());
@@ -289,7 +282,7 @@ mod tests {
     #[test]
     fn validate_accepts_existing_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let state = GalleryState::new(dir.path().to_path_buf(), GalleryMode::Original);
+        let state = GalleryState::new(dir.path().to_path_buf(), GalleryMode::ReadOnly);
         assert!(state.validate().is_ok());
     }
 
@@ -297,7 +290,7 @@ mod tests {
     #[test]
     fn ensure_meta_dir_creates_directory() {
         let dir = tempfile::tempdir().unwrap();
-        let state = GalleryState::new(dir.path().to_path_buf(), GalleryMode::Original);
+        let state = GalleryState::new(dir.path().to_path_buf(), GalleryMode::ReadOnly);
         state.ensure_meta_dir().unwrap();
         assert!(state.meta_dir.exists());
         assert!(state.meta_dir.is_dir());
@@ -307,7 +300,7 @@ mod tests {
     #[test]
     fn scan_finds_images() {
         let (_dir, gallery_path) = setup_test_gallery();
-        let mut state = GalleryState::new(gallery_path.clone(), GalleryMode::Original);
+        let mut state = GalleryState::new(gallery_path.clone(), GalleryMode::ReadOnly);
         let result = state.scan(true, None);
         assert_eq!(result.added, 1);
         assert_eq!(state.image_count, 1);
@@ -319,7 +312,7 @@ mod tests {
     #[test]
     fn scan_respects_extension_filter() {
         let (_dir, gallery_path) = setup_test_gallery();
-        let mut state = GalleryState::new(gallery_path.clone(), GalleryMode::Original);
+        let mut state = GalleryState::new(gallery_path.clone(), GalleryMode::ReadOnly);
         let result = state.scan(true, Some(&["gif".to_string(), "bmp".to_string()]));
         assert_eq!(
             result.added, 0,
@@ -330,10 +323,10 @@ mod tests {
     /// REQ: media-gallery-info-01 — summary returns correct structure
     #[test]
     fn summary_returns_correct_structure() {
-        let state = GalleryState::new(PathBuf::from("/tmp/test"), GalleryMode::Copy);
+        let state = GalleryState::new(PathBuf::from("/tmp/test"), GalleryMode::CopyOnWrite);
         let summary = state.summary();
         assert_eq!(summary["path"], "/tmp/test");
-        assert_eq!(summary["mode"], "copy");
+        assert_eq!(summary["mode"], "copy-on-write");
         assert_eq!(summary["image_count"], 0);
     }
 }

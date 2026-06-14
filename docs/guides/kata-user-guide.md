@@ -14,87 +14,58 @@ mds_categories: [composition, lifecycle]
 
 ### 1.1 Origins: Mike Rother and Toyota Kata (2004–2009)
 
-Between 2004 and 2009, researcher Mike Rother studied Toyota's management system to understand the factors behind their sustained success with continuous improvement and adaptation. His finding was that Toyota's approach revolves around **daily practice of a practical form of scientific thinking across the organization, with managers taking the role of coaches**.
-
-Rother observed a repeating pattern of thinking and behavior in Toyota managers that was different from prevailing Western command-and-control routines. He depicted this pattern as a four-step model, which he named the **Improvement Kata** — "kata" being a Japanese term for structured practice routines (from martial arts, where kata are used to train combatants in basic building-block moves).
-
-The research was published in 2009 as the book *Toyota Kata: Managing People for Improvement, Adaptiveness, and Superior Results*. [^rother-2009]
+Between 2004 and 2009, researcher Mike Rother studied Toyota's management system. His finding: Toyota's approach revolves around **daily practice of a practical form of scientific thinking, with managers as coaches**. He named the pattern the **Improvement Kata** — "kata" from martial arts practice routines. Published in 2009 as *Toyota Kata*. [^rother-2009]
 
 ### 1.2 Core Concepts
 
-**Scientific thinking is not our default mode.** Our brains create feelings of certainty based on limited information. We jump to conclusions. We don't notice our knowledge threshold — where what we know ends and assumption begins. Scientific thinking means knowing that any idea should be tested, learning to compare what you think (theory) with what actually happens (evidence), and adjusting based on what you discover from the difference.
+**Scientific thinking is not our default mode.** We jump to conclusions. We don't notice our knowledge threshold — where facts end and assumptions begin. Scientific thinking means testing ideas, comparing theory to evidence, and adjusting based on what you discover.
 
-**Kata are practice routines.** The word comes from martial arts, where kata are used to train combatants in basic building-block moves. In Toyota Kata, kata are simple, structured routines that you practice deliberately, especially at the beginning, so their pattern becomes a habit and leaves you with new abilities.
+**Kata are practice routines.** Structured routines practiced deliberately until the pattern becomes habitual.
 
-**Starter Kata are training wheels.** Rother explicitly calls them "starter" (not "finishing") kata because learners are expected to graduate beyond them. They are deliberately simplified practice routines for each step of the Improvement Kata and for coaching. Once the pattern becomes automatic — a meta-habit — the learner develops their own way.
+**Starter Kata are training wheels.** Deliberately simplified. Learners graduate beyond them once the pattern becomes automatic.
 
-**Coaching is essential.** "Without coaching, a change in our brain's wiring is less likely to occur." [^rother-2017] The coach makes the learner's thinking visible, provides procedural guidance (not solutions), and reinforces the scientific pattern daily. Coaching itself is a skill that takes practice.
+**Coaching is essential.** "Without coaching, a change in our brain's wiring is less likely to occur." [^rother-2017] The coach provides procedural guidance, never solutions.
 
 ### 1.3 The Two Linked Behaviors
 
-Toyota Kata has **two linked behaviors**, not three:
-
 | Behavior | Who Practices | What They Do |
 |----------|--------------|--------------|
-| **Improvement Kata (IK)** | The learner | 4-step scientific pattern for achieving challenging goals |
-| **Coaching Kata (CK)** | The coach (manager/supervisor) | 5-question dialogue to teach the IK pattern |
+| **Improvement Kata (IK)** | The learner | 4-step PDCA scientific pattern |
+| **Coaching Kata (CK)** | The coach | 5-question dialogue grounded in IK data |
 
-**Starter Kata are NOT a third behavior.** They are the practice routines for learning each step of the IK and CK. They are the "how" of practicing, not a separate "what." [^rother-medium]
+**Starter Kata are NOT a third behavior.** They are practice routines for learning IK and CK steps.
 
-### 1.4 The Improvement Kata — 4-Step Scientific Pattern
+### 1.4 The Improvement Kata — 4-Step PDCA Pattern
 
 ```
-Step 1: UNDERSTAND THE DIRECTION
-        Challenge from the level above. What are we trying to achieve?
-
-Step 2: GRASP THE CURRENT CONDITION
-        Facts and data. Go and see. Don't assume.
-        This is your Current Knowledge Threshold.
-
-Step 3: ESTABLISH THE NEXT TARGET CONDITION
-        Specific, measurable, 1 week to 3 months out.
-        Beyond current knowledge threshold.
-        Obstacles become visible here → Obstacles Parking Lot.
-
-Step 4: ITERATE TOWARD THE TARGET CONDITION
-        Rapid PDCA experiments. One obstacle at a time.
+Step 1: UNDERSTAND THE DIRECTION — Challenge from above. Knowledge threshold.
+Step 2: GRASP THE CURRENT CONDITION — Facts and data. Go and see. metric_before.
+Step 3: ESTABLISH THE NEXT TARGET CONDITION — Specific, measurable, 1wk–3mo.
+        Obstacles visible here → Obstacles Parking Lot.
+Step 4: ITERATE (PDCA) — Plan→Do→Check→Act. One obstacle at a time.
         Each experiment moves the knowledge threshold.
-        Coaching cycles happen here (daily, ~20 minutes).
+        After cycle: metric_after → improvement signal → Act on findings.
 ```
 
-**Critical insight:** Step 4 is where the real work happens. You will encounter obstacles you couldn't see from the planning phase. The path won't be straight — you're in a mode of rapid learning and discovery, adjusting course based on facts and data. The threshold of knowledge moves with each experiment.
+**The cybernetic loop:** Before/after measurement closes the PDCA cycle. The engine captures metrics before the cycle (from CNS counters or declared baselines), runs all 4 steps, captures metrics after, and computes the improvement signal — IS evidence of change.
 
 ### 1.5 The Coaching Kata — 5-Question Dialogue
 
-The coach asks these five questions in sequence, daily, at the gemba (where the work happens):
-
 | # | Question | Purpose |
 |---|----------|---------|
-| 1 | What is the **Target Condition**? | Ground the learner in the goal |
-| 2 | What is the **Actual Condition** now? | Ground the learner in reality |
-| 3 | What **Obstacles** do you think are preventing you from reaching the target condition? Which **ONE** are you addressing now? | Focus the learner |
-| 4 | What is your **Next Step**? (Next experiment) What do you **expect**? | Drive action — this is the PDCA Plan step |
-| 5 | How quickly can we go and see what we have **Learned** from taking that step? | Close the feedback loop |
+| 1 | What is the **Target Condition**? | Ground learner in the goal |
+| 2 | What is the **Actual Condition** now? | Ground learner in reality (IS, not assumptions) |
+| 3 | What **Obstacles**? Which **ONE** now? | Focus — one obstacle at a time |
+| 4 | What is your **Next Step**? What do you **expect**? | PDCA Plan with prediction |
+| 5 | How quickly can we go and see what we **Learned**? | Close the feedback loop |
 
-The coach provides **procedural guidance, not solutions.** "Have you checked the metrics?" not "You should adjust the timeout to 5 seconds." The coach's role is to make the learner's thinking visible and reinforce the scientific pattern.
+**The coach never gives solutions.** "Have you checked the metrics?" not "You should adjust the timeout." Coaching questions are grounded in the learner's actual IK storyboard data via `ik_state_ref`.
 
-### 1.6 The Meta-Cognitive Loop
+### 1.6 Key Principles
 
-The daily coaching cycle is the meta-cognitive engine of Toyota Kata. It serves three purposes:
-
-1. **Reinforces the pattern** of the Improvement Kata through daily repetition
-2. **Makes the learner's thinking apparent** so the coach can give appropriate feedback
-3. **Helps the learner see what they cannot see alone** — their own knowledge threshold
-
-Over time, the learner internalizes the pattern. The Starter Kata routines are gradually replaced by meta-habits. The learner begins to approach every problem with the "skeleton" of the Kata routine, understanding that they are not experimenting TO the solution but experimenting to FIND obstacles. They become obstacle-driven rather than solution-driven.
-
-### 1.7 Key Principles from the Research
-
-- **20 minutes a day is better than two hours once a week.** If you practice only periodically and the rest of the time it's business as usual, what you're actually practicing is business as usual. [^rother-2017]
-- **Knowing isn't the same as doing.** Benchmarking is not enough to make change happen. [^rother-medium]
-- **You can really only work on one bad habit at a time.** [^rother-2017]
-- **The path to a challenging goal can't be determined in advance.** You navigate with a compass, not a map. [^rother-2009]
-- **Managers become the coaches by default.** Coaching is not a separate role — it's how managers develop their people. [^liker-2021]
+- **20 minutes a day > 2 hours once a week.** [^rother-2017]
+- **You can only work on one bad habit at a time.** [^rother-2017]
+- **The path can't be determined in advance.** Navigate by compass, not map. [^rother-2009]
 
 ---
 
@@ -154,33 +125,76 @@ Each skill is **independently usable and adoptable.** An agent doesn't need the 
 | `improvement-kata.yaml` | kata-improvement | 4-step scientific pattern with gas, CNS, OCAP |
 | `coaching-kata.yaml` | kata-coaching | 5-question dialogue flow with gas, CNS, OCAP |
 
-### 2.5 Interfaces
+### 2.5 Engine Interfaces
 
 The kata engine (`crates/hkask-services/src/kata.rs`) exposes:
 
 | Interface | Purpose |
 |-----------|--------|
-| `KataEngine::execute()` | Execute a full kata cycle |
+| `KataEngine::execute()` | Execute a full kata cycle with before/after metrics |
 | `KataEngine::load_manifest()` | Load and parse a kata manifest |
-| `KataEngine::with_consent()` | Set OCAP consent gate |
+| `KataEngine::with_consent()` | Set OCAP consent gate (P2 Affirmative Consent) |
 | `KataEngine::with_cns()` | Set CNS observer callback |
+| `KataEngine::with_history()` | Inject practice history for streak/automaticity tracking |
+| `KataEngine::with_metrics()` | Inject metric collector for before/after measurement |
+| `KataEngine::with_cns_runtime()` | Inject CnsRuntime for variety counter integration |
 | `KataState::save()` / `KataState::load()` | Persist and resume kata state |
 
 ### 2.6 CNS Integration
 
-All kata execution emits CNS spans under `cns.prompt.kata` with sub-spans for each skill:
+The kata engine integrates with the Cybernetic Nervous System at two levels:
 
-| Counter | Baseline | Warning | Critical |
-|---------|----------|---------|----------|
-| `kata.practices.completed` | 5/week | < 3/week | < 2/week |
-| `kata.habit.formation` | 1 per 21 days | — | < 1 per 30 days |
-| `kata.automaticity.score` | +0.05/week | +0.03/week | +0.01/week |
-| `kata.iterations.used` | 0.5/session | > 1.5/session | > 2.0/session |
-| `kata.variance.score` | < 0.2 | > 0.4 | > 0.6 |
+**Variety Counters:** After each step, practice, or question, the engine increments CNS variety counters via `CnsRuntime::increment_variety()`:
 
-### 2.7 Bootstrap Registration
+| Counter | When Incremented | Baseline |
+|---------|-----------------|----------|
+| `kata.practices.completed` | Every step/question/practice | 5/week |
+| `kata.automaticity.score` | After starter cycle (auto > 0) | +0.05/week |
+| `kata.habit.formation` | After starter cycle (auto > 0.5) | 1 per 21 days |
 
-All 23 kata templates are registered in `registry/templates/bootstrap-registry.yaml` under four sections: Kata Bundle (7 entries), Kata-Starter (5), Kata-Improvement (5), Kata-Coaching (6). The R7.5 bot owns the "kata" domain per `hkask-types/src/r7.rs`. Bootstrap phase 7 (`KataReadiness`) verifies domain ownership.
+**Algedonic Alerts:** After each cycle, the engine checks variety thresholds via `CnsRuntime::check_variety()` and emits `kata.algedonic` warnings when deficits exceed the configured threshold (default 100).
+
+**Tracing Spans:** All execution emits structured spans under `hkask.kata`:
+
+| Span | When | Key Fields |
+|------|------|-----------|
+| `kata.cycle.start` | Cycle begins | kata_type, bot, namespace, automaticity_before |
+| `kata.step.start` | Each step begins | step, action, bot |
+| `kata.step.checked` | PDCA Check phase | step, passed_check |
+| `kata.step.complete` | Each step completes | step, gas |
+| `kata.coaching.question` | Each coaching question | question, bot, has_ik_state |
+| `kata.starter.practice` | Each starter practice | practice, bot |
+| `kata.starter.habit_check` | Before starter cycle | automaticity, streak_days, needs_intervention |
+| `kata.starter.habit_decay_alert` | When 3+ day gap detected | days_since_last |
+| `kata.cycle.complete` | Cycle ends | steps, gas, has_signal, automaticity_delta |
+| `kata.algedonic` | Variety deficit detected | severity, deficit, threshold |
+
+### 2.7 Automaticity & Habit Tracking
+
+Kata practice history is stored in `data/kata-history.json` with per-agent practice entries. The engine computes:
+
+- **Streak**: Consecutive days with at least one practice
+- **Automaticity**: `min(1.0, streak_days / 21.0)` — linearly approaches 1.0 over 21 consecutive days
+- **Decay**: When 3+ days elapse without practice, automaticity decays by `0.8^(days_since / 3)`
+- **Graduation**: Automaticity > 0.5 qualifies for graduation from starter to improvement kata
+- **Habit Intervention**: 3+ days without practice triggers a `kata.starter.habit_decay_alert` CNS warning
+
+### 2.8 Improvement Signal (Cybernetic Feedback)
+
+The Improvement Kata captures metrics before and after each cycle. The engine:
+
+1. Before cycle: calls `MetricCollector` for each metric declared in the manifest (`metric_before`, `metric_after` spans)
+2. After cycle: captures same metrics again
+3. Computes `ImprovementSignal` with delta and direction (Positive/Negative/Stalled/NotMeasured)
+4. Stores signal in `KataResult` and emits it in CNS spans
+
+### 2.9 Memory Integration
+
+Every step produces a `StepExperience` struct recorded to the agent's episodic memory via the daemon's dual-encoding pipeline. Step experiences include: agent name, kata type, step label, action, output summary, gas used, and timestamp. The CLI records each step individually (`kata_step`) plus an overall cycle completion (`kata_execute`).
+
+### 2.10 Bootstrap Registration
+
+All 23 kata templates are registered in `registry/templates/bootstrap-registry.yaml` under four sections: Kata Bundle (7 entries), Kata-Starter (5), Kata-Improvement (5), Kata-Coaching (6). Each template directory has a `manifest.yaml` describing template IDs, types (FlowDef/WordAct/KnowAct), and purposes.
 
 ---
 

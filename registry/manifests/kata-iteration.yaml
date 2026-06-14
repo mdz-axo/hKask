@@ -1,186 +1,118 @@
 # Kata Iteration Manifest
-# ℏKask v0.21.4 — Iteration for variance assessment and confidence building
+# ℏKask v0.27.0 — PDCA iteration with variance assessment and confidence building
+#
+# Invoked by the kata-pattern bundle when a PDCA cycle produces high variance
+# or low confidence. Runs the same kata cycle again with higher temperature
+# (0.8 vs 0.3) to assess variance, then compares results across iterations.
+# Maximum 2 iterations, separate budget from primary execution.
 
 manifest:
   id: kata-iteration
   name: Kata Iteration
+  kata_type: improvement
   description: >
-  functional_role: flowdef
-    Iterate on Kata execution for variance assessment and confidence building.
-    Maximum 2 iterations per Kata session. Separate budget from primary execution.
-  parent_manifest: kata-pattern
-  version: 0.21.4
+    Iterate on a completed PDCA cycle to assess variance and build confidence.
+    Re-executes the kata template with higher temperature, then compares
+    outputs across iterations to determine whether variance decreased and
+    confidence increased. Maximum 2 iterations per session.
   editor: Curator
   visibility: public
 
-# Iteration Budget (separate from primary)
 gas:
-  accounting:
-    framework: GHG-Protocol-Scope-2
-    version: 2024-edition
-  
-  token_budget: 50000  # Per iteration
-  max_iterations: 2
-  total_iteration_budget: 100000  # 50k × 2 max iterations
-  
-  cost_per_token: 0.0008
+  cap: 50000
+  cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
-  
-  carbon_accounting:
-    location_based_co2e: (energy_wh × pue × grid_intensity_location)
-    unit: kg-CO₂e
 
-# Iteration Steps
 steps:
   - ordinal: 1
     action: populate
-    description: Re-execute Kata with temperature variation for variance assessment
+    description: >
+      Step 1: Re-execute the kata cycle with higher temperature for variance assessment.
+      Uses the same template as the primary cycle but with temperature 0.8.
+      The output reveals whether the model's predictions are stable or noisy.
     renderer: minijinja
-    template_ref: kata/{{ kata_type }}-cycle.j2
-    token_cap: 40000
+    template_ref: kata/iteration-check.j2
+    gas_cap: 40000
     timeout_seconds: 60
-    temperature: 0.8  # Higher than primary (0.3) for variance
     output_schema:
       type: object
       properties:
-        kata_outcome:
-          type: object
-        learner_response:
+        target_reached:
+          type: boolean
+        progress_made:
+          type: boolean
+        knowledge_gained:
           type: string
-        automaticity_score:
-          type: number
+        should_iterate:
+          type: boolean
+        next_obstacle:
+          type: string
+        next_target:
+          type: string
 
   - ordinal: 2
     action: populate
-    description: Compare all iterations for variance and confidence assessment
+    description: >
+      Step 2: Compare all iterations for variance and confidence assessment.
+      If the check step says to iterate, the comparison step identifies
+      whether learning converged or diverged across attempts.
     renderer: minijinja
     template_ref: kata/iteration-comparison.j2
-    token_cap: 5000
+    gas_cap: 5000
     timeout_seconds: 20
     output_schema:
       type: object
       properties:
-        variance_score:
-          type: number
-        confidence:
-          type: string
-        select_best:
+        iteration_count:
           type: integer
-        rationale:
+        metric_trajectory:
+          type: array
+        variance_trend:
           type: string
-
-  - ordinal: 3
-    action: execute
-    description: Record best iteration to episodic memory
-    renderer: null
-    template_ref: null
-    target: record_best_iteration
-    mcp: hkask-mcp-memory
-    tool: memory_remember
-    token_cap: 2000
-    timeout_seconds: 10
-    output_schema:
-      type: object
-      properties:
-        triple_id:
+        prediction_accuracy:
+          type: array
+        learning_convergence:
           type: string
-        iteration_number:
-          type: integer
-
-  - ordinal: 4
-    action: execute
-    description: Emit CNS span with iteration data
-    renderer: null
-    template_ref: null
-    target: emit_iteration_cns_span
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
-    tool: cns_emit
-    token_cap: 2000
-    timeout_seconds: 10
-    output_schema:
-      type: object
-      properties:
-        cns_event_id:
+        comparison_note:
           type: string
-        iteration_number:
-          type: integer
-        variance_score:
-          type: number
-        confidence:
-          type: string
-        energy_wh:
-          type: number
-        co2e_kg:
-          type: number
 
 error_handling:
-  on_token_exceeded: abort_and_return_primary
+  on_gas_exceeded: abort_and_return_primary
   on_timeout: retry
   max_retries: 1
   retry_backoff_seconds: 1
-  on_variance_high: trigger_additional_iteration
-  on_confidence_low: trigger_additional_iteration
 
-# CNS Integration
 cns:
   emit_spans: true
   span_namespace: cns.prompt.kata.iteration
-  
-  iteration_tracking:
-    enabled: true
-    max_iterations: 2
-    iteration_budget: 50000
-    variance_threshold: 0.3  # If variance > 30%, flag for review
-    confidence_threshold: 0.5  # If confidence < 50%, trigger iteration
-  
-  variety_counters:
-    - counter_id: kata.iterations.used
-      increment_on: iteration_executed
-      baseline:
-        expected: 0.5  # Average 0.5 iterations per session
-        warning_threshold: 1.5
-        critical_threshold: 2.0
-    
-    - counter_id: kata.variance.score
-      increment_on: variance_measurement
-      baseline:
-        expected: 0.2  # Target variance < 20%
-        warning_threshold: 0.4
-        critical_threshold: 0.6
-  
-  algedonic_alerts:
-    - trigger: iteration_budget_exceeded
-      condition: iterations_used > max_iterations
-      escalate_to: Curator
-    - trigger: high_variance_detected
-      condition: variance_score > 0.5
-      escalate_to: Curator
-    - trigger: low_confidence_persistent
-      condition: confidence_low_after_2_iterations
-      escalate_to: Curator
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
 
-# Carbon Accounting
-carbon:
-  tracking:
-    enabled: true
-    counter_id: kata.iteration.carbon.cumulative
-    unit: kg-CO₂e
-    grid_intensity_source: IEA-Emission-Factors-2026
-    pue: 1.15
+outcomes:
+  - name: converging
+    condition: "variance_trend is decreasing"
+    action: "Iteration produced stable results — update CNS confidence counter"
+  - name: diverging
+    condition: "variance_trend is increasing"
+    action: "Escalate to Curator for process review"
+  - name: stable
+    condition: "variance_trend is stable"
+    action: "Process is predictable — no further iteration needed"
 
-# Audit Trail
+metrics:
+  - name: variance_score
+    description: "Variance between primary and iteration outputs"
+    span: "cns.prompt.kata.variance"
+  - name: confidence
+    description: "Confidence in the learning trajectory"
+    span: "cns.prompt.kata.confidence"
+
 audit:
   enabled: true
   log_level: info
-  include:
-    - iteration_number
-    - variance_score
-    - confidence
-    - token_count
-    - energy_wh
-    - co2e_kg
-  methodology_disclosure:
-    framework: GHG-Protocol-Scope-2-2024
-    grid_intensity_source: IEA-Emission-Factors-2026
-    pue_assumption: 1.15
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true
