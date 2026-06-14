@@ -143,5 +143,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
+
+        Commands::Matrix { action } => commands::matrix::run(action),
     }
 }

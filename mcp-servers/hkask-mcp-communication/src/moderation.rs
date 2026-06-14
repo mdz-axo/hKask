@@ -236,6 +236,264 @@ impl Default for ModerationQueue {
     }
 }
 
+// ── SQLite-backed ModerationQueue ──────────────────────────────────────
+
+/// SQLite-backed moderation queue using `hkask-storage::Database`.
+///
+/// Persists escalations in an `escalations` table with full audit trail.
+/// Survives restarts. The caller must run `migrate()` once during server
+/// startup to create the table (idempotent via `IF NOT EXISTS`).
+pub struct SqliteModerationQueue {
+    conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    sla_duration_secs: i64,
+}
+
+impl SqliteModerationQueue {
+    /// Create a new SQLite-backed queue using an existing `hkask_storage::Database`.
+    pub fn new(db: hkask_storage::Database, sla_duration_secs: i64) -> Self {
+        Self {
+            conn: db.conn_arc(),
+            sla_duration_secs,
+        }
+    }
+
+    /// Initialize the `escalations` table.
+    ///
+    /// Call once during server startup. Idempotent — uses `IF NOT EXISTS`.
+    pub fn migrate(&self) -> Result<(), ModerationError> {
+        let conn = self.conn.lock().map_err(|e| {
+            ModerationError::Storage(format!("Lock error: {}", e))
+        })?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS escalations (
+                id TEXT PRIMARY KEY,
+                room_id TEXT NOT NULL,
+                flagged_by TEXT NOT NULL,
+                content_summary TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                state TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                sla_deadline INTEGER NOT NULL,
+                curator_notes TEXT
+            )",
+        )
+        .map_err(|e| ModerationError::Storage(format!("Migration failed: {}", e)))
+    }
+
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, ModerationError> {
+        self.conn
+            .lock()
+            .map_err(|e| ModerationError::Storage(format!("Lock error: {}", e)))
+    }
+
+    /// Push a new escalation into the queue.
+    pub fn push(&self, escalation: &Escalation) -> Result<(), ModerationError> {
+        let conn = self.lock()?;
+        conn.execute(
+            "INSERT INTO escalations (id, room_id, flagged_by, content_summary, severity, state, created_at, sla_deadline, curator_notes)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                escalation.id,
+                escalation.room_id,
+                escalation.flagged_by,
+                escalation.content_summary,
+                serde_json::to_string(&escalation.severity).unwrap_or_default(),
+                serde_json::to_string(&escalation.state).unwrap_or_default(),
+                escalation.created_at,
+                escalation.sla_deadline,
+                escalation.curator_notes,
+            ],
+        )
+        .map(|_| ())
+        .map_err(|e| ModerationError::Storage(format!("Insert failed: {}", e)))?;
+
+        tracing::info!(
+            target: "cns.communication.escalation.created",
+            escalation_id = %escalation.id,
+            room_id = %escalation.room_id,
+            severity = ?escalation.severity,
+            "Escalation persisted"
+        );
+        Ok(())
+    }
+
+    /// Get the next pending escalation for Curator review.
+    pub fn poll_next(&self) -> Result<Option<Escalation>, ModerationError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, room_id, flagged_by, content_summary, severity, state, created_at, sla_deadline, curator_notes
+                 FROM escalations WHERE state = '\"created\"' ORDER BY created_at ASC LIMIT 1",
+            )
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?;
+
+        match stmt.query_row([], |row| row_to_escalation(row)) {
+            Ok(esc) => Ok(Some(esc)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(ModerationError::Storage(format!("Query failed: {}", e))),
+        }
+    }
+
+    /// Acknowledge an escalation (Curator picks it up).
+    pub fn acknowledge(&self, escalation_id: &str) -> Result<(), ModerationError> {
+        let conn = self.lock()?;
+        let state_json = serde_json::to_string(&EscalationState::Acknowledged).unwrap_or_default();
+        let rows = conn
+            .execute(
+                "UPDATE escalations SET state = ?1 WHERE id = ?2 AND state = '\"created\"'",
+                rusqlite::params![state_json, escalation_id],
+            )
+            .map_err(|e| ModerationError::Storage(format!("Update failed: {}", e)))?;
+
+        if rows == 0 {
+            return Err(ModerationError::NotFound(escalation_id.to_string()));
+        }
+
+        tracing::info!(
+            target: "cns.communication.escalation.acknowledged",
+            escalation_id = %escalation_id,
+            "Escalation acknowledged by Curator"
+        );
+        Ok(())
+    }
+
+    /// Resolve an escalation (Curator takes action).
+    pub fn resolve(&self, escalation_id: &str, notes: Option<&str>) -> Result<(), ModerationError> {
+        let conn = self.lock()?;
+        let state_json = serde_json::to_string(&EscalationState::Resolved).unwrap_or_default();
+        let rows = conn
+            .execute(
+                "UPDATE escalations SET state = ?1, curator_notes = ?2 WHERE id = ?3",
+                rusqlite::params![state_json, notes, escalation_id],
+            )
+            .map_err(|e| ModerationError::Storage(format!("Update failed: {}", e)))?;
+
+        if rows == 0 {
+            return Err(ModerationError::NotFound(escalation_id.to_string()));
+        }
+
+        tracing::info!(
+            target: "cns.communication.escalation.resolved",
+            escalation_id = %escalation_id,
+            "Escalation resolved by Curator"
+        );
+        Ok(())
+    }
+
+    /// Age out escalations past their SLA deadline.
+    pub fn age_expired(&self) -> Result<Vec<Escalation>, ModerationError> {
+        let now = chrono::Utc::now().timestamp();
+        let conn = self.lock()?;
+        let aged_state = serde_json::to_string(&EscalationState::Aged).unwrap_or_default();
+        let created_state = serde_json::to_string(&EscalationState::Created).unwrap_or_default();
+
+        // Find expired escalations
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, room_id, flagged_by, content_summary, severity, state, created_at, sla_deadline, curator_notes
+                 FROM escalations WHERE state = ?1 AND sla_deadline < ?2",
+            )
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?;
+
+        let aged: Vec<Escalation> = stmt
+            .query_map(rusqlite::params![created_state, now], |row| row_to_escalation(row))
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        // Mark them as aged
+        for esc in &aged {
+            conn.execute(
+                "UPDATE escalations SET state = ?1 WHERE id = ?2",
+                rusqlite::params![aged_state, esc.id],
+            )
+            .map_err(|e| ModerationError::Storage(format!("Update failed: {}", e)))?;
+            tracing::warn!(
+                target: "cns.communication.escalation.aged",
+                escalation_id = %esc.id,
+                "Escalation aged out — SLA breached"
+            );
+        }
+
+        Ok(aged)
+    }
+
+    /// Get the count of active escalations by state.
+    pub fn counts_by_state(&self) -> Result<HashMap<EscalationState, usize>, ModerationError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare("SELECT state, COUNT(*) FROM escalations GROUP BY state")
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?;
+
+        let mut counts = HashMap::new();
+        let rows = stmt
+            .query_map([], |row| {
+                let state_str: String = row.get(0)?;
+                let count: i64 = row.get(1)?;
+                Ok((state_str, count as usize))
+            })
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?;
+
+        for row in rows {
+            let (state_str, count) = row.map_err(|e| ModerationError::Storage(format!("Row error: {}", e)))?;
+            if let Ok(state) = serde_json::from_str(&state_str) {
+                counts.insert(state, count);
+            }
+        }
+        Ok(counts)
+    }
+
+    /// Generate daily digest of unresolved escalations.
+    pub fn daily_digest(&self) -> Result<String, ModerationError> {
+        let conn = self.lock()?;
+        let resolved_state = serde_json::to_string(&EscalationState::Resolved).unwrap_or_default();
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, room_id, flagged_by, content_summary, severity, state, created_at, sla_deadline, curator_notes
+                 FROM escalations WHERE state != ?1 ORDER BY created_at DESC",
+            )
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?;
+
+        let unresolved: Vec<Escalation> = stmt
+            .query_map(rusqlite::params![resolved_state], |row| row_to_escalation(row))
+            .map_err(|e| ModerationError::Storage(format!("Query failed: {}", e)))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if unresolved.is_empty() {
+            return Ok("No unresolved escalations today.".to_string());
+        }
+        let mut digest = format!("Daily Escalation Digest — {} unresolved\n\n", unresolved.len());
+        for e in &unresolved {
+            digest.push_str(&format!(
+                "- [{}] {}: {} (SLA: {})\n",
+                e.severity_to_str(),
+                e.room_id,
+                &e.content_summary[..e.content_summary.len().min(80)],
+                e.sla_deadline,
+            ));
+        }
+        Ok(digest)
+    }
+}
+
+/// Convert a rusqlite Row into an Escalation.
+fn row_to_escalation(row: &rusqlite::Row) -> rusqlite::Result<Escalation> {
+    let severity_str: String = row.get(4)?;
+    let state_str: String = row.get(5)?;
+    Ok(Escalation {
+        id: row.get(0)?,
+        room_id: row.get(1)?,
+        flagged_by: row.get(2)?,
+        content_summary: row.get(3)?,
+        severity: serde_json::from_str(&severity_str).unwrap_or(EscalationSeverity::Low),
+        state: serde_json::from_str(&state_str).unwrap_or(EscalationState::Created),
+        created_at: row.get(6)?,
+        sla_deadline: row.get(7)?,
+        curator_notes: row.get(8)?,
+    })
+}
+
 impl Escalation {
     fn severity_to_str(&self) -> &str {
         match self.severity {

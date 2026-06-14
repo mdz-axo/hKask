@@ -87,21 +87,26 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | `hkask-memory` | Semantic/episodic pipelines |
 | `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
 | `hkask-templates` | Registry, hLexicon, cascade |
-| `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop, Ensemble sessions |
+| `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop |
 | `hkask-keystore` | OS keychain, AES-256-GCM, HKDF-SHA256 |
 | `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
 | `hkask-services` | Shared service layer (CLI/API deduplication) |
 | `hkask-improv` | Composable interaction grammar (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade) |
+| `hkask-wallet` | HD wallet, rJoule energy accounting, on-chain settlement |
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
-| `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage, 3D) — 24 tools
-| `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache, query) |
-| `hkask-mcp-training` | Model training data ingestion MCP server (stub) |
-| `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research |
-| `hkask-mcp-replica` | Authorial style embedding and composition |
-| `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) + portfolio tracking |
+| `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage) — 36 tools |
+| `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache, query) — 9 tools |
+| `hkask-mcp-training` | Model training data ingestion MCP server (QA ingest, LoRA fine-tuning, adapter management) — 6 tools |
+| `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research — 17 tools |
+| `hkask-mcp-replica` | Authorial style embedding and composition — 8 tools |
+| `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) + portfolio tracking — 27 tools |
+| `hkask-mcp-memory` | Episodic + semantic memory MCP server (triples, embeddings, KNN, backup/restore) — 16 tools |
+| `hkask-mcp-condenser` | Context condensation MCP server (compress, classify, persist, thread summary) — 7 tools |
+| `hkask-mcp-spec` | Specification authoring MCP server (goal capture, decompose, writing quality, graph coherence, replica rewrite) — 6 tools |
+| `hkask-mcp-communication` | Agent communication MCP server (TTS, Matrix chat, threads, agent tagging) — 9 tools |
 
-**12 MCP servers:** memory, condenser, research, spec, companies, communication, media, replica, docproc, training
+**10 MCP servers (141 tools):** memory (16), condenser (7), research (17), spec (6), companies (27), communication (9), media (36), replica (8), docproc (9), training (6)
 **Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra, fal.ai), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
 **External:** Ollama, Fireworks.ai, DeepInfra, fal.ai, ACP (acp-runtime), MCP (rmcp)
 

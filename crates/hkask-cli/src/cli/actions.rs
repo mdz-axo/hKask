@@ -655,3 +655,46 @@ pub enum KeyAction {
         key_id: String,
     },
 }
+
+#[derive(Subcommand)]
+pub enum MatrixAction {
+    /// Generate Docker sidecar files (docker-compose.yml, Caddyfile, conduit.toml)
+    DeploySidecar {
+        /// Domain name for the Matrix homeserver (e.g., matrix.example.com)
+        #[arg(short, long)]
+        domain: String,
+        /// Also generate Hydrogen web client config
+        #[arg(long)]
+        with_web_client: bool,
+        /// Output directory (default: ~/.config/hkask/sidecar)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Register a hKask agent on the Matrix homeserver
+    RegisterAgent {
+        /// Replicant name (e.g., "Alice-Smith")
+        agent: String,
+        /// Homeserver URL (default: http://localhost:8008)
+        #[arg(short, long, default_value = "http://localhost:8008")]
+        homeserver: String,
+    },
+    /// Create a human Matrix user account on the homeserver
+    RegisterUser {
+        /// Desired username (e.g., "Bob-Jones")
+        user: String,
+        /// Homeserver URL (default: http://localhost:8008)
+        #[arg(short, long, default_value = "http://localhost:8008")]
+        homeserver: String,
+    },
+    /// Start the Matrix sync listener for an agent
+    Listen {
+        /// Agent name to listen for (omit for all registered agents)
+        #[arg(short, long)]
+        agent: Option<String>,
+        /// Homeserver URL (default: http://localhost:8008)
+        #[arg(short, long, default_value = "http://localhost:8008")]
+        homeserver: String,
+    },
+    /// Check sidecar health (Docker containers, API, database)
+    StatusSidecar,
+}

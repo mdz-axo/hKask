@@ -31,7 +31,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-mcp-companies` | 82 | analysis (20) + providers (9) + portfolio (23) + screening (19) + tools (11) |
 | `hkask-mcp-research` | 46 | strip_html (8), freshness (6), ranking (5), rate_limiter (4), extraction (8), search (9), browsing (6) |
 | `hkask-inference` | 20 | config (7), chat_protocol (3), fal_backend (4), embedding_router (4), ollama_backend (2) |
-| `hkask-improv` | 59 | modes (6), plussing (6), protocol (2), riffing (5), freestyling (7), cns (2), cascade (7), kata (4) + integration: plussing (4), yes-and (3), yes-but (3), freestyling (5), riffing (5) |
+| `hkask-improv` | 57 | modes (6), plussing (6), protocol (2), riffing (5), freestyling (7), cns (2), cascade (7), kata (2) + integration: plussing (4), yes-and (3), yes-but (3), freestyling (5), riffing (5) |
 | `hkask-api` | 2 | settings merge, settings validation |
 | `hkask-types` | 21 | ocr (6), id (3), event (2), ports (2), capability (2), cns (2), voice (2), transcript (2) |
 | `hkask-mcp-memory` | 0 | Shallow module — pass-through to hkask-memory (C8) |
@@ -43,7 +43,7 @@ Per MDS §8 and `docs/specifications/test-program.md`.
 | `hkask-memory` | 14 | consolidation, episodic, semantic pipelines |
 | `hkask-keystore` | 6 | key derivation, encryption round-trip |
 
-**Total: 595 tests across 23 crates** (↑ from 534; +59 improv, +2 cli, +1 services)
+**Total: 593 tests across 23 crates** (↑ from 534; +57 improv, +2 cli, +1 services)
 
 ---
 
@@ -66,7 +66,7 @@ Per C8: "Test depth matches module depth."
 | `hkask-keystore` | ⚠️ OS-bound | No tests. Requires OS keychain for integration tests. |
 | `hkask-memory` | ⚠️ Model-bound | No tests. Requires embedding model for behavioral validation. |
 | `hkask-mcp-spec` | ✅ Compliant | 7 tests: capture (3), coherence (1), graph_query (1), writing_quality (1), tool listing (1) |
-| `hkask-improv` | ✅ Compliant | 59 tests: all 5 modes + cascade + kata + CNS. Every test carries `// REQ:` tag. Deep module (Plussing, Cascade) gets deep tests; shallow modes (Yes And, Yes But) get shallower tests. C8 compliant. |
+| `hkask-improv` | ✅ Compliant | 57 tests: all 5 modes + cascade + kata + CNS. Every test carries `// REQ:` tag. Deep module (Plussing, Cascade) gets deep tests; shallow modes (Yes And, Yes But) get shallower tests. C8 compliant. |
 
 ---
 
@@ -79,6 +79,16 @@ Media MCP server completion — collage, tests, voice, listen, talk:
 | `hkask-mcp-media` | 4 | ✅ New | 4 integration tests: `gallery_lifecycle_init_to_search`, `collage_compose_grid_layout`, `gallery_store_image_not_found`, `gallery_three_state_policy`. Tagged `// REQ: media-gallery-lifecycle-01`, `media-collage-compose-01`, `media-gallery-error-01`, `media-gallery-policy-01`. |
 | `hkask-cli` | 0 | ✅ Expanded | New `/listen start|stop|view` and `/talk on|off|voice` REPL commands. Talk mode includes speech summarizer (LLM-condensed spoken output) and ffplay-based TTS playback. Listen mode includes capture→transcribe_bundle→save pipeline with `/listen view` opening TUI transcript viewer with word-level highlighting. |
 | `hkask-mcp-media` (tools) | — | ✅ Expanded | `image_create_collage` now supports three modes: `search_terms` (semantic tag search), `similar_to_index` (similar images), `image_indices` (explicit). Mutual exclusivity enforced. `record_and_transcribe` now returns `TranscriptBundle` with word-level timestamps (same format as `transcribe_bundle`). Gallery error messages consolidated from `gallery_init` → `gallery_set_root`. |
+
+Improv skill — full crate, registry, REPL, and inference pipeline integration:
+
+| Crate | Tests Added | P8 Status | Details |
+|-------|------------|-----------|--------|
+| `hkask-improv` | 57 | ✅ New | Full improv crate: 37 unit + 20 integration. Covers all 5 modes (Plussing, Yes And, Yes But, Freestyling, Riffing) + Cascade recursive composition + Kata phase mapping + CNS span registration. Every test carries `// REQ:` tag. Deep modules (Plussing, Cascade) get deep tests; shallow modes get shallower tests (C8 compliant). |
+| `hkask-services` | +1 | ✅ Expanded | `TurnRequest` now carries `improv_mode: Option<String>`. `improv_system_prompt()` injects mode-specific instructions before inference. Pipeline: REPL `/improv` → ReplState → TurnRequest → ChatService::execute_turn() → model prompt. |
+| `hkask-cli` | +2 | ✅ Expanded | New `/improv` (alias `/imp`) REPL command with 5 sub-modes. `ReplState.improv_mode` field. Handler validates modes, displays current posture, supports freestyling duration and riffing return policy. |
+| Registry | — | ✅ New | `registry/manifests/improv.yaml` (skill manifest, 3-step cascade), `registry/templates/improv/` (6 Jinja2 templates: cycle + 5 modes), `registry/manifests/improv-kata-starter.yaml` (bundle), `registry/manifests/improv-kata-coaching.yaml` (bundle). |
+| Docs | — | ✅ New | `docs/specifications/improv-future-questions.md` (8 open questions + empirical validation plan). PRINCIPLES.md §1.4 updated with 6 improv CNS spans. AGENTS.md updated with improv skill + crate. |
 
 ## Recent Additions (2026-06-13 Session)
 

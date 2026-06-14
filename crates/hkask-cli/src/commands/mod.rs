@@ -21,6 +21,7 @@ pub mod kata;
 pub mod keystore;
 pub mod loops;
 pub mod magna_carta;
+pub mod matrix;
 pub mod mcp;
 
 pub mod models;

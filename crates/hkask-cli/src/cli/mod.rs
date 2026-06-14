@@ -248,4 +248,10 @@ pub enum Commands {
         /// Path to the transcript bundle JSON file
         path: PathBuf,
     },
+
+    /// Matrix messaging — sidecar deployment, agent registration, health checks
+    Matrix {
+        #[command(subcommand)]
+        action: MatrixAction,
+    },
 }

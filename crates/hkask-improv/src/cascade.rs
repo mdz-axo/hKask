@@ -19,7 +19,7 @@ use thiserror::Error;
 pub const MATRYOSHKA_LIMIT: u8 = 7;
 
 /// Errors that can occur during improv cascade construction or execution.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ImprovError {
     #[error("Cascade depth {depth} exceeds matryoshka limit ({limit})")]
     MatryoshkaExceeded { depth: usize, limit: u8 },
