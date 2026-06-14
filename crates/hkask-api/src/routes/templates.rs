@@ -98,7 +98,7 @@ pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<Te
 pub(crate) async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<TemplateResponse>, ServiceErrorResponse> {
+) -> Result<Json<TemplateResponse>, ApiError> {
     let registry = state.agent_service.registry().lock().await;
 
     let entry = registry
@@ -119,7 +119,7 @@ pub(crate) async fn get_template(
 async fn register_template(
     State(state): State<ApiState>,
     Json(_req): Json<TemplateResponse>,
-) -> Result<StatusCode, ServiceErrorResponse> {
+) -> Result<StatusCode, ApiError> {
     use axum::http::StatusCode;
 
     let _registry = state.agent_service.registry().lock().await;

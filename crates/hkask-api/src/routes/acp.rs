@@ -20,16 +20,18 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::{ApiError, ServiceErrorResponse};
 use crate::middleware::AuthContext;
 
 /// Parse a WebID from a string, returning a structured error on failure.
 fn parse_webid(raw: &str) -> Result<WebID, ServiceErrorResponse> {
     uuid::Uuid::parse_str(raw)
         .map(WebID::from_uuid)
-        .map_err(|_| ApiError::BadRequest {
-            message: format!("Invalid WebID format: {}", raw),
+        .map_err(|_| {
+            ServiceErrorResponse::from(ApiError::BadRequest {
+                message: format!("Invalid WebID format: {}", raw),
+            })
         })
 }
 
@@ -87,18 +89,19 @@ async fn acp_register(
 ) -> Result<Json<AcpRegisterResponse>, ServiceErrorResponse> {
     let webid = parse_webid(&req.webid)?;
 
-    let agent_kind =
-        hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| ApiError::BadRequest {
+    let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
+        ServiceErrorResponse::from(ApiError::BadRequest {
             message: format!(
                 "Agent type must be 'Bot' or 'Replicant', got: {}",
                 req.agent_type
             ),
-        })?;
+        })
+    })?;
 
     if req.capabilities.is_empty() {
-        return Err(ApiError::BadRequest {
+        return Err(ServiceErrorResponse::from(ApiError::BadRequest {
             message: "At least one capability is required".to_string(),
-        });
+        }));
     }
 
     let acp = state.agent_service.pod_manager().acp_runtime();

@@ -119,6 +119,42 @@ impl From<ApiError> for ServiceErrorResponse {
     }
 }
 
+// ── Domain error → ServiceErrorResponse bridges ───────────────────────
+//
+// The `?` operator needs direct `From<E> for ServiceErrorResponse`.
+// These impls bridge domain errors that route handlers propagate with `?`.
+// They delegate to `ServiceError`'s `#[from]` wrappers.
+
+impl From<hkask_agents::acp::AcpError> for ServiceErrorResponse {
+    fn from(e: hkask_agents::acp::AcpError) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::Acp(e))
+    }
+}
+
+impl From<hkask_storage::EscalationError> for ServiceErrorResponse {
+    fn from(e: hkask_storage::EscalationError) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::Escalation(e))
+    }
+}
+
+impl From<uuid::Error> for ServiceErrorResponse {
+    fn from(e: uuid::Error) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::InvalidWebID(e.to_string()))
+    }
+}
+
+impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
+    fn from(e: hkask_storage::AgentRegistryError) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::AgentRegistryStore(e))
+    }
+}
+
+impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
+    fn from(e: hkask_agents::pod::AgentPodError) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::Pod(e))
+    }
+}
+
 // ── Service layer adapter ────────────────────────────────────────────
 
 impl From<hkask_services::ServiceError> for ApiError {

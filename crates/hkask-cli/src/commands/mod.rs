@@ -4,6 +4,7 @@
 //! Each subcommand domain has its own module: agents, chat, curator, etc.
 
 pub mod agent;
+pub mod backup_cmd;
 pub mod bundle;
 pub mod chat;
 pub mod cns;

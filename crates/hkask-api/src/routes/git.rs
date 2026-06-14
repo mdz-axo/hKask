@@ -81,7 +81,20 @@ pub(crate) async fn archive(
 
     // Template loading stays on the legacy adapter (domain operation, not CAS)
     let git_cas = state.git_cas.clone();
-    let template_crate = git_cas.load_template_crate(&crate_name)?;
+    let template_crate = git_cas
+        .load_template_crate(&crate_name)
+        .map_err(|e| match &e {
+            hkask_types::GitError::CrateNotFound(name) => ApiError::NotFound {
+                resource: "template crate".into(),
+                id: name.clone(),
+            },
+            hkask_types::GitError::Io(_) => ApiError::BadRequest {
+                message: e.to_string(),
+            },
+            _ => ApiError::Internal {
+                message: e.to_string(),
+            },
+        })?;
 
     // SHA resolution uses GitCASPort (hexagonal boundary)
     let sha = state

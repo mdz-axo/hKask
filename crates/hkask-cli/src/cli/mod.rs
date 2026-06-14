@@ -98,6 +98,12 @@ pub enum Commands {
         action: GitAction,
     },
 
+    /// Backup operations — snapshot, restore, list, prune, verify, config
+    Backup {
+        #[command(subcommand)]
+        action: BackupAction,
+    },
+
     /// Specification authoring, curation, and validation (MDS)
     Spec {
         #[command(subcommand)]

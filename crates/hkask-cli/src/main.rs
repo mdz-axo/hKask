@@ -67,6 +67,8 @@ fn main() {
 
         Commands::Git { action } => commands::git_cmd::run(&rt, action),
 
+        Commands::Backup { action } => commands::backup_cmd::run(&rt, action),
+
         Commands::Spec { action } => commands::spec::run(action),
 
         Commands::Agent { action } => commands::agent::run_agent(&rt, action),

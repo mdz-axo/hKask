@@ -262,6 +262,66 @@ pub enum GitAction {
     },
 }
 
+/// Backup actions — snapshot, restore, list, prune, verify, config
+#[derive(Subcommand)]
+pub enum BackupAction {
+    /// Create a backup snapshot
+    Snapshot {
+        /// Scope: "full", or artifact type label (e.g., "template", "goal")
+        #[arg(short, long, default_value = "full")]
+        scope: String,
+    },
+    /// Restore from a backup snapshot
+    Restore {
+        /// Commit hash to restore from
+        #[arg()]
+        commit: String,
+        /// Scope: "full", or artifact type label
+        #[arg(short, long, default_value = "full")]
+        scope: String,
+    },
+    /// List backup snapshots
+    List {
+        /// Filter by artifact type
+        #[arg(short, long)]
+        r#type: Option<String>,
+        /// Maximum snapshots to show
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+    },
+    /// Prune expired snapshots (dry-run by default)
+    Prune {
+        /// Actually remove (default is dry-run)
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Verify backup integrity
+    Verify,
+    /// View or update backup configuration
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ConfigAction {
+    /// Show current backup configuration
+    Show,
+    /// Set tracked artifact types
+    Set {
+        /// Comma-separated artifact types to track (e.g., "template,goal")
+        #[arg(short, long)]
+        types: String,
+        /// Retention duration (e.g., "30d", "24h", "60m")
+        #[arg(short, long)]
+        retention: Option<String>,
+        /// Disable auto-snapshot
+        #[arg(long)]
+        no_auto: bool,
+    },
+}
+
 /// Curator governance actions
 #[derive(Subcommand)]
 pub enum CuratorAction {

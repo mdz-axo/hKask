@@ -67,7 +67,7 @@ pub(crate) async fn consolidate(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
-) -> Result<Json<ConsolidateResponse>, ServiceErrorResponse> {
+) -> Result<Json<ConsolidateResponse>, ApiError> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
     consolidation::check_rate_limit().map_err(|e| match e {
