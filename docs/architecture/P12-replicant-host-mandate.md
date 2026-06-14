@@ -18,13 +18,15 @@ mds_categories: [domain, trust, composition]
 
 ## Principle
 
-**Every interaction with hKask carries a replicant identity.** There is no anonymous or unsupervised agency. Three interaction surfaces map to three host classes:
+**Every interaction with hKask carries a replicant identity.** There is no anonymous or unsupervised agency. Three interaction surfaces map to three host classes, with the Curator daemon present as a co-participant in the CLI/REPL loop:
 
 | Surface | Host | WebID Source | DB | Keychain |
 |---------|------|-------------|-----|----------|
-| **CLI / REPL** | Human replicant | `kask login <name>` → session in UserStore | `~/.config/hkask/agents/<replicant>.db` | OS keychain via `hkask-keystore` |
-| **Daemon / System** | Curator replicant | `Curator` — hardcoded master system agent | `~/.config/hkask/agents/curator.db` | System keychain |
+| **CLI / REPL** | Human replicant + Curator daemon | `kask login <name>` → session in UserStore | `~/.config/hkask/agents/<replicant>.db` | OS keychain via `hkask-keystore` |
+| **Daemon / System** | Curator daemon | `Curator` — hardcoded master system daemon | `~/.config/hkask/agents/curator.db` | System keychain |
 | **API** | 7R7 bots | Bot-managed capability tokens | Per-bot DB within pod | Bot-attested HKDF keys |
+
+**Dual-presence pattern:** The CLI/REPL surface hosts both the user's replicant AND the Curator daemon in a single loop. The user speaks; the Curator observes, surfaces CNS alerts, provides memory summaries, and can be addressed directly via `kask curator chat`. This is not two separate sessions — it is one conversation with two participants. The user's replicant is the sovereign host; the Curator daemon is the system's presence.
 
 ---
 
@@ -47,7 +49,7 @@ kask style embed-corpus --config corpus.yaml
 
 ### Daemon / System — Curator Host
 
-The Curator replicant is the master system agent. It hosts:
+The Curator daemon is the master system agent. It hosts:
 
 - Consolidation pipeline (episodic → semantic, `hkask consolidate`)
 - CNS algedonic loop (variety monitoring, alert dispatch)

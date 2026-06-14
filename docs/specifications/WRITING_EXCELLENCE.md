@@ -14,7 +14,7 @@ mds_categories: [curation]
 ## 1. Purpose
 
 This protocol defines the voice, style, and quality discipline for the
-Kask documentation corpus. It operationalizes four independent dimensions
+hKask documentation corpus. It operationalizes four independent dimensions
 of documentation quality — each grounded in the work of a woman who shaped
 technical communication — into a scoring rubric governing publication
 decisions. It enforces the Writing Excellence Mandate in

@@ -295,13 +295,15 @@ The requirement for a private and public sphere which exists in the analog world
 
 #### P12 — Replicant Host Mandate (Anchored in Social Accompaniment)
 
-Every interaction with hKask carries a replicant identity. No operation occurs without a host — there is no anonymous or unsupervised agency within the system. In human society, you are never truly alone — there is always a friend, a host, an accompanying presence. This social constant extends into the digital workspace: every action has an author, every interaction carries an identity, every agent has a host. Three interaction surfaces map to three host classes:
+Every interaction with hKask carries a replicant identity. No operation occurs without a host — there is no anonymous or unsupervised agency within the system. In human society, you are never truly alone — there is always a friend, a host, an accompanying presence. This social constant extends into the digital workspace: every action has an author, every interaction carries an identity, every agent has a host. Three interaction surfaces map to three host classes, with the Curator daemon present as a co-participant in the CLI/REPL loop:
 
 | Surface | Host | Characteristics |
 |---------|------|----------------|
-| **CLI / REPL** | Human replicant | CLI commands are issued by a human user authenticated as their replicant. The replicant's identity, DB, and keychain provide sovereignty boundaries. Every command (embed-corpus, compose, settings) records episodic and semantic memories in the replicant's memory stores. |
-| **Daemon / System** | Curator replicant | System-level operations (scheduling, consolidation, CNS monitoring, lifecycle transitions) are hosted by the Curator — the master system agent. The Curator observes and participates in all system-wide events. `curator_webid` identifies the Curator in all triple stores. |
+| **CLI / REPL** | Human replicant + Curator daemon | CLI commands are issued by a human user authenticated as their replicant. The replicant's identity, DB, and keychain provide sovereignty boundaries. The Curator daemon is present in the loop as a co-participant — it observes context, surfaces CNS alerts, provides memory summaries, and can be queried directly via `kask curator chat`. Every command records episodic and semantic memories in the replicant's memory stores. |
+| **Daemon / System** | Curator daemon | System-level operations (scheduling, consolidation, CNS monitoring, lifecycle transitions) are hosted by the Curator — the master system daemon. The Curator observes and participates in all system-wide events. `curator_webid` identifies the Curator in all triple stores. |
 | **API** | Bot-managed | Programmatic interactions via the HTTP API are managed by 7R7 bots operating within capability-bounded pods. Each bot carries its own replicant identity with OCAP-gated access. |
+
+**Dual-presence pattern:** The CLI/REPL surface is unique — it hosts both the user's replicant AND the Curator daemon. The user speaks; the Curator observes, provides system context, and can be addressed directly. This is not two separate sessions — it is one loop with two participants. The user's replicant is the sovereign host; the Curator daemon is the system's presence in the conversation.
 
 **Memory flow:** Every surface-level interaction produces experience records (`store_experience`) that flow into the dual-encoding memory pipeline. The host replicant's identity is the `owner` field on every stored triple. CNS spans (`cns.tool.*`) are annotated with the hosting replicant's WebID. The Curator observes these records through the algedonic loop and consolidation bridge.
 
