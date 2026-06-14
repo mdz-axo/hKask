@@ -3,7 +3,7 @@ title: "MCP Media Server — Design & Implementation Plan"
 version: "1.0.0"
 audience: [architects, developers]
 last_updated: 2026-06-13
-status: "Draft — Collaboration"
+status: "Draft"
 domain: "Technology"
 mds_categories: [domain, composition, lifecycle]
 ---
@@ -604,6 +604,5 @@ mcp-servers/hkask-mcp-media/
 | [`docs/plans/mcp-server-roadmap.md`](mcp-server-roadmap.md) | §2.3 — Value-add layer targets for media server |
 | [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current 9 fal tools catalog |
 | [`docs/architecture/loop-architecture.md`](../architecture/loop-architecture.md) | L4 Communication loop mapping |
-| [`docs/handoffs/ocr-fal-self-2026-06-13.md`](../handoffs/ocr-fal-self-2026-06-13.md) | fal.ai inference router integration design |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map, constraints, commands |
 | [`docs/architecture/ADR-024-unified-registry.md`](../architecture/ADR-024-unified-registry.md) | Template registry architecture |

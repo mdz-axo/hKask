@@ -1,3 +1,13 @@
+---
+title: "Crate Audit — Task 3: Idiomatic Rust Audit (Graydon Hoare School)"
+audience: [developers, auditors]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, curation]
+---
+
 # Task 3 — Idiomatic Rust Audit (Graydon Hoare School)
 
 **Bundle:** `crate-audit` | **Phase:** Core (rust-expertise + deep-module + pragmatic-semantics)

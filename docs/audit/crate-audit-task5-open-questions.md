@@ -1,3 +1,13 @@
+---
+title: "Crate Audit — Task 5: Open Questions and Underspecified Aspects"
+audience: [architects, developers, auditors]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, lifecycle, curation]
+---
+
 # Task 5 — Open Questions and Underspecified Aspects
 
 **Bundle:** `crate-audit` | **Phase:** Post-core (reflection)

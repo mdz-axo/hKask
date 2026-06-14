@@ -1,3 +1,13 @@
+---
+title: "hKask Document Futures — Open Questions & Under-Specification"
+audience: [architects, documentation maintainers, agents]
+last_updated: 2026-06-14
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [lifecycle, curation]
+---
+
 # hKask — Open Questions & Under-Specification (Document Futures)
 
 **Created:** 2026-06-14  

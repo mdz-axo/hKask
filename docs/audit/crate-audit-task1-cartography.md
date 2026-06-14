@@ -1,3 +1,13 @@
+---
+title: "Crate Audit — Task 1: Semantic Cartography of the Core Crate Graph"
+audience: [architects, developers, auditors]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, curation]
+---
+
 # Task 1 — Semantic Cartography of the Core Crate Graph
 
 **Bundle:** `crate-audit` | **Phase:** Pre-core (improve-codebase-architecture) + Core (pragmatic-semantics, deep-module)

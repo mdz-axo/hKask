@@ -732,25 +732,25 @@ documents:
   # =========================================================================
   - path: "docs/status/spec-code-drift.yaml"
     category: "Status"
-    status: "Missing"
-    last_updated: null
-    version: null
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "1.1.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: "Referenced by README portal, MDS_SCAFFOLD, and architecture master. Does NOT exist."
-    governing_principles: [P5, P8]
-    disposition: refresh
-    notes: "CRITICAL: Referenced by 3 authoritative documents but file does not exist. Must be created."
+    staleness_signal: "Version 1.1.0 diverges from workspace 0.27.0"
+    governing_principles: [P8]
+    disposition: keep
+    notes: "14/14 drift items resolved (2026-06-12). Version tracks its own numbering. Referenced from README portal and MDS_SCAFFOLD."
 
   - path: "docs/status/curation-decisions.yaml"
     category: "Status"
-    status: "Missing"
-    last_updated: null
-    version: null
+    status: "Active"
+    last_updated: "2026-06-08"
+    version: "1.0.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: "Referenced by README portal and MDS_SCAFFOLD. Does NOT exist."
-    governing_principles: [P5, P8]
-    disposition: refresh
-    notes: "CRITICAL: Referenced by 2 authoritative documents but file does not exist. Must be created."
+    staleness_signal: "Version 1.0.0 diverges from workspace 0.27.0. Last updated 2026-06-08."
+    governing_principles: [P8]
+    disposition: keep
+    notes: "14 curation decisions recorded. Version tracks its own numbering. Referenced from README portal and MDS_SCAFFOLD."
 
   - path: "docs/status/corpus_inventory.yaml"
     category: "Status"
@@ -952,12 +952,6 @@ documents:
 # MISSING REFERENCED FILES (referenced by indexes but not present on disk)
 # =========================================================================
 missing_referenced:
-  - path: "docs/ci/check-links.sh"
-    referenced_by: [README.md, DOCUMENTATION_STANDARDS.md, MDS_SCAFFOLD.md]
-    status: "Missing — CI verification script. Must be created."
-  - path: "docs/ci/check-metadata.sh"
-    referenced_by: [README.md, DOCUMENTATION_STANDARDS.md, MDS_SCAFFOLD.md]
-    status: "Missing — CI verification script. Must be created."
   - path: "docs/generated/openapi.json"
     referenced_by: [MDS_SCAFFOLD.md]
     status: "Missing — Auto-generated artifact. Should be regenerated."
@@ -966,15 +960,16 @@ missing_referenced:
 # SUMMARY STATISTICS
 # =========================================================================
 summary:
-  total_documents: 80
-  active_keep: 46
+  total_documents: 83
+  active_keep: 49
   stale_refresh: 27
   archived: 5
-  newly_created: 2
-  total_with_frontmatter: 63
+  newly_created: 5
+  total_with_frontmatter: 66
   total_without_frontmatter: 17
-  missing_referenced: 3
-  version_anomalies: 18
+  missing_referenced: 1
+  version_anomalies: 16
   documents_not_in_master_index: 4
   documents_not_in_scaffold: 10
   documents_not_in_portal: 0
+  notes: "2026-06-14 update: CI scripts and drift/curation YAMLs confirmed present (were incorrectly listed as missing). 3 new docs added (HANDOFF_LIFECYCLE.md, DOCUMENT_OWNERSHIP.md, DOCUMENT_ROADMAP.md). Only openapi.json remains genuinely missing."

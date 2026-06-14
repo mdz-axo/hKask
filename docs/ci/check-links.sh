@@ -18,7 +18,6 @@ CHECKED=0
 
 # Intentional placeholders (links that are known to point to future deliverables)
 INTENTIONAL_PLACEHOLDERS=(
-    "docs/ci/check-metadata.sh"     # Created in this refresh
     "docs/specifications/cns-protocol-reference.md"  # Deferred
     ".github/scripts/check_links.sh"                 # External CI
 )

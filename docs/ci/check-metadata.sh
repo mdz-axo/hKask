@@ -25,6 +25,9 @@ REQUIRED_HEADERS=(
     "mds_categories:"
 )
 
+VALID_STATUSES=("Active" "Draft" "Deprecated" "Superseded")
+VALID_MDS_CATEGORIES=("domain" "composition" "trust" "lifecycle" "curation")
+
 echo "=== hKask Documentation Metadata Checker ==="
 echo "Scanning: $DOCS_DIR"
 echo ""
@@ -53,15 +56,38 @@ while IFS= read -r -d '' file; do
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo -e "${RED}[MISSING]${NC} $rel_file → ${missing[*]}"
         ERRORS=$((ERRORS + 1))
+        continue
     fi
 
-    # Check for mds_categories reference consistency (5-category MDS taxonomy)
-    if grep -q "mds_categories:" "$file"; then
-        cats=$(grep "^mds_categories:" "$file" | head -1)
-        valid_cats=("domain" "composition" "trust" "lifecycle" "curation")
-        for cat in "${valid_cats[@]}"; do
-            # Each file must map to at least one valid category
-            :
+    # Check status is a valid lifecycle state
+    doc_status=$(grep "^status:" "$file" | head -1 | sed 's/^status: *//' | tr -d '"' | xargs)
+    valid_status=false
+    for vs in "${VALID_STATUSES[@]}"; do
+        if [[ "$doc_status" == "$vs" ]]; then
+            valid_status=true
+            break
+        fi
+    done
+    if [[ "$valid_status" == false ]]; then
+        echo -e "${YELLOW}[WARN]${NC} $rel_file → status: '$doc_status' is not a recognized lifecycle state (valid: ${VALID_STATUSES[*]})"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+
+    # Check mds_categories use valid 5-category taxonomy
+    if grep -q "^mds_categories:" "$file"; then
+        cats=$(grep "^mds_categories:" "$file" | head -1 | sed 's/^mds_categories: *//' | tr -d '[]"' | tr ',' ' ' | xargs)
+        for cat in $cats; do
+            valid_cat=false
+            for vc in "${VALID_MDS_CATEGORIES[@]}"; do
+                if [[ "$cat" == "$vc" ]]; then
+                    valid_cat=true
+                    break
+                fi
+            done
+            if [[ "$valid_cat" == false ]]; then
+                echo -e "${YELLOW}[WARN]${NC} $rel_file → mds_categories: '$cat' is not a valid MDS category (valid: ${VALID_MDS_CATEGORIES[*]})"
+                WARNINGS=$((WARNINGS + 1))
+            fi
         done
     fi
 
@@ -71,12 +97,13 @@ while IFS= read -r -d '' file; do
         ERRORS=$((ERRORS + 1))
     fi
 
-done < <(find "$DOCS_DIR" -name "*.md" -not -path "*/archive/*" -not -path "*/audit/*" -not -path "*/handoffs/*" -print0)
+done < <(find "$DOCS_DIR" -name "*.md" -not -path "*/archive/*" -print0)
 
 echo ""
 echo "=== Results ==="
 echo "Documents checked: $TOTAL"
 echo -e "Missing metadata: ${RED}$ERRORS${NC}"
+echo -e "Warnings: ${YELLOW}$WARNINGS${NC}"
 
 if [[ $ERRORS -gt 0 ]]; then
     echo -e "${RED}FAIL: $ERRORS document(s) missing required metadata.${NC}"

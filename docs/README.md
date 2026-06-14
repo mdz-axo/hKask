@@ -135,19 +135,9 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 ## Handoffs (`handoffs/`)
 
-Transient session handoffs recording implementation state. Active handoffs carry essential continuity context between sessions. Superseded handoffs are removed from the active tree.
+Transient session handoffs recording implementation state. Handoffs are committed to git history and cleaned from the working tree when superseded or when their context is no longer needed. All handoffs are recoverable via git history.
 
-| Document | Description |
-|----------|-------------|
-| [`acad-disc-2026-06-12.md`](handoffs/acad-disc-2026-06-12.md) | Academic corpus discovery pipeline |
-| [`cmpn-prtfl-2026-06-13.md`](handoffs/cmpn-prtfl-2026-06-13.md) | Companies MCP + portfolio tracking |
-| [`gl-embed-2026-06-13.md`](handoffs/gl-embed-2026-06-13.md) | Gentle Lovelace embedding pipeline |
-| [`kata-redesign-2026-06-14.md`](handoffs/kata-redesign-2026-06-14.md) | Kata system redesign |
-| [`media-server-continuation-2026-06-14.md`](handoffs/media-server-continuation-2026-06-14.md) | Media server continuation |
-| [`ocr-fal-self-2026-06-13.md`](handoffs/ocr-fal-self-2026-06-13.md) | OCR pipeline + fal.ai integration |
-| [`reg-kata-glv-2026-06-13.md`](handoffs/reg-kata-glv-2026-06-13.md) | Registry, kata, Gentle Lovelace integration |
-| [`wlt-cns-ph5-2026-06-12.md`](handoffs/wlt-cns-ph5-2026-06-12.md) | Wallet phase 5 — CNS integration |
-
+*No active handoffs in working tree.* See git history for past handoffs (`git log -- docs/handoffs/`).
 
 ---
 

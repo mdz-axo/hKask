@@ -1,3 +1,13 @@
+---
+title: "Crate Audit — Task 2: Cybernetic Feedback Loop Audit Across Crate Boundaries"
+audience: [architects, developers, auditors]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, trust]
+---
+
 # Task 2 — Cybernetic Feedback Loop Audit Across Crate Boundaries
 
 **Bundle:** `crate-audit` | **Phase:** Core (pragmatic-cybernetics + pragmatic-semantics)

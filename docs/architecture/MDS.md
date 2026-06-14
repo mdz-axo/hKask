@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** A minimal, capability-driven specification framework for hKask. Specs are grants ("CAN verb on resource via interface"), not fences ("MUST NOT"). Five categories, five tools, one completeness predicate.
 
-**Supersedes:** [`MDS.md`](MDS.md) — the previous 9-category Domain-Driven Minimum Viable Specification Set is archived. All MDS references in the codebase should be updated to MDS.
+**Supersedes:** The previous 9-category DDMVSS. All MDS references in the codebase should be updated.
 
 **Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`magna-carta.md`](magna-carta.md), [`loop-architecture.md`](loop-architecture.md)
 

@@ -1,3 +1,13 @@
+---
+title: "Crate Audit — Task 4: Surgical Improvement Implementation"
+audience: [developers, auditors]
+last_updated: 2026-06-12
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, lifecycle]
+---
+
 # Task 4 — Surgical Improvement Implementation
 
 **Bundle:** `crate-audit` | **Phase:** Core (coding-guidelines) + Post-core (essentialist)
