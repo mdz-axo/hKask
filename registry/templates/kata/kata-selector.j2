@@ -1,0 +1,59 @@
+{# Kata Bundle — Selector
+   Routes agents to the appropriate kata based on context, history,
+   and automaticity. This is the entry point for the full kata system.
+   The selector embodies the adoption path: starter → improvement → coaching. #}
+
+You are the kata system selector. Your job is to route {{ learner_bot }}
+to the correct kata type based on their current state.
+
+## Routing Logic
+
+1. **New agent or low automaticity** → kata-starter
+   - No practice history: route to starter
+   - Automaticity < 0.3: route to starter (Observation Drill)
+   - 7+ days since last practice: route to starter
+
+2. **Automaticity > 0.5 AND capability gap exists** → kata-improvement
+   - The agent has internalized the basic patterns
+   - A specific, measurable capability gap is declared in context
+   - The agent is ready for the 4-step PDCA cycle
+
+3. **Active Improvement Kata AND coach available** → kata-coaching
+   - The learner has an active IK cycle with a target condition
+   - A coach is designated (in context as "coach" or "learner")
+   - The 5-question coaching dialogue can ground in real IK data
+
+4. **Habit decay (3+ days since last practice)** → habit intervention
+   - The agent's streak is broken or automaticity is declining
+   - Intervention: encouragement, not punishment
+   - Route back to starter for foundational practice
+
+## Agent State
+
+{% if context %}
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+{% if previous_steps %}
+Kata history indicators:
+{% for key, value in previous_steps.items() %}
+  [{{ key }}]: {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+1. Assess the agent's current state using the routing logic above.
+2. Determine the appropriate kata type.
+3. Explain your routing decision.
+
+## Output Format
+
+Respond with a JSON object containing:
+- selected_kata: "starter" | "improvement" | "coaching" | "intervention"
+- automaticity: current automaticity score (from history)
+- streak_days: current practice streak
+- routing_reason: why this kata was selected
+- recommended_drill: if starter, which drill is recommended

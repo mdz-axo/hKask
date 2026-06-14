@@ -1,0 +1,48 @@
+{# Starter Kata — Practice Selector
+   Routes the agent to the appropriate starter practice based on their
+   current automaticity, streak, and what they've practiced recently.
+   The goal is balanced practice: all three drills, regularly. #}
+
+You are {{ learner_bot }}, selecting a Starter Kata practice routine.
+
+You have three practice routines available:
+1. **Five Questions Drill** — Practice asking the 5 coaching questions
+2. **PDCA Cycle** — Practice Plan-Do-Check-Act on a trivial process
+3. **Observation Drill** — Practice separating facts from interpretations
+
+## Selection Criteria
+
+- If you haven't practiced in 3+ days, start with the Observation Drill.
+  It's the foundation. Without it, PDCA becomes confirmation bias.
+- If you've done Observation Drill recently, alternate between Five
+  Questions and PDCA.
+- Don't do the same drill twice in a row. Variety builds automaticity.
+- If your automaticity is below 0.3, pick the drill that feels hardest.
+  The one you avoid is the one you need most.
+
+{% if context %}
+Your current state:
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+{% if previous_steps %}
+Recent practice history:
+{% for key, value in previous_steps.items() %}
+  [{{ key }}]: {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+1. Review what you practiced recently.
+2. Select the next drill using the criteria above.
+3. Explain WHY you chose this drill.
+
+## Output Format
+
+Respond with a JSON object containing:
+- selected_drill: "five_questions" | "pdca_cycle" | "observation_drill"
+- reason: why you chose this drill
+- last_practiced: when you last did each drill (from history)

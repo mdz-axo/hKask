@@ -23,7 +23,6 @@
 //! - `ledger_export` — Export CSV/JSON
 //! - `portfolio_list` — List all portfolios
 //! - `portfolio_delete` — Delete a portfolio
-//! - `portfolio_create` — Create a portfolio (also auto-created on import)
 //! - `transaction_note_append` — Annotate a transaction
 //! - `note_add` — Add a research note to a security
 //! - `note_list` — List notes with optional date/tag filtering
@@ -34,7 +33,9 @@
 //! - `portfolio_attribution` — What moved the portfolio
 //! - `portfolio_characteristics` — Weighted-average fundamentals
 //! - `portfolio_comparison` — Side-by-side comparison
+//! - `portfolio_returns` — TWR and IRR for any date range
 
+use chrono::Datelike;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::{McpErrorKind, WebID};
@@ -125,6 +126,13 @@ pub struct CharacteristicsRequest {
 pub struct ExpectationsGapRequest {
     pub symbol: String,
     pub target_return: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PortfolioReturnsRequest {
+    pub portfolio: String,
+    pub from: String,
+    pub to: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -899,21 +907,6 @@ impl CompaniesServer {
 
     // ── Portfolio tools ──────────────────────────────────────────
 
-    #[tool(description = "Create a new portfolio")]
-    async fn portfolio_create(
-        &self,
-        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("portfolio_create", &self.webid);
-        match self.portfolio.create(&name) {
-            Ok(()) => span.ok_json(serde_json::json!({"status": "created", "name": name})),
-            Err(e) => span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument(e).to_json_string(),
-            ),
-        }
-    }
-
     #[tool(description = "Delete a portfolio and all its data")]
     async fn portfolio_delete(
         &self,
@@ -1052,6 +1045,277 @@ impl CompaniesServer {
                 McpToolError::invalid_argument(e).to_json_string(),
             ),
         }
+    }
+
+    #[tool(description = "Time-weighted and money-weighted returns for a date range")]
+    async fn portfolio_returns(
+        &self,
+        Parameters(PortfolioReturnsRequest {
+            portfolio,
+            from,
+            to,
+        }): Parameters<PortfolioReturnsRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_returns", &self.webid);
+
+        let txs = match self
+            .portfolio
+            .get_transactions(&portfolio, None, None, None, None)
+        {
+            Ok(t) => t,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
+        };
+
+        // ── Compute positions at from and to ─────────────────────
+        let mut positions_start: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        let mut positions_end: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+        let mut cash_start = 0.0f64;
+        let mut cash_end = 0.0f64;
+
+        // Collect cash flow dates for TWR sub-periods
+        let mut cash_flow_events: Vec<(String, f64)> = Vec::new();
+
+        for tx in &txs {
+            // Cash accounting
+            let cf_amount = match tx.tx_type.as_str() {
+                "deposit" => tx.amount.unwrap_or(0.0),
+                "withdrawal" => -tx.amount.unwrap_or(0.0),
+                "buy" => {
+                    let qty = tx.quantity.unwrap_or(0.0);
+                    let price = tx.price.unwrap_or(0.0);
+                    let comm = tx.commission.unwrap_or(0.0);
+                    -(qty * price + comm)
+                }
+                "sell" => {
+                    let qty = tx.quantity.unwrap_or(0.0);
+                    let price = tx.price.unwrap_or(0.0);
+                    let comm = tx.commission.unwrap_or(0.0);
+                    qty * price - comm
+                }
+                "dividend" => tx.amount.unwrap_or(0.0),
+                _ => 0.0,
+            };
+
+            if tx.date <= from {
+                cash_start += cf_amount;
+            }
+            if tx.date <= to {
+                cash_end += cf_amount;
+            }
+
+            // Collect deposit/withdrawal events in (from, to] for TWR sub-periods
+            if tx.date > from
+                && tx.date <= to
+                && (tx.tx_type == "deposit" || tx.tx_type == "withdrawal")
+            {
+                let amt = match tx.tx_type.as_str() {
+                    "deposit" => tx.amount.unwrap_or(0.0),
+                    "withdrawal" => -tx.amount.unwrap_or(0.0),
+                    _ => 0.0,
+                };
+                cash_flow_events.push((tx.date.clone(), amt));
+            }
+
+            // Position accounting
+            if let Some(ref sym) = tx.symbol {
+                let qty = tx.quantity.unwrap_or(0.0);
+                if tx.date <= from {
+                    match tx.tx_type.as_str() {
+                        "buy" => *positions_start.entry(sym.clone()).or_insert(0.0) += qty,
+                        "sell" => *positions_start.entry(sym.clone()).or_insert(0.0) -= qty,
+                        _ => {}
+                    }
+                }
+                if tx.date <= to {
+                    match tx.tx_type.as_str() {
+                        "buy" => *positions_end.entry(sym.clone()).or_insert(0.0) += qty,
+                        "sell" => *positions_end.entry(sym.clone()).or_insert(0.0) -= qty,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        // Retain only positive positions at start
+        positions_start.retain(|_, v| *v > 0.0001);
+
+        // Fetch prices for all symbols at from and to
+        let all_symbols: Vec<String> = positions_start
+            .keys()
+            .chain(positions_end.keys())
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+
+        let mut prices_at: std::collections::HashMap<String, f64> =
+            std::collections::HashMap::new();
+
+        // Try price_cache first, then API
+        for date in [&from, &to] {
+            let key_prefix = format!("{date}:");
+            for sym in &all_symbols {
+                // Check cache
+                if let Ok(cached) = self.portfolio.get_prices(&portfolio, sym, date, date) {
+                    if let Some((_, close, _)) = cached.first() {
+                        prices_at.insert(format!("{key_prefix}{sym}"), *close);
+                        continue;
+                    }
+                }
+                // Fall back to API
+                match companies_get(
+                    &self.client,
+                    "historical_price",
+                    sym,
+                    &self.fmp_api_key,
+                    &self.eodhd_api_key,
+                    &[("from", date), ("to", date)],
+                )
+                .await
+                {
+                    Ok(value) => {
+                        if let Some(days) = value.get("historical").and_then(|h| h.as_array())
+                            && let Some(day) = days.first()
+                        {
+                            if let Some(close) = day
+                                .get("close")
+                                .or_else(|| day.get("adjClose"))
+                                .and_then(|v| v.as_f64())
+                            {
+                                prices_at.insert(format!("{key_prefix}{sym}"), close);
+                            }
+                        }
+                    }
+                    Err(_) => {} // symbol may not have data for this date
+                }
+            }
+        }
+
+        // ── Compute market values ─────────────────────────────────
+        let mv_at = |positions: &std::collections::HashMap<String, f64>, date: &str| -> f64 {
+            positions
+                .iter()
+                .map(|(sym, shares)| {
+                    let price = prices_at
+                        .get(&format!("{date}:{sym}"))
+                        .copied()
+                        .unwrap_or(0.0);
+                    shares * price
+                })
+                .sum()
+        };
+
+        let mv_start = mv_at(&positions_start, &from);
+        let mv_end = mv_at(&positions_end, &to);
+        let total_start = mv_start + cash_start;
+        let total_end = mv_end + cash_end;
+
+        if total_start <= 0.0 {
+            return span.ok_json(serde_json::json!({
+                "error": "portfolio has zero or negative starting value",
+                "from": from,
+                "to": to,
+            }));
+        }
+
+        let net_flows: f64 = cash_flow_events.iter().map(|(_, amt)| amt).sum();
+
+        // ── Total return ──────────────────────────────────────────
+        let total_return = (total_end - total_start - net_flows) / total_start;
+
+        // ── Modified Dietz (approximate TWR) ──────────────────────
+        let to_date = chrono::NaiveDate::parse_from_str(&to, "%Y-%m-%d").unwrap_or_default();
+        let from_date = chrono::NaiveDate::parse_from_str(&from, "%Y-%m-%d").unwrap_or_default();
+        let period_days = (to_date - from_date).num_days().max(1) as f64;
+
+        let weighted_flows: f64 = cash_flow_events
+            .iter()
+            .map(|(date_str, amt)| {
+                let cf_date =
+                    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
+                let days_remaining = (to_date - cf_date).num_days().max(0) as f64;
+                let weight = days_remaining / period_days;
+                amt * weight
+            })
+            .sum();
+
+        let modified_dietz = if (total_start + weighted_flows).abs() > 0.0001 {
+            (total_end - total_start - net_flows) / (total_start + weighted_flows)
+        } else {
+            total_return
+        };
+
+        // ── IRR via Newton's method ───────────────────────────────
+        // Treat this as solving NPV(r) = 0 where:
+        // cash flows = [-total_start at from, each external CF, +total_end at to]
+        let irr = {
+            let from_days = from_date.num_days_from_ce();
+            let mut cfs: Vec<(f64, f64)> = vec![(-total_start, from_days as f64)];
+            for (date_str, amt) in &cash_flow_events {
+                let cf_date =
+                    chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap_or_default();
+                let days = (cf_date.num_days_from_ce() - from_days) as f64;
+                cfs.push((*amt, days));
+            }
+            let to_days = (to_date.num_days_from_ce() - from_days) as f64;
+            cfs.push((total_end, to_days));
+
+            // Newton's method: r_{n+1} = r_n - NPV(r_n) / NPV'(r_n)
+            let npv = |r: f64| -> f64 {
+                cfs.iter()
+                    .map(|(cf, days)| cf / (1.0 + r).powf(days / 365.0))
+                    .sum()
+            };
+            let npv_deriv = |r: f64| -> f64 {
+                cfs.iter()
+                    .map(|(cf, days)| -cf * (days / 365.0) / (1.0 + r).powf(days / 365.0 + 1.0))
+                    .sum()
+            };
+
+            let mut r = 0.1; // initial guess: 10%
+            for _ in 0..50 {
+                let f = npv(r);
+                let fp = npv_deriv(r);
+                if fp.abs() < 1e-12 {
+                    break;
+                }
+                let r_new = r - f / fp;
+                if (r_new - r).abs() < 1e-8 {
+                    r = r_new;
+                    break;
+                }
+                r = r_new;
+                if r < -0.99 {
+                    r = -0.5; // reset if diving below -100%
+                }
+                if r > 10.0 {
+                    r = 1.0; // cap at 100% and continue
+                }
+            }
+            r
+        };
+
+        span.ok_json(serde_json::json!({
+            "portfolio": portfolio,
+            "from": from,
+            "to": to,
+            "total_return": total_return,
+            "modified_dietz": modified_dietz,
+            "irr": irr,
+            "start_value": total_start,
+            "end_value": total_end,
+            "net_cash_flows": net_flows,
+            "cash_flow_count": cash_flow_events.len(),
+            "positions_at_start": positions_start.len(),
+            "positions_at_end": positions_end.len(),
+        }))
     }
 
     // ── Notes & Files tools ─────────────────────────────────────

@@ -1,0 +1,37 @@
+# Template crate manifest for kata-improvement skill
+# hKask v0.27.0
+
+crate:
+  name: kata-improvement
+  version: "0.27.0"
+  description: >
+    4-step Improvement Kata templates for scientific capability development.
+    Step 1: Understand Direction. Step 2: Grasp Current Condition.
+    Step 3: Establish Target Condition. Step 4: Experiment (PDCA).
+    Each step references prior outputs. The cycle closes with before/after measurement.
+
+templates:
+  - id: kata-improvement/improvement-cycle
+    path: improvement-cycle.j2
+    type: FlowDef
+    description: Full 4-step Improvement Kata cycle with cybernetic feedback loop.
+
+  - id: kata-improvement/improvement-step1-direction
+    path: improvement-step1-direction.j2
+    type: WordAct
+    description: Step 1 — Understand the direction. Articulate challenge, target, measurement plan, knowledge threshold.
+
+  - id: kata-improvement/improvement-step2-current
+    path: improvement-step2-current.j2
+    type: WordAct
+    description: Step 2 — Grasp the current condition. Collect data, identify patterns, establish baseline metrics.
+
+  - id: kata-improvement/improvement-step3-target
+    path: improvement-step3-target.j2
+    type: WordAct
+    description: Step 3 — Establish next target condition. Declare measurable target, identify obstacles, pick ONE focus obstacle.
+
+  - id: kata-improvement/improvement-step4-experiment
+    path: improvement-step4-experiment.j2
+    type: WordAct
+    description: Step 4 — Experiment toward target. Design PDCA experiment with specific prediction and measurement plan.

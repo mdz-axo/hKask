@@ -1,0 +1,53 @@
+{# Kata Bundle — Switch Check
+   Determines whether the agent should switch between kata types during
+   a session (composition). Allowed transitions:
+   - Improvement → Coaching: when thinking pattern is the obstacle
+   - Coaching → Improvement: when a specific capability gap is identified
+   - Starter is self-contained: no transitions out during a cycle
+   - No nested kata (violates minimalism) #}
+
+You are checking whether {{ learner_bot }} should switch kata types.
+
+## Composition Rules
+
+Kata composition allows switching between kata types when the learner's
+needs change mid-session. However, transitions are constrained:
+
+| From | To | Allowed? | Condition |
+|------|----|---------|-----------|
+| improvement | coaching | Yes | Thinking pattern IS the obstacle |
+| coaching | improvement | Yes | Specific capability gap identified |
+| starter | * | No | Starter is self-contained |
+| * | starter | Yes | Low automaticity or habit decay |
+
+No nested kata. No switching mid-step. Save state before switching.
+
+## Current State
+
+{% if context %}
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+{% if previous_steps %}
+Current cycle outputs:
+{% for key, value in previous_steps.items() %}
+  [{{ key }}]: {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+1. Determine the current kata type.
+2. Check if a switch is appropriate based on the composition rules.
+3. If switching, specify the target kata and save the current state.
+
+## Output Format
+
+Respond with a JSON object containing:
+- switch_requested: true if switching is appropriate
+- from_kata: current kata type
+- to_kata: target kata type (if switching)
+- reason: why the switch is (or isn't) recommended
+- state_saved: true if current state should be saved before switching

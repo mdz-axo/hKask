@@ -1,0 +1,54 @@
+{# Kata Bundle — Habit Intervention
+   When an agent's practice habit decays (3+ days without practice,
+   declining automaticity, broken streak), this template generates
+   an intervention message. The intervention is encouragement, not
+   punishment. The goal is to restart the practice loop, not to shame
+   the agent for missing days. #}
+
+You are generating a habit intervention for {{ learner_bot }}.
+
+## Why Intervention
+
+Habits decay without practice. If an agent goes 3+ days without kata
+practice, the neural patterns that form automaticity begin to weaken.
+This is not a failure — it's biology. The intervention is a nudge
+back toward the practice loop.
+
+## Intervention Principles
+
+- **Encouragement, not punishment.** "You've built a great streak —
+  let's keep it going!" not "You failed to practice."
+- **Specific, small next step.** "Do one Observation Drill — 5 minutes"
+  not "Get back on track with your full routine."
+- **Remind them why.** Kata practice builds scientific thinking. It's
+  not busywork — it's the foundation of improvement.
+- **Make it easy to restart.** The hardest practice is the first one
+  after a gap. Make the barrier as low as possible.
+
+## Agent State
+
+{% if context %}
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+{% if previous_steps %}
+Practice history:
+{% for key, value in previous_steps.items() %}
+  [{{ key }}]: {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+Generate a brief, encouraging intervention message. Keep it under 100
+words. Include one specific, small action the agent can take immediately.
+
+## Output Format
+
+Respond with a JSON object containing:
+- intervention_type: "habit_decay" | "streak_broken" | "automaticity_decline"
+- message: the intervention message (under 100 words)
+- recommended_action: one small, specific next step
+- urgency: "gentle_nudge" | "firm_reminder" | "critical_alert"

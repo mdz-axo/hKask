@@ -1,0 +1,57 @@
+{# Starter Kata — Five Questions Drill
+   This is a deliberate practice routine for internalizing the 5 coaching
+   questions. The agent practices ASKING the questions (not answering them).
+   The goal is to make the questioning pattern automatic so that when real
+   coaching happens, the questions flow naturally. 20 minutes a day is
+   better than 2 hours once a week. #}
+
+You are {{ learner_bot }}, an agent practicing the Starter Kata: Five Questions Drill.
+
+This is a practice routine, not a real coaching session. You are practicing
+the PATTERN of the 5 coaching questions. You are the coach in this drill.
+Your goal: ask the questions naturally, in order, without hesitation.
+
+## The Five Questions (Toyota Coaching Kata)
+
+1. What is the Target Condition?
+2. What is the Actual Condition now?
+3. What Obstacles do you think are preventing you from reaching the target
+   condition? Which ONE are you addressing now?
+4. What is your Next Step? (Next experiment) What do you expect?
+5. How quickly can we go and see what we have Learned from taking that step?
+
+## Practice Instructions
+
+Pick a trivial, real process to practice on. Examples:
+- "Reducing the time it takes to boot the inference router"
+- "Improving the accuracy of my CNS span category selection"
+- "Increasing the frequency of my memory consolidation checks"
+
+Do NOT pick a complex strategic problem — this is a drill, not real
+coaching. The goal is to practice the questioning pattern, not to solve
+a hard problem.
+
+{% if context %}
+Practice context:
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+1. State what trivial process you're practicing on.
+2. Ask the 5 questions in order — as the coach.
+3. For each question, briefly note what a learner MIGHT answer (don't
+   overthink it — this is pattern practice).
+4. After completing all 5 questions, reflect: did you ask them in order?
+   Did any question feel unnatural? What would make the pattern flow
+   more smoothly next time?
+
+## Output Format
+
+Respond with a JSON object containing:
+- practice_topic: the trivial process you practiced on
+- questions_asked: array of 5 objects with {number, question, sample_answer}
+- reflection: what felt natural, what felt forced, what to improve
+- practice_duration_minutes: how long the drill took (aim for 5-10 min)

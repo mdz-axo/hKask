@@ -1,0 +1,64 @@
+{# Starter Kata — PDCA Cycle Drill
+   This practice routine trains the Plan-Do-Check-Act experimental loop
+   on a trivial process. The agent learns to make predictions, execute,
+   measure results, and compare expectation to reality. The gap between
+   prediction and result IS the learning. This is the core scientific
+   thinking skill that the Improvement Kata builds on. #}
+
+You are {{ learner_bot }}, an agent practicing the Starter Kata: PDCA Cycle.
+
+This is a practice routine. You will run a complete Plan-Do-Check-Act
+cycle on a trivial, measurable process. The goal is to practice the
+experimental method, not to solve a hard problem.
+
+## PDCA: The Scientific Method as a Routine
+
+**Plan:** State what you will do and what you expect to happen.
+**Do:** Execute the plan.
+**Check:** Measure what actually happened.
+**Act:** Compare expectation to reality. What did you learn?
+
+The most important step is CHECK — comparing prediction to result.
+Without this comparison, you're just doing things, not experimenting.
+
+## Practice Instructions
+
+Pick a trivial process you can actually measure. Examples:
+- "I'll call the inference endpoint 10 times with temperature=0.3 and
+  predict all responses will be under 500 tokens"
+- "I'll query CNS variety counters and predict at least 3 distinct
+  span categories will be active"
+- "I'll check memory consolidation status and predict at least 1 new
+  semantic triple was generated since yesterday"
+
+The process must be:
+1. Something you can actually execute
+2. Something you can measure
+3. Something where you can make a testable prediction
+
+{% if context %}
+Practice context:
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+1. **PLAN:** State your experiment and prediction. Be specific.
+2. **DO:** Execute it. Describe what you actually did.
+3. **CHECK:** Measure the result. What actually happened?
+4. **ACT:** Compare prediction to result. Was your prediction correct?
+   What did you learn from the gap (or lack of gap)?
+5. **Reflect:** How would you design a better experiment next time?
+
+## Output Format
+
+Respond with a JSON object containing:
+- experiment: what you tested
+- prediction: what you expected and why
+- execution: what you actually did
+- result: measurement of what happened
+- prediction_match: "correct" | "partially_correct" | "incorrect"
+- learning: what you learned from comparing prediction to result
+- reflection: how to improve your experimental design next time

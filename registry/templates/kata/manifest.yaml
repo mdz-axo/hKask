@@ -1,0 +1,46 @@
+# Template crate manifest for kata bundle skill
+# hKask v0.27.0
+
+crate:
+  name: kata
+  version: "0.27.0"
+  description: >
+    Kata system orchestrator — routes agents to starter/improvement/coaching
+    based on automaticity, history, and context. Manages habit monitoring,
+    iteration, and composition switching.
+
+templates:
+  - id: kata/kata-selector
+    path: kata-selector.j2
+    type: KnowAct
+    description: Route agent to appropriate kata (starter/improvement/coaching/intervention).
+
+  - id: kata/consent-and-select
+    path: consent-and-select.j2
+    type: KnowAct
+    description: Verify P2 consent then route to selected kata type.
+
+  - id: kata/outcome-and-habit
+    path: outcome-and-habit.j2
+    type: KnowAct
+    description: Synthesize kata outcome with habit assessment (automaticity, streak, delta).
+
+  - id: kata/habit-intervention
+    path: habit-intervention.j2
+    type: WordAct
+    description: Generate encouraging intervention message when practice habit decays.
+
+  - id: kata/iteration-check
+    path: iteration-check.j2
+    type: KnowAct
+    description: Determine if kata cycle should be re-run (variance, confidence, budget).
+
+  - id: kata/iteration-comparison
+    path: iteration-comparison.j2
+    type: KnowAct
+    description: Compare iteration outputs for variance, consistency, and best run.
+
+  - id: kata/kata-switch-check
+    path: kata-switch-check.j2
+    type: KnowAct
+    description: Check if kata composition switching is appropriate mid-session.

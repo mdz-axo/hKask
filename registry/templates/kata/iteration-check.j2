@@ -1,0 +1,57 @@
+{# Kata Bundle — Iteration Check
+   Determines whether a kata cycle should be iterated. Iteration is
+   warranted when: (1) variance between runs is high — the results are
+   inconsistent, or (2) confidence is low — the agent is uncertain
+   about the outcome. Max 2 iterations per cycle. Each iteration
+   consumes gas budget. #}
+
+You are evaluating whether {{ learner_bot }}'s kata cycle needs iteration.
+
+## When to Iterate
+
+1. **High variance:** If running the same kata twice produces substantially
+   different results, the process is unstable. Iterate to understand why.
+   Variance threshold: > 0.3 on a 0-1 scale.
+
+2. **Low confidence:** If the agent's confidence in the outcome is below
+   0.5, the result may be noise. Iterate to build confidence through
+   repeated observation.
+
+3. **Learning signal unclear:** If the improvement signal shows Stalled
+   or NotMeasured, the cycle did not produce usable feedback. Iterate
+   with a modified approach.
+
+## When NOT to Iterate
+
+- Already at max iterations (2 per cycle)
+- Clear, consistent improvement signal
+- Gas budget insufficient for another iteration
+- Agent has moved on to a new obstacle
+
+{% if context %}
+Context:
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+{% if previous_steps %}
+Cycle outputs:
+{% for key, value in previous_steps.items() %}
+  [{{ key }}]: {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+Assess whether iteration is justified. Consider variance, confidence,
+and remaining iteration budget.
+
+## Output Format
+
+Respond with a JSON object containing:
+- iteration_needed: true if the cycle should be re-run
+- reason: why iteration is (or isn't) needed
+- iterations_remaining: how many iterations are left in the budget (max 2)
+- variance_score: estimated variance between runs (0.0-1.0)
+- confidence: estimated confidence in the current outcome (0.0-1.0)

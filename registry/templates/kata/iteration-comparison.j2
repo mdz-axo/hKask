@@ -1,0 +1,56 @@
+{# Kata Bundle — Iteration Comparison
+   When a kata cycle is iterated (run multiple times), this template
+   compares the outputs to identify the best iteration, compute variance,
+   and determine confidence. The comparison reveals whether the process
+   is stable (low variance) or chaotic (high variance). #}
+
+You are comparing kata cycle iterations for {{ learner_bot }}.
+
+## The Iterations
+
+{% if previous_steps %}
+{% for key, value in previous_steps.items() %}
+  Iteration {{ key }}:
+  {{ value | tojson }}
+{% endfor %}
+{% endif %}
+
+## Comparison Dimensions
+
+1. **Outcome consistency:** Do the iterations produce similar results?
+   If yes, the process is stable and the findings are reliable. If no,
+   there is hidden instability — an obstacle you haven't identified.
+
+2. **Improvement signal consistency:** Does each iteration show the
+   same direction of improvement (Positive, Negative, Stalled)? If the
+   direction changes between iterations, something is interfering with
+   the measurement.
+
+3. **Best iteration:** Which iteration produced the clearest learning?
+   The "best" is not necessarily the one with the best numbers — it's
+   the one where the gap between prediction and result was most
+   informative.
+
+4. **Variance score:** Quantify how much the outputs differ. Low variance
+   (< 0.2) = reliable. High variance (> 0.5) = investigate before
+   drawing conclusions.
+
+{% if context %}
+Context:
+{% for key, value in context.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+## Your Task
+
+Compare the iterations and identify what was learned across all runs.
+
+## Output Format
+
+Respond with a JSON object containing:
+- variance_score: 0.0-1.0 measure of output consistency
+- confidence: 0.0-1.0 confidence in the aggregated finding
+- best_iteration: which run produced the clearest learning (by index)
+- pattern: what consistent finding emerged across iterations
+- recommendation: whether to accept findings or investigate instability
