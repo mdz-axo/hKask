@@ -67,7 +67,7 @@ pub struct MethodSignals {
 
     // ── Academic-specific signals ───────────────────────────────────────
     /// Citation count per 1000 words. Detects patterns like "(Author, Year)"
-    /// and "[1]", "[2,3]" reference markers.
+    /// and ``[1]``, ``[2,3]`` reference markers.
     pub citation_density: f32,
     /// Ratio of formal notation (math, code, LaTeX) characters to total
     /// characters. High in quantitative/CS papers, low in humanities.

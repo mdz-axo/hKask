@@ -2,12 +2,12 @@
 //!
 //! # Environment Variables
 //!
-//! - `OM_BASE_URL` — Ollama base URL (default: http://127.0.0.1:11434)
-//! - `FW_BASE_URL` — Fireworks base URL (default: https://api.fireworks.ai/inference)
+//! - `OM_BASE_URL` — Ollama base URL (default: <http://127.0.0.1:11434>)
+//! - `FW_BASE_URL` — Fireworks base URL (default: <https://api.fireworks.ai/inference>)
 //! - `FW_API_KEY` — Fireworks API key (required for FW provider)
-//! - `DI_BASE_URL` — DeepInfra base URL (default: https://api.deepinfra.com)
+//! - `DI_BASE_URL` — DeepInfra base URL (default: <https://api.deepinfra.com>)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
-//! - `FA_BASE_URL` — fal.ai base URL (default: https://api.fal.ai)
+//! - `FA_BASE_URL` — fal.ai base URL (default: <https://api.fal.ai>)
 //! - `FA_API_KEY` — fal.ai API key (required for FA provider)
 //! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (OM, FW, DI, FA; default: OM)
 //!
@@ -376,30 +376,37 @@ mod tests {
     /// REQ: inf-cfg-010 — resolve_api_key reads from primary env var
     #[test]
     fn resolve_api_key_primary_env() {
+        // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
         unsafe { std::env::set_var("HKASK_TEST_KEY_010", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_010", &[]),
             "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
+        // SAFETY: Test cleanup — see above.
         unsafe { std::env::remove_var("HKASK_TEST_KEY_010") };
     }
 
     /// REQ: inf-cfg-011 — resolve_api_key falls back to legacy env var names
     #[test]
     fn resolve_api_key_fallback_env() {
+        // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
         unsafe { std::env::set_var("HKASK_TEST_LEGACY_011", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_011", &["HKASK_TEST_LEGACY_011"]),
             "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
+        // SAFETY: Test cleanup — see above.
         unsafe { std::env::remove_var("HKASK_TEST_LEGACY_011") };
     }
 
     /// REQ: inf-cfg-012 — resolve_api_key returns empty when no key found
     #[test]
     fn resolve_api_key_empty_when_missing() {
-        unsafe { std::env::remove_var("HKASK_TEST_KEY_012") };
-        unsafe { std::env::remove_var("HKASK_TEST_LEGACY_012") };
+        // SAFETY: Test cleanup — removing environment variables is safe in single-threaded test context.
+        unsafe {
+            std::env::remove_var("HKASK_TEST_KEY_012");
+            std::env::remove_var("HKASK_TEST_LEGACY_012");
+        }
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_012", &["HKASK_TEST_LEGACY_012"]),
             ""
@@ -409,13 +416,19 @@ mod tests {
     /// REQ: inf-cfg-013 — resolve_api_key prefers primary over fallback
     #[test]
     fn resolve_api_key_primary_wins_over_fallback() {
-        unsafe { std::env::set_var("HKASK_TEST_KEY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
-        unsafe { std::env::set_var("HKASK_TEST_LEGACY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX") };
+        // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
+        unsafe {
+            std::env::set_var("HKASK_TEST_KEY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX");
+            std::env::set_var("HKASK_TEST_LEGACY_013", "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX");
+        }
         assert_eq!(
             resolve_api_key("HKASK_TEST_KEY_013", &["HKASK_TEST_LEGACY_013"]),
             "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX"
         );
-        unsafe { std::env::remove_var("HKASK_TEST_KEY_013") };
-        unsafe { std::env::remove_var("HKASK_TEST_LEGACY_013") };
+        // SAFETY: Test cleanup — see above.
+        unsafe {
+            std::env::remove_var("HKASK_TEST_KEY_013");
+            std::env::remove_var("HKASK_TEST_LEGACY_013");
+        }
     }
 }

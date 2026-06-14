@@ -1,576 +1,979 @@
----
-title: "Corpus Inventory — Lifecycle Classification"
-audience: [architects, documentation maintainers, agents]
-last_updated: 2026-06-12
-version: "1.1.0"
-status: "Active"
-domain: "Cross-cutting"
-mds_categories: [lifecycle, curation]
----
-
-# Corpus Inventory — Lifecycle Classification
-
-Generated: 2026-06-12
-Updated: 2026-06-12 (Task 2 metadata alignment complete)
-Method: Walk every .md (and .yaml status) file in docs/architecture/, docs/specifications/,
-        docs/status/, docs/plans/, docs/user-guides/. Extract YAML frontmatter. Classify
-        lifecycle state against MDS_SCAFFOLD §3 state machine (Draft → Active → Deprecated
-        → Superseded → Removed). Flag stale status, missing/deprecated mds_categories,
-        and references to removed/superseded subsystems.
-
-## Summary
-
-| Metric | Count |
-|--------|-------|
-| Total documents walked | 47 |
-| Active (correct) | 31 |
-| Draft (correct) | 4 |
-| Metadata violations | 0 |
-| Metadata aligned (all) | 47 |
-| ddmvss_categories (deprecated) | 0 |
-| Missing mds_categories | 0 |
-| Old 9-category values in mds_categories | 0 |
-| Missing frontmatter entirely | 0 |
-| Stale status values | 0 |
-| References removed subsystems | 8 |
-| lifecycle_action: keep | 47 |
-| lifecycle_action: fix_metadata | 0 |
-
-## Inventory
-
-### architecture/
-
-- path: docs/architecture/ADR-024-unified-registry.md
-  status: Active
-  mds_categories: [composition]
-  last_updated: 2026-05-29
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Correct 5-category taxonomy. Version matches project."
-
-- path: docs/architecture/ADR-025-attenuation-depth-limit.md
-  status: Active
-  mds_categories: [trust]
-  last_updated: 2026-05-29
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/ADR-026-bitemporal-triple-schema.md
-  status: Active
-  mds_categories: [lifecycle]
-  last_updated: 2026-05-29
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "mds_categories: [lifecycle] is correct 5-category taxonomy, though ADR-026 is about persistence. Per MDS, persistence maps under Lifecycle category."
-
-- path: docs/architecture/ADR-027-argon2-hkdf-master-key.md
-  status: Active
-  mds_categories: [trust]
-  last_updated: 2026-05-29
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/ADR-030-skill-bundler.md
-  status: Draft
-  mds_categories: [composition]
-  last_updated: 2026-06-04
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/ADR-031-consolidation-authorization.md
-  status: Active
-  mds_categories: [trust]
-  last_updated: 2026-06-05
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/ADR-032-mcp-gateway-membrane.md
-  status: Draft
-  mds_categories: [composition, trust]
-  last_updated: 2026-06-07
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body references 'MDS.md §7.1-7.2 §5.5' — deleted sections. Flagged for cross-reference fix in Task 4."
-
-- path: docs/architecture/ADR-033-dampener-override-cooldown.md
-  status: Draft
-  mds_categories: [trust, lifecycle]
-  last_updated: 2026-06-07
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body references 'MDS.md §7.1-7.2 §4.3' — deleted sections. Flagged for cross-reference fix in Task 4."
-
-- path: docs/architecture/ADR-034-academic-author-pipeline.md
-  status: Draft
-  mds_categories: [composition, curation]
-  last_updated: 2026-06-11
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/ADR-035-replicant-server-mode.md
-  status: Active
-  mds_categories: [composition, trust, lifecycle]
-  last_updated: 2026-06-12
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body references 'MDS.md §7.1-7.2' — deleted sections. Flagged for cross-reference fix in Task 4."
-
-- path: docs/architecture/hKask-architecture-master.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-12
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body says '6 tools' for MDS (should be 5). 'Historical' section references deleted MDS.md sections — violates AGENTS.md §2.4 (no active-tree document may describe retired/removed subsystems). Flagged for fix in Task 4/7."
-
-- path: docs/architecture/loop-architecture.md
-  status: Active
-  mds_categories: [domain, composition, lifecycle, curation]
-  last_updated: 2026-06-09
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/magna-carta.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-09
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/MDS.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-09
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body says 'Supersedes: MDS.md' (self-referential — should say 'Supersedes: DDMVSS.md' or clarify it supersedes the previous 9-category version)."
-
-- path: docs/architecture/PRINCIPLES.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-09
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/wallet-specification.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: missing
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "No YAML frontmatter. Has inline metadata (Date, Project, Status) but not the standard 6-field header. Status claims 'Phases 1–8 complete' — not a standard lifecycle state."
-
-### architecture/reference/
-
-- path: docs/architecture/reference/hKask-Curator-persona.md
-  status: Active
-  mds_categories: [domain]
-  last_updated: 2026-06-07
-  version: "1.1.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/reference/hKask-hLexicon.md
-  status: Active
-  mds_categories: [domain]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/architecture/reference/okapi-integration.md
-  status: Active
-  mds_categories: [domain]
-  last_updated: 2026-06-11
-  version: "0.28.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Version 0.28.0 ahead of project 0.27.0 — reference doc may track its own version."
-
-- path: docs/architecture/reference/ports-inventory.md
-  status: accurate
-  mds_categories: [interface]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "status: 'accurate' is not a valid lifecycle state (must be Active|Draft|Deprecated|Superseded). mds_categories: [interface] uses deprecated 9-category taxonomy value. Should map to [composition] in 5-category taxonomy (interface → composition per MDS §1)."
-
-- path: docs/architecture/reference/template-header-standard.md
-  status: Active
-  mds_categories: [composition]
-  last_updated: 2026-06-07
-  version: "0.23.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Version 0.23.0 behind project 0.27.0 — may be intentional for a reference standard."
-
-- path: docs/architecture/reference/utoipa-implementation.md
-  status: Active
-  mds_categories: [interface]
-  last_updated: 2026-06-12
-  version: "1.0.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "mds_categories: [interface] uses deprecated 9-category taxonomy value. Should map to [composition] in 5-category taxonomy."
-
-### specifications/
-
-- path: docs/specifications/ADR_TEMPLATE.md
-  status: Active
-  mds_categories: [curation]
-  last_updated: 2026-06-07
-  version: "1.0.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/specifications/CI-CD-GUIDE.md
-  status: Active
-  mds_categories: [lifecycle]
-  last_updated: 2026-06-07
-  version: "1.0.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/specifications/crate-audit.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: missing
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "Has a 'bundle:' frontmatter block instead of standard 6-field header. No mds_categories, no status field, no version in standard format."
-
-- path: docs/specifications/DEPENDENCY_POLICY.md
-  status: Active
-  mds_categories: [lifecycle]
-  last_updated: 2026-05-22
-  version: "1.0.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "last_updated 2026-05-22 — 3 weeks stale. Content may need review but metadata is correct."
-
-- path: docs/specifications/DEPLOYMENT.md
-  status: Active
-  mds_categories: [lifecycle]
-  last_updated: 2026-05-24
-  version: "1.0.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "last_updated 2026-05-24 — 2.5 weeks stale."
-
-- path: docs/specifications/DOCUMENTATION_STANDARDS.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-07
-  version: "0.7.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body §2 and §11 still reference the deprecated 9-category DDMVSS taxonomy. §2 example shows 9 categories. §11 lists 9 categories with old names (Capability, Interface, Observability, Persistence). This is a content violation — the metadata header is correct but the body teaches the wrong taxonomy. Flagged for content fix in Task 3/4."
-
-- path: docs/specifications/MDS-agent-service.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle]
-  last_updated: 2026-06-10
-  version: "0.27.2"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body says 'Supersedes: hKask-architecture-master.md §Service Layer (v0.27.0)' — cross-reference to a section, not a document. Acceptable per DOCUMENTATION_STANDARDS.md §8."
-
-- path: docs/specifications/MDS_SCAFFOLD.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-10
-  version: "2.5.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/specifications/REPL-specification.md
-  status: Active
-  mds_categories: [domain, composition, lifecycle, curation]
-  last_updated: 2026-06-11
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/specifications/REQUIREMENTS.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-10
-  version: "1.4.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body references 'MDS.md §7.1-7.2' — deleted sections. Flagged for cross-reference fix in Task 4."
-
-- path: docs/specifications/salience-specification.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: missing
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "No YAML frontmatter. Has inline 'MDS Category: specification/algorithm' and 'Status: Active' but not the standard 6-field header."
-
-- path: docs/specifications/TESTING_STANDARDS.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-06
-  version: "1.0.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/specifications/test-program.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-10
-  version: "0.1.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/specifications/TRACEABILITY_MATRIX.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-07
-  version: "1.3.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body references 'MDS.md §7.1-7.2, §7.2, §7.3, §7.4' — deleted sections. Flagged for cross-reference fix in Task 4."
-
-- path: docs/specifications/WRITING_EXCELLENCE.md
-  status: Active
-  mds_categories: [curation]
-  last_updated: 2026-05-13
-  version: "0.3.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "last_updated 2026-05-13 — 4 weeks stale. Content may need review."
-
-### status/
-
-- path: docs/status/adversarial-simplification-inventory.md
-  status: Active
-  mds_categories: [composition, composition, domain]
-  last_updated: 2026-06-08
-  version: "0.1.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "mds_categories has duplicate 'composition' entry. Should be [composition, domain]."
-
-- path: docs/status/curation-decisions.yaml
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-08
-  version: "1.0.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "Uses ddmvss_categories (deprecated 9-category taxonomy). Must migrate to mds_categories with 5-category taxonomy. YAML file, not .md — but in status/ directory scope."
-
-- path: docs/status/mcp-tools-inventory.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-11
-  version: "2.1.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "Missing mds_categories and audience fields. status: Active is unquoted (not valid YAML string). Has generated_from field instead of standard fields."
-
-- path: docs/status/PROJECT_STATUS.md
-  status: Active
-  mds_categories: [lifecycle]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Body references 'ddmvss_categories' (deprecated taxonomy name) — content violation. Flagged for fix in Task 4."
-
-- path: docs/status/spec-code-drift.yaml
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-08
-  version: "1.0.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "Uses ddmvss_categories (deprecated 9-category taxonomy). Must migrate to mds_categories with 5-category taxonomy. YAML file, not .md — but in status/ directory scope. Footer says 'v0.23.0' — stale version reference."
-
-- path: docs/status/test-inventory.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: "2.1.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "Missing mds_categories and audience fields. status: Active is unquoted (not valid YAML string). Has generated_from field instead of standard fields."
-
-### plans/
-
-- path: docs/plans/2026-06-12-replicant-server-mode.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: missing
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "No YAML frontmatter. Has inline 'Status: Build complete' — not a standard lifecycle state. This is a handoff document, not a plan — may belong in handoffs/."
-
-- path: docs/plans/2026-06-12-wallet-payment-mechanism.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: missing
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "No YAML frontmatter. Has inline 'Status: Foundation built' — not a standard lifecycle state."
-
-- path: docs/plans/2026-06-12-wallet-rjoule-payments.md
-  status: Active
-  mds_categories: missing
-  last_updated: 2026-06-12
-  version: missing
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "No YAML frontmatter. Has inline 'Status: Phases 1–8 complete' — not a standard lifecycle state."
-
-- path: docs/plans/bundler-completion.md
-  status: Active
-  mds_categories: [domain, composition, lifecycle]
-  last_updated: 2026-06-11
-  version: "0.1.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/plans/mcp-server-roadmap.md
-  status: Active
-  mds_categories: [domain, composition, capability, lifecycle, curation]
-  last_updated: 2026-06-11
-  version: "1.1.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "mds_categories includes 'capability' from deprecated 9-category taxonomy. Should be [domain, composition, trust, lifecycle, curation] in 5-category taxonomy. Missing audience field."
-
-- path: docs/plans/TODO.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-11
-  version: "1.9.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-### user-guides/
-
-- path: docs/user-guides/AGENT-POD-CREATION-GUIDE.md
-  status: Active
-  mds_categories: [domain]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/user-guides/COMMON-AGENT-PATTERNS.md
-  status: Active
-  mds_categories: [domain]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-### root docs/
-
-- path: docs/README.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-  notes: "Portal says MDS has '6 tools' (should be 5). 'Status' section says '(planned)' but 6 status files exist. 'Plans' section only lists TODO.md but 6 plan files exist. 'Research' section is empty. Lists 'inference-integration.md' but actual file is 'okapi-integration.md'. MDS column uses old single-word 9-category values. Flagged for fix in Task 7."
-
-- path: docs/DIAGRAMS_INDEX.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-10
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/OPEN_QUESTIONS.md
-  status: Active
-  mds_categories: [domain, composition, trust, lifecycle, curation]
-  last_updated: 2026-06-08
-  version: "0.27.0"
-  lifecycle_action: keep
-  metadata_aligned: true
-
-- path: docs/generated/cli-reference.md
-  status: Active
-  mds_categories: [interface]
-  last_updated: 2026-06-12
-  version: "0.27.0"
-  lifecycle_action: fix_metadata
-  metadata_aligned: false
-  notes: "mds_categories: [interface] uses deprecated 9-category taxonomy value. Should map to [composition] in 5-category taxonomy. Auto-generated file — metadata may be injected by generator."
-
-## Violation Summary
-
-### ddmvss_categories (deprecated taxonomy)
-- docs/status/spec-code-drift.yaml
-- docs/status/curation-decisions.yaml
-
-### Old 9-category values in mds_categories
-- docs/architecture/reference/ports-inventory.md: [interface] → should be [composition]
-- docs/architecture/reference/utoipa-implementation.md: [interface] → should be [composition]
-- docs/generated/cli-reference.md: [interface] → should be [composition]
-- docs/plans/mcp-server-roadmap.md: [capability] → should be [trust]
-
-### Missing mds_categories entirely
-- docs/status/mcp-tools-inventory.md
-- docs/status/test-inventory.md
-- docs/status/spec-code-drift.yaml (has ddmvss_categories instead)
-- docs/status/curation-decisions.yaml (has ddmvss_categories instead)
-
-### Missing frontmatter entirely
-- docs/architecture/wallet-specification.md
-- docs/specifications/crate-audit.md
-- docs/specifications/salience-specification.md
-- docs/plans/2026-06-12-replicant-server-mode.md
-- docs/plans/2026-06-12-wallet-payment-mechanism.md
-- docs/plans/2026-06-12-wallet-rjoule-payments.md
-
-### Stale status values
-- docs/architecture/reference/ports-inventory.md: "accurate" → should be "Active"
-- docs/status/mcp-tools-inventory.md: unquoted "Active"
-- docs/status/test-inventory.md: unquoted "Active"
-
-### Duplicate mds_categories entries
-- docs/status/adversarial-simplification-inventory.md: [composition, composition, domain]
-
-### References to removed/superseded subsystems (content violation)
-- docs/architecture/hKask-architecture-master.md: Historical section references deleted MDS.md sections
-- docs/architecture/ADR-032-mcp-gateway-membrane.md: references MDS.md §7.1-7.2
-- docs/architecture/ADR-033-dampener-override-cooldown.md: references MDS.md §7.1-7.2
-- docs/architecture/ADR-035-replicant-server-mode.md: references MDS.md §7.1-7.2
-- docs/specifications/REQUIREMENTS.md: references MDS.md §7.1-7.2
-- docs/specifications/TRACEABILITY_MATRIX.md: references MDS.md §7.1-7.2, §7.2, §7.3, §7.4
-- docs/README.md: says "6 tools" (should be 5)
-- docs/architecture/hKask-architecture-master.md: says "6 tools" (should be 5)
-
-### Body references to ddmvss (deprecated taxonomy name in prose)
-- docs/status/PROJECT_STATUS.md: references "ddmvss_categories" in body
-- docs/specifications/DOCUMENTATION_STANDARDS.md: §2 and §11 teach 9-category taxonomy
-
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+# hKask Document Corpus Inventory — Task 1 Classification
+# Generated: 2026-06-14 | Agent: Zed coding agent
+# Principles: P5 (Pared Surface), P6 (No Dead Docs), P8 (Semantic Grounding)
+#
+# Classification taxonomy:
+#   Active (keep): directly referenced from AGENTS.md, architecture master, or README portal; no drift
+#   Stale (refresh): not referenced in indices; metadata anomalies; superseded content
+#   Archive: stale AND no forward-looking value
+#
+# Lifecycle: Draft → Active → Deprecated → Superseded → Removed (per MDS_SCAFFOLD §3)
+
+documents:
+  # =========================================================================
+  # ROOT docs/ — Loose Files
+  # =========================================================================
+  - path: "docs/README.md"
+    category: "Portal"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P5, P6, P8]
+    disposition: keep
+    notes: "Portal. Canonical navigation index. Referenced from AGENTS.md and architecture master."
+
+  - path: "docs/DIAGRAMS_INDEX.md"
+    category: "Cross-cutting Index"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P5, P8]
+    disposition: keep
+    notes: "Mermaid diagram verification registry. Referenced from README portal."
+
+  - path: "docs/OPEN_QUESTIONS.md"
+    category: "Cross-cutting Index"
+    status: "Active"
+    last_updated: "2026-06-08"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P3, P5, P6]
+    disposition: keep
+    notes: "Underspecified aspects. Last updated 2026-06-08 — may need refresh. Referenced from README portal."
+
+  - path: "docs/feedback.md"
+    category: "Root File"
+    status: "Archive"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Not referenced in any index (README, AGENTS.md, architecture master). No clear purpose or audience."
+    governing_principles: [P5, P6]
+    disposition: archive
+    notes: "Orphan document with no metadata, no references, no audience. Delete after confirming no forward value."
+
+  # =========================================================================
+  # ARCHITECTURE/ — Framework Documents & ADRs
+  # =========================================================================
+  - path: "docs/architecture/hKask-architecture-master.md"
+    category: "Architecture Index"
+    status: "Active"
+    last_updated: "2026-06-14"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P5, P6, P8]
+    disposition: keep
+    notes: "Authoritative architecture index. Referenced from AGENTS.md and README portal."
+
+  - path: "docs/architecture/MDS.md"
+    category: "Framework"
+    status: "Active"
+    last_updated: "2026-06-09"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P8]
+    disposition: keep
+    notes: "Minimal Domain Specification. Authoritative for all 5 MDS categories. Referenced from architecture master and README portal."
+
+  - path: "docs/architecture/PRINCIPLES.md"
+    category: "Framework"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P1, P2, P3, P4, P5, P6, P7, P8, P9]
+    disposition: keep
+    notes: "12 architecture principles (P1-P12). This document is the ultimate authority. Referenced from AGENTS.md and README portal."
+
+  - path: "docs/architecture/magna-carta.md"
+    category: "Framework"
+    status: "Active"
+    last_updated: "2026-06-09"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P1, P2, P3, P4]
+    disposition: keep
+    notes: "User sovereignty charter — 4 inviolable principles. Referenced from architecture master and README portal."
+
+  - path: "docs/architecture/loop-architecture.md"
+    category: "Framework"
+    status: "Active"
+    last_updated: "2026-06-09"
+    version: "0.27.0"
+    mds_categories: [domain, composition, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P7, P8]
+    disposition: keep
+    notes: "4-loop authority model. Referenced from architecture master and README portal."
+
+  # --- Architecture Decision Records ---
+  - path: "docs/architecture/ADR-024-unified-registry.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-05-29"
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: null
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Unified registry decision (retroactive). Referenced from architecture master and README portal."
+
+  - path: "docs/architecture/ADR-025-attenuation-depth-limit.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-05-29"
+    version: "0.27.0"
+    mds_categories: [trust]
+    staleness_signal: null
+    governing_principles: [P4]
+    disposition: keep
+    notes: "7-level attenuation depth limit (retroactive)."
+
+  - path: "docs/architecture/ADR-026-bitemporal-triple-schema.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-05-29"
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: null
+    governing_principles: [P7]
+    disposition: keep
+    notes: "Bitemporal triple schema (retroactive)."
+
+  - path: "docs/architecture/ADR-027-argon2-hkdf-master-key.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-05-29"
+    version: "0.27.0"
+    mds_categories: [trust]
+    staleness_signal: null
+    governing_principles: [P2, P4]
+    disposition: keep
+    notes: "Argon2id + HKDF-SHA256 master key derivation (retroactive)."
+
+  - path: "docs/architecture/ADR-030-skill-bundler.md"
+    category: "Decision Record"
+    status: "Draft"
+    last_updated: "2026-06-04"
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: null
+    governing_principles: [P3, P7]
+    disposition: keep
+    notes: "Skill bundler — meta-skill composition. Draft but referenced from architecture master and README portal. Valid forward-looking document."
+
+  - path: "docs/architecture/ADR-031-consolidation-authorization.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-06-05"
+    version: "0.27.0"
+    mds_categories: [trust]
+    staleness_signal: null
+    governing_principles: [P2, P4]
+    disposition: keep
+    notes: "Consolidation authorization via master passphrase derivation."
+
+  - path: "docs/architecture/ADR-032-mcp-gateway-membrane.md"
+    category: "Decision Record"
+    status: "Draft"
+    last_updated: "2026-06-07"
+    version: "0.27.0"
+    mds_categories: [composition, trust]
+    staleness_signal: null
+    governing_principles: [P4, P7]
+    disposition: keep
+    notes: "MCP gateway membrane policy. Draft but forward-looking."
+
+  - path: "docs/architecture/ADR-033-dampener-override-cooldown.md"
+    category: "Decision Record"
+    status: "Draft"
+    last_updated: "2026-06-07"
+    version: "0.27.0"
+    mds_categories: [trust, lifecycle]
+    staleness_signal: null
+    governing_principles: [P7, P9]
+    disposition: keep
+    notes: "Dampener override cooldown semantics. Draft but forward-looking."
+
+  - path: "docs/architecture/ADR-034-academic-author-pipeline.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: null
+    governing_principles: [P3, P5]
+    disposition: keep
+    notes: "Academic author pipeline architecture. Active and referenced."
+
+  - path: "docs/architecture/ADR-035-replicant-server-mode.md"
+    category: "Decision Record"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [composition, trust, lifecycle]
+    staleness_signal: null
+    governing_principles: [P2, P3, P4]
+    disposition: keep
+    notes: "Replicant server mode. Active decision. Referenced from architecture master."
+
+  # --- Architecture documents NOT in architecture master document structure ---
+  - path: "docs/architecture/P12-replicant-host-mandate.md"
+    category: "Framework / Specification"
+    status: "Stale"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, trust, composition]
+    staleness_signal: "NOT listed in architecture master (docs/architecture/hKask-architecture-master.md §Document Structure). Master states 21 active docs but this is one of 4 architecture/ docs missing from its index."
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Valid document with metadata, but absent from architecture master's document structure. Must be added to master index, or consolidated if superseded by ADR-035."
+
+  - path: "docs/architecture/energy-gas-payments-api-keys.md"
+    category: "Framework / Specification"
+    status: "Stale"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, trust, lifecycle, curation]
+    staleness_signal: "NOT listed in architecture master document structure. Master states 21 docs but this doc is not among them."
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Valid document but absent from architecture master's document structure. Must be added to master index."
+
+  - path: "docs/architecture/lazy-universe-research.md"
+    category: "Framework / Research"
+    status: "Stale"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, composition, curation]
+    staleness_signal: "NOT listed in architecture master document structure. Research background document without clear placement."
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Research foundation document. Valid but absent from master index. Add to master or clarify classification."
+
+  - path: "docs/architecture/wallet-specification.md"
+    category: "Framework / Specification"
+    status: "Stale"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: "Listed in README portal (§Architecture) but NOT in architecture master's document structure. Master index inconsistency."
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Wallet crate architectural specification. Referenced from README portal but absent from architecture master. Add to master's document structure."
+
+  - path: "docs/architecture/OCR-PIPELINE-INSIGHTS.md"
+    category: "Research / Superseded"
+    status: "Archive"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Not in architecture master, README portal, or AGENTS.md. No audience. Likely superseded by ADR-034 (academic author pipeline) and plans/mcp-media-server-design.md. Has no forward-looking value."
+    governing_principles: [P5, P6]
+    disposition: archive
+    notes: "Orphan research notes. P6 violation — no dead documents. Superseded content. Archive."
+
+  # --- Architecture Reference Artifacts ---
+  - path: "docs/architecture/reference/hKask-hLexicon.md"
+    category: "Reference"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain]
+    staleness_signal: null
+    governing_principles: [P8]
+    disposition: keep
+    notes: "87-term vocabulary catalog. Referenced from architecture master and README portal."
+
+  - path: "docs/architecture/reference/ports-inventory.md"
+    category: "Reference"
+    status: "Active"
+    last_updated: "2026-06-10"
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: null
+    governing_principles: [P8]
+    disposition: keep
+    notes: "Hexagonal port inventory. Referenced from architecture master and README portal."
+
+  - path: "docs/architecture/reference/okapi-integration.md"
+    category: "Reference"
+    status: "Active"
+    last_updated: "2026-06-11"
+    version: "0.28.0"
+    mds_categories: [domain]
+    staleness_signal: "Version 0.28.0 diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Inference Router API contract. Version 0.28.0 — must be verified: either a forward-looking version bump or an error."
+
+  - path: "docs/architecture/reference/utoipa-implementation.md"
+    category: "Reference"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "1.0.0"
+    mds_categories: [composition]
+    staleness_signal: "Version 1.0.0 significantly diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "API/CLI documentation guide. Version anomaly — 1.0.0 vs workspace 0.27.0. Verify."
+
+  - path: "docs/architecture/reference/template-header-standard.md"
+    category: "Reference"
+    status: "Active"
+    last_updated: "2026-06-07"
+    version: "0.23.0"
+    mds_categories: [composition]
+    staleness_signal: "Version 0.23.0 is behind workspace 0.27.0 by 4 minor versions"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Template header standard. Version 0.23.0 is stale. Update to 0.27.0."
+
+  - path: "docs/architecture/reference/hKask-Curator-persona.md"
+    category: "Reference"
+    status: "Active"
+    last_updated: "2026-06-07"
+    version: "1.1.0"
+    mds_categories: [domain]
+    staleness_signal: "Version 1.1.0 diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Curator persona specification. Version anomaly — 1.1.0 vs 0.27.0. Verify."
+
+  # =========================================================================
+  # SPECIFICATIONS/
+  # =========================================================================
+  - path: "docs/specifications/REQUIREMENTS.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P8]
+    disposition: keep
+    notes: "22 implemented + 5 deferred goal specs. Referenced from architecture master and README portal."
+
+  - path: "docs/specifications/TRACEABILITY_MATRIX.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-07"
+    version: "1.3.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 1.3.0 diverges significantly from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Bidirectional code→test traceability. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/specifications/DOCUMENTATION_STANDARDS.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "0.8.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 0.8.0 is behind workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Documentation standards. Version 0.8.0 needs update to 0.27.0."
+
+  - path: "docs/specifications/MDS_SCAFFOLD.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-10"
+    version: "2.5.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 2.5.0 significantly diverges from workspace 0.27.0. Document structure lists files that no longer exist (ci/check-links.sh, ci/check-metadata.sh, status/spec-code-drift.yaml, status/curation-decisions.yaml) and omits many active documents."
+    governing_principles: [P5, P6, P8]
+    disposition: refresh
+    notes: "Category→directory mapping. Document structure is stale — missing new documents, references dead CI scripts. Must be updated."
+
+  - path: "docs/specifications/WRITING_EXCELLENCE.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-05-13"
+    version: "0.3.0"
+    mds_categories: [curation]
+    staleness_signal: "Version 0.3.0 is well behind workspace 0.27.0. Last updated 2026-05-13 — over a month ago."
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Writing excellence protocol. Version significantly behind. Update to 0.27.0."
+
+  - path: "docs/specifications/ADR_TEMPLATE.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-07"
+    version: "1.0.0"
+    mds_categories: [curation]
+    staleness_signal: "Version 1.0.0 diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "ADR template. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/specifications/DEPENDENCY_POLICY.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-05-22"
+    version: "1.0.0"
+    mds_categories: [lifecycle]
+    staleness_signal: "Version 1.0.0 diverges. Last updated 2026-05-22 — almost a month ago."
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Dependency governance. Version anomaly and aging content. Update."
+
+  - path: "docs/specifications/DEPLOYMENT.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Deployment guide. Current. Referenced from AGENTS.md."
+
+  - path: "docs/specifications/CI-CD-GUIDE.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-07"
+    version: "1.0.0"
+    mds_categories: [lifecycle]
+    staleness_signal: "Version 1.0.0 diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "CI/CD guide. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/specifications/TESTING_STANDARDS.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-06"
+    version: "1.0.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 1.0.0 diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Testing protocol. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/specifications/test-program.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-10"
+    version: "0.1.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 0.1.0 significantly behind workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Test program specification. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/specifications/REPL-specification.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-11"
+    version: "0.27.0"
+    mds_categories: [domain, composition, lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P8]
+    disposition: keep
+    notes: "REPL specification. Current. Referenced from architecture master and README portal."
+
+  - path: "docs/specifications/MDS-agent-service.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-10"
+    version: "0.27.2"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: "Version 0.27.2 patch diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "AgentService specification. Minor version patch divergence. Verify if intentional."
+
+  - path: "docs/specifications/salience-specification.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [domain, composition]
+    staleness_signal: "NOT listed in MDS_SCAFFOLD document structure"
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Active document with valid metadata but absent from MDS_SCAFFOLD. Must be added to scaffold."
+
+  - path: "docs/specifications/crate-audit.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "1.0.0"
+    mds_categories: [composition, curation]
+    staleness_signal: "NOT in MDS_SCAFFOLD document structure. Version 1.0.0 diverges from 0.27.0."
+    governing_principles: [P5, P6, P8]
+    disposition: refresh
+    notes: "Crate audit bundle manifest. Active but absent from scaffold. Version anomaly."
+
+  - path: "docs/specifications/gentle-lovelace-specification.md"
+    category: "Specification"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "0.1.0"
+    mds_categories: [domain, composition, curation]
+    staleness_signal: "NOT in MDS_SCAFFOLD document structure. Version 0.1.0 significantly behind."
+    governing_principles: [P5, P6, P8]
+    disposition: refresh
+    notes: "Gentle Lovelace specification. Active but absent from scaffold. Version anomaly."
+
+  - path: "docs/specifications/portfolio-tracking.md"
+    category: "Specification"
+    status: "Archive"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Not in README portal, MDS_SCAFFOLD, or architecture master. Likely superseded by user-guides/COMPANIES-GUIDE.md and plans/mcp-server-roadmap.md. No forward value."
+    governing_principles: [P5, P6]
+    disposition: archive
+    notes: "Orphan specification. Superseded content. Archive."
+
+  # =========================================================================
+  # PLANS/
+  # =========================================================================
+  - path: "docs/plans/TODO.md"
+    category: "Plan"
+    status: "Active"
+    last_updated: "2026-06-11"
+    version: "1.9.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 1.9.0 significantly diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Open work items. Version anomaly. Update to 0.27.0. Referenced from README portal."
+
+  - path: "docs/plans/bundler-completion.md"
+    category: "Plan"
+    status: "Active"
+    last_updated: "2026-06-11"
+    version: "0.1.0"
+    mds_categories: [domain, composition, lifecycle]
+    staleness_signal: "Version 0.1.0 significantly behind workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Bundler completion plan. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/plans/mcp-server-roadmap.md"
+    category: "Plan"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "1.0.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Version 1.0.0 diverges from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "MCP server roadmap. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/plans/2026-06-12-replicant-server-mode.md"
+    category: "Plan / Handoff"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [composition, trust, lifecycle]
+    staleness_signal: "NOT in MDS_SCAFFOLD document structure"
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Replicant server mode handoff. Active and current but absent from scaffold."
+
+  - path: "docs/plans/2026-06-12-wallet-payment-mechanism.md"
+    category: "Plan"
+    status: "Draft"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: "NOT in MDS_SCAFFOLD document structure"
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Wallet payment integration plan. Draft but referenced from README portal. Absent from scaffold."
+
+  - path: "docs/plans/2026-06-12-wallet-rjoule-payments.md"
+    category: "Plan"
+    status: "Draft"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: "NOT in MDS_SCAFFOLD document structure"
+    governing_principles: [P5, P6]
+    disposition: refresh
+    notes: "Wallet rJoule multi-chain plan. Draft but referenced. Absent from scaffold."
+
+  - path: "docs/plans/mcp-media-server-design.md"
+    category: "Plan"
+    status: "Draft"
+    last_updated: "2026-06-13"
+    version: "1.0.0"
+    mds_categories: [domain, composition, lifecycle]
+    staleness_signal: "NOT in README portal. Not in MDS_SCAFFOLD. Version 1.0.0 diverges."
+    governing_principles: [P5, P6, P8]
+    disposition: refresh
+    notes: "MCP Media Server design plan. Missing from both portal and scaffold. Must be added."
+
+  # =========================================================================
+  # GUIDES/
+  # =========================================================================
+  - path: "docs/guides/kata-user-guide.md"
+    category: "Guide"
+    status: "Active"
+    last_updated: "2026-06-14"
+    version: "0.27.0"
+    mds_categories: [composition, lifecycle]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Toyota Kata user guide. Current. Referenced from README portal."
+
+  # =========================================================================
+  # USER-GUIDES/
+  # =========================================================================
+  - path: "docs/user-guides/AGENT-POD-CREATION-GUIDE.md"
+    category: "User Guide"
+    status: "Active"
+    last_updated: "2026-06-10"
+    version: "0.27.0"
+    mds_categories: [domain]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Agent pod creation guide. Current. Referenced from README portal."
+
+  - path: "docs/user-guides/COMMON-AGENT-PATTERNS.md"
+    category: "User Guide"
+    status: "Active"
+    last_updated: "2026-06-10"
+    version: "0.27.0"
+    mds_categories: [domain]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Common agent patterns and templates. Referenced from README portal."
+
+  - path: "docs/user-guides/COMPANIES-GUIDE.md"
+    category: "User Guide"
+    status: "Active"
+    last_updated: "2026-06-14"
+    version: "0.27.0"
+    mds_categories: [domain, composition]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Company research and portfolio management user guide. Current."
+
+  # =========================================================================
+  # STATUS/
+  # =========================================================================
+  - path: "docs/status/PROJECT_STATUS.md"
+    category: "Status"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Build, test, CI health. Current. Referenced from README portal."
+
+  - path: "docs/status/test-inventory.md"
+    category: "Status"
+    status: "Active"
+    last_updated: "2026-06-14"
+    version: "2.4.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: "Version 2.4.0 diverges significantly from workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Test inventory. Version anomaly. Update to 0.27.0."
+
+  - path: "docs/status/mcp-tools-inventory.md"
+    category: "Status"
+    status: "Active"
+    last_updated: "2026-06-15"
+    version: "2.1.0"
+    mds_categories: [composition, lifecycle]
+    staleness_signal: "Version 2.1.0 diverges. Last updated 2026-06-15 (future date — likely UTC offset or forward-dated)."
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "MCP tools inventory. Version and date anomalies. Update."
+
+  - path: "docs/status/skill-inventory.md"
+    category: "Status"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: "0.27.0"
+    mds_categories: [composition, status]
+    staleness_signal: "mds_categories includes 'status' which is not a valid MDS category"
+    governing_principles: [P8]
+    disposition: refresh
+    notes: "Dual-layer skill registry. Current but mds_categories contains invalid 'status' entry. Fix metadata."
+
+  - path: "docs/status/adversarial-simplification-inventory.md"
+    category: "Status"
+    status: "Active"
+    last_updated: "2026-06-08"
+    version: "0.1.0"
+    mds_categories: [composition, domain]
+    staleness_signal: "Version 0.1.0 significantly behind workspace 0.27.0"
+    governing_principles: [P6, P8]
+    disposition: refresh
+    notes: "Dead code and simplification opportunities. Version anomaly. Update."
+
+  # =========================================================================
+  # STATUS/ MISSING — Referenced but not present
+  # =========================================================================
+  - path: "docs/status/spec-code-drift.yaml"
+    category: "Status"
+    status: "Missing"
+    last_updated: null
+    version: null
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Referenced by README portal, MDS_SCAFFOLD, and architecture master. Does NOT exist."
+    governing_principles: [P5, P8]
+    disposition: refresh
+    notes: "CRITICAL: Referenced by 3 authoritative documents but file does not exist. Must be created."
+
+  - path: "docs/status/curation-decisions.yaml"
+    category: "Status"
+    status: "Missing"
+    last_updated: null
+    version: null
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: "Referenced by README portal and MDS_SCAFFOLD. Does NOT exist."
+    governing_principles: [P5, P8]
+    disposition: refresh
+    notes: "CRITICAL: Referenced by 2 authoritative documents but file does not exist. Must be created."
+
+  - path: "docs/status/corpus_inventory.yaml"
+    category: "Status"
+    status: "Created"
+    last_updated: "2026-06-14"
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: null
+    governing_principles: [P5, P8]
+    disposition: keep
+    notes: "THIS FILE. Created as part of this document hygiene sweep."
+
+  # =========================================================================
+  # GENERATED/
+  # =========================================================================
+  - path: "docs/generated/cli-reference.md"
+    category: "Generated"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: null
+    governing_principles: [P5]
+    disposition: keep
+    notes: "Auto-generated CLI reference. Current. Referenced from README portal."
+
+  # =========================================================================
+  # HIT (History Transition) — Handoffs
+  # =========================================================================
+  - path: "docs/handoffs/acad-disc-2026-06-12.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Not referenced in any index. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Historical handoff. Active context, not stale. Keep as historical record per HIT convention."
+
+  - path: "docs/handoffs/cmpn-prtfl-2026-06-13.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Companies MCP handoff. Historical record."
+
+  - path: "docs/handoffs/gl-embed-2026-06-13.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Gentle Lovelace embedding handoff. Historical record."
+
+  - path: "docs/handoffs/glv-crps-prep-2026-06-12.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "GL corpus preparation handoff. Historical record."
+
+  - path: "docs/handoffs/kata-redesign-2026-06-14.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-14"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Kata redesign handoff. Historical record."
+
+  - path: "docs/handoffs/media-server-continuation-2026-06-14.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-14"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Media server continuation handoff. Historical record."
+
+  - path: "docs/handoffs/media-voice-talk-2026-06-13.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Media MCP + voice/talk handoff. Historical record."
+
+  - path: "docs/handoffs/ocr-fal-self-2026-06-13.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "OCR pipeline handoff. Historical record."
+
+  - path: "docs/handoffs/reg-kata-glv-2026-06-13.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-13"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Registry/kata/GL handoff. Historical record."
+
+  - path: "docs/handoffs/wlt-cns-ph5-2026-06-12.md"
+    category: "Handoff"
+    status: "Active"
+    last_updated: "2026-06-12"
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Wallet phase 5 handoff. Historical record."
+
+  # =========================================================================
+  # AUDIT/
+  # =========================================================================
+  - path: "docs/audit/crate-audit-task1-cartography.md"
+    category: "Audit"
+    status: "Active"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Not in any index. Historical audit report."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Audit report. Historical record. Keep."
+
+  - path: "docs/audit/crate-audit-task2-cybernetics.md"
+    category: "Audit"
+    status: "Active"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Audit report. Historical record."
+
+  - path: "docs/audit/crate-audit-task3-rust-audit.md"
+    category: "Audit"
+    status: "Active"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Audit report. Historical record."
+
+  - path: "docs/audit/crate-audit-task4-implementation.md"
+    category: "Audit"
+    status: "Active"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Audit report. Historical record."
+
+  - path: "docs/audit/crate-audit-task5-open-questions.md"
+    category: "Audit"
+    status: "Active"
+    last_updated: null
+    version: null
+    mds_categories: []
+    staleness_signal: "No YAML frontmatter. Historical record."
+    governing_principles: [P5, P6]
+    disposition: keep
+    notes: "Audit report. Historical record."
+
+# =========================================================================
+# MISSING REFERENCED FILES (referenced by indexes but not present on disk)
+# =========================================================================
+missing_referenced:
+  - path: "docs/ci/check-links.sh"
+    referenced_by: [README.md, DOCUMENTATION_STANDARDS.md, MDS_SCAFFOLD.md]
+    status: "Missing — CI verification script. Must be created."
+  - path: "docs/ci/check-metadata.sh"
+    referenced_by: [README.md, DOCUMENTATION_STANDARDS.md, MDS_SCAFFOLD.md]
+    status: "Missing — CI verification script. Must be created."
+  - path: "docs/generated/openapi.json"
+    referenced_by: [MDS_SCAFFOLD.md]
+    status: "Missing — Auto-generated artifact. Should be regenerated."
+
+# =========================================================================
+# SUMMARY STATISTICS
+# =========================================================================
+summary:
+  total_documents: 79
+  active_keep: 46
+  stale_refresh: 29
+  archive: 3
+  missing_referenced: 3
+  total_with_frontmatter: 61
+  total_without_frontmatter: 18
+  version_anomalies: 18
+  documents_not_in_master_index: 8
+  documents_not_in_scaffold: 10
+  documents_not_in_portal: 5
