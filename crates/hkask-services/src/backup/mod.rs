@@ -15,16 +15,20 @@
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
 
+pub mod config;
+pub mod metadata;
+pub mod scope;
+pub mod serialization;
+
 use std::collections::HashSet;
 use std::sync::Arc;
 
 use chrono::Utc;
 use hkask_types::ports::git_cas::{CommitHash, GitCASPort, GitCasError, LogEntry, RepoId};
 
-use super::config::{BackupConfig, RetentionPolicy};
-use super::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
-use super::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
-use super::serialization;
+use config::BackupConfig;
+use metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+use scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 
 /// Errors specific to backup operations.
 ///
@@ -82,7 +86,7 @@ impl BackupService {
     /// The config is loaded from disk via [`super::config::load_backup_config`]
     /// at construction time. Use [`Self::update_config`] to change it.
     pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
-        let config = super::config::load_backup_config();
+        let config = config::load_backup_config();
         Self { cas, config }
     }
 
@@ -120,7 +124,7 @@ impl BackupService {
                 continue;
             }
             let repo_id = artifact_type.repo_id();
-            let path = serialization::artifact_git_path(artifact_type, artifact_id);
+            let _path = serialization::artifact_git_path(artifact_type, artifact_id);
             by_repo
                 .entry(repo_id)
                 .or_default()
@@ -214,7 +218,7 @@ impl BackupService {
     /// Returns snapshots across all tracked repos, filtered by artifact type
     /// and limited by count. Newest first.
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
-        let repos = if let Some(ref at) = filter.artifact_type {
+        let repos: Vec<RepoId> = if let Some(ref at) = filter.artifact_type {
             vec![at.repo_id()]
         } else {
             self.tracked_repos()
@@ -332,7 +336,7 @@ impl BackupService {
 
     /// 7. Update backup configuration and persist to disk.
     pub fn update_config(&mut self, config: BackupConfig) -> Result<(), BackupError> {
-        super::config::save_backup_config(&config)
+        config::save_backup_config(&config)
             .map_err(|e| BackupError::Config(format!("Failed to save config: {e}")))?;
         self.config = config;
         Ok(())

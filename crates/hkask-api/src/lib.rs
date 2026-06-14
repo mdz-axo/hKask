@@ -42,9 +42,8 @@ pub use error::ApiError;
 pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
-    CreatePodResponse, FundKeyRequest, FundKeyResponse, GrantCapabilityRequest, KeyRequestRequest,
-    KeyRequestResponse, ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery,
-    PodStatusResponse, RateLimitConfig, SpecCoherenceResponse, SpecListResponse,
+    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
+    ModelSearchQuery, PodStatusResponse, SpecCoherenceResponse, SpecListResponse,
     SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
 };
 

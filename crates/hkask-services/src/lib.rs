@@ -1,6 +1,7 @@
 //! hKask Service Layer — shared startup infrastructure and domain operations.
 
 pub mod archival;
+pub mod backup;
 pub mod bundle;
 pub mod chat;
 pub mod classify;
@@ -32,6 +33,14 @@ pub mod verification;
 pub mod wallet;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
+pub use backup::config::{BackupConfig, RetentionPolicy, backup_config_path, load_backup_config};
+pub use backup::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+pub use backup::scope::ArtifactType;
+pub use backup::scope::{BackupScope, ListFilter, RestoreScope};
+pub use backup::serialization::{
+    ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
+};
+pub use backup::{BackupError, BackupService};
 pub use bundle::{BundleComposeResult, BundleService};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,

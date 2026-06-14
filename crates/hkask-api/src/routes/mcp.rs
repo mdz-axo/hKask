@@ -112,7 +112,7 @@ pub(crate) async fn mcp_invoke(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<McpInvokeRequest>,
-) -> Result<Json<McpInvokeResponse>, ApiError> {
+) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
     use hkask_templates::McpPort;
 
     let input = if req.input.is_null() {

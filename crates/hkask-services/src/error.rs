@@ -246,6 +246,11 @@ pub enum ServiceError {
     #[error("Wallet error: {0}")]
     Wallet(String),
 
+    // ── Backup domain ──────────────────────────────────────────────────
+    /// Backup operation failed (CAS, serialization, config, CNS).
+    #[error("Backup failed: {0}")]
+    Backup(String),
+
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
     #[error("{0}")]
@@ -294,6 +299,12 @@ impl From<hkask_mcp::server::McpToolError> for ServiceError {
             tool: String::new(),
             message: e.message,
         }
+    }
+}
+
+impl From<crate::backup::BackupError> for ServiceError {
+    fn from(e: crate::backup::BackupError) -> Self {
+        ServiceError::Backup(e.to_string())
     }
 }
 
@@ -367,7 +378,8 @@ impl ServiceError {
             | ServiceError::Verification(_)
             | ServiceError::Wallet(_)
             | ServiceError::Cns(_)
-            | ServiceError::Consolidation(_) => false,
+            | ServiceError::Consolidation(_)
+            | ServiceError::Backup(_) => false,
 
             // ── Delegate to inner error for transparent wrappers ──────
             // Domain errors may have their own retryability semantics.
@@ -469,6 +481,9 @@ impl ServiceError {
             ServiceError::Skill(_) => "error.pipeline.skill",
             ServiceError::Verification(_) => "error.pipeline.verification",
             ServiceError::Wallet(_) => "error.pipeline.wallet",
+
+            // ── Backup domain ──────────────────────────────────────
+            ServiceError::Backup(_) => "error.backup",
 
             // ── Rate limiting / config / communication ──────────────
             ServiceError::RateLimited(_) => "error.rate_limited",
@@ -675,6 +690,13 @@ impl ServiceError {
             ServiceError::Matrix(msg) => (
                 "cns.cybernetics",
                 "error.matrix",
+                serde_json::json!({ "message": msg }),
+            ),
+
+            // ── Backup domain ─────────────────────────────────────
+            ServiceError::Backup(msg) => (
+                "cns.cybernetics",
+                "error.backup",
                 serde_json::json!({ "message": msg }),
             ),
 

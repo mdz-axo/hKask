@@ -6,7 +6,7 @@
 //! Initial implementation uses JSON for all types — simplest, diffable, human-readable.
 //! Per-type format optimization deferred to F1 resolution.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::scope::ArtifactType;
 
@@ -39,7 +39,10 @@ pub fn deserialize_artifact(blob: &[u8]) -> Result<ArtifactEnvelopeValue, serde_
 ///
 /// Self-describing: the blob carries its type and ID so restore
 /// operations can route it to the correct store without external metadata.
-#[derive(Serialize, Deserialize)]
+///
+/// This is the serialization-only type. Deserialization uses
+/// [`ArtifactEnvelopeValue`] which owns its data.
+#[derive(Serialize)]
 struct ArtifactEnvelope<'a, T: Serialize> {
     artifact_type: String,
     artifact_id: String,

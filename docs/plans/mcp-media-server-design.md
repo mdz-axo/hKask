@@ -599,30 +599,30 @@ mcp-servers/hkask-mcp-media/
 
 ## 10. Face Recognition System
 
-**Added:** 2026-06-14 · **Status:** Active
+**Added:** 2026-06-14 · **Status:** ✅ Complete (ONNX integrated 2026-06-14)
 
 ### 10.1 Design Rationale
 
 hKask is headless — no GUI, no dashboards. Face recognition needs a reference image per person, but there is no UI for users to upload or select faces. The solution: users place portrait-style reference images into their gallery (convention: `gallery/faces/` subfolder), then register them via MCP tools. This is headless-compatible, minimal, and puts the user in explicit control (Magna Carta P1: User Sovereignty).
 
-### 10.2 Architecture
+### 10.2 Architecture (Dual-Path: ONNX + Vision LLM Fallback)
 
 ```
 User drops reference     face_validate tool       face_register tool       gallery_refresh
 portraits into           checks each image        stores in face_registry  (include_faces=true)
-gallery/faces/           meets requirements       table with name          auto-matches detected
-        │                       │                       │                  faces → registry
-        ▼                       ▼                       ▼                      ▼
-   Gallery scan          Vision LLM assesses:     INSERT INTO              For each detected face:
-   indexes images         • Exactly 1 face?       face_registry            vision LLM compares
-                          • Face ≥15% of img?     (id, first_name,         against each registry
-                          • Frontal pose?         last_name,               entry: "same person?"
-                          • Adequate lighting?    image_id,                → name + confidence
-                          • No occlusion?         status, notes)           or "unmatched"
-                          • Min resolution?
-                                │
-                          REJECT with structured
-                          reasons if invalid
+gallery/faces/           meets requirements       table with name +        auto-matches detected
+        │                       │                 ArcFace embedding        faces → registry
+        ▼                       ▼                       │                      ▼
+   Gallery scan          Vision LLM assesses:     ┌─────────────────────┐  PRIMARY PATH (ONNX):
+   indexes images         • Exactly 1 face?       │ ONNX available?     │  run_onnx_face_pipeline
+                          • Face ≥15% of img?     │ YES → extract       │  → cosine_similarity
+                          • Frontal pose?         │ ArcFace 512-d       │  → sub-millisecond
+                          • Adequate lighting?    │ embedding via       │  → "method": "onnx"
+                          • No occlusion?         │ face_id crate       │
+                          • Min resolution?       │ NO → store without  │  FALLBACK PATH:
+                                │                 │ embedding (fallback │  vision LLM match_faces
+                          REJECT with structured   │ to vision LLM)      │  → "method": "vision_llm"
+                          reasons if invalid       └─────────────────────┘
 ```
 
 ### 10.3 Face Registry Schema
@@ -633,6 +633,7 @@ CREATE TABLE IF NOT EXISTS face_registry (
     first_name  TEXT NOT NULL,
     last_name   TEXT NOT NULL,
     image_id    TEXT NOT NULL REFERENCES gallery_images(id) ON DELETE CASCADE,
+    embedding   BLOB,                      -- 512-dim ArcFace f32 vector (None if ONNX unavailable)
     status      TEXT NOT NULL DEFAULT 'pending',  -- pending | valid | rejected
     notes       TEXT NOT NULL DEFAULT '',          -- validation notes / rejection reasons
     created_at  TEXT NOT NULL,
@@ -642,6 +643,8 @@ CREATE TABLE IF NOT EXISTS face_registry (
 
 ### 10.4 Reference Image Requirements
 
+Users place reference portraits in their gallery (convention: `gallery/faces/` subfolder). Each reference must be a portrait-style photo of a single person. The `face_validate` tool checks:
+
 | Criterion | How Verified | Reject If |
 |-----------|-------------|-----------|
 | Exactly 1 face | Vision LLM face detection | 0 faces or >1 face detected |
@@ -649,34 +652,71 @@ CREATE TABLE IF NOT EXISTS face_registry (
 | Frontal or near-frontal pose | Vision LLM assessment | Profile/side angle (matching degrades) |
 | Adequate lighting | Vision LLM assessment | Heavy shadow, backlight, severe underexposure |
 | No heavy occlusion | Vision LLM assessment | Sunglasses, masks, hands covering face |
-| Minimum resolution | Image dimensions check | Face region < 112×112 px |
+| Minimum resolution | Image dimensions check | Face region < 112×112 px (ArcFace input size) |
 
-### 10.5 New Tools
+### 10.5 Tools
 
 | Tool | Description |
 |------|-------------|
-| `face_validate` | Validate a gallery image as a face reference. Returns structured pass/fail with reasons. |
-| `face_register` | Register a validated face reference with a name (first_name, last_name). |
-| `face_list` | List all registered faces in the registry. |
+| `face_validate` | Validate a gallery image as a face reference. Uses vision LLM to check 6 criteria. Returns structured pass/fail with specific reasons. |
+| `face_register` | Register a face reference with a name. Auto-validates (unless `--force`), extracts ArcFace 512-d embedding via ONNX (if available), stores in `face_registry`. |
+| `face_list` | List all registered faces, optionally filtered by status (`valid`/`rejected`/`pending`). |
 | `face_remove` | Remove a face from the registry by ID. |
+| `gallery_name_face` | Name a face group from `gallery_analyze`. Accepts free-text `name` or `face_id` (resolves "First Last" from registry). |
 
 ### 10.6 Auto-Matching Integration
 
-`gallery_refresh` with `include_faces: true` now includes an auto-matching step after face detection:
+`gallery_refresh` with `include_faces: true` runs a dual-path matching strategy:
 
-1. Detect faces in all images (existing `tag_faces` pipeline)
-2. For each detected face, compare against all `valid` entries in `face_registry`
-3. Comparison: vision LLM receives both face crops and answers "Are these the same person?" with confidence
-4. Matched faces get named tags (e.g., `"name": "Alice Chen", "confidence": 0.94`)
-5. Unmatched faces remain as unnamed face groups (user can later name via `gallery_name_face` or register via `face_register`)
+**Primary (ONNX):**
+1. `run_onnx_face_pipeline` — SCRFD detection + ArcFace embedding for all images (local, ~5-15s)
+2. Cosine similarity against registry embeddings (sub-millisecond per comparison)
+3. Match threshold: ≥0.6 (L2-normalized embeddings, dot product = cosine similarity)
+4. Matched faces tagged with `"method": "onnx"`, `"match_confidence": similarity`, `"bbox": {...}`
 
-### 10.7 Future Upgrade Path
+**Fallback (Vision LLM):**
+1. Activated when ONNX unavailable or no embeddings in registry
+2. Uses vision LLM face tags from Step 3 analysis
+3. Crops face regions using bbox data (if available from ONNX or vision LLM)
+4. `vision::match_faces` pairwise comparison
+5. Matched faces tagged with `"method": "vision_llm"`
 
-Replace vision LLM pairwise comparison with dedicated ONNX face embedding model (InsightFace/ArcFace):
-- Add `embedding` column (BLOB) to `face_registry`
-- Extract embeddings at `face_register` time
-- Use `sqlite-vec` for sub-millisecond vector similarity search
-- Vision LLM retained as fallback for borderline cases (confidence < 0.85)
+### 10.7 ONNX Model Details
+
+- **Crate:** `face_id` v0.4.1 (RuurdBijlsma/face_id-rs)
+- **Detection:** SCRFD 10g (InsightFace buffalo_l bundle)
+- **Recognition:** ArcFace w600k_r50 (ResNet-50), 512-dimensional L2-normalized embeddings
+- **Models:** Auto-downloaded from HuggingFace on first run (~250MB), cached permanently
+- **Runtime:** ONNX Runtime via `ort` crate, CPU inference (no GPU required)
+- **Fallback:** Graceful degradation to vision LLM if model download fails
+
+### 10.8 User Workflow
+
+```bash
+# 1. Set up gallery
+kask gallery organize --path ~/photos
+
+# 2. Drop reference portraits into ~/photos/faces/
+#    (e.g., alice.jpg, bob.jpg — one person per image, portrait style)
+
+# 3. Scan + index
+kask gallery refresh
+
+# 4. Validate each reference
+kask face_validate --image_index 0   # → pass/fail with reasons
+
+# 5. Register validated faces (auto-extracts ArcFace embedding if ONNX available)
+kask face_register --image_index 0 --first_name Alice --last_name Chen
+kask face_register --image_index 1 --first_name Bob --last_name Smith
+
+# 6. Refresh with face matching
+kask gallery_refresh --include_faces
+#    → Detected faces auto-matched: "Alice Chen" (onnx, 0.94), "Bob Smith" (onnx, 0.89)
+
+# 7. List registered faces
+kask face_list
+kask face_list --status valid
+```
 
 ---
 

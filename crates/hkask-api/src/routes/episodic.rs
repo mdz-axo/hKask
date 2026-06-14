@@ -101,7 +101,7 @@ pub(crate) async fn store_episode(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<StoreEpisodeRequest>,
-) -> Result<Json<StoreEpisodeResponse>, ApiError> {
+) -> Result<Json<StoreEpisodeResponse>, ServiceErrorResponse> {
     if req.entity.is_empty() || req.attribute.is_empty() {
         return Err(ApiError::BadRequest {
             message: "entity and attribute must not be empty".to_string(),
@@ -167,7 +167,7 @@ pub(crate) async fn query_episodes(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<QueryEpisodesParams>,
-) -> Result<Json<QueryEpisodesResponse>, ApiError> {
+) -> Result<Json<QueryEpisodesResponse>, ServiceErrorResponse> {
     if params.entity.is_empty() {
         return Err(ApiError::BadRequest {
             message: "entity query parameter must not be empty".to_string(),
@@ -220,7 +220,7 @@ pub(crate) async fn query_episodes(
 pub(crate) async fn storage_usage(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<EpisodicUsageResponse>, ApiError> {
+) -> Result<Json<EpisodicUsageResponse>, ServiceErrorResponse> {
     let count = state
         .agent_service
         .memory()
