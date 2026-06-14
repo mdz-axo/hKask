@@ -157,7 +157,10 @@ impl GalleryStore {
             CREATE INDEX IF NOT EXISTS idx_gallery_tags_image
                 ON gallery_tags(image_id);
             CREATE INDEX IF NOT EXISTS idx_gallery_tags_type
-                ON gallery_tags(tag_type);",
+                ON gallery_tags(tag_type);
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_gallery_tags_unique
+                ON gallery_tags(image_id, tag_type, value);",
         )
     }
 
@@ -315,13 +318,20 @@ impl GalleryStore {
         let now = now_rfc3339();
 
         conn.execute(
-            "INSERT INTO gallery_tags (id, image_id, tag_type, value, confidence, model_used, created_at)
+            "INSERT OR IGNORE INTO gallery_tags (id, image_id, tag_type, value, confidence, model_used, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             rusqlite::params![id, image_id, tag_type, value, confidence, model_used, now],
         )?;
 
+        // Read back the existing row when insert was ignored
+        let existing_id: String = conn.query_row(
+            "SELECT id FROM gallery_tags WHERE image_id = ?1 AND tag_type = ?2 AND value = ?3",
+            rusqlite::params![image_id, tag_type, value],
+            |row| row.get(0),
+        )?;
+
         Ok(TagRecord {
-            id,
+            id: existing_id,
             image_id: image_id.to_string(),
             tag_type: tag_type.to_string(),
             value: value.to_string(),
@@ -642,5 +652,40 @@ mod tests {
 
         let tags = store.get_tags(&img.id).unwrap();
         assert_eq!(tags.len(), 2);
+    }
+
+    /// REQ: media-gallery-tag-dedup-01 — tag_image ignores duplicate (image_id, tag_type, value)
+    #[test]
+    fn tag_image_ignores_duplicates() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img = store
+            .add_image(
+                &gallery.id,
+                "photo.jpg",
+                "/tmp/test-gallery/photo.jpg",
+                "hash1",
+                100,
+                100,
+                "jpg",
+                1000,
+            )
+            .unwrap();
+
+        // Tag the same (image_id, tag_type, value) twice
+        let tag1 = store
+            .tag_image(&img.id, "face", "person A", 0.9, "llama")
+            .unwrap();
+        let tag2 = store
+            .tag_image(&img.id, "face", "person A", 0.8, "other-model")
+            .unwrap();
+
+        // Same row ID returned (the insert was ignored)
+        assert_eq!(tag1.id, tag2.id);
+        // Only one tag exists
+        let tags = store.get_tags(&img.id).unwrap();
+        assert_eq!(tags.len(), 1);
     }
 }

@@ -188,6 +188,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "",
         about: "Submit onboarding or usability feedback (appended to local feedback.md)",
     },
+    SlashCommand {
+        primary: "listen",
+        aliases: &["rec", "record"],
+        args: "start [SECONDS] | stop | view [FILE]",
+        about: "Record audio, transcribe, and play back with word-level sync",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -322,6 +328,7 @@ pub(super) fn handle_slash_command(
         "repl" => handlers::handle_repl_set(arg1, arg2, state),
         "start" | "tour" | "onboarding" => handlers::handle_start(state),
         "feedback" => handlers::handle_feedback(state),
+        "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

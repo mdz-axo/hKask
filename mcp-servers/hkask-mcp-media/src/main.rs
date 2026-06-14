@@ -97,6 +97,10 @@ pub struct GalleryOrganizeRequest {
     /// Whether to scan subdirectories recursively (default: true).
     #[serde(default = "default_true")]
     pub recursive: bool,
+    /// Whether to automatically run AI analysis on newly added images (default: false).
+    /// Vision LLM calls incur cost and latency. Only use when you want immediate searchability.
+    #[serde(default)]
+    pub auto_analyze: bool,
 }
 
 fn default_mode() -> String {
@@ -576,6 +580,182 @@ impl MediaServer {
         )
     }
 
+    /// Run the analysis pipeline on a subset of gallery images.
+    /// Used internally by gallery_organize auto_analyze and gallery_analyze.
+    /// Returns (analyzed_count, error_messages).
+    async fn run_analysis_on_indices(
+        &self,
+        indices: &[usize],
+        pipelines: &[String],
+    ) -> (u32, Vec<String>) {
+        let (vision_model, vision_label) = self.resolve_vision_model().await;
+        let params = hkask_types::LLMParameters::default();
+        let mut analyzed = 0u32;
+        let mut errors = Vec::new();
+
+        let run_faces = pipelines.iter().any(|p| p == "faces");
+        let run_objects = pipelines.iter().any(|p| p == "objects");
+        let run_colors = pipelines.iter().any(|p| p == "colors");
+        let run_composition = pipelines.iter().any(|p| p == "composition");
+        let run_scene = pipelines.iter().any(|p| p == "scene");
+
+        for idx in indices {
+            let image_url = match self.resolve_image_url(*idx) {
+                Ok(url) => url,
+                Err(e) => {
+                    errors.push(format!("image {}: {}", idx, e));
+                    continue;
+                }
+            };
+            let image_id = match self.resolve_image_id(*idx) {
+                Ok(id) => id,
+                Err(e) => {
+                    errors.push(format!("image {}: {}", idx, e));
+                    continue;
+                }
+            };
+
+            if run_faces {
+                if let Ok(prompt) = self.render_prompt(
+                    "tag_faces",
+                    &[("detail_level", "detailed")].into_iter().collect(),
+                ) {
+                    if let Ok(r) = self
+                        .inference
+                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
+                        .await
+                    {
+                        if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
+                            for face in &faces {
+                                let value = serde_json::to_string(face).unwrap_or_default();
+                                self.persist_tag(&image_id, "face", &value, 0.85, vision_label);
+                            }
+                        } else {
+                            self.persist_tag(&image_id, "face", r.text.trim(), 0.7, vision_label);
+                        }
+                    }
+                }
+            }
+
+            if run_objects {
+                let mut vars = HashMap::new();
+                vars.insert("detail_level", "detailed");
+                let max_str = "20".to_string();
+                vars.insert("max_objects", &max_str);
+                if let Ok(prompt) = self.render_prompt("tag_objects", &vars) {
+                    if let Ok(r) = self
+                        .inference
+                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
+                        .await
+                    {
+                        if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text)
+                        {
+                            for obj in &objects {
+                                let value = serde_json::to_string(obj).unwrap_or_default();
+                                self.persist_tag(&image_id, "object", &value, 0.85, vision_label);
+                            }
+                        } else {
+                            self.persist_tag(&image_id, "object", r.text.trim(), 0.7, vision_label);
+                        }
+                    }
+                }
+            }
+
+            if run_colors {
+                let mut vars = HashMap::new();
+                vars.insert("max_colors", "8");
+                if let Ok(prompt) = self.render_prompt("tag_colors", &vars) {
+                    if let Ok(r) = self
+                        .inference
+                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
+                        .await
+                    {
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
+                            if let Some(colors) = parsed["colors"].as_array() {
+                                for color in colors {
+                                    let value = serde_json::to_string(color).unwrap_or_default();
+                                    self.persist_tag(
+                                        &image_id,
+                                        "color",
+                                        &value,
+                                        0.85,
+                                        vision_label,
+                                    );
+                                }
+                            }
+                            for field in &["palette_style", "temperature", "saturation"] {
+                                if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
+                                    self.persist_tag(&image_id, "color", v, 0.9, vision_label);
+                                }
+                            }
+                        } else {
+                            self.persist_tag(&image_id, "color", r.text.trim(), 0.7, vision_label);
+                        }
+                    }
+                }
+            }
+
+            if run_composition {
+                if let Ok(prompt) = self.render_prompt("tag_composition", &HashMap::new()) {
+                    if let Ok(r) = self
+                        .inference
+                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
+                        .await
+                    {
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
+                            for field in &[
+                                "focal_point",
+                                "rule_of_thirds",
+                                "leading_lines",
+                                "depth_of_field",
+                                "perspective",
+                                "framing",
+                                "symmetry",
+                                "negative_space",
+                            ] {
+                                if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
+                                    self.persist_tag(
+                                        &image_id,
+                                        "composition",
+                                        v,
+                                        0.85,
+                                        vision_label,
+                                    );
+                                }
+                            }
+                        } else {
+                            self.persist_tag(
+                                &image_id,
+                                "composition",
+                                r.text.trim(),
+                                0.7,
+                                vision_label,
+                            );
+                        }
+                    }
+                }
+            }
+
+            if run_scene {
+                let mut vars = HashMap::new();
+                vars.insert("style", "descriptive");
+                if let Ok(prompt) = self.render_prompt("caption", &vars) {
+                    if let Ok(r) = self
+                        .inference
+                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
+                        .await
+                    {
+                        self.persist_tag(&image_id, "caption", r.text.trim(), 0.9, vision_label);
+                    }
+                }
+            }
+
+            analyzed += 1;
+        }
+
+        (analyzed, errors)
+    }
+
     /// Extract EXIF metadata from an image file.
     /// Returns key fields as a JSON object, or null if EXIF is unavailable.
     fn extract_exif(path: &str) -> serde_json::Value {
@@ -642,6 +822,7 @@ impl MediaServer {
             path,
             mode,
             recursive,
+            auto_analyze,
         }): Parameters<GalleryOrganizeRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("gallery_organize", &self.webid);
@@ -666,36 +847,50 @@ impl MediaServer {
         let record = match self.gallery_store.create(&path, gallery_mode.clone()) {
             Ok(r) => r,
             Err(GalleryStoreError::AlreadyExists(_)) => {
-                // Gallery exists — just scan
-                let guard = self.gallery_state.lock().unwrap();
-                if let Some(ref state) = *guard {
-                    if let Some(ref gid) = state.gallery_id {
-                        let gid_clone = gid.clone();
-                        let mut state_clone = state.clone();
-                        drop(guard);
-                        let scan_result = state_clone.scan(recursive, None);
-                        let mut persisted = 0u32;
-                        for entry in &scan_result.entries {
-                            let abs_path = state_clone.path.join(&entry.relative_path);
-                            if self
-                                .gallery_store
-                                .add_image(
-                                    &gid_clone,
-                                    &entry.relative_path,
-                                    &abs_path.to_string_lossy(),
-                                    &entry.checksum,
-                                    entry.width,
-                                    entry.height,
-                                    &entry.format,
-                                    entry.size_bytes,
-                                )
-                                .is_ok()
-                            {
-                                persisted += 1;
+                // Gallery exists — just scan.
+                // Extract state info in a block so the MutexGuard is dropped before any await.
+                let scan_info = {
+                    let guard = self.gallery_state.lock().unwrap();
+                    match &*guard {
+                        Some(state) => match &state.gallery_id {
+                            Some(gid) => {
+                                let gid_clone = gid.clone();
+                                let mut state_clone = state.clone();
+                                let old_count = state_clone.image_count;
+                                drop(guard);
+                                let scan_result = state_clone.scan(recursive, None);
+                                let mut persisted = 0u32;
+                                for entry in &scan_result.entries {
+                                    let abs_path = state_clone.path.join(&entry.relative_path);
+                                    if self
+                                        .gallery_store
+                                        .add_image(
+                                            &gid_clone,
+                                            &entry.relative_path,
+                                            &abs_path.to_string_lossy(),
+                                            &entry.checksum,
+                                            entry.width,
+                                            entry.height,
+                                            &entry.format,
+                                            entry.size_bytes,
+                                        )
+                                        .is_ok()
+                                    {
+                                        persisted += 1;
+                                    }
+                                }
+                                *self.gallery_state.lock().unwrap() = Some(state_clone);
+                                Some((gid_clone, old_count, scan_result, persisted))
                             }
-                        }
-                        *self.gallery_state.lock().unwrap() = Some(state_clone);
-                        return span.ok_json(serde_json::json!({
+                            None => None,
+                        },
+                        None => None,
+                    }
+                };
+
+                match scan_info {
+                    Some((gid_clone, old_count, scan_result, persisted)) => {
+                        let result = serde_json::json!({
                             "status": "rescanned",
                             "gallery_id": gid_clone,
                             "root_path": path,
@@ -703,13 +898,36 @@ impl MediaServer {
                             "images_added": scan_result.added,
                             "total_images": scan_result.total,
                             "persisted": persisted,
+                        });
+
+                        if auto_analyze && scan_result.added > 0 {
+                            let new_indices: Vec<usize> = (old_count as usize
+                                ..(old_count as usize + scan_result.added as usize))
+                                .collect();
+                            let pipelines: Vec<String> =
+                                vec!["faces", "objects", "colors", "composition", "scene"]
+                                    .into_iter()
+                                    .map(|s| s.to_string())
+                                    .collect();
+                            let (analyzed, analyze_errors) =
+                                self.run_analysis_on_indices(&new_indices, &pipelines).await;
+                            let mut r = result;
+                            r["auto_analyzed"] = serde_json::json!(analyzed);
+                            if !analyze_errors.is_empty() {
+                                r["analyze_errors"] = serde_json::json!(analyze_errors);
+                            }
+                            return span.ok_json(r);
+                        }
+
+                        return span.ok_json(result);
+                    }
+                    None => {
+                        return span.ok_json(serde_json::json!({
+                            "status": "already_exists",
+                            "message": "A gallery already exists at this path but its state was lost. Please restart the server."
                         }));
                     }
                 }
-                return span.ok_json(serde_json::json!({
-                    "status": "already_exists",
-                    "message": "A gallery already exists at this path but its state was lost. Please restart the server."
-                }));
             }
             Err(e) => {
                 return span.error(
@@ -765,7 +983,7 @@ impl MediaServer {
 
         *self.gallery_state.lock().unwrap() = Some(state);
 
-        span.ok_json(serde_json::json!({
+        let result = serde_json::json!({
             "status": "organized",
             "gallery_id": record.id,
             "root_path": record.root_path,
@@ -774,7 +992,25 @@ impl MediaServer {
             "total_images": scan_result.total,
             "persisted": persisted,
             "message": "Gallery ready. Use gallery_search to find photos by content."
-        }))
+        });
+
+        if auto_analyze && scan_result.added > 0 {
+            let new_indices: Vec<usize> = (0..scan_result.added as usize).collect();
+            let pipelines: Vec<String> = vec!["faces", "objects", "colors", "composition", "scene"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            let (analyzed, analyze_errors) =
+                self.run_analysis_on_indices(&new_indices, &pipelines).await;
+            let mut r = result;
+            r["auto_analyzed"] = serde_json::json!(analyzed);
+            if !analyze_errors.is_empty() {
+                r["analyze_errors"] = serde_json::json!(analyze_errors);
+            }
+            span.ok_json(r)
+        } else {
+            span.ok_json(result)
+        }
     }
 
     #[tool(description = "Get gallery status: path, mode, image count, and total size.")]
@@ -987,7 +1223,20 @@ impl MediaServer {
         let indices: Vec<usize> = match mode.as_str() {
             "selection" => image_indices.unwrap_or_default(),
             "all" => (0..image_count as usize).collect(),
-            _ => (0..image_count as usize).collect(),
+            // "new" mode: only process images without existing tags
+            _ => {
+                let mut untagged = Vec::new();
+                for i in 0..image_count as usize {
+                    if let Ok(image_id) = self.resolve_image_id(i) {
+                        match self.gallery_store.get_tags(&image_id) {
+                            Ok(tags) if tags.is_empty() => untagged.push(i),
+                            Ok(_) => continue,          // already tagged, skip
+                            Err(_) => untagged.push(i), // error reading tags, process anyway
+                        }
+                    }
+                }
+                untagged
+            }
         };
 
         let indices: Vec<usize> = indices.into_iter().take(max_images).collect();
@@ -1004,173 +1253,11 @@ impl MediaServer {
             .map(|s| s.to_string())
             .collect();
         let pipelines = pipelines.unwrap_or(all_pipelines);
-        let run_faces = pipelines.contains(&"faces".to_string());
-        let run_objects = pipelines.contains(&"objects".to_string());
-        let run_colors = pipelines.contains(&"colors".to_string());
-        let run_composition = pipelines.contains(&"composition".to_string());
-        let run_scene = pipelines.contains(&"scene".to_string());
 
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
+        let (analyzed, errors) = self.run_analysis_on_indices(&indices, &pipelines).await;
 
-        let mut analyzed = 0u32;
-        let mut errors = Vec::new();
-
-        for idx in &indices {
-            let image_url = match self.resolve_image_url(*idx) {
-                Ok(url) => url,
-                Err(e) => {
-                    errors.push(format!("image {}: {}", idx, e));
-                    continue;
-                }
-            };
-
-            let image_id = match self.resolve_image_id(*idx) {
-                Ok(id) => id,
-                Err(e) => {
-                    errors.push(format!("image {}: {}", idx, e));
-                    continue;
-                }
-            };
-
-            // Run each pipeline
-            if run_faces {
-                if let Ok(prompt) = self.render_prompt(
-                    "tag_faces",
-                    &[("detail_level", "detailed")].into_iter().collect(),
-                ) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
-                            for face in &faces {
-                                let value = serde_json::to_string(face).unwrap_or_default();
-                                self.persist_tag(&image_id, "face", &value, 0.85, vision_label);
-                            }
-                        } else {
-                            self.persist_tag(&image_id, "face", r.text.trim(), 0.7, vision_label);
-                        }
-                    }
-                }
-            }
-
-            if run_objects {
-                let mut vars = HashMap::new();
-                vars.insert("detail_level", "detailed");
-                let max_str = "20".to_string();
-                vars.insert("max_objects", &max_str);
-                if let Ok(prompt) = self.render_prompt("tag_objects", &vars) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text)
-                        {
-                            for obj in &objects {
-                                let value = serde_json::to_string(obj).unwrap_or_default();
-                                self.persist_tag(&image_id, "object", &value, 0.85, vision_label);
-                            }
-                        } else {
-                            self.persist_tag(&image_id, "object", r.text.trim(), 0.7, vision_label);
-                        }
-                    }
-                }
-            }
-
-            if run_colors {
-                let mut vars = HashMap::new();
-                vars.insert("max_colors", "8");
-                if let Ok(prompt) = self.render_prompt("tag_colors", &vars) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
-                            if let Some(colors) = parsed["colors"].as_array() {
-                                for color in colors {
-                                    let value = serde_json::to_string(color).unwrap_or_default();
-                                    self.persist_tag(
-                                        &image_id,
-                                        "color",
-                                        &value,
-                                        0.85,
-                                        vision_label,
-                                    );
-                                }
-                            }
-                            for field in &["palette_style", "temperature", "saturation"] {
-                                if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                    self.persist_tag(&image_id, "color", v, 0.9, vision_label);
-                                }
-                            }
-                        } else {
-                            self.persist_tag(&image_id, "color", r.text.trim(), 0.7, vision_label);
-                        }
-                    }
-                }
-            }
-
-            if run_composition {
-                if let Ok(prompt) = self.render_prompt("tag_composition", &HashMap::new()) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
-                            for field in &[
-                                "focal_point",
-                                "rule_of_thirds",
-                                "leading_lines",
-                                "depth_of_field",
-                                "perspective",
-                                "framing",
-                                "symmetry",
-                                "negative_space",
-                            ] {
-                                if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                    self.persist_tag(
-                                        &image_id,
-                                        "composition",
-                                        v,
-                                        0.85,
-                                        vision_label,
-                                    );
-                                }
-                            }
-                        } else {
-                            self.persist_tag(
-                                &image_id,
-                                "composition",
-                                r.text.trim(),
-                                0.7,
-                                vision_label,
-                            );
-                        }
-                    }
-                }
-            }
-
-            if run_scene {
-                let mut vars = HashMap::new();
-                vars.insert("style", "descriptive");
-                if let Ok(prompt) = self.render_prompt("caption", &vars) {
-                    if let Ok(r) = self
-                        .inference
-                        .generate_vision(&prompt, &[image_url.clone()], &params, Some(vision_model))
-                        .await
-                    {
-                        self.persist_tag(&image_id, "caption", r.text.trim(), 0.9, vision_label);
-                    }
-                }
-            }
-
-            analyzed += 1;
-        }
+        // Resolve vision model label for reporting
+        let (_, vision_label) = self.resolve_vision_model().await;
 
         span.ok_json(serde_json::json!({
             "status": "complete",

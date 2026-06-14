@@ -1290,6 +1290,9 @@ impl KataEngine {
             learner_bot => state.learner_bot.clone(),
             previous_steps => state.step_outputs.clone(),
             context => state.context.clone(),
+            metric_before => state.metric_before.clone(),
+            metric_after => state.metric_after.clone(),
+            ik_state_ref => state.ik_state_ref.clone(),
         };
 
         // Try registry first, then disk fallback

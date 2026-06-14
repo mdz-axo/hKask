@@ -1163,14 +1163,14 @@ impl CompaniesServer {
             let key_prefix = format!("{date}:");
             for sym in &all_symbols {
                 // Check cache
-                if let Ok(cached) = self.portfolio.get_prices(&portfolio, sym, date, date) {
-                    if let Some((_, close, _)) = cached.first() {
-                        prices_at.insert(format!("{key_prefix}{sym}"), *close);
-                        continue;
-                    }
+                if let Ok(cached) = self.portfolio.get_prices(&portfolio, sym, date, date)
+                    && let Some((_, close, _)) = cached.first()
+                {
+                    prices_at.insert(format!("{key_prefix}{sym}"), *close);
+                    continue;
                 }
                 // Fall back to API
-                match companies_get(
+                if let Ok(value) = companies_get(
                     &self.client,
                     "historical_price",
                     sym,
@@ -1179,21 +1179,14 @@ impl CompaniesServer {
                     &[("from", date), ("to", date)],
                 )
                 .await
+                    && let Some(days) = value.get("historical").and_then(|h| h.as_array())
+                    && let Some(day) = days.first()
+                    && let Some(close) = day
+                        .get("close")
+                        .or_else(|| day.get("adjClose"))
+                        .and_then(|v| v.as_f64())
                 {
-                    Ok(value) => {
-                        if let Some(days) = value.get("historical").and_then(|h| h.as_array())
-                            && let Some(day) = days.first()
-                        {
-                            if let Some(close) = day
-                                .get("close")
-                                .or_else(|| day.get("adjClose"))
-                                .and_then(|v| v.as_f64())
-                            {
-                                prices_at.insert(format!("{key_prefix}{sym}"), close);
-                            }
-                        }
-                    }
-                    Err(_) => {} // symbol may not have data for this date
+                    prices_at.insert(format!("{key_prefix}{sym}"), close);
                 }
             }
         }

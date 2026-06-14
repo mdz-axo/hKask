@@ -150,7 +150,6 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 | Tool | Description |
 |------|-------------|
-| `portfolio_create` | Create a new portfolio (also auto-created on import) |
 | `portfolio_delete` | Delete a portfolio and all associated data |
 | `portfolio_list` | List all portfolios |
 | `ledger_import` | Import transactions from CSV or JSON (auto-creates portfolio) |
@@ -165,6 +164,7 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 | `portfolio_attribution` | What moved the portfolio — position-level contribution ranking |
 | `portfolio_characteristics` | Weighted-average fundamentals across holdings |
 | `portfolio_comparison` | Side-by-side portfolio comparison |
+| `portfolio_returns` | Time-weighted (Modified Dietz) and money-weighted (IRR) returns |
 
 ---
 

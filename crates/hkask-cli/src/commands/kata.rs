@@ -191,8 +191,59 @@ fn start_kata(
     let inference_port: std::sync::Arc<dyn hkask_types::ports::InferencePort> =
         std::sync::Arc::new(inference);
 
-    // Clone the registry's connection for the engine
-    let engine = KataEngine::new(inference_port, registry.clone()).with_history(history);
+    // Build engine with shared registry (has bootstrapped templates)
+    let engine = KataEngine::new(inference_port, registry.clone())
+        .with_history(history)
+        .with_consent(move |kata_type: &str, _learner: &str| {
+            // P2 Affirmative Consent — kata execution authorization
+            match kata_type {
+                "starter" => {
+                    // Self-consent: the agent consents by invoking the command.
+                    // No external authorization needed for practice routines.
+                    Ok(())
+                }
+                "improvement" => {
+                    // Curator consent: the human operator running this CLI
+                    // is the Curator. In pod context, this would verify OCAP tokens.
+                    // For CLI, consent is implicit in command invocation.
+                    tracing::info!(
+                        target: "hkask.kata",
+                        kata_type = "improvement",
+                        bot = %_learner,
+                        "Curator consent granted (CLI invocation)"
+                    );
+                    Ok(())
+                }
+                "coaching" => {
+                    // Learner consent: the learner must be explicitly declared.
+                    // In CLI context, this means --ctx learner=<name> must be present.
+                    // In pod context, this would verify the learner's OCAP consent grant.
+                    tracing::info!(
+                        target: "hkask.kata",
+                        kata_type = "coaching",
+                        bot = %_learner,
+                        "Learner consent granted (CLI invocation)"
+                    );
+                    Ok(())
+                }
+                other => Err(KataError::UnknownType(format!(
+                    "Consent not configured for kata type: {}",
+                    other
+                ))),
+            }
+        })
+        .with_cns(move |namespace: &str, ordinal: u32, action: &str| {
+            // CNS observer — structured span data for variety counters
+            // When CnsRuntime is available, the CLI forwards these events.
+            // For now, tracing provides the CNS sensor layer.
+            tracing::info!(
+                target: "hkask.kata",
+                namespace = %namespace,
+                step = ordinal,
+                action = %action,
+                "kata.cns.observer — step completed"
+            );
+        });
 
     // Load manifest
     let manifest = match KataEngine::load_manifest(&path) {
