@@ -61,10 +61,9 @@ fn gentle_lovelace_centroids_exist_in_db() {
         );
 
         // Verify the centroid embedding is retrievable and has correct dimensions
-        let emb = store.get(centroid_ref).expect(&format!(
-            "Failed to get centroid embedding for {}",
-            dim_name
-        ));
+        let emb = store
+            .get(centroid_ref)
+            .unwrap_or_else(|_| panic!("Failed to get centroid embedding for {}", dim_name));
         assert_eq!(
             emb.vector.len(),
             1024,

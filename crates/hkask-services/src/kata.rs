@@ -368,7 +368,7 @@ impl KataHistory {
     /// Check if agent needs habit intervention (3+ days since last practice).
     pub fn needs_habit_intervention(&self, agent: &str, today: &str) -> bool {
         let days = self.days_since_last(agent, today);
-        days >= 3 && days < u32::MAX
+        (3..u32::MAX).contains(&days)
     }
 }
 
@@ -399,8 +399,8 @@ fn is_consecutive_day(earlier: &str, later: &str) -> bool {
         let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         let leap = (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
         let mut doy = d;
-        for i in 0..(m as usize - 1) {
-            doy += days_in_month[i];
+        for item in days_in_month.iter().take(m as usize - 1) {
+            doy += item;
         }
         if leap && m > 2 {
             doy += 1;
@@ -543,6 +543,14 @@ pub struct KataResult {
 
 // ── Engine ─────────────────────────────────────────────────────────────────
 
+/// Consent-checking callback.
+pub type ConsentCheckFn = Arc<dyn Fn(&str, &str) -> Result<(), KataError> + Send + Sync>;
+/// CNS observer callback.
+pub type CnsObserverFn = Arc<dyn Fn(&str, u32, &str) + Send + Sync>;
+/// Metric collection callback.
+pub type MetricCollectorFn =
+    Arc<dyn Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync>;
+
 /// Execution engine for kata manifests.
 ///
 /// Loads a manifest, walks its steps/questions/practices, renders templates,
@@ -553,17 +561,16 @@ pub struct KataEngine {
     registry: SqliteRegistry,
     /// Optional consent checker — called before kata execution.
     /// Receives (kata_type, learner_bot) and returns Ok(()) if consented.
-    consent_check: Option<Arc<dyn Fn(&str, &str) -> Result<(), KataError> + Send + Sync>>,
+    consent_check: Option<ConsentCheckFn>,
     /// Optional CNS observer — called after each step with (namespace, step_ordinal, action).
-    cns_observer: Option<Arc<dyn Fn(&str, u32, &str) + Send + Sync>>,
+    cns_observer: Option<CnsObserverFn>,
     /// Kata practice history for habit tracking and automaticity scoring.
     history: Option<KataHistory>,
     /// Optional SQLite-backed kata history store for concurrent, queryable persistence.
     history_store: Option<Arc<KataHistoryStore>>,
     /// Optional metric collector — called to capture CNS metrics before/after cycles.
     /// Receives (agent_name, metric_name) and returns the current metric value.
-    metric_collector:
-        Option<Arc<dyn Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync>>,
+    metric_collector: Option<MetricCollectorFn>,
     /// Optional CNS runtime for variety counter increments and algedonic alert checks.
     /// When present, replaces tracing-only spans with actual CNS state mutations.
     cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
@@ -1633,7 +1640,7 @@ mod tests {
             for entry in std::fs::read_dir(dir_path).unwrap() {
                 let entry = entry.unwrap();
                 let path = entry.path();
-                if path.extension().map_or(false, |e| e == "j2") {
+                if path.extension().is_some_and(|e| e == "j2") {
                     let content = std::fs::read_to_string(&path).unwrap();
                     assert!(
                         content.contains("{{ learner_bot }}"),

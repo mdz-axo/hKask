@@ -221,6 +221,21 @@ kask chat -f sample_ledger.csv -m qwen3:8b
 
 ---
 
+## Limitations & Roadmap
+
+**Current limitations:**
+- **Public securities only.** Only FMP/EODHD-listed securities are supported. Private investments (startups, real estate, collectibles, private equity) cannot be tracked.
+- **USD only.** Multi-currency support is deferred to Phase 5.
+- **Manual corporate actions.** Stock splits and mergers require manual adjustment via offsetting transactions.
+
+**Planned (see spec §10 for details):**
+- **Custom/private securities** (Phase 6) — user-defined symbols with manual pricing or proxy links to public securities
+- **Multi-currency support** (Phase 5) — exchange rate data and currency-aware returns
+- **Corporate actions** — automated split/spin-off/merger processing
+- **Tax lot accounting** — FIFO/LIFO/specific identification
+
+---
+
 ## Configuration
 
 | Variable | Required | Default | Purpose |

@@ -114,41 +114,41 @@ fn show_manifest(name: &str) {
         }
     }
 
-    if let Some(gas) = parsed.get("gas") {
-        if let Some(cap) = gas.get("cap") {
-            eprintln!("Gas cap: {}", cap.as_u64().unwrap_or(0));
+    if let Some(gas) = parsed.get("gas")
+        && let Some(cap) = gas.get("cap")
+    {
+        eprintln!("Gas cap: {}", cap.as_u64().unwrap_or(0));
+    }
+
+    if let Some(steps) = parsed.get("steps")
+        && let Some(arr) = steps.as_sequence()
+    {
+        eprintln!("Steps: {}", arr.len());
+        for (i, step) in arr.iter().enumerate() {
+            let action = step.get("action").and_then(|a| a.as_str()).unwrap_or("?");
+            let desc = step
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("?");
+            eprintln!("  {}. {} — {}", i + 1, action, desc);
         }
     }
 
-    if let Some(steps) = parsed.get("steps") {
-        if let Some(arr) = steps.as_sequence() {
-            eprintln!("Steps: {}", arr.len());
-            for (i, step) in arr.iter().enumerate() {
-                let action = step.get("action").and_then(|a| a.as_str()).unwrap_or("?");
-                let desc = step
-                    .get("description")
-                    .and_then(|d| d.as_str())
-                    .unwrap_or("?");
-                eprintln!("  {}. {} — {}", i + 1, action, desc);
+    if let Some(practices) = parsed.get("practices")
+        && let Some(arr) = practices.as_sequence()
+    {
+        eprintln!("Practices: {}", arr.len());
+        for p in arr {
+            if let Some(n) = p.get("name").and_then(|v| v.as_str()) {
+                eprintln!("  - {}", n);
             }
         }
     }
 
-    if let Some(practices) = parsed.get("practices") {
-        if let Some(arr) = practices.as_sequence() {
-            eprintln!("Practices: {}", arr.len());
-            for p in arr {
-                if let Some(n) = p.get("name").and_then(|v| v.as_str()) {
-                    eprintln!("  - {}", n);
-                }
-            }
-        }
-    }
-
-    if let Some(cns) = parsed.get("cns") {
-        if let Some(ns) = cns.get("span_namespace").and_then(|v| v.as_str()) {
-            eprintln!("CNS namespace: {}", ns);
-        }
+    if let Some(cns) = parsed.get("cns")
+        && let Some(ns) = cns.get("span_namespace").and_then(|v| v.as_str())
+    {
+        eprintln!("CNS namespace: {}", ns);
     }
 }
 
@@ -315,10 +315,10 @@ fn start_kata(
                     }
                 );
                 // Inject IK state reference for coaching grounding
-                if let Some(ref ik) = ik_state_ref {
-                    if state.ik_state_ref.is_none() {
-                        state.ik_state_ref = Some(ik.clone());
-                    }
+                if let Some(ref ik) = ik_state_ref
+                    && state.ik_state_ref.is_none()
+                {
+                    state.ik_state_ref = Some(ik.clone());
                 }
                 Some(state)
             }
@@ -330,8 +330,10 @@ fn start_kata(
     } else {
         // New state with optional IK grounding
         if let Some(ref ik) = ik_state_ref {
-            let mut state = hkask_services::KataState::default();
-            state.ik_state_ref = Some(ik.clone());
+            let state = hkask_services::KataState {
+                ik_state_ref: Some(ik.clone()),
+                ..Default::default()
+            };
             Some(state)
         } else {
             None

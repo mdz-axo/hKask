@@ -487,3 +487,43 @@ Sum of contributions equals the return from invested residuals. The difference b
 4. **Multi-portfolio:** Initial implementation is single-portfolio. Multi-portfolio aggregation (household, strategy sleeves) deferred.
 
 5. **Real-time pricing:** Initial implementation uses daily closing prices from historical data. Real-time intraday pricing via `stock_quote` deferred.
+
+6. **Custom/private securities:** Currently only supports publicly traded securities with data from FMP or EODHD. Private investments — startups, real estate, collectibles, private equity, unregistered securities — cannot be tracked alongside public holdings.
+
+   A custom security would be a user-defined journal entry with:
+   - Symbol (user-chosen identifier)
+   - Company name, description, URL to data resources
+   - User-managed pricing (manual entry or periodic upload)
+   - Optional links to external data sources for auto-pricing
+
+   This enables:
+   - Tracking private investments in the same ledger as public holdings
+   - Pure private portfolios for alternative asset tracking
+   - Hybrid portfolios mixing public + private for true total-wealth accounting
+
+   **Storage:** New `custom_securities` table in master DB:
+   ```sql
+   CREATE TABLE custom_securities (
+       id TEXT PRIMARY KEY,
+       portfolio_name TEXT NOT NULL,
+       symbol TEXT NOT NULL UNIQUE,
+       name TEXT,
+       description TEXT,
+       url TEXT,
+       pricing_mode TEXT DEFAULT 'manual',  -- 'manual' or 'linked'
+       linked_source TEXT,                   -- e.g., 'fmp:AAPL' to track private holding at AAPL's price
+       valuation_currency TEXT DEFAULT 'USD',
+       created_at TEXT NOT NULL,
+       FOREIGN KEY (portfolio_name) REFERENCES portfolios(name) ON DELETE CASCADE
+   );
+   ```
+
+   **Flow:**
+   1. User creates custom security with `security_create_custom` (portfolio, symbol, name, url, pricing_mode)
+   2. User adds buy/sell transactions with that symbol (same as public securities)
+   3. User periodically updates price via `security_update_price` (symbol, date, price) or uploads CSV
+   4. All portfolio analysis tools work unchanged — positions, returns, characteristics, attribution
+
+   **Tool surface (6 new tools):** `security_create_custom`, `security_list_custom`, `security_delete_custom`, `security_update_price`, `security_import_prices`, `security_link_public` (track private holding at public security's price for proxy valuation)
+
+   **Status:** Deferred to Phase 6. Depends on Phase 5 multi-currency for non-USD private holdings.
